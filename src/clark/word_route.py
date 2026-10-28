@@ -211,7 +211,7 @@ def _apply(store, who, req, project, clock):
         raise Refused(EXPIRED, 410, "expired")
     plan, file = held["plan"], held["file"]
     for item in plan.items:
-        item.state = "clean"
+        item.state = "waiting"
     if accept == "all":
         plan.accept_all()
     else:
