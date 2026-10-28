@@ -18,9 +18,13 @@ const BEHIND = ["#main", ".top"];                                    // made ine
 export function AddDialog() {
   const [open, setOpen] = useState(null);                           // null, or { after, opener }
   useEffect(() => {
-    const on = (e) => { if (mode.value === "edit") setOpen({ after: e.detail && e.detail.after !== undefined ? e.detail.after : null, opener: (e.detail && e.detail.opener) || null }); };
-    window.addEventListener(ADD_SECTION_EVENT, on);
-    return () => window.removeEventListener(ADD_SECTION_EVENT, on);
+    const on = (e) => {
+      if (mode.value !== "edit") return;                              // View has no box: leave the request unclaimed
+      e.preventDefault();                                             // claim it, so the sender does not say it is unavailable
+      setOpen({ after: e.detail && e.detail.after !== undefined ? e.detail.after : null, opener: (e.detail && e.detail.opener) || null });
+    };
+    document.addEventListener(ADD_SECTION_EVENT, on);
+    return () => document.removeEventListener(ADD_SECTION_EVENT, on);
   }, []);
   if (mode.value !== "edit" || !open) return null;
   return <Box key="box" after={open.after} opener={open.opener} onClose={() => setOpen(null)} />;

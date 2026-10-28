@@ -163,7 +163,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t(f"plan({lit(S)}, 'text', 'zz', false)")["message"], "That section isn't in the report any more. Reload the page.")
 
 
-OPEN = "window.dispatchEvent(new CustomEvent('clark:add-section', {detail: {after: %s, opener: document.activeElement}}))"
+OPEN = "document.dispatchEvent(new CustomEvent('clark:add-section', {detail: {after: %s, opener: document.activeElement}, cancelable: true, bubbles: true}))"
 
 
 class Box(Base):
@@ -190,6 +190,23 @@ class Box(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
                              ["All templates10", "Text and pictures2", "Figures2", "Work items3", "Files and links1", "People and dates1", "Notes1"])
             self.assertEqual(self.sent, [], "opening sends nothing")
+
+    def test_it_takes_the_event_exactly_as_the_gutter_sends_it(self):
+        """The contract with #101: a cancelable event on the document, detail {after, opener}; the box claims it and opens."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            send = ("(function(){var b=document.querySelector('[data-id=\"ABC-S-003\"] [data-drag]');"
+                    "var e=new CustomEvent('clark:add-section',{detail:{after:'ABC-S-003',opener:b},cancelable:true,bubbles:true});"
+                    "document.dispatchEvent(e);return e.defaultPrevented;})()")
+            self.assertTrue(p.js(send), "the box claimed the request")
+            p.until("!!document.querySelector('[role=dialog]') && document.activeElement.matches('input[type=search]')", "the box opened")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('[role=dialog]')", "Esc closed it")
+            self.assertTrue(p.js("document.activeElement.matches('[data-id=\"ABC-S-003\"] [data-drag]')"), "focus went back to the opener")
+            self.assertTrue(p.js("(function(){var e=new CustomEvent('clark:add-section',{detail:{after:null,opener:null},cancelable:true,bubbles:true});"
+                                 "var seen=false;window.addEventListener('clark:add-section',function(){seen=true;},{once:true});"
+                                 "document.dispatchEvent(e);return seen && e.defaultPrevented;})()"), "it also reaches window by bubbling")
 
     def test_escape_and_cancel_close_it_and_give_focus_back(self):
         with chrome() as cdp:
