@@ -15,20 +15,28 @@ Import, in three ops of one route:
   fingerprints only, never any text) so the same content is not added twice.
 - "undo": reverses one Word import step, and only a Word import step.
 
-Export: see the second half of this file.
+Export (POST /api/word-export): the report's published rows (publish.select, so only what is published) become a Word file
+(docx_build) named {CODE}-report-{date}.docx. It is written to the project's report folder (the one last published to, else one
+the person chooses in the system's own dialog; the request never names a folder or a file) with platform.write_file, read back
+and compared. A name that is taken asks first (nothing is written until the person says Add a number, Replace it or Cancel).
+Only "to_client": true also copies it into the client folder saved in Settings (checked first, with to_client.preflight, before
+anything is written; a name taken there is always given a number, never replaced); a copy that does not match is taken back.
+One publications row (word 1, the file's SHA-256) records it, with the client copy's path when there is a verified one.
 
 Every message is plain words (no file-format terms), "clark" in lower case and never first. Standard library only, Python 3.9.
 """
 import base64
 import binascii
+import hashlib
 import json
+import os
 import re
 import secrets
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from clark import docx_read, excel_import, milestones, platform, word_import
+from clark import docx_build, docx_read, excel_import, milestones, platform, publish, to_client, word_import
 from clark import store as clark_store
 from clark.changes import Refused, _call, _shown
 from clark.store import Invalid
@@ -278,3 +286,227 @@ def make_word_import(path, onedrive_roots=None, by_user=None, today=None, clock=
     def word_import_seam(req):
         return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_import(store, who, r, today, clock), req)
     return word_import_seam
+
+
+# ── The export ────────────────────────────────────────────────────────────────
+
+EXPORT_KEYS = ("project", "to_client", "on_clash", "confirmed")
+CLASHES = ("number", "overwrite", "cancel")
+CHOOSE_FOLDER = "Choose the folder for the Word report"
+
+BAD_FLAG = "That must be true or false."
+BAD_CLASH = "That isn't a choice clark offers. Choose Add a number, Replace it or Cancel."
+NO_CLIENT_FOLDER = "No client folder yet. Set it in Settings."
+OVERWRITE_UNCONFIRMED = "Replacing a file needs your confirmation, and the request didn't carry it. Nothing was saved."
+NAME_TAKEN = "A file called “{name}” is already in {where}. Nothing was saved yet."
+APPEARED = "A file called “{name}” appeared in {where} while clark was working. Nothing was saved; try again to choose what to do."
+FOLDER_GONE = "The folder “{name}” isn't there, or clark can't write to it. Check it, or choose another folder."
+FOLDER_DATA = "That folder is inside clark's own data folder. Choose a folder for reports."
+NOT_SAVED = "{name} could not be saved ({reason}). If it is open in Word, close it and try again. Nothing was written."
+NOT_AS_MADE = "{name} was not saved as it was made (the folder may be syncing), so it was taken back. Try again."
+NOT_AS_MADE_REPLACED = "{name} was replaced, but what was saved did not match what clark made (the folder may be syncing). Save it again."
+SAVED = "Saved “{name}” in {folder}."
+SAVED_CLIENT = " It was also copied to the client folder as “{name}”. OneDrive uploads it from there; clark can't see when that finishes."
+CLIENT_FAILED = " It was not copied to the client folder: {reason} Nothing was added to the client folder."
+NOT_RECORDED_FILE = " The file is fine, but clark could not record it ({reason}); save it again to record it."
+CANCELLED = "Cancelled. Nothing was saved."
+
+
+class _ReadFs:
+    """The facts about a folder that to_client.preflight asks for. It reads and never writes."""
+
+    def exists(self, path):
+        return os.path.exists(path)
+
+    def is_dir(self, path):
+        return os.path.isdir(path)
+
+    def writable(self, path):
+        return os.access(path, os.W_OK | os.X_OK)
+
+    def realpath(self, path):
+        return os.path.realpath(path)
+
+
+def _names_in(folder):
+    """{name in lower case: is a folder} for what is in `folder`."""
+    with os.scandir(folder) as it:
+        return {e.name.lower(): e.is_dir() for e in it}
+
+
+def _export_shape(req):
+    if not isinstance(req, dict):
+        raise Refused(NOT_JSON_OBJECT)
+    for k in req:
+        if k not in EXPORT_KEYS:
+            raise Refused(f"That request has something that is not allowed: '{_shown(k)}'. clark chooses the folders itself.")
+    project = req.get("project")
+    if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
+        raise Refused("Use a project code of 3 to 7 capital letters or digits.", code="bad_project_code")
+    for flag in ("to_client", "confirmed"):
+        if flag in req and not isinstance(req[flag], bool):
+            raise Refused(BAD_FLAG)
+    clash = req.get("on_clash")
+    if clash is not None and (not isinstance(clash, str) or clash not in CLASHES):
+        raise Refused(BAD_CLASH)
+    if clash == "overwrite" and req.get("confirmed") is not True:
+        raise Refused(OVERWRITE_UNCONFIRMED)
+    return project, req.get("to_client", False), clash
+
+
+def _usable_local(folder):
+    """The folder as a Path if clark may save a report there, else None."""
+    try:
+        path = Path(folder)
+        ok = path.is_absolute() and path.is_dir() and os.access(path, os.W_OK | os.X_OK)
+    except (OSError, ValueError):
+        return None
+    return path if ok else None
+
+
+def _outside_data(path, data):
+    """Whether `path` is neither clark's data folder `data` nor inside it nor holding it."""
+    data = Path(data).resolve()
+    here = Path(path).resolve()
+    return not (here == data or data in here.parents or here in data.parents)
+
+
+def _verified(dest, digest):
+    try:
+        return hashlib.sha256(dest.read_bytes()).hexdigest() == digest
+    except OSError:
+        return False
+
+
+def _write_new(dest, data):
+    """True if written as a new file; False if the name was taken at the last moment (nothing is replaced)."""
+    return platform.write_file_unless_exists(dest, data)
+
+
+def _take_back(dest):
+    try:
+        dest.unlink()
+    except OSError:
+        pass
+
+
+def _do_export(store, who, req, today, chosen, roots):
+    code, want_client, clash = _export_shape(req)
+    row = store.read("projects", ref=code)
+    if row is None:
+        raise Refused("There is no project with that code. Check the code in the address, or choose a project from the list.",
+                      404, "project_not_found")
+    as_at = today()
+    try:
+        published = publish.select(publish.read_inputs(store, code, as_at))
+        data = docx_build.build(published)
+    except (publish.PublishError, docx_build.WordError) as e:
+        raise Refused(str(e)) from None
+    digest = hashlib.sha256(data).hexdigest()
+    week = published["data"]["project"]["week_ending"]
+    local = _usable_local(chosen) if chosen else _usable_local(store.last_publish_folder(code) or "")
+    if local is None:
+        if chosen:
+            raise Refused(FOLDER_GONE.format(name=Path(chosen).name or str(chosen)), 400, "folder_gone")
+        raise Refused(CHOOSE_FOLDER + ".", 409, "needs_folder")
+    if not _outside_data(local, Path(store.path).parent):
+        raise Refused(FOLDER_DATA, 400, "folder_data")
+    client = None
+    if want_client:
+        saved = row.get("publish_client")
+        if not saved:
+            raise Refused(NO_CLIENT_FOLDER, 400, "no_client_folder")
+        checked = to_client.preflight(_ReadFs(), saved, data_dir=str(Path(store.path).parent), onedrive_roots=roots,
+                                     local_folder=str(local))
+        if not checked["ok"]:
+            raise Refused(checked["message"] + " Nothing was saved.", 400, "client_folder")
+        client = Path(checked["folder"])
+    try:
+        listing = {"here": _names_in(local), **({"client": _names_in(client)} if client else {})}
+    except OSError as e:
+        raise Refused(NOT_SAVED.format(name="The report", reason=e.strerror or "the folder can't be read"), 400, "not_saved") from None
+    wanted = {"here": docx_build.file_name(code, week, as_at, local), **({"client": docx_build.file_name(code, week, as_at, client)}
+                                                                          if client else {})}
+    where = {"here": f"“{local.name or local}”", "client": "the client folder"}
+    taken = {k: n for k, n in wanted.items() if n.lower() in listing[k]}
+    if clash == "cancel":
+        return 200, {"ok": True, "cancelled": True, "message": CANCELLED}
+    if taken and clash is None:
+        names = " ".join(NAME_TAKEN.format(name=n, where=where[k]) for k, n in taken.items())
+        return 409, {"ok": False, "code": "name_taken", "message": names + " Add a number, replace it, or cancel.",
+                     "taken": taken, "choices": ["number", "overwrite", "cancel"] if "here" in taken else ["number", "cancel"],
+                     "can_replace": "here" in taken and not listing["here"][taken["here"].lower()]}
+    names, replace = dict(wanted), False
+    for k, n in taken.items():
+        if clash == "overwrite" and k == "here":
+            if listing["here"][n.lower()]:
+                raise Refused(f"“{n}” is a folder, so it can't be replaced. Add a number instead.", 400, "folder_has_name")
+            replace = True
+        else:
+            names[k] = to_client.numbered_name(n, list(listing[k]), local if k == "here" else client)
+    dest = local / names["here"]
+    try:
+        if replace:
+            platform.write_file(dest, data)
+        elif not _write_new(dest, data):
+            raise Refused(APPEARED.format(name=dest.name, where=where["here"]), 409, "name_appeared")
+    except (OSError, platform.PlatformError) as e:
+        raise Refused(NOT_SAVED.format(name=dest.name, reason=getattr(e, "strerror", None) or str(e)), 503, "not_saved") from None
+    if not _verified(dest, digest):
+        if replace:
+            raise Refused(NOT_AS_MADE_REPLACED.format(name=dest.name), 500, "not_as_made")
+        _take_back(dest)
+        raise Refused(NOT_AS_MADE.format(name=dest.name), 500, "not_as_made")
+    words, copy, failed = SAVED.format(name=dest.name, folder=where["here"]), None, ""
+    if client:
+        target = client / names["client"]
+        try:
+            if not _write_new(target, data):
+                failed = APPEARED.format(name=target.name, where=where["client"])
+            elif not _verified(target, digest):
+                _take_back(target)
+                failed = "what was copied did not match the report, so it was taken back."
+            else:
+                copy = target
+        except (OSError, platform.PlatformError) as e:
+            failed = f"{getattr(e, 'strerror', None) or e}."
+        words += SAVED_CLIENT.format(name=names["client"]) if copy else CLIENT_FAILED.format(reason=failed)
+    seq = None
+    try:
+        seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)
+    except Invalid as e:
+        words += NOT_RECORDED_FILE.format(reason=str(e))
+    return 200, {"ok": True, "path": str(dest), "name": dest.name, "sha256": digest, "bytes": len(data), "seq": seq,
+                 "client_name": copy.name if copy else None, "client_failed": bool(failed), "message": words}
+
+
+def make_word_export(path, onedrive_roots=None, by_user=None, today=None, choose_folder=None):
+    """The `word_export` seam the server calls for POST /api/word-export, for the database at `path`. When the project has no
+    folder to save in yet, the seam asks `choose_folder(prompt)` (default: the system's folder dialog) with no lock held; it
+    returns a folder or None for Cancel. `today` and `choose_folder` are seams for tests."""
+    today = today or milestones.today
+    ask = choose_folder or (lambda prompt: platform.choose_folder(prompt))
+
+    def run(req, chosen):
+        roots = onedrive_roots if onedrive_roots is not None else _safe_roots()
+        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_export(store, who, r, today, chosen, roots), req)
+
+    def word_export_seam(req):
+        status, body = run(req, None)
+        if body.get("code") != "needs_folder":
+            return status, body
+        try:
+            folder = ask(CHOOSE_FOLDER)
+        except platform.PlatformError as e:
+            return 503, {"ok": False, "message": str(e), "code": "no_dialog"}
+        if not folder:
+            return 200, {"ok": True, "cancelled": True, "message": CANCELLED}
+        return run(req, folder)
+    return word_export_seam
+
+
+def _safe_roots():
+    try:
+        return platform.onedrive_roots()
+    except platform.PlatformError:
+        return []

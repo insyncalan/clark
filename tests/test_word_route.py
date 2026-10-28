@@ -7,14 +7,19 @@ removed; the same content twice makes the items once (and again after an Undo); 
 back with nothing written; a hostile file, a wrong request and an old plan are refused in plain words; no message has jargon.
 """
 import base64
+import hashlib
 import json
+import os
 import re
+import tempfile
+import shutil
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _demo import DemoStore
 from _paths import SRC
-from clark import history, word_route
+from clark import docx_read, history, platform, word_route
 from test_docx_read import P, TBL, TR, docx
 
 USER = "Dana Ellis"
@@ -286,19 +291,252 @@ class WhatTheModuleCanDo(unittest.TestCase):
     SRC = (SRC / "clark" / "word_route.py").read_text(encoding="utf-8")
 
     def test_it_never_changes_cancels_or_deletes_an_item(self):
-        for word in (".cancel(", ".update(", "DELETE", "unlink", "os.remove", "rmtree"):
-            self.assertNotIn(word, self.SRC.replace("store.undo(step, who)", ""), word)
+        text = self.SRC.replace("store.undo(step, who)", "")
+        for word in (".cancel(", ".update(", "DELETE", "os.remove", "rmtree"):
+            self.assertEqual(text.find(word), -1, word)
+
+    def test_the_only_file_it_removes_is_the_copy_it_has_just_made_that_did_not_match(self):
+        self.assertEqual(self.SRC.count(".unlink("), 1)
+        body = self.SRC[self.SRC.index("def _take_back"):self.SRC.index("def _do_export")]
+        self.assertIn(".unlink(", body)
+        calls = re.findall(r"(?<!def )_take_back\((\w+)\)", self.SRC)
+        self.assertEqual(calls, ["dest", "target"], "only after a copy it wrote itself failed to read back right")
 
     def test_it_writes_only_the_one_record_file_and_through_platform(self):
-        self.assertEqual(re.findall(r"platform\.write_file\(([^,]+),", self.SRC), ["state_path(store)"])
+        self.assertEqual(re.findall(r"platform\.write_file\(([^,]+),", self.SRC), ["state_path(store)", "dest"])
         self.assertNotRegex(self.SRC, r"open\(|subprocess|socket|urllib")
 
     def test_its_words_are_plain(self):
         for name in ("NOT_JSON_OBJECT", "BAD_OP", "NO_FILE", "BAD_NAME", "BAD_FILE", "EXPIRED", "BAD_ACCEPT", "NOTHING_ACCEPTED",
-                     "NO_UNDO", "UNDONE", "NOT_RECORDED", "ALL_SEEN", "SOME_SEEN"):
+                     "NO_UNDO", "UNDONE", "NOT_RECORDED", "ALL_SEEN", "SOME_SEEN", "CHOOSE_FOLDER", "BAD_FLAG", "BAD_CLASH",
+                     "NO_CLIENT_FOLDER", "OVERWRITE_UNCONFIRMED", "NAME_TAKEN", "APPEARED", "FOLDER_GONE", "FOLDER_DATA", "NOT_SAVED",
+                     "NOT_AS_MADE", "NOT_AS_MADE_REPLACED", "SAVED", "SAVED_CLIENT", "CLIENT_FAILED", "NOT_RECORDED_FILE", "CANCELLED"):
             text = getattr(word_route, name)
             self.assertNotRegex(text, JARGON, name)
             self.assertFalse(text.lower().startswith("clark"), name)
+
+
+class Export(unittest.TestCase):
+    """POST /api/word-export's logic on a real store with real temporary folders."""
+
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.store = self.demo.store
+        self.tmp = Path(tempfile.mkdtemp(prefix="clark-word-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.local, self.client = self.tmp / "Reports", self.tmp / "Client"
+        self.local.mkdir()
+        self.client.mkdir()
+        self.asked = []
+        self.seam = word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=self.choose)
+        self.name = "ABC-report-2026-10-29.docx"
+
+    def choose(self, prompt):
+        self.asked.append(prompt)
+        return str(self.local)
+
+    def post(self, **req):
+        req.setdefault("project", "ABC")
+        return self.seam(req)
+
+    def save_client_folder(self, folder=None):
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"publish_client": str(folder or self.client)})
+
+    def publications(self):
+        return [dict(r) for r in self.store.con.execute("SELECT * FROM publications ORDER BY seq")]
+
+    def files(self, folder):
+        return sorted(p.name for p in folder.iterdir())
+
+    def test_a_first_export_asks_for_a_folder_writes_the_file_reads_it_back_and_records_it(self):
+        status, got = self.post()
+        self.assertEqual((status, got["ok"], got["name"], self.asked), (200, True, self.name, [word_route.CHOOSE_FOLDER]), got)
+        data = (self.local / self.name).read_bytes()
+        self.assertEqual(hashlib.sha256(data).hexdigest(), got["sha256"])
+        self.assertEqual(self.files(self.local), [self.name], "no temporary file is left")
+        read = docx_read.read(data, self.name)
+        self.assertIn("Example Programme", json.dumps(read.blocks))
+        row, = self.publications()
+        self.assertEqual((row["word"], row["file_sha256"], row["local_path"], row["client_path"], row["by_user"], row["project"]),
+                         (1, got["sha256"], str(self.local / self.name), None, USER, "ABC"))
+        self.assertEqual(self.files(self.client), [])
+
+    def test_the_folder_is_remembered_and_the_dialog_is_not_asked_again(self):
+        self.post()
+        self.post(on_clash="number")
+        self.assertEqual(len(self.asked), 1)
+
+    def test_a_cancelled_folder_dialog_saves_nothing(self):
+        seam = word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=lambda p: None)
+        status, got = seam({"project": "ABC"})
+        self.assertEqual((status, got.get("cancelled")), (200, True))
+        self.assertEqual((self.files(self.local), self.publications()), ([], []))
+
+    def test_the_dialog_runs_without_the_one_lock_held(self):
+        from clark import changes
+
+        def choose(prompt):
+            self.assertTrue(changes.LOCK.acquire(blocking=False), "the lock is free while the person chooses")
+            changes.LOCK.release()
+            return str(self.local)
+        word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=choose)({"project": "ABC"})
+
+    def test_a_taken_name_asks_first_and_writes_nothing_until_answered(self):
+        self.post()
+        before = (self.files(self.local), len(self.publications()))
+        status, got = self.post()
+        self.assertEqual((status, got["code"], got["taken"], got["choices"]), (409, "name_taken", {"here": self.name},
+                                                                               ["number", "overwrite", "cancel"]))
+        self.assertIn(self.name, got["message"])
+        self.assertEqual((self.files(self.local), len(self.publications())), before)
+
+    def test_add_a_number_keeps_the_old_file(self):
+        self.post()
+        old = (self.local / self.name).read_bytes()
+        status, got = self.post(on_clash="number")
+        self.assertEqual((status, got["name"]), (200, "ABC-report-2026-10-29 (2).docx"))
+        self.assertEqual((self.local / self.name).read_bytes(), old)
+        self.assertEqual(len(self.publications()), 2)
+
+    def test_replace_needs_the_confirmed_flag_itself(self):
+        self.post()
+        (self.local / self.name).write_bytes(b"edited by hand")
+        for confirmed in (None, False, "true", 1):
+            extra = {} if confirmed is None else {"confirmed": confirmed}
+            status, got = self.post(on_clash="overwrite", **extra)
+            self.assertEqual(status, 400, confirmed)
+        self.assertEqual((self.local / self.name).read_bytes(), b"edited by hand")
+        status, got = self.post(on_clash="overwrite", confirmed=True)
+        self.assertEqual((status, got["name"]), (200, self.name))
+        self.assertEqual(hashlib.sha256((self.local / self.name).read_bytes()).hexdigest(), got["sha256"])
+
+    def test_cancel_saves_nothing(self):
+        self.post()
+        status, got = self.post(on_clash="cancel")
+        self.assertEqual((status, got["cancelled"], self.files(self.local), len(self.publications())), (200, True, [self.name], 1))
+
+    def test_a_folder_with_the_name_is_never_replaced(self):
+        (self.local / self.name).mkdir()
+        self.post()                                                  # remembers nothing: no row yet, so the dialog gives the folder
+        status, got = self.post(on_clash="overwrite", confirmed=True)
+        self.assertEqual((status, got["code"]), (400, "folder_has_name"))
+        self.assertEqual(list((self.local / self.name).iterdir()), [])
+
+    def test_the_client_folder_is_untouched_unless_to_client_is_ticked(self):
+        self.save_client_folder()
+        self.post()
+        self.post(to_client=False, on_clash="number")
+        self.assertEqual(self.files(self.client), [])
+
+    def test_to_client_copies_the_same_bytes_and_records_the_copy(self):
+        self.save_client_folder()
+        status, got = self.post(to_client=True)
+        self.assertEqual((status, got["client_name"], got["client_failed"]), (200, self.name, False), got)
+        self.assertEqual((self.client / self.name).read_bytes(), (self.local / self.name).read_bytes())
+        self.assertEqual(self.files(self.client), [self.name], "no temporary file is left")
+        row, = self.publications()
+        self.assertEqual((row["word"], row["client_path"], row["file_sha256"]), (1, str(self.client / self.name), got["sha256"]))
+        self.assertIn("also copied to the client folder", got["message"])
+
+    def test_to_client_with_no_client_folder_or_a_bad_one_saves_nothing_anywhere(self):
+        status, got = self.post(to_client=True)
+        self.assertEqual((status, got["message"]), (400, word_route.NO_CLIENT_FOLDER))
+        for bad in (self.tmp / "gone", Path(self.store.path).parent, self.local):
+            self.save_client_folder(bad)
+            status, got = self.post(to_client=True)
+            self.assertEqual((status, got["code"]), (400, "client_folder"), bad)
+            self.assertTrue(got["message"].endswith("Nothing was saved."))
+        self.assertEqual((self.files(self.local), self.publications()), ([], []))
+
+    def test_a_name_taken_in_the_client_folder_asks_and_is_then_numbered_never_replaced(self):
+        self.save_client_folder()
+        (self.client / self.name).write_bytes(b"the client's own")
+        status, got = self.post(to_client=True)
+        self.assertEqual((status, got["taken"], got["choices"]), (409, {"client": self.name}, ["number", "cancel"]))
+        self.assertEqual(self.files(self.local), [])
+        status, got = self.post(to_client=True, on_clash="number")
+        self.assertEqual((status, got["client_name"]), (200, "ABC-report-2026-10-29 (2).docx"))
+        self.assertEqual((self.client / self.name).read_bytes(), b"the client's own")
+        self.post(to_client=True, on_clash="overwrite", confirmed=True)       # replace is for the local file only
+        self.assertEqual((self.client / self.name).read_bytes(), b"the client's own")
+
+    def test_a_client_copy_that_does_not_match_is_taken_back_and_the_local_file_stays(self):
+        self.save_client_folder()
+        real = word_route._verified
+        with mock.patch.object(word_route, "_verified", lambda dest, digest: real(dest, digest) if dest.parent == self.local else False):
+            status, got = self.post(to_client=True)
+        self.assertEqual((status, got["client_failed"], got["client_name"]), (200, True, None))
+        self.assertIn("It was not copied to the client folder", got["message"])
+        self.assertEqual((self.files(self.local), self.files(self.client)), ([self.name], []))
+        self.assertIsNone(self.publications()[0]["client_path"])
+
+    def test_a_local_file_that_does_not_match_is_taken_back_and_nothing_is_recorded(self):
+        self.post()                                                 # remember the folder
+        for row in self.publications():
+            pass
+        os.unlink(self.local / self.name)
+        self.store.con.execute("DELETE FROM publications")
+        with mock.patch.object(word_route, "_verified", lambda dest, digest: False):
+            status, got = self.post()
+        self.assertEqual((status, got["code"]), (500, "not_as_made"))
+        self.assertEqual(self.files(self.local), [])
+
+    def test_a_file_that_cannot_be_written_says_so_in_plain_words_and_records_nothing(self):
+        self.post()
+        self.store.con.execute("DELETE FROM publications")
+        os.unlink(self.local / self.name)
+        err = platform.PlatformError("clark couldn't save the file because another program is using it")
+        with mock.patch.object(platform, "write_file_unless_exists", side_effect=err):
+            status, got = self.post()
+        self.assertEqual((status, got["code"]), (503, "not_saved"))
+        self.assertIn("Nothing was written.", got["message"])
+        self.assertEqual(self.publications(), [])
+
+    def test_a_publication_that_cannot_be_recorded_is_said_and_the_file_stands(self):
+        with mock.patch.object(type(self.store), "log_publication", side_effect=word_route.Invalid("busy")):
+            status, got = self.post()
+        self.assertEqual((status, got["seq"]), (200, None))
+        self.assertIn("could not record it", got["message"])
+        self.assertTrue((self.local / self.name).is_file())
+
+    def test_a_request_never_names_a_folder_or_a_file(self):
+        for key in ("folder", "path", "file", "name", "client_folder", "local_path", "dest"):
+            status, got = self.post(**{key: str(self.tmp / "elsewhere")})
+            self.assertEqual(status, 400, key)
+            self.assertIn("not allowed", got["message"])
+        self.assertEqual((self.files(self.local), self.files(self.tmp)), ([], ["Client", "Reports"]))
+
+    def test_other_bad_requests_are_refused_in_plain_words(self):
+        for req, words in (({"to_client": "yes"}, word_route.BAD_FLAG), ({"confirmed": 1}, word_route.BAD_FLAG),
+                           ({"on_clash": "erase"}, word_route.BAD_CLASH), ({"on_clash": 5}, word_route.BAD_CLASH),
+                           ({"project": "abc"}, "project code"), ({"project": None}, "project code")):
+            status, got = self.post(**req)
+            self.assertEqual(status, 400, req)
+            self.assertIn(words, got["message"])
+        self.assertEqual(self.post(project="NOPE")[1]["code"], "project_not_found")
+        self.assertEqual(self.seam([])[1]["message"], word_route.NOT_JSON_OBJECT)
+
+    def test_a_chosen_folder_inside_clarks_own_data_is_refused(self):
+        seam = word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY,
+                                           choose_folder=lambda p: str(Path(self.store.path).parent))
+        status, got = seam({"project": "ABC"})
+        self.assertEqual((status, got["code"]), (400, "folder_data"))
+        seam = word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=lambda p: str(self.tmp / "gone"))
+        self.assertEqual(seam({"project": "ABC"})[1]["code"], "folder_gone")
+
+    def test_a_long_folder_still_gets_a_name_that_is_safe_on_windows(self):
+        deep = self.local
+        for part in ("a" * 40, "b" * 40, "c" * 40, "d" * 40):
+            deep = deep / part
+        deep.mkdir(parents=True)
+        seam = word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=lambda p: str(deep))
+        status, got = seam({"project": "ABC"})
+        self.assertEqual(status, 200, got)
+        self.assertEqual(platform.safe_name(got["name"], deep), got["name"])
+        self.assertLess(len(got["path"]), platform.MAX_PATH)
+        self.assertTrue(got["name"].endswith(".docx"))
 
 
 if __name__ == "__main__":
