@@ -114,8 +114,8 @@ TITLE_LIMIT = 120                                                        # a sec
 CANCEL_CHANGES = {"actions": {"status": "Cancelled"}, "raid": {"status": "Cancelled"}, "projects": {"active": 0},
                   "workstreams": {"status": "Closed"}}
 
-# clark: a step's route, as item_events records it (data-model.md), and the vias it is written with.
-ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate")
+# clark: a step's route, as item_events records it (data-model.md), and the vias it is written with. "word" (#48, Head ruling Q4): a Word import.
+ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate", "word")
 PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board")      # + board (#126)
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
@@ -1987,19 +1987,23 @@ class Store:
         finally:
             con.close()
 
-    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None):
+    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0):
         """Record one published file: a `publications` row with the file's SHA-256, and nothing else. No change_log,
         no step and no write to any other table: a publication is a record of a file, not an edit (#39; Head ruling,
         28-10-2026), so Undo never meets it. The folder to offer next time is read back from the latest publication
         (`last_publish_folder`), not kept as a field of the project. `client_path` (#43) is the verified copy in the client
         folder, given only when To client was ticked and the copy read back with the same SHA-256; it is the same file, so it
-        is never the Local path. Returns the publication's number."""
+        is never the Local path. `word` is 1 for a Word report (#48, Head ruling Q2: one row for the Word file, with its own SHA-256, beside the web page's). Returns the publication's number."""
         if not str(by_user or "").strip():
             raise Invalid("a publication needs who made it (by_user)")
         if not re.fullmatch(r"[0-9a-f]{64}", str(sha256 or "")):
             raise Invalid("a publication needs the file's SHA-256")
         if not Path(str(path)).is_absolute():
             raise Invalid("a publication needs the file's full path")
+        if type(word) is not int or word not in (0, 1):
+            raise Invalid("a publication's word must be 0 or 1")
+        if client_path is not None and not Path(str(client_path)).is_absolute():
+            raise Invalid("a publication needs the client copy's full path")
         if week_ending is not None:
             try:
                 if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(week_ending)):
@@ -2023,8 +2027,8 @@ class Store:
                 raise Invalid(f"project {code} isn't here")
             cur = self.con.execute(
                 "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user) "
-                "VALUES (?, ?, ?, ?, 0, ?, 'not needed', ?)",
-                (code, week_ending, str(path), None if client_path is None else str(client_path), sha256, str(by_user).strip()))
+                "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?)",
+                (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip()))
             self.con.execute("COMMIT")
             return cur.lastrowid
         except BaseException:
