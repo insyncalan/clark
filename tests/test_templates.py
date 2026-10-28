@@ -167,7 +167,7 @@ OPEN = "document.dispatchEvent(new CustomEvent('clark:add-section', {detail: {af
 
 
 class Box(Base):
-    def open(self, p, after, focus=None):
+    def open_box(self, p, after, focus=None):
         if focus:
             p.js(f"document.querySelector({json.dumps(focus)}).focus()")
         p.js(OPEN % json.dumps(after))
@@ -179,7 +179,7 @@ class Box(Base):
             p.js(OPEN % '"ABC-S-003"')
             self.assertFalse(p.js("!!document.querySelector('[role=dialog]')"), "View: the event does nothing")
             p.edit()
-            self.open(p, "ABC-S-003")
+            self.open_box(p, "ABC-S-003")
             self.assertTrue(p.js("document.activeElement.matches('input[type=search]')"), "focus starts in the search box")
             d = "document.querySelector('[role=dialog]')"
             self.assertEqual(p.js(f"{d}.getAttribute('aria-modal')"), "true")
@@ -212,12 +212,12 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
+            self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('[role=dialog]')", "Esc closed it")
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]') && document.activeElement.closest('.sec').dataset.id === 'ABC-S-003'"), 5), "focus is back on the opener")
             self.assertFalse(p.js("document.querySelector('#main').hasAttribute('inert')"), "the page is reachable again")
-            self.open(p, "ABC-S-004", focus='[data-id="ABC-S-004"] [data-options]')
+            self.open_box(p, "ABC-S-004", focus='[data-id="ABC-S-004"] [data-options]')
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("!document.querySelector('[role=dialog]')", "Cancel closed it")
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-options]')"), 5))
@@ -227,7 +227,7 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open(p, "ABC-S-003")
+            self.open_box(p, "ABC-S-003")
             seen = set()
             for _ in range(40):
                 p.key("Tab", code="Tab", vk=9)
@@ -242,7 +242,7 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open(p, "ABC-S-003")
+            self.open_box(p, "ABC-S-003")
             p.type("key")
             p.until("document.querySelectorAll('[data-template]').length === 3", "the search narrowed the list")
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["3", "0", "2", "0", "0", "1", "0"])
@@ -267,7 +267,7 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open(p, "ABC-S-003")
+            self.open_box(p, "ABC-S-003")
             self.assertEqual(p.js("[...document.querySelectorAll('input[name=template]')].filter(i => !i.disabled).map(i => i.value)"), ["text"])
             self.assertIn("Coming with a later release.", p.js("document.querySelector('[data-template=callout]').textContent"))
             p.js("document.querySelector('[data-kind=notes]').click()")
@@ -281,7 +281,7 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open(p, "ABC-S-003")
+            self.open_box(p, "ABC-S-003")
             self.assertTrue(p.js("document.querySelector('input[name=template]:checked').value === 'text'"), "the first usable template is chosen")
             p.key("Enter", code="Enter", vk=13)                       # Enter places it
             p.until("document.querySelectorAll('.sec').length === 12", "a section was added")
@@ -295,14 +295,14 @@ class Box(Base):
             p.js("document.querySelector('[data-undo]').click()")
             p.until("document.querySelectorAll('.sec').length === 11", "Undo took it away")
             self.assertEqual(self.ids_in_store(), IDS)
-            self.open(p, "ABC-S-001")
+            self.open_box(p, "ABC-S-001")
             self.assertEqual(p.js("document.querySelector('.ad-kind:nth-child(2)').textContent"), "Recently used1", "Text is now recently used")
 
     def test_below_a_pair_goes_below_the_whole_pair(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open(p, "ABC-S-006")                                  # the left half of This week | Next week
+            self.open_box(p, "ABC-S-006")                                  # the left half of This week | Next week
             p.js("document.querySelector('[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12", "added")
             new = [i for i in p.ids() if i not in IDS][0]
@@ -315,7 +315,7 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open(p, "ABC-S-004")                                  # the next row, Summary, is alone
+            self.open_box(p, "ABC-S-004")                                  # the next row, Summary, is alone
             self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
             p.js("document.querySelector('input[name=where][value=beside]').click()")
             p.js("document.querySelector('[data-place]').click()")
@@ -334,13 +334,13 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open(p, "ABC-S-005")                                  # the next row is a pair
+            self.open_box(p, "ABC-S-005")                                  # the next row is a pair
             self.assertTrue(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
             self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "The next row already has two sections. Place it on its own row.")
             self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').getAttribute('aria-describedby')"), "ad-w-why")
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("!document.querySelector('[role=dialog]')", "closed")
-            self.open(p, "ABC-S-011")                                  # the last section
+            self.open_box(p, "ABC-S-011")                                  # the last section
             self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "This is the last section, so there is nothing to sit beside.")
             p.js("document.querySelector('[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12", "alone at the end")
@@ -352,7 +352,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.failure = lambda req: (409, {"ok": False, "error": "x"})
-            self.open(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
+            self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
             p.js("document.querySelector('[data-place]').click()")
             p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 11)
@@ -364,7 +364,7 @@ class Box(Base):
             p.edit()
             for width in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.open(p, "ABC-S-003")
+                self.open_box(p, "ABC-S-003")
                 self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True, f"{width}: no sideways scroll")
                 self.assertEqual(p.js("(function(){var r=document.querySelector('.ad').getBoundingClientRect();return r.left >= 0 && r.right <= window.innerWidth;})()"), True, width)
                 small = p.js("[...document.querySelectorAll('.ad *')].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && parseFloat(getComputedStyle(e).fontSize) < 13).map(e => e.className)")
