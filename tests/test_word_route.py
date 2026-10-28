@@ -539,5 +539,208 @@ class Export(unittest.TestCase):
         self.assertTrue(got["name"].endswith(".docx"))
 
 
+class StartsWithoutTheSpreadsheetLibrary(unittest.TestCase):
+    """The launcher runs with no PYTHONPATH: importing the Word routes must not need openpyxl, and the launcher itself puts the
+    bundled copy on the path for the first time an import is applied."""
+
+    def run_code(self, code):
+        import subprocess
+        import sys
+        env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+        return subprocess.run([sys.executable, "-I", "-c", code, str(SRC)], capture_output=True, text=True, env=env, timeout=60)
+
+    def test_importing_the_routes_and_the_server_does_not_load_openpyxl(self):
+        done = self.run_code("import sys; sys.path.insert(0, sys.argv[1]); from clark import word_route, server\n"
+                             "print('openpyxl' in sys.modules)")
+        self.assertEqual((done.returncode, done.stdout.strip()), (0, "False"), done.stderr)
+
+    def test_the_launcher_makes_the_bundled_library_findable_for_the_first_apply(self):
+        done = self.run_code("import sys; sys.path.insert(0, sys.argv[1]); import clark.__main__\n"
+                             "from clark import word_route; print(word_route._excel_import()._try.__name__)")
+        self.assertEqual((done.returncode, done.stdout.strip()), (0, "_try"), done.stderr)
+
+
+class Up:
+    """The real server on a free port with the Word seams given (the other seams are not wired), stopped by close()."""
+
+    def __init__(self, word_import=None, word_export=None):
+        import threading
+        from clark import server as sv
+        self.sv = sv
+        self.httpd = sv.LocalServer((sv.HOST, 0), word_import=word_import, word_export=word_export)
+        self.port = self.httpd.server_port
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+
+    def close(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+    def ask(self, route, body, headers=None, token="good", host="default", method="POST"):
+        import http.client
+        conn = http.client.HTTPConnection(self.sv.HOST, self.port, timeout=20)
+        try:
+            conn.putrequest(method, route, skip_host=True, skip_accept_encoding=True)
+            conn.putheader("Host", f"127.0.0.1:{self.port}" if host == "default" else host)
+            if token is not None:
+                conn.putheader(self.sv.TOKEN_HEADER, self.sv.TOKEN if token == "good" else token)
+            conn.putheader("Content-Type", "application/json")
+            conn.putheader("Content-Length", str(len(body)))
+            for k, v in (headers or {}).items():
+                conn.putheader(k, v)
+            conn.endheaders(body)
+            r = conn.getresponse()
+            data = r.read()
+            return r.status, json.loads(data) if data else None
+        finally:
+            conn.close()
+
+
+class ThroughTheServer(unittest.TestCase):
+    """Both routes sit behind the same token, Host and Origin checks as every other route, with their own size limits."""
+    ROUTES = ("/api/word-import", "/api/word-export")
+
+    def setUp(self):
+        self.calls = []
+        self.up = Up(word_import=lambda r: (self.calls.append(("import", r)) or (200, {"ok": True})),
+                     word_export=lambda r: (self.calls.append(("export", r)) or (200, {"ok": True})))
+        self.addCleanup(self.up.close)
+
+    def test_without_the_right_token_host_and_origin_the_seam_is_never_called(self):
+        port = self.up.port
+        for route in self.ROUTES:
+            for token in (None, "", "wrong", "x" * 32):
+                self.assertEqual(self.up.ask(route, b"{}", token=token)[0], 403, (route, token))
+            self.assertEqual(self.up.ask(route, b"{}", host="evil.example")[0], 403)
+            for extra in ({"Origin": "https://evil.example"}, {"Origin": "null"}, {"Origin": f"http://localhost:{port}"},
+                          {"Sec-Fetch-Site": "cross-site"}):
+                self.assertEqual(self.up.ask(route, b"{}", headers=extra)[0], 403, (route, extra))
+            self.assertEqual(self.up.ask(route, b"{}", method="OPTIONS")[0], 403)
+            self.assertEqual(self.up.ask(route, b"{}", method="GET")[0], 404)        # after the token: there is no GET
+            self.assertEqual(self.up.ask(route, b"{}", method="GET", token=None)[0], 403)
+        self.assertEqual(self.calls, [])
+
+    def test_the_stale_page_is_told_to_reload(self):
+        status, body = self.up.ask("/api/word-import", b"{}", token="old")
+        self.assertEqual((status, body["code"], body["stale"]), (403, "stale", True))
+
+    def test_json_only_and_a_length_are_needed(self):
+        import http.client
+        for route in self.ROUTES:
+            conn = http.client.HTTPConnection("127.0.0.1", self.up.port, timeout=10)
+            conn.request("POST", route, b"{}", {self.up.sv.TOKEN_HEADER: self.up.sv.TOKEN, "Content-Type": "text/plain"})
+            self.assertEqual(conn.getresponse().status, 415)
+            conn.close()
+            self.assertEqual(self.up.ask(route, b"{nope")[0], 400)
+        self.assertEqual(self.calls, [])
+
+    def test_the_export_takes_a_small_body_and_the_import_a_big_one_but_not_bigger_than_a_file_clark_reads(self):
+        sv = self.up.sv
+        self.assertEqual(self.up.ask("/api/word-export", b'{"a": "' + b"x" * 1100 + b'"}')[1]["code"], "too_large")
+        self.assertEqual(self.up.ask("/api/word-export", b"{}")[0], 200)
+        biggest = (docx_read.MAX_FILE_BYTES * 4 // 3 + 4) + 200                     # the largest file as text, and the words around it
+        self.assertGreaterEqual(sv.ROUTE_BODY_LIMITS["/api/word-import"], biggest)
+        self.assertLess(sv.ROUTE_BODY_LIMITS["/api/word-import"], 40 * 1024 * 1024)
+        over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json",
+                "Content-Length": str(sv.ROUTE_BODY_LIMITS["/api/word-import"] + 1)}
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", self.up.port, timeout=10)
+        conn.putrequest("POST", "/api/word-import", skip_accept_encoding=True)
+        for k, v in over.items():
+            conn.putheader(k, v)
+        conn.endheaders()                                               # refused from its length, before it is read
+        r = conn.getresponse()
+        self.assertEqual((r.status, json.loads(r.read())["code"]), (400, "too_large"))
+        conn.close()
+        self.assertEqual(self.calls, [("export", {})])
+
+    def test_with_no_seam_both_answer_in_words(self):
+        up = Up()
+        self.addCleanup(up.close)
+        for route in self.ROUTES:
+            status, body = up.ask(route, b"{}")
+            self.assertEqual((status, body["code"]), (503, "saving_off"))
+
+    def test_a_fault_in_a_seam_is_the_plain_500(self):
+        def boom(req):
+            raise RuntimeError("/Users/someone/secret.docx")
+        up = Up(word_import=boom)
+        self.addCleanup(up.close)
+        with self.assertLogs("clark.server", "ERROR"):
+            status, body = up.ask("/api/word-import", b"{}")
+        self.assertEqual(status, 500)
+        self.assertNotIn("secret", json.dumps(body))
+
+    def test_the_server_module_still_imports_nothing_from_clark(self):
+        import ast
+        tree = ast.parse((SRC / "clark" / "server.py").read_text(encoding="utf-8"))
+        names = [a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names]
+        names += [(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)]
+        self.assertEqual([n for n in names if n.startswith("clark")], [])
+
+    def test_no_route_was_opened_without_the_token(self):
+        from clark import appfiles
+        self.assertEqual(sorted(appfiles.open_files()), sorted(["/manifest.webmanifest", "/sw.js", "/offline", "/app/icon-192.png",
+                                                                "/app/icon-512.png", "/app/icon-maskable-512.png"]))
+
+
+class WholeJourney(unittest.TestCase):
+    """The real seams on a real store, through the real server: check, apply, undo; and an export."""
+
+    def setUp(self):
+        word_route.PLANS.clear()
+        self.addCleanup(word_route.PLANS.clear)
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.tmp = Path(tempfile.mkdtemp(prefix="clark-word-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        path = self.demo.store.path
+        self.up = Up(word_import=word_route.make_word_import(path, [], USER, today=lambda: TODAY),
+                     word_export=word_route.make_word_export(path, [], USER, today=lambda: TODAY, choose_folder=lambda p: str(self.tmp)))
+        self.addCleanup(self.up.close)
+
+    def post(self, route, req):
+        return self.up.ask(route, json.dumps(req).encode("utf-8"))
+
+    def test_check_apply_and_undo_over_http(self):
+        status, plan = self.post("/api/word-import", {"op": "check", "project": "ABC", "name": NAME, "data": encoded(docx(body()))})
+        self.assertEqual((status, len(plan["items"])), (200, 4))
+        status, done = self.post("/api/word-import", {"op": "apply", "project": "ABC", "plan": plan["plan"], "accept": [1, 3]})
+        self.assertEqual((status, len(done["added"])), (200, 2), done)
+        self.assertEqual(len(self.demo.store.read("actions", "ABC")), 1)
+        status, back = self.post("/api/word-import", {"op": "undo", "project": "ABC", "apply_id": done["apply_id"]})
+        self.assertEqual((status, back["ok"]), (200, True))
+        self.assertEqual(self.demo.store.read("actions", "ABC"), [])
+
+    def test_a_big_hostile_file_is_refused_in_words_over_http(self):
+        import io
+        import zipfile
+        bomb = io.BytesIO()
+        with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("[Content_Types].xml", "<Types/>")
+            z.writestr("word/document.xml", b"0" * (60 * 1024 * 1024))
+        status, got = self.post("/api/word-import", {"op": "check", "project": "ABC", "name": NAME, "data": encoded(bomb.getvalue())})
+        self.assertEqual(status, 400)
+        self.assertRegex(got["message"], r"MB")
+        self.assertNotRegex(got["message"], JARGON)
+        self.assertEqual(self.demo.store.read("actions", "ABC"), [])
+
+    def test_a_bad_row_rolls_the_whole_step_back_over_http(self):
+        _, plan = self.post("/api/word-import", {"op": "check", "project": "ABC", "name": NAME, "data": encoded(docx(body()))})
+        word_route.PLANS[plan["plan"]]["plan"].items[3].values["status"] = "Whenever"
+        status, got = self.post("/api/word-import", {"op": "apply", "project": "ABC", "plan": plan["plan"], "accept": "all"})
+        self.assertEqual((status, got["code"]), (400, "rolled_back"))
+        self.assertEqual((self.demo.store.read("actions", "ABC"), self.demo.store.read("raid", "ABC")), ([], []))
+        self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM change_log WHERE via = 'word'").fetchone()[0], 0)
+
+    def test_an_export_over_http_saves_a_file_that_reads_back(self):
+        status, got = self.post("/api/word-export", {"project": "ABC"})
+        self.assertEqual((status, got["name"]), (200, "ABC-report-2026-10-29.docx"), got)
+        self.assertEqual(docx_read.read((self.tmp / got["name"]).read_bytes(), got["name"]).blocks[0]["kind"], "heading")
+        status, again = self.post("/api/word-export", {"project": "ABC"})
+        self.assertEqual((status, again["code"]), (409, "name_taken"))
+        status, bad = self.post("/api/word-export", {"project": "ABC", "folder": "/tmp"})
+        self.assertEqual(status, 400)
+
+
 if __name__ == "__main__":
     unittest.main()

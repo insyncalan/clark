@@ -34,9 +34,10 @@ import re
 import secrets
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
-from clark import docx_build, docx_read, excel_import, milestones, platform, publish, to_client, word_import
+from clark import docx_build, docx_read, milestones, platform, publish, to_client, word_import
 from clark import store as clark_store
 from clark.changes import Refused, _call, _shown
 from clark.store import Invalid
@@ -172,19 +173,32 @@ def _check(store, req, project, today, clock):
     return 200, {"ok": True, "plan": key, **_described(plan)}
 
 
-@dataclass
-class _Row(excel_import.StagedChange):
-    """A staged Word item as the import path's writer takes it: a new row, with the words for naming it if it breaks a rule."""
-    text: str = ""
+@lru_cache(maxsize=None)
+def _excel_import():
+    """clark.excel_import, imported when the first Word import is applied: it reads Excel files, so it needs the bundled
+    openpyxl that whoever starts clark puts on the path (__main__ does), and a page that only exports to Word, or a test of the
+    server, never needs it."""
+    from clark import excel_import
+    return excel_import
 
-    @property
-    def label(self):
-        return self.text
+
+@lru_cache(maxsize=None)
+def _row_class():
+    """_Row: a staged Word item as the import path's writer takes it (a new row), with the words that name it if it breaks a rule."""
+    @dataclass
+    class _Row(_excel_import().StagedChange):
+        text: str = ""
+
+        @property
+        def label(self):
+            return self.text
+    return _Row
 
 
 def _rows(plan, project, accepted):
-    return [_Row(n=i.n, kind="new", table=i.table, sheet=i.where, row=0, after={**i.values, "project": project}, fp=i.fp,
-                 text=i.label) for i in accepted]
+    row = _row_class()
+    return [row(n=i.n, kind="new", table=i.table, sheet=i.where, row=0, after={**i.values, "project": project}, fp=i.fp,
+                text=i.label) for i in accepted]
 
 
 def _apply(store, who, req, project, clock):
@@ -212,8 +226,8 @@ def _apply(store, who, req, project, clock):
         raise Refused(ALL_SEEN.format(file=file) if skipped else NOTHING_ACCEPTED, 409, "nothing_to_add")
     src = re.sub(r"\s+", " ", f"by Word import ({file})")[:300]
     made = {}
-    problems, step_id, refused = excel_import._try(store, _rows(plan, project, chosen), who, commit=True, src_ref=src, made=made,
-                                                   route=ROUTE, place=None)
+    problems, step_id, refused = _excel_import()._try(store, _rows(plan, project, chosen), who, commit=True, src_ref=src,
+                                                      made=made, route=ROUTE, place=None)
     if refused:
         raise Refused(f"Nothing was added, because clark could not start the import: {refused}", 503, "busy")
     if problems:

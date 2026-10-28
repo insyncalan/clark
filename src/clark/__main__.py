@@ -25,10 +25,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import appfiles, backup, changes, idle, movement_read, page, platform, publish, publish_flow, safety, server, store as clark_store, use_cases_read
+from clark import appfiles, backup, changes, idle, movement_read, page, platform, publish, publish_flow, safety, server, store as clark_store, use_cases_read, word_route
 
 DB_NAME = "clark.db"
 HERE = Path(__file__).resolve().parent
+VENDOR = HERE.parents[1] / "vendor"       # the bundled Python libraries (openpyxl); put last on the path, so they never hide the system's own
+if VENDOR.is_dir() and str(VENDOR) not in sys.path:
+    sys.path.append(str(VENDOR))
 DEV = HERE.parents[1] / "dev"            # dev/demo_data.py builds the demo database; it is not part of the package
 ADDRESS_LINE = "Open http://"           # the start of the line server.serve prints once it is listening
 LISTENING = re.compile(r"^Open http://127\.0\.0\.1:(\d+)/")
@@ -296,7 +299,7 @@ def use_case_ids_on_file(store):
 
 
 def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.open_url, home=None, onedrive_roots=None,
-         change=None, undo=None, environ=None, is_free=port_free):
+         change=None, undo=None, environ=None, is_free=port_free, word_import=None, word_export=None):
     """Run the launcher; the exit code. `serve`, `open_url`, `home` (for the default data folder) and `onedrive_roots` are
     `is_free` (the check that the port is taken or not) are seams for tests. `change` and `undo` are the handlers for POST
     /api/change and /api/undo (#65): built from clark.changes for this data's file unless a test gives its own."""
@@ -337,7 +340,9 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         roots = [] if args.demo else onedrive_roots
         store.close()           # #111: nothing keeps the database open while clark runs (each request opens its own), so Restore can swap the file
         handlers = {"change": change or changes.make_change(store.path, roots),
-                    "undo": undo or changes.make_undo(store.path, roots)}
+                    "undo": undo or changes.make_undo(store.path, roots),
+                    "word_import": word_import or word_route.make_word_import(store.path, roots),
+                    "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
         server.set_data_mark(appfiles.data_mark(store.path.parent))
