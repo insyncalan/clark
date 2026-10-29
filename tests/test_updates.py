@@ -705,6 +705,86 @@ class ReviewTest(Base):
         self.assertEqual("05-01-2027", updates.date_text("2027-01-05"))
 
 
+class ChecksumTest(Base):
+    def test_the_digest_is_the_whole_files_and_is_shown_in_the_review(self):
+        path = make_zip(self.tmp)
+        r = self.read(path)
+        self.assertEqual(hashlib.sha256(Path(path).read_bytes()).hexdigest(), r.zip_sha256)
+        app = install_to(Path(self.tmp) / "app", "0.3.0")
+        text = updates.review(r, updates.plan(r, app), "0.3.0")
+        self.assertEqual(r.zip_sha256, text["checksum"])
+        self.assertEqual(f"Checksum of this file: {r.zip_sha256}. Compare it with the one on the releases page.",
+                         text["checksum_text"])
+
+    def test_a_changed_file_changes_it(self):
+        one = Path(self.tmp) / "one"
+        two = Path(self.tmp) / "two"
+        one.mkdir()
+        two.mkdir()
+        a = self.read(make_zip(one))
+        b = self.read(make_zip(two, notes="Fixes a different typo.\n"))
+        self.assertNotEqual(a.zip_sha256, b.zip_sha256)
+
+    def test_it_is_read_in_counted_chunks(self):
+        path = make_zip(self.tmp)
+        size = Path(path).stat().st_size
+        self.assertEqual(hashlib.sha256(Path(path).read_bytes()).hexdigest(), updates.file_digest(path, size))
+        with self.assertRaises(UpdateError) as said:
+            updates.file_digest(path, size - 1)
+        self.assertEqual("damaged", said.exception.key)
+
+
+class InstalledRecordTest(Base):
+    def record_with(self, name):
+        app = install_to(Path(self.tmp) / "app", "0.3.0")
+        doc = json.loads((app / updates.INSTALLED_RECORD).read_text(encoding="utf-8"))
+        doc["files"][name] = {"sha256": "0" * 64, "size": 1, "mode": "644"}
+        (app / updates.INSTALLED_RECORD).write_text(json.dumps(doc), encoding="utf-8")
+        return app
+
+    def test_an_unsafe_name_in_the_installed_record_is_refused_by_the_check_and_the_plan(self):
+        zips = Path(self.tmp) / "zips"
+        zips.mkdir()
+        release = self.read(make_zip(zips))
+        for name in ("", "..", "../outside.txt", "src/../../x", "/etc/passwd", "a\\b", "C:x"):
+            with self.subTest(name=name):
+                app = self.record_with(name)
+                for call in (lambda: updates.check_app_folder(app), lambda: updates.plan(release, app)):
+                    with self.assertRaises(UpdateError) as said:
+                        call()
+                    self.assertEqual("unsafe", said.exception.key)
+                    self.assertEqual(updates.MESSAGES["unsafe"], said.exception.message)
+                shutil.rmtree(app)
+
+    def test_a_good_record_still_passes(self):
+        updates.check_app_folder(install_to(Path(self.tmp) / "app", "0.3.0"))
+
+
+class TrailingNewlineTest(Base):
+    def test_a_newline_after_the_name_or_version_is_not_accepted(self):
+        for name in ("clark-0.3.1-mac.zip\n", "clark-0.3.1-mac (1).zip\n"):
+            with self.subTest(name=name):
+                with self.assertRaises(UpdateError) as said:
+                    updates.check_name(name, SYSTEM, chosen=True)
+                self.assertEqual("name", said.exception.key)
+        self.assertFalse(updates.is_release_version("0.3.1\n"))
+        self.assertFalse(updates.TOP_RE.match("clark-0.3.1\n"))
+        with self.assertRaises(ValueError):
+            updates.version_key("0.3.1\n")
+        with self.assertRaises(ValueError):
+            updates.version_key("0.3.1.dev2\n")
+        self.assertIsNone(updates.newest_in(self.tmp, SYSTEM))
+        (Path(self.tmp) / "clark-0.3.1-mac.zip\n").write_bytes(b"x")
+        self.assertIsNone(updates.newest_in(self.tmp, SYSTEM))
+
+    def test_a_newline_in_the_manifests_version_or_date_is_damaged(self):
+        zips = Path(self.tmp) / "z"
+        zips.mkdir()
+        for field, value in (("version", "0.3.1\n"), ("min_from", "0.0.0\n"), ("released", "2026-10-27\n")):
+            with self.subTest(field=field):
+                self.refuses(make_zip(zips, manifest=lambda d, f=field, v=value: d.update({f: v})), "damaged")
+
+
 class WordsTest(unittest.TestCase):
     BANNED = re.compile(r"\b(zip|manifest|sha|sha-256|path|vault|tracker|database|sweep|proposal|stage|apply|extract|refused|valid|invalid)\b",
                         re.I)

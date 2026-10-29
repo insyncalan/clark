@@ -46,12 +46,12 @@ MAX_PART = 255
 MAX_DETAIL_NAMES = 5
 COPY_SUFFIX = r"(?: \([0-9]+\))?"                  # a browser's "clark-0.3.1-mac (1).zip", accepted for a chosen file only
 NUM = r"(0|[1-9][0-9]*)"
-NAME_RE = re.compile(rf"^clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux)\.zip$")
-CHOSEN_RE = re.compile(rf"^clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux){COPY_SUFFIX}\.zip$")
-SOURCE_RE = re.compile(rf"^clark-{NUM}\.{NUM}\.{NUM}{COPY_SUFFIX}\.zip$")     # GitHub's "Source code (zip)"
-VERSION_RE = re.compile(rf"^{NUM}\.{NUM}\.{NUM}$")
-DEV_RE = re.compile(rf"^{NUM}\.{NUM}\.{NUM}\.dev[0-9]*$")
-TOP_RE = re.compile(rf"^clark-{NUM}\.{NUM}\.{NUM}$")
+NAME_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux)\.zip\Z")
+CHOSEN_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux){COPY_SUFFIX}\.zip\Z")
+SOURCE_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}{COPY_SUFFIX}\.zip\Z")     # GitHub's "Source code (zip)"
+VERSION_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\Z")
+DEV_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\.dev[0-9]*\Z")
+TOP_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}\Z")
 BAD_CHARS = set('<>"|?*:\\')
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400               # a Windows junction or other reparse point
 SYSTEM_NAMES = {"mac": "Mac", "windows": "Windows", "linux": "Linux"}
@@ -210,6 +210,7 @@ class Release:
         self.min_from = manifest["min_from"]
         self.files = manifest["files"]
         self.reinstall = False
+        self.zip_sha256 = ""            # the whole download's digest, for the person to compare with the releases page
 
 
 def _manifest_of(zf, infos):
@@ -239,7 +240,7 @@ def _check_manifest_shape(doc):
             raise UpdateError("damaged", f"manifest field {key} is missing or the wrong kind")
     if not is_release_version(doc["version"]) or not is_release_version(doc["min_from"]):
         raise UpdateError("damaged", "manifest version is not X.Y.Z")
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", doc["released"]):
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", doc["released"]):
         raise UpdateError("damaged", "manifest date is not YYYY-MM-DD")
     for rel, row in doc["files"].items():
         if not isinstance(row, dict) or not isinstance(rel, str) or not isinstance(row.get("sha256"), str) \
@@ -270,6 +271,25 @@ def _check_structure(infos, max_total):
         total += i.file_size
     if total > max_total:
         raise UpdateError("damaged", f"declared size {total} is over the cap")
+
+
+def file_digest(path, size):
+    """The SHA-256 of the whole file at `path`, read in chunks and counted against `size` (a file that grows while it is
+    read is refused)."""
+    h, got = hashlib.sha256(), 0
+    try:
+        with open(path, "rb") as f:
+            while True:
+                chunk = f.read(CHUNK)
+                if not chunk:
+                    break
+                got += len(chunk)
+                if got > size:
+                    raise UpdateError("damaged", "the file grew while it was being read")
+                h.update(chunk)
+    except OSError:
+        raise UpdateError("unreadable", "the file can't be read")
+    return h.hexdigest()
 
 
 def _read_counted(zf, info):
@@ -321,6 +341,7 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
         raise UpdateError("unreadable", "not a regular file (a link or folder)")
     if st.st_size > max_zip:
         raise UpdateError("damaged", f"file is {st.st_size} bytes, over the cap")
+    digest = file_digest(path, st.st_size)
     try:
         zf = zipfile.ZipFile(path)
     except (zipfile.BadZipFile, OSError):
@@ -372,6 +393,7 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
     if not found or found.group(1) != doc["version"]:
         raise UpdateError("damaged", "the version inside the files differs from the manifest")
     release = Release(path, doc, top)
+    release.zip_sha256 = digest
     check_version(release, installed_version, installed_schema, reinstall)
     release.reinstall = reinstall
     return release
@@ -431,6 +453,9 @@ def check_app_folder(app_dir):
         raise UpdateError("git", ".git is in the app folder")
     if not (app / INSTALLED_RECORD).is_file():
         raise UpdateError("norecord", "no clark-release.json in the app folder")
+    record = installed_record(app)
+    if record:
+        check_record_names(record)
     _, links = walk_app(app)
     if links:
         raise UpdateError("link", "links in the app folder: " + names_for_log(links))
@@ -449,6 +474,14 @@ def installed_record(app_dir):
     except (OSError, ValueError):
         return None
     return doc if isinstance(doc, dict) and isinstance(doc.get("files"), dict) else None
+
+
+def check_record_names(record):
+    """Every name in the installed record must be a safe relative name: it comes from a file on disk that anyone could have
+    changed, and plan() joins it to the app folder."""
+    bad = [str(r) for r in record["files"] if not isinstance(r, str) or path_problem(r)]
+    if bad:
+        raise UpdateError("unsafe", "unsafe names in the installed record: " + names_for_log(bad))
 
 
 def _sha256_of(path):
@@ -473,6 +506,8 @@ def plan(release, app_dir):
     record (they are replaced anyway and kept in the backup)."""
     app = Path(app_dir)
     record = installed_record(app)
+    if record:
+        check_record_names(record)
     recorded = record["files"] if record else {}
     on_disk, _ = walk_app(app)
     present = set(on_disk)
@@ -511,6 +546,8 @@ def review(release, plan_, installed_version):
         "removed": {"label": count_text("Removed", plan_.removed), "names": list(plan_.removed)},
         "by_hand": (f"{len(plan_.by_hand)} file{' in the clark folder was' if len(plan_.by_hand) == 1 else 's in the clark folder were'}"
                     " changed by hand and will be replaced.") if plan_.by_hand else None,
+        "checksum": release.zip_sha256,
+        "checksum_text": f"Checksum of this file: {release.zip_sha256}. Compare it with the one on the releases page.",
         "kept": KEPT,
         "reinstall": release.reinstall,
     }
