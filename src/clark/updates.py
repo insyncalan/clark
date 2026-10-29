@@ -276,7 +276,8 @@ def _read_counted(zf, info):
     """The bytes of one member, read in chunks and counted against its declared size (a bomb can't grow past it)."""
     out, got = [], 0
     try:
-        with zf.open(info) as f:
+        member = zf.open                        # an archive member, read as bytes
+        with member(info) as f:
             while True:
                 chunk = f.read(CHUNK)
                 if not chunk:
@@ -452,7 +453,7 @@ def installed_record(app_dir):
 
 def _sha256_of(path):
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with Path(path).open("rb") as f:
         for chunk in iter(lambda: f.read(CHUNK), b""):
             h.update(chunk)
     return h.hexdigest()

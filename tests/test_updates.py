@@ -497,7 +497,7 @@ class AppFolderTest(Base):
 
     def test_a_git_file_counts_too(self):
         folder = self.folder()
-        (folder / ".git").write_text("gitdir: elsewhere\n")
+        (folder / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
         with self.assertRaises(UpdateError) as said:
             updates.check_app_folder(folder)
         self.assertEqual("git", said.exception.key)
@@ -597,8 +597,8 @@ class PlanTest(Base):
         installed = listed_files("0.3.0")
         installed["src/clark/old.py"] = b"old\n"
         install_to(self.app, "0.3.0", installed)
-        (self.app / "my notes.txt").write_text("mine")
-        (self.app / "src" / "clark" / "mine.py").write_text("mine")
+        (self.app / "my notes.txt").write_text("mine", encoding="utf-8")
+        (self.app / "src" / "clark" / "mine.py").write_text("mine", encoding="utf-8")
         r = self.release(change={"README.md": b"new readme\n"}, add={"src/clark/new.py": b"n\n"}, drop=["README.md"] and [])
         r2 = self.release(change={"README.md": b"new readme\n"}, add={"src/clark/new.py": b"n\n"})
         p = updates.plan(r2, self.app)
@@ -611,20 +611,20 @@ class PlanTest(Base):
         self.assertIsNotNone(r)
 
     def test_a_file_the_person_added_is_never_removed_even_in_a_folder_the_update_owns(self):
-        (self.app / "vendor" / "openpyxl" / "mine.py").write_text("mine")
+        (self.app / "vendor" / "openpyxl" / "mine.py").write_text("mine", encoding="utf-8")
         p = updates.plan(self.release(), self.app)
         self.assertEqual([], p.removed)
         self.assertIn("vendor/openpyxl/mine.py", p.left)
 
     def test_before_the_first_recorded_install_nothing_is_removed(self):
-        (self.app / updates.INSTALLED_RECORD).write_text(json.dumps({"files": {}}))
-        (self.app / "src" / "clark" / "stray.py").write_text("x")
+        (self.app / updates.INSTALLED_RECORD).write_text(json.dumps({"files": {}}), encoding="utf-8")
+        (self.app / "src" / "clark" / "stray.py").write_text("x", encoding="utf-8")
         p = updates.plan(self.release(), self.app)
         self.assertEqual([], p.removed)
         self.assertIn("src/clark/stray.py", p.left)
 
     def test_changed_by_hand(self):
-        (self.app / "README.md").write_text("edited by hand")
+        (self.app / "README.md").write_text("edited by hand", encoding="utf-8")
         p = updates.plan(self.release(change={"README.md": b"same as installed? no, new\n"}), self.app)
         self.assertEqual(["README.md"], p.by_hand)
         self.assertIn("README.md", p.replaced)
@@ -690,14 +690,14 @@ class ReviewTest(Base):
 
     def test_by_hand_line_and_reinstall(self):
         app = install_to(Path(self.tmp) / "app", "0.3.0")
-        (app / "README.md").write_text("edited")
+        (app / "README.md").write_text("edited", encoding="utf-8")
         zips = Path(self.tmp) / "zips"
         zips.mkdir()
         r = self.read(make_zip(zips, version="0.3.0"), reinstall=True)
         text = updates.review(r, updates.plan(r, app), "0.3.0")
         self.assertEqual("1 file in the clark folder was changed by hand and will be replaced.", text["by_hand"])
         self.assertTrue(text["reinstall"])
-        (app / "src" / "clark" / "x.py").write_text("also edited")
+        (app / "src" / "clark" / "x.py").write_text("also edited", encoding="utf-8")
         text = updates.review(r, updates.plan(r, app), "0.3.0")
         self.assertEqual("2 files in the clark folder were changed by hand and will be replaced.", text["by_hand"])
 
