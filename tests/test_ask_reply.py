@@ -5,6 +5,9 @@ Fictional data only. Nothing here opens a file, a database or the network.
 """
 import ast
 import json
+import random
+import re
+import time
 import unittest
 
 from _paths import SRC
@@ -205,6 +208,58 @@ class Claims(unittest.TestCase):
         text = "ABC-A-888 and ABC-A-777 and ABC-A-001.\nCITE: P9 P8"
         self.assertEqual(read(text).flags, read(text).flags)
         self.assertEqual([f.ref for f in read(text).flags], ["ABC-A-777", "ABC-A-888", "P8", "P9"])
+
+
+class Speed(unittest.TestCase):
+    """No line of a reply can make the claims check slow (the owner pattern once backtracked on a long run of spaces)."""
+
+    OLD_OWNER = (r"\b(?:owner|owned by|assigned to)\b\s*(?:is\b|:|-)?\s*"
+                 r"([A-Z][\w'\u2019.-]*(?:\s+[A-Z][\w'\u2019.-]*){0,2})")
+
+    def timed(self, text):
+        t = time.perf_counter()
+        read(text, facts=facts)
+        return time.perf_counter() - t
+
+    def test_a_long_run_of_spaces_after_owner_is_quick(self):
+        self.assertLess(self.timed("ABC-A-001 owner" + " " * 59000 + "x"), 1.0)
+
+    def test_adversarial_lines_of_sixty_thousand_characters_are_quick(self):
+        n = 60000
+        for text in ("ABC-A-001 owner is" + " " * n, "ABC-A-001 owner -" + " \t" * 29000, "ABC-A-001 " + "owner " * 9000,
+                     "ABC-A-001 owner " + "A " * 29000, "ABC-A-001 owner A" + "." * n, "ABC-A-001 " + '"' * n,
+                     "ABC-A-001 " + '"a' * 29000, "ABC-A-001 " * 6000, "[P1" * 20000, "CITE: " + "P1 " * 20000,
+                     "ABC-A-001\n" * 6000):
+            with self.subTest(text=text[:30]):
+                self.assertLess(self.timed(text[:n]), 1.0)
+
+    def test_the_secret_check_is_quick_on_adversarial_text(self):
+        n = 60000
+        for text in ("password" + " " * n, "password is " * 5000, "Bearer " * 8000, "http://a:" * 7000, "aA1" * 20000,
+                     "api key " * 7000, "-----BEGIN " + "A " * 29000):
+            with self.subTest(text=text[:20]):
+                t = time.perf_counter()
+                ask.looks_like_secret(text[:n])
+                self.assertLess(time.perf_counter() - t, 1.0)
+
+    def test_a_line_over_the_limit_is_not_checked_for_title_or_owner(self):
+        wrong = "ABC-A-001 owner is Somebody Else"
+        self.assertEqual(kinds(read(wrong, facts=facts)), ["wrong_owner"])
+        long_line = wrong + " " + "x" * ask.MAX_CHECKED_LINE
+        self.assertEqual(kinds(read(long_line, facts=facts)), [])
+        self.assertEqual(kinds(read('ABC-A-001 "Some other title" ' + "x" * ask.MAX_CHECKED_LINE, facts=facts)), [])
+        # the other checks still run on it
+        self.assertEqual(kinds(read(long_line + " ABC-A-777")), ["unknown_id"])
+
+    def test_the_owner_pattern_matches_what_the_old_one_did(self):
+        old = re.compile(self.OLD_OWNER)
+        pieces = ["owner", "owned by", "assigned to", "Owner", " ", "  ", "\t", "is", "is ", ":", "-", ": ", " - ", "Sam", "Poe",
+                  "O'Neil", "Ann-Marie", "J.", "sam", "x", ",", ".", "\u2019", "ABC-A-001", "was", "\u00e9"]
+        rng = random.Random(4747)
+        for _ in range(200000):
+            text = "".join(rng.choice(pieces) for _ in range(rng.randint(1, 9)))
+            a, b = old.search(text), ask._OWNER.search(text)
+            self.assertEqual((a and (a.span(), a.group(1))), (b and (b.span(), b.group(1))), text)
 
 
 class Messages(unittest.TestCase):
