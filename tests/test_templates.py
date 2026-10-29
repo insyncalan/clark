@@ -137,13 +137,23 @@ class Logic(unittest.TestCase):
 
     def test_beside_is_offered_only_to_half_width_templates_next_to_a_section_on_its_own(self):
         st = lambda after, tid: self.t(f"besideState({lit(S)}, {lit(after)}, T.templates.find({lit(tid)}))")
-        self.assertEqual(st("a", "text"), {"ok": True}, "the next row (Milestones) is alone")
+        self.assertEqual(st("a", "text"), {"ok": True, "next": "Milestones"}, "the next row (Milestones) is alone, and it is named")
         self.assertEqual(st("e", "text"), {"ok": False, "message": "This is the last section, so there is nothing to sit beside."})
         self.assertEqual(st("b", "text"), {"ok": False, "message": "The next row already has two sections. Place it on its own row."})
         self.assertEqual(st("a", "raid-3"), {"ok": False, "message": "This template needs the full width. Place it on its own row."})
-        self.assertEqual(st("a", "key-dates"), {"ok": True})
+        self.assertEqual(st("a", "key-dates"), {"ok": True, "next": "Milestones"})
         self.assertEqual(st(None, "text"), {"ok": False, "message": "There is no section yet to sit beside."})
-        self.assertEqual(st("c", "text"), {"ok": True}, "below the pair; the next row (Decisions) is alone")
+        self.assertEqual(st("c", "text"), {"ok": True, "next": "Decisions"}, "below the pair; the next row (Decisions) is alone")
+
+    def test_nothing_shown_says_why_by_cause(self):
+        nm = lambda **kw: self.t(f"noMatch({lit(kw)})")
+        self.assertEqual(nm(query="zzz", kind="all"), "No template matches that search. Try another word.")
+        self.assertEqual(nm(query="zzz", kind="work"), "Nothing in Work items matches that search. Try another word, or choose All templates.")
+        self.assertEqual(nm(query="zzz", kind="recent"), "Nothing in Recently used matches that search. Try another word, or choose All templates.")
+        self.assertEqual(nm(query="", kind="recent"), "There is nothing in Recently used yet. Choose All templates.")
+        self.assertEqual(nm(query="  ", kind="all"), "There are no templates to show.")
+        for k in ("all", "work", "recent"):
+            self.assertNotIn("Clear the search", nm(query="", kind=k))
 
     # ── the request each template sends ──────────────────────────────────────
 
@@ -286,12 +296,15 @@ class Box(Base):
             p.js("var s = document.querySelector('input[type=search]'); s.focus(); s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true}))")
             p.type("zzz")
             p.until("document.querySelectorAll('[data-template]').length === 0", "nothing matches")
-            self.assertIn("No template matches", p.js("document.querySelector('.ad-none').textContent"))
+            self.assertEqual(p.js("document.querySelector('.ad-none').textContent"), "No template matches that search. Try another word.")
             self.assertTrue(p.js("document.querySelector('[data-place]').disabled"), "nothing chosen: Place it is off")
             p.js("document.querySelector('[data-kind=work]').click()")
             p.js("var s = document.querySelector('input[type=search]'); s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true}))")
             p.until("document.querySelectorAll('[data-template]').length === 3", "Work items shows three")
             self.assertEqual(p.js("document.querySelector('.ad-kind[aria-pressed=true]').dataset.kind"), "work")
+            p.js("var s = document.querySelector('input[type=search]'); s.value = 'zzz'; s.dispatchEvent(new Event('input', {bubbles: true}))")
+            p.until("document.querySelectorAll('[data-template]').length === 0", "nothing in Work items matches")
+            self.assertEqual(p.js("document.querySelector('.ad-none').textContent"), "Nothing in Work items matches that search. Try another word, or choose All templates.", "worded by cause: a kind is chosen")
 
     def test_a_template_not_made_yet_is_listed_but_cannot_be_placed(self):
         with chrome() as cdp:
@@ -308,6 +321,19 @@ class Box(Base):
             self.assertTrue(p.js("document.querySelector('[data-place]').disabled"))
             p.js("document.querySelector('[role=dialog]').requestSubmit()")
             self.assertEqual(self.sent, [], "a submit with a template that is not there yet sends nothing")
+
+    def test_the_button_says_add_section_and_beside_names_the_section(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-004")                                  # the next row is Summary, alone
+            self.assertEqual(p.js("document.querySelector('[data-place]').textContent"), "Add section", "the prototype's word")
+            self.assertEqual(p.js("document.querySelector('.ad-where legend').textContent"), "Place it", "Place it stays the group's heading")
+            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside “Summary” (half width)")
+            p.js("document.querySelector('[data-cancel]').click()")
+            p.until("!document.querySelector('[role=dialog]')", "closed")
+            self.open_box(p, "ABC-S-011")                                  # the last section: nothing to name
+            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside the next section (half width)")
 
     def test_place_a_text_template_below_and_undo_it(self):
         with chrome() as cdp:

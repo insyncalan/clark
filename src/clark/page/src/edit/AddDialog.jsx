@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { mode, data } from "../stores/report.js";
 import { ADD_SECTION_EVENT } from "./addDialog.js";
 import { addFromTemplate } from "./actions.js";
-import { KINDS, RECENT, MESSAGES, list, counts, find, available, besideState, remember, fitWords } from "../logic/templates.js";
+import { KINDS, RECENT, MESSAGES, list, counts, find, available, besideState, remember, fitWords, noMatch } from "../logic/templates.js";
 
 const STORE_KEY = "clark.recentTemplates";
 const readRecent = () => { try { const v = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(v) ? remember(v.filter((x) => typeof x === "string"), "") : []; } catch (e) { return []; } };
@@ -113,7 +113,7 @@ function Box({ after, opener, onClose }) {
           </nav>
           <fieldset class="ad-list">
             <legend class="sr">Templates</legend>
-            {shown.length === 0 ? <p class="muted ad-none" role="status">No template matches that search. Clear the search to see them all.</p> : null}
+            {shown.length === 0 ? <p class="muted ad-none" role="status">{noMatch({ query, kind })}</p> : null}
             {shown.map((t) => {
               const ok = available(t);
               return (
@@ -141,14 +141,14 @@ function Box({ after, opener, onClose }) {
               <legend class="ad-lbl">Place it</legend>
               <label><input type="radio" name="where" value="row" checked={!sideOn} onChange={() => setBeside(false)} /> On its own row</label>
               <label class={okBeside.ok ? "" : "off"}><input type="radio" name="where" value="beside" checked={sideOn} disabled={!okBeside.ok}
-                aria-describedby="ad-w-why" onChange={() => setBeside(true)} /> Beside the next section (half width)</label>
+                aria-describedby="ad-w-why" onChange={() => setBeside(true)} /> {okBeside.ok ? `Beside “${okBeside.next}” (half width)` : "Beside the next section (half width)"}</label>
               <p class="muted ad-why" id="ad-w-why">{okBeside.ok ? "" : okBeside.message}</p>
             </fieldset>
           </section>
         </div>
         <div class="ad-foot">
           <button type="button" class="pk-btn" data-cancel onClick={close}>Cancel</button>
-          <button type="submit" class="pk-btn pri" data-place disabled={!canPlace}>Place it</button>
+          <button type="submit" class="pk-btn pri" data-place disabled={!canPlace}>Add section</button>
         </div>
       </form>
     </div>

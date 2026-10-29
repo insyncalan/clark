@@ -72,6 +72,14 @@ export function list({ query = "", kind = "", recent = [] } = {}) {
   return kind && kind !== "all" ? found.filter((t) => t.kind === kind) : found;
 }
 
+// What to say when nothing is shown, by cause: the search alone, the search inside a chosen kind, or a kind with nothing in it.
+export function noMatch({ query = "", kind = "" } = {}) {
+  const chosen = kind && kind !== "all";
+  const name = kind === RECENT ? "Recently used" : kindName(kind);
+  if (String(query).trim()) return chosen ? `Nothing in ${name} matches that search. Try another word, or choose All templates.` : "No template matches that search. Try another word.";
+  return chosen ? `There is nothing in ${name} yet. Choose All templates.` : "There are no templates to show.";
+}
+
 // How many each choice would show for the search: { all, recent, <kind id>: n ... }.
 export function counts({ query = "", recent = [] } = {}) {
   const out = { all: list({ query }).length, [RECENT]: list({ query, kind: RECENT, recent }).length };
@@ -103,7 +111,7 @@ export function besideState(sections, after, template) {
   const i = all.findIndex((r) => r.some((s) => s.id === a.id));
   if (i + 1 >= all.length) return { ok: false, message: MESSAGES.noNext };
   if (all[i + 1].length !== 1) return { ok: false, message: MESSAGES.nextFull };
-  return { ok: true };
+  return { ok: true, next: all[i + 1][0].title };
 }
 
 // The requests to make to add template `id` below section `after` (null: at the end), alone or beside the next section.
