@@ -400,6 +400,8 @@ class Box(Base):
             self.assertEqual(p.js("document.getElementById('ad-later-prev').textContent"), "Coming with a later release.", "the reason is in text")
             self.assertTrue(p.js("document.querySelector('[data-place]').disabled"))
             self.assertEqual(p.js("document.querySelector('[data-place]').getAttribute('aria-describedby')"), "ad-later-prev")
+            self.assertEqual(p.js("document.activeElement.getAttribute('aria-disabled')"), "true", "a template that cannot be placed is read out as unavailable")
+            self.assertIsNone(p.js("document.querySelector('[data-template=\"text\"] input').getAttribute('aria-disabled')"), "and one that can be placed is not")
             p.key("Enter", code="Enter", vk=13)
             self.assertTrue(p.js("!!document.querySelector('[role=dialog]')"), "Enter on one that cannot be placed does nothing")
             p.js("document.querySelector('[role=dialog]').requestSubmit()")

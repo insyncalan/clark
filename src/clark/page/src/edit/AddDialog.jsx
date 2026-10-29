@@ -137,7 +137,7 @@ function Box({ after, opener, onClose }) {
               return (
                 <label class={`ad-tpl${ok ? "" : " off"}`} key={t.id} data-template={t.id}>
                   <input type="radio" name="template" value={t.id} checked={!!current && current.id === t.id}
-                    aria-describedby={ok ? `ad-d-${t.id}` : `ad-d-${t.id} ad-l-${t.id}`} onChange={() => setChosen(t.id)} />
+                    aria-disabled={ok ? undefined : "true"} aria-describedby={ok ? `ad-d-${t.id}` : `ad-d-${t.id} ad-l-${t.id}`} onChange={() => setChosen(t.id)} />
                   <span class="ad-tn">{t.name}</span>
                   <span class="ad-fit">{fitWords(t)}</span>
                   <span class="ad-td" id={`ad-d-${t.id}`}>{t.description}</span>
