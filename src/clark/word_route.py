@@ -32,6 +32,7 @@ import json
 import os
 import re
 import secrets
+import threading
 import time
 from dataclasses import dataclass
 from functools import lru_cache
@@ -164,6 +165,8 @@ def _check(store, req, project, today, clock):
     except docx_read.WordRefused as e:
         raise Refused(str(e)) from None
     plan = word_import.stage(read, shown, today, seen_fingerprints(store))
+    if re.search(r"[\\/]", name):
+        plan.notes.append(f"The file name had a slash in it, so clark shows it as {shown}, the part after the last slash.")
     now = clock()                                        # the caller (changes._call) holds the one lock, so PLANS is ours here
     _expire(now)
     while len(PLANS) >= MAX_PLANS:
@@ -306,6 +309,7 @@ def make_word_import(path, onedrive_roots=None, by_user=None, today=None, clock=
 
 EXPORT_KEYS = ("project", "to_client", "on_clash", "confirmed")
 CLASHES = ("number", "overwrite", "cancel")
+ALREADY_ASKING = "A window asking where to save is already open. Choose a folder there, or close it, then try again."
 CHOOSE_FOLDER = "Choose the folder for the Word report"
 
 BAD_FLAG = "That must be true or false."
@@ -500,6 +504,7 @@ def make_word_export(path, onedrive_roots=None, by_user=None, today=None, choose
     returns a folder or None for Cancel. `today` and `choose_folder` are seams for tests."""
     today = today or milestones.today
     ask = choose_folder or (lambda prompt: platform.choose_folder(prompt))
+    asking = threading.Lock()                           # one folder window at a time; the lock is never held while the store is
 
     def run(req, chosen):
         roots = onedrive_roots if onedrive_roots is not None else _safe_roots()
@@ -509,10 +514,14 @@ def make_word_export(path, onedrive_roots=None, by_user=None, today=None, choose
         status, body = run(req, None)
         if body.get("code") != "needs_folder":
             return status, body
+        if not asking.acquire(blocking=False):
+            return 409, {"ok": False, "message": ALREADY_ASKING, "code": "already_asking"}
         try:
             folder = ask(CHOOSE_FOLDER)
         except platform.PlatformError as e:
             return 503, {"ok": False, "message": str(e), "code": "no_dialog"}
+        finally:
+            asking.release()
         if not folder:
             return 200, {"ok": True, "cancelled": True, "message": CANCELLED}
         return run(req, folder)

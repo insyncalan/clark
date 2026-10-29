@@ -85,6 +85,12 @@ class Check(Base):
         status, got = self.check(name="C:\\Users\\dana\\Documents\\week 43 notes.docx")
         self.assertEqual((status, got["file"]), (200, "week 43 notes.docx"))
 
+    def test_a_name_with_a_slash_in_it_says_it_is_shown_as_the_part_after_the_last_one(self):
+        _, got = self.check(name="C:\\Users\\dana\\Documents\\week 43 notes.docx")
+        self.assertTrue(any("slash" in n and "week 43 notes.docx" in n for n in got["notes"]), got["notes"])
+        _, plain = self.check(name="week 43 notes.docx")
+        self.assertFalse(any("slash" in n for n in plain["notes"]))
+
 
 class Apply(Base):
     def go(self, accept="all"):
@@ -410,6 +416,38 @@ class Export(unittest.TestCase):
             changes.LOCK.release()
             return str(self.local)
         word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=choose)({"project": "ABC"})
+
+    def test_only_one_folder_window_is_open_at_a_time(self):
+        import threading
+        inside, leave, seen = threading.Event(), threading.Event(), []
+
+        def choose(prompt):
+            seen.append(prompt)
+            inside.set()
+            leave.wait(10)
+            return str(self.local)
+        seam = word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=choose)
+        first = []
+        t = threading.Thread(target=lambda: first.append(seam({"project": "ABC"})))
+        t.start()
+        self.assertTrue(inside.wait(10))
+        status, got = seam({"project": "ABC"})                    # while the first window is still open
+        self.assertEqual((status, got["code"]), (409, "already_asking"))
+        self.assertNotRegex(got["message"], JARGON)
+        self.assertEqual(len(seen), 1)
+        leave.set()
+        t.join(10)
+        self.assertEqual(first[0][0], 200)
+        self.assertEqual(seam({"project": "ABC"})[0] in (200, 409), True)       # and the next request is free to ask again
+
+    def test_a_dialog_that_fails_still_frees_the_one_window_slot(self):
+        from clark import platform
+
+        def broken(prompt):
+            raise platform.PlatformError("No window could be opened here.")
+        seam = word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=broken)
+        for _ in range(2):
+            self.assertEqual(seam({"project": "ABC"})[1]["code"], "no_dialog")
 
     def test_a_taken_name_asks_first_and_writes_nothing_until_answered(self):
         self.post()
