@@ -111,6 +111,13 @@ function Box({ after, opener, onClose }) {
               </button>
             ))}
           </nav>
+          <fieldset class="ad-where">
+            <legend class="ad-lbl">Place it</legend>
+            <label><input type="radio" name="where" value="row" checked={!sideOn} onChange={() => setBeside(false)} /> On its own row</label>
+            <label class={okBeside.ok ? "" : "off"}><input type="radio" name="where" value="beside" checked={sideOn} disabled={!okBeside.ok}
+              aria-describedby="ad-w-why" onChange={() => setBeside(true)} /> {okBeside.ok ? `Beside “${okBeside.next}” (half width)` : "Beside the next section (half width)"}</label>
+            <p class="muted ad-why" id="ad-w-why">{okBeside.ok ? "" : okBeside.message}</p>
+          </fieldset>
           <fieldset class="ad-list">
             <legend class="sr">Templates</legend>
             {shown.length === 0 ? <p class="muted ad-none" role="status">{noMatch({ query, kind })}</p> : null}
@@ -140,13 +147,6 @@ function Box({ after, opener, onClose }) {
                 {canPlace ? null : <p class="muted ad-later-prev" id="ad-later-prev">{MESSAGES.later}</p>}
               </>
             ) : <p class="muted">Choose a template.</p>}
-            <fieldset class="ad-where">
-              <legend class="ad-lbl">Place it</legend>
-              <label><input type="radio" name="where" value="row" checked={!sideOn} onChange={() => setBeside(false)} /> On its own row</label>
-              <label class={okBeside.ok ? "" : "off"}><input type="radio" name="where" value="beside" checked={sideOn} disabled={!okBeside.ok}
-                aria-describedby="ad-w-why" onChange={() => setBeside(true)} /> {okBeside.ok ? `Beside “${okBeside.next}” (half width)` : "Beside the next section (half width)"}</label>
-              <p class="muted ad-why" id="ad-w-why">{okBeside.ok ? "" : okBeside.message}</p>
-            </fieldset>
           </section>
         </div>
         <div class="ad-foot">

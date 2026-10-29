@@ -516,6 +516,31 @@ class Box(Base):
             self.assertEqual(seen, {"inView": True, "aboveList": True, "buttonInView": True})
             p.js("document.querySelector('[data-cancel]').click()")
 
+    def test_the_dom_and_tab_order_is_kinds_choice_list_preview_at_900_and_desktop(self):
+        """The same order in the markup, not a CSS reorder: kinds, the placing choice, the list, the preview; the preview is a real box."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for width in (900, 1400):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                self.open_box(p, "ABC-S-003")
+                order = p.js("""(function(){var q=function(s){return document.querySelector(s);}, ks=[q('.ad-kinds'), q('.ad-where'), q('.ad-list'), q('.ad-prev')], ok=true;
+                    for (var i=0;i<3;i++) ok = ok && !!(ks[i].compareDocumentPosition(ks[i+1]) & Node.DOCUMENT_POSITION_FOLLOWING);
+                    return {ok: ok, prevDisplay: getComputedStyle(q('.ad-prev')).display, prevBox: q('.ad-prev').getBoundingClientRect().width > 0,
+                      label: q('.ad-prev').getAttribute('aria-label'), live: q('.ad-prev').getAttribute('aria-live')};})()""")
+                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "Preview", "live": "polite"}, width)
+                seq = []
+                for _ in range(16):
+                    p.key("Tab", code="Tab", vk=9)
+                    seq.append(p.js("""(function(){var a=document.activeElement;
+                        return a.closest('.ad-where') ? 'choice' : a.closest('.ad-kinds') ? 'kinds' : a.closest('.ad-list') ? 'list' : a.closest('.ad-prev') ? 'preview' : a.closest('.ad-head') ? 'search' : 'foot';})()"""))
+                first = {k: seq.index(k) for k in ("kinds", "choice", "list") if k in seq}
+                self.assertTrue(first["kinds"] < first["choice"] < first["list"], f"{width}: Tab goes kinds, choice, list: {seq}")
+                if "preview" in seq:
+                    self.assertTrue(first["list"] < seq.index("preview"), f"{width}: then the preview: {seq}")
+                p.js("document.querySelector('[data-cancel]').click()")
+                p.until("!document.querySelector('[role=dialog]')", "closed")
+
     def test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token(self):
         """Every focus ring in the box is --brand-blue (the cyan --focus is 1.8:1 on white); the scrim names no raw colour."""
         css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")

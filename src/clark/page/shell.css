@@ -886,14 +886,14 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ad-q { flex: 0 1 280px; min-width: 0; }
 .ad-q input { width: 100%; box-sizing: border-box; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .ad-q input:focus-visible, .ad-tpl input:focus-visible, .ad-where input:focus-visible, .ad .pk-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.ad-main { display: grid; grid-template-columns: 170px minmax(0, 1fr) minmax(0, 280px); gap: var(--space-4); padding: var(--space-2) var(--space-5) var(--space-4); min-height: 0; overflow: auto; }
-.ad-kinds { display: flex; flex-direction: column; gap: 2px; }
+.ad-main { display: grid; grid-template-columns: 170px minmax(0, 1fr) minmax(0, 280px); grid-template-rows: auto auto 1fr; grid-template-areas: "kinds list prev" "kinds list where" "kinds list ."; gap: 0 var(--space-4); padding: var(--space-2) var(--space-5) var(--space-4); min-height: 0; overflow: auto; }
+.ad-kinds { grid-area: kinds; display: flex; flex-direction: column; gap: 2px; }
 .ad-kind { all: unset; box-sizing: border-box; display: flex; justify-content: space-between; gap: var(--space-2); min-height: 32px; align-items: center; padding: 4px 10px; border-radius: var(--radius-sm); font-size: var(--size-small); color: var(--text); cursor: pointer; }
 .ad-kind:hover { background: var(--grey-100); }
 .ad-kind[aria-pressed="true"] { background: var(--grey-100); font-weight: var(--weight-medium); color: var(--heading); }
 .ad-kind:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ad-n { color: var(--text-muted); }
-.ad-list { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.ad-list { grid-area: list; border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .ad-tpl { display: grid; grid-template-columns: auto 1fr auto; gap: 2px var(--space-2); align-items: baseline; padding: var(--space-2) var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); cursor: pointer; }
 .ad-tpl:has(input:checked) { border-color: var(--brand-blue); background: var(--grey-50); }
 .ad-tpl.off { color: var(--text-muted); cursor: default; }
@@ -905,12 +905,12 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 /* A template the store cannot make yet is read and chosen like any other; only the button stays off, and the preview says why. */
 .ad-later { font-style: italic; }
 .ad-none { margin: var(--space-3) 0; }
-.ad-prev { min-width: 0; padding-left: var(--space-4); border-left: 1px solid var(--grey-200); overflow-wrap: anywhere; }
+.ad-prev { grid-area: prev; min-width: 0; padding-left: var(--space-4); border-left: 1px solid var(--grey-200); overflow-wrap: anywhere; }
 .ad-prev h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ad-prev p { margin: 0 0 var(--space-2); }
 .ad-prev ul { margin: 0 0 var(--space-2); padding-left: var(--space-5); }
 .ad-lbl { font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); padding: 0; }
-.ad-where { border: 0; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ad-where { grid-area: where; min-width: 0; border: 0; border-left: 1px solid var(--grey-200); margin: 0; padding: var(--space-3) 0 0 var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
 .ad-where label { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; cursor: pointer; }
 .ad-where label.off { color: var(--text-muted); cursor: default; }
 .ad-why { font-size: var(--size-small); min-height: 0; }
@@ -919,12 +919,9 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ad-help:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
 .ad-foot { display: flex; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-5); border-top: 1px solid var(--grey-200); }
 @media (max-width: 900px) {
-  .ad-main { grid-template-columns: minmax(0, 1fr); }
+  /* One column: the kinds, then where to place it, then the list, then the preview, in that order in the page too, so the choice is never below all ten templates. */
+  .ad-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "kinds" "where" "list" "prev"; gap: var(--space-4) 0; }
   .ad-kinds { flex-direction: row; flex-wrap: wrap; }
-  /* One column: the kinds, then where to place it, then the list, then the preview, so the choice is never below all ten templates. */
-  .ad-prev { display: contents; }
-  .ad-kinds { order: 1; }
-  .ad-where { order: 2; margin: 0; }
-  .ad-list { order: 3; }
-  .ad-prev > :not(.ad-where) { order: 4; }
+  .ad-prev, .ad-where { padding-left: 0; border-left: 0; }
+  .ad-where { padding-top: 0; }
 }
