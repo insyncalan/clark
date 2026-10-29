@@ -154,7 +154,7 @@ def _check(store, req, project, today, clock):
         raise Refused(NO_FILE)
     shown = word_import.file_label(name)
     if len(data) > docx_read.MAX_FILE_BYTES * 4 // 3 + 16:                # said before anything is decoded
-        raise Refused(f"{shown} is more than {docx_read.MAX_FILE_BYTES // 1048576} MB, more than clark will open.")
+        raise Refused(f"{shown} is more than {docx_read.MAX_FILE_BYTES // 1048576} MB, more than clark will open. Save a smaller copy, or split it into two files, then choose it again.")
     try:
         raw = base64.b64decode(data, validate=True)
     except (binascii.Error, ValueError):

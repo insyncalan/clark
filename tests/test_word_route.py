@@ -240,6 +240,33 @@ class Refusals(Base):
         got = self.refused(op="check", project="ABC", name=NAME, data=encoded(b"not a word file"))
         self.assertIn("can't be opened as a Word document", got["message"])
 
+    def test_a_file_with_no_table_or_nothing_to_read_stages_nothing_and_says_what_to_do_next(self):
+        for raw in (docx(P("Just a paragraph and nothing else")), docx(P("Weekly notes", style="Heading1"))):
+            before = self.counts()
+            status, got = self.check(data=raw)
+            self.assertEqual((status, got["items"]), (200, []))
+            self.assertTrue(any(n.endswith("Put actions, risks, issues or decisions under a heading with that name.") for n in got["notes"]), got["notes"])
+            self.assertNotRegex(got["report"], JARGON)
+            self.assertEqual(self.counts(), before)
+            status, again = self.apply(got["plan"])                      # accepting a plan with nothing in it adds nothing
+            self.assertEqual(status, 409, again)
+            self.assertEqual(self.counts(), before)
+
+    def test_headings_that_only_look_like_the_real_ones_stage_nothing(self):
+        raw = docx(P("Risk register notes", style="Heading1") + P("Supplier may slip")
+                   + P("Actions taken so far", style="Heading1") + P("Booked the room")
+                   + P("Decisions?? no", style="Heading1") + P("Move go-live")
+                   + P("Issues log archive", style="Heading1") + P("Old issue"))
+        before = self.counts()
+        status, got = self.check(data=raw)
+        self.assertEqual((status, got["items"]), (200, []))
+        self.assertEqual(self.counts(), before)
+
+    def test_a_file_that_is_not_a_word_file_is_refused_with_what_to_do_next(self):
+        for raw in (b"plain text, not a Word file", b"PK\x03\x04 cut short"):
+            got = self.refused(op="check", project="ABC", name="notes.txt", data=encoded(raw))
+            self.assertIn("Open it in Word, save it again as a .docx and try again.", got["message"])
+
     def test_a_file_that_unpacks_too_big_is_refused(self):
         import zipfile
         import io
@@ -253,6 +280,7 @@ class Refusals(Base):
     def test_an_oversize_request_is_refused_before_it_is_decoded(self):
         got = self.refused(op="check", project="ABC", name=NAME, data="A" * (word_route.docx_read.MAX_FILE_BYTES * 4 // 3 + 1000))
         self.assertIn("more than clark will open", got["message"])
+        self.assertIn("then choose it again", got["message"])
 
     def test_requests_that_are_not_what_they_should_be(self):
         for req, words in (({"op": "check", "project": "ABC", "name": NAME}, word_route.NO_FILE),
