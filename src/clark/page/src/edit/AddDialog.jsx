@@ -132,7 +132,7 @@ function Box({ after, opener, onClose }) {
               <>
                 <h3>{current.name}</h3>
                 <p>{current.description}</p>
-                <p class="ad-lbl">It holds</p>
+                <p class="ad-lbl">Holds</p>
                 <ul>{current.holds.map((h) => <li key={h}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>
               </>

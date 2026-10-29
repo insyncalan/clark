@@ -18,30 +18,28 @@ export const KINDS = [
 export const RECENT = "recent";
 export const RECENT_MAX = 3;
 
+// Words and parts are the prototype's (system/prototype/views.js, the same list Help's table draws from). `fit` puts the better width first.
 export const TEMPLATES = [
   { id: "text", name: "Text", kind: "text", fit: ["full", "half"], type: "text", title: "New section", body: "",
-    description: "A heading and a block of your own words.", holds: ["A heading", "Text you write"] },
+    description: "Words under a heading, written in clark’s one editor.", holds: ["Heading", "Text"] },
   { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "",
-    description: "Words on one side and a picture on the other.", holds: ["A heading", "Text you write", "One image"] },
+    description: "A story with a picture: a site visit, a design, a screenshot of the new system.", holds: ["Heading", "Text", "Image", "Caption"] },
   { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures", title: "Key figures", body: "",
-    description: "Three big numbers side by side, each with a label. Each can follow the project or be typed in.", holds: ["Three figures, each with a label"] },
+    description: "The same, for three numbers. Each card is wider, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
   { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures", title: "Key figures", body: "",
-    description: "Four big numbers side by side, each with a label. Each can follow the project or be typed in.", holds: ["Four figures, each with a label"] },
+    description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
   { id: "raid-3", name: "RAID cards, three", kind: "work", fit: ["full"], type: "raidcards", title: "Risks and issues", body: "",
-    description: "Three cards, each showing one work item from your project with its owner, date and status. The text under a card is the latest update, the client wording or your own words.",
-    holds: ["Three work items from your project", "A line of text under each"] },
+    description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
   { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raidcards", title: "Risks and issues", body: "",
-    description: "Four cards, each showing one work item from your project with its owner, date and status. The text under a card is the latest update, the client wording or your own words.",
-    holds: ["Four work items from your project", "A line of text under each"] },
+    description: "Four shorter cards: good for “this week’s actions” or “decisions needed”.", holds: ["Heading", "RAID card ×4"] },
   { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "",
-    description: "A live list of work items chosen by a filter you set: type, status, due date, owner and more. Hidden and client-hidden items are never published.",
-    holds: ["A filter", "Live rows from Work items"] },
+    description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
   { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "",
-    description: "A tidy list of files and links. A file is a link to the project's shared SharePoint folder.", holds: ["Files", "Links"] },
+    description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
   { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "",
-    description: "A highlighted box for information, a decision needed or a warning.", holds: ["A short message", "Information, decision needed or warning"] },
-  { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half"], type: "keydates", title: "Key dates", body: "",
-    description: "A short list of the dates that matter, typed in or taken from your milestones.", holds: ["Dates with a label each"] },
+    description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
+  { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "",
+    description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
 ];
 
 export const MESSAGES = {

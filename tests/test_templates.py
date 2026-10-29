@@ -76,9 +76,25 @@ class Logic(unittest.TestCase):
                 self.assertNotIn(word, x["description"])
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
         by = {x["id"]: x for x in cat}
-        self.assertEqual(by["key-dates"]["fit"], ["half"])
+        self.assertEqual(by["key-dates"]["fit"], ["half", "full"], "the prototype says Half or full")
         self.assertEqual(by["raid-3"]["fit"], by["raid-4"]["fit"], ["full"])
         self.assertEqual(set(by["work-items"]["fit"]), {"full", "half"})
+
+    def test_descriptions_and_what_each_holds_are_the_prototypes(self):
+        """Romanoff's table: the words and parts are the prototype's (system/prototype/views.js), so Help's table can match them."""
+        got = {x["id"]: (x["description"], x["holds"], x["fit"]) for x in self.t("TEMPLATES")}
+        self.assertEqual(got, {
+            "text": ("Words under a heading, written in clark’s one editor.", ["Heading", "Text"], ["full", "half"]),
+            "text-image": ("A story with a picture: a site visit, a design, a screenshot of the new system.", ["Heading", "Text", "Image", "Caption"], ["full", "half"]),
+            "figures-3": ("The same, for three numbers. Each card is wider, so a short note fits under the change.", ["Heading", "Figure · live", "Figure · live", "Figure · typed"], ["full", "half"]),
+            "figures-4": ("Three or four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
+            "raid-3": ("The risks, actions, issues or decisions you want the reader to see, as cards.", ["Heading", "RAID card ×3", "Text source", "Text"], ["full"]),
+            "raid-4": ("Four shorter cards: good for “this week’s actions” or “decisions needed”.", ["Heading", "RAID card ×4"], ["full"]),
+            "work-items": ("Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"], ["full", "half"]),
+            "docs-links": ("The papers that go with this week’s report.", ["Heading", "File (one or more)", "Link list"], ["full", "half"]),
+            "callout": ("One thing the reader must see.", ["Heading", "Callout · decision"], ["half", "full"]),
+            "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
+        })
 
     def test_what_the_store_takes_is_what_the_list_says(self):
         """ACCEPTS is the store's real answer: text is taken; every other template's type is refused by the real route."""
@@ -287,6 +303,8 @@ class Box(Base):
             p.js("document.querySelector('[data-kind=notes]').click()")
             p.until("document.querySelectorAll('[data-template]').length === 1", "Notes")
             self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "Callout", "the preview still shows it")
+            self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision"])
             self.assertTrue(p.js("document.querySelector('[data-place]').disabled"))
             p.js("document.querySelector('[role=dialog]').requestSubmit()")
             self.assertEqual(self.sent, [], "a submit with a template that is not there yet sends nothing")
