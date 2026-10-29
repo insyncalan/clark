@@ -12,7 +12,7 @@ at any time. Installing, backing up and undoing are other steps and live elsewhe
   accents); every member is in release_files' list for this system and nothing from it is missing; the manifest agrees with
   the members, and each file's SHA-256, size and mode match; the version inside agrees with the name; then the version rule
   (newer, or the same or older only when reinstalling), `min_from`, and the data layout number: an update that changes the
-  data layout is refused for now (Alan, 29-10-2026).
+  data layout is refused for now.
 - check_app_folder(app_dir) refuses a folder that holds `.git`, has no record of what it holds, has a link inside, or can't
   be written to.
 - plan(release, app_dir) compares the new files with the installed ones: added, replaced, removed (only a file the last
