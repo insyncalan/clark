@@ -208,6 +208,20 @@ class Box(Base):
                                  "var seen=false;window.addEventListener('clark:add-section',function(){seen=true;},{once:true});"
                                  "document.dispatchEvent(e);return seen && e.defaultPrevented;})()"), "it also reaches window by bubbling")
 
+    def test_join_the_plus_and_the_menu_entry_open_the_box_end_to_end(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("document.querySelector('[data-id=\"ABC-S-003\"] [data-add]').click()")
+            p.until("!!document.querySelector('[role=dialog]') && document.activeElement.matches('input[type=search]')", "the + opened the box")
+            self.assertIsNone(p.js("document.querySelector('.toast')"), "no 'not available' note")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('[role=dialog]')", "closed")
+            self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-id=\"ABC-S-003\"] [data-add]')"), 5), "focus back on the +")
+            p.menu("ABC-S-011", "add")
+            p.until("!!document.querySelector('[role=dialog]')", "the menu entry opened the box")
+            self.assertIsNone(p.js("document.querySelector('.toast')"))
+
     def test_escape_and_cancel_close_it_and_give_focus_back(self):
         with chrome() as cdp:
             p = self.visit(cdp)
