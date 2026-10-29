@@ -502,6 +502,20 @@ class Box(Base):
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('[role=dialog]')", "closed")
 
+    def test_at_900_wide_the_placing_choice_is_in_view_without_scrolling_the_template_list(self):
+        """At 900 px the box is one column; the choice between its own row and beside the next must not sit below all ten templates."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 700, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            self.open_box(p, "ABC-S-003")
+            self.assertEqual(p.js("document.querySelector('.ad-main').scrollTop"), 0, "nothing scrolled")
+            seen = p.js("""(function(){var m=document.querySelector('.ad-main').getBoundingClientRect(), w=document.querySelector('.ad-where').getBoundingClientRect(),
+                l=document.querySelector('.ad-list').getBoundingClientRect(), b=document.querySelector('[data-place]').getBoundingClientRect();
+                return {inView: w.top >= m.top && w.bottom <= m.bottom, aboveList: w.bottom <= l.top + 1, buttonInView: b.bottom <= window.innerHeight};})()""")
+            self.assertEqual(seen, {"inView": True, "aboveList": True, "buttonInView": True})
+            p.js("document.querySelector('[data-cancel]').click()")
+
     def test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token(self):
         """Review, high finding: the cyan --focus is 1.8:1 on white. Every ring in the box is --brand-blue; the scrim names no raw colour."""
         css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")

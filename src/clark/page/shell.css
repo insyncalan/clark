@@ -921,5 +921,10 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 @media (max-width: 900px) {
   .ad-main { grid-template-columns: minmax(0, 1fr); }
   .ad-kinds { flex-direction: row; flex-wrap: wrap; }
-  .ad-prev { padding-left: 0; border-left: 0; border-top: 1px solid var(--grey-200); padding-top: var(--space-3); }
+  /* One column: the kinds, then where to place it, then the list, then the preview, so the choice is never below all ten templates. */
+  .ad-prev { display: contents; }
+  .ad-kinds { order: 1; }
+  .ad-where { order: 2; margin: 0; }
+  .ad-list { order: 3; }
+  .ad-prev > :not(.ad-where) { order: 4; }
 }
