@@ -193,6 +193,24 @@ class Logic(unittest.TestCase):
         self.assertEqual(p["requests"][1], {"op": "update", "id": "z", "changes": {"beside": 0}, "place": "report"})
         self.assertEqual(len(self.t(f"plan({lit(S)}, 'text', 'e', false)")["requests"]), 1, "no flag, nothing to clear")
 
+    def test_at_the_end_a_flag_left_on_the_last_section_is_cleared_too(self):
+        """Wanda LOW 1: after = null means the end; a stale beside on the lone last section must not pair the new one with it."""
+        last = [sec("a", "Summary"), sec("b", "Decisions", type="decisions", beside=1)]
+        p = self.t(f"plan({lit(last)}, 'text', null, false)")
+        self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": None, "place": "report"},
+                                         {"op": "update", "id": "b", "changes": {"beside": 0}, "place": "report"}])
+        clean = [sec("a", "Summary"), sec("b", "Decisions", type="decisions")]
+        self.assertEqual(len(self.t(f"plan({lit(clean)}, 'text', null, false)")["requests"]), 1)
+        self.assertEqual(len(self.t("plan([], 'text', null, false)")["requests"]), 1, "an empty report")
+
+    def test_the_event_name_is_written_once_in_the_page_code(self):
+        """Wanda LOW 2: addSection.js (the gutter) owns the string; addDialog.js re-exports it."""
+        import re
+        literal = re.compile(r"""["']clark:add-section["']""")
+        hits = [f.name for f in (SRC / "clark" / "page" / "src" / "edit").glob("*.js*") if literal.search(f.read_text(encoding="utf-8"))]
+        self.assertEqual(hits, ["addSection.js"])
+        self.assertIn("ADD_SECTION_EVENT = ADD_EVENT", (SRC / "clark" / "page" / "src" / "edit" / "addDialog.js").read_text(encoding="utf-8"))
+
     def test_a_template_the_store_cannot_make_yet_sends_nothing(self):
         for tid in FIRST_SLICE[1:]:
             p = self.t(f"plan({lit(S)}, {lit(tid)}, 'a', false)")
