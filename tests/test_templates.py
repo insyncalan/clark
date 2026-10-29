@@ -359,6 +359,23 @@ class Box(Base):
             self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision"])
 
+    def test_the_two_help_links_are_there_and_say_why_they_go_nowhere_yet(self):
+        """The prototype has 'About section templates' in the footer and 'See every template explained in Help' in the preview.
+        The real page has no Help screen yet (#82), so both are shown, read out as unavailable with the reason in text, and do nothing."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-003")
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-help]')].map(b => b.textContent)"),
+                             ["See every template explained in Help", "About section templates"])
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-help]')].every(b => b.getAttribute('aria-disabled') === 'true' && b.getAttribute('aria-describedby') === 'ad-help-why')"), True)
+            self.assertEqual(p.js("document.getElementById('ad-help-why').textContent"), "Help comes in a later release.")
+            before = p.js("location.href")
+            p.js("document.querySelectorAll('[data-help]').forEach(b => b.click())")
+            self.assertTrue(p.js("!!document.querySelector('[role=dialog]')"), "pressing one does not close the box or go anywhere")
+            self.assertEqual(p.js("location.href"), before, "and the address does not change")
+            self.assertEqual(self.sent, [])
+
     def test_the_button_says_add_section_and_beside_names_the_section(self):
         with chrome() as cdp:
             p = self.visit(cdp)

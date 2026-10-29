@@ -136,6 +136,7 @@ function Box({ after, opener, onClose }) {
                 <p class="ad-lbl">Holds</p>
                 <ul>{current.holds.map((h) => <li key={h}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>
+                <button type="button" class="ad-help" data-help aria-disabled="true" aria-describedby="ad-help-why">See every template explained in Help</button>
                 {canPlace ? null : <p class="muted ad-later-prev" id="ad-later-prev">{MESSAGES.later}</p>}
               </>
             ) : <p class="muted">Choose a template.</p>}
@@ -149,6 +150,10 @@ function Box({ after, opener, onClose }) {
           </section>
         </div>
         <div class="ad-foot">
+          <span class="ad-helpbox">
+            <button type="button" class="ad-help" data-help aria-disabled="true" aria-describedby="ad-help-why">About section templates</button>
+            <span class="muted" id="ad-help-why">{MESSAGES.help}</span>
+          </span>
           <button type="button" class="pk-btn" data-cancel onClick={close}>Cancel</button>
           <button type="submit" class="pk-btn pri" data-place disabled={!canPlace} aria-describedby={canPlace ? undefined : "ad-later-prev"}>Add section</button>
         </div>

@@ -914,6 +914,9 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ad-where label { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; cursor: pointer; }
 .ad-where label.off { color: var(--text-muted); cursor: default; }
 .ad-why { font-size: var(--size-small); min-height: 0; }
+.ad-helpbox { margin-right: auto; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-2); font-size: var(--size-small); }
+.ad-help { all: unset; box-sizing: border-box; color: var(--text-muted); font-size: var(--size-small); text-decoration: underline; text-underline-offset: 2px; cursor: default; }
+.ad-help:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
 .ad-foot { display: flex; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-5); border-top: 1px solid var(--grey-200); }
 @media (max-width: 900px) {
   .ad-main { grid-template-columns: minmax(0, 1fr); }

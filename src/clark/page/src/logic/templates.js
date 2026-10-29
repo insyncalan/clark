@@ -49,6 +49,7 @@ export const MESSAGES = {
   nextFull: "The next row already has two sections. Place it on its own row.",
   needsFull: "This template needs the full width. Place it on its own row.",
   later: "Coming with a later release.",
+  help: "Help comes in a later release.",
   unknown: "That template isn't in the list.",
 };
 
