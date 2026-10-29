@@ -1,4 +1,4 @@
-// The Add a section box (Edit only, #96): choose a template, say where it goes, Place it. Opened by the window event
+// The Add a section box (Edit only, #96): choose a template, say where it goes, add it. Opened by the window event
 // `clark:add-section` (edit/addDialog.js). It is a modal dialog: focus starts in the search box and stays inside until it closes, Esc
 // closes it, and focus goes back to what opened it. The page behind is `inert` while it is open. Every word from the catalogue is
 // a text node.
@@ -93,6 +93,13 @@ function Box({ after, opener, onClose }) {
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   };
 
+  // Help opens over the page, so the box closes first and Help opens at the entry (Esc in Help comes back to the page).
+  const help = (place) => {
+    close();
+    const h = window.clarkPage && window.clarkPage.help;
+    if (h) setTimeout(() => h.open(place), 0);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (!canPlace) return;
@@ -123,7 +130,7 @@ function Box({ after, opener, onClose }) {
             ))}
           </nav>
           <fieldset class="ad-where">
-            <legend class="ad-lbl">Place it</legend>
+            <legend class="ad-lbl">Where it goes</legend>
             <label><input type="radio" name="where" value="row" checked={!sideOn} onChange={() => setBeside(false)} /> On its own row</label>
             <label class={okBeside.ok ? "" : "off"}><input type="radio" name="where" value="beside" checked={sideOn} disabled={!okBeside.ok}
               aria-describedby="ad-w-why" onChange={() => setBeside(true)} /> {okBeside.ok ? `Beside “${okBeside.next}” (half width)` : "Beside the next section (half width)"}</label>
@@ -154,7 +161,7 @@ function Box({ after, opener, onClose }) {
                 <p class="ad-lbl">Holds</p>
                 <ul>{current.holds.map((h) => <li key={h}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>
-                <button type="button" class="ad-help" data-help aria-disabled="true" aria-describedby="ad-help-why">See every template explained in Help</button>
+                <button type="button" class="ad-help" data-help="ref-section-templates" onClick={() => help("ref-section-templates")}>See every template explained in Help</button>
                 {canPlace ? null : <p class="muted ad-later-prev" id="ad-later-prev">{MESSAGES.later}</p>}
               </>
             ) : <p class="muted">Choose a template.</p>}
@@ -162,8 +169,7 @@ function Box({ after, opener, onClose }) {
         </div>
         <div class="ad-foot">
           <span class="ad-helpbox">
-            <button type="button" class="ad-help" data-help aria-disabled="true" aria-describedby="ad-help-why">About section templates</button>
-            <span class="muted" id="ad-help-why">{MESSAGES.help}</span>
+            <button type="button" class="ad-help" data-help="howto-add-a-section-from-a-template" onClick={() => help("howto-add-a-section-from-a-template")}>About section templates</button>
           </span>
           <button type="button" class="pk-btn" data-cancel onClick={close}>Cancel</button>
           <button type="submit" class="pk-btn pri" data-place disabled={!canPlace} aria-describedby={canPlace ? undefined : "ad-later-prev"}>Add section</button>

@@ -31,7 +31,7 @@ def page_html():
 S = [sec("a", "Summary"), sec("b", "Milestones", type="milestones"), sec("c", "This week", beside=1), sec("d", "Next week"), sec("e", "Decisions", type="decisions")]
 FIRST_SLICE_DESCRIPTIONS = [
     {"id": "text-image", "description": "A story with a picture: a site visit, a design, a screenshot of the new system."},
-    {"id": "figures-4", "description": "Four numbers with labels and a change since last week."},
+    {"id": "figures-4", "description": "Three or four numbers with labels and a change since last week."},
     {"id": "figures-3", "description": "Three numbers with labels, in wider cards, so a short note fits under the change."},
     {"id": "raid-3", "description": "The risks, actions, issues or decisions you want the reader to see, as cards."},
     {"id": "raid-4", "description": "Four shorter cards: good for “this week’s actions” or “decisions needed”."},
@@ -39,7 +39,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "docs-links", "description": "The papers that go with this week’s report."},
     {"id": "callout", "description": "One thing the reader must see."},
     {"id": "key-dates", "description": "What’s coming, from the milestones."},
-    {"id": "text", "description": "Words under a heading."},
+    {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
 ]
 FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "raid-3", "raid-4", "work-items", "docs-links", "callout", "key-dates"]
 
@@ -92,14 +92,33 @@ class Logic(unittest.TestCase):
         self.assertEqual(by["raid-3"]["fit"], by["raid-4"]["fit"], ["full"])
         self.assertEqual(set(by["work-items"]["fit"]), {"full", "half"})
 
+    def test_the_box_and_help_describe_every_template_in_the_same_words(self):
+        """The Add a section box and Help's table of section templates say the same thing for each template the box offers."""
+        help_ = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        rows = {}
+
+        def walk(o):
+            if isinstance(o, dict):
+                for v in o.values():
+                    walk(v)
+            elif isinstance(o, list):
+                if len(o) == 3 and all(isinstance(x, str) for x in o):
+                    rows[o[0]] = o[1]
+                for v in o:
+                    walk(v)
+        walk(help_)
+        for t in self.t("TEMPLATES"):
+            self.assertIn(t["name"], rows, f"Help has a row for {t['name']}")
+            self.assertEqual(rows[t["name"]], t["description"], f"{t['name']}: the box and Help use the same words")
+
     def test_descriptions_and_what_each_holds_are_the_prototypes(self):
         """The review table: the words and parts are the prototype's (system/prototype/views.js), so Help's table can match them."""
         got = {x["id"]: (x["description"], x["holds"], x["fit"]) for x in self.t("TEMPLATES")}
         self.assertEqual(got, {
-            "text": ("Words under a heading.", ["Heading", "Text"], ["full", "half"]),
+            "text": ("Words under a heading, written in clark’s one editor.", ["Heading", "Text"], ["full", "half"]),
             "text-image": ("A story with a picture: a site visit, a design, a screenshot of the new system.", ["Heading", "Text", "Image", "Caption"], ["full", "half"]),
             "figures-3": ("Three numbers with labels, in wider cards, so a short note fits under the change.", ["Heading", "Figure · live", "Figure · live", "Figure · typed"], ["full", "half"]),
-            "figures-4": ("Four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
+            "figures-4": ("Three or four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
             "raid-3": ("The risks, actions, issues or decisions you want the reader to see, as cards.", ["Heading", "RAID card ×3", "Text source", "Text"], ["full"]),
             "raid-4": ("Four shorter cards: good for “this week’s actions” or “decisions needed”.", ["Heading", "RAID card ×4"], ["full"]),
             "work-items": ("Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"], ["full", "half"]),
@@ -412,21 +431,22 @@ class Box(Base):
             self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision"])
 
-    def test_the_two_help_links_are_there_and_say_why_they_go_nowhere_yet(self):
-        """The prototype has 'About section templates' in the footer and 'See every template explained in Help' in the preview.
-        The real page has no Help screen yet (#82), so both are shown, read out as unavailable with the reason in text, and do nothing."""
+    def test_the_two_help_links_open_help_at_their_entries(self):
+        """'About section templates' opens the how-to and 'See every template explained in Help' the reference table. Each closes the
+        box first, then opens Help over the page at that entry. No 'later release' text is left."""
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("[...document.querySelectorAll('[data-help]')].map(b => b.textContent)"),
-                             ["See every template explained in Help", "About section templates"])
-            self.assertEqual(p.js("[...document.querySelectorAll('[data-help]')].every(b => b.getAttribute('aria-disabled') === 'true' && b.getAttribute('aria-describedby') === 'ad-help-why')"), True)
-            self.assertEqual(p.js("document.getElementById('ad-help-why').textContent"), "Help comes in a later release.")
-            before = p.js("location.href")
-            p.js("document.querySelectorAll('[data-help]').forEach(b => b.click())")
-            self.assertTrue(p.js("!!document.querySelector('[role=dialog]')"), "pressing one does not close the box or go anywhere")
-            self.assertEqual(p.js("location.href"), before, "and the address does not change")
+            for label, entry in (("About section templates", "howto-add-a-section-from-a-template"), ("See every template explained in Help", "ref-section-templates")):
+                self.open_box(p, "ABC-S-003")
+                self.assertEqual(p.js("[...document.querySelectorAll('[data-help]')].map(b => b.textContent)"),
+                                 ["See every template explained in Help", "About section templates"])
+                self.assertEqual(p.js("document.body.textContent.includes('Help comes in a later release')"), False)
+                p.js("[...document.querySelectorAll('[data-help]')].find(b => b.textContent === %s).click()" % json.dumps(label))
+                p.until("!document.querySelector('[role=dialog][aria-labelledby=ad-title]') && !!document.querySelector('#help')", "the box closed and Help opened")
+                p.until("!!document.querySelector('#hp-%s.hp-found')" % entry, "Help is at " + entry)
+                p.js("window.clarkPage.help.close()")
+                p.until("!document.querySelector('#help')", "Help closed")
             self.assertEqual(self.sent, [])
 
     def test_the_button_says_add_section_and_beside_names_the_section(self):
@@ -435,7 +455,7 @@ class Box(Base):
             p.edit()
             self.open_box(p, "ABC-S-004")                                  # the next row is Summary, alone
             self.assertEqual(p.js("document.querySelector('[data-place]').textContent"), "Add section", "the prototype's word")
-            self.assertEqual(p.js("document.querySelector('.ad-where legend').textContent"), "Place it", "Place it stays the group's heading")
+            self.assertEqual(p.js("document.querySelector('.ad-where legend').textContent"), "Where it goes", "one name for the step: the heading is Where it goes, the button is Add section")
             self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside “Summary” (half width)")
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("!document.querySelector('[role=dialog]')", "closed")
