@@ -267,9 +267,14 @@ class Modes(Base):
             self.assertEqual(p.js("document.querySelectorAll('[data-add]').length"), 1, "an empty report can still get its first section")
             p.js("window.posts = []; var f = window.fetch; window.fetch = function (u, o) { window.posts.push(String(o && o.body)); return f.apply(this, arguments); };")
             p.js("document.querySelector('[data-add]').click()")
-            self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "with nothing claiming the request, the button asks for a plain text section")
+            # The Add a section box (#96) claims the request, so the button opens it; its Add section then makes a plain text section at the end.
+            # (The fallback for a page with no box is tested at the "not claimed" toast below.)
+            p.until("!!document.querySelector('[role=dialog]')", "the button opens the Add a section box")
+            self.assertEqual(p.js("window.posts.length"), 0, "opening sends nothing")
+            p.js("document.querySelector('[data-place]').click()")
+            self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "Add section asks for a plain text section")
             sent = json.loads(p.js("window.posts[0]"))
-            self.assertEqual(sent.get("values"), {"type": "text"})
+            self.assertEqual(sent.get("values"), {"type": "text", "title": "New section"})
             self.assertIsNone(sent.get("after"), "at the end")
 
 
