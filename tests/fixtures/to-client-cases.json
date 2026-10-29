@@ -1,0 +1,724 @@
+{
+ "about": "Fixtures for #43 (Publish To client). Pure cases: no disk, no network. Names, folders and people are fictional. Spec: docs/handoff/design-43-to-client.md. The expected values for safe_name and file-name cases were produced by src/clark/platform.py as on main; the clash, folder-check and request cases are the spec's rulings.",
+ "contract": {
+  "client_file_name": "client_file_name(code, week_ending, today, folder) -> str  # = publish.file_name (#39); folder_chars is the length of the folder path, made up of x's for the test",
+  "resolve_clash": "resolve_clash(name, existing, choice=None, new_name=None) -> {action: write|ask|nothing_to_do|cancel|refuse, ...}; existing = [{name, kind: file|folder, same_content?}] (the names in the client folder, same_content only for the entry with the same name); matching ignores letter case",
+  "check_client_folder": "check_client_folder(path, *, data_dir, onedrive_roots, local_folder, exists, is_dir, writable) -> {ok, folder, warning} | {ok: false, message}; pure: the facts about the disk come in as arguments",
+  "request": "validate_request(body, saved_client_folder) -> {to_client} | error {status, message}; allowed keys: project, to_client, on_clash, new_name"
+ },
+ "messages": {
+  "clash_title": "A file with that name is already in the client folder",
+  "clash_choices": [
+   "Add a number",
+   "Rename it",
+   "Overwrite the existing file",
+   "Cancel"
+  ],
+  "overwrite_note": "The client's copy is replaced. clark keeps no backup in the client folder, because OneDrive would upload it.",
+  "done_new": "Published. Saved locally, and copied to the client folder as “{name}”. OneDrive uploads it from there; clark can't see when that finishes.",
+  "done_numbered": "Published. Saved locally, and copied to the client folder as “{name}” because “{asked}” was already there. OneDrive uploads it from there; clark can't see when that finishes.",
+  "done_replaced": "Published. Saved locally, and “{name}” in the client folder was replaced. OneDrive uploads it from there; clark can't see when that finishes.",
+  "done_same": "Published locally. The client folder already has this exact file (“{name}”), so nothing was copied.",
+  "folder_missing_nothing_written": "The client folder “{folder_name}” isn't there. Check that OneDrive is running and the folder is still synced, or choose another folder in Settings. Nothing was published.",
+  "copy_failed_local_kept": "Saved locally, but not copied to the client folder: {reason} Nothing was added to the client folder.",
+  "copy_differs": "Saved locally, but the copy in the client folder did not match the published file, so clark removed it. Try again.",
+  "copy_differs_after_overwrite": "Saved locally, but the copy that replaced “{name}” in the client folder did not match the published file. Publish again to put it right."
+ },
+ "context_for_folder_cases": {
+  "data_dir": "/Users/sam.carter/Library/Application Support/clark",
+  "onedrive_roots": [
+   "/Users/sam.carter/Library/CloudStorage/OneDrive-Harbourside"
+  ],
+  "local_folder": "/Users/sam.carter/Documents/Reports"
+ },
+ "file_name_cases": [
+  {
+   "id": "week-ending-set",
+   "code": "PUB",
+   "week_ending": "2026-10-23",
+   "today": "2026-10-28",
+   "folder_chars": 60,
+   "expect": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "no-week-ending-uses-today",
+   "code": "PUB",
+   "week_ending": null,
+   "today": "2026-10-28",
+   "folder_chars": 60,
+   "expect": "PUB-report-2026-10-28.html"
+  },
+  {
+   "id": "longest-code-with-digits",
+   "code": "HBP2026",
+   "week_ending": "2026-10-30",
+   "today": "2026-10-28",
+   "folder_chars": 60,
+   "expect": "HBP2026-report-2026-10-30.html"
+  },
+  {
+   "id": "deep-folder-keeps-the-date-and-shortens-the-code-part",
+   "why": "platform.safe_name alone cuts the date off the end (PUB-report-20.html), so two weeks would get one name. #43 keeps the date and .html and shortens the code part: first 'PUB-report' goes, then the code.",
+   "code": "PUB",
+   "week_ending": "2026-10-23",
+   "today": "2026-10-28",
+   "folder_chars": 235,
+   "expect": "PUB-2026-10-23.html"
+  },
+  {
+   "id": "deepest-folder-keeps-two-letters-of-the-code",
+   "code": "PUB",
+   "week_ending": "2026-10-23",
+   "today": "2026-10-28",
+   "folder_chars": 240,
+   "expect": "PU-2026-10-23.html"
+  },
+  {
+   "id": "one-deeper-is-refused",
+   "why": "Less than two letters of the code would fit with the date, so the folder is refused instead of making an unreadable name.",
+   "code": "PUB",
+   "week_ending": "2026-10-23",
+   "today": "2026-10-28",
+   "folder_chars": 241,
+   "expect": "PlatformError: The folder path is too long for a file to be saved in it"
+  },
+  {
+   "id": "folder-too-deep-is-refused",
+   "code": "PUB",
+   "week_ending": "2026-10-23",
+   "today": "2026-10-28",
+   "folder_chars": 250,
+   "expect": "PlatformError: The folder path is too long for a file to be saved in it"
+  }
+ ],
+ "safe_name_cases": [
+  {
+   "id": "safe-1",
+   "why": "colon and question mark",
+   "input": "Harbour Bridge: week 44?.html",
+   "expect": "Harbour Bridge- week 44-.html"
+  },
+  {
+   "id": "safe-2",
+   "why": "ordinary name, unchanged",
+   "input": "Harbour Bridge Programme - weekly report.html",
+   "expect": "Harbour Bridge Programme - weekly report.html"
+  },
+  {
+   "id": "safe-3",
+   "why": "a Windows device name",
+   "input": "CON.html",
+   "expect": "_CON.html"
+  },
+  {
+   "id": "safe-4",
+   "why": "device name before the first dot",
+   "input": "com1.report.html",
+   "expect": "_com1.report.html"
+  },
+  {
+   "id": "safe-5",
+   "why": "trailing dot and space",
+   "input": "Weekly report. ",
+   "expect": "Weekly report"
+  },
+  {
+   "id": "safe-6",
+   "why": "only spaces",
+   "input": "   ",
+   "expect": "untitled"
+  },
+  {
+   "id": "safe-7",
+   "why": "path separators",
+   "input": "north/south\\east.html",
+   "expect": "north-south-east.html"
+  },
+  {
+   "id": "safe-8",
+   "why": "brackets, apostrophe and ampersand are allowed",
+   "input": "Quarterly review (draft) - Sam's notes & actions.html",
+   "expect": "Quarterly review (draft) - Sam's notes & actions.html"
+  },
+  {
+   "id": "safe-9",
+   "why": "longer than 120 characters",
+   "input": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.html",
+   "expect": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.html"
+  }
+ ],
+ "clash_cases": [
+  {
+   "id": "free-name",
+   "why": "Nothing of that name in the folder: written as it is, no question.",
+   "existing": [
+    {
+     "name": "Notes.txt",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": null,
+   "expect": {
+    "action": "write",
+    "name": "PUB-report-2026-10-23.html",
+    "replaces": false
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "taken-different-content-asks",
+   "why": "Same name, different content: nothing is written; the dialog is offered.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": null,
+   "expect": {
+    "action": "ask",
+    "name": "PUB-report-2026-10-23.html",
+    "numbered": "PUB-report-2026-10-23 (2).html",
+    "can_overwrite": true
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "taken-same-content-is-a-success",
+   "why": "Same name and the exact same bytes: nothing to copy, no dialog.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": true
+    }
+   ],
+   "choice": null,
+   "expect": {
+    "action": "nothing_to_do",
+    "name": "PUB-report-2026-10-23.html"
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "add-a-number",
+   "why": "Add a number (the default choice).",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "number",
+   "expect": {
+    "action": "write",
+    "name": "PUB-report-2026-10-23 (2).html",
+    "replaces": false
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "add-a-number-skips-taken-numbers",
+   "why": "(2) is taken too, so (3).",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    },
+    {
+     "name": "PUB-report-2026-10-23 (2).html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "number",
+   "expect": {
+    "action": "write",
+    "name": "PUB-report-2026-10-23 (3).html",
+    "replaces": false
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "add-a-number-ignores-letter-case",
+   "why": "macOS, OneDrive and SharePoint ignore letter case: pub-report... is the same name.",
+   "existing": [
+    {
+     "name": "pub-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "number",
+   "expect": {
+    "action": "write",
+    "name": "PUB-report-2026-10-23 (2).html",
+    "replaces": false
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "overwrite",
+   "why": "Overwrite: the existing file is replaced; no backup is made in the client folder.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "overwrite",
+   "expect": {
+    "action": "write",
+    "name": "PUB-report-2026-10-23.html",
+    "replaces": true
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "rename-free-name",
+   "why": "Rename to a free name.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "rename",
+   "new_name": "PUB weekly - 23 Oct.html",
+   "expect": {
+    "action": "write",
+    "name": "PUB weekly - 23 Oct.html",
+    "replaces": false
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "rename-adds-html",
+   "why": "A name typed without .html gets it.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "rename",
+   "new_name": "PUB weekly 23 Oct",
+   "expect": {
+    "action": "write",
+    "name": "PUB weekly 23 Oct.html",
+    "replaces": false
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "rename-made-safe",
+   "why": "Reserved characters become '-' (platform.safe_name).",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "rename",
+   "new_name": "PUB: week 43?.html",
+   "expect": {
+    "action": "write",
+    "name": "PUB- week 43-.html",
+    "replaces": false
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "rename-to-another-taken-name-asks-again",
+   "why": "The new name is taken as well: the dialog comes back, nothing is written.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    },
+    {
+     "name": "Handover.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "rename",
+   "new_name": "handover.html",
+   "expect": {
+    "action": "ask",
+    "name": "handover.html",
+    "numbered": "handover (2).html",
+    "can_overwrite": true
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "rename-empty-is-refused",
+   "why": "An empty name is refused with a plain message.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "rename",
+   "new_name": "   ",
+   "expect": {
+    "action": "refuse",
+    "reason": "empty_name"
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "cancel-writes-nothing",
+   "why": "Cancel: nothing is written, Local or client.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "cancel",
+   "expect": {
+    "action": "cancel"
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "a-folder-has-the-name",
+   "why": "A folder called that: Add a number or Rename only; Overwrite is not offered and is refused if sent.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "folder"
+    }
+   ],
+   "choice": null,
+   "expect": {
+    "action": "ask",
+    "name": "PUB-report-2026-10-23.html",
+    "numbered": "PUB-report-2026-10-23 (2).html",
+    "can_overwrite": false
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "overwrite-a-folder-is-refused",
+   "why": "Overwrite sent anyway for a folder.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "folder"
+    }
+   ],
+   "choice": "overwrite",
+   "expect": {
+    "action": "refuse",
+    "reason": "folder_has_name"
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "unknown-choice-is-refused",
+   "why": "Only number, rename, overwrite or cancel.",
+   "existing": [
+    {
+     "name": "PUB-report-2026-10-23.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "replace",
+   "expect": {
+    "action": "refuse",
+    "reason": "unknown_choice"
+   },
+   "name": "PUB-report-2026-10-23.html"
+  },
+  {
+   "id": "long-name-keeps-its-number",
+   "why": "At the 120-character limit the stem is shortened, never the number or .html.",
+   "existing": [
+    {
+     "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.html",
+     "kind": "file",
+     "same_content": false
+    }
+   ],
+   "choice": "number",
+   "expect": {
+    "action": "write",
+    "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (2).html",
+    "replaces": false
+   },
+   "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.html"
+  }
+ ],
+ "folder_cases": [
+  {
+   "id": "ok-inside-onedrive",
+   "path": "/Users/sam.carter/Library/CloudStorage/OneDrive-Harbourside/Client reports/Harbour Bridge",
+   "is_dir": true,
+   "writable": true,
+   "expect": {
+    "ok": true,
+    "folder": "/Users/sam.carter/Library/CloudStorage/OneDrive-Harbourside/Client reports/Harbour Bridge",
+    "warning": null
+   },
+   "exists": true
+  },
+  {
+   "id": "ok-outside-onedrive-warns",
+   "path": "/Users/sam.carter/Documents/Client reports",
+   "is_dir": true,
+   "writable": true,
+   "expect": {
+    "ok": true,
+    "folder": "/Users/sam.carter/Documents/Client reports",
+    "warning": "This folder isn't one OneDrive syncs, so the client won't get files put here. It is saved; change it if that isn't what you meant."
+   },
+   "exists": true
+  },
+  {
+   "id": "ok-name-starts-like-the-data-folder",
+   "path": "/Users/sam.carter/Library/Application Support/clark-old/exports",
+   "is_dir": true,
+   "writable": true,
+   "expect": {
+    "ok": true,
+    "folder": "/Users/sam.carter/Library/Application Support/clark-old/exports",
+    "warning": "This folder isn't one OneDrive syncs, so the client won't get files put here. It is saved; change it if that isn't what you meant."
+   },
+   "exists": true
+  },
+  {
+   "id": "refused-inside-clarks-data-folder",
+   "path": "/Users/sam.carter/Library/Application Support/clark/exports",
+   "is_dir": true,
+   "writable": true,
+   "expect": {
+    "ok": false,
+    "message": "That folder is inside clark's own data folder, which holds the database. Files put there can't reach the client. Choose the folder OneDrive syncs for the client."
+   },
+   "exists": true
+  },
+  {
+   "id": "refused-clarks-data-folder-itself",
+   "path": "/Users/sam.carter/Library/Application Support/clark",
+   "is_dir": true,
+   "writable": true,
+   "expect": {
+    "ok": false,
+    "message": "That folder is inside clark's own data folder, which holds the database. Files put there can't reach the client. Choose the folder OneDrive syncs for the client."
+   },
+   "exists": true
+  },
+  {
+   "id": "refused-folder-holding-clarks-data",
+   "path": "/Users/sam.carter",
+   "is_dir": true,
+   "writable": true,
+   "expect": {
+    "ok": false,
+    "message": "That folder contains clark's own data folder, which holds the database. Choose a folder made for the client's files."
+   },
+   "exists": true
+  },
+  {
+   "id": "refused-same-as-local",
+   "path": "/Users/sam.carter/Documents/Reports",
+   "is_dir": true,
+   "writable": true,
+   "expect": {
+    "ok": false,
+    "message": "That is the Local folder. Choose the client's folder, a different one."
+   },
+   "exists": true
+  },
+  {
+   "id": "refused-missing",
+   "path": "/Users/sam.carter/Library/CloudStorage/OneDrive-Harbourside/Client reports/Gone",
+   "is_dir": false,
+   "exists": false,
+   "writable": false,
+   "expect": {
+    "ok": false,
+    "message": "The folder “Gone” isn't there. Check that OneDrive is running and the folder is still synced, or choose another folder."
+   }
+  },
+  {
+   "id": "refused-is-a-file",
+   "path": "/Users/sam.carter/Library/CloudStorage/OneDrive-Harbourside/Client reports/notes.txt",
+   "is_dir": false,
+   "exists": true,
+   "writable": false,
+   "expect": {
+    "ok": false,
+    "message": "“notes.txt” is a file, not a folder. Choose a folder."
+   }
+  },
+  {
+   "id": "refused-cannot-write",
+   "path": "/Users/sam.carter/Library/CloudStorage/OneDrive-Harbourside/Read-only share",
+   "is_dir": true,
+   "writable": false,
+   "expect": {
+    "ok": false,
+    "message": "clark can't write to “Read-only share”. Check you have permission to edit that folder, or choose another."
+   },
+   "exists": true
+  },
+  {
+   "id": "refused-not-saved-yet",
+   "path": null,
+   "expect": {
+    "ok": false,
+    "message": "No client folder yet. Set it in Settings."
+   },
+   "exists": false
+  }
+ ],
+ "request_cases": [
+  {
+   "id": "local-only",
+   "body": {
+    "project": "PUB"
+   },
+   "expect": {
+    "status": 200,
+    "to_client": false,
+    "confirmed": false
+   }
+  },
+  {
+   "id": "to-client-true",
+   "body": {
+    "project": "PUB",
+    "to_client": true
+   },
+   "expect": {
+    "status": 200,
+    "to_client": true,
+    "confirmed": false
+   }
+  },
+  {
+   "id": "to-client-false",
+   "body": {
+    "project": "PUB",
+    "to_client": false
+   },
+   "expect": {
+    "status": 200,
+    "to_client": false,
+    "confirmed": false
+   }
+  },
+  {
+   "id": "to-client-string-true",
+   "body": {
+    "project": "PUB",
+    "to_client": "true"
+   },
+   "expect": {
+    "status": 400,
+    "message": "To client must be true or false."
+   }
+  },
+  {
+   "id": "to-client-one",
+   "body": {
+    "project": "PUB",
+    "to_client": 1
+   },
+   "expect": {
+    "status": 400,
+    "message": "To client must be true or false."
+   }
+  },
+  {
+   "id": "to-client-null",
+   "body": {
+    "project": "PUB",
+    "to_client": null
+   },
+   "expect": {
+    "status": 400,
+    "message": "To client must be true or false."
+   }
+  },
+  {
+   "id": "names-a-folder",
+   "body": {
+    "project": "PUB",
+    "to_client": true,
+    "client_folder": "/tmp/elsewhere"
+   },
+   "expect": {
+    "status": 400,
+    "message": "The request can't name a folder or file; clark uses the folder saved in Settings."
+   }
+  },
+  {
+   "id": "names-a-path",
+   "body": {
+    "project": "PUB",
+    "to_client": true,
+    "path": "/tmp/elsewhere/x.html"
+   },
+   "expect": {
+    "status": 400,
+    "message": "The request can't name a folder or file; clark uses the folder saved in Settings."
+   }
+  },
+  {
+   "id": "to-client-without-a-saved-folder",
+   "body": {
+    "project": "PUB",
+    "to_client": true
+   },
+   "setup": "project has no publish_client",
+   "expect": {
+    "status": 400,
+    "message": "No client folder yet. Set it in Settings."
+   }
+  },
+  {
+   "id": "overwrite-confirmed",
+   "body": {
+    "project": "PUB",
+    "to_client": true,
+    "on_clash": "overwrite",
+    "confirmed": true
+   },
+   "expect": {
+    "status": 200,
+    "to_client": true,
+    "confirmed": true
+   }
+  },
+  {
+   "id": "overwrite-without-confirmed",
+   "body": {
+    "project": "PUB",
+    "to_client": true,
+    "on_clash": "overwrite"
+   },
+   "expect": {
+    "status": 400,
+    "message": "Overwriting needs your confirmation, and the request didn't carry it. Nothing was published."
+   }
+  }
+ ]
+}

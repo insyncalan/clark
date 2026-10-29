@@ -1,0 +1,424 @@
+{
+ "about": "BL-301 A (BL-239's form): the pinned Tiptap editor as one ES module, built in development by dev/tools/tiptap.py vendor from dev/tiptap/ with the pinned esbuild; every bundled package's version, tarball SHA-256 and licence; the SHA-256 of every file here. Never edited by hand.",
+ "tiptap": "3.31.3",
+ "build": {
+  "esbuild": "0.28.2",
+  "format": "esm",
+  "target": "es2020",
+  "minified": true,
+  "sources": {
+   "dev/tiptap/editor.js": "f78fdd65293c58811b8db9731f4e1ed9207dd3d176e68b036a6ad7b411a54d78",
+   "dev/tiptap/source.js": "17dcd905761c7672f5a9e1f0a48707c19782c21ddf9bda6b747bd6df36a98978",
+   "dev/tiptap/writer.js": "3857e1c66d74a86e3c37536fec87c4164734e9979464234b91ed1b801add75d8"
+  },
+  "bytes": 511174,
+  "gzipped": 161732
+ },
+ "exports": [
+  "PINNED",
+  "createEditor",
+  "envelope",
+  "wrap",
+  "parser",
+  "markdownOf",
+  "roundTrip",
+  "fromHtml",
+  "roundTripAll",
+  "Extension",
+  "Mark",
+  "Node",
+  "mergeAttributes",
+  "Plugin",
+  "PluginKey",
+  "Decoration",
+  "DecorationSet",
+  "closeHistory"
+ ],
+ "packages": {
+  "@tiptap/core": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/core/-/core-3.31.3.tgz",
+   "sha256": "961200ec73ab42d806cef4423424c5e2650a1b015b95e92d498c205859fc7335",
+   "licence_files": [
+    "licenses/tiptap-core-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-blockquote": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-blockquote/-/extension-blockquote-3.31.3.tgz",
+   "sha256": "17a1c8d916a2d372d7a066b7e6630fba27480c6512949d97d348275d962b2f09",
+   "licence_files": [
+    "licenses/tiptap-extension-blockquote-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-bold": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-bold/-/extension-bold-3.31.3.tgz",
+   "sha256": "66fc5bdacab59812f38dbdd2840dcdd42e147ef5a59bd585b7844f9483d44513",
+   "licence_files": [
+    "licenses/tiptap-extension-bold-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-code": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-code/-/extension-code-3.31.3.tgz",
+   "sha256": "389e49ab563cdba83f1c43e153f1cefe617f1fd1f1c8c303621c2b7f65d2fa77",
+   "licence_files": [
+    "licenses/tiptap-extension-code-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-code-block": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-code-block/-/extension-code-block-3.31.3.tgz",
+   "sha256": "02ac80d6c5464cf0a487b6ce250ae0c9f9987c1fbfa72513fde7b96d2e11faa4",
+   "licence_files": [
+    "licenses/tiptap-extension-code-block-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-document": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-document/-/extension-document-3.31.3.tgz",
+   "sha256": "67c5912dddd2c05d9e92bd5277e07d01f380ea4d2fcd0836e4b78a26a6ab2555",
+   "licence_files": [
+    "licenses/tiptap-extension-document-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-hard-break": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-hard-break/-/extension-hard-break-3.31.3.tgz",
+   "sha256": "1f4c7ce4301fcc028f470bdeb65c2b7f9ea5159cfc105fbdeba77374e3c65640",
+   "licence_files": [
+    "licenses/tiptap-extension-hard-break-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-heading": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-heading/-/extension-heading-3.31.3.tgz",
+   "sha256": "0c4d27763bc54411023732a9f7f01cda40dd57fdf76a8218c3e89a0b3b5734dd",
+   "licence_files": [
+    "licenses/tiptap-extension-heading-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-horizontal-rule": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-horizontal-rule/-/extension-horizontal-rule-3.31.3.tgz",
+   "sha256": "497694d7349be15b3c65204c7e0f6a3522d2aa5414138520183632ecc58542b2",
+   "licence_files": [
+    "licenses/tiptap-extension-horizontal-rule-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-image": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-image/-/extension-image-3.31.3.tgz",
+   "sha256": "a4853dd33f23d876e146438c0a9dd24bbaa73d839fd8b7f0a2133ec1952fcb6c",
+   "licence_files": [
+    "licenses/tiptap-extension-image-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-italic": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-italic/-/extension-italic-3.31.3.tgz",
+   "sha256": "db2c14a8a3a6dedfb2e8fe534e76b97273b6703f51b450886c48bc86e97af363",
+   "licence_files": [
+    "licenses/tiptap-extension-italic-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-link": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-link/-/extension-link-3.31.3.tgz",
+   "sha256": "56f2423ff1df1b004c440f3381a9cbc082e13276b2e4d7e775473a54fdc7e593",
+   "licence_files": [
+    "licenses/tiptap-extension-link-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-list": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-list/-/extension-list-3.31.3.tgz",
+   "sha256": "75d53843cfb846b26280ae63c08e0042eb71f0f5f02595b16d33c08035788ba1",
+   "licence_files": [
+    "licenses/tiptap-extension-list-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-paragraph": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-paragraph/-/extension-paragraph-3.31.3.tgz",
+   "sha256": "e6792ba31069eab2424695f7e34ad75c8a05fbd3372365c37460b2648eb14c94",
+   "licence_files": [
+    "licenses/tiptap-extension-paragraph-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-strike": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-strike/-/extension-strike-3.31.3.tgz",
+   "sha256": "a83f5bb5e735893c75e7a66745ca6441b05bffd5ca50708d4cc7e2c56e6ad92b",
+   "licence_files": [
+    "licenses/tiptap-extension-strike-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-table": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-table/-/extension-table-3.31.3.tgz",
+   "sha256": "7cce306697e8012eb90b457f9d9130ee577771c2f3215926cbbe4b6b8145bff5",
+   "licence_files": [
+    "licenses/tiptap-extension-table-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-text": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-text/-/extension-text-3.31.3.tgz",
+   "sha256": "37fbcdebd6746f3980b91efa87fe8392baa0b26c26765f74c4b6dc7ae8e78850",
+   "licence_files": [
+    "licenses/tiptap-extension-text-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extension-underline": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extension-underline/-/extension-underline-3.31.3.tgz",
+   "sha256": "55221c75c49ed5bab605bab9e85ae69ed4772281f94f26b1a8aab0a066ff87ab",
+   "licence_files": [
+    "licenses/tiptap-extension-underline-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/extensions": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/extensions/-/extensions-3.31.3.tgz",
+   "sha256": "e7ca5c98b09db01d25505c5f8890ff8749ca163b5e0b9802598769b8ff1e6eb6",
+   "licence_files": [
+    "licenses/tiptap-extensions-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/markdown": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/markdown/-/markdown-3.31.3.tgz",
+   "sha256": "aa4343bcab50f400dd53cba1e83ade99d8c3d43b45af88b62bf83c2b9d16462d",
+   "licence_files": [
+    "licenses/tiptap-markdown-3.31.3-LICENSE.md"
+   ]
+  },
+  "@tiptap/pm": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/pm/-/pm-3.31.3.tgz",
+   "sha256": "14b3ca13f3e8f8791dfc3896eb7adb749205ef80abfb623623ee89cf63b053ca",
+   "licence_files": [
+    "licenses/tiptap-pm-3.31.3-LICENSE",
+    "licenses/tiptap-pm-3.31.3-THIRD_PARTY_LICENSES.md"
+   ]
+  },
+  "@tiptap/starter-kit": {
+   "version": "3.31.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/@tiptap/starter-kit/-/starter-kit-3.31.3.tgz",
+   "sha256": "d6d605b72f6f3a3169ce84fac6321302c30fd2d9d4b602dbcf0b18df4c7da251",
+   "licence_files": [
+    "licenses/tiptap-starter-kit-3.31.3-LICENSE.md"
+   ]
+  },
+  "linkifyjs": {
+   "version": "4.3.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/linkifyjs/-/linkifyjs-4.3.3.tgz",
+   "sha256": "112278d64bbbeae926fbbecb1931cb44ecce1e1332e7737be7ba7fc495f15191",
+   "licence_files": [
+    "licenses/linkifyjs-4.3.3-LICENSE"
+   ]
+  },
+  "marked": {
+   "version": "17.0.6",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/marked/-/marked-17.0.6.tgz",
+   "sha256": "d0ca499e365edfbdb6df8f769417bd7e9308d142f5e86e6ffe76918db6a399db",
+   "licence_files": [
+    "licenses/marked-17.0.6-LICENSE.md"
+   ]
+  },
+  "orderedmap": {
+   "version": "2.1.1",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/orderedmap/-/orderedmap-2.1.1.tgz",
+   "sha256": "9ad98abe6ac4156daef2232d7c1d2c8b3681545604c54f7f3754e791f12c168d",
+   "licence_files": [
+    "licenses/orderedmap-2.1.1-LICENSE"
+   ]
+  },
+  "prosemirror-commands": {
+   "version": "1.7.2",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-commands/-/prosemirror-commands-1.7.2.tgz",
+   "sha256": "7cca5b9379ff9f83d6bb54d69373e79715cad1f33d8b73d5cb604bc5e73e90d0",
+   "licence_files": [
+    "licenses/prosemirror-commands-1.7.2-LICENSE"
+   ]
+  },
+  "prosemirror-dropcursor": {
+   "version": "1.8.4",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-dropcursor/-/prosemirror-dropcursor-1.8.4.tgz",
+   "sha256": "9edb239ccca1818663e6049c728bf37c2e0e39a847f452c7b700e3e83bdee4ea",
+   "licence_files": [
+    "licenses/prosemirror-dropcursor-1.8.4-LICENSE"
+   ]
+  },
+  "prosemirror-gapcursor": {
+   "version": "1.4.1",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-gapcursor/-/prosemirror-gapcursor-1.4.1.tgz",
+   "sha256": "961e88b82ce7f434cc781ba644a82810461cf9ba3993834f654384c493998eba",
+   "licence_files": [
+    "licenses/prosemirror-gapcursor-1.4.1-LICENSE"
+   ]
+  },
+  "prosemirror-history": {
+   "version": "1.5.0",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-history/-/prosemirror-history-1.5.0.tgz",
+   "sha256": "5ffc66c053f3e2d4d6c1f7d5f352c4401fee49b075a5b1bb5b03e7b9d84172a7",
+   "licence_files": [
+    "licenses/prosemirror-history-1.5.0-LICENSE"
+   ]
+  },
+  "prosemirror-keymap": {
+   "version": "1.2.3",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-keymap/-/prosemirror-keymap-1.2.3.tgz",
+   "sha256": "3131823ce73eaf3487cada22c85b76349da02c114dee3de696f4c1c3c645ca8c",
+   "licence_files": [
+    "licenses/prosemirror-keymap-1.2.3-LICENSE"
+   ]
+  },
+  "prosemirror-model": {
+   "version": "1.25.12",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-model/-/prosemirror-model-1.25.12.tgz",
+   "sha256": "0ac7e5deed004b7f983ca295fa1e84b19f7ee38995e39dee9809d9a4ebd5c6c8",
+   "licence_files": [
+    "licenses/prosemirror-model-1.25.12-LICENSE"
+   ]
+  },
+  "prosemirror-schema-list": {
+   "version": "1.5.1",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-schema-list/-/prosemirror-schema-list-1.5.1.tgz",
+   "sha256": "c60638c4fd055328cebada5a36a661d454eb87114919bfc2bfbfbcda2b939c2e",
+   "licence_files": [
+    "licenses/prosemirror-schema-list-1.5.1-LICENSE"
+   ]
+  },
+  "prosemirror-state": {
+   "version": "1.4.4",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-state/-/prosemirror-state-1.4.4.tgz",
+   "sha256": "ad3eb60bd6db8e74b2576dc0b7c2800d6def362e0e990c9fb108fc4b724ee651",
+   "licence_files": [
+    "licenses/prosemirror-state-1.4.4-LICENSE"
+   ]
+  },
+  "prosemirror-tables": {
+   "version": "1.8.5",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-tables/-/prosemirror-tables-1.8.5.tgz",
+   "sha256": "589a633cd06d12c0ab2a210846ea208d3be9dd37f5b068be19f437733f22089b",
+   "licence_files": [
+    "licenses/prosemirror-tables-1.8.5-LICENSE"
+   ]
+  },
+  "prosemirror-transform": {
+   "version": "1.12.2",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-transform/-/prosemirror-transform-1.12.2.tgz",
+   "sha256": "a9b778a065f7a5d723b9aaeb6c7026216dba678086abe9d24b52d7abb96366dc",
+   "licence_files": [
+    "licenses/prosemirror-transform-1.12.2-LICENSE"
+   ]
+  },
+  "prosemirror-view": {
+   "version": "1.42.6",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/prosemirror-view/-/prosemirror-view-1.42.6.tgz",
+   "sha256": "cf47baf6a53d609220fdc9b6a71b7de04f5e4cc67b2a00d1f55d967f22a68c2c",
+   "licence_files": [
+    "licenses/prosemirror-view-1.42.6-LICENSE"
+   ]
+  },
+  "rope-sequence": {
+   "version": "1.3.4",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/rope-sequence/-/rope-sequence-1.3.4.tgz",
+   "sha256": "2a483ee02e5a21b59b63a29bca162e6aa2cd8fafb474261040c3d8538a1f067c",
+   "licence_files": [
+    "licenses/rope-sequence-1.3.4-LICENSE"
+   ]
+  },
+  "w3c-keyname": {
+   "version": "2.2.8",
+   "licence": "MIT",
+   "tarball": "https://registry.npmjs.org/w3c-keyname/-/w3c-keyname-2.2.8.tgz",
+   "sha256": "05d21484026d1f2dd842c843181e391e66d60f1d5dff292d562c3f40302dab36",
+   "licence_files": [
+    "licenses/w3c-keyname-2.2.8-LICENSE"
+   ]
+  }
+ },
+ "files": {
+  "licenses/linkifyjs-4.3.3-LICENSE": "58e6f3677452cca096ce5328ebf7de37a1406bbeeb2f263c1b2ededc8c7d0228",
+  "licenses/marked-17.0.6-LICENSE.md": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c",
+  "licenses/orderedmap-2.1.1-LICENSE": "869c30f368eb08735e779027b9f4bc9fea2f39624351856aebe42741f0bc0884",
+  "licenses/prosemirror-commands-1.7.2-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-dropcursor-1.8.4-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-gapcursor-1.4.1-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-history-1.5.0-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-keymap-1.2.3-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-model-1.25.12-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-schema-list-1.5.1-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-state-1.4.4-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-tables-1.8.5-LICENSE": "d1d2046ebbe6362f9ad8fd4d62e9074f2553f289c0e1de895a650f10ba5f4239",
+  "licenses/prosemirror-transform-1.12.2-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/prosemirror-view-1.42.6-LICENSE": "ef0b452ced6304db2ce78ca66de1fc7b97bab05bc1750c95df359ed3fe1d65c8",
+  "licenses/rope-sequence-1.3.4-LICENSE": "530424aebdd0e73f53238d1f89df250057bc8d8ce090cf5954197fadce5bf226",
+  "licenses/tiptap-core-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-blockquote-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-bold-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-code-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-code-block-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-document-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-hard-break-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-heading-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-horizontal-rule-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-image-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-italic-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-link-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-list-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-paragraph-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-strike-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-table-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-text-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extension-underline-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-extensions-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-markdown-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-pm-3.31.3-LICENSE": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/tiptap-pm-3.31.3-THIRD_PARTY_LICENSES.md": "eabc218716e37c2439772ed9133ac7ac1e593b6a5c60370dc1295282c93c9b09",
+  "licenses/tiptap-starter-kit-3.31.3-LICENSE.md": "c96e5ecb55ac593157ad1d21d1f44a611187f494a0f04c235a1ae692c88d6ba9",
+  "licenses/w3c-keyname-2.2.8-LICENSE": "869c30f368eb08735e779027b9f4bc9fea2f39624351856aebe42741f0bc0884",
+  "tiptap.module.js": "b606ac75653d9e919794a9e3f4092a1b1a332dc9ae4e3b8e85f80cf82d36930e"
+ }
+}

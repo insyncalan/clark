@@ -1,0 +1,153 @@
+{
+ "about": "Help entries held back until the part of clark they describe is on the page. The source (helpContent.json) stays whole. Each id here is hidden from all three tabs, the search, the contents lists and Open-at-a-place. To release an entry when its item has merged: remove its line here, then run tests/test_help_shown.py: it checks every bold name, key and screen of what is shown against the page's own source, and names anything the page still lacks.",
+ "start": {
+  "top": "Publish",
+  "loop": "the peek, Import, ask clark and Publish",
+  "first": "Import and the profile circle",
+  "jobs": "the how-to entries",
+  "where": "Work items tools, Milestones, ask clark and Settings",
+  "rules": "Publish and ask clark",
+  "foot": "the how-to entries"
+ },
+ "howto": {
+  "write-the-weekly-report": "text sections and Draft with AI",
+  "set-the-health": "the health control",
+  "check-the-report": "ask clark",
+  "publish-the-report": "Publish",
+  "add-a-work-item": "adding work items",
+  "find-work-items": "work item filters",
+  "use-the-board": "the board",
+  "change-an-item-in-the-peek": "the peek",
+  "change-an-item-in-words": "Sneak peek",
+  "choose-what-the-client-sees": "the client view",
+  "import-and-export": "Import and Export",
+  "arrange-the-report": "the section menu and templates",
+  "add-a-section-from-a-template": "section templates",
+  "use-the-tiles": "At a glance tiles",
+  "keep-the-use-cases": "use cases",
+  "add-supporting-documents": "supporting documents",
+  "change-the-layout-and-look": "Settings",
+  "update-a-milestone": "the milestone peek",
+  "read-the-milestones": "timeline and calendar",
+  "handle-a-slipped-milestone": "Movement",
+  "format-text": "the editor",
+  "improve-wording-with-ai": "the AI menu",
+  "set-up-a-project": "project settings",
+  "set-your-profile": "the profile",
+  "undo-a-mistake": "history",
+  "update-clark": "updates"
+ },
+ "reference": {
+  "top-bar": "the project menu and profile circle",
+  "profile-circle": "the profile circle",
+  "dashboard": "the peek, Week ending and On this page",
+  "sections": "templates and the section grip",
+  "section-templates": "section templates",
+  "at-a-glance": "At a glance tiles",
+  "layouts": "Settings",
+  "work-items": "work item tools",
+  "milestones-page": "Plan and Movement",
+  "ask-clark": "ask clark",
+  "peek": "the peek",
+  "status-words": "the peek",
+  "sneak-peek": "Sneak peek",
+  "picker": "Add from your project record",
+  "milestone-states": "milestone marks",
+  "milestone-peek": "the milestone peek",
+  "timeline-calendar": "timeline and calendar",
+  "editor": "the editor",
+  "ai-menu": "the AI menu",
+  "publishing": "Publish",
+  "client-page": "the published page",
+  "settings": "Settings",
+  "updating-clark": "updates",
+  "diagnostics": "diagnostics",
+  "excel": "Import and Export",
+  "saving": "history and ask clark",
+  "dates-and-ids": "use cases and work item IDs",
+  "using-help": "links in Help",
+  "icons": "the icon set"
+ },
+ "keys": [
+  {
+   "at": 1,
+   "keys": "[[/]]",
+   "waits_for": "ask clark"
+  },
+  {
+   "at": 2,
+   "keys": "[[Mod+J]]",
+   "waits_for": "ask clark"
+  },
+  {
+   "at": 3,
+   "keys": "[[/]] [[/]]",
+   "waits_for": "Sneak peek"
+  },
+  {
+   "at": 4,
+   "keys": "[[Esc]]",
+   "waits_for": "the peek and ask clark"
+  },
+  {
+   "at": 5,
+   "keys": "[[Enter]]",
+   "waits_for": "the peek and Sneak peek"
+  },
+  {
+   "at": 6,
+   "keys": "[[Shift+Enter]]",
+   "waits_for": "Sneak peek"
+  },
+  {
+   "at": 7,
+   "keys": "[[Mod+Enter]]",
+   "waits_for": "the editor"
+  },
+  {
+   "at": 8,
+   "keys": "[[Alt+/]]",
+   "waits_for": "the AI menu"
+  },
+  {
+   "at": 9,
+   "keys": "[[/]] in an editor",
+   "waits_for": "the editor"
+  },
+  {
+   "at": 10,
+   "keys": "[[Up]]",
+   "waits_for": "Sneak peek"
+  },
+  {
+   "at": 15,
+   "keys": "[[Enter]] or [[Space]]",
+   "waits_for": "a section menu on the grip"
+  },
+  {
+   "at": 16,
+   "keys": "[[Alt+Left]] [[Alt+Right]]",
+   "waits_for": "At a glance tiles"
+  },
+  {
+   "at": 17,
+   "keys": "[[Left]] [[Right]]",
+   "waits_for": "the board"
+  },
+  {
+   "at": 18,
+   "keys": "[[Enter]] or [[Space]]",
+   "waits_for": "use cases"
+  },
+  {
+   "at": 20,
+   "keys": "[[Mod+Z]]",
+   "waits_for": "the editor"
+  },
+  {
+   "at": 21,
+   "keys": "Double-click",
+   "waits_for": "the peek"
+  }
+ ]
+}

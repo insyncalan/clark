@@ -1,0 +1,52 @@
+{
+ "files": {
+  "preact/LICENSE": "1fe6958409c8c257a70c587a18b6f7f412b179b456630790d30b2ec9a8e4b7d4",
+  "preact/dist/preact.module.js": "c30e721ebfdc6e2ad4c18c14d2dfb82667829c8aec27de1207774e3fc16858a8",
+  "preact/hooks/dist/hooks.module.js": "a6ee626f2d01570592dd569a792e3f050154aa02890eead8c223fa3ed5aa3d5a",
+  "preact/hooks/src/index.d.ts": "7687e1c892178a4674e162427319e47fb881ac1ae5fa4c50dcc3423870dba636",
+  "preact/jsx-runtime/dist/jsxRuntime.module.js": "43af8eff4027c4d275700d867a65943353e8003dae2681c1632c4a12012db3f3",
+  "preact/jsx-runtime/src/index.d.ts": "000776b76210c3b5afe490fbc24891a6b60a2b4fa64b0b36e214bdc05395a0c4",
+  "preact/src/dom.d.ts": "54afc755a2e8c3290005a6f266467a8279a902e03a9c8ec8096c0fbaed3adb44",
+  "preact/src/index.d.ts": "8ae1be898b0b0dff66a04adaf66ed0285aac1eb70135c20d1310c8e1b966baa5",
+  "preact/src/jsx.d.ts": "6f61d487397ef4ad9da84c58a2a9ce9b018b07630c8305fef0d0e411500ee0bc",
+  "signals-core/LICENSE": "a11fc89e4c6b118854c7a667734a0b2e6bf2af5e45c6686de31adbccc8f3ae8d",
+  "signals-core/dist/signals-core.d.ts": "7fd86ad5dfe671ca797ac75d99a657f2ae66022140428717f6c17373282e3050",
+  "signals-core/dist/signals-core.module.js": "bfbb64b74f7f06a4f7c6f6bb854cccb40d03f1e96305d43c41876cba581ea112",
+  "signals/LICENSE": "a11fc89e4c6b118854c7a667734a0b2e6bf2af5e45c6686de31adbccc8f3ae8d",
+  "signals/dist/signals.d.ts": "6761e07a03f7704624ff7af23678a1bcdbd32edd593de8b3f4d1e24e983ab1ef",
+  "signals/dist/signals.module.js": "68bfef67ac50f6bd7d34ec62ac555205c459a6992824be43cb9688dba8baef5c"
+ },
+ "modules": {
+  "@preact/signals": "signals/dist/signals.module.js",
+  "@preact/signals-core": "signals-core/dist/signals-core.module.js",
+  "preact": "preact/dist/preact.module.js",
+  "preact/hooks": "preact/hooks/dist/hooks.module.js",
+  "preact/jsx-runtime": "preact/jsx-runtime/dist/jsxRuntime.module.js"
+ },
+ "packages": {
+  "@preact/signals": {
+   "folder": "signals",
+   "licence": "MIT",
+   "released": "2026-09-04",
+   "sha256": "616281d8da24cf912ab7525c699e5cda0fb7612bbc8d5d4425a0f62dd1dea962",
+   "tarball": "https://registry.npmjs.org/@preact/signals/-/signals-2.11.2.tgz",
+   "version": "2.11.2"
+  },
+  "@preact/signals-core": {
+   "folder": "signals-core",
+   "licence": "MIT",
+   "released": "2026-07-07",
+   "sha256": "26dab47f2289a8ae668fc0af87c86f0fb69508b11ab61e194e8f3ac45cf041a3",
+   "tarball": "https://registry.npmjs.org/@preact/signals-core/-/signals-core-1.14.4.tgz",
+   "version": "1.14.4"
+  },
+  "preact": {
+   "folder": "preact",
+   "licence": "MIT",
+   "released": "2026-08-01",
+   "sha256": "b18cb0a457f3d43c7bb30391a74ade7d13e03bc6e77915e061c70c0fe1123299",
+   "tarball": "https://registry.npmjs.org/preact/-/preact-10.29.8.tgz",
+   "version": "10.29.8"
+  }
+ }
+}
