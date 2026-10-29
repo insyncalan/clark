@@ -1,8 +1,12 @@
 """The update helper (#109, step 6): swaps clark's own files for the new version's, and puts the old ones back if anything fails.
 
-Standard library only, Python 3.9. It is one file that imports nothing from clark (the one lazy exception, in begin(), is the
-caller's own check and runs inside the server), because the server copies it into the data folder and runs it from there
-while the app folder is being replaced. It is not a guarded file; read it as the riskiest part of the update.
+Standard library only, Python 3.9. It imports nothing from clark (the one lazy exception, in begin(), is the caller's own
+check and runs inside the server), because begin() copies it into `<data>/updates/helper-<stamp>/` and it runs from there while
+the app folder is being replaced. Beside it begin() puts a copy of platform.py as `clark_platform.py` (platform.py is standard
+library only), and the helper loads that copy by its file path. So the helper starts no program itself: the new server and the
+health check go through platform.start_detached and platform.run_python_check, the one place for that (tests/test_platform_source.py
+still bars subprocess here). The copy is not called platform.py because the folder of a running script comes first on the import
+path, and a file of that name would hide Python's own platform module. It is not a guarded file; read it as the riskiest part.
 
 The caller (the server) has already read and hashed the update, checked the app folder, backed up and written the new files
 into a staging folder inside the app folder (`.clark-update-<stamp>/`, laid out as the app folder is). The helper:
@@ -38,18 +42,20 @@ import argparse
 import errno
 import hashlib
 import http.client
+import importlib.util
 import json
 import os
 import shutil
 import signal
 import socket
 import stat
-import subprocess
 import sys
 import time
 from pathlib import Path
 
 MARKER_NAME = ".installing.json"
+PLATFORM_COPY = "clark_platform.py"
+HELPER_PREFIX = "helper-"
 LOG_NAME = "update.log"
 RESULT_NAME = "last-result.json"
 UPDATES = "updates"
@@ -112,12 +118,38 @@ def tilde(text, home=None):
 
 # --- the things that differ between computers -------------------------------------------------------------------------
 
+def load_platform(folder=None):
+    """The copy of platform.py that sits beside this file (clark_platform.py), loaded by its path. In the server's own tree,
+    where there is no copy, it is platform.py beside this file. Raises OSError if there is neither."""
+    here = Path(folder) if folder else Path(__file__).resolve().parent
+    path = here / PLATFORM_COPY
+    if not path.is_file():
+        path = here / "platform.py"
+    spec = importlib.util.spec_from_file_location("clark_platform_copy", str(path))
+    if spec is None or spec.loader is None:
+        raise OSError(f"{path.name} can't be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class Seams:
     """The Mac and Linux way. The guarded platform module fills the same names for Windows; tests override single ones."""
 
-    def __init__(self, sleep=time.sleep, clock=time.monotonic):
+    def __init__(self, sleep=time.sleep, clock=time.monotonic, platform=None):
         self.sleep = sleep
         self.clock = clock
+        self._platform = platform
+
+    @property
+    def platform(self):
+        """The platform functions, loaded the first time they are needed (a test that overrides the seams never loads them)."""
+        if self._platform is None:
+            self._platform = load_platform()
+        return self._platform
+
+    def _on(self):
+        return self.platform.WINDOWS if sys.platform == self.platform.WINDOWS else self.platform.MAC     # Linux takes the Mac way
 
     def is_link(self, path):
         try:
@@ -168,10 +200,8 @@ class Seams:
     def start_server(self, app_dir, data_dir, port, log_path):
         """Start clark detached from the app folder's own files, as the launcher does. The process id."""
         env = {**os.environ, "CLARK_LAUNCHED": "1", "CLARK_PORT": str(port), "PYTHONPATH": str(Path(app_dir) / "src")}
-        with open(log_path, "ab") as log:
-            process = subprocess.Popen([self.helper_python(), "-m", "clark", "--data", str(data_dir), "--port", str(port)],
-                                       cwd=str(data_dir), env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
-                                       start_new_session=True)
+        process = self.platform.start_detached([self.helper_python(), "-m", "clark", "--data", str(data_dir), "--port", str(port)],
+                                               env, log_path, cwd=str(data_dir), on=self._on())
         return process.pid
 
     def server_answers(self, port, header, mark, timeout=2):
@@ -196,10 +226,9 @@ class Seams:
                 "for m in pkgutil.iter_modules(clark.__path__):\n"
                 "    importlib.import_module('clark.' + m.name)\n")
         app = Path(app_dir)
-        done = subprocess.run([self.helper_python(), "-I", "-B", "-c", code, str(app / "src"), str(app / "vendor")],
-                              capture_output=True, timeout=120)
-        if done.returncode != 0:
-            raise StepError("damaged", "a module does not import: " + done.stderr.decode("utf-8", "replace")[-300:])
+        status, errors = self.platform.run_python_check(self.helper_python(), code, [app / "src", app / "vendor"], timeout=120)
+        if status != 0:
+            raise StepError("damaged", "a module does not import: " + errors[-300:])
 
 
 def rename_with_retry(source, dest, seams, attempts=REPLACE_ATTEMPTS, first_wait=REPLACE_FIRST_WAIT):
@@ -323,8 +352,23 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
         "mark_header": mark_header, "mark": mark, "phase": "staged", "helper_pid": None, "new_pid": None, "done": [],
     }
     updates_dir(data_dir).mkdir(parents=True, exist_ok=True)
+    marker["helper_dir"] = str(copy_helper(data_dir, stamp))
     write_json(marker_path(data_dir), marker)
     return marker_path(data_dir)
+
+
+def copy_helper(data_dir, stamp, source=None):
+    """Put the helper and a copy of platform.py (as clark_platform.py) in `<data>/updates/helper-<stamp>/`, where the helper is
+    run from while the app folder is replaced. The folders of earlier updates are removed. The new folder's path."""
+    here = Path(source) if source else Path(__file__).resolve().parent
+    folder = updates_dir(data_dir) / (HELPER_PREFIX + stamp)
+    for old in updates_dir(data_dir).glob(HELPER_PREFIX + "*"):
+        if old != folder and old.is_dir() and not old.is_symlink():
+            shutil.rmtree(old, ignore_errors=True)
+    folder.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(here / "update_helper.py", folder / "update_helper.py")
+    shutil.copyfile(here / "platform.py", folder / PLATFORM_COPY)
+    return folder
 
 
 def cleanup_old(app_dir):
