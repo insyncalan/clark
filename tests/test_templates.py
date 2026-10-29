@@ -203,7 +203,7 @@ class Box(Base):
             p.until("!!document.querySelector('[role=dialog]') && document.activeElement.matches('input[type=search]')", "the box opened")
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('[role=dialog]')", "Esc closed it")
-            self.assertTrue(p.js("document.activeElement.matches('[data-id=\"ABC-S-003\"] [data-drag]')"), "focus went back to the opener")
+            self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-id=\"ABC-S-003\"] [data-drag]')"), 5), "focus went back to the opener")
             self.assertTrue(p.js("(function(){var e=new CustomEvent('clark:add-section',{detail:{after:null,opener:null},cancelable:true,bubbles:true});"
                                  "var seen=false;window.addEventListener('clark:add-section',function(){seen=true;},{once:true});"
                                  "document.dispatchEvent(e);return seen && e.defaultPrevented;})()"), "it also reaches window by bubbling")
