@@ -61,6 +61,17 @@ function Box({ after, opener, onClose }) {
     return () => held.forEach((el) => el.removeAttribute("inert"));
   }, []);
 
+  // A click on text that cannot take focus lands on the box itself (tabindex -1), never on the page behind; if focus still
+  // falls to the page, it comes back to the box. A click on the backdrop closes the box.
+  const onFocusOut = (e) => {
+    if (e.relatedTarget) return;
+    setTimeout(() => {
+      const r = root.current;
+      if (r && r.isConnected && (!document.activeElement || document.activeElement === document.body)) (search.current || r).focus();
+    }, 0);
+  };
+  const onScrimDown = (e) => { if (e.target === e.currentTarget) close(); };
+
   const onKeyDown = (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
     if (e.key === "Enter" && !e.isComposing && e.target.matches && e.target.matches('input[type="search"], input[type="radio"]')) {
@@ -77,7 +88,7 @@ function Box({ after, opener, onClose }) {
     const all = Array.from(root.current.querySelectorAll(FOCUSABLE));
     if (!all.length) return;
     const first = all[0], last = all[all.length - 1];
-    if (!root.current.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+    if (!root.current.contains(document.activeElement) || document.activeElement === root.current) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
     else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   };
@@ -94,8 +105,8 @@ function Box({ after, opener, onClose }) {
   const kinds = [{ id: "all", name: "All templates" }, ...(recent.length ? [{ id: RECENT, name: "Recently used" }] : []), ...KINDS];
 
   return (
-    <div class="ad-scrim" data-edit-only onKeyDown={onKeyDown}>
-      <form class="ad" role="dialog" aria-modal="true" aria-labelledby="ad-title" ref={root} onSubmit={submit}>
+    <div class="ad-scrim" data-edit-only onKeyDown={onKeyDown} onPointerDown={onScrimDown}>
+      <form class="ad" role="dialog" aria-modal="true" aria-labelledby="ad-title" tabindex="-1" ref={root} onSubmit={submit} onFocusOut={onFocusOut}>
         <div class="ad-head">
           <h2 id="ad-title">Add a section</h2>
           <label class="ad-q"><span class="sr">Search templates</span>

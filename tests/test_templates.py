@@ -293,6 +293,34 @@ class Box(Base):
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-options]')"), 5))
             self.assertEqual(self.sent, [])
 
+    def test_after_a_click_inside_or_outside_the_box_escape_and_tab_still_work(self):
+        """A click on text that cannot take focus must not drop focus to the page: Esc still closes and Tab stays inside.
+        A click on the backdrop closes the box and gives focus back to what opened it."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
+            inside = "document.activeElement.closest('[role=dialog]') ? 'in' : 'out'"
+            for target in (".ad-prev h3", ".ad-prev .muted", ".ad-head h2"):
+                x, y, _ = p.box(target)
+                p.mouse("mousePressed", x, y, 1)
+                p.mouse("mouseReleased", x, y, 0)
+                self.assertEqual(p.js(inside), "in", f"focus stays in the box after a click on {target}")
+                p.key("Tab", code="Tab", vk=9)
+                self.assertEqual(p.js(inside), "in", f"Tab stays in the box after a click on {target}")
+            x, y, _ = p.box(".ad-prev h3")
+            p.mouse("mousePressed", x, y, 1)
+            p.mouse("mouseReleased", x, y, 0)
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('[role=dialog]')", "Esc closed it after a click on the preview")
+            self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-id=\"ABC-S-003\"] [data-drag]')"), 5), "focus went back to the opener")
+            self.open_box(p, "ABC-S-004", focus='[data-id="ABC-S-004"] [data-options]')
+            p.mouse("mousePressed", 5, 5, 1)
+            p.mouse("mouseReleased", 5, 5, 0)
+            p.until("!document.querySelector('[role=dialog]')", "a click on the backdrop closed it")
+            self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-options]')"), 5), "focus is back on the opener")
+            self.assertEqual(self.sent, [], "nothing was placed")
+
     def test_tab_stays_inside_the_box(self):
         with chrome() as cdp:
             p = self.visit(cdp)
