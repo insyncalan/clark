@@ -1,0 +1,22 @@
+# LF everywhere, so the same files work on the Mac now and Windows later (BRD NFR-9).
+* text=auto eol=lf
+
+# Windows launchers need CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files: never touch line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.xlsx binary
+*.docx binary
+*.pptx binary
+*.pdf binary
+*.zip binary
+*.db binary

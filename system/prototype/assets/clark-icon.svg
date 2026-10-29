@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="clark">
+  <title>clark</title>
+  <!-- Sibling of creaite ("Sibling of creaite is our winner"): creaite's dashed draft behind and the record in front,
+       here the published report in clark's blue, carrying the c. Navy #14233A, draft grey #7C8BA1, report blue #3B5BDB. -->
+  <rect width="512" height="512" rx="112" fill="#14233A"/><rect x="87" y="87" width="225" height="225" rx="46" fill="none" stroke="#7C8BA1" stroke-width="18" stroke-dasharray="31 26"/>
+<rect x="200" y="200" width="225" height="225" rx="46" fill="#3B5BDB"/><path d="M348 276A51 51 0 1 0 348 348" fill="none" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round"/></svg>

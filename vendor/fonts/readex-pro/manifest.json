@@ -1,0 +1,35 @@
+{
+ "files": {
+  "OFL.txt": "b41267a3903a45955f77b44596e080480c577fb7221df59672d0bc8cd8cd4b6f",
+  "ReadexPro-latin.woff2": "87022255400cd42a181da336332f553676b11a4808678ba5e18ce12fa0e1f8d9"
+ },
+ "fonts": [
+  {
+   "family": "Readex Pro",
+   "file": "ReadexPro-latin.woff2",
+   "style": "normal",
+   "subset": "latin",
+   "unicode_range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+   "weight": "160 700"
+  }
+ ],
+ "package": {
+  "family": "Readex Pro",
+  "fetched": "2026-10-28",
+  "file_source": "https://fonts.gstatic.com/s/readexpro/v27/SLXYc1bJ7HE5YDoGPuzj_dh8uc7wUy8ZQQyX2IwwZEzehiB9.woff2",
+  "from_creaite": false,
+  "licence": "OFL-1.1",
+  "licence_file": "OFL.txt",
+  "licence_source": "https://raw.githubusercontent.com/google/fonts/main/ofl/readexpro/OFL.txt",
+  "note": "not from creaite; a public open-source typeface (SIL Open Font License 1.1), fetched from Google Fonts and unchanged",
+  "notes": "One variable-font file (wght axis 160 to 700) serves every weight, so one @font-face covers 300, 400 and 500 (and 600). Latin only: latin-ext (28 KB, 37 KB inlined) is left out to keep the page small; characters outside the Latin range use Arial.",
+  "source": "https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500",
+  "upstream": "https://github.com/ThomasJockin/readexpro",
+  "version": "v27 (Google Fonts)",
+  "weights_used": [
+   300,
+   400,
+   500
+  ]
+ }
+}

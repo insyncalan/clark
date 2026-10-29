@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not running</title>
+<style>
+  /* clark's tokens (brand/tokens.css), light and dark, copied in when the page is built (appfiles.offline_page). This page loads nothing: it is kept by the service worker and shown when clark is off. */
+  :root{--bg:@L_BG@;--surface:@L_SURFACE@;--ink:@L_INK@;--muted:@L_MUTED@;--line:@L_LINE@;--accent:@ACCENT@;--accent-ink:@ACCENT_INK@;color-scheme:light dark}
+  @media (prefers-color-scheme:dark){:root{--bg:@D_BG@;--surface:@D_SURFACE@;--ink:@D_INK@;--muted:@D_MUTED@;--line:@D_LINE@}}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:15px/1.5 Arial,"Helvetica Neue",sans-serif}
+  main{max-width:520px;margin:24px;padding:28px 32px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+  h1{margin:0 0 6px;font-size:26px;line-height:1.2;font-weight:600}
+  p{margin:8px 0;color:var(--muted)}
+  code{display:block;margin:10px 0;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--ink);font:13px ui-monospace,Menlo,monospace;overflow-wrap:anywhere}
+  button{margin-top:10px;height:36px;padding:0 16px;border:0;border-radius:6px;background:var(--accent);color:var(--accent-ink);font:500 13px Arial,"Helvetica Neue",sans-serif;cursor:pointer}
+  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Start clark to use this window</h1>
+  <p>This window needs clark to be running on this computer. Double-click <b>@LAUNCHER@</b> in your clark folder, or open Terminal in that folder and type:</p>
+  <code>@COMMAND@</code>
+  <p>A minute after the last window closes, clark stops by itself. Nothing is lost: your data stays on this computer.</p>
+  <button type="button" id="again">Check again</button>
+  <p id="msg" role="status"></p>
+</main>
+<script>
+  document.getElementById("again").onclick = async () => {
+    const msg = document.getElementById("msg");
+    msg.textContent = "";
+    try { await fetch("/health", {cache: "no-store"}); location.replace("/"); }
+    catch (e) { msg.textContent = "Still not running. Double-click clark.command, then check again."; }
+  };
+</script>
+</body>
+</html>

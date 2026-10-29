@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report Editor Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="help.css">
+<!-- A local client brand, when present (system/branding/ is never committed). Without it the neutral demo look in app.css applies. -->
+<link rel="stylesheet" href="../branding/design-system/tokens.css">
+<link rel="icon" href="assets/clark-icon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/clark-icon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/clark-icon-180.png">
+<script src="../branding/design-system/brand-data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="vendor/tiptap/tiptap.js"></script>
+<script src="db.js"></script>
+<script src="core.js"></script>
+<script src="editor.js"></script>
+<script src="peek.js"></script>
+<script src="views.js"></script>
+<script src="help.js"></script>
+<script src="ask.js"></script>
+<script src="app-css.js"></script>
+<script src="io.js"></script>
+</head>
+<body>
+<a class="skip" id="skip" href="#main">Skip to content</a>
+<header class="top">
+  <button class="logo-btn" id="logoBtn" aria-label="Home: the dashboard"></button>
+  <span class="divider"></span>
+  <button class="ghost" id="projBtn" aria-haspopup="menu" aria-expanded="false"><span class="v"></span><svg class="i s" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 8l5 5 5-5"/></svg></button>
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" data-view="dashboard">Dashboard</button>
+    <button class="tab" role="tab" data-view="work">Work items</button>
+    <button class="tab" role="tab" data-view="milestones">Milestones</button>
+  </nav>
+  <span class="spacer"></span>
+  <button class="ghost" id="askBtn" aria-expanded="false" aria-label="ask clark" title="ask clark (/ or Ctrl or Cmd + J)"><svg class="i s" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3A2.5 2.5 0 0 1 4 10.5z"/></svg><span class="ask-w">ask clark</span> <kbd class="hide-s">/</kbd></button>
+  <button class="ghost" id="helpBtn" aria-label="Help" title="Help (?)"><span aria-hidden="true">?</span></button>
+  <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Your menu: Publish, Preview, Export, Settings" title="Your menu: Publish, Preview, Export, Settings"></button>
+</header>
+
+<main id="main"></main>
+
+<footer class="proto">Prototype with demo data, kept in this browser's database.<button id="resetDemo">Reset demo data</button></footer>
+
+<div class="scrim" id="scrim"></div>
+<aside class="peek" id="peek" aria-label="Detail" aria-hidden="true" inert></aside>
+
+<section class="ask" id="ask" aria-label="ask clark" aria-hidden="true">
+  <div class="ask-h"><h2>ask clark</h2>
+    <button class="ib" id="askNew" aria-label="New chat"><svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 4v12M4 10h12"/></svg></button>
+    <button class="ib" id="askClose" aria-label="Close"><svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 5l10 10M15 5L5 15"/></svg></button></div>
+  <div class="ask-st">Answers are worked out from this project's data</div>
+  <div class="ask-log" id="askLog" aria-live="polite"></div>
+  <div class="ask-chips" id="askChips"><button>Check this report</button><button>What's overdue?</button><button>Which risks are red?</button><button>Next milestone?</button><button>Summarise this week</button><button>Use cases</button></div>
+  <div class="ask-work" id="askWork" role="status" hidden></div>
+  <div class="ask-prev" id="askPrev"></div>
+  <div class="ask-in"><textarea id="askIn" rows="1" placeholder="Ask a question or give an instruction…" aria-label="Ask a question"></textarea><button class="send" id="askSend" aria-label="Send"><svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 16V4M5 9l5-5 5 5"/></svg></button></div>
+</section>
+
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastUndo" hidden>Undo</button></div>
+<dialog id="dlg"></dialog>
+<input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden>
+</body>
+</html>
