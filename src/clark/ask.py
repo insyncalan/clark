@@ -9,6 +9,8 @@ no file, no path and no key to put in it. The same question and passages give th
 a provider may only wrap that text in its own envelope. Hidden characters in the question or a passage are carried as they are and
 counted (`edit_ai.hidden_count`); `edit_ai.normal` is used to DETECT only, never to rewrite what is sent or shown.
 """
+import json
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -163,3 +165,206 @@ def build_request(question, passages, earlier=()):
     if len(body) > MAX_REQUEST:
         raise AskRefused(TOO_MUCH)
     return Request(text=body, question=question, passages=tuple(ids), hidden=hidden)
+
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# THE REPLY (commit 3). The reply has a fixed form: the answer as plain text, then optional lines
+#     CITE: P1 P3                   the passages it used, by ID
+#     CHANGE: {"field": "value"}    one proposed change as one JSON object on the line
+# A reply that does not parse is shown as text and offers no change. A CHANGE line is read into plain data here and nothing more:
+# it is never run, and never checked against or saved to the store (that is a later step, with the person's Apply). The claims
+# check then compares what the reply says with the project's data, through callables the caller builds from a read-only path.
+# The form is a small copy in spirit of creaite's EDIT: line: the idea of a marked line, none of its code.
+# ---------------------------------------------------------------------------------------------------------------------------
+MAX_CHANGES = 10
+MAX_CHANGE_CHARS = 2000        # one CHANGE line, JSON included
+MAX_CHANGE_FIELDS = 12
+MAX_FIELD_NAME = 40
+MAX_FIELD_VALUE = 1000         # the field limit: one text value in a change
+MAX_REPLY = 60000
+
+UNREADABLE = ("The answer came back in a form that couldn't be checked, so it is shown as text and nothing is offered to change.")
+NOT_SENT = "A source it named isn't one of the parts it was given."
+
+
+@dataclass(frozen=True)
+class Flag:
+    """One problem the claims check found. `kind` is one of: unknown_id, wrong_title, wrong_owner, unsent_passage, change_left_out,
+    unreadable, disguised. `ref` is the ID or passage ID concerned; `expected` is what the data says (a title or owner), else ""."""
+    kind: str
+    ref: str
+    message: str
+    expected: str = ""
+
+
+@dataclass(frozen=True)
+class Reply:
+    """What was read from a reply. `answer` is the text for the person (without the CITE and CHANGE lines when the reply parsed);
+    `cites` the passage IDs named; `changes` plain dicts (data only, unchecked against the store); `parsed` whether the form was
+    followed; `flags` what the claims check found."""
+    answer: str
+    cites: tuple = ()
+    changes: tuple = ()
+    parsed: bool = True
+    flags: tuple = ()
+
+
+_CITE_ID = re.compile(r"P[1-9]\d{0,2}")
+_INLINE_CITE = re.compile(r"\[(P[1-9]\d{0,2})\]")
+_QUOTED = re.compile(r"[\"“]([^\"“”]{4,120})[\"”]")
+_OWNER = re.compile(r"\b(?:owner|owned by|assigned to)\b\s*(?:is\b|:|-)?\s*([A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]*){0,2})")
+
+
+def _clean_value(v):
+    if v is None or isinstance(v, bool):
+        return True
+    if isinstance(v, int):
+        return True
+    if isinstance(v, float):
+        return math.isfinite(v)
+    return isinstance(v, str) and len(v) <= MAX_FIELD_VALUE and "\x00" not in v
+
+
+def read_change(payload):
+    """The text after `CHANGE:` as a dict, or None when it isn't one flat JSON object within the limits: at most
+    MAX_CHANGE_CHARS characters, MAX_CHANGE_FIELDS fields, names of 1 to MAX_FIELD_NAME characters, values that are text (at most
+    MAX_FIELD_VALUE characters), whole numbers, numbers, true, false or null. A repeated name, a nested value and NaN are refused.
+    Nothing is run or looked up."""
+    payload = (payload or "").strip()
+    if not payload or len(payload) > MAX_CHANGE_CHARS:
+        return None
+
+    def pairs(items):
+        keys = [k for k, _v in items]
+        if len(keys) != len(set(keys)):
+            raise ValueError("repeated name")
+        return dict(items)
+
+    def refuse_constant(_name):
+        raise ValueError("not a plain number")
+
+    try:
+        data = json.loads(payload, object_pairs_hook=pairs, parse_constant=refuse_constant)
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(data, dict) or not data or len(data) > MAX_CHANGE_FIELDS:
+        return None
+    for k, v in data.items():
+        if not (isinstance(k, str) and 1 <= len(k) <= MAX_FIELD_NAME and k.isprintable()) or not _clean_value(v):
+            return None
+    return data
+
+
+def _marker(line):
+    """("CITE" | "CHANGE" | "", rest, disguised) for one line. A line is a marker only when it starts with the word in plain capitals
+    and a colon. One that only reads as a marker once hidden characters or look-alikes are removed is `disguised`: not acted on."""
+    stripped = line.lstrip()
+    for word in ("CITE", "CHANGE"):
+        if stripped.startswith(word + ":"):
+            return word, stripped[len(word) + 1:], False
+    seen = edit_ai.normal(stripped).lstrip()
+    for word in ("CITE", "CHANGE"):
+        if seen.startswith(word + ":"):
+            return "", "", True
+    return "", "", False
+
+
+def _sent(sent):
+    ids = getattr(sent, "passage_ids", sent)
+    return set(ids or ())
+
+
+def _known(exists, ref):
+    try:
+        return bool(exists(ref))
+    except Exception:  # noqa: BLE001  an item that can't be looked up is not vouched for
+        return False
+
+
+def _fold(text):
+    return " ".join(edit_ai.normal(text or "").casefold().split())
+
+
+def _ids_in(codes, exists, text):
+    """Every ID a text holds, however disguised. The strict form is always counted; a loose spelling counts when `exists` says
+    it is real, and an `exists` that raises counts it (edit_ai.loose_ids fails closed)."""
+    return edit_ai.loose_ids(codes, exists, text)
+
+
+def check_claims(text, sent, codes, exists, facts=None):
+    """The flags for a reply's `text`. `sent` is the request (or its passage IDs); `exists(ref)` says whether an item ID is real in
+    this project; `facts(ref)`, if given, returns {"title": ..., "owner": ...} for a real item (either may be missing). Flags:
+    an ID that isn't in the project; on a line that names exactly one real item, a quoted title or an owner that doesn't match
+    the data; a passage ID the reply cites that was not sent. `edit_ai.normal` is used to detect only."""
+    flags, seen = [], set()
+    for ref in sorted(_ids_in(codes, exists, text)):
+        if not _known(exists, ref) and ref not in seen:
+            seen.add(ref)
+            flags.append(Flag("unknown_id", ref, f"The answer mentioned {ref}, which isn't in this project. Ignore that part."))
+    if facts is not None:
+        for line in text.splitlines():
+            refs = [r for r in sorted(_ids_in(codes, exists, line)) if _known(exists, r)]
+            if len(refs) != 1:
+                continue
+            try:
+                known = facts(refs[0]) or {}
+            except Exception:  # noqa: BLE001
+                continue
+            title, owner = known.get("title"), known.get("owner")
+            quotes = [q for q in _QUOTED.findall(line)]
+            if title and quotes and not any(_fold(q) in _fold(title) or _fold(title) in _fold(q) for q in quotes):
+                flags.append(Flag("wrong_title", refs[0], f"The answer gave the wrong title for {refs[0]}. The report says: {title}.", title))
+            for m in _OWNER.finditer(line):
+                claimed = _fold(m.group(1))
+                if owner and claimed and _fold(owner) not in claimed and claimed not in _fold(owner):
+                    flags.append(Flag("wrong_owner", refs[0], f"The answer gave the wrong owner for {refs[0]}. The report says: {owner}.", owner))
+                    break
+    allowed = _sent(sent)
+    named = set(_INLINE_CITE.findall(text))
+    for line in text.splitlines():
+        word, rest, _d = _marker(line)
+        if word == "CITE":
+            named.update(re.findall(r"P\d+", rest))
+    for pid in sorted(named - allowed, key=lambda s: (len(s), s)):
+        flags.append(Flag("unsent_passage", pid, NOT_SENT))
+    return flags
+
+
+def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
+    """Read one reply. Returns a `Reply`. A reply that doesn't follow the form (empty, over MAX_REPLY, a CITE line that isn't passage
+    IDs, a CHANGE line that isn't one flat JSON object within the limits, more than MAX_CHANGES, or a marker disguised with hidden
+    characters) is returned whole as text, with `parsed` False and no change. The claims check runs either way. Never raises on odd text."""
+    if not isinstance(text, str):
+        text = ""
+    text = text[:MAX_REPLY]
+    answer, cites, changes, ok, disguised = [], [], [], bool(text.strip()), False
+    for line in text.splitlines():
+        word, rest, fake = _marker(line)
+        if fake:
+            disguised, ok = True, False
+        elif word == "CITE":
+            ids = [p for p in re.split(r"[\s,;]+", rest.strip()) if p]
+            if not ids or not all(_CITE_ID.fullmatch(p) for p in ids):
+                ok = False
+            cites.extend(i for i in ids if i not in cites)
+        elif word == "CHANGE":
+            change = read_change(rest)
+            if change is None or len(changes) >= MAX_CHANGES:
+                ok = False
+            else:
+                changes.append(change)
+        else:
+            answer.append(line)
+    flags = check_claims(text, sent, codes, exists, facts)
+    if ok:
+        left = []
+        for change in changes:
+            ids = _ids_in(codes, exists, " ".join(str(v) for v in change.values() if isinstance(v, str)))
+            bad = sorted(r for r in ids if not _known(exists, r))
+            if bad:
+                flags.append(Flag("change_left_out", bad[0], f"A change it suggested named {bad[0]}, which isn't in this project, so it was left out."))
+            else:
+                left.append(change)
+        return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, tuple(flags))
+    kind = "disguised" if disguised else "unreadable"
+    return Reply(text.strip(), (), (), False, tuple([Flag(kind, "", UNREADABLE)] + flags))
