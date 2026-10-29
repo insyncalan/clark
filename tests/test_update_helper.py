@@ -137,7 +137,7 @@ class FakeSeams(h.Seams):
         self.started.append((str(app_dir), port))
         return 4242
 
-    def stop_process(self, pid):
+    def stop_process(self, pid, ident=None):
         self.stopped.append(pid)
 
     def server_answers(self, port, header, mark, timeout=2):
@@ -286,6 +286,16 @@ class BeginRefusalsTest(unittest.TestCase, PlainWordsMixin):
             (fx.app / h.MANIFEST).unlink()
             fx.before = snapshot(fx.app)
             self.refused(fx, "norecord")
+
+    def test_unsafe_names_in_the_installed_record_are_refused(self):
+        for bad in ("", "..", "/etc/passwd", "src\\x.py", "src/../../x"):
+            with self.subTest(name=bad), tempfile.TemporaryDirectory() as t:
+                fx = Fixture(t)
+                record = json.loads((fx.app / h.MANIFEST).read_text(encoding="utf-8"))
+                record["files"][bad] = {"sha256": "0" * 64, "size": 0, "mode": "644"}
+                (fx.app / h.MANIFEST).write_text(json.dumps(record), encoding="utf-8")
+                fx.before = snapshot(fx.app)
+                self.refused(fx, "unsafe")
 
 
 class FaultEveryStepTest(unittest.TestCase, PlainWordsMixin):
@@ -472,7 +482,7 @@ KILL_SCRIPT = textwrap.dedent('''
         def process_gone(self, pid): return True
         def port_free(self, port): return True
         def start_server(self, *a): return 4242
-        def stop_process(self, pid): pass
+        def stop_process(self, pid, ident=None): pass
         def server_answers(self, *a, **k): return True
         def check_install(self, app): pass
 
@@ -778,6 +788,34 @@ class DefaultSeamsTest(unittest.TestCase):
             port = sock.getsockname()[1]
             self.assertFalse(s.port_free(port))
         self.assertTrue(s.port_free(port))
+
+    def spare(self):
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        self.addCleanup(lambda: (child.kill(), child.wait()))
+        return child
+
+    def test_a_matching_process_is_stopped(self):
+        child = self.spare()
+        s = h.Seams(sleep=lambda secs: child.poll())       # reaps our own child, as init would a detached server
+        ident = s.identity(child.pid)
+        self.assertTrue(ident)
+        s.stop_process(child.pid, ident)
+        self.assertIsNotNone(child.wait(timeout=15))
+
+    def test_a_reused_process_id_is_not_signalled(self):
+        s, child = h.Seams(), self.spare()
+        s.stop_process(child.pid, "proc:1")                # recorded for a different process that once had this id
+        s.stop_process(child.pid, "ps:Thu  1 Jan 00:00:00 1970")
+        s.stop_process(child.pid)                          # nothing recorded: nothing is signalled
+        self.assertIsNone(child.poll())
+
+    def test_a_missing_process_is_treated_as_gone(self):
+        s = h.Seams()
+        child = subprocess.Popen([sys.executable, "-c", "pass"])
+        child.wait()
+        s.stop_process(child.pid, "proc:1")
+        s.stop_process(None, None)
+        self.assertIsNone(s.identity(child.pid))
 
     def test_server_answers_follows_the_launchers_rule(self):
         reply = {"body": b'{"ok": true, "this_data": true}', "status": 200}
