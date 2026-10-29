@@ -386,6 +386,33 @@ class Box(Base):
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('[role=dialog]')", "closed")
 
+    def test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token(self):
+        """Review (Romanoff, HIGH): the cyan --focus is 1.8:1 on white. Every ring in the box is --brand-blue; the scrim names no raw colour."""
+        css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
+        block = [ln for ln in css.splitlines() if ln.startswith((".ad", ".pk-btn"))]
+        self.assertFalse([ln for ln in block if "var(--focus)" in ln and ".ad" in ln], "no ring in the box uses the cyan focus colour")
+        self.assertFalse([ln for ln in css.splitlines() if ln.startswith(".ad-scrim") and "rgba(" in ln], "the scrim is made from a token")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            probe = ("(function(){var d=document.createElement('i');d.style.color='var(--brand-blue)';document.body.appendChild(d);"
+                     "var c=getComputedStyle(d).color;d.remove();return c;})()")
+            for theme in ("light", "dark"):
+                p.js(f"document.documentElement.setAttribute('data-theme', {json.dumps(theme)})")
+                self.open_box(p, "ABC-S-003")
+                want = p.js(probe)
+                for sel in ("input[type=search]", ".ad-kind", "input[name=template]", "input[name=where]", "[data-place]", "[data-cancel]"):
+                    p.js(f"document.querySelector({json.dumps(sel)}).focus()")
+                    got = p.js(f"(function(){{var e=document.querySelector({json.dumps(sel)});return e.matches(':focus-visible') ? getComputedStyle(e).outlineColor : 'not visible';}})()")
+                    self.assertIn(got, (want, "not visible"), f"{theme}: {sel}")
+                    if got == "not visible":
+                        p.key("Tab", code="Tab", vk=9)
+                        p.key("Tab", 8, code="Tab", vk=9)
+                        got = p.js("getComputedStyle(document.activeElement).outlineColor")
+                        self.assertEqual(got, want, f"{theme}: {sel} ring is the brand blue")
+                p.js("document.querySelector('[data-cancel]').click()")
+                p.until("!document.querySelector('[role=dialog]')", "closed")
+
     def test_the_box_adds_no_edit_part_to_the_published_page(self):
         self.assertNotIn("clark:add-section", (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8"))
 
