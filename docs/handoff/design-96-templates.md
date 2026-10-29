@@ -1,6 +1,6 @@
 # Design note: #96 Section templates and the Add a section dialog (first slice; guarded changes needed)
 
-First slice: Text, Text and image, Key figures (three and four), RAID cards (three and four), Work items list, Documents and links, Callout, Key dates. The second slice (Banner, Image gallery, Table, Link preview, Image with caption, Quote, Contacts, Checklist, One document) adds entries to the same catalogue.
+First slice: Text, Text and image, Key figures (three and four), RAID cards (three and four), Work items list, Documents and links, Callout, Key dates. The second slice (Headline band, Image gallery, Table, Link preview, Image with caption, Quote, Contacts, Checklist, One document) adds entries to the same catalogue.
 
 ## 1. What the store allows today (read from the code)
 - `changes.py`: a `new` request takes `values` with `type` and `title` only, plus `after`. `values.type` other than `text` is refused (`ONLY_TEXT`). There is no `body` and no `beside` in a `new`.
