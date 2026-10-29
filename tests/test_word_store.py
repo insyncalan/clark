@@ -23,12 +23,12 @@ class WordRoute(unittest.TestCase):
         self.assertIn("word", store_module.ROUTES)
 
     def test_a_step_by_the_word_route_is_recorded_with_its_route_and_its_source(self):
-        with self.store.step("word", USER, src_ref="by Word import (plan.docx)") as st:
+        with self.store.step("word", USER, src_ref="Added from Word (plan.docx)") as st:
             ref = st.create("actions", {"project": "ABC", "description": "Book the room", "raised": "2026-10-01",
                                         "source": "Word import", "client_visible": 0})
         rows = self.store.con.execute("SELECT route, place, src_ref FROM item_events WHERE item_id = ?", (ref,)).fetchall()
         self.assertTrue(rows)
-        self.assertEqual({(r["route"], r["place"], r["src_ref"]) for r in rows}, {("word", None, "by Word import (plan.docx)")})
+        self.assertEqual({(r["route"], r["place"], r["src_ref"]) for r in rows}, {("word", None, "Added from Word (plan.docx)")})
 
     def test_an_unknown_route_is_still_refused_by_the_store_and_by_the_schema(self):
         with self.assertRaises(Invalid):

@@ -2,7 +2,7 @@
 server. Fictional data only. Run: python3 dev/run_tests.py test_word_route
 
 What is asserted, for the import: a check writes nothing; an apply is ONE step by the "word" route with ONE Undo; the history of
-each item says "by Word import (<file name>)" under the person's name; items are new, hidden from the client, never changed or
+each item says "Added from Word (<file name>)" under the person's name; items are new, hidden from the client, never changed or
 removed; the same content twice makes the items once (and again after an Undo); a bad row names itself and the whole step rolls
 back with nothing written; a hostile file, a wrong request and an old plan are refused in plain words; no message has jargon.
 """
@@ -115,7 +115,7 @@ class Apply(Base):
             events = history.history(self.store.con, ref)
             self.assertTrue(events, ref)
             for e in events:
-                self.assertEqual((e["route"], e["src_ref"], e["by_user"], e["actor"]), ("word", "by Word import (week 43 notes.docx)", USER, "you"))
+                self.assertEqual((e["route"], e["src_ref"], e["by_user"], e["actor"]), ("word", "Added from Word (week 43 notes.docx)", USER, "you"))
 
     def test_undo_takes_back_the_whole_step_and_only_that_step(self):
         before = {t: len(self.rows(t)) for t in ("actions", "raid", "decisions")}

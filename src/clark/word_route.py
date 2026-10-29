@@ -9,7 +9,7 @@ Import, in three ops of one route:
   The plan waits in memory (a few at once, for 30 minutes) and the reply lists the new items by number.
 - "apply": the person accepts "all" or some numbers. The accepted items go in ONE step by the "word" route through
   excel_import._try (the import path's refuse-and-rollback: if any row breaks a rule every broken one is named and nothing
-  at all is written), so one Undo reverses the lot. Each item's history says "by Word import (<file name>)" (the step's
+  at all is written), so one Undo reverses the lot. Each item's history says "Added from Word (<file name>)" (the step's
   src_ref) under the person's name. Only new items are made, each with client_visible off; there is no path that changes,
   closes or removes an item. The fingerprints of what was made go to word-import-state.json beside clark.db (ids and
   fingerprints only, never any text) so the same content is not added twice.
@@ -224,7 +224,7 @@ def _apply(store, who, req, project, clock):
     skipped = len(plan.accepted()) - len(chosen)
     if not chosen:
         raise Refused(ALL_SEEN.format(file=file) if skipped else NOTHING_ACCEPTED, 409, "nothing_to_add")
-    src = re.sub(r"\s+", " ", f"by Word import ({file})")[:300]
+    src = re.sub(r"\s+", " ", f"Added from Word ({file})")[:300]
     made = {}
     problems, step_id, refused = _excel_import()._try(store, _rows(plan, project, chosen), who, commit=True, src_ref=src,
                                                       made=made, route=ROUTE, place=None)
