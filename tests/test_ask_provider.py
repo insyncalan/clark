@@ -19,11 +19,26 @@ def exists(ref):
 
 
 class Words(unittest.TestCase):
+    def test_the_dropped_turns_line_follows_the_count(self):
+        self.assertEqual(ask.dropped_note(0), "")
+        self.assertEqual(ask.dropped_note(1), ask.DROPPED_ONE)
+        self.assertEqual(ask.dropped_note(2), ask.DROPPED_MANY)
+        self.assertEqual(ask.dropped_note(9), ask.DROPPED_MANY)
+        self.assertEqual(ask.dropped_note(-1), "")
+        self.assertEqual(ask.dropped_note(True), "")
+        self.assertEqual(ask.dropped_note(None), "")
+        for text in (ask.DROPPED_ONE, ask.DROPPED_MANY, ask.COULD_NOT, ask.NOT_READY):
+            self.assertFalse(text.lower().startswith("clark"))
+            self.assertNotIn("claude", text.lower())
+
     def test_the_provider_sentences_are_pinned(self):
-        self.assertEqual(ask.COULD_NOT, "That didn't get an answer. Try again in a moment. If it keeps happening, check that you are signed in.")
+        self.assertEqual(ask.COULD_NOT, "Your question didn't get an answer. Try again in a moment. If it keeps happening, check that the program that "
+                                       "answers questions on this computer is signed in.")
         self.assertEqual(ask.NOT_READY, "Asking clark isn't set up on this computer yet. Sign in to the program that answers questions on "
                                         "this computer, then try again. Everything else in the report works as before.")
         self.assertEqual(ask.STOPPED, "Stopped. Nothing was changed.")
+        self.assertEqual(ask.DROPPED_MANY, "The oldest messages in this chat were left out to make room.")
+        self.assertEqual(ask.DROPPED_ONE, "The oldest message in this chat was left out to make room.")
         for text in (ask.COULD_NOT, ask.NOT_READY):
             self.assertNotIn("assistant", text.lower())
 

@@ -216,7 +216,7 @@ class Caps(unittest.TestCase):
         r = read(text)
         self.assertLessEqual(len(r.flags), ask.MAX_FLAGS + 1)
         self.assertEqual(r.flags[-1].kind, "more")
-        self.assertRegex(r.flags[-1].message, r"^and \d+ more\b")
+        self.assertRegex(r.flags[-1].message, r"^and \d+ more\.$")
         shown = sum(1 for f in r.flags if f.kind == "unknown_id")
         self.assertEqual(shown + int(re.search(r"\d+", r.flags[-1].message).group()), 900)
 
