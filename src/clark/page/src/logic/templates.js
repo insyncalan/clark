@@ -129,8 +129,9 @@ export function plan(sections, id, after, beside = false) {
     if (!b.ok) return b;
   }
   const requests = [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, place: "report" }];
-  const last = a.id === null ? null : sections.find((s) => s.id === a.id);
-  const lone = last && rows(sections).some((r) => r.length === 1 && r[0].id === last.id);
+  const all = rows(sections), tail = all.length ? all[all.length - 1] : null;
+  const last = a.id === null ? (tail && tail[tail.length - 1]) : sections.find((s) => s.id === a.id);      // null is "at the end": below the final section
+  const lone = last && all.some((r) => r.length === 1 && r[0].id === last.id);
   if (!beside && lone && last.beside) requests.push({ op: "update", id: last.id, changes: { beside: 0 }, place: "report" });   // a flag on the last section is ignored by the page; the new section after it would pair with it
   if (beside) requests.push({ op: "update", id: "$new", changes: { beside: 1 }, place: "report" });
   return { ok: true, requests, words: `${t.name} added${beside ? ", beside the next section" : ""}.`, template: t };
