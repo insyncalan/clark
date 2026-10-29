@@ -211,6 +211,11 @@ class Logic(unittest.TestCase):
         self.assertEqual(hits, ["addSection.js"])
         self.assertIn("ADD_SECTION_EVENT = ADD_EVENT", (SRC / "clark" / "page" / "src" / "edit" / "addDialog.js").read_text(encoding="utf-8"))
 
+    def test_the_box_code_escapes_the_selector_and_does_not_touch_state_after_closing(self):
+        src = (SRC / "clark" / "page" / "src" / "edit" / "AddDialog.jsx").read_text(encoding="utf-8")
+        self.assertIn("CSS.escape(after)", src, "the id is escaped before it goes into a selector")
+        self.assertNotIn("setRecent", src, "nothing sets state on a box that has already closed")
+
     def test_a_template_the_store_cannot_make_yet_sends_nothing(self):
         for tid in FIRST_SLICE[1:]:
             p = self.t(f"plan({lit(S)}, {lit(tid)}, 'a', false)")
@@ -555,8 +560,10 @@ class Box(Base):
                 order = p.js("""(function(){var q=function(s){return document.querySelector(s);}, ks=[q('.ad-kinds'), q('.ad-where'), q('.ad-list'), q('.ad-prev')], ok=true;
                     for (var i=0;i<3;i++) ok = ok && !!(ks[i].compareDocumentPosition(ks[i+1]) & Node.DOCUMENT_POSITION_FOLLOWING);
                     return {ok: ok, prevDisplay: getComputedStyle(q('.ad-prev')).display, prevBox: q('.ad-prev').getBoundingClientRect().width > 0,
-                      label: q('.ad-prev').getAttribute('aria-label'), live: q('.ad-prev').getAttribute('aria-live')};})()""")
-                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "Preview", "live": "polite"}, width)
+                      label: q('.ad-prev').getAttribute('aria-label'), live: q('.ad-prev').getAttribute('aria-live'),
+                      announced: [...document.querySelectorAll('.ad-prev [aria-live]')].map(e => e.tagName)};})()""")
+                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "Preview", "live": None, "announced": ["H3", "P"]},
+                                 f"{width}: only the heading and the description are announced when the choice changes, not the whole preview")
                 seq = []
                 for _ in range(16):
                     p.key("Tab", code="Tab", vk=9)

@@ -33,7 +33,7 @@ export function AddDialog() {
 function Box({ after, opener, onClose }) {
   const sections = (data.value && data.value.report_sections) || [];
   const [query, setQuery] = useState("");
-  const [recent, setRecent] = useState(readRecent);
+  const [recent] = useState(readRecent);
   const [kind, setKind] = useState("all");
   const [chosen, setChosen] = useState("");
   const [beside, setBeside] = useState(false);
@@ -49,7 +49,7 @@ function Box({ after, opener, onClose }) {
   // Where focus goes when the box closes: what opened it, or the handle of the section it was below.
   const giveBack = () => {
     let el = opener && opener.isConnected ? opener : null;
-    if (!el && after) el = document.querySelector(`.secs > .sec[data-id="${after}"] [data-drag]`);
+    if (!el && after) el = document.querySelector(`.secs > .sec[data-id="${CSS.escape(after)}"] [data-drag]`);
     if (el && el.focus) el.focus();
   };
   const close = () => { onClose(); setTimeout(giveBack, 0); };
@@ -99,7 +99,7 @@ function Box({ after, opener, onClose }) {
     const id = current.id;
     onClose();
     const reply = await addFromTemplate(id, after, sideOn);
-    if (reply) { const next = remember(recent, id); setRecent(next); writeRecent(next); } else giveBack();
+    if (reply) writeRecent(remember(recent, id)); else giveBack();   // the box is already closed: only the stored list changes
   };
 
   const kinds = [{ id: "all", name: "All templates" }, ...(recent.length ? [{ id: RECENT, name: "Recently used" }] : []), ...KINDS];
@@ -146,11 +146,11 @@ function Box({ after, opener, onClose }) {
               );
             })}
           </fieldset>
-          <section class="ad-prev" aria-label="Preview" aria-live="polite">
+          <section class="ad-prev" aria-label="Preview">
             {current ? (
               <>
-                <h3>{current.name}</h3>
-                <p>{current.description}</p>
+                <h3 aria-live="polite">{current.name}</h3>
+                <p aria-live="polite">{current.description}</p>
                 <p class="ad-lbl">Holds</p>
                 <ul>{current.holds.map((h) => <li key={h}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>
