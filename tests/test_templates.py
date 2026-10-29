@@ -31,8 +31,8 @@ def page_html():
 S = [sec("a", "Summary"), sec("b", "Milestones", type="milestones"), sec("c", "This week", beside=1), sec("d", "Next week"), sec("e", "Decisions", type="decisions")]
 FIRST_SLICE_DESCRIPTIONS = [
     {"id": "text-image", "description": "A story with a picture: a site visit, a design, a screenshot of the new system."},
-    {"id": "figures-4", "description": "Three or four numbers with labels and a change since last week."},
-    {"id": "figures-3", "description": "Three numbers with labels. Each card is wider, so a short note fits under the change."},
+    {"id": "figures-4", "description": "Four numbers with labels and a change since last week."},
+    {"id": "figures-3", "description": "Three numbers with labels, in wider cards, so a short note fits under the change."},
     {"id": "raid-3", "description": "The risks, actions, issues or decisions you want the reader to see, as cards."},
     {"id": "raid-4", "description": "Four shorter cards: good for “this week’s actions” or “decisions needed”."},
     {"id": "work-items", "description": "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed."},
@@ -98,8 +98,8 @@ class Logic(unittest.TestCase):
         self.assertEqual(got, {
             "text": ("Words under a heading.", ["Heading", "Text"], ["full", "half"]),
             "text-image": ("A story with a picture: a site visit, a design, a screenshot of the new system.", ["Heading", "Text", "Image", "Caption"], ["full", "half"]),
-            "figures-3": ("Three numbers with labels. Each card is wider, so a short note fits under the change.", ["Heading", "Figure · live", "Figure · live", "Figure · typed"], ["full", "half"]),
-            "figures-4": ("Three or four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
+            "figures-3": ("Three numbers with labels, in wider cards, so a short note fits under the change.", ["Heading", "Figure · live", "Figure · live", "Figure · typed"], ["full", "half"]),
+            "figures-4": ("Four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
             "raid-3": ("The risks, actions, issues or decisions you want the reader to see, as cards.", ["Heading", "RAID card ×3", "Text source", "Text"], ["full"]),
             "raid-4": ("Four shorter cards: good for “this week’s actions” or “decisions needed”.", ["Heading", "RAID card ×4"], ["full"]),
             "work-items": ("Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"], ["full", "half"]),
@@ -194,7 +194,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(len(self.t(f"plan({lit(S)}, 'text', 'e', false)")["requests"]), 1, "no flag, nothing to clear")
 
     def test_at_the_end_a_flag_left_on_the_last_section_is_cleared_too(self):
-        """Review, low finding 1: after = null means the end; a stale beside on the lone last section must not pair the new one with it."""
+        """Adding at the end (after = null): a stale beside flag on the lone last section is cleared, so the new one does not pair with it."""
         last = [sec("a", "Summary"), sec("b", "Decisions", type="decisions", beside=1)]
         p = self.t(f"plan({lit(last)}, 'text', null, false)")
         self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": None, "place": "report"},
@@ -204,7 +204,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(len(self.t("plan([], 'text', null, false)")["requests"]), 1, "an empty report")
 
     def test_the_event_name_is_written_once_in_the_page_code(self):
-        """Review, low finding 2: addSection.js (the gutter) owns the string; addDialog.js re-exports it."""
+        """The add-section event name is written once, in addSection.js (the gutter); addDialog.js re-exports it."""
         import re
         literal = re.compile(r"""["']clark:add-section["']""")
         hits = [f.name for f in (SRC / "clark" / "page" / "src" / "edit").glob("*.js*") if literal.search(f.read_text(encoding="utf-8"))]
@@ -338,7 +338,7 @@ class Box(Base):
             self.assertEqual(p.js("document.querySelector('.ad-none').textContent"), "Nothing in Work items matches that search. Try another word, or choose All templates.", "worded by cause: a kind is chosen")
 
     def test_a_template_not_made_yet_is_read_and_reached_but_cannot_be_placed(self):
-        """Review, high finding: nine of ten were greyed with their description replaced and skipped by the arrow keys. Now each is readable and
+        """A template not made yet keeps its description, can be reached with the arrow keys and previewed. Each is readable and
         reachable; only Add section stays off, and the reason is in words."""
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -517,7 +517,7 @@ class Box(Base):
             p.js("document.querySelector('[data-cancel]').click()")
 
     def test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token(self):
-        """Review, high finding: the cyan --focus is 1.8:1 on white. Every ring in the box is --brand-blue; the scrim names no raw colour."""
+        """Every focus ring in the box is --brand-blue (the cyan --focus is 1.8:1 on white); the scrim names no raw colour."""
         css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
         block = [ln for ln in css.splitlines() if ln.startswith((".ad", ".pk-btn"))]
         self.assertFalse([ln for ln in block if "var(--focus)" in ln and ".ad" in ln], "no ring in the box uses the cyan focus colour")
