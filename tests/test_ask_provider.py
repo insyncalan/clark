@@ -18,6 +18,16 @@ def exists(ref):
     return ref in ITEMS
 
 
+class Words(unittest.TestCase):
+    def test_the_provider_sentences_are_pinned(self):
+        self.assertEqual(ask.COULD_NOT, "That didn't get an answer. Try again in a moment. If it keeps happening, check that you are signed in.")
+        self.assertEqual(ask.NOT_READY, "Asking clark isn't set up on this computer yet. Sign in to the program that answers questions on "
+                                        "this computer, then try again. Everything else in the report works as before.")
+        self.assertEqual(ask.STOPPED, "Stopped. Nothing was changed.")
+        for text in (ask.COULD_NOT, ask.NOT_READY):
+            self.assertNotIn("assistant", text.lower())
+
+
 class Interface(unittest.TestCase):
     def test_a_provider_has_a_name_ask_and_status(self):
         for cls in (ask.StubProvider, ask.FramedStubProvider):

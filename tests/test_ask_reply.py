@@ -263,6 +263,20 @@ class Speed(unittest.TestCase):
 
 
 class Messages(unittest.TestCase):
+    def test_the_sentences_are_pinned(self):
+        self.assertEqual(ask.UNREADABLE, "The answer came back in a form that couldn't be checked, so it is shown as text and nothing is "
+                                         "offered to change. Ask again, or check it against the report yourself.")
+        self.assertEqual(ask.NOT_SENT, "The answer named a source that was not sent. Ignore that part.")
+        r = read("CHANGE: " + json.dumps({"item": "ABC-A-777"}))
+        self.assertEqual([f.message for f in r.flags if f.kind == "change_left_out"],
+                         ["A change the answer suggested named ABC-A-777, which isn't in this project, so it was left out."])
+
+    def test_the_words_for_a_wrong_title_and_a_wrong_owner_are_kept(self):
+        r = read('ABC-A-001 "Some other title" owner is Somebody Else', facts=facts)
+        self.assertEqual(sorted(f.message for f in r.flags),
+                         ["The answer gave the wrong owner for ABC-A-001. The report says: Owner One.",
+                          "The answer gave the wrong title for ABC-A-001. The report says: Order the test kit."])
+
     def test_no_message_starts_with_the_product_name_or_a_write_verb(self):
         for flag_text in (ask.UNREADABLE, ask.NOT_SENT):
             self.assertFalse(flag_text.lower().startswith(("clark", "ask clark")))
