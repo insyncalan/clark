@@ -1150,6 +1150,8 @@ class Gutter(Base):
             p.edit()
             self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "006 and 007 are a pair")
             p.js("document.querySelector('[data-id=\"ABC-S-006\"] [data-add]').click()")      # the + of the pair's first half
+            p.until("!!document.querySelector('[data-place]') && !document.querySelector('[data-place]').disabled", "the box opened with Text chosen")
+            p.js("document.querySelector('[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12", "a plain text section was added")
             new = [i for i in p.ids() if i not in IDS][0]
             ids = p.ids()
