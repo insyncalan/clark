@@ -716,6 +716,11 @@ class Making(unittest.TestCase):
             with self.assertRaisesRegex(PublishError, "not saved as it was made"):
                 self.run_publish(overwrite=True)
 
+    def test_the_size_message_says_what_to_do_next(self):
+        with mock.patch.object(publish, "MAX_BYTES", 1000):
+            with self.assertRaisesRegex(PublishError, "Remove or shrink the largest image or attachment, then publish again\\.$"):
+                self.run_publish()
+
     def test_size_limit(self):
         with mock.patch.object(publish, "MAX_BYTES", 1000):
             with self.assertRaisesRegex(PublishError, "over the 0 MB limit"):

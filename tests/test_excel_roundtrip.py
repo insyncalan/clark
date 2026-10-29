@@ -18,7 +18,22 @@ from openpyxl import load_workbook
 
 from clark import excel
 from clark import excel_import as xi
+from clark import page
 from clark.store import columns, open_store
+
+
+_NO_BRAND = tempfile.mkdtemp(prefix="clark-no-brand-")    # a brand logo on this computer never changes a test (#133)
+
+
+def setUpModule():
+    global _OLD_BRANDING
+    _OLD_BRANDING, page.BRANDING = page.BRANDING, Path(_NO_BRAND)
+
+
+def tearDownModule():
+    page.BRANDING = _OLD_BRANDING
+    shutil.rmtree(_NO_BRAND, ignore_errors=True)
+
 
 ON = "2030-06-01"
 TABLES = ("actions", "raid", "decisions", "milestones", "use_cases", "item_labels")
@@ -137,7 +152,7 @@ class Reading(RoundTrip):
             for label, f in labels.items():
                 self.assertTrue(f in columns(self.s.con, table) or f in excel.DERIVED or f == xi.LABELS, (table, label, f))
         self.assertEqual({t: excel.SHEET_OF[t] for t in excel.TABLES},
-                         {"milestones": "Milestones", "actions": "Actions", "raid": "RAID", "decisions": "Decisions",
+                         {"milestones": "Milestones", "actions": "Actions", "raid": "Risks and issues", "decisions": "Decisions",
                           "use_cases": "Use cases"})
 
     def test_an_unchanged_export_imports_as_no_changes_and_nothing_is_ignored(self):
@@ -160,7 +175,7 @@ class Reading(RoundTrip):
         self.assertNotIn("labels", c.after)
 
     def test_a_milestone_agreed_date_edit_in_the_workbook_is_ignored_with_a_note(self):
-        edit(self.path, "Milestones", self.m2, Baseline=date(2030, 9, 1), Owner="Sam Example")
+        edit(self.path, "Milestones", self.m2, Agreed=date(2030, 9, 1), Owner="Sam Example")
         p = self.read()
         (c,) = p.changes
         self.assertEqual(c.after, {"owner": "Sam Example"})

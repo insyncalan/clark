@@ -500,12 +500,11 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
-def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
-    """Write {folder}/{CODE}-report-{date}.html and return {"path", "sha256", "bytes", "seq"}. The file is encoded once,
-    hashed once, written with platform.write_file (a temporary file, then replaced: never half a file), read back and
-    compared; only then is it recorded with Store.log_publication (once). An existing file of that name is refused unless
-    overwrite=True, and the name is reserved with an exclusive create first, so two publishes at once can't both take it.
-    `now` is the publish date (YYYY-MM-DD); due dates and Overdue read as at that date."""
+def build(store, code, now=None, branding=None):
+    """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
+    finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
+    date (YYYY-MM-DD); due dates and Overdue read as at that date. publish() and the To client route (#43) both start here, so
+    the file written to Local and the file copied to the client are the same bytes, made once."""
     as_at = str(now or milestones.today())
     try:
         if not re.fullmatch(r"\d{4}-\d\d-\d\d", as_at):          # Python 3.11 and later also read 20261028
@@ -513,9 +512,6 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
         date.fromisoformat(as_at)
     except ValueError:
         raise PublishError(f"{as_at!r} is not a date. Give the publish date as YYYY-MM-DD.") from None
-    folder = Path(folder)
-    if not folder.is_dir():
-        raise PublishError(f"{platform.folder_phrase(folder, True)} isn't there. Choose a folder that exists.")
     inputs = read_inputs(store, code, as_at)
     if inputs["data"]["project"].get("archived"):           # #126: checked here, not in select (glance.kept_rows calls select and must still work)
         raise PublishError("An archived project can't be published. Restore it first.")
@@ -524,7 +520,22 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
     text = render(published, page.page_html(branding, view=True), as_at, project["name"])      # #65: the view-only page
     body = text.encode("utf-8")
     if len(body) > MAX_BYTES:
-        raise PublishError(f"The report is {len(body) / 1048576:.1f} MB, which is over the {MAX_BYTES // 1048576} MB limit.")
+        raise PublishError(f"The report is {len(body) / 1048576:.1f} MB, which is over the {MAX_BYTES // 1048576} MB limit. "
+                           "Remove or shrink the largest image or attachment, then publish again.")
+    return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published}
+
+
+def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
+    """Write {folder}/{CODE}-report-{date}.html and return {"path", "sha256", "bytes", "seq"}. The file is encoded once,
+    hashed once, written with platform.write_file (a temporary file, then replaced: never half a file), read back and
+    compared; only then is it recorded with Store.log_publication (once). An existing file of that name is refused unless
+    overwrite=True, and the name is reserved with an exclusive create first, so two publishes at once can't both take it.
+    `now` is the publish date (YYYY-MM-DD); due dates and Overdue read as at that date."""
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise PublishError(f"{platform.folder_phrase(folder, True)} isn't there. Choose a folder that exists.")
+    built = build(store, code, now, branding)
+    project, as_at, body = built["project"], built["as_at"], built["body"]
     dest = folder / file_name(code, project["week_ending"], as_at, folder)
     reserved = False
     if not overwrite:
@@ -535,7 +546,7 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
             raise PublishError(f"{dest.name} is already in that folder. Choose another name, or replace it.") from None
         except OSError as e:
             raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}). Nothing was written.") from e
-    digest = hashlib.sha256(body).hexdigest()
+    digest = built["sha256"]
     try:
         try:
             platform.write_file(dest, body)

@@ -18,19 +18,34 @@ from _demo import USER, DemoStore
 from openpyxl import load_workbook
 
 from clark import excel
+from clark import page
+
+
+_NO_BRAND = tempfile.mkdtemp(prefix="clark-no-brand-")    # a brand logo on this computer never changes a test (#133)
+
+
+def setUpModule():
+    global _OLD_BRANDING
+    _OLD_BRANDING, page.BRANDING = page.BRANDING, Path(_NO_BRAND)
+
+
+def tearDownModule():
+    page.BRANDING = _OLD_BRANDING
+    shutil.rmtree(_NO_BRAND, ignore_errors=True)
+
 
 ON = "2030-06-01"
 HEADERS = {
-    "Milestones": ["ID", "Milestone", "Project", "Description", "Workstream", "Original", "Baseline", "Forecast", "Status",
+    "Milestones": ["ID", "Milestone", "Project", "Description", "Workstream", "Original", "Agreed", "Forecast", "Status",
                    "Order", "% complete", "Owner", "Shown state", "State", "State set by you", "State reason", "Movement",
                    "Achieved on", "Client-visible", "Client wording", "Internal note", "Source", "Updated"],
     "Actions": ["ID", "Description", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed",
-                "Latest update", "Client-visible", "Client messaging", "Milestone", "Use case", "Labels", "Source", "Updated"],
-    "RAID": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
-             "Priority", "Status", "Raised", "Closed", "Client-visible", "Client messaging", "Milestone", "Use case", "Labels",
+                "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels", "Source", "Updated"],
+    "Risks and issues": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
+             "Priority", "Status", "Raised", "Closed", "Client-visible", "Client wording", "Milestone", "Use case", "Labels",
              "Source", "Updated"],
     "Decisions": ["ID", "Decision", "Project", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
-                  "Replaces", "Client-visible", "Client messaging", "Use case", "Labels", "Source", "Updated"],
+                  "Replaces", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
     "Use cases": ["ID", "Use case", "Project", "Shown as", "Status", "Headline", "Where it stands", "Order", "Client-visible",
                   "Source", "Updated"],
 }
@@ -112,12 +127,12 @@ class ExcelTests(unittest.TestCase):
 
     def test_each_sheet_and_its_headers(self):
         wb = load_workbook(self.d.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Milestones", "Actions", "RAID", "Decisions", "Use cases", "Lists"])
+        self.assertEqual(wb.sheetnames, ["Cover", "Milestones", "Actions", "Risks and issues", "Decisions", "Use cases", "Lists"])
         for name, header in HEADERS.items():
             self.assertEqual([c.value for c in wb[name][1]], header, name)
 
     def test_every_kind_is_there(self):
-        types = {k: c.value for k, c in self.column(self.sheet("RAID"), "Type").items()}
+        types = {k: c.value for k, c in self.column(self.sheet("Risks and issues"), "Type").items()}
         self.assertEqual(types, {self.d.risk: "Risk", self.d.issue: "Issue"})
         self.assertEqual(set(self.column(self.sheet("Actions"), "ID")), {self.d.action, self.d.closed})
         decisions = set(self.column(self.sheet("Decisions"), "ID"))
@@ -144,7 +159,7 @@ class ExcelTests(unittest.TestCase):
         ws = self.sheet("Milestones")
         m = self.d.demo.milestone
         self.assertEqual(self.column(ws, "Original")[m].value.date(), date(2030, 3, 1))
-        self.assertEqual(self.column(ws, "Baseline")[m].value.date(), date(2030, 4, 1))
+        self.assertEqual(self.column(ws, "Agreed")[m].value.date(), date(2030, 4, 1))
 
     def test_round_trip_gives_the_database_values(self):
         back = excel.read_workbook(self.d.path)

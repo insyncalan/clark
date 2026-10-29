@@ -3,14 +3,16 @@
 Usage: python3 run_selftest.py [--all]   (--all prints the passing checks too)
 The phone-width checks ask this runner for a 390 px window (Emulation.setDeviceMetricsOverride); run another way, they are skipped.
 The same goes for the other widths (title SELFTEST-W:1100) and for the reduced-motion setting (title SELFTEST-REDUCE), added with the UX sweep fixes.
-Needs Google Chrome and an internet connection (fonts and the Excel tools load from the web). It writes one temporary page
+Needs Google Chrome (the Mac path, or the one CLARK_CHROME names) and an internet connection (fonts and the Excel tools load from the web). It writes one temporary page
 beside index.html while it runs and removes it after; the browser profile is a fresh temporary folder each time.
 The test runs in real time, driven over Chrome's DevTools pipe (standard library only). Virtual time was faster but raced the
 browser database, which opens in real time, so about one run in four started before the demo data had loaded.
 """
+import contextlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,10 +22,21 @@ from pathlib import Path
 import build_css
 
 HERE = Path(__file__).resolve().parent
-CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CHROME = os.environ.get("CLARK_CHROME") or "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"   # CLARK_CHROME names another Chrome (Linux)
 TIMEOUT = 300
 ERRORS = ('<script>window.__e=[];addEventListener("error",e=>__e.push((e.message||"")+" @"+(e.filename||"").split("/").pop()+":"+e.lineno));'
           'addEventListener("unhandledrejection",e=>__e.push("rejected: "+(e.reason&&e.reason.message||e.reason)));</script>')
+
+
+@contextlib.contextmanager
+def profile_dir():
+    """A fresh browser profile folder, removed afterwards. Errors are ignored: on Linux, Chrome's helper processes can still be
+    writing to it for a moment after Chrome itself is killed."""
+    d = tempfile.mkdtemp()
+    try:
+        yield d
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 class Pipe:
@@ -70,10 +83,12 @@ def main():
         os.dup2(b, 4)
 
     try:
-        with tempfile.TemporaryDirectory() as prof:
+        with profile_dir() as prof:
             proc = subprocess.Popen([CHROME, "--headless=new", "--disable-gpu", "--allow-file-access-from-files", f"--user-data-dir={prof}",
                                      "--use-mock-keychain", "--password-store=basic",   # no macOS Keychain prompt ("Keychain Not Found")
-                                     "--window-size=1440,1000", "--remote-debugging-pipe", "about:blank"],
+                                     "--window-size=1440,1000", "--remote-debugging-pipe",
+                                     # a mouse, as on the Mac: a Linux box with none reports (hover: none), and the page then (rightly) shows the section handle at full strength
+                                     "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4", "about:blank"],
                                     preexec_fn=child_fds, close_fds=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             try:   # from here on, whatever happens (an error, the timeout, Ctrl-C) Chrome is killed and waited for
                 os.close(to_r)

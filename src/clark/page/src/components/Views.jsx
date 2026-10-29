@@ -16,8 +16,14 @@ export function Milestones() {
   );
 }
 
-export function Settings() {
-  return <Empty title="Settings">Settings are not ready yet.</Empty>;
+export function Settings({ tools }) {
+  const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
+  return (
+    <>
+      <Empty title="Settings">Settings are not ready yet.</Empty>
+      {ClientFolder ? <ClientFolder /> : null}
+    </>
+  );
 }
 
 // The "No project open" screen: the projects to choose from or, when there are none (or the list could not be read), what to do.

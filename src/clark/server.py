@@ -10,6 +10,9 @@ Routes:
 - GET  /api/data         ?project=<CODE>: one project's data, from the store (`data_for`, #31)
 - POST /api/change       one change to a project's report sections (#65); the logic is `change(req)`, from clark.changes
 - POST /api/undo         reverse one earlier step of the report's (#65); the logic is `undo(req)`
+- POST /api/publish      Publish (#43): Local, and the client folder only when the body says `to_client: true`; publish_flow.py
+- POST /api/client-folder  choose or clear the project's client folder (#43); never writes into it
+- GET  /api/publication  ?project=<CODE>: when the project was last published and whether to the client (#43)
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
 
 Run: python3 -m clark.server   (CLARK_PORT sets the port; the default is 8766, beside creaite's 8765)
@@ -350,8 +353,24 @@ def undo_route(handler, req):
     return seam_route(handler, handler.server.undo, req)
 
 
-GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route}
-POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route}     # later items: /api/import, /api/publish
+def publisher_route(method):
+    """A route that hands its request to the server's publisher (publish_flow.Publisher, #43), which answers (status, body).
+    Without a publisher there is nothing to ask: not found. The decisions, the checks and the only write into a client folder
+    are in publish_flow.py and to_client.py, not here."""
+    def route(handler, *req):
+        publisher = getattr(handler.server, "publisher", None)
+        if publisher is None:
+            return handler.send(404, error_body("not_found"))
+        if not req:                          # a GET: the project comes from the address
+            req = ((parse_qs(urlsplit(handler.path).query).get("project") or [""])[0],)
+        status, body = getattr(publisher, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
+GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest")}
+POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
+               "/api/client-folder": publisher_route("client_folder")}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -514,16 +533,18 @@ class LocalServer(ThreadingHTTPServer):
     server_bind calls socket.getfqdn(host), which can stall for 30 s on some Macs.) `data_for(code)` is the store's read
     of one project (None when there is none); `projects()` lists them as rows with a code and a name; `page_html()` gives
     the page's HTML (#35 supplies the bundle); `change(req)` and `undo(req)` (#65) answer POST /api/change and /api/undo
-    with (status, body), each on a store of its own (None: those routes answer 503)."""
+    with (status, body), each on a store of its own (None: those routes answer 503); `publisher` answers the publish routes (#43)."""
     daemon_threads = True
 
-    def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None):
+    def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
+                 publisher=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
         self.change, self.undo = change, undo
         self.page_html = page_html or placeholder_html
+        self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -539,12 +560,14 @@ def port_setting():
     return int(os.environ.get("CLARK_PORT") or DEFAULT_PORT)
 
 
-def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None):
+def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
+          publisher=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
-        httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo)
+        httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
+                            publisher=publisher)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(f"Something else is using port {port}. Is clark already open in another window? If not, set CLARK_PORT to a different number and start clark again.", file=err)

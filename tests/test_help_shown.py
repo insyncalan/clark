@@ -125,10 +125,10 @@ class AgainstThePage(unittest.TestCase):
                 self.assertRegex(self.CODE, proof, f"Help talks about {name}, which the page does not have yet")
 
     def test_the_check_has_teeth_on_the_whole_source(self):
-        """On the whole source (nothing held) the same checks fail: the peek, the board and Publish are not on the page."""
+        """On the whole source (nothing held) the same checks fail: the peek and the board are not on the page. Publish left this list when its button and box reached the page (#43); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
         everything = " ".join(list(strings(RAW["howto"]["tasks"])) + list(strings(RAW["start"])))
         absent = [n for n, shown, proof in FEATURES if re.search(shown, everything) and not re.search(proof, self.CODE)]
-        for want in ("the peek", "the board", "Publish", "ask clark", "Import and Export", "Sneak peek"):
+        for want in ("the peek", "the board", "ask clark", "Import and Export", "Sneak peek"):
             self.assertIn(want, absent)
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         self.assertGreater(len(names), 100)

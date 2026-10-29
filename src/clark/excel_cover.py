@@ -22,7 +22,7 @@ RETURN_WITH = ("If you change anything here, send the file back to {owner}{email
                "which checks each one before saving it.")
 RETURN_ANYONE = ("If you change anything here, send the file back to the person who sent it to you. They then import your changes into "
                  "clark, which checks each one before saving it.")
-WHERE_TO_EDIT = ("Make your changes on the Actions, RAID, Decisions, Milestones and Use cases sheets. Changes made on "
+WHERE_TO_EDIT = ("Make your changes on the Actions, Risks and issues, Decisions, Milestones and Use cases sheets. Changes made on "
                  "this Cover are ignored.")
 ABOUT = "About this export"
 INTERNAL_TAG = "INTERNAL"

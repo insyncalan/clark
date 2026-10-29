@@ -84,8 +84,30 @@ class OpenAndReveal(TempHome):
             pl.open_file(self.home / "gone.html", run=FakeRun(), on=pl.MAC)
         f = self.home / "demo.xlsx"
         f.write_bytes(b"")
-        with self.assertRaisesRegex(pl.PlatformError, "couldn't show demo.xlsx in its folder: no access"):
+        with self.assertRaisesRegex(pl.PlatformError, "demo.xlsx could not be shown in its folder. Try again"):
             pl.reveal_file(f, run=FakeRun(1, stderr="no access"), on=pl.MAC)
+        with self.assertRaises(pl.PlatformError) as why:
+            pl.reveal_file(f, run=FakeRun(1, stderr="no access"), on=pl.MAC)
+        self.assertNotIn("no access", str(why.exception), "the system's own text is never shown")
+
+    def test_a_dialog_or_browser_that_fails_never_shows_the_system_text(self):
+        raw = "execution error: Permission denied (-1743) at /Users/demo/secret"
+        for call in (lambda r: pl.choose_folder("Pick", run=r, on=pl.MAC), lambda r: pl.choose_save_file("Save", "a.html", run=r, on=pl.MAC),
+                     lambda r: pl.open_url("https://example.org", run=r, on=pl.MAC)):
+            with self.assertRaises(pl.PlatformError) as why:
+                call(FakeRun(1, stderr=raw))
+            self.assertNotRegex(str(why.exception), r"(?i)permission|execution error|1743|/Users|no reason|The system")
+            self.assertIn("Try again; if it keeps happening, restart clark.", str(why.exception))
+        with self.assertRaisesRegex(pl.PlatformError, "The folder window could not be opened"):
+            pl.choose_folder("Pick", run=FakeRun(1, stderr=raw), on=pl.MAC)
+        with self.assertRaisesRegex(pl.PlatformError, "The Save window could not be opened"):
+            pl.choose_save_file("Save", "a.html", run=FakeRun(1, stderr=raw), on=pl.MAC)
+
+    def test_a_too_deep_folder_and_a_locked_file_name_no_location(self):
+        deep = "/" + "d" * 250
+        with self.assertRaises(pl.PlatformError) as why:
+            pl.safe_name("a.html", folder=deep)
+        self.assertEqual(str(why.exception), "That folder is too deep for the report to be saved in it. Choose a folder nearer the top of the drive.")
 
 
 class Dialogs(unittest.TestCase):
@@ -108,7 +130,7 @@ class Dialogs(unittest.TestCase):
         cancelled = FakeRun(1, stderr="execution error: User canceled. (-128)")
         self.assertIsNone(pl.choose_folder("Pick", run=cancelled, on=pl.MAC))
         self.assertIsNone(pl.choose_save_file("Save", "a.html", run=cancelled, on=pl.MAC))
-        with self.assertRaisesRegex(pl.PlatformError, "didn't open"):
+        with self.assertRaisesRegex(pl.PlatformError, "The folder window could not be opened"):
             pl.choose_folder("Pick", run=FakeRun(1, stderr="syntax error"), on=pl.MAC)
 
     @unittest.skipUnless(sys.platform == pl.MAC and shutil.which("osascript"), "needs macOS")
@@ -214,7 +236,7 @@ class SafeName(unittest.TestCase):
         got = pl.safe_name("Weekly report for the demo project.html", folder=folder)
         self.assertLessEqual(len(str(Path(folder) / got)), pl.MAX_PATH - 1)
         self.assertTrue(got.endswith(".html"))
-        with self.assertRaisesRegex(pl.PlatformError, "folder path is too long"):
+        with self.assertRaisesRegex(pl.PlatformError, "too deep for the report"):
             pl.safe_name("a.html", folder="/" + "d" * 250)
 
     def test_a_safe_name_is_unchanged(self):
@@ -291,7 +313,7 @@ class Replace(TempHome):
         folder.chmod(stat.S_IRUSR | stat.S_IXUSR)
         self.addCleanup(folder.chmod, stat.S_IRWXU)
         waits = []
-        with self.assertRaisesRegex(pl.PlatformError, "couldn't save Weekly report.html because another program"):
+        with self.assertRaisesRegex(pl.PlatformError, "Weekly report.html couldn't be saved because another program"):
             pl.replace_file(tmp, dest, sleep=waits.append)
         self.assertEqual(len(waits), pl.REPLACE_ATTEMPTS - 1)
         self.assertEqual(dest.read_text(encoding="utf-8"), "old")

@@ -165,7 +165,7 @@
         <button class="pk-prop${late ? ' late' : ''}" data-prop="due" aria-label="${x.type === 'D' ? 'Date' : 'Due'}: ${D.fd(x.due) || 'none'}" style="--ic:${late ? IC.r : x.due && C.isOpen(x) && D.days(x.due) <= 7 ? IC.a : x.due ? IC.b : IC.n}">${C.icon('cal')}<span class="v">${D.fd(x.due) || 'No date'}${late ? '<span class="od">overdue</span>' : x.due ? `<small> · ${C.dueWords(x.due)}</small>` : ''}</span></button>
       </div>
       <div class="pk-fresh" id="pkFresh">${(f => `Raised ${D.fd(f.raised)} · Last reviewed ${D.fd(f.reviewed)}${D.notReviewed(x) ? ' <span class="tag" title="Open, and not changed by hand for 14 days or more">Not reviewed in 14 days</span>' : ''}`)(D.fresh(x))}</div>
-      <label class="sw pk-act"><button class="switch" id="pkAct" role="switch" aria-checked="${!!x.clientAct}" aria-label="Needed from the client"></button>Needed from the client<small>Lists it under “What we need from you”</small></label>
+      <label class="sw pk-act"><button class="switch" id="pkAct" role="switch" aria-checked="${!!x.clientAct}" aria-label="Needed from the client"></button>Needed from the client<small>Lists it under “Needs from you”</small></label>
       <div class="pk-lab">Latest update <button class="pk-draft" id="pkDraft">${C.icon('sparkle', 's')}Draft</button></div>
       <div class="pk-text" id="pkUpd"></div>
       <div class="pk-last">${C.icon('clock', 's')} Last updated ${D.fd((x.updatedAt || '').slice(0, 10))} ${(x.updatedAt || '').slice(11)}</div>

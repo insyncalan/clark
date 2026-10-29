@@ -18,6 +18,21 @@ from clark import excel
 from clark import excel_colours as colours
 from clark import excel_cover as cover
 from clark import excel_import as xi
+from clark import page
+
+
+_NO_BRAND = tempfile.mkdtemp(prefix="clark-no-brand-")    # a brand logo on this computer never changes a test (#133)
+
+
+def setUpModule():
+    global _OLD_BRANDING
+    _OLD_BRANDING, page.BRANDING = page.BRANDING, Path(_NO_BRAND)
+
+
+def tearDownModule():
+    page.BRANDING = _OLD_BRANDING
+    shutil.rmtree(_NO_BRAND, ignore_errors=True)
+
 
 PROJECT = {"code": "DEMO", "name": "Harbour Lights upgrade", "current_state": "<p>Phase two is under way.</p><ul><li>Cabling done</li><li>Testing next</li></ul>",
            "internal_notes": "CANARY-INTERNAL-NOTE", "health_reason": "CANARY-PROJECT-FIELD"}
@@ -243,7 +258,7 @@ class InTheWorkbook(unittest.TestCase):
 
     def test_cover_is_first_and_open_with_no_merged_cells_and_the_top_row_frozen(self):
         wb = load_workbook(self.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Milestones", "Actions", "RAID", "Decisions", "Use cases", "Lists"])
+        self.assertEqual(wb.sheetnames, ["Cover", "Milestones", "Actions", "Risks and issues", "Decisions", "Use cases", "Lists"])
         self.assertEqual(wb.active.title, "Cover")
         self.assertEqual(list(wb["Cover"].merged_cells.ranges), [])
         self.assertEqual(wb["Cover"].freeze_panes, "A2")      # below the title band

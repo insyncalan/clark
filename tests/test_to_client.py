@@ -12,6 +12,7 @@ import re
 import tempfile
 import unittest
 import unicodedata
+from unittest import mock
 from pathlib import Path, PurePath
 
 from _paths import ROOT, SRC
@@ -76,7 +77,7 @@ class FakeFs:
 
     def read_bytes(self, path, limit=None):
         data = self.files[str(PurePath(path))]            # KeyError would be a test bug; a missing file is FileNotFoundError
-        if str(PurePath(path)) in self.written():
+        if str(PurePath(path)) in self.written() and limit is None:      # the read-back; the proof it is ours (with a limit) is exact
             if self.fail_read_left:
                 self.fail_read_left -= 1
                 raise OSError(5, "Input/output error")
@@ -99,6 +100,10 @@ class FakeFs:
         self.writes.append((key, data))
         self.files[key] = data
         return True
+
+    def identity(self, path):
+        key = str(PurePath(path))
+        return (1, sum(key.encode()), len(self.files[key]), 0, 0)      # a stable inode for a name; the bytes decide the rest
 
     def remove(self, path):
         self.removes.append(str(PurePath(path)))
@@ -444,7 +449,7 @@ class ThePreflight(unittest.TestCase):
         fs = FakeFs(folders=[CLIENT, DATA_DIR], links={link: CLIENT})
         got = send(fs, saved_folder=link)
         self.assertTrue(got.ok, got.message)
-        self.assertEqual(fs.writes[0][0], f"{link}/{WANTED}")
+        self.assertEqual(fs.writes[0][0], f"{CLIENT}/{WANTED}", "the copy goes to the real place the check found, not the link")
 
     def test_a_link_to_somewhere_outside_onedrive_warns(self):
         link = ROOTS[0] + "/Shortcut"
@@ -458,14 +463,15 @@ class ThePreflight(unittest.TestCase):
         fs = client_fs(unwritable=[CLIENT])
         got = send(fs)
         self.assertEqual((got.ok, fs.writes), (False, []))
-        self.assertIn("can't write to “Harbour Bridge”", got.message)
+        self.assertIn("“Harbour Bridge” can't be written to", got.message)
 
     def test_a_folder_too_deep_for_any_name_is_refused(self):
         deep = "/" + "/".join(["deep"] * 49)                     # 244 characters
         fs = FakeFs(folders=[deep, DATA_DIR])
         got = send(fs, saved_folder=deep)
         self.assertEqual((got.ok, fs.writes), (False, []))
-        self.assertIn("too long", got.message)
+        self.assertIn("too deep", got.message)
+        self.assertNotIn("deep/deep", got.message, "no location is shown")
 
 
 class TheCopy(unittest.TestCase):
@@ -506,7 +512,7 @@ class TheCopy(unittest.TestCase):
         got = send(fs, choice="overwrite", confirmed=True)
         self.assertEqual((got.ok, got.action, got.log, got.restored, got.replaced), (False, "failed", None, False, True))
         self.assertIn("did not match the published file", got.message)
-        self.assertIn("could not put the previous file back", got.message)
+        self.assertIn("the previous file could not be put back", got.message)
         self.assertIn("now holds the wrong copy", got.message)
 
         class Refuses(FakeFs):
@@ -517,7 +523,8 @@ class TheCopy(unittest.TestCase):
         fs2 = Refuses(folders=[CLIENT, DATA_DIR, LOCAL], files={f"{CLIENT}/{WANTED}": b"older"}, corrupt_read=1)
         got2 = send(fs2, choice="overwrite", confirmed=True)
         self.assertEqual((got2.restored, got2.replaced), (False, True))
-        self.assertIn("Permission denied", got2.message)
+        self.assertIn("clark could not write to the client folder. Check you can edit it.", got2.message)
+        self.assertNotIn("Permission denied", got2.message)
         self.assertIn("did not match the published file", got2.message)
 
     def test_an_overwrite_keeps_the_old_bytes_only_in_memory(self):
@@ -576,6 +583,102 @@ class TheCopy(unittest.TestCase):
             self.assertEqual(len(linked), 1)
             self.assertEqual([p.name for p in Path(tmp).iterdir()], ["a.html"])
 
+    def _fs_with_identity(self, **kw):
+        class Stat(FakeFs):
+            """A disk that also says device, inode, size and change times. `meta` holds them per path; a write gives a new
+            change time, and a test can put a different file under the same name with the same inode number."""
+            def __init__(self, *a, **k):
+                super().__init__(*a, **k)
+                self.meta, self.clock, self.on_read = {}, 0, None
+
+            def write_file(self, path, data, replaces):
+                ok = super().write_file(path, data, replaces)
+                if ok:
+                    self.clock += 1
+                    self.meta[str(PurePath(path))] = (1, 4242, len(data), self.clock, self.clock)
+                return ok
+
+            def identity(self, path):
+                return self.meta[str(PurePath(path))]
+
+            def read_bytes(self, path, limit=None):
+                if self.on_read:
+                    self.on_read, hook = None, self.on_read
+                    hook(self, str(PurePath(path)))
+                return super().read_bytes(path, limit)
+        return Stat(folders=[CLIENT, DATA_DIR], **kw)
+
+    def test_a_file_with_a_recycled_inode_number_is_not_taken_back(self):
+        fs = self._fs_with_identity()
+
+        def swap(disk, path):                       # someone deletes the copy and makes another file: same inode number
+            disk.clock += 1
+            disk.files[path] = b"someone else's file"
+            disk.meta[path] = (1, 4242, len(b"someone else's file"), disk.clock, disk.clock)
+        fs.on_read = swap
+        got = send(fs)
+        self.assertFalse(got.ok)
+        self.assertEqual(fs.files[f"{CLIENT}/{WANTED}"], b"someone else's file")
+        self.assertEqual(fs.removes, [])
+
+    def test_the_copy_this_call_made_is_taken_back_when_it_fails_its_check(self):
+        fs = self._fs_with_identity(corrupt_read=True)
+        got = send(fs)
+        self.assertFalse(got.ok)
+        self.assertEqual(fs.removes, [f"{CLIENT}/{WANTED}"])
+        self.assertNotIn(f"{CLIENT}/{WANTED}", fs.files)
+
+    def test_the_same_inode_with_the_bytes_this_call_wrote_is_still_ours(self):
+        fs = self._fs_with_identity(fail_read=1)
+
+        def touch(disk, path):                      # a sync tool touches the file: change times move, bytes and inode do not
+            disk.clock += 1
+            disk.meta[path] = (1, 4242, disk.meta[path][2], disk.clock, disk.clock)
+        fs.on_read = touch
+        got = send(fs)
+        self.assertFalse(got.ok)
+        self.assertEqual(fs.removes, [f"{CLIENT}/{WANTED}"])
+
+    def test_an_identical_identity_with_different_bytes_is_not_taken_back(self):
+        fs = self._fs_with_identity()
+        same = {}
+
+        def swap(disk, path):                       # other bytes, and the disk says exactly what it said for our copy
+            disk.files[path] = b"someone else's file"
+            disk.meta[path] = same["tuple"]
+        fs.on_read = swap
+        real_write = fs.write_file
+
+        def write(path, data, replaces):
+            ok = real_write(path, data, replaces)
+            same["tuple"] = fs.meta[str(PurePath(path))]
+            return ok
+        fs.write_file = write
+        got = send(fs)
+        self.assertFalse(got.ok)
+        self.assertEqual(fs.files[f"{CLIENT}/{WANTED}"], b"someone else's file")
+        self.assertEqual(fs.removes, [])
+
+    def test_a_missing_digest_is_an_error_not_a_fall_back_to_the_times(self):
+        fs = self._fs_with_identity()
+        fs.files["x"] = b"a"
+        fs.meta["x"] = (1, 1, 1, 1, 1)
+        with self.assertRaises(TypeError):
+            tc._ours(fs, "x", (1, 1, 1, 1, 1))
+        with self.assertRaises(TypeError):
+            tc._remove(fs, "x", (1, 1, 1, 1, 1))
+        self.assertFalse(tc._ours(fs, "x", (1, 1, 1, 1, 1), tc.sha256_of(b"other")))
+        self.assertTrue(tc._ours(fs, "x", (1, 1, 1, 1, 1), tc.sha256_of(b"a")))
+
+    def test_a_disk_that_cannot_say_which_file_was_written_removes_nothing(self):
+        class Blind(FakeFs):
+            def identity(self, path):
+                raise OSError("no identity")
+        fs = Blind(folders=[CLIENT, DATA_DIR], corrupt_read=True)
+        got = send(fs)
+        self.assertEqual(fs.removes, [])
+        self.assertEqual(got.message, tc.MESSAGES["copy_not_removed"].format(name=WANTED))
+
     def test_a_copy_that_cannot_be_removed_says_so(self):
         class Stuck(FakeFs):
             def remove(self, path):
@@ -585,16 +688,17 @@ class TheCopy(unittest.TestCase):
         self.assertEqual(got.message, tc.MESSAGES["copy_not_removed"].format(name=WANTED))
 
     def test_a_refused_write_keeps_the_client_folder_as_it_was(self):
-        for error, expect in ((platform.PlatformError("clark couldn't save PUB because another program is using it or it is locked. Close it there and try again."),
+        for error, expect in ((platform.PlatformError("PUB couldn't be saved because another program is using it or it is locked. Close it there and try again."),
                                "another program is using it"),
-                              (PermissionError(13, "Permission denied"), "Permission denied")):
+                              (PermissionError(13, "Permission denied"), "clark could not write to the client folder. Check you can edit it.")):
             with self.subTest(type(error).__name__):
                 fs = client_fs(fail_write=error)
                 got = send(fs)
                 self.assertEqual((got.ok, got.action, got.log, got.nothing_written), (False, "failed", None, True))
                 self.assertTrue(got.message.startswith("Saved locally, but not copied to the client folder:"), got.message)
-                self.assertTrue(got.message.endswith("Nothing was added to the client folder."))
+                self.assertTrue(got.message.endswith("Nothing was added there."))
                 self.assertIn(expect, got.message)
+                self.assertNotRegex(got.message, r"(?i)permission denied|errno|\(no reason|refused it \(")
                 self.assertEqual((fs.names(), fs.removes), ([], []))
 
     def test_bytes_that_are_not_the_published_file_are_not_copied(self):
@@ -688,10 +792,21 @@ class TheMarkerCheck(unittest.TestCase):
         class Leaks(FakeFs):
             def read_bytes(self, path, limit=None):
                 data = super().read_bytes(path, limit)
-                return data.replace(b"</p>", b" ZQ-INTERNAL</p>") if str(path) in self.written() else data
+                return data.replace(b"</p>", b" ZQ-INTERNAL</p>") if str(path) in self.written() and limit is None else data
         fs2 = Leaks(folders=[CLIENT, DATA_DIR, LOCAL])
         got2 = send(fs2, markers=["ZQ-INTERNAL"])
         self.assertEqual((got2.ok, got2.action, fs2.names()), (False, "failed", []), "the copy that came back with it in is removed")
+
+    def test_the_marker_check_on_the_read_back_matters_on_its_own(self):
+        """Only the read-back differs, by a marker, and its hash is made to agree: the marker check alone must catch it."""
+        class Leaks(FakeFs):
+            def read_bytes(self, path, limit=None):
+                data = super().read_bytes(path, limit)
+                return data.replace(b"</p>", b" ZQ-INTERNAL</p>") if str(path) in self.written() else data
+        fs = Leaks(folders=[CLIENT, DATA_DIR, LOCAL])
+        with mock.patch.object(tc, "sha256_of", lambda data: "same"):
+            got = send(fs, markers=["ZQ-INTERNAL"])
+        self.assertEqual((got.ok, got.action, fs.names()), (False, "failed", []))
 
     def test_a_marker_is_found_whatever_its_letter_case_or_accent_form(self):
         marker = "Zürich-INTERNAL"
@@ -704,7 +819,7 @@ class TheMarkerCheck(unittest.TestCase):
         folder = "/Users/sam.carter/Library/CloudStorage/OneDrive-Harbourside/Café Zürich"
         for spelled in (folder, unicodedata.normalize("NFD", folder), folder.upper()):
             body = BODY.replace(b"</p>", spelled.encode("utf-8") + b"</p>")
-            self.assertIn("the path of the client folder", tc.check_copy(body, folder=folder, markers=()), spelled)
+            self.assertIn("the location of the client folder", tc.check_copy(body, folder=folder, markers=()), spelled)
 
 
 class TheRequest(unittest.TestCase):
@@ -966,10 +1081,241 @@ class TheRealDisk(unittest.TestCase):
         self.assertEqual(list((self.client / WANTED).iterdir()), [])
 
 
+class TheClientFolderIsHeldTo(unittest.TestCase):
+    """#43 review: the folder that was checked is the folder written to, and what is in it is only ever read as an ordinary file.
+    Real folders, links and a pipe in a temporary folder."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name).resolve()
+        self.onedrive = self.root / "OneDrive-Fictional"
+        self.client = self.onedrive / "Client reports" / "Harbour Bridge"
+        self.client.mkdir(parents=True)
+        self.data_dir = self.root / "clark-data"
+        self.data_dir.mkdir()
+        (self.data_dir / "clark.db").write_bytes(b"the database")
+        self.fs = tc.RealFs()
+
+    def kw(self, **extra):
+        args = dict(data_dir=str(self.data_dir), onedrive_roots=[str(self.onedrive)], local_folder=str(self.root / "Local"))
+        args.update(extra)
+        return args
+
+    def send(self, **extra):
+        return tc.send_to_client(self.fs, saved_folder=str(self.client), data=BODY, project="PUB", at=DAY, week_ending=WEEK,
+                                 today=DAY, markers=(), **self.kw(**extra))
+
+    def checked(self):
+        pre = tc.checked_folder(self.fs, str(self.client), **self.kw())
+        self.assertTrue(pre["ok"], pre)
+        return pre
+
+    def swap_for_link_to(self, target):
+        self.client.rmdir()
+        self.client.symlink_to(target, target_is_directory=True)
+
+    def test_a_folder_swapped_for_a_link_after_the_check_is_not_written_to(self):
+        pre = self.checked()
+        guard = {"data_dir": str(self.data_dir), "backups_dir": None, "identity": pre["identity"]}
+        self.swap_for_link_to(self.data_dir)
+        got = tc.copy_to_client(self.fs, self.client, WANTED, BODY, project="PUB", at=DAY, markers=(), guard=guard)
+        self.assertEqual((got.ok, got.action, got.message), (False, "refused", tc.MESSAGES["folder_changed"]))
+        self.assertEqual(sorted(p.name for p in self.data_dir.iterdir()), ["clark.db"])
+
+    def test_the_real_path_of_a_link_is_what_is_planned(self):
+        other = self.onedrive / "Elsewhere"
+        other.mkdir()
+        self.client.rmdir()
+        self.client.symlink_to(other, target_is_directory=True)
+        kind, plan = tc.plan_client_copy(self.fs, saved_folder=str(self.client), data=BODY, project="PUB", today=DAY,
+                                         week_ending=WEEK, **self.kw())
+        self.assertEqual((kind, plan["folder"]), ("copy", other))
+
+    def test_a_folder_replaced_by_another_real_folder_after_the_check_is_refused(self):
+        pre = self.checked()
+        guard = {"data_dir": str(self.data_dir), "backups_dir": None, "identity": pre["identity"]}
+        moved = self.client.with_name("Moved")
+        self.client.rename(moved)
+        self.client.mkdir()                        # a different folder under the same name (another inode)
+        got = tc.copy_to_client(self.fs, self.client, WANTED, BODY, project="PUB", at=DAY, markers=(), guard=guard)
+        self.assertEqual((got.ok, got.message), (False, tc.MESSAGES["folder_changed"]))
+        self.assertEqual(list(self.client.iterdir()) + list(moved.iterdir()), [])
+
+    def test_a_folder_removed_after_the_check_fails_safe(self):
+        pre = self.checked()
+        guard = {"data_dir": str(self.data_dir), "backups_dir": None, "identity": pre["identity"]}
+        self.client.rmdir()
+        got = tc.copy_to_client(self.fs, self.client, WANTED, BODY, project="PUB", at=DAY, markers=(), guard=guard)
+        self.assertEqual((got.ok, got.action in ("failed", "refused")), (False, True))
+        self.assertFalse(self.client.exists())
+
+    def test_a_link_to_the_data_folder_is_refused_at_the_check(self):
+        self.swap_for_link_to(self.data_dir)
+        got = self.send()
+        self.assertEqual((got.ok, got.action), (False, "refused"))
+        self.assertEqual(sorted(p.name for p in self.data_dir.iterdir()), ["clark.db"])
+
+    # (a) the clean-up of stale temporary files
+    def test_only_a_stale_temporary_file_of_the_exact_shape_is_removed(self):
+        import os
+        old = 1_000_000_000
+        keep, remove = [], []
+        good = self.client / f".{WANTED}.123.0a1b2c3d.part"
+        good.write_bytes(b"half")
+        remove.append(good)
+        for name in (".notes.part", f".{WANTED}.123.0g1b2c3d.part", f".{WANTED}.12x.0a1b2c3d.part", f"{WANTED}.123.0a1b2c3d.part",
+                     "." + "x" * 205 + ".html.1.0a1b2c3d.part"):
+            (self.client / name).write_bytes(b"other")
+            keep.append(self.client / name)
+        (self.client / f".b.html.5.0a1b2c3d.part").symlink_to(self.data_dir / "clark.db")
+        keep.append(self.client / ".b.html.5.0a1b2c3d.part")
+        (self.client / f".c.html.5.0a1b2c3d.part").mkdir()
+        keep.append(self.client / ".c.html.5.0a1b2c3d.part")
+        big = self.client / ".d.html.5.0a1b2c3d.part"
+        with open(big, "wb") as f:
+            f.truncate(publish.MAX_BYTES + 1)
+        keep.append(big)
+        young = self.client / ".e.html.5.0a1b2c3d.part"
+        young.write_bytes(b"new")
+        keep.append(young)
+        for p in remove + keep:
+            if not p.is_symlink() and p is not young:
+                os.utime(p, (old, old))
+        got = self.send()
+        self.assertTrue(got.ok, got.message)
+        for p in remove:
+            self.assertFalse(p.exists(), p)
+        for p in keep:
+            self.assertTrue(os.path.lexists(p), p)
+        self.assertEqual((self.data_dir / "clark.db").read_bytes(), b"the database")
+
+    # (b) reading what is at the destination
+    def test_a_link_and_a_pipe_are_never_read(self):
+        import os
+        target = self.root / "outside.html"
+        target.write_bytes(BODY)
+        link = self.client / WANTED
+        link.symlink_to(target)
+        with self.assertRaises(OSError):
+            self.fs.read_bytes(link)
+        link.unlink()
+        os.mkfifo(link)
+        with self.assertRaises(OSError):
+            self.fs.read_bytes(link)
+
+    def test_a_link_with_the_same_bytes_is_not_the_same_file(self):
+        target = self.root / "outside.html"
+        target.write_bytes(BODY)
+        (self.client / WANTED).symlink_to(target)
+        got = self.send()
+        self.assertEqual((got.ok, got.action), (False, "ask"))
+        self.assertFalse(got.clash["can_overwrite"])
+
+    def test_a_pipe_at_the_destination_is_asked_about_not_read(self):
+        import os
+        os.mkfifo(self.client / WANTED)
+        got = self.send()
+        self.assertEqual((got.ok, got.action), (False, "ask"))
+
+    def test_same_content_reads_no_more_than_the_size_limit(self):
+        seen = []
+
+        class Spy(tc.RealFs):
+            def read_bytes(self, path, limit=None):
+                seen.append(limit)
+                return super().read_bytes(path, limit)
+        (self.client / WANTED).write_bytes(b"x" * (publish.MAX_BYTES + 1))
+        self.fs = Spy()
+        got = self.send()
+        self.assertEqual((got.action, set(seen)), ("ask", {publish.MAX_BYTES + 1}))
+
+    # (c) Overwrite on a link
+    def test_overwrite_refuses_a_link_and_leaves_what_it_points_at(self):
+        target = self.root / "outside.html"
+        target.write_bytes(b"not the client's")
+        (self.client / WANTED).symlink_to(target)
+        got = self.send(choice="overwrite", confirmed=True)
+        self.assertEqual((got.ok, got.action, got.message), (False, "refused", tc.MESSAGES["not_plain_file"].format(name=WANTED)))
+        self.assertEqual(target.read_bytes(), b"not the client's")
+        self.assertTrue((self.client / WANTED).is_symlink())
+
+    def test_the_copy_step_itself_refuses_to_replace_a_link(self):
+        target = self.root / "outside.html"
+        target.write_bytes(b"not the client's")
+        (self.client / WANTED).symlink_to(target)
+        got = tc.copy_to_client(self.fs, self.client, WANTED, BODY, project="PUB", at=DAY, markers=(), replaces=True, confirmed=True)
+        self.assertEqual((got.ok, got.action), (False, "refused"))
+        self.assertEqual(target.read_bytes(), b"not the client's")
+
+    # (d) a name that ends with a dot
+    def test_a_rename_ending_with_a_dot_is_refused(self):
+        for typed in ("a.html.", "a.", "report..", "a.html. "):
+            with self.subTest(typed):
+                got = tc.resolve_clash(WANTED, [WANTED], "rename", typed)
+                self.assertEqual((got["action"], got["reason"]), ("refuse", "name_ends_badly"))
+                self.assertEqual(got["message"], tc.MESSAGES["name_ends_badly"])
+        self.assertEqual(tc.resolve_clash(WANTED, [WANTED], "rename", "a.html")["name"], "a.html")
+
+
+class PlainWords(unittest.TestCase):
+    """Nothing a person reads from the client copy is the system's own text, a location or request talk (#43)."""
+    RAW = r"(?i)permission denied|errno|oserror|no such file|no reason|refused it|/Users|private key|\btag\b|attribute|stylesheet"
+
+    def test_a_raw_os_error_is_a_fixed_sentence_whichever_step_fails(self):
+        raw = OSError(13, "Permission denied")
+        self.assertEqual(tc._reason(raw), "clark could not write to the client folder. Check you can edit it.")
+        self.assertEqual(tc._reason(raw, "read"), "clark could not read the client folder. Check you can open it.")
+
+        class Unreadable(FakeFs):
+            def listdir(self, path):
+                raise raw
+        got = send(Unreadable(folders=[CLIENT, DATA_DIR, LOCAL]))
+        self.assertEqual(got.message, "clark could not read the client folder. Check you can open it. Nothing was published.")
+
+    def test_a_failed_put_back_says_so_in_words_without_the_system_text(self):
+        class Refuses(FakeFs):
+            def write_file(self, path, data, replaces):
+                if data == b"older":
+                    raise PermissionError(13, "Permission denied")
+                return super().write_file(path, data, replaces)
+        fs = Refuses(folders=[CLIENT, DATA_DIR, LOCAL], files={f"{CLIENT}/{WANTED}": b"older"}, corrupt_read=1)
+        got = send(fs, choice="overwrite", confirmed=True)
+        self.assertIn("the previous file could not be put back. clark could not write to the client folder. Check you can edit it.",
+                      got.message)
+        self.assertEqual(got.message.count("clark could not"), 1, "only one sentence starts with the product's name")
+        self.assertNotRegex(got.message, self.RAW)
+
+    def test_what_is_held_back_is_in_plain_words(self):
+        for body, words in ((BODY.replace(b"<p>", b'<p><img src="https://x.invalid/a.png">'), "a link to a place outside the file"),
+                            (BODY.replace(b"<body>", b'<body id="clark-boot">'), "clark's own working data"),
+                            (b"\xff\xfe not text", "a file clark did not write as text"),
+                            (BODY.replace(b"Harbour", CLIENT.encode("utf-8")), "the location of the client folder")):
+            with self.subTest(words):
+                got = send(client_fs(), data=body)
+                self.assertIn(f"({words}", got.message)
+                self.assertNotRegex(got.message, self.RAW)
+
+    def test_the_publish_scans_own_labels_are_all_translated(self):
+        for label in ("a <link> tag", "a script loaded by address", "an attribute that names an outside address", "a page refresh",
+                      "a stylesheet that imports another", "a stylesheet address that isn't embedded data", "a Google Fonts address",
+                      "a link or source that is an outside address"):
+            self.assertIn(label, tc.HELD_WORDS)
+            self.assertNotRegex(tc.held_words([label]), r"(?i)\btag\b|attribute|stylesheet|address|<")
+
+    def test_too_deep_and_bad_path_and_the_request_messages_have_no_location_or_request_talk(self):
+        self.assertNotIn("{", tc.MESSAGES["too_deep"])
+        for key in ("too_deep", "bad_path", "unknown_choice", "to_client_flag", "confirmed_flag", "names_a_folder", "unknown_key",
+                    "overwrite_unconfirmed"):
+            self.assertNotRegex(tc.MESSAGES[key], r"(?i)\bpath\b|\brequest\b|true or false", key)
+        self.assertEqual(tc.MESSAGES["unknown_choice"], "That choice isn't one clark offers. Choose one of: Add a number, Rename it, "
+                                                         "Overwrite the existing file, Cancel.")
+
+
 class Tripwire(unittest.TestCase):
     """Only this module writes into a client folder, and only through one place. Read from the syntax trees of src/clark."""
     WRITERS = {"RealFs", "copy_to_client", "send_to_client"}
-    ALLOWED_OUTSIDE = set()          # modules that may use them. The publish route (server.py) is added here when it is built.
+    ALLOWED_OUTSIDE = {"publish_flow.py"}      # modules that may use them: the publish route's logic (server.py only hands requests to it)
     DISK_CALLS = {"write_file", "replace_file", "remove", "unlink", "rename", "write_text", "write_bytes", "mkdir", "makedirs",
                   "rmdir", "copyfile", "copy2", "move", "symlink", "touch", "write_file_unless_exists", "move_unless_exists", "link"}
 
@@ -1051,6 +1397,49 @@ class Tripwire(unittest.TestCase):
                        "x = clark.to_client.RealFs()\n", "from clark import to_client as t\nt.copy_to_client(1)\n"):
             self.assertTrue(self.uses_writer(ast.parse(source)), source)
         self.assertEqual(self.uses_writer(ast.parse("from clark.to_client import validate_request\n")), [])
+
+
+class MarkersAreFoundInOnePass(unittest.TestCase):
+    """#43: naming the left-out items reads the file once, then looks each marker up."""
+
+    def file_and_markers(self, n):
+        markers = tc_markers(n)
+        body = ("<html><body>" + " ".join("<p>filler line %d</p>" % i for i in range(300)) + "".join(
+            "<p>%s</p>" % m for m in markers[::7]) + "</body></html>").encode("utf-8")
+        return body, markers
+
+    def test_the_results_are_the_same_as_checking_each_marker_alone(self):
+        body, markers = self.file_and_markers(60)
+        markers += ["Internal <note> & \"quoted\" text", "NOT IN THE FILE AT ALL"]
+        body += "<p>Internal &lt;note&gt; &amp; &quot;quoted&quot; text</p>".encode("utf-8")
+        alone = [m for m in markers if tc.check_copy(body, markers=[m])]
+        self.assertEqual(tc.markers_found(body, markers), alone)
+        self.assertIn("Internal <note> & \"quoted\" text", alone)
+        self.assertNotIn("NOT IN THE FILE AT ALL", alone)
+
+    def test_the_file_is_folded_once_whatever_the_number_of_markers(self):
+        body, markers = self.file_and_markers(3000)
+        calls = []
+        real = tc._key
+        def counting(text):
+            calls.append(len(text))
+            return real(text)
+        with mock.patch.object(tc, "_key", counting):
+            tc.markers_found(body, markers)
+        self.assertEqual(sum(1 for n in calls if n > 10000), 1, "the whole file was folded more than once")
+
+    def test_which_items_never_runs_the_whole_check_again(self):
+        from clark import publish_flow
+        body, markers = self.file_and_markers(3000)
+        markers = publish_flow.Markers(markers)
+        markers.where = {m: "ITEM-%d" % i for i, m in enumerate(markers)}
+        with mock.patch.object(tc, "check_copy", side_effect=AssertionError("check_copy called")):
+            said = publish_flow.Publisher.which_items(None, body, markers)
+        self.assertEqual(said, publish_flow.MESSAGES["look_at"].format(items=", ".join("ITEM-%d" % i for i in range(0, 70, 7))))
+
+
+def tc_markers(n):
+    return ["left out note number %d of the project" % i for i in range(n)]
 
 
 if __name__ == "__main__":

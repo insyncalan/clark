@@ -13,6 +13,7 @@ import os
 import re
 import secrets
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -149,7 +150,7 @@ def check_data_dir(path, roots=None, what="data"):
             raise PlatformError(f"Backups can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
                                 "copies files while they are being written, which damages a database. Keep them beside the "
                                 "database on this computer; a copy somewhere else is a separate, later feature.")
-        raise PlatformError(f"clark can't keep its data in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
+        raise PlatformError(f"Your data can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
                             "copies files while they are being written, which damages the database. Choose a folder on "
                             "this computer that OneDrive doesn't sync; backups can still go to OneDrive.")
     return Path(path).expanduser().resolve()
@@ -188,14 +189,14 @@ def open_file(path, run=None, on=None):
     """Open `path` in the program the system uses for it (Finder's double-click)."""
     _only_mac("Opening a file", on)
     path = _existing(path)
-    _checked(_run(["open", str(path)], run), f"open {path.name}")
+    _checked(_run(["open", str(path)], run), f"{path.name} could not be opened")
 
 
 def reveal_file(path, run=None, on=None):
     """Show `path` selected in its folder in Finder."""
     _only_mac("Showing a file in its folder", on)
     path = _existing(path)
-    _checked(_run(["open", "-R", str(path)], run), f"show {path.name} in its folder")
+    _checked(_run(["open", "-R", str(path)], run), f"{path.name} could not be shown in its folder")
 
 
 def open_url(url, run=None, on=None):
@@ -203,23 +204,25 @@ def open_url(url, run=None, on=None):
     _only_mac("Opening a web page", on)
     url = str(url)
     if not re.match(r"https?://[^\s]+\Z", url):       # also keeps a value starting with "-" from being read as an option
-        raise PlatformError(f"clark opens only web addresses starting http:// or https://. You gave {url}.")
+        raise PlatformError(f"Only web addresses starting http:// or https:// can be opened. You gave {url}.")
     done = _run(["open", url], run)
     if done.returncode != 0:
-        why = (done.stderr or "").strip()
-        raise PlatformError(f"clark could not open your browser{f' ({why})' if why else ''}.")
+        raise PlatformError(f"The browser could not be opened. {TRY_AGAIN}")
 
 
 def _existing(path):
     path = Path(path)
     if not path.exists():
-        raise PlatformError(f"{path.name} isn't there any more ({path}).")
+        raise PlatformError(f"{path.name} isn't there any more.")
     return path.resolve()           # absolute, so a name starting with "-" is never read as an option
+
+
+TRY_AGAIN = "Try again; if it keeps happening, restart clark."          # the system's own error text is never shown
 
 
 def _checked(done, what):
     if done.returncode != 0:
-        raise PlatformError(f"The system couldn't {what}: {(done.stderr or '').strip() or 'no reason given'}.")
+        raise PlatformError(f"{what}. {TRY_AGAIN}")
     return done
 
 
@@ -241,21 +244,21 @@ end run"""
 def choose_folder(prompt, start=None, run=None, on=None):
     """The system's own folder dialog. The chosen folder, or None if the person cancelled."""
     _only_mac("The folder dialog", on)
-    return _dialog(FOLDER_SCRIPT, [prompt] + ([str(start)] if start else []), run)
+    return _dialog(FOLDER_SCRIPT, [prompt] + ([str(start)] if start else []), run, "folder")
 
 
 def choose_save_file(prompt, default_name, start=None, run=None, on=None):
     """The system's own Save dialog, suggesting `default_name` (made safe). The chosen file, or None if cancelled."""
     _only_mac("The Save dialog", on)
-    return _dialog(SAVE_SCRIPT, [prompt, safe_name(default_name)] + ([str(start)] if start else []), run)
+    return _dialog(SAVE_SCRIPT, [prompt, safe_name(default_name)] + ([str(start)] if start else []), run, "Save")
 
 
-def _dialog(script, args, run):
+def _dialog(script, args, run, which):
     done = _run(["osascript", "-e", script, *args], run)
     if done.returncode != 0:
         if CANCELLED in (done.stderr or ""):
             return None
-        raise PlatformError(f"The system dialog didn't open: {(done.stderr or '').strip() or 'no reason given'}.")
+        raise PlatformError(f"The {which} window could not be opened. {TRY_AGAIN}")
     return Path(done.stdout.strip())
 
 
@@ -274,8 +277,7 @@ def safe_name(name, folder=None, max_name=MAX_NAME):
     if folder is not None:
         room = MAX_PATH - 1 - len(str(Path(folder))) - 1      # the NUL, and the separator before the name
         if room < 12:
-            raise PlatformError(f"The folder path is too long for a file to be saved in it ({folder}). Choose a "
-                                "folder nearer the top of the drive.")
+            raise PlatformError("That folder is too deep for the report to be saved in it. Choose a folder nearer the top of the drive.")
         limit = min(limit, room)
     if len(name) > limit:
         stem, dot, ext = name.rpartition(".")
@@ -299,10 +301,29 @@ def replace_file(source, dest, attempts=REPLACE_ATTEMPTS, first_wait=REPLACE_FIR
             if e.errno not in LOCKED and not isinstance(e, PermissionError):
                 raise
             if attempt == attempts:
-                raise PlatformError(f"clark couldn't save {Path(dest).name} because another program is using it or it "
+                raise PlatformError(f"{Path(dest).name} couldn't be saved because another program is using it or it "
                                     f"is locked ({shown(dest)}). Close it there and try again.") from e
             sleep(wait)
             wait *= 2
+
+
+def open_plain_file(path, flags):
+    """An `opener` for open(): opens `path` for reading without following a link and without waiting on a pipe, and only
+    hands back the descriptor if it is an ordinary file (OSError otherwise). Used to read a file in a client's folder, where
+    another program may have put a link or a pipe under the name."""
+    fd = os.open(path, flags | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError(errno.EINVAL, "not an ordinary file")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def is_mine(st):
+    """Whether a file's stat says it belongs to the user running clark (always True where the system has no owner numbers)."""
+    return not hasattr(os, "getuid") or st.st_uid == os.getuid()
 
 
 def _write_temp(dest, data):
@@ -438,7 +459,7 @@ def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
             return (popen or subprocess.Popen)(list(argv), cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                                start_new_session=True)
     except OSError as e:
-        raise PlatformError(f"clark could not start. Try again; if it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
+        raise PlatformError(f"The app could not start. Try again; if it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
 
 
 def open_app_window(url, chrome, popen=None, on=None):
@@ -446,12 +467,12 @@ def open_app_window(url, chrome, popen=None, on=None):
     _only_mac("Opening an app window", on)
     url = str(url)
     if not re.match(r"https?://[^\s]+\Z", url):
-        raise PlatformError(f"clark opens only web addresses starting http:// or https://. You gave {url}.")
+        raise PlatformError(f"Only web addresses starting http:// or https:// can be opened. You gave {url}.")
     try:
         (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
-        raise PlatformError("clark could not open its window.") from e
+        raise PlatformError("The window could not be opened.") from e
 
 
 # The Claude command (ask clark). Found on the PATH and started from an argument list. A .cmd or .bat is refused on every

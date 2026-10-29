@@ -6,6 +6,7 @@ const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" +
 export function TopBar({ tools }) {
   const name = data.value && data.value.project.name;
   const Toggle = tools && tools.Toggle && !fromFile.value ? tools.Toggle : null;     // View or Edit: only a page clark serves has it
+  const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
   return (
     <header class="top">
       <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>
@@ -17,6 +18,7 @@ export function TopBar({ tools }) {
         ))}
       </nav>
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
+      {Publish ? <Publish /> : null}
       {Toggle ? <Toggle /> : null}
     </header>
   );

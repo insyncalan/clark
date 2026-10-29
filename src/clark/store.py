@@ -1925,11 +1925,13 @@ class Store:
         finally:
             con.close()
 
-    def log_publication(self, code, path, week_ending, sha256, by_user):
-        """Record one published file (Local): a `publications` row with the file's SHA-256, and nothing else. No change_log,
+    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None):
+        """Record one published file: a `publications` row with the file's SHA-256, and nothing else. No change_log,
         no step and no write to any other table: a publication is a record of a file, not an edit (#39; Head ruling,
         28-10-2026), so Undo never meets it. The folder to offer next time is read back from the latest publication
-        (`last_publish_folder`), not kept as a field of the project. Returns the publication's number."""
+        (`last_publish_folder`), not kept as a field of the project. `client_path` (#43) is the verified copy in the client
+        folder, given only when To client was ticked and the copy read back with the same SHA-256; it is the same file, so it
+        is never the Local path. Returns the publication's number."""
         if not str(by_user or "").strip():
             raise Invalid("a publication needs who made it (by_user)")
         if not re.fullmatch(r"[0-9a-f]{64}", str(sha256 or "")):
@@ -1943,6 +1945,11 @@ class Store:
                 date.fromisoformat(str(week_ending))
             except ValueError:
                 raise Invalid(f"the report's date must be YYYY-MM-DD (got {week_ending!r})") from None
+        if client_path is not None:
+            if not Path(str(client_path)).is_absolute():
+                raise Invalid("a publication needs the client copy's full path")
+            if Path(str(client_path)) == Path(str(path)):
+                raise Invalid("the client copy can't be the Local file")
         if self.con.in_transaction:
             raise Invalid("A publication can't be recorded in the middle of a step: finish the step first.")
         try:
@@ -1954,12 +1961,20 @@ class Store:
                 raise Invalid(f"project {code} isn't here")
             cur = self.con.execute(
                 "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user) "
-                "VALUES (?, ?, ?, NULL, 0, ?, 'not needed', ?)", (code, week_ending, str(path), sha256, str(by_user).strip()))
+                "VALUES (?, ?, ?, ?, 0, ?, 'not needed', ?)",
+                (code, week_ending, str(path), None if client_path is None else str(client_path), sha256, str(by_user).strip()))
             self.con.execute("COMMIT")
             return cur.lastrowid
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
+
+    def latest_publication(self, code):
+        """The project's latest publication for the report bar (#43): {"at", "to_client"} (when, and whether a verified copy went
+        into the client folder), or None. Read-only; no path and no hash leave it."""
+        r = self.con.execute("SELECT at, client_path FROM publications WHERE project = ? ORDER BY seq DESC LIMIT 1",
+                             (code,)).fetchone()
+        return {"at": r["at"], "to_client": r["client_path"] is not None} if r else None
 
     def last_publish_folder(self, code):
         """The folder the project's report was last published to (from the latest `publications` row), or None."""

@@ -270,7 +270,7 @@
     { id: 'raid-3', name: 'RAID cards, three', kind: 'raid', fit: ['Full'], d: 'The risks, actions, issues or decisions you want the reader to see, as cards.', els: ['Heading', 'RAID card ×3', 'Text source', 'Text'], sk: sk('grid-template-columns:repeat(3,1fr)', 'border-top:3px solid #BE3A2B', 'border-top:3px solid #E8A013', 'border-top:3px solid #3B5BDB'), cols: 'repeat(3,minmax(0,1fr))', ph: [['RAID card', 'raid'], ['RAID card', 'raid'], ['RAID card', 'raid']] },
     { id: 'raid-4', name: 'RAID cards, four', kind: 'raid', fit: ['Full'], d: 'Four shorter cards: good for “this week’s actions” or “decisions needed”.', els: ['Heading', 'RAID card ×4'], sk: sk('grid-template-columns:repeat(4,1fr)', 'border-top:3px solid #BE3A2B', 'border-top:3px solid #E8A013', 'border-top:3px solid #E8A013', ''), cols: 'repeat(4,minmax(0,1fr))', ph: [['RAID card', 'raid'], ['RAID card', 'raid'], ['RAID card', 'raid'], ['RAID card', 'raid']] },
     { id: 'wi-list', name: 'Work items list', kind: 'raid', fit: ['Full', 'Half'], d: 'Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.', els: ['Heading', 'Filter (set in Edit)', 'Work item list · live', 'Caption (optional)'], sk: sk('grid-template-rows:repeat(4,1fr)', 'width:90%', 'width:75%', 'width:85%', 'width:70%'), cols: '1fr', ph: [['Filter (set in Edit)', 'filter'], ['Work item list · live', 'list'], ['Caption (optional)', 'caption']] },   /* "it's capable of being half or full and it allows you to present work items" */
-    { id: 'needs', name: 'What we need from you', kind: 'raid', fit: ['Full', 'Half'], live: true, d: 'What the client must decide or do, live: pending decisions and items marked “Needed from the client”. Unlike the other templates it works now, and it is published.', els: ['Heading', 'Pending decisions · live', 'Items for the client to act on · live', 'Empty line when nothing is needed'], sk: sk('grid-template-rows:repeat(3,1fr)', 'border-left:3px solid #E8A013', 'border-left:3px solid #E8A013;width:80%', 'width:55%'), cols: '1fr', ph: [] },
+    { id: 'needs', name: 'Needs from you', kind: 'raid', fit: ['Full', 'Half'], live: true, d: 'What you need from the client: decisions, information and dates, each with an owner and a due date. Live from pending decisions and items marked “Needed from the client”, plus lines you add. It works now, is published straight after At a glance, and is left out when empty.', els: ['Heading', 'Pending decisions · live', 'Items for the client to act on · live', 'Lines added by hand', 'Quiet line when nothing is needed'], sk: sk('grid-template-rows:repeat(3,1fr)', 'border-left:3px solid #E8A013', 'border-left:3px solid #E8A013;width:80%', 'width:55%'), cols: '1fr', ph: [] },
     { id: 'docs', name: 'Documents and links', kind: 'files', fit: ['Full', 'Half'], d: 'The papers that go with this week’s report.', els: ['Heading', 'File (one or more)', 'Link list'], sk: sk('grid-template-rows:repeat(3,1fr)', '', '', ''), cols: '1fr', ph: [['File (one or more)', 'file'], ['Link list', 'link']] },
     { id: 'callout', name: 'Callout', kind: 'notes', fit: ['Half', 'Full'], d: 'One thing the reader must see.', els: ['Heading', 'Callout · decision'], sk: sk('', 'background:#FCEFCF;border-left:3px solid #E8A013'), cols: '1fr', ph: [['Callout', 'callout']] },
     { id: 'image-caption', name: 'Image with caption', kind: 'text', fit: ['Half', 'Full'], d: 'One picture beside text.', els: ['Heading', 'Image', 'Caption'], sk: sk('grid-template-rows:2fr 1fr', 'background:#B9C8FF', 'width:50%'), cols: '1fr', ph: [['Image', 'image'], ['Caption', 'caption']] },
@@ -289,15 +289,39 @@
     const el = ([n, k, span]) => `<div class="tp-el tp-${k}${k === 'image' || k === 'file' ? ' tp-drop' : ''}"${span ? ' style="grid-column:1/-1"' : ''}><span class="tp-tag">${esc(n)}</span>${k === 'image' ? `${C.icon('image')}<span>Drop an image, paste, or browse</span>` : k === 'file' ? `${C.icon('doc')}<span>Drop a document</span>` : `<span class="tp-h">${esc(TP_HINT[k] || '')}</span><i class="tp-ln"></i>${k === 'caption' || k === 'button' || k === 'date' ? '' : '<i class="tp-ln s"></i>'}`}</div>`;
     return `<div class="tp" data-tpl="${esc(T.id)}" style="grid-template-columns:${T.cols}">${T.ph.map(el).join('')}</div><p class="note">This is the “${esc(T.name)}” template, still empty. Filling in its parts comes in a later release; until then it is left out of the published page.</p>`;
   }
-  /* ── What we need from you (FR-12b, #121): live from pending decisions and items marked "Needed from the client"; each line says what, by when and the ID ── */
-  C.needsList = p => D.S.items.filter(x => x.code === p.code && C.isOpen(x) && x.client !== false && !x.archived && ((x.type === 'D' && x.status === 'Pending') || x.clientAct))   /* the eye decides, as everywhere (FR-82): an item hidden from the client is never listed */.sort((a, b) => (a.due || '9').localeCompare(b.due || '9'));
-  C.needsHtml = (editing, pub) => {
-    const p = P(), xs = C.needsList(p);
-    if (!xs.length) return `<p class="muted">Nothing needed from the client this week.</p>${editing ? '<p class="note">Live: pending decisions, and items marked “Needed from the client” in their peek, appear here.</p>' : ''}`;
-    return `<ul class="wl needs">${xs.map(x => { const late = x.due && D.days(x.due) < 0, what = !editing && x.clientText ? C.plain(x.clientText) : x.title;
-      return `<li class="wl-row" data-row="${x.id}"><span class="wl-state">${C.pill(C.look(x))}</span>
-        <span class="wl-main"><span class="wl-title"><span class="tag">${x.type === 'D' ? 'Decision' : D.TYPES[x.type]}</span> ${esc(what)}</span><span class="wl-meta"><span class="av">${C.initials(x.owner)}</span>${esc(x.owner || 'No owner')}<span class="dot">·</span><span class="${late ? 'late' : ''}">${x.due ? `Needed by ${D.fd(x.due)}${late ? ' · ' + C.dueWords(x.due) : ''}` : 'No date set'}</span></span></span>
-        <span class="wl-id">${pub && !x.client ? `<span class="idl">${x.id}</span>` : `<button class="idl" data-open="${x.id}" aria-label="Open ${x.id}">${x.id}</button>`}</span></li>`; }).join('')}</ul>${editing ? `<p class="note">${xs.length} line${xs.length === 1 ? '' : 's'}, live: pending decisions, and items marked “Needed from the client” in their peek. It is published.</p>` : ''}`;
+  /* ── Needs from you (FR-12b, #121, #144): what the programme manager needs from the client. Live from the open client-visible items that are
+     pending decisions or marked "Needed from the client", plus lines added by hand in the section (what, owner, due). Each line says what,
+     who and by when; a late one says "Overdue" in words, not by colour alone. A hand-added line is archived, never deleted (FR-43c) ── */
+  C.needsList = p => D.S.items.filter(x => x.code === p.code && C.isOpen(x) && x.client === true && !x.archived && ((x.type === 'D' && x.status === 'Pending') || x.clientAct))   /* the eye decides, as everywhere (FR-82): an item hidden from the client is never listed */.sort((a, b) => (a.due || '9').localeCompare(b.due || '9'));
+  const needsSec = (p, s) => s || (p.report.sections || []).find(x => x.type === 'needs') || {};
+  /* the lines in the order they are drawn, soonest first: { src: 'item', x } or { src: 'ask', a } */
+  C.needsRows = (p, s) => [...C.needsList(p).map(x => ({ src: 'item', x, due: x.due })), ...(needsSec(p, s).asks || []).filter(a => !a.archived).map(a => ({ src: 'ask', a, due: a.due }))].sort((u, v) => (u.due || '9').localeCompare(v.due || '9'));
+  C.ND_NOONE = 'Not assigned yet';   /* a line with no owner says so plainly */
+  C.needsDue = iso => { if (!iso) return 'No date set'; const late = D.days(iso) < 0; return `Needed by ${D.fd(iso)}${late ? ` <b class="tag od">Overdue</b> ${C.dueWords(iso)}` : ''}`; };
+  /* on the published page the section sits straight after At a glance, and is left out when there is nothing to ask */
+  C.onPub = (s, p) => C.onPage(s) && (s.type !== 'needs' || C.needsRows(p || P(), s).length > 0);
+  C.pubOrder = secs => {
+    const a = secs.map(s => ({ ...s })), nd = a.filter(s => s.type === 'needs'); if (!nd.length) return a;
+    a.forEach((s, i) => { if (s.beside && a[i + 1] && a[i + 1].type === 'needs') delete s.beside; }); nd.forEach(s => delete s.beside);
+    const rest = a.filter(s => s.type !== 'needs'), g = rest.findIndex(s => s.type === 'glance'); if (g < 0) return [...nd, ...rest];
+    const at = rest[g].beside && rest[g + 1] ? g + 2 : g + 1; rest.splice(at, 0, ...nd); return rest;
+  };
+  C.needsHtml = (editing, pub, s0) => {
+    const p = P(), s = needsSec(p, s0), rows = C.needsRows(p, s), gone = (s.asks || []).filter(a => a.archived), sid = esc(s.id || '');
+    const row = r => {
+      if (r.src === 'ask') { const a = r.a, late = a.due && D.days(a.due) < 0;
+        return `<li class="wl-row nd-ask${late ? ' od' : ''}" data-ask="${esc(a.id)}"><span class="wl-state">${C.pill(['b', 'Needed'])}</span>
+        <span class="wl-main"><span class="wl-title"><span class="tag">Asked</span> ${esc(a.what)}</span><span class="wl-meta"><span class="av">${C.initials(a.owner)}</span>${esc(a.owner || C.ND_NOONE)}<span class="dot">·</span><span class="${late ? 'late' : ''}">${C.needsDue(a.due)}</span></span></span>
+        <span class="wl-id">${editing ? `<button type="button" class="btn sm quiet" data-nd-arch="${sid}:${esc(a.id)}" aria-label="Archive ${esc(a.what)}">Archive</button>` : ''}</span></li>`; }
+      const x = r.x, late = x.due && D.days(x.due) < 0, what = !editing && x.clientText ? C.plain(x.clientText) : x.title;
+      return `<li class="wl-row${late ? ' od' : ''}" data-row="${x.id}"><span class="wl-state">${C.pill(C.look(x))}</span>
+        <span class="wl-main"><span class="wl-title"><span class="tag">${x.type === 'D' ? 'Decision' : D.TYPES[x.type]}</span> ${esc(what)}</span><span class="wl-meta"><span class="av">${C.initials(x.owner)}</span>${esc(x.owner || C.ND_NOONE)}<span class="dot">·</span><span class="${late ? 'late' : ''}">${C.needsDue(x.due)}</span></span></span>
+        <span class="wl-id"><button class="idl" data-open="${x.id}" aria-label="Open ${x.id}">${x.id}</button></span></li>`; };
+    const list = rows.length ? `<ul class="wl needs">${rows.map(row).join('')}</ul>` : `<p class="muted nd-none">Nothing needed from you this week.</p>`;
+    if (!editing) return list;
+    const add = `<form class="nd-add" data-nd-add="${sid}" autocomplete="off" novalidate><label><span class="k">What is needed</span><input name="what" type="text" placeholder="A decision, some information or a date" aria-describedby="nd-err-${sid}"></label><label><span class="k">Owner</span><input name="owner" type="text" placeholder="Who on the client side"></label><label><span class="k">Due</span><input name="due" type="hidden" value=""><button type="button" class="nd-due" data-nd-due aria-label="Due: no date set. Choose a date">${C.icon('cal', 's')}<span>No date set</span></button></label><button type="submit" class="btn sm">${C.icon('plus', 's')} Add</button><p class="nd-err" id="nd-err-${sid}" role="alert" hidden>Say what is needed, then press Add.</p></form>`;
+    const arch = gone.length ? `<details class="nd-arch"><summary>Archived (${gone.length})</summary><ul class="nd-arch-l">${gone.map(a => `<li><span>${esc(a.what)}</span><span class="muted">${esc(a.owner || C.ND_NOONE)} · ${a.due ? D.fd(a.due) : 'No date set'}</span><button type="button" class="link" data-nd-back="${sid}:${esc(a.id)}">Restore</button></li>`).join('')}</ul></details>` : '';
+    return `${list}${add}${arch}<p class="note">Live: open pending decisions and items marked “Needed from the client”, if the client can see them, plus the lines you add here. On the published page it sits straight after At a glance, and it is left out when there is nothing to ask.</p>`;
   };
   function secHtml(s, i, r, editing) {
     const p = P(), out = s.hidden;
@@ -318,7 +342,7 @@
     } else if (s.type === 'text') body = editing ? `<div class="txt-inl" data-txt="${s.id}"></div>` : `<div class="prose">${s.html || '<p class="muted">Nothing recorded.</p>'}</div>`;
     else if (s.type === 'raid' || s.type === 'actions' || s.type === 'decisions') body = itemTableHtml(s.type, editing);
     else if (s.type === 'docs') body = docsHtml(p, editing);
-    else if (s.type === 'needs') body = C.needsHtml(editing);
+    else if (s.type === 'needs') body = C.needsHtml(editing, false, s);
     else if (s.type === 'tpl') body = tplHtml(s);
     return `<section class="sec${out ? ' out' : ''}${s.type === 'tpl' ? ' sec-tpl' : ''}" id="sec-${s.id}" data-sec="${s.id}" data-i="${i}">${ctl}<h2 class="st">${title}${s.type === 'tpl' ? '<span class="tp-tag" aria-hidden="true">Heading</span>' : ''}<span class="sp"></span>${tools}</h2>${body}</section>`;
   }
@@ -392,13 +416,13 @@
     if (s.type === 'milestones') { const n = D.S.milestones.filter(m => m.code === p.code && m.client && !m.achievedOn && D.slip(m) > 0).length; return n ? `${n} slipped` : ''; }
     if (s.type === 'usecases') { const n = D.S.usecases.filter(u => u.code === p.code && u.client && u.status !== 'On track').length; return n ? `${n} flagged` : ''; }
     if (s.type === 'docs') { const n = (p.docs || []).filter(d => !d.hidden).length; return n ? `${n}` : ''; }
-    if (s.type === 'needs') { const n = C.needsList(p).length; return n ? `${n} pending` : ''; }
+    if (s.type === 'needs') { const n = C.needsRows(p, s).length; return n ? `${n} needed` : ''; }
     return '';
   };
   /* a discreet minimap at the right edge: one short line per section, the current one longer and darker, a warm line where
      something needs a look; pointing at it (or Tab to it) opens the list (the Notion and "Subtle TOC" pattern) */
-  C.tocHtml = (p, secs) => `<nav class="toc" aria-label="On this page" tabindex="0"><div class="toc-lines" aria-hidden="true">${secs.map(s => { const n = C.tocCounts(p, s); return `<i data-tl="${s.id}" class="${/late|red|slipped|flagged|pending/.test(n) ? 'hot' : ''}"></i>`; }).join('')}</div>
-    <div class="toc-card"><div class="toc-h">On this page</div><ul>${secs.map(s => { const n = C.tocCounts(p, s); return `<li><a href="#sec-${s.id}" data-toc="${s.id}"><span>${esc(s.title)}</span>${n ? `<em class="${/late|red|slipped|flagged|pending/.test(n) ? 'hot' : ''}">${n}</em>` : ''}</a></li>`; }).join('')}</ul><button class="toc-top" data-totop>Back to top ↑</button></div></nav>`;
+  C.tocHtml = (p, secs) => `<nav class="toc" aria-label="On this page" tabindex="0"><div class="toc-lines" aria-hidden="true">${secs.map(s => { const n = C.tocCounts(p, s); return `<i data-tl="${s.id}" class="${/late|red|slipped|flagged|pending|needed/.test(n) ? 'hot' : ''}"></i>`; }).join('')}</div>
+    <div class="toc-card"><div class="toc-h">On this page</div><ul>${secs.map(s => { const n = C.tocCounts(p, s); return `<li><a href="#sec-${s.id}" data-toc="${s.id}"><span>${esc(s.title)}</span>${n ? `<em class="${/late|red|slipped|flagged|pending|needed/.test(n) ? 'hot' : ''}">${n}</em>` : ''}</a></li>`; }).join('')}</ul><button class="toc-top" data-totop>Back to top ↑</button></div></nav>`;
   C.wireToc = (root = document) => {
     const links = C.$$('[data-toc]', root); if (!links.length) return;
     const secs = links.map(a => document.getElementById('sec-' + a.dataset.toc)).filter(Boolean), lines = C.$$('[data-tl]', root);
@@ -658,6 +682,16 @@
       ]);
     }));
     C.$$('[data-addbelow]').forEach(b => b.addEventListener('click', () => addDialog(b.dataset.addbelow)));
+    /* Needs from you: add a line by hand; archive it or bring it back (never deleted, FR-43c) */
+    const ndSet = (code, fn, msg) => { const [sid, aid] = code.split(':'); setRep(r2 => { const s = r2.sections.find(x => x.id === sid); if (s) fn(s, (s.asks || []).find(a => a.id === aid)); }, msg); };
+    C.$$('[data-nd-add]').forEach(f => f.addEventListener('submit', e => { e.preventDefault(); const what = f.what.value.trim(), owner = f.owner.value.trim(), due = f.due.value, err = f.querySelector('.nd-err'); if (!what) { err.hidden = false; f.what.setAttribute('aria-invalid', 'true'); f.what.focus(); return; }
+      setRep(r2 => { const s = r2.sections.find(x => x.id === f.dataset.ndAdd); if (!s) return; s.asks = s.asks || []; s.asks.push({ id: 'n' + Date.now().toString(36) + (tplSeq++), what, owner, due, archived: false }); }, `Added to ${secName(f.dataset.ndAdd)}`); }));
+    /* the Due box is clark's own date picker, so the date reads DD-MM-YYYY like everywhere else (not the browser's own date box) */
+    C.$$('[data-nd-add] [name=what]').forEach(i => i.addEventListener('input', () => { const err = i.form.querySelector('.nd-err'); if (i.value.trim()) { err.hidden = true; i.removeAttribute('aria-invalid'); } }));
+    C.$$('[data-nd-due]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const f = b.closest('form');
+      C.calPick(b, f.due.value, v => { f.due.value = v || ''; b.querySelector('span').textContent = v ? D.fd(v) : 'No date set'; b.setAttribute('aria-label', `Due: ${v ? D.fd(v) : 'no date set'}. Choose a date`); }, { quick: [['Today', D.TODAY], ['Next week', D.addDays(D.TODAY, 7)], ['No date', '']] }); }));
+    C.$$('[data-nd-arch]').forEach(b => b.addEventListener('click', () => ndSet(b.dataset.ndArch, (s, a) => { if (a) a.archived = true; }, 'Line archived')));
+    C.$$('[data-nd-back]').forEach(b => b.addEventListener('click', () => ndSet(b.dataset.ndBack, (s, a) => { if (a) a.archived = false; }, 'Line restored')));
     /* drag and drop (Edit only). Picking up the grip makes the section draggable; over another section the pointer chooses where it lands:
        the top or bottom edge = a full row above or below that row (a line); the middle of a section that is alone = beside it, on the left or right half (an outline) */
     let from = null;
@@ -934,7 +968,7 @@
       ${W.layout === 'board' ? (list.length ? boardHtml(list) : emptyHtml(active)) : groups.length ? groups.map(([w, gt, xs]) => { const open = W.open[w] !== false;
         return `<div class="group${open ? ' open' : ''}" data-ws="${esc(w)}"><button class="ghead" aria-expanded="${open}">${C.icon('chev', 's chev')}<span class="t">${esc(gt)}<span>${xs.length} item${xs.length === 1 ? '' : 's'}</span></span></button>
           <div class="gbody"><div><table class="items"><thead><tr><th>Item</th><th style="width:170px">Owner</th><th style="width:130px">Due</th><th style="width:100px">Priority</th><th style="width:120px">Status</th><th style="width:44px"><span class="sr">Client-visible</span></th></tr></thead><tbody>
-          ${xs.map(x => `<tr tabindex="0" data-id="${x.id}" class="${UI.peek === x.id ? 'sel' : ''}"><td><div class="tcell"><span class="type ${x.type}" title="${D.TYPES[x.type]}">${x.type}</span><span>${esc(x.title)} ${x.client ? `<span class="tag cl">${C.icon('eye', 's')}Client</span>` : ''}<br><span class="meta">${x.id}${x.uc ? ' · UC ' + esc(x.uc) : ''}${x.ms ? ' · ' + esc(C.mss().find(m => m.id === x.ms)?.name || '') : ''}</span></span></div></td>
+          ${xs.map(x => `<tr tabindex="0" data-id="${x.id}" class="${UI.peek === x.id ? 'sel' : ''}"><td><div class="tcell"><span class="type ${x.type}" title="${D.TYPES[x.type]}">${x.type}</span><span>${esc(x.title)}<br><span class="meta">${x.id}${x.uc ? ' · UC ' + esc(x.uc) : ''}${x.ms ? ' · ' + esc(C.mss().find(m => m.id === x.ms)?.name || '') : ''}</span></span></div></td>
             <td><button class="cell-pick" data-prop="owner" data-pick="${x.id}" aria-label="Owner of ${x.id}: ${esc(x.owner || 'none')}. Change"><span class="av">${C.initials(x.owner)}</span>${esc(x.owner || '—')}</button></td><td class="num"><button class="cell-pick" data-prop="due" data-pick="${x.id}" aria-label="Due date of ${x.id}: ${D.fd(x.due) || 'none'}. Change">${D.fd(x.due) || '—'}${x.due ? `<span class="due-l ${D.days(x.due) < 0 && C.isOpen(x) ? 'late' : ''}">${C.dueWords(x.due)}</span>` : ''}</button></td>
             <td><button class="cell-pick" data-prop="priority" data-pick="${x.id}" aria-label="Priority of ${x.id}: ${x.priority}. Change">${esc(x.priority)}</button></td><td><button class="cell-pick" data-prop="status" data-pick="${x.id}" aria-label="Status of ${x.id}. Change">${C.pill(C.look(x))}</button></td><td><button class="ib" data-weye="${x.id}" aria-pressed="${x.client}" aria-label="${x.client ? 'Shown to the client' : 'Not shown to the client'}: ${esc(x.title)}" title="${x.client ? 'In client reports. Select to hide' : 'Internal only. Select to show the client'}">${C.icon(x.client ? 'eye' : 'eyeoff', 's')}</button></td></tr>`).join('')}
           </tbody></table></div></div></div>`; }).join('') : emptyHtml(active)}`;

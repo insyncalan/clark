@@ -1862,6 +1862,57 @@ class TheListedWordGuard(unittest.TestCase):
         self.assertTrue(self.found(path, (product + "// %s\n" % pp.reveal("Fpbgg")).encode()))
         self.assertTrue(self.found(path, (product + "x = '%s'\n" % pp.reveal("Gbal")).encode()))
 
+    TEMPLATE_PATHS = ("src/clark/page/src/help/helpContent.json", "tests/test_help_content.py", "tests/test_help_shown.py")
+
+    def test_the_template_name_is_allowed_in_its_own_files_at_its_count(self):
+        self.assertEqual(sorted(pp.TEMPLATE_NAME_PATHS), sorted(self.TEMPLATE_PATHS))
+        for path in self.TEMPLATE_PATHS:
+            with self.subTest(path):
+                self.assertEqual(pp.TEMPLATE_NAME_PATHS[path], 1)
+                self.assertEqual(self.found(path, ('"%s", "Open with a message"\n' % BUILDER_N).encode()), [])
+
+    def test_the_template_name_in_any_other_file_is_refused_by_file_number(self):
+        for path in ("src/clark/page/src/logic/templates.js", "docs/other.md", "tests/test_other.py", "src/clark/page/src/help/other.json",
+                     "system/prototype/other.js"):
+            with self.subTest(path):
+                got = self.found(path, ('"%s", "Open with a message"\n' % BUILDER_N).encode())
+                self.assertEqual(got, ["file #5: a person's name"])
+                self.assertFalse(has_listed(" ".join(got)))
+
+    def test_one_more_than_the_count_is_refused_in_each_allowed_file(self):
+        for path in self.TEMPLATE_PATHS:
+            with self.subTest(path):
+                one = '"%s", "Open with a message"\n' % BUILDER_N
+                self.assertTrue(self.found(path, (one + one).encode()))
+                self.assertTrue(self.found(path, (one + "see %s's note\n" % BUILDER_N).encode()))
+
+    def test_a_second_use_in_an_allowed_file_names_the_limit_and_the_next_step(self):
+        for path in self.TEMPLATE_PATHS:
+            with self.subTest(path):
+                one = '"%s", "Open with a message"\n' % BUILDER_N
+                got = self.found(path, (one + one).encode())
+                self.assertEqual(got, ["file #5: " + pp.TEMPLATE_LIMIT_KIND])
+                self.assertIn("Remove the extra use", got[0])
+                self.assertIn("raised", got[0])
+                self.assertFalse(has_listed(" ".join(got)))
+
+    def test_the_word_in_mixed_encodings_in_an_allowed_file_is_refused_as_over_the_limit(self):
+        word = BUILDER_N
+        mixed = word.encode() + b"\0\0" + word.encode("utf-16-le")
+        for path in self.TEMPLATE_PATHS:
+            with self.subTest(path):
+                self.assertEqual(self.found(path, mixed), ["file #5: " + pp.TEMPLATE_LIMIT_KIND])
+                self.assertEqual(self.found(path, ('"%s", "x"\n' % word).encode()), [])
+
+    def test_the_template_allowance_covers_that_one_word_only(self):
+        for path in self.TEMPLATE_PATHS:
+            for other in (OWNER_N, LEAD_N, BUILDER2_N, pp.reveal("Fpbgg"), pp.reveal("Gbal")):
+                with self.subTest((path, other)):
+                    data = ('"%s", "x"\nwho: %s\n' % (BUILDER_N, other)).encode()
+                    self.assertEqual(self.found(path, data), ["file #5: a person's name"])
+            with self.subTest((path, "repo")):
+                self.assertTrue(self.found(path, ('"%s"\nsee %s\n' % (BUILDER_N, PLAN_REPO)).encode()))
+
     def test_clean_files_pass(self):
         self.assertEqual(self.found("docs/a.md", b"nothing to see here, a banner of text? no: a banner.\n"), [])
         self.assertEqual(self.found("a.png", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR"), [])

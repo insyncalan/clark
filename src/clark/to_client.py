@@ -20,7 +20,10 @@ Only this module writes into a client folder: RealFs.write_file is the one place
 import hashlib
 import json
 import os
+import stat
 import html as htmllib
+import re
+import time
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path, PurePath
@@ -45,7 +48,7 @@ MESSAGES = {
     "done_replaced": "Published. Saved locally, and “{name}” in the client folder was replaced. OneDrive uploads it from there; clark can't see when that finishes.",
     "done_same": "Published locally. The client folder already has this exact file (“{name}”), so nothing was copied.",
     "folder_missing_nothing_written": "The client folder “{folder_name}” isn't there. Check that OneDrive is running and the folder is still synced, or choose another folder in Settings. Nothing was published.",
-    "copy_failed_local_kept": "Saved locally, but not copied to the client folder: {reason} Nothing was added to the client folder.",
+    "copy_failed_local_kept": "Saved locally, but not copied to the client folder: {reason} Nothing was added there.",
     "copy_differs": "Saved locally, but the copy in the client folder did not match the published file, so clark removed it. Try again.",
     "copy_differs_after_overwrite": "Saved locally, but the copy that replaced “{name}” in the client folder did not match the published file. Publish again to put it right.",
 }
@@ -58,31 +61,36 @@ MESSAGES.update({
     "is_local": "That is the Local folder. Choose the client's folder, a different one.",
     "missing": "The folder “{folder_name}” isn't there. Check that OneDrive is running and the folder is still synced, or choose another folder.",
     "not_a_folder": "“{folder_name}” is a file, not a folder. Choose a folder.",
-    "not_writable": "clark can't write to “{folder_name}”. Check you have permission to edit that folder, or choose another.",
+    "not_writable": "“{folder_name}” can't be written to. Check you have permission to edit that folder, or choose another.",
     "not_onedrive": "This folder isn't one OneDrive syncs, so the client won't get files put here. It is saved; change it if that isn't what you meant.",
-    "too_deep": "The folder path is too long for a file to be saved in it ({folder}). Choose a folder nearer the top of the drive.",
+    "too_deep": "That folder is too deep for the report to be saved in it. Choose a folder nearer the top of the drive.",
     # the name choices
+    "bad_name": "That name has a character clark can't use in a file name (a hidden or direction-changing character). Type another name.",
+    "bad_path": "The saved client folder can't be used. Choose it again in Settings.",
     "empty_name": "Type a name for the file.",
     "folder_has_name": "A folder in the client folder has that name, so it can't be replaced. Add a number, or type another name.",
-    "unknown_choice": "That choice isn't one clark offers. Choose Add a number, Rename it, Overwrite the existing file or Cancel.",
+    "unknown_choice": "That choice isn't one clark offers. Choose one of: Add a number, Rename it, Overwrite the existing file, Cancel.",
     "cancelled": "Cancelled. Nothing was published.",
     "needs_confirm": "Overwriting needs your confirmation. Nothing was copied.",
     "name_appeared": "A file called “{name}” appeared in the client folder while clark was working. Nothing was copied; publish again to choose what to do.",
     "not_same_file": "The file to copy isn't the file that was published, so nothing was copied.",
     "unreadable_back": "Saved locally, but clark could not read the copy back to check it, so it was removed. Try again.",
-    "copy_not_removed": "Saved locally, but the copy in the client folder did not match the published file, and clark could not remove it. Delete “{name}” from the client folder, then try again.",
+    "copy_not_removed": "Saved locally, but the copy in the client folder did not match the published file, and clark could not remove it. Delete “{name}” from there, then try again.",
     "overwrite_too_big": "“{name}” in the client folder is too big for clark to keep safe while it replaces it, so it was not replaced. Nothing was copied.",
-    "overwrite_unreadable": "clark could not read “{name}” in the client folder first, so it was not replaced. Nothing was copied.",
+    "overwrite_unreadable": "“{name}” in the client folder could not be read first, so it was not replaced. Nothing was copied.",
     "restored": "Saved locally, but the copy that replaced “{name}” in the client folder {problem}, so clark put the previous file back. Try again.",
-    "restore_failed": "Saved locally, but the copy that replaced “{name}” in the client folder {problem}, and clark could not put the previous file back: {reason} “{name}” in the client folder now holds the wrong copy. Publish again to put it right, or restore the earlier version in OneDrive.",
+    "restore_failed": "Saved locally, but the copy that replaced “{name}” in the client folder {problem}, and the previous file could not be put back. {reason} “{name}” now holds the wrong copy there. Publish again to put it right.",
     "held_back": "Nothing was published. The report has something in it that must not go to the client ({what}).",
     "refused_nothing_published": "{reason} Nothing was published.",
+    "folder_changed": "The client folder changed while clark was working (it is not the folder that was checked), so nothing was copied to it. Check the folder in Settings, then publish again.",
+    "not_plain_file": "“{name}” in the client folder is a link or a special file, not an ordinary file, so it can't be replaced. Add a number, or type another name.",
+    "name_ends_badly": "A file name can't end with a dot or a space. Type another name.",
     # the request
-    "to_client_flag": "To client must be true or false.",
-    "confirmed_flag": "Confirmed must be true or false.",
-    "overwrite_unconfirmed": "Overwriting needs your confirmation, and the request didn't carry it. Nothing was published.",
-    "names_a_folder": "The request can't name a folder or file; clark uses the folder saved in Settings.",
-    "unknown_key": "The request has something clark doesn't know about, so nothing was published.",
+    "to_client_flag": "Something went wrong with the To client choice. Nothing was published. Restart clark and try again.",
+    "confirmed_flag": "Something went wrong with the overwrite confirmation. Nothing was published. Restart clark and try again.",
+    "overwrite_unconfirmed": "Overwriting needs your confirmation. Nothing was published. Restart clark and try again.",
+    "names_a_folder": "Something went wrong with the folder choice. Nothing was published. Restart clark and try again.",
+    "unknown_key": "Something went wrong with the publish. Nothing was published. Restart clark and try again.",
     "bad_project": "Say which project to publish.",
     # the dialog
     "dialog_local": "Local",
@@ -94,6 +102,8 @@ MESSAGES.update({
     "working": "Publishing…",
     "rename_label": "New file name",
 })
+
+PART_NAME = re.compile(r"\.[^/\\]{1,200}\.html\.\d{1,10}\.[0-9a-f]{8}\.part")       # what platform._write_temp names a temporary file
 
 
 # ===== The file name =====
@@ -166,6 +176,12 @@ def numbered_name(name, taken, folder=None):
         n += 1
 
 
+def _has_hidden_character(text):
+    """Whether text holds a control or invisible formatting character (U+202E, which turns the name round, among them)."""
+    return any(unicodedata.category(ch) in ("Cc", "Cf", "Zl", "Zp") or (unicodedata.category(ch) == "Zs" and ch != " ")
+               for ch in str(text or ""))
+
+
 def rename_target(new_name, folder=None):
     """The file name a typed Rename means: trimmed, ".html" added if it is missing, made safe (platform.safe_name). None if
     nothing but spaces (or only ".html") was typed."""
@@ -192,9 +208,14 @@ def resolve_clash(name, existing, choice=None, new_name=None, folder=None):
     if choice == "cancel":
         return {"action": "cancel"}
     if choice == "rename":
+        if _has_hidden_character(new_name):
+            return _refuse("bad_name")
         name, choice = rename_target(new_name, folder), None
         if name is None:
             return _refuse("empty_name")
+        if str(new_name).strip().endswith("."):        # "a.html." would be saved as a different name from the one typed
+            # (spaces at the end are trimmed, as before: what is saved never ends with one)
+            return _refuse("name_ends_badly")
     hit = _find(entries, name)
     if hit is None:
         return {"action": "write", "name": name, "replaces": False}
@@ -203,6 +224,8 @@ def resolve_clash(name, existing, choice=None, new_name=None, folder=None):
     if choice == "overwrite":
         if hit["kind"] == "folder":
             return _refuse("folder_has_name")
+        if hit["kind"] != "file":              # a link or a special file is never written over
+            return {"action": "refuse", "reason": "not_plain_file", "message": MESSAGES["not_plain_file"].format(name=hit["name"])}
         return {"action": "write", "name": name, "replaces": True, "needs_confirmation": True}
     if hit["kind"] == "file" and hit["same_content"]:
         return {"action": "nothing_to_do", "name": name}
@@ -234,6 +257,8 @@ def check_client_folder(path, *, data_dir, onedrive_roots, local_folder, exists,
     where a link in `path` really leads; the OneDrive warning is about that place."""
     if not path:
         return {"ok": False, "message": MESSAGES["not_saved"]}
+    if "\0" in str(path) or not PurePath(path).is_absolute():
+        return {"ok": False, "message": MESSAGES["bad_path"]}
     name = platform.folder_name(path)
     if _inside(path, data_dir):
         return {"ok": False, "message": MESSAGES["inside_data"]}
@@ -254,12 +279,14 @@ def check_client_folder(path, *, data_dir, onedrive_roots, local_folder, exists,
     return {"ok": True, "folder": str(path), "warning": None if synced else MESSAGES["not_onedrive"]}
 
 
-def preflight(fs, path, *, data_dir, onedrive_roots, local_folder, backups_dir=None):
+def _preflight_facts(fs, path, *, data_dir, onedrive_roots, local_folder, backups_dir=None):
     """check_client_folder with the facts read from `fs`. A folder that is a link is checked twice, as saved and as it
     really is (a link out to clark's data folder, or the backups, is refused). Reads only: nothing is created or written."""
     if not path:
         return check_client_folder(path, data_dir=data_dir, onedrive_roots=onedrive_roots, local_folder=local_folder,
                                    exists=False, is_dir=False, writable=False, backups_dir=backups_dir)
+    if "\0" in str(path) or not PurePath(path).is_absolute():
+        return {"ok": False, "message": MESSAGES["bad_path"]}
     facts = {"exists": fs.exists(path), "is_dir": fs.is_dir(path), "writable": fs.writable(path)}
     real = fs.realpath(path) if facts["exists"] else path
     first = check_client_folder(path, data_dir=data_dir, onedrive_roots=onedrive_roots, local_folder=local_folder,
@@ -272,9 +299,66 @@ def preflight(fs, path, *, data_dir, onedrive_roots, local_folder, backups_dir=N
     return second if not second["ok"] else first
 
 
+def _where(fs, path):
+    """(real path, device and inode or None) of `path` as the disk says now; None when it can't be looked at."""
+    try:
+        return fs.realpath(path), (fs.dir_identity(path) if hasattr(fs, "dir_identity") else None)
+    except OSError:
+        return None
+
+
+def checked_folder(fs, path, *, data_dir, onedrive_roots, local_folder, backups_dir=None):
+    """preflight, and an ok answer also says `real` (where the folder really is: the copy goes there, never to the saved
+    spelling, which a link swapped in later could point anywhere) and `identity` (device and inode). The place is read before
+    and after the checks and must be the same, so a folder swapped during the check is refused."""
+    if not path or "\0" in str(path) or not PurePath(path).is_absolute():
+        return _preflight_facts(fs, path, data_dir=data_dir, onedrive_roots=onedrive_roots, local_folder=local_folder,
+                                backups_dir=backups_dir)
+    before = _where(fs, path)
+    out = _preflight_facts(fs, path, data_dir=data_dir, onedrive_roots=onedrive_roots, local_folder=local_folder,
+                           backups_dir=backups_dir)
+    if not out["ok"]:
+        return out
+    after = _where(fs, path)
+    if before is None or after is None:
+        return {"ok": False, "message": MESSAGES["missing"].format(folder_name=PurePath(path).name or str(path))}
+    if before != after:
+        return {"ok": False, "message": MESSAGES["folder_changed"]}
+    return dict(out, real=after[0], identity=after[1])
+
+
+def preflight(fs, path, *, data_dir, onedrive_roots, local_folder, backups_dir=None):
+    """check_client_folder with the facts read from `fs`. A folder that is a link is checked twice, as saved and as it
+    really is (a link out to clark's data folder, or the backups, is refused). Reads only: nothing is created or written."""
+    return _preflight_facts(fs, path, data_dir=data_dir, onedrive_roots=onedrive_roots, local_folder=local_folder,
+                            backups_dir=backups_dir)
+
+
 # ===== Checks on the bytes =====
 def sha256_of(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def _spellings(marker):
+    """A marker as it can be written in the file: plain, lower case, HTML-escaped (two ways) and JSON-escaped (two ways)."""
+    ascii_json = json.dumps(marker)[1:-1]
+    for ch in "<>&":                  # the data block writes these as \\u escapes (publish.data_block)
+        ascii_json = ascii_json.replace(ch, "\\u%04x" % ord(ch))
+    return {marker, marker.lower(), htmllib.escape(marker), htmllib.escape(marker, quote=False), ascii_json,
+            json.dumps(marker, ensure_ascii=False)[1:-1]}
+
+
+def markers_found(data, markers, *, text=None, low=None):
+    """The markers whose text is in these bytes, in order. The file is decoded and folded once; each marker is then one
+    look-up, so the time grows with the number of markers, not with markers times the size of the file."""
+    if text is None:
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            return []
+    if low is None:
+        low = _key(text)
+    return [m for m in markers if any(s and (s in text or _key(s) in low) for s in _spellings(m))]
 
 
 def check_copy(data, *, markers, folder=None):
@@ -290,26 +374,28 @@ def check_copy(data, *, markers, folder=None):
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
-        return ["a file that isn't text clark wrote"]
+        return ["a file clark did not write as text"]
     found = list(publish.outside_addresses(text))
     if 'id="clark-boot"' in text:
-        found.append("the server's own token")
+        found.append("clark's own working data")
     low = _key(text)
     if folder and _key(folder) in low:
-        found.append("the path of the client folder")
-    for marker in markers:
-        ascii_json = json.dumps(marker)[1:-1]
-        for ch in "<>&":                  # the data block writes these as \\u escapes (publish.data_block)
-            ascii_json = ascii_json.replace(ch, "\\u%04x" % ord(ch))
-        spellings = {marker, marker.lower(), htmllib.escape(marker), htmllib.escape(marker, quote=False), ascii_json,
-                     json.dumps(marker, ensure_ascii=False)[1:-1]}
-        if any(s and (s in text or _key(s) in low) for s in spellings):
-            found.append("text that was meant to be left out")
-            break
+        found.append("the location of the client folder")
+    if markers_found(data, markers, text=text, low=low):
+        found.append("text that was meant to be left out")
     return found
 
 
 # ===== The disk =====
+def _kind_of(entry):
+    """file, folder, link (a symbolic link, whatever it points to) or other (a pipe, device or socket), without following."""
+    if entry.is_symlink():
+        return "link"
+    if entry.is_dir(follow_symlinks=False):
+        return "folder"
+    return "file" if entry.is_file(follow_symlinks=False) else "other"
+
+
 class RealFs:
     """The real disk, for send_to_client. Reads use os; the one write goes through platform.write_file (a temporary file
     beside the new one, then a link or a rename, retrying while OneDrive holds a lock). This is the only code in clark that
@@ -329,12 +415,18 @@ class RealFs:
 
     def listdir(self, path):
         with os.scandir(path) as it:
-            return [{"name": e.name, "kind": "folder" if e.is_dir() else "file"} for e in it]
+            return [{"name": e.name, "kind": _kind_of(e)} for e in it]
 
     def read_bytes(self, path, limit=None):
-        """The file's bytes; with `limit`, at most that many (so a caller can tell a file is bigger than it will hold)."""
-        with open(path, "rb") as f:
+        """The file's bytes; with `limit`, at most that many (so a caller can tell a file is bigger than it will hold). Only
+        an ordinary file is read: a link is not followed and a pipe or device is never opened for reading (OSError)."""
+        with open(path, "rb", opener=platform.open_plain_file) as f:
             return f.read() if limit is None else f.read(limit)
+
+    def dir_identity(self, path):
+        """Which folder this is, as the disk says now: device and inode (a link is followed, as a write would)."""
+        st = Path(path).stat()
+        return (st.st_dev, st.st_ino)
 
     def write_file(self, path, data, replaces):
         """True if written. With `replaces` False the name is linked into place (platform.write_file_unless_exists), so a file
@@ -346,8 +438,32 @@ class RealFs:
             return True
         return platform.write_file_unless_exists(path, data)
 
+    def identity(self, path):
+        """Which file this is, as the disk says now: device, inode, size and the two change times in nanoseconds. An inode
+        number alone is not enough (a freed number can be handed to the next file made under the same name), so a caller
+        compares the whole of it, and the bytes, before taking a file back."""
+        st = Path(path).stat()
+        return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+
     def remove(self, path):
         os.unlink(path)
+
+    def stale_parts(self, folder, older_than=600):
+        """The half-written temporary files an earlier publish left if clark was stopped part-way (`.NAME.html.PID.HEX.part`
+        beside the copy, which OneDrive would upload): only files of exactly that shape, at least `older_than` seconds old."""
+        now = time.time()
+        found = []
+        for p in Path(folder).iterdir():
+            if not PART_NAME.fullmatch(p.name):
+                continue
+            try:
+                st = p.lstat()                # lstat: a link is looked at, never followed
+            except OSError:
+                continue
+            if stat.S_ISREG(st.st_mode) and platform.is_mine(st) and st.st_size <= publish.MAX_BYTES \
+                    and now - st.st_mtime >= older_than:
+                found.append(p)
+        return found
 
 
 # ===== The copy =====
@@ -369,9 +485,28 @@ class ClientResult:
     log: dict = None
 
 
-def _reason(error):
+HELD_WORDS = {            # publish.outside_addresses' own labels, in the words a person reads
+    "a <link> tag": "a web link built into the page",
+    "a script loaded by address": "a program the page would fetch from the internet",
+    "an attribute that names an outside address": "a link to a place outside the file",
+    "a page refresh": "a page that reloads itself",
+    "a stylesheet that imports another": "styling fetched from outside the file",
+    "a stylesheet address that isn't embedded data": "styling fetched from outside the file",
+    "a Google Fonts address": "a font fetched from the internet",
+    "a link or source that is an outside address": "a link to a place outside the file",
+}
+
+
+def held_words(problems):
+    """check_copy's problems as one plain list, each wording once."""
+    return ", ".join(dict.fromkeys(HELD_WORDS.get(p, p) for p in problems))
+
+
+def _reason(error, doing="write to"):
+    """Why a folder step failed, in a fixed plain sentence: the system's own text is never shown. A PlatformError is clark's own
+    sentence (platform.py), so it is kept."""
     text = str(error) if isinstance(error, platform.PlatformError) else \
-        f"the folder refused it ({getattr(error, 'strerror', None) or 'no reason given'})."
+        f"clark could not {doing} the client folder. Check you can {'edit' if doing == 'write to' else 'open'} it."
     return text if text.rstrip().endswith((".", "!", "?")) else text.rstrip() + "."
 
 
@@ -379,8 +514,28 @@ def _log(project, name, digest, at, path):
     return {"project": project, "kind": KIND, "file_name": name, "sha256": digest, "at": at, "client_path": str(path)}
 
 
+def folder_unchanged(fs, folder, guard):
+    """None when `folder` is still the folder that was checked, else why not. Looked at just before a write: the folder must
+    not be a link now (its real path is itself), must not be in or hold clark's data folder or the backups, and must be the
+    same folder (device and inode) as at the check, `guard["identity"]`, when the disk can say."""
+    try:
+        folder = Path(folder)
+        if _parts(fs.realpath(folder)) != _parts(folder) or not fs.is_dir(folder):
+            return "changed"
+        for own in (guard.get("data_dir"), guard.get("backups_dir")):
+            if own:
+                real = fs.realpath(own)
+                if any(_inside(a, b) or _inside(b, a) for a in (folder, ) for b in (own, real)):
+                    return "own"
+        if guard.get("identity") is not None and hasattr(fs, "dir_identity") and fs.dir_identity(folder) != guard["identity"]:
+            return "changed"
+    except (OSError, ValueError):
+        return "changed"
+    return None
+
+
 def copy_to_client(fs, folder, name, data, *, project, at, markers, replaces=False, confirmed=False, asked=None,
-                   local_sha256=None):
+                   local_sha256=None, guard=None):
     """Put `data` (the finished file's bytes) in `folder` as `name`, read it back and compare SHA-256.
     Nothing is overwritten unless `replaces` is True and `confirmed` is True. A name that is taken when `replaces` is False
     is refused, and that holds at the write itself, not only at the listing: the file is linked into place, so one that
@@ -388,7 +543,10 @@ def copy_to_client(fs, folder, name, data, *, project, at, markers, replaces=Fal
     bytes before anything is written, and on the copy read back. A new copy that differs is removed. An Overwrite keeps the
     old file's bytes in memory (not on disk: no backup goes beside the client's file) and, if the copy fails its check,
     writes them back and says so; if that fails too, both failures are reported. If `local_sha256` is given, the bytes must
-    be the Local file's. `asked` is the name first wanted when `name` is a numbered or renamed one (for the words)."""
+    be the Local file's. `asked` is the name first wanted when `name` is a numbered or renamed one (for the words).
+    `guard` ({data_dir, backups_dir, identity}, from the check that chose `folder`) makes the folder looked at again just
+    before the write: a folder that has become a link, or clark's own folder, or another folder than the one checked, is
+    refused and nothing is written."""
     digest = sha256_of(data)
     folder = Path(folder)
     dest = folder / name
@@ -396,13 +554,20 @@ def copy_to_client(fs, folder, name, data, *, project, at, markers, replaces=Fal
         return ClientResult(False, "refused", MESSAGES["not_same_file"])
     problems = check_copy(data, folder=folder, markers=markers)
     if problems:
-        return ClientResult(False, "refused", MESSAGES["held_back"].format(what=", ".join(problems)))
+        return ClientResult(False, "refused", MESSAGES["held_back"].format(what=held_words(problems)))
+    try:
+        for stale in getattr(fs, "stale_parts", lambda folder: [])(folder):
+            _remove(fs, stale, None, None, stale=True)
+    except OSError:
+        pass
     try:
         hit = _find([_entry(e) for e in fs.listdir(folder)], name)
     except OSError as e:
         return ClientResult(False, "failed", MESSAGES["copy_failed_local_kept"].format(reason=_reason(e)))
     if hit is not None and (not replaces or hit["kind"] == "folder"):
         return ClientResult(False, "refused", MESSAGES["name_appeared"].format(name=name))
+    if hit is not None and hit["kind"] != "file":
+        return ClientResult(False, "refused", MESSAGES["not_plain_file"].format(name=hit["name"]))
     if hit is not None and not confirmed:
         return ClientResult(False, "confirm_overwrite", MESSAGES["needs_confirm"], name=name,
                             clash={"name": name, "note": MESSAGES["overwrite_note"]})
@@ -415,29 +580,45 @@ def copy_to_client(fs, folder, name, data, *, project, at, markers, replaces=Fal
             return ClientResult(False, "failed", MESSAGES["overwrite_unreadable"].format(name=name))
         if len(old) > publish.MAX_BYTES:
             return ClientResult(False, "failed", MESSAGES["overwrite_too_big"].format(name=name))
+    if guard is not None and folder_unchanged(fs, folder, guard):
+        return ClientResult(False, "refused", MESSAGES["folder_changed"])
     try:
         written = fs.write_file(dest, data, replaces=replaced)      # replace: temporary file then rename; new: linked into place
     except (OSError, platform.PlatformError) as e:
         return ClientResult(False, "failed", MESSAGES["copy_failed_local_kept"].format(reason=_reason(e)))
     if not written:
         return ClientResult(False, "refused", MESSAGES["name_appeared"].format(name=name))
-    problem = None                     # what is wrong with the copy as it now stands, in words for a sentence
+    mine = _identity(fs, dest)          # which file this call wrote: only that one is ever taken back
+    finished = False
     try:
-        back = fs.read_bytes(dest)
-        if sha256_of(back) != digest or check_copy(back, folder=folder, markers=markers):
-            problem = "did not match the published file"
-    except OSError:
-        back, problem = None, "could not be read back to check it"
-    if problem:
-        if replaced:
-            return _put_back(fs, dest, name, old, problem)
-        if back is None:
-            _remove(fs, dest, made=True)
-            return ClientResult(False, "failed", MESSAGES["unreadable_back"], nothing_written=False)
-        if not _remove(fs, dest, made=True):
-            return ClientResult(False, "failed", MESSAGES["copy_not_removed"].format(name=name), name=name, path=str(dest),
-                                nothing_written=False)
-        return ClientResult(False, "failed", MESSAGES["copy_differs"], nothing_written=False)
+        problem = None                 # what is wrong with the copy as it now stands, in words for a sentence
+        try:
+            back = fs.read_bytes(dest)
+            if sha256_of(back) != digest or check_copy(back, folder=folder, markers=markers):
+                problem = "did not match the published file"
+        except OSError:
+            back, problem = None, "could not be read back to check it"
+        if problem:
+            finished = True
+            if replaced:
+                return _put_back(fs, dest, name, old, problem)
+            if back is None:
+                _remove(fs, dest, mine, digest)
+                return ClientResult(False, "failed", MESSAGES["unreadable_back"], nothing_written=False)
+            if not _remove(fs, dest, mine, digest):
+                return ClientResult(False, "failed", MESSAGES["copy_not_removed"].format(name=name), name=name, path=str(dest),
+                                    nothing_written=False)
+            return ClientResult(False, "failed", MESSAGES["copy_differs"], nothing_written=False)
+        finished = True
+    finally:
+        if not finished:               # anything else went wrong between the write and the check (even a stop): take the copy back
+            if replaced:
+                try:
+                    fs.write_file(dest, old, replaces=True)
+                except BaseException:
+                    pass
+            else:
+                _remove(fs, dest, mine, digest)
     if replaced:
         message = MESSAGES["done_replaced"].format(name=name)
     elif asked and _key(asked) != _key(name):
@@ -462,10 +643,36 @@ def _put_back(fs, dest, name, old, problem):
                         restored=True, nothing_written=True)
 
 
-def _remove(fs, path, made):
-    """Take back a copy this publish made; True if it is gone (or was never there). Never touches a file it didn't make."""
-    if not made:
-        return True
+def _identity(fs, path):
+    """Which file `path` is now (None when the disk can't say or it is not there)."""
+    try:
+        return fs.identity(path)
+    except (AttributeError, OSError):
+        return None
+
+
+def _ours(fs, path, mine, digest):
+    """True only when the file at `path` is the copy this call wrote: the same device and inode as `mine` (what _identity said
+    right after the write) AND bytes whose SHA-256 is `digest`, the digest of what this call wrote. Both are needed in every
+    case; the times, the size and the rest of the identity are never enough on their own (a number freed and handed to
+    another file on a disk with coarse times can match all of them), and a sync tool that only moves the times does not
+    change the answer. `digest` has no default: leaving it out is a TypeError, never a fall back to the disk's metadata."""
+    now = _identity(fs, path)
+    if mine is None or now is None or now[:2] != mine[:2]:
+        return False
+    try:
+        return sha256_of(fs.read_bytes(path, limit=publish.MAX_BYTES + 1)) == digest
+    except Exception:                  # bytes that cannot be read cannot be proven ours: leave the file and say so
+        return False
+
+
+def _remove(fs, path, mine, digest, *, stale=False):
+    """Take back the copy this publish made; True if it is gone or is no longer ours (a file someone else put there is left
+    alone). `mine` and `digest` are required: a file is taken back only when _ours proves it, and when the disk could not say
+    which file was written (`mine` is None) nothing is removed and False is returned. `stale=True` is only for the half-written
+    temporary files the disk itself lists as clark's (stale_parts), which have no identity to prove."""
+    if not stale and not _ours(fs, path, mine, digest):
+        return mine is not None
     try:
         fs.remove(path)
         return True
@@ -475,48 +682,75 @@ def _remove(fs, path, made):
         return False
 
 
-def send_to_client(fs, *, saved_folder, data, project, at, week_ending, today, data_dir, onedrive_roots, local_folder,
-                   backups_dir=None, choice=None, new_name=None, confirmed=False, markers, local_sha256=None):
-    """The whole To client step on the finished bytes: preflight the saved folder, read its names, resolve a taken name, copy
-    and verify. Nothing is written until every check before the copy has passed, so a missing or forbidden folder, a taken
-    name that needs asking about, a Cancel and an unconfirmed Overwrite all leave the client folder (and Local, which the
-    caller writes after this says go) untouched. `markers` (what must be absent from the file; no default, and no way to turn
-    the check off) is checked on the bytes before the copy and on the copy read back. Returns a ClientResult."""
-    pre = preflight(fs, saved_folder, data_dir=data_dir, onedrive_roots=onedrive_roots, local_folder=local_folder,
-                    backups_dir=backups_dir)
+def _same_content(fs, path, digest):
+    """Whether the file at `path` holds exactly the bytes with SHA-256 `digest`. Never more than the report size limit is read
+    (a bigger file is not the same), and a file that can't be read as an ordinary file (a link, a pipe) is simply not the same."""
+    try:
+        data = fs.read_bytes(path, limit=publish.MAX_BYTES + 1)
+    except OSError:
+        return False
+    return len(data) <= publish.MAX_BYTES and sha256_of(data) == digest
+
+
+def plan_client_copy(fs, *, saved_folder, data, project, today, week_ending, data_dir, onedrive_roots, local_folder,
+                     backups_dir=None, choice=None, new_name=None, at=None):
+    """Everything send_to_client decides before it writes, and nothing written: preflight the saved folder, read its names and
+    resolve a taken name. Returns (kind, value): ("stop", ClientResult) for a refusal, a question (ask) or a Cancel;
+    ("same", ClientResult) when the client folder already holds this exact file; ("copy", plan) when the copy may go ahead, with
+    plan = {folder, name, replaces, asked}. The route calls this first, writes Local, then calls copy_to_client; so a folder
+    that has gone, or a name that needs asking about, leaves Local unwritten too."""
+    pre = checked_folder(fs, saved_folder, data_dir=data_dir, onedrive_roots=onedrive_roots, local_folder=local_folder,
+                         backups_dir=backups_dir)
     if not pre["ok"]:
         name = PurePath(saved_folder).name if saved_folder else ""
         if saved_folder and pre["message"] == MESSAGES["missing"].format(folder_name=name):
-            return ClientResult(False, "refused", MESSAGES["folder_missing_nothing_written"].format(folder_name=name))
-        return ClientResult(False, "refused", MESSAGES["refused_nothing_published"].format(reason=pre["message"]))
-    folder = Path(saved_folder)
+            return "stop", ClientResult(False, "refused", MESSAGES["folder_missing_nothing_written"].format(folder_name=name))
+        return "stop", ClientResult(False, "refused", MESSAGES["refused_nothing_published"].format(reason=pre["message"]))
+    folder = Path(pre.get("real") or saved_folder)       # the real place the copy will go, as the check found it
     try:
         wanted = client_file_name(project, week_ending, today, folder)
     except platform.PlatformError as e:
-        return ClientResult(False, "refused", MESSAGES["refused_nothing_published"].format(reason=_reason(e)))
+        return "stop", ClientResult(False, "refused", MESSAGES["refused_nothing_published"].format(reason=_reason(e)))
     digest = sha256_of(data)
     try:
         existing = [dict(e) for e in fs.listdir(folder)]
         names = {_key(n) for n in (wanted, rename_target(new_name, folder)) if n}
         for e in existing:           # only the names that could be written to are read, to see if the file is already there
-            e["same_content"] = e["kind"] == "file" and _key(e["name"]) in names \
-                and sha256_of(fs.read_bytes(folder / e["name"])) == digest
+            e["same_content"] = e["kind"] == "file" and _key(e["name"]) in names and _same_content(fs, folder / e["name"], digest)
     except OSError as e:
-        return ClientResult(False, "refused", MESSAGES["refused_nothing_published"].format(reason=_reason(e)))
+        return "stop", ClientResult(False, "refused", MESSAGES["refused_nothing_published"].format(reason=_reason(e, "read")))
     plan = resolve_clash(wanted, existing, choice, new_name, folder)
     action = plan["action"]
     if action == "cancel":
-        return ClientResult(False, "cancel", MESSAGES["cancelled"])
+        return "stop", ClientResult(False, "cancel", MESSAGES["cancelled"])
     if action == "refuse":
-        return ClientResult(False, "refused", plan["message"])
+        return "stop", ClientResult(False, "refused", plan["message"])
     if action == "ask":
-        return ClientResult(False, "ask", MESSAGES["clash_title"], name=plan["name"], clash=dict(plan, note=MESSAGES["overwrite_note"]))
+        return "stop", ClientResult(False, "ask", MESSAGES["clash_title"], name=plan["name"],
+                                    clash=dict(plan, note=MESSAGES["overwrite_note"]))
     if action == "nothing_to_do":
-        return ClientResult(True, "nothing_to_do", MESSAGES["done_same"].format(name=plan["name"]), name=plan["name"],
-                            path=str(folder / plan["name"]), sha256=digest, nothing_written=True,
-                            log=_log(project, plan["name"], digest, at, folder / plan["name"]))
-    return copy_to_client(fs, folder, plan["name"], data, project=project, at=at, replaces=plan["replaces"],
-                          confirmed=confirmed, asked=wanted, markers=markers, local_sha256=local_sha256)
+        return "same", ClientResult(True, "nothing_to_do", MESSAGES["done_same"].format(name=plan["name"]), name=plan["name"],
+                                    path=str(folder / plan["name"]), sha256=digest, nothing_written=True,
+                                    log=_log(project, plan["name"], digest, at or today, folder / plan["name"]))
+    return "copy", {"folder": folder, "name": plan["name"], "replaces": plan["replaces"], "asked": wanted,
+                    "identity": pre.get("identity")}
+
+
+def send_to_client(fs, *, saved_folder, data, project, at, week_ending, today, data_dir, onedrive_roots, local_folder,
+                   backups_dir=None, choice=None, new_name=None, confirmed=False, markers, local_sha256=None):
+    """The whole To client step on the finished bytes: plan_client_copy (nothing written until every check before the copy has
+    passed, so a missing or forbidden folder, a taken name that needs asking about, a Cancel and an unconfirmed Overwrite all
+    leave the client folder, and Local, which the caller writes after this says go, untouched), then copy and verify.
+    `markers` (what must be absent from the file; no default, and no way to turn the check off) is checked on the bytes before
+    the copy and on the copy read back. Returns a ClientResult."""
+    kind, got = plan_client_copy(fs, saved_folder=saved_folder, data=data, project=project, today=today,
+                                 week_ending=week_ending, data_dir=data_dir, onedrive_roots=onedrive_roots,
+                                 local_folder=local_folder, backups_dir=backups_dir, choice=choice, new_name=new_name, at=at)
+    if kind != "copy":
+        return got
+    return copy_to_client(fs, got["folder"], got["name"], data, project=project, at=at, replaces=got["replaces"],
+                          confirmed=confirmed, asked=got["asked"], markers=markers, local_sha256=local_sha256,
+                          guard={"data_dir": data_dir, "backups_dir": backups_dir, "identity": got.get("identity")})
 
 
 # ===== The request =====

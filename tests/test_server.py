@@ -34,6 +34,18 @@ SERVER_ERROR = "Something went wrong, and nothing was changed. Try again, or res
 SECURITY = [k for k, _ in sv.SECURITY_HEADERS if k != "Content-Security-Policy"] + ["Cache-Control"]
 
 
+class StubPublisher:
+    """Stands in for publish_flow.Publisher (#43): every publish route answers 200, and nothing is written anywhere."""
+
+    def publish(self, body):
+        return 200, {"ok": True}
+
+    client_folder = publish
+
+    def latest(self, code):
+        return 200, {"ok": True, "latest": None}
+
+
 class Stoppable(sv.LocalServer):
     """#100: the server, which when stopped also drops the connections it has accepted. Chrome opens spare connections ahead of need
     and a thread goes on answering on one after the listening socket is closed (on Linux the page then still gets an answer);
@@ -58,9 +70,10 @@ class Stoppable(sv.LocalServer):
 class Running:
     """A server on a free port in a thread, stopped by close() (which also drops the connections it holds, as stopping would)."""
 
-    def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda: PROJECTS, change=None, undo=None):
+    def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda: PROJECTS, change=None, undo=None,
+                 publisher=StubPublisher()):
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
-                               undo=undo)
+                               undo=undo, publisher=publisher)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -250,12 +263,12 @@ class Saving(ServerTest):
             return 409, {"ok": False, "message": "That step has been undone already.", "code": "undone"}
         return Running(change=change, undo=undo)
 
-    def test_the_post_routes_are_exactly_change_and_undo(self):
-        self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo"})
+    def test_the_post_routes_are_exactly_change_undo_and_the_two_publish_ones(self):
+        self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/publish", "/api/client-folder"})     # #43
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 16 * 1024, "/api/undo": 1024})
-        for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/publish"):
+        for route in ("/api/save", "/api/changes", "/api/change/", "/api/import"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
     def test_no_seam_is_503(self):

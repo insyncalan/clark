@@ -266,7 +266,7 @@ class RunsAsAProcess(TempFolder):
         code, out, err = self.start("--data", str(inside), "--port", str(free_port()), home=self.tmp).finish()
         self.assertEqual(code, 1)
         self.assertEqual(len(err), 1)
-        self.assertRegex(err[0], r"^clark can't keep its data in .* because it is inside OneDrive \(OneDrive-DemoOrg\)")
+        self.assertRegex(err[0], r"^Your data can't be kept in .* because it is inside OneDrive \(OneDrive-DemoOrg\)")
         self.assertFalse(inside.exists())
         self.assertNotIn("Traceback", "\n".join(err))
 
@@ -425,7 +425,7 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["change", "data_for", "err", "out", "page_html", "port", "projects", "undo"])
+        self.assertEqual(sorted(call), ["change", "data_for", "err", "out", "page_html", "port", "projects", "publisher", "undo"])
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
         self.assertTrue(callable(call["projects"]))
         self.assertEqual(call["port"], 8123)
@@ -521,12 +521,19 @@ class InProcess(TempFolder):
         self.run_main("--port", "8124", "--open", open_url=opened.append)
         self.assertEqual(opened, ["http://127.0.0.1:8124/"])
 
+    def test_a_browser_that_will_not_open_gives_one_next_step_only(self):
+        def refuse(url):
+            raise pl.PlatformError(f"The browser could not be opened. {pl.TRY_AGAIN}")
+        code, out, err, serve = self.run_main("--open", open_url=refuse)
+        self.assertEqual(err, "The browser could not be opened. Open http://127.0.0.1:8766/ yourself.\n")
+        self.assertNotIn("Try again", err)
+
     def test_a_browser_that_will_not_open_is_said_plainly_and_the_server_still_runs(self):
         def refuse(url):
-            raise pl.PlatformError("clark could not open your browser.")
+            raise pl.PlatformError("The browser could not be opened.")
         code, out, err, serve = self.run_main("--open", open_url=refuse)
         self.assertEqual(code, 0)
-        self.assertEqual(err, "clark could not open your browser. Open http://127.0.0.1:8766/ yourself.\n")
+        self.assertEqual(err, "The browser could not be opened. Open http://127.0.0.1:8766/ yourself.\n")
 
     def test_one_project_gives_the_address_with_its_code_and_open_opens_that(self):
         opened = []
@@ -856,17 +863,21 @@ class OpenUrl(unittest.TestCase):
 
     def test_only_web_addresses_are_opened(self):
         for bad in ("-a Calculator", "file:///etc/passwd", "http://x y", "", "javascript:alert(1)"):
-            with self.assertRaisesRegex(pl.PlatformError, "only web addresses"):
+            with self.assertRaisesRegex(pl.PlatformError, "Only web addresses"):
                 pl.open_url(bad, run=lambda *a, **k: self.fail("started a program"), on=pl.MAC)
 
     def test_a_refusal_is_said_plainly(self):
-        with self.assertRaisesRegex(pl.PlatformError, r"^clark could not open your browser \(no browser\)\.$"):
+        with self.assertRaises(pl.PlatformError) as ctx:
             pl.open_url("http://127.0.0.1:1/", run=lambda a, **k: subprocess.CompletedProcess(a, 1, "", "no browser"),
                         on=pl.MAC)
+        self.assertEqual(str(ctx.exception), "The browser could not be opened. " + pl.TRY_AGAIN)
+        self.assertNotIn("no browser", str(ctx.exception))
+        self.assertNotIn("(", str(ctx.exception))
 
     def test_a_refusal_with_no_reason_does_not_say_so(self):
-        with self.assertRaisesRegex(pl.PlatformError, r"^clark could not open your browser\.$"):
+        with self.assertRaises(pl.PlatformError) as ctx:
             pl.open_url("http://127.0.0.1:1/", run=lambda a, **k: subprocess.CompletedProcess(a, 1, "", ""), on=pl.MAC)
+        self.assertEqual(str(ctx.exception), "The browser could not be opened. " + pl.TRY_AGAIN)
 
     def test_windows_is_not_built_yet(self):
         with self.assertRaisesRegex(pl.NotBuiltYet, "on Windows is not built yet"):

@@ -243,9 +243,9 @@ class Launch(unittest.TestCase):
         self.assertIn("using what clark needs to start", f.said[-1])
 
     def test_a_start_the_system_refuses_is_said_in_the_systems_plain_words(self):
-        f = Fakes([launch.NOTHING], fail_start="clark could not start. Try again; if it keeps happening, send the file ~/x to the clark team.")
+        f = Fakes([launch.NOTHING], fail_start="The app could not start. Try again; if it keeps happening, send the file ~/x to the clark team.")
         self.assertEqual(self.run_launch(f), 1)
-        self.assertEqual(f.said[-1], "clark could not start. Try again; if it keeps happening, send the file ~/x to the clark team.")
+        self.assertEqual(f.said[-1], "The app could not start. Try again; if it keeps happening, send the file ~/x to the clark team.")
 
     def test_no_chrome_opens_the_default_browser_and_says_so(self):
         f = Fakes([launch.OURS], chrome=None)
@@ -257,9 +257,9 @@ class Launch(unittest.TestCase):
     def test_a_window_the_system_cannot_open_says_the_address(self):
         f = Fakes([launch.OURS])
         kw = f.kw()
-        kw["open_window"] = lambda u, c: (_ for _ in ()).throw(pl.PlatformError("clark could not open its window."))
+        kw["open_window"] = lambda u, c: (_ for _ in ()).throw(pl.PlatformError("The window could not be opened."))
         self.assertEqual(launch.launch(8800, self.folder, **kw), 1)
-        self.assertEqual(f.said[-1], "clark could not open its window. Open this address in your browser: http://127.0.0.1:8800/")
+        self.assertEqual(f.said[-1], "The window could not be opened. Open this address in your browser: http://127.0.0.1:8800/")
 
     def test_the_address_is_always_127_0_0_1(self):
         self.assertEqual(launch.address(8766), "http://127.0.0.1:8766/")
@@ -536,7 +536,7 @@ class PlatformCalls(unittest.TestCase):
         def popen(argv, **kw):
             raise FileNotFoundError(2, "No such file or directory")
         with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(pl.PlatformError, r"^clark could not start\. Try again; if it keeps happening, send the file .*server\.log to the clark team\.$"):
+            with self.assertRaisesRegex(pl.PlatformError, r"^The app could not start\. Try again; if it keeps happening, send the file .*server\.log to the clark team\.$"):
                 pl.start_detached(["a"], {}, Path(tmp) / "server.log", popen=popen, on=pl.MAC)
 
     def test_the_app_window_is_chrome_with_app_equals_the_address(self):
@@ -549,12 +549,12 @@ class PlatformCalls(unittest.TestCase):
 
     def test_only_a_web_address_is_opened_and_a_failure_is_plain(self):
         for bad in ("file:///etc/passwd", "--user-data-dir=/x", "javascript:1", "http://a b"):
-            with self.assertRaisesRegex(pl.PlatformError, "opens only web addresses"):
+            with self.assertRaisesRegex(pl.PlatformError, "Only web addresses"):
                 pl.open_app_window(bad, "/stub", popen=lambda *a, **k: None, on=pl.MAC)
 
         def popen(argv, **kw):
             raise PermissionError(13, "Permission denied")
-        with self.assertRaisesRegex(pl.PlatformError, r"^clark could not open its window\.$"):
+        with self.assertRaisesRegex(pl.PlatformError, r"^The window could not be opened\.$"):
             pl.open_app_window("http://127.0.0.1:1/", "/stub", popen=popen, on=pl.MAC)
 
     def test_every_windows_branch_is_not_built_yet(self):

@@ -839,7 +839,7 @@ class NoUserName(unittest.TestCase):
         root = self.home / "OneDrive-DemoOrg"
         (root / "data").mkdir(parents=True)
         for what, words in (("backups", "Backups can't be kept in ~/OneDrive-DemoOrg/data because"),
-                            ("data", "clark can't keep its data in ~/OneDrive-DemoOrg/data because")):
+                            ("data", "Your data can't be kept in ~/OneDrive-DemoOrg/data because")):
             with self.subTest(what=what), self.assertRaises(pl.PlatformError) as ctx:
                 pl.check_data_dir(root / "data", [root], what=what)
             self.assertIn(words, str(ctx.exception))

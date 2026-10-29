@@ -569,6 +569,15 @@ GUARD_ALLOWED = {
     "system/prototype/help.js": ({reveal("Onaare"): 1}, "a product feature that shares its name with a person"),
     "system/prototype/views.js": ({reveal("Onaare"): 1}, "a product feature that shares its name with a person"),
 }
+# The same word is also the name of one page template (a section type). The tool cannot tell a template from a person, so it
+# allows exactly that many uses of the word in each file below (one each) and no more; a second use there, or the word in any
+# other file, is refused. Add a path here (with its exact count) only when a file really needs the name.
+TEMPLATE_NAME_PATHS = {"src/clark/page/src/help/helpContent.json": 1, "tests/test_help_content.py": 1,
+                       "tests/test_help_shown.py": 1}
+TEMPLATE_LIMIT_KIND = ("more uses of the page-template name than this file may hold (one). "
+                       "Remove the extra use, or ask for the limit to be raised")
+GUARD_ALLOWED.update({path: ({reveal("Onaare"): count}, "a page template that shares its name with a person")
+                      for path, count in TEMPLATE_NAME_PATHS.items()})
 # What a person or private repo becomes in prose (.md and .txt). Anyone not listed here is "a teammate".
 ROLES = {reveal("Nyna").lower(): "the owner", reveal("Znuba").lower(): "the owner",
          reveal("Ebznabss").lower(): "the project lead", reveal("Angnfun").lower(): "the project lead",
@@ -1125,7 +1134,11 @@ def guard_kinds(path, data):
     kinds = set()
     for form in _forms_of(data):
         counts = listed_word_counts(form)
-        if counts["people"] or any(n > allowed.get(word, 0) for word, n in counts["capitalised"].items()):
+        over = [word for word, n in counts["capitalised"].items() if n > allowed.get(word, 0)]
+        mixed = path in TEMPLATE_NAME_PATHS and b"\0" in data and reveal("Onaare") in counts["capitalised"]   # mixed encodings: no per-form count is safe
+        if path in TEMPLATE_NAME_PATHS and not counts["people"] and (over or mixed) and all(w == reveal("Onaare") for w in (over or [reveal("Onaare")])):
+            kinds.add(TEMPLATE_LIMIT_KIND)   # only the template word, over its one use: say so, never print it
+        elif counts["people"] or over:
             kinds.add("a person's name")
         if counts["repo"]:
             kinds.add("a private repo or board name")

@@ -253,7 +253,7 @@
     ok('kinds with counts, as drawn', JSON.stringify($$('#atdK [data-k]').map(b => b.textContent)) === JSON.stringify(['All20', 'Text and pictures6', 'Figures2', 'Work items4', 'Files and links3', 'People and dates3', 'Notes2']) && /Recently used/.test($('#atdK').textContent));
     ok('Work items list is a template, full or half, under Work items (#96)', (t => !!t && t.kind === 'raid' && t.fit.join() === 'Full,Half')(C.templates.find(t => t.id === 'wi-list')) && names().includes('Work items list'));
     ok('20 template cards, each with a sketch, a name and Full or Half chips', names().length === 20 && $$('.atd-c').every(c => c.querySelector('.sk') && c.querySelectorAll('.fit em').length >= 1) && JSON.stringify(names()) === JSON.stringify(C.templates.map(t => t.name)) && names().includes('Key figures, four') && names().includes('One document'));
-    click($('[data-k=figures]')); await sleep(30); ok('a kind filters the cards', names().length === 2 && names().every(n => /Key figures/.test(n))); click($('[data-k=raid]')); await sleep(30); ok('Work items: the two RAID cards and the list', names().join() === 'RAID cards, three,RAID cards, four,Work items list,What we need from you'); click($('[data-k=all]')); await sleep(30);
+    click($('[data-k=figures]')); await sleep(30); ok('a kind filters the cards', names().length === 2 && names().every(n => /Key figures/.test(n))); click($('[data-k=raid]')); await sleep(30); ok('Work items: the two RAID cards and the list', names().join() === 'RAID cards, three,RAID cards, four,Work items list,Needs from you'); click($('[data-k=all]')); await sleep(30);
     input($('#atdQ'), 'quote'); await sleep(30); ok('the search filters as you type', names().join() === 'Quote' && selT() === 'quote'); input($('#atdQ'), 'zzzz'); await sleep(30); ok('and says so when nothing matches, with Add section off', !names().length && /No template matches/.test($('#atdG').textContent) && $('#atdGo').disabled); input($('#atdQ'), ''); await sleep(30);
     ok('the preview shows the chosen template: name, sketch, description, Holds, Place it, Help link', selT() === 'text' && $('#atdP h3').textContent === 'Text' && !!$('#atdP .sk') && $$('#atdP .atd-els span').map(s => s.textContent).join() === 'Heading,Text' && /On its own row/.test($('#atdP').textContent) && /See every template explained in Help/.test($('#atdP').textContent));
     key($('#atdQ'), 'ArrowDown'); ok('Down moves a row through the cards (three across)', selT() === 'figures-4', selT()); key($('#atdQ'), 'ArrowUp'); ok('Up moves back', selT() === 'text');
@@ -873,7 +873,7 @@
       ok('phone: logo, project picker, ask clark and profile share the first row', Math.max(...row1.map(b => b.top)) - Math.min(...row1.map(b => b.top)) < 12 && row1.every(b => b.bottom <= r('.tabs').top + 1), row1.map(b => Math.round(b.top)).join());
       ok('phone: the picker, ask clark and the profile circle fit the width, in order', r('#projBtn').left >= r('#logoBtn').right && r('#projBtn').right <= r('#askBtn').left && r('#askBtn').right <= r('#meBtn').left && r('#meBtn').right <= innerWidth);
       ok('phone: ask clark is an icon (named for screen readers)', r('#askBtn').width < 48 && $('#askBtn').getAttribute('aria-label') === 'ask clark');
-      ok('phone: the view tabs sit on a second row that scrolls sideways if needed', tabs.top >= r('#logoBtn').bottom - 1 && tabs.width >= 380 && getComputedStyle($('.tabs')).overflowX === 'auto' && [...$$('.tab')].every(b => b.getBoundingClientRect().top >= tabs.top - 1 && b.getBoundingClientRect().bottom <= tabs.bottom + 1));
+      ok('phone: the view tabs sit on a second row that scrolls sideways if needed', tabs.top >= r('#logoBtn').bottom - 1 && tabs.width >= document.documentElement.clientWidth - 10 && getComputedStyle($('.tabs')).overflowX === 'auto' && [...$$('.tab')].every(b => b.getBoundingClientRect().top >= tabs.top - 1 && b.getBoundingClientRect().bottom <= tabs.bottom + 1), `${Math.round(tabs.width)} of ${document.documentElement.clientWidth} px`);   /* the full row, less a classic scroll bar where the system draws one (Linux: 15 px; Mac and phones overlay theirs) */
       ok('phone: the sticky bar is as tall as its two rows', Math.round(r('.top').height) === 96 && getComputedStyle(document.documentElement).getPropertyValue('--topbar').trim() === '96px', Math.round(r('.top').height));
       click($('#projBtn')); await sleep(80); ok('phone: the project menu fits the window', !!$('.menu') && r('.menu').left >= 0 && r('.menu').right <= innerWidth); C.closePop();
       document.title = 'SELFTEST-PHONE-END'; { const t0 = Date.now(); while (window.__phone && Date.now() - t0 < 6000) await sleep(100); } await sleep(200);
@@ -955,13 +955,13 @@
     ok('needs: the template is live, Full or Half, under Work items, and there are 20', C.templates.length === 20 && (t => !!t && t.live === true && t.kind === 'raid' && t.fit.join() === 'Full,Half')(C.templates.find(t => t.id === 'needs')));
     click($('[data-addbelow=summary]')); await sleep(120); click($('.atd-c[data-t=needs]')); await sleep(30); click($('#atdGo')); await sleep(160);
     const nx = P().report.sections.find(x => x.type === 'needs');
-    ok('needs: added from the box as a section of its own type, titled What we need from you', !!nx && nx.title === 'What we need from you' && !!$('[data-sec="' + nx.id + '"]'));
+    ok('needs: added from the box as a section of its own type, titled Needs from you', !!nx && nx.title === 'Needs from you' && !!$('[data-sec="' + nx.id + '"]'));
     { const t = $('[data-sec="' + nx.id + '"]').textContent;
       ok('needs: it lists the pending decision and the flagged item, each with what, by when and the ID', /PDF-D-008/.test(t) && /PDF-A-018/.test(t) && /Needed by \d\d-\d\d-\d{4}/.test(t) && /Use synthetic data/.test(t) && !/PDF-A-012/.test(t));
-      ok('needs: it is on the page (C.onPage) and in the contents with its count', C.onPage(nx) && C.tocCounts(P(), nx) === C.needsList(P()).length + ' pending'); }
-    { const html = await C.webPage({ n: 99 }); ok('needs: it is published, with the decision', C.onPage(nx) && /What we need from you/.test(html) && /PDF-D-008/.test(html) && /Needed by/.test(html)); }
+      ok('needs: it is on the page (C.onPage) and in the contents with its count', C.onPage(nx) && C.tocCounts(P(), nx) === C.needsList(P()).length + ' needed'); }
+    { const html = await C.webPage({ n: 99 }); ok('needs: it is published, with the decision', C.onPage(nx) && /Needs from you/.test(html) && /PDF-D-008/.test(html) && /Needed by/.test(html)); }
     { const d = C.needsList(P())[0]; if (d) { const was = d.client; d.client = false; ok('needs: an item hidden with the eye is never listed', !C.needsList(P()).includes(d)); d.client = was; } }
-    C.setProject('CPR'); ok('needs: with nothing to ask it says so', C.needsHtml(false).includes('Nothing needed from the client this week.') && C.needsList(C.P()).length === 0); C.setProject('PDF');
+    C.setProject('CPR'); ok('needs: with nothing to ask the editor says so quietly', C.needsHtml(true).includes('Nothing needed from you this week.') && C.needsList(C.P()).length === 0); C.setProject('PDF');
     /* #122 health suggestion */
     C.go('dashboard'); await sleep(80); click($('[data-mode=edit]')); await sleep(60);
     { const p = P(), hs = C.healthSuggest(p);
@@ -1015,11 +1015,94 @@
     /* Help */
     { const missing = []; for (const id of ['howto-check-before-you-publish', 'howto-find-a-past-publication', 'howto-start-from-last-report', 'howto-ask-the-client-for-something', 'howto-save-as-a-pdf', 'howto-add-people-details', 'ref-freshness', 'ref-needs-from-you', 'ref-since-last-report', 'ref-published-reports', 'ref-people']) { C.help.open(id); await sleep(90); if (!$('#hp-' + id)) missing.push(id); }
       ok('help: each of the new features has its entry' + (missing.length ? ' (missing: ' + missing.join(', ') + ')' : ''), !missing.length);
-      C.help.open('ref-sections'); await sleep(90); ok('help: the sections table lists What we need from you', /What we need from you/.test($('#hp-ref-sections').textContent)); }
+      C.help.open('ref-sections'); await sleep(90); ok('help: the sections table lists Needs from you', /Needs from you/.test($('#hp-ref-sections').textContent));
+      /* opened at Section templates, a place the product's Help also has; the prototype's Needs from you entry is drawn beside it */
+      C.help.open('ref-section-templates'); await sleep(90); ok('help: the Needs from you entry explains Overdue, Archive and the place after At a glance', (t => /Overdue/.test(t) && /Archive/.test(t) && /Restore/.test(t) && /straight after At a glance/.test(t) && /Nothing needed from you this week\./.test(t))($('#hp-ref-needs-from-you').textContent)); }
     C.go('dashboard'); await sleep(80); click($('[data-mode=view]')); await sleep(60);
   });
 
   /* ════ the UX sweep (the accepted fixes and all ten enrichments) ════ */
+  await step('Needs from you (#144)', async () => {
+    const DB = window.ClarkDB, A = n => DB.addDays(DB.TODAY, n), pub = async () => new DOMParser().parseFromString(await C.webPage({ n: 98 }), 'text/html');
+    const waitFor = async (f, ms = 6000) => { const t0 = Date.now(); while (!f() && Date.now() - t0 < ms) await sleep(60); return !!f(); };
+    const atW = async (w, f) => { document.title = 'SELFTEST-W:' + w; if (!await waitFor(() => window.__w === w)) { out.push('SKIP ' + w + ' px checks: the runner gave no such window'); return false; } await sleep(250);
+      try { await f(); } finally { document.title = 'SELFTEST-W-END'; await waitFor(() => !window.__w); await sleep(200); } return true; };
+    C.setProject('PDF'); C.go('dashboard'); await sleep(80); if ($('[data-mode=edit]')) { click($('[data-mode=edit]')); await sleep(80); }
+    let nx = P().report.sections.find(x => x.type === 'needs');
+    if (!nx) { click($('[data-addbelow=summary]')); await sleep(120); click($('.atd-c[data-t=needs]')); await sleep(30); click($('#atdGo')); await sleep(160); nx = P().report.sections.find(x => x.type === 'needs'); }
+    const box = () => $('[data-sec="' + nx.id + '"]'), sec = () => P().report.sections.find(x => x.id === nx.id) || {};
+    /* the template, in the Add a section box at its place among the others */
+    click($('[data-addbelow=summary]')); await sleep(120);
+    { const ts = $$('.atd-c').map(e => e.dataset.t), c = $('.atd-c[data-t=needs]');
+      ok('needs 144: the Add a section box offers Needs from you at its place, straight after Work items list', !!c && /Needs from you/.test(c.textContent) && ts.indexOf('needs') === ts.indexOf('wi-list') + 1 && C.templates.findIndex(t => t.id === 'needs') === C.templates.findIndex(t => t.id === 'wi-list') + 1, ts.join()); }
+    key($('#dlg'), 'Escape'); await sleep(60); if ($('#dlg') && $('#dlg').open) $('#dlg').close();
+    /* each line: owner and a due date as DD-MM-YYYY; a late one says Overdue in words */
+    const d8 = item('PDF-D-008'), was = { due: d8.due, client: d8.client, status: d8.status }; DB.change('item', d8, { due: A(-3), client: true, status: 'Pending' }); C.refresh(); await sleep(80);
+    { const li = box().querySelector('[data-row="PDF-D-008"]');
+      ok('needs 144: an open client-visible pending decision is listed with its owner and a due date as DD-MM-YYYY', !!li && li.textContent.includes(d8.owner) && /Needed by \d\d-\d\d-\d{4}/.test(li.textContent));
+      ok('needs 144: a late line says Overdue in words, not by colour alone', !!li && !!li.querySelector('.tag.od') && li.querySelector('.tag.od').textContent === 'Overdue' && /Overdue/.test(li.textContent));
+      const fut = [...box().querySelectorAll('.wl-row')].find(r => !/Overdue/.test(r.textContent) && /Needed by/.test(r.textContent));
+      ok('needs 144: a line not yet due has no Overdue word', !fut || !fut.querySelector('.tag.od')); }
+    { const h = await pub(); ok('needs 144: the published line keeps the word Overdue', /Overdue/.test((h.querySelector('#sec-' + nx.id) || {}).textContent || '')); }
+    DB.change('item', d8, { client: false }); C.refresh(); await sleep(80);
+    ok('needs 144: a decision the client cannot see is not listed', !box().querySelector('[data-row="PDF-D-008"]'));
+    DB.change('item', d8, was); C.refresh(); await sleep(80);
+    /* a line added by hand: what, owner, due; archived, never deleted */
+    { const f = box().querySelector('[data-nd-add]'); ok('needs 144: in Edit the section has a form to add a line: what is needed, owner, due', !!f && !!f.what && !!f.owner && !!f.due);
+      /* Due is clark's own date picker, not the browser's date box, so it reads DD-MM-YYYY */
+      ok('needs 144: the Due box is clark\'s own picker, not the browser\'s date box', !f.querySelector('input[type=date]') && !!f.querySelector('[data-nd-due]') && f.querySelector('[data-nd-due]').textContent.trim() === 'No date set');
+      click(f.querySelector('[data-nd-due]')); await sleep(60); ok('needs 144: Due opens clark\'s one-panel calendar', !!$('.menu .cp') && !$('.menu input[type=date]'));
+      for (let k = 0; k < 24 && !$('.menu [data-cp="' + A(-2) + '"]'); k++) { click($('.menu [data-cpm="' + (A(-2) < DB.TODAY.slice(0, 7) ? -1 : 1) + '"]')); await sleep(20); }
+      click($('.menu [data-cp="' + A(-2) + '"]')); await sleep(60);
+      ok('needs 144: the picked date shows as DD-MM-YYYY in the Due box', !$('.menu') && f.due.value === A(-2) && f.querySelector('[data-nd-due]').textContent.trim() === DB.fd(A(-2)) && /^\d\d-\d\d-\d{4}$/.test(DB.fd(A(-2))));
+      /* an empty "What is needed" gets clark's own line, not the browser's warning */
+      ok('needs 144: the form leaves the browser\'s own warning off', f.noValidate && !f.what.required);
+      f.querySelector('[type=submit]').click(); await sleep(100);
+      { const f2 = box().querySelector('[data-nd-add]'), er = f2.querySelector('.nd-err');
+        ok('needs 144: with nothing in What is needed, clark says so in its own words and adds nothing', !!er && !er.hidden && er.textContent === 'Say what is needed, then press Add.' && f2.what.getAttribute('aria-invalid') === 'true' && !(sec().asks || []).length); }
+      f.what.value = 'Confirm the room for the go-live briefing'; f.what.dispatchEvent(new Event('input')); ok('needs 144: typing in What is needed clears the line', f.querySelector('.nd-err').hidden);
+      f.owner.value = 'Client sponsor'; f.querySelector('[type=submit]').click(); await sleep(140); }
+    const ask = () => (sec().asks || [])[0];
+    { const li = box().querySelector('[data-ask]');
+      ok('needs 144: the added line is listed with its owner, its date as DD-MM-YYYY and the word Overdue', !!ask() && !!li && /Confirm the room/.test(li.textContent) && /Client sponsor/.test(li.textContent) && li.textContent.includes('Needed by ' + DB.fd(A(-2))) && li.querySelector('.tag.od').textContent === 'Overdue');
+      ok('needs 144: a line has Archive and no Delete', !!li.querySelector('[data-nd-arch]') && li.querySelector('[data-nd-arch]').textContent.trim() === 'Archive' && !/Delete/.test(li.textContent)); }
+    { const t = C.tocCounts(P(), sec()), em = $('[data-toc="' + nx.id + '"] em');
+      ok('needs 144: the contents count says needed, not pending, and is still marked', /^\d+ needed$/.test(t) && (!em || (em.textContent === t && !!em.className)), t + ' / ' + (em ? em.className : 'no contents rail')); }
+    /* a line with no owner says "Not assigned yet", not "No owner" */
+    { const f = box().querySelector('[data-nd-add]'); f.what.value = 'Send the floor plan'; f.querySelector('[type=submit]').click(); await sleep(140);
+      const li = [...box().querySelectorAll('[data-ask]')].find(r => /Send the floor plan/.test(r.textContent));
+      ok('needs 144: a line with no owner says Not assigned yet', !!li && /Not assigned yet/.test(li.textContent) && !/No owner/.test(box().textContent));
+      const id = (sec().asks || []).find(a => a.what === 'Send the floor plan').id; await undo(); await sleep(100); ok('needs 144: Undo takes the ownerless test line away again', !(sec().asks || []).some(a => a.id === id)); }
+    click(box().querySelector('[data-nd-arch]')); await sleep(140);
+    ok('needs 144: Archive takes the line off the list but keeps it, under Archived', sec().asks.length === 1 && ask().archived === true && !box().querySelector('[data-ask]') && /Archived \(1\)/.test(box().querySelector('.nd-arch summary').textContent));
+    { const h = await pub(); ok('needs 144: an archived line is not published', !/Confirm the room/.test(h.body.textContent)); }
+    box().querySelector('.nd-arch').open = true; click(box().querySelector('[data-nd-back]')); await sleep(140);
+    ok('needs 144: Restore brings the line back', ask().archived === false && !!box().querySelector('[data-ask]') && !box().querySelector('.nd-arch'));
+    /* on the published page: straight after At a glance, whatever its place in the editor */
+    { const h = await pub(), ids = [...h.querySelectorAll('main section[id^="sec-"], section[id^="sec-"]')].map(e => e.id).filter((v, i, a) => a.indexOf(v) === i), g = ids.indexOf('sec-glance');
+      const ed = P().report.sections.map(x => x.id);
+      ok('needs 144: in the editor it is not after At a glance, yet on the published page it is', ed.indexOf(nx.id) !== ed.indexOf('glance') + 1 && g >= 0 && ids[g + 1] === 'sec-' + nx.id, ids.join()); }
+    /* empty: a quiet line in the editor, absent from the published page */
+    const listed = C.needsList(P()), keep = listed.map(x => [x, x.client]); listed.forEach(x => { x.client = false; }); ask().archived = true; C.refresh(); await sleep(80);
+    ok('needs 144: with nothing to ask the editor shows the quiet line', /Nothing needed from you this week\./.test(box().textContent) && !!box().querySelector('.nd-none.muted'));
+    { const h = await pub(); ok('needs 144: with nothing to ask the section is absent from the published page and its contents', !h.querySelector('#sec-' + nx.id) && !/Needs from you/.test(h.body.textContent)); }
+    keep.forEach(([x, c]) => { x.client = c; }); ask().archived = false; C.refresh(); await sleep(80);
+    /* the section itself: Delete section, with Undo */
+    click(box().querySelector('[data-opts]')); await sleep(60); await menuPick('Delete section'); await sleep(120);
+    ok('needs 144: Delete section removes the section, with an Undo in the toast', !P().report.sections.some(x => x.id === nx.id) && !!$('#toastUndo'));
+    await undo(); await sleep(80); ok('needs 144: Undo brings the section back with its lines', !!box() && (sec().asks || []).length === 1);
+    /* light, dark and 900 px: readable, nothing sideways */
+    const look = () => { const b = box(), od = b.querySelector('.tag.od'), f = b.querySelector('.nd-add'), inp = f.querySelector('input'), r = f.getBoundingClientRect();
+      return { side: document.documentElement.scrollWidth <= innerWidth + 1 && b.scrollWidth <= b.clientWidth + 1 && r.right <= b.getBoundingClientRect().right + 1, od: !!od && getComputedStyle(od).color !== getComputedStyle(od).backgroundColor, inp: getComputedStyle(inp).color !== getComputedStyle(inp).backgroundColor }; };
+    const was2 = C.themePref();
+    for (const th of ['light', 'dark']) { C.theme(th); C.refresh(); await sleep(300); const l = look(); ok(`needs 144: in ${th} the Overdue word and the form are readable, and nothing scrolls sideways`, l.side && l.od && l.inp, JSON.stringify(l)); }
+    await atW(900, async () => { for (const th of ['light', 'dark']) { C.theme(th); C.refresh(); await sleep(300); const l = look(); ok(`needs 144: at 900 px in ${th}, nothing scrolls sideways`, l.side && l.od && l.inp, JSON.stringify(l)); } });
+    C.theme(was2); C.refresh(); await sleep(200);
+    /* leave the demo as it was */
+    { const k = P().report.sections.findIndex(x => x.id === nx.id); if (k >= 0) { const r2 = DB.clone(P().report); (r2.sections[k].asks || []).forEach(x => { x.archived = true; }); DB.change('project', P(), { report: r2 }); } C.refresh(); await sleep(60); }
+    if ($('[data-mode=view]')) { click($('[data-mode=view]')); await sleep(60); }
+  });
+
   await step('UX sweep fixes', async () => {
     const DB = window.ClarkDB, rect = e => (typeof e === 'string' ? $(e) : e).getBoundingClientRect(), vis = e => !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0;
     const waitFor = async (f, ms = 6000) => { const t0 = Date.now(); while (!f() && Date.now() - t0 < ms) await sleep(60); return !!f(); };

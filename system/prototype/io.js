@@ -127,7 +127,7 @@
   }
   function pubData() {
     const p = C.P(), r = p.report, its = C.items().filter(x => x.client), ms = C.mss().filter(m => m.client), ucs = D.S.usecases.filter(u => u.code === p.code && u.client);
-    return { p, r, its, ms, ucs, secs: r.sections.filter(C.onPage), docs: (p.docs || []).filter(d => !d.hidden), glance: r.glance.filter(f => !f.hidden) };
+    return { p, r, its, ms, ucs, secs: C.pubOrder(r.sections).filter(s => C.onPub(s, p)), docs: (p.docs || []).filter(d => !d.hidden), glance: r.glance.filter(f => !f.hidden) };
   }
   /* the use case summary as the editor shows it in View mode, every row closed; a row's links open the item's detail */
   function ucView(p) {
@@ -158,13 +158,13 @@
             actions: () => tbl(['ID', 'Action', 'Owner', 'Due', 'Status'], its.filter(x => x.type === 'A' && C.isOpen(x)).sort((a, b2) => (a.due || '9').localeCompare(b2.due || '9')).map(x => [x.id, esc(word(x)), esc(x.owner), D.fd(x.due), st(x)])),
             decisions: () => tbl(['Date', 'Decision', 'By', 'Status'], its.filter(x => x.type === 'D' && (x.status === 'Pending' || (x.due && D.days(x.due) >= -14))).map(x => [D.fd(x.due), esc(word(x)), esc(x.owner), st(x)])) })[s.type]()
         : C.itemListHtml(s.type, false).replace(/data-open=/g, 'data-item=');
-      if (s.type === 'needs') b = forWord ? tbl(['ID', 'What we need from you', 'Needed by', 'Owner'], C.needsList(p).map(x => [x.id, esc(word(x)), x.due ? D.fd(x.due) : 'No date set', esc(x.owner)])).replace('Nothing to show this week.', 'Nothing needed from the client this week.') : C.needsHtml(false, true).replace(/data-open=/g, 'data-item=');
+      if (s.type === 'needs') b = forWord ? tbl(['ID', 'What is needed', 'Owner', 'Needed by'], C.needsRows(p, s).map(r2 => r2.src === 'item' ? [r2.x.id, esc(word(r2.x)), esc(r2.x.owner || C.ND_NOONE), C.needsDue(r2.x.due)] : ['', esc(r2.a.what), esc(r2.a.owner || C.ND_NOONE), C.needsDue(r2.a.due)])) : C.needsHtml(false, true, s).replace(/data-open=/g, 'data-item=');
       if (s.type === 'docs') b = forWord ? (docs.length ? `<ul>${docs.map(d => `<li><a href="${esc(d.url)}">${esc(d.title)}</a> · ${esc(d.kind)} · ${D.fd(d.date)}</li>`).join('')}</ul>` : '<p class="muted">No documents linked.</p>') : C.docsHtml(p, false);
       return `<section id="sec-${s.id}"><h2>${esc(s.title)}</h2>${b}</section>`;
     };
     const lay = forWord ? 'boxed' : C.layOf(p), gl = secs.find(x => x.type === 'glance'), glanceTop = gl && lay !== 'boxed' ? sec(gl).replace(/^<section[^>]*><h2>.*?<\/h2>/, '').replace(/<\/section>$/, '') : '';
     /* the rows as the editor lays them out (#95): a pair becomes two columns on the page; the Word file keeps one column */
-    const body = C.secRows(p.report.sections.filter(x => !(lay !== 'boxed' && x.type === 'glance')), C.onPage).map(row => row.length > 1 && !forWord ? `<div class="pair">${row.map(sec).join('')}</div>` : row.map(sec).join('')).join('');
+    const body = C.secRows(C.pubOrder(p.report.sections).filter(x => !(lay !== 'boxed' && x.type === 'glance')), x => C.onPub(x, p)).map(row => row.length > 1 && !forWord ? `<div class="pair">${row.map(sec).join('')}</div>` : row.map(sec).join('')).join('');
     /* the client's other two views: every work item and milestone shown to them, read-only */
     const lists = forWord ? '' : ['actions', 'raid', 'decisions'].map(t => `<section><h2>${{ actions: 'Actions', raid: 'Risks and issues', decisions: 'Decisions' }[t]}</h2>${C.itemListHtml(t, false).replace(/data-open=/g, 'data-item=')}</section>`).join('');
     let msView = '';

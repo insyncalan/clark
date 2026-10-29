@@ -141,7 +141,7 @@ class Staging(ImportCase):
         wbk.make_workbook(self.s, self.path, sheets=("actions",))
         p = self.plan()
         self.assertEqual(p.changes, [])
-        self.assertTrue(any("no RAID sheet" in n for n in p.notes))
+        self.assertTrue(any("no Risks and issues sheet" in n for n in p.notes))
 
     def test_a_use_case_missing_from_the_workbook_is_only_a_note(self):
         wbk.drop_row(self.path, "Use cases", self.demo.use_case)
@@ -210,7 +210,7 @@ class Staging(ImportCase):
         self.assertIn("isn't an action id", said)
         self.assertIn("isn't a RAID item id", said)
         self.assertIn("isn't a decision id", said)
-        self.assertIn("(Baseline)", said)
+        self.assertIn("(Agreed)", said)
         self.assertIn("Due must be a date", said)
         self.assertIn("Owner is blank", said)
         for raw in ("due_date", "baseline_date", "isn't action id"):

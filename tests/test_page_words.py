@@ -163,7 +163,11 @@ class Words(unittest.TestCase):
             sid = self.visit(cdp)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
-            self.shown(cdp, sid, ["Settings", "Settings are not ready yet."])
+            self.shown(cdp, sid, ["Settings", "Settings are not ready yet.",
+                                  "Client folder",      # #43: the one setting built so far; the rest of Settings is FR-1
+                                  "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
+                                  "into it when you tick To client; OneDrive then uploads it.",
+                                  "No client folder yet.", "Choose folder"])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -219,6 +223,61 @@ class Words(unittest.TestCase):
             self.assertNotIn("report editor", text.lower(), f.name)
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
+
+    def test_every_publish_message_a_person_can_see_is_plain_words(self):
+        """#43: the publish routes' messages hold no system text slot, no jargon and no request talk."""
+        from clark import publish_flow, to_client
+        jargon = re.compile(r"(?i)\(\{reason\}\)|\bpath\b|\brequest\b|true or false|\btag\b|"
+                            r"\battribute\b|\bstylesheet\b|\bcss\b|tokens\.css|\bkey of this session|permission denied|errno|oserror|!")
+        for module in (to_client, publish_flow):
+            for key, value in module.MESSAGES.items():
+                for text in (value if isinstance(value, list) else [value]):
+                    self.assertIsNone(jargon.search(text), f"{module.__name__}.{key}: {text}")
+                    self.assertFalse(text.lower().startswith("clark"), f"{module.__name__}.{key}: starts with the product name")
+                    self.assertLessEqual(text.count("client folder"), 1, f"{module.__name__}.{key}: says 'client folder' more than once")
+        for key in ("local_failed", "not_recorded", "settings_failed"):
+            self.assertNotIn("{reason}", publish_flow.MESSAGES[key], key)
+            self.assertNotIn("(", publish_flow.MESSAGES[key], key)
+
+    def test_a_publish_error_about_the_brand_or_the_page_is_a_fixed_sentence(self):
+        """#43 (Head): PublishError text with internal names (tokens.css, @import, build_page.py, a server token) never reaches
+        a person; each real error is raised by publish and read through made_words."""
+        from clark import publish, publish_flow
+        page_text = "<html lang=\"en-GB\"><head><style>%s</style></head><body></body></html>"
+        faults = {
+            "brand_styling": [page_text % "@import url(x.css);", page_text % "a{background:url(https://x.test/a.png)}"],
+            "page_shape": ['<html><body id="clark-boot"></body></html>', "<p>no html element here</p>",
+                           "<html lang=\"en-GB\"><head><title>t</title></head>"],
+        }
+        for key, pages in faults.items():
+            for html in pages:
+                with self.subTest(key=key, page=html[:40]):
+                    with self.assertRaises(publish.PublishError) as caught:
+                        publish.render({"data": {}}, html, "2026-10-28", "t")
+                    said = publish_flow.made_words(caught.exception)
+                    self.assertEqual(said, publish_flow.MESSAGES[key])
+                    self.assertIsNone(re.search(r"(?i)tokens\.css|@import|build_page|\btoken\b|\bbody\b|\bcss\b|python", said), said)
+        for key in ("brand_styling", "page_shape"):
+            self.assertRegex(publish_flow.MESSAGES[key], r"(?i)(ask |tell )")     # each says what to do next
+
+    def test_a_brand_link_refusal_does_not_contradict_itself(self):
+        """#43: the refusal joins the held-back reason and the brand sentence; it must not say the report has something
+        in it and then that the report is fine, and each brand sentence says where the link is from and what to do."""
+        from clark import publish_flow, to_client
+        held = to_client.MESSAGES["held_back"].format(what="a web link built into the page")
+        joined = held + publish_flow.MESSAGES["brand_link"]
+        self.assertNotIn("is fine", joined)
+        self.assertIn("not from anything you wrote: ask whoever looks after the brand to remove it.", joined)
+        self.assertNotIn("is fine", publish_flow.MESSAGES["brand_styling"])
+        self.assertEqual(publish_flow.MESSAGES["brand_styling"],
+                         "The brand's styling file has a web link in it, so the report can't go out. Ask whoever looks after the brand to remove it.")
+
+    def test_the_two_low_wording_points_are_fixed_sentences(self):
+        """#43: page_shape names no one 'itself' and says nothing was published; local_not_html names the ending."""
+        from clark import publish_flow
+        self.assertEqual(publish_flow.MESSAGES["page_shape"],
+                         "Something is wrong inside clark. Nothing was published. Tell the clark team, and say what you were doing.")
+        self.assertEqual(publish_flow.MESSAGES["local_not_html"], "The local copy's name must end in .html. Nothing was published.")
 
 
 if __name__ == "__main__":

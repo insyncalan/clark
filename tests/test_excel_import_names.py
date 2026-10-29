@@ -38,22 +38,27 @@ class NameCase(unittest.TestCase):
     def read(self):
         return xi.read_workbook(self.s, self.path, "ABC", state_path=self.state)
 
+    def old_shape(self):
+        """Put the export back as it was before #143: sheet "RAID", headers "Client messaging" and "Baseline"."""
+        self.rename("RAID", Actions=("Client wording", "Client messaging"), Decisions=("Client wording", "Client messaging"),
+                    Milestones=("Agreed", "Baseline"), **{"RAID": ("Client wording", "Client messaging")})
+
     def rename(self, raid_sheet=None, **headers):
         """Give the RAID sheet a name, and headers new names, as `{"Actions": ("Client messaging", "Client wording")}` ."""
         wb = load_workbook(str(self.path))
-        if raid_sheet:
-            wb[excel.SHEET_OF["raid"]].title = raid_sheet
         for sheet, (old, new) in headers.items():
-            ws = wb[sheet]
+            ws = wb[excel.SHEET_OF["raid"] if sheet == "RAID" else sheet]
             for c in ws[1]:
                 if c.value == old:
                     c.value = new
+        if raid_sheet:
+            wb[excel.SHEET_OF["raid"]].title = raid_sheet
         wb.save(str(self.path))
 
     def edit(self, sheet, item, label, value):
         wb = load_workbook(str(self.path))
         ws = next(w for w in wb.worksheets
-                  if w.title.lower().replace("_", " ") in (sheet.lower(), "risks and issues") and (sheet != "RAID" or w.title != "Actions"))
+                  if w.title.lower().replace("_", " ") in ((sheet.lower(), "risks and issues") if sheet == "RAID" else (sheet.lower(),)))
         head = {c.value: c.column for c in ws[1]}
         row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value == item)
         ws.cell(row, head[label]).value = value
@@ -83,38 +88,34 @@ class Names(NameCase):
         self.assertEqual(self.s.read("raid", ref=self.r1)["client_message"], "Still watching")
 
     def test_a_workbook_with_the_old_names_imports(self):
-        self.rename(**{"Actions": ("Client messaging", "Client messaging")})            # as exported today
+        self.old_shape()
+        self.assertEqual(load_workbook(str(self.path)).sheetnames[3], "RAID")
         self.check(self.edited("Client messaging"))
 
     def test_a_workbook_with_the_new_names_imports(self):
-        self.rename("Risks and issues", Actions=("Client messaging", "Client wording"), Decisions=("Client messaging", "Client wording"),
-                    Milestones=("Baseline", "Agreed"))
-        wb = load_workbook(str(self.path))
-        ws = wb["Risks and issues"]
-        next(c for c in ws[1] if c.value == "Client messaging").value = "Client wording"
-        wb.save(str(self.path))
+        self.assertEqual(load_workbook(str(self.path)).sheetnames[3], "Risks and issues")      # as exported now
         self.check(self.edited("Client wording", raid="Risks and issues", agreed="Agreed"))
 
     def test_a_mixed_workbook_imports(self):
-        self.rename("Risks and issues", Actions=("Client messaging", "Client wording"))
+        self.rename("RAID", Actions=("Client wording", "Client messaging"))      # old sheet and old Actions header, new elsewhere
         self.check(self.edited_mixed())
 
     def edited_mixed(self):
-        self.edit("Actions", self.a1, "Client wording", "Plan is on its way")
-        self.edit("RAID", self.r1, "Client messaging", "Still watching")
-        self.edit("Milestones", self.demo.milestone, "Baseline", date(2031, 1, 1))
+        self.edit("Actions", self.a1, "Client messaging", "Plan is on its way")
+        self.edit("RAID", self.r1, "Client wording", "Still watching")
+        self.edit("Milestones", self.demo.milestone, "Agreed", date(2031, 1, 1))
         return self.read()
 
     def test_sheet_names_match_in_any_case_with_spaces_or_underscores(self):
         self.rename("risks_AND_issues")
-        self.edit("RAID", self.r1, "Client messaging", "Still watching")
+        self.edit("RAID", self.r1, "Client wording", "Still watching")
         p = self.read()
         self.assertEqual([(c.table, c.id) for c in p.changes], [("raid", self.r1)])
 
     def test_an_unchanged_export_in_either_naming_gives_no_changes(self):
         p = self.read()
         self.assertEqual((p.changes, p.problems), ([], []))
-        self.rename("Risks and issues", Actions=("Client messaging", "Client wording"), Milestones=("Baseline", "Agreed"))
+        self.old_shape()
         p = self.read()
         self.assertEqual((p.changes, p.problems), ([], []))
 
@@ -130,10 +131,17 @@ class Names(NameCase):
         self.assertEqual(self.snapshot(), before)
 
 
+class RoundTrip(NameCase):
+    def test_an_export_imported_with_no_edits_gives_no_changes(self):
+        p = self.read()
+        self.assertEqual((p.changes, p.problems), ([], []))
+        self.assertEqual(load_workbook(str(self.path)).sheetnames[3], "Risks and issues")
+
+
 class Duplicates(NameCase):
     def test_the_old_and_new_sheet_name_together_are_refused(self):
         wb = load_workbook(str(self.path))
-        wb.copy_worksheet(wb[excel.SHEET_OF["raid"]]).title = "Risks and issues"
+        wb.copy_worksheet(wb[excel.SHEET_OF["raid"]]).title = "RAID"
         wb.save(str(self.path))
         before = self.snapshot()
         with self.assertRaises(Invalid) as cm:
@@ -147,7 +155,7 @@ class Duplicates(NameCase):
     def test_the_old_and_new_header_together_are_refused(self):
         wb = load_workbook(str(self.path))
         ws = wb["Milestones"]
-        ws.cell(1, ws.max_column + 1).value = "Agreed"             # beside "Baseline"
+        ws.cell(1, ws.max_column + 1).value = "Baseline"           # beside "Agreed"
         wb.save(str(self.path))
         before = self.snapshot()
         with self.assertRaises(Invalid) as cm:
@@ -160,7 +168,7 @@ class Duplicates(NameCase):
     def test_the_old_and_new_wording_header_together_are_refused(self):
         wb = load_workbook(str(self.path))
         ws = wb["Actions"]
-        ws.cell(1, ws.max_column + 1).value = "Client wording"
+        ws.cell(1, ws.max_column + 1).value = "Client messaging"
         wb.save(str(self.path))
         with self.assertRaises(Invalid):
             self.read()
@@ -168,7 +176,6 @@ class Duplicates(NameCase):
 
 class Huge(NameCase):
     def test_a_far_cell_on_a_new_named_sheet_is_still_refused(self):
-        self.rename("Risks and issues")
         wb = load_workbook(str(self.path))
         wb["Risks and issues"]["XFD1000"] = "x"
         wb.save(str(self.path))

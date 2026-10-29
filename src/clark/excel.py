@@ -47,6 +47,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from clark import excel_colours as colours
 from clark import excel_cover
+from clark import excel_picture
 from clark import platform
 from clark.milestones import STATES, milestone_state
 from clark.timefmt import local_text, parse
@@ -61,7 +62,7 @@ STATE_FILE = "excel-export-state.json"   # beside clark.db: what each export wro
 SHEETS = [
     ("Milestones", "milestones", [
         ("ID", "id"), ("Milestone", "name"), ("Project", "project"), ("Description", "description"),
-        ("Workstream", "workstream"), ("Original", "original_date"), ("Baseline", "baseline_date"),
+        ("Workstream", "workstream"), ("Original", "original_date"), ("Agreed", "baseline_date"),
         ("Forecast", "forecast_date"), ("Status", "status"), ("Order", "sort_order"), ("% complete", "percent_complete"),
         ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
         ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
@@ -72,22 +73,22 @@ SHEETS = [
         ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Workstream", "workstream"),
         ("Owner", "owner"), ("Priority", "priority"), ("Due", "due_date"), ("Status", "status"),
         ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"),
-        ("Client-visible", "client_visible"), ("Client messaging", "client_message"), ("Milestone", "milestone"),
+        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
         ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
-    ("RAID", "raid", [
+    ("Risks and issues", "raid", [
         ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Type", "type"),
         ("Workstream", "workstream"), ("Owner", "owner"), ("Response action", "response_action"),
         ("Due", "due_date"), ("Impact", "impact"), ("Likelihood", "likelihood"), ("Priority", "priority"),
         ("Status", "status"), ("Raised", "raised"), ("Closed", "closed"), ("Client-visible", "client_visible"),
-        ("Client messaging", "client_message"), ("Milestone", "milestone"), ("Use case", "use_case"), ("Labels", "labels"),
+        ("Client wording", "client_message"), ("Milestone", "milestone"), ("Use case", "use_case"), ("Labels", "labels"),
         ("Source", "source"), ("Updated", "updated_at")],
      {"id", "priority", "source", "updated_at"}),
     ("Decisions", "decisions", [
         ("ID", "id"), ("Decision", "decision"), ("Project", "project"), ("Status", "status"), ("Made by", "made_by"),
         ("Needed by", "needed_by"), ("Date", "date"), ("Reasoning", "reasoning"), ("Options", "options"),
         ("Revisit", "revisit"), ("Replaces", "replaces"), ("Client-visible", "client_visible"),
-        ("Client messaging", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
+        ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
         ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
@@ -155,6 +156,8 @@ ID_NOTE = ("IDs are given by clark. Don't change or move an ID, and don't sort t
 ID_PROMPT_TITLE = "ID"
 ID_PROMPT_EXISTING = "Don't change this ID: if it changes, this row's details go to another item when the file is imported."
 ID_PROMPT_NEW = "Leave the ID empty for a new item. clark gives it an ID when the file is imported."
+
+
 
 
 class Refused(Exception):
@@ -579,7 +582,7 @@ def _cover_font(**kw):
     return Font(name=COVER_FONT, **kw)
 
 
-def write_cover(wb, cover):
+def write_cover(wb, cover, mark=False):
     """The Cover sheet, first in the workbook and the one it opens on (#85b): one label column and one wide wrapped text column,
     no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). Arial
     throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
@@ -623,11 +626,13 @@ def write_cover(wb, cover):
         if label and kind in ("caution", "return", "where", "ids", "internal"):
             a.font = _cover_font(bold=True, color=grey_text)
     ws.freeze_panes = "A2"
+    if mark:
+        ws.row_dimensions[1].height = excel_picture.COVER_ROW_POINTS      # room for the brand mark (#133), which excel_picture.embed adds
     wb.active = 0
     return ws
 
 
-def workbook(project, rows_by_table, on=None, cover=None):
+def workbook(project, rows_by_table, on=None, cover=None, mark=False):
     """The workbook for one project, from {table: [row, ...]} (creaite excel_sync.cmd_export, the sheet part). Rows are dicts
     with the table's columns; labelled rows may carry `labels` (comma-separated) and milestones `original_date`. A missing
     table is an empty sheet. `on` is the day Shown state is worked out for (today by default). `cover` (excel_cover.lines) adds
@@ -704,25 +709,26 @@ def workbook(project, rows_by_table, on=None, cover=None):
     if lists:
         write_lists(wb, lists)
     if cover:
-        write_cover(wb, cover)
+        write_cover(wb, cover, mark)
     return wb
 
 
-def fixed_zip(data, replace=None):
+def fixed_zip(data, replace=None, add=None):
     """The same .xlsx with every member given one fixed date, in sorted order, deflated: openpyxl stamps each member with the
-    time it was saved, so two saves in different seconds would differ. `replace` maps a member's name to the bytes to use."""
+    time it was saved, so two saves in different seconds would differ. `replace` maps a member's name to the bytes to use, and `add` maps the name of a new member to its bytes."""
     replace = replace or {}
+    add = add or {}
     out = io.BytesIO()
     with zipfile.ZipFile(io.BytesIO(data)) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
-        for name in sorted(src.namelist()):
+        for name in sorted(set(src.namelist()) | set(add)):
             info = zipfile.ZipInfo(name, ZIP_TIME)
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o600 << 16
-            dst.writestr(info, replace.get(name, src.read(name)))
+            dst.writestr(info, add[name] if name in add else replace[name] if name in replace else src.read(name))
     return out.getvalue()
 
 
-def export(path, project, rows_by_table, state_path, on=None, cover=None):
+def export(path, project, rows_by_table, state_path, on=None, cover=None, branding=None, warnings=None):
     """Write the workbook at `path` for `project` from {table: [row, ...]} and record what was written in `state_path`
     (creaite excel_sync.cmd_export). Returns {table: rows written}.
 
@@ -738,11 +744,26 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None):
         raise Refused(f"{path.name} already exists and wasn't written by an export from this store, so it was not "
                       f"overwritten ({path}). Import it, or choose another file name.")
     buf = io.BytesIO()
-    wb = workbook(project, rows_by_table, on, cover)
+    logo = excel_picture.load(branding, warnings) if cover else None     # #133: the local brand logo, if there is one and it is safe
+    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo))
     wb.save(buf)
     # openpyxl sets "modified" to the real time as it saves, so core.xml is written again with the export's own stamp.
     wb.properties.modified = wb.properties.created
-    data = fixed_zip(buf.getvalue(), {"docProps/core.xml": tostring(wb.properties.to_tree())})
+    replace, add = {"docProps/core.xml": tostring(wb.properties.to_tree())}, {}
+    if logo:
+        # The logo goes in after openpyxl has saved, by editing the zip's members (standard library only); the write below is
+        # the atomic one. If the saved file is not laid out as expected the Cover goes without a mark.
+        try:
+            with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as z:
+                files = {n: z.read(n) for n in z.namelist()}
+            more, add = excel_picture.embed(files, logo[0], COVER_NAME)
+            replace.update(more)
+        except excel_picture.PictureRefused as e:
+            text = excel_picture.NOT_USED.format(why=e)         # the same plain sentence as a refused logo file
+            excel_picture.LOG.warning("%s", text)
+            if warnings is not None:
+                warnings.append(text)
+    data = fixed_zip(buf.getvalue(), replace, add)
     platform.write_file(path, data)
     snapshot = {t: {r["id"]: {k: v for k, v in r.items() if k not in DERIVED} for r in rows_by_table.get(t, [])}
                 for t in TABLES}
@@ -763,7 +784,8 @@ def export_name(project):
     return platform.safe_name(f"{project} work items.xlsx")
 
 
-def export_project(store, project, path=None, state_path=None, on=None, exported_by=None, owner=None, owner_email=None):
+def export_project(store, project, path=None, state_path=None, on=None, exported_by=None, owner=None, owner_email=None,
+                   branding=None, warnings=None):
     """Export one project from the store (#31): each table's rows with Store.read(kind, project), archived rows left out (as
     creaite's hide_archived), labels from item_labels and each milestone's Original date from its history. `path` defaults
     to export_name() beside clark.db; the record goes in STATE_FILE beside clark.db. Returns the path written."""
@@ -787,7 +809,7 @@ def export_project(store, project, path=None, state_path=None, on=None, exported
     # named as exporting and the owner are the caller's to give (Settings are not read here).
     cover = excel_cover.from_store(store, project, exported_text(on), exported_by, owner, owner_email, INTERNAL_NOTE,
                                    day(on).isoformat())
-    export(path, project, rows, state_path, on, cover)
+    export(path, project, rows, state_path, on, cover, branding, warnings)
     return path
 
 

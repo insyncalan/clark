@@ -25,7 +25,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import backup, changes, page, platform, server, store as clark_store
+from clark import backup, changes, page, platform, publish_flow, server, store as clark_store
 
 DB_NAME = "clark.db"
 HERE = Path(__file__).resolve().parent
@@ -173,7 +173,8 @@ class ServerOutput:
             try:
                 self.opener(address)
             except platform.PlatformError as e:
-                print(f"{e} Open {address} yourself.", file=self.err, flush=True)
+                why = str(e).replace(" " + platform.TRY_AGAIN, "")        # one next step only: the address, not "try again" as well
+                print(f"{why} Open {address} yourself.", file=self.err, flush=True)
         return len(text)
 
     def flush(self):
@@ -349,7 +350,9 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         shown = ServerOutput(out, code, open_url if args.open else None, err)
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects_of(store.path, roots), out=shown,
-                     err=ServerErrors(err, port), **handlers)
+                     err=ServerErrors(err, port),
+                     publisher=publish_flow.Publisher(store.path, roots, data_dir=store.path.parent),
+                     **handlers)
         if done == 0:
             print("Stopped.", file=out, flush=True)
         return done
