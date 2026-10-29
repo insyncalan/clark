@@ -99,10 +99,10 @@ class Fixture:
 
 
 def snapshot(base):
-    """Every file (bytes, mode) and folder under base, except clark's own .clark-* folders, as a dict that compares."""
+    """Every file (bytes, mode) and folder under base, except clark's own .clark-* and helper-* folders, as a dict that compares."""
     out = {}
     for folder, dirs, names in os.walk(base):
-        dirs[:] = [d for d in dirs if not d.startswith((h.STAGING_PREFIX, h.OLD_PREFIX))]
+        dirs[:] = [d for d in dirs if not d.startswith((h.STAGING_PREFIX, h.OLD_PREFIX, h.HELPER_PREFIX))]
         for n in names + dirs:
             p = Path(folder, n)
             rel = p.relative_to(base).as_posix()
@@ -306,7 +306,7 @@ class FaultEveryStepTest(unittest.TestCase, PlainWordsMixin):
                 self.assertEqual(snapshot(fx.app), fx.before, point)
                 self.assertEqual(snapshot(fx.data), fx.data_before, point)
                 self.assertFalse(h.marker_path(fx.data).exists())
-                self.assertEqual([n for n in os.listdir(fx.app) if n.startswith((h.STAGING_PREFIX, h.OLD_PREFIX))], [])
+                self.assertEqual([n for n in os.listdir(fx.app) if n.startswith((h.STAGING_PREFIX, h.OLD_PREFIX, h.HELPER_PREFIX))], [])
                 self.assertEqual(len(seams.started), 2 if point in ("start_new+", "commit") else 1, point)   # the old one again (and the new one, if it got that far)
                 self.assertPlain(result["message"])
                 step = point.rstrip("+")
@@ -508,7 +508,7 @@ class KillTest(unittest.TestCase):
             self.assertTrue(tree == fx.before, f"half-installed after a kill at {point}")      # old, never half
             self.assertEqual(snapshot(fx.data), fx.data_before, point)
             self.assertFalse(h.marker_path(fx.data).exists())
-            self.assertEqual([n for n in os.listdir(fx.app) if n.startswith((h.STAGING_PREFIX, h.OLD_PREFIX))], [])
+            self.assertEqual([n for n in os.listdir(fx.app) if n.startswith((h.STAGING_PREFIX, h.OLD_PREFIX, h.HELPER_PREFIX))], [])
             self.assertEqual(h.finish(fx.data, FakeSeams()), (h.OK, None))               # again: nothing more to do
             self.assertEqual(snapshot(fx.app), fx.before)
 
@@ -672,7 +672,8 @@ class SourceTest(unittest.TestCase):
                 self.assertIn("updates", [a.name for a in node.names])
         for guarded in ("server", "store", "changes", "publish", "version"):
             self.assertNotRegex(source, rf"(?m)^\s*(from|import) clark\.?{guarded}\b")
-        self.assertNotRegex(source, r"ctypes|os\.system|os\.popen|startfile|shell\s*=")      # it may start the server, nothing else
+        self.assertNotRegex(source, r"ctypes|os\.system|os\.popen|startfile|shell\s*=")
+        self.assertFalse({n.split(".")[0] for n in names} & {"subprocess", "ctypes"}, names)      # it starts nothing itself: platform does
         self.assertNotRegex(source, r"\bunittest\b|os\.environ\.get\(.CLARK_FAIL")      # no fault switch is read in a release
 
     def test_it_runs_on_its_own_from_another_folder(self):
@@ -682,6 +683,74 @@ class SourceTest(unittest.TestCase):
             done = subprocess.run([sys.executable, "-I", str(copy), "--finish", "--data", str(Path(t) / "none")], capture_output=True,
                                   text=True, timeout=30)
             self.assertEqual((done.returncode, done.stdout.strip()), (0, h.MESSAGES["nothing"]))
+
+    def test_platform_py_stays_standard_library_only(self):
+        tree = ast.parse((SRC / "clark" / "platform.py").read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            mods = [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module or ""] if isinstance(node, ast.ImportFrom) else []
+            for m in mods:
+                self.assertNotEqual(m.split(".")[0], "clark", m)
+                if hasattr(sys, "stdlib_module_names"):
+                    self.assertIn(m.split(".")[0], sys.stdlib_module_names, m)
+
+
+class HelperCopyTest(unittest.TestCase):
+    """begin() copies the helper and platform.py (as clark_platform.py) beside each other; the folder works alone."""
+
+    def test_begin_copies_the_helper_and_platform_and_notes_the_folder(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            path = fx.begin()
+            folder = h.updates_dir(fx.data) / ("helper-" + STAMP)
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["helper_dir"], str(folder))
+            self.assertEqual((folder / "update_helper.py").read_bytes(), (SRC / "clark" / "update_helper.py").read_bytes())
+            self.assertEqual((folder / "clark_platform.py").read_bytes(), (SRC / "clark" / "platform.py").read_bytes())
+            self.assertFalse((folder / "platform.py").exists())            # that name would hide Python's own platform module
+
+    def test_an_earlier_updates_helper_folder_is_removed(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            put(h.updates_dir(fx.data), "helper-19990101T000000Z/update_helper.py", b"old")
+            fx.begin()
+            self.assertEqual([p.name for p in h.updates_dir(fx.data).glob("helper-*")], ["helper-" + STAMP])
+
+    def test_finish_works_from_the_copied_folder_alone(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            fx.begin()
+            folder = h.updates_dir(fx.data) / ("helper-" + STAMP)
+            alone = Path(t) / "elsewhere"
+            alone.mkdir()
+            for f in folder.iterdir():
+                (alone / f.name).write_bytes(f.read_bytes())
+            self.assertEqual(sorted(p.name for p in alone.iterdir()), ["clark_platform.py", "update_helper.py"])
+            done = subprocess.run([sys.executable, "-I", str(alone / "update_helper.py"), "--finish", "--data", str(fx.data)],
+                                  capture_output=True, text=True, timeout=60, env={**os.environ, "PYTHONPATH": ""})
+            self.assertEqual(done.returncode, h.ROLLED_BACK, done.stdout + done.stderr)
+            self.assertEqual(done.stdout.strip(), h.MESSAGES["finished"])
+            self.assertFalse(h.marker_path(fx.data).exists())
+            self.assertEqual((fx.app / "src/clark/mod.py").read_bytes(), OLD["src/clark/mod.py"])
+
+    def test_the_default_seams_use_the_copy_for_the_server_and_the_health_check(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = Path(t) / "one"
+            copy.mkdir()
+            (copy / "clark_platform.py").write_bytes((SRC / "clark" / "platform.py").read_bytes())
+            plat = h.load_platform(copy)
+            self.assertIsNot(plat, platform)                                  # a separate load, from the file by its path
+            self.assertTrue(callable(plat.start_detached) and callable(plat.run_python_check))
+            seams = h.Seams(platform=plat)
+            put(t, "app/src/clark/__init__.py", b"")
+            (Path(t) / "app/vendor").mkdir()
+            seams.check_install(Path(t) / "app")
+            put(t, "app/src/clark/bad.py", b"raise ImportError('x')\n")
+            with self.assertRaises(h.StepError):
+                seams.check_install(Path(t) / "app")
+
+    def test_load_platform_without_a_copy_or_platform_py_fails_plainly(self):
+        with tempfile.TemporaryDirectory() as t:
+            with self.assertRaises(OSError):
+                h.load_platform(t)
 
 
 class DefaultSeamsTest(unittest.TestCase):

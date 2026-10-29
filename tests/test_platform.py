@@ -485,5 +485,23 @@ class MoveUnlessExists(TempHome):
         self.assertEqual(list(self.home.iterdir()), [])
 
 
+class RunPythonCheck(unittest.TestCase):
+    def test_it_runs_code_isolated_and_returns_status_and_stderr(self):
+        status, errors = pl.run_python_check(sys.executable, "import sys; sys.stderr.write(sys.argv[1]); sys.exit(3)", ["hello"])
+        self.assertEqual((status, errors), (3, "hello"))
+        self.assertEqual(pl.run_python_check(sys.executable, "pass")[0], 0)
+
+    def test_it_builds_an_argument_list_with_isolation_flags(self):
+        seen = {}
+
+        def run(args, **kw):
+            seen["args"], seen["kw"] = args, kw
+            return subprocess.CompletedProcess(args, 1, b"", b"bad \xff")
+        status, errors = pl.run_python_check("py", "code", [Path("/a"), "b"], timeout=7, run=run)
+        self.assertEqual(seen["args"], ["py", "-I", "-B", "-c", "code", "/a", "b"])
+        self.assertEqual((seen["kw"]["timeout"], seen["kw"].get("shell")), (7, None))
+        self.assertEqual((status, errors), (1, "bad \ufffd"))
+
+
 if __name__ == "__main__":
     unittest.main()
