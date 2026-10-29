@@ -20,6 +20,7 @@ SRC = ROOT / "src"
 ENCODING_ONLY = (ROOT / "tests", ROOT / "dev")           # also read for the encoding rule; vendor/ is not
 SKIPPED_FOLDERS = {"node_modules", "vendor", "__pycache__"}
 PLATFORM = Path("clark") / "platform.py"
+SYSTEM_ALLOWED = {PLATFORM, Path("clark") / "update_helper.py"}      # the update helper (#109) runs standalone from the data folder, so it starts the new server itself
 SYSTEM_MODULES = {"subprocess", "ctypes"}
 SYSTEM_CALLS = {("os", "startfile"), ("os", "system"), ("os", "popen")}
 SYSTEM_TEXT = ("osascript", "~/Library", "Library/Application Support")
@@ -50,7 +51,7 @@ def problems(source, rel, encoding_only=False):
     text-mode encoding rule is checked (for tests/ and dev/)."""
     tree = ast.parse(source)
     parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
-    system_allowed = encoding_only or Path(rel) == PLATFORM
+    system_allowed = encoding_only or Path(rel) in SYSTEM_ALLOWED
     out = []
 
     def say(node, what):

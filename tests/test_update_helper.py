@@ -225,7 +225,7 @@ class HappyPathTest(unittest.TestCase, PlainWordsMixin):
         with tempfile.TemporaryDirectory() as t:
             fx = Fixture(t)
             path = fx.begin()
-            m = json.loads(path.read_text())
+            m = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual((m["phase"], m["stamp"], m["from"], m["to"], m["server_pid"], m["port"]),
                              ("staged", STAMP, "0.3.0", "0.3.1", 4321, 8765))
             self.assertEqual([e["name"] for e in m["entries"]],
@@ -310,7 +310,7 @@ class FaultEveryStepTest(unittest.TestCase, PlainWordsMixin):
                 self.assertEqual(len(seams.started), 2 if point in ("start_new+", "commit") else 1, point)   # the old one again (and the new one, if it got that far)
                 self.assertPlain(result["message"])
                 step = point.rstrip("+")
-                log = (h.updates_dir(fx.data) / h.LOG_NAME).read_text()
+                log = (h.updates_dir(fx.data) / h.LOG_NAME).read_text(encoding="utf-8")
                 self.assertRegex(log, rf" {re.escape(step)} failed ", point)   # one line names the step that failed
 
     def test_a_server_started_by_a_stopped_update_is_stopped_again(self):
@@ -353,7 +353,7 @@ class FaultEveryStepTest(unittest.TestCase, PlainWordsMixin):
             code, result = h.run_update(h.marker_path(fx.data), seams)
             self.assertEqual((code, result["message"]), (h.ROLLED_BACK, h.MESSAGES["damaged"]))
             self.assertEqual(snapshot(fx.app), fx.before)
-            self.assertNotIn("swap:old:src", (h.updates_dir(fx.data) / h.LOG_NAME).read_text())
+            self.assertNotIn("swap:old:src", (h.updates_dir(fx.data) / h.LOG_NAME).read_text(encoding="utf-8"))
 
     def test_a_link_in_the_staged_files_is_refused(self):
         with tempfile.TemporaryDirectory() as t:
@@ -497,7 +497,7 @@ class KillTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             fx = Fixture(t)
             script = Path(t) / "kill_helper.py"
-            script.write_text(KILL_SCRIPT)
+            script.write_text(KILL_SCRIPT, encoding="utf-8")
             fx.begin()
             done = subprocess.run([sys.executable, "-I", str(script), str(SRC), str(h.marker_path(fx.data)), point, boom],
                                   capture_output=True, timeout=60)
@@ -556,9 +556,9 @@ class FinishTest(unittest.TestCase, PlainWordsMixin):
         with tempfile.TemporaryDirectory() as t:
             fx = Fixture(t)
             path = fx.begin()
-            m = json.loads(path.read_text())
+            m = json.loads(path.read_text(encoding="utf-8"))
             m["helper_pid"] = 99999
-            path.write_text(json.dumps(m))
+            path.write_text(json.dumps(m), encoding="utf-8")
             seams = FakeSeams(gone=False)
             code, result = h.finish(fx.data, seams)
             self.assertEqual((code, result["message"]), (h.BUSY, h.MESSAGES["busy"]))
@@ -598,7 +598,7 @@ class LogTest(unittest.TestCase):
             fx = Fixture(t)
             trace = []
             run_with(fx, trace=trace, home=t)
-            lines = (h.updates_dir(fx.data) / h.LOG_NAME).read_text().splitlines()
+            lines = (h.updates_dir(fx.data) / h.LOG_NAME).read_text(encoding="utf-8").splitlines()
             self.assertEqual([ln.split()[3] for ln in lines], [n for n in trace if not n.endswith("+")])
             self.assertTrue(all(ln.split()[4] == "ok" and ln.split()[2] == "0.3.0->0.3.1" and ln.split()[1] == STAMP for ln in lines))
         with tempfile.TemporaryDirectory() as t:
@@ -608,7 +608,7 @@ class LogTest(unittest.TestCase):
                 if name == "health":
                     raise RuntimeError(f"cannot read {t}/clark-0.3.0/src and then {os.path.expanduser('~')}/x")
             run_with(fx, boom, home=t)
-            text = (h.updates_dir(fx.data) / h.LOG_NAME).read_text()
+            text = (h.updates_dir(fx.data) / h.LOG_NAME).read_text(encoding="utf-8")
             self.assertNotIn(t, text)
             self.assertIn("~/clark-0.3.0/src", text)
             self.assertNotIn("VALUE", text)
@@ -621,7 +621,7 @@ class LogTest(unittest.TestCase):
             log.write_bytes(b"x" * (h.LOG_LIMIT + 1))
             run_with(fx)
             self.assertLess(log.stat().st_size, 10000)
-            self.assertNotIn("xxxx", log.read_text())
+            self.assertNotIn("xxxx", log.read_text(encoding="utf-8"))
 
 
 class PlainWordsTest(unittest.TestCase, PlainWordsMixin):
@@ -651,14 +651,14 @@ class PlainWordsTest(unittest.TestCase, PlainWordsMixin):
         self.assertTrue(h.MESSAGES["not_restored"].startswith("The update didn't install, and not everything could be put back yet."))
 
     def test_the_helper_never_uses_the_updaters_wording_for_a_path(self):
-        source = (SRC / "clark" / "update_helper.py").read_text()
+        source = (SRC / "clark" / "update_helper.py").read_text(encoding="utf-8")
         for word in ("sweep", "stage the", "vault"):
             self.assertNotIn(word, "\n".join(re.findall(r'"([^"\n]{20,})"', source)))
 
 
 class SourceTest(unittest.TestCase):
     def test_standard_library_only_and_unguarded(self):
-        source = (SRC / "clark" / "update_helper.py").read_text()
+        source = (SRC / "clark" / "update_helper.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         top = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
         names = set()
@@ -672,6 +672,7 @@ class SourceTest(unittest.TestCase):
                 self.assertIn("updates", [a.name for a in node.names])
         for guarded in ("server", "store", "changes", "publish", "version"):
             self.assertNotRegex(source, rf"(?m)^\s*(from|import) clark\.?{guarded}\b")
+        self.assertNotRegex(source, r"ctypes|os\.system|os\.popen|startfile|shell\s*=")      # it may start the server, nothing else
         self.assertNotRegex(source, r"\bunittest\b|os\.environ\.get\(.CLARK_FAIL")      # no fault switch is read in a release
 
     def test_it_runs_on_its_own_from_another_folder(self):
