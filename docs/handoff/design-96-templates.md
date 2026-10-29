@@ -68,4 +68,4 @@ Read from `schema.sql`/`store.py` (types: `current glance usecases milestones te
 | Callout | none | New | A short message with a kind (information, decision, warning). |
 | Key dates | `milestones` | Maybe | `milestones` shows the project's milestone calendar; Key dates is a short list, typed or taken from milestones. Reuse only if `milestones` can show a chosen few. |
 
-So six or seven need a new type (or one `template` type with a column), as section 6 says; Documents and links and Key dates are the two to ask Alan about. This choice sets the CHECK, the delete rule and what "empty" means for publish.
+So six or seven need a new type (or one `template` type with a column), as section 6 says; Documents and links and Key dates are the two for the lead to decide. This choice sets the CHECK, the delete rule and what "empty" means for publish.

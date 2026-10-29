@@ -21,13 +21,13 @@ export const RECENT_MAX = 3;
 // Words and parts are the prototype's (system/prototype/views.js, the same list Help's table draws from). `fit` puts the better width first.
 export const TEMPLATES = [
   { id: "text", name: "Text", kind: "text", fit: ["full", "half"], type: "text", title: "New section", body: "",
-    description: "Words under a heading, written in clark’s one editor.", holds: ["Heading", "Text"] },
+    description: "Words under a heading.", holds: ["Heading", "Text"] },
   { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "",
     description: "A story with a picture: a site visit, a design, a screenshot of the new system.", holds: ["Heading", "Text", "Image", "Caption"] },
-  { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures", title: "Key figures", body: "",
-    description: "The same, for three numbers. Each card is wider, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
   { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures", title: "Key figures", body: "",
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
+  { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures", title: "Key figures", body: "",
+    description: "Three numbers with labels. Each card is wider, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
   { id: "raid-3", name: "RAID cards, three", kind: "work", fit: ["full"], type: "raidcards", title: "Risks and issues", body: "",
     description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
   { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raidcards", title: "Risks and issues", body: "",
