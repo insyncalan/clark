@@ -210,6 +210,36 @@ class Claims(unittest.TestCase):
         self.assertEqual([f.ref for f in read(text).flags], ["ABC-A-777", "ABC-A-888", "P8", "P9"])
 
 
+class Caps(unittest.TestCase):
+    def test_hundreds_of_unknown_ids_give_a_few_flags_and_an_and_more_line(self):
+        text = " ".join(f"ABC-A-{n:03d}" for n in range(100, 1000))
+        r = read(text)
+        self.assertLessEqual(len(r.flags), ask.MAX_FLAGS + 1)
+        self.assertEqual(r.flags[-1].kind, "more")
+        self.assertRegex(r.flags[-1].message, r"^and \d+ more\b")
+        shown = sum(1 for f in r.flags if f.kind == "unknown_id")
+        self.assertEqual(shown + int(re.search(r"\d+", r.flags[-1].message).group()), 900)
+
+    def test_a_few_flags_get_no_and_more_line(self):
+        self.assertNotIn("more", kinds(read("ABC-A-777 and ABC-A-778")))
+
+    def test_the_cap_holds_on_a_reply_that_did_not_parse(self):
+        r = read("CITE: nonsense\n" + " ".join(f"ABC-A-{n:03d}" for n in range(100, 900)))
+        self.assertFalse(r.parsed)
+        self.assertLessEqual(len(r.flags), ask.MAX_FLAGS + 2)
+
+
+class Keys(unittest.TestCase):
+    def test_an_unknown_id_in_a_change_name_is_left_out_and_flagged(self):
+        r = read("Done.\nCHANGE: " + json.dumps({"ABC-A-777": "x"}))
+        self.assertEqual(r.changes, ())
+        self.assertEqual(kinds(r).count("change_left_out"), 1)
+
+    def test_a_known_id_in_a_change_name_is_kept(self):
+        r = read("Done.\nCHANGE: " + json.dumps({"ABC-A-001": "x"}))
+        self.assertEqual(r.changes, ({"ABC-A-001": "x"},))
+
+
 class Speed(unittest.TestCase):
     """No line of a reply can make the claims check slow (the owner pattern once backtracked on a long run of spaces)."""
 
