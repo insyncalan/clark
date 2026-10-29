@@ -902,6 +902,8 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ad-tpl.off .ad-tn { color: var(--text-muted); }
 .ad-fit { font-size: var(--size-small); color: var(--text-muted); }
 .ad-td { grid-column: 2 / 4; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
+/* A template the store cannot make yet is read and chosen like any other; only the button stays off, and the preview says why. */
+.ad-later { font-style: italic; }
 .ad-none { margin: var(--space-3) 0; }
 .ad-prev { min-width: 0; padding-left: var(--space-4); border-left: 1px solid var(--grey-200); overflow-wrap: anywhere; }
 .ad-prev h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }

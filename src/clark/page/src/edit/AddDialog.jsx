@@ -69,7 +69,7 @@ function Box({ after, opener, onClose }) {
       return;
     }
     if (e.key === "ArrowDown" && e.target === search.current) {
-      const r = root.current && (root.current.querySelector('input[name="template"]:checked') || root.current.querySelector('input[name="template"]:not([disabled])'));
+      const r = root.current && (root.current.querySelector('input[name="template"]:checked') || root.current.querySelector('input[name="template"]'));
       if (r) { e.preventDefault(); r.focus(); }
       return;
     }
@@ -118,11 +118,12 @@ function Box({ after, opener, onClose }) {
               const ok = available(t);
               return (
                 <label class={`ad-tpl${ok ? "" : " off"}`} key={t.id} data-template={t.id}>
-                  <input type="radio" name="template" value={t.id} checked={!!current && current.id === t.id} disabled={!ok}
-                    aria-describedby={`ad-d-${t.id}`} onChange={() => setChosen(t.id)} />
+                  <input type="radio" name="template" value={t.id} checked={!!current && current.id === t.id}
+                    aria-describedby={ok ? `ad-d-${t.id}` : `ad-d-${t.id} ad-l-${t.id}`} onChange={() => setChosen(t.id)} />
                   <span class="ad-tn">{t.name}</span>
                   <span class="ad-fit">{fitWords(t)}</span>
-                  <span class="ad-td" id={`ad-d-${t.id}`}>{ok ? t.description : MESSAGES.later}</span>
+                  <span class="ad-td" id={`ad-d-${t.id}`}>{t.description}</span>
+                  {ok ? null : <span class="ad-td ad-later" id={`ad-l-${t.id}`}>{MESSAGES.later}</span>}
                 </label>
               );
             })}
@@ -135,6 +136,7 @@ function Box({ after, opener, onClose }) {
                 <p class="ad-lbl">Holds</p>
                 <ul>{current.holds.map((h) => <li key={h}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>
+                {canPlace ? null : <p class="muted ad-later-prev" id="ad-later-prev">{MESSAGES.later}</p>}
               </>
             ) : <p class="muted">Choose a template.</p>}
             <fieldset class="ad-where">
@@ -148,7 +150,7 @@ function Box({ after, opener, onClose }) {
         </div>
         <div class="ad-foot">
           <button type="button" class="pk-btn" data-cancel onClick={close}>Cancel</button>
-          <button type="submit" class="pk-btn pri" data-place disabled={!canPlace}>Add section</button>
+          <button type="submit" class="pk-btn pri" data-place disabled={!canPlace} aria-describedby={canPlace ? undefined : "ad-later-prev"}>Add section</button>
         </div>
       </form>
     </div>

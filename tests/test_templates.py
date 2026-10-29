@@ -29,6 +29,18 @@ def page_html():
 
 # Fictional. Rows: [a] [b] [c d] [e] (a pair in the middle; e is last)
 S = [sec("a", "Summary"), sec("b", "Milestones", type="milestones"), sec("c", "This week", beside=1), sec("d", "Next week"), sec("e", "Decisions", type="decisions")]
+FIRST_SLICE_DESCRIPTIONS = [
+    {"id": "text-image", "description": "A story with a picture: a site visit, a design, a screenshot of the new system."},
+    {"id": "figures-3", "description": "The same, for three numbers. Each card is wider, so a short note fits under the change."},
+    {"id": "figures-4", "description": "Three or four numbers with labels and a change since last week."},
+    {"id": "raid-3", "description": "The risks, actions, issues or decisions you want the reader to see, as cards."},
+    {"id": "raid-4", "description": "Four shorter cards: good for “this week’s actions” or “decisions needed”."},
+    {"id": "work-items", "description": "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed."},
+    {"id": "docs-links", "description": "The papers that go with this week’s report."},
+    {"id": "callout", "description": "One thing the reader must see."},
+    {"id": "key-dates", "description": "What’s coming, from the milestones."},
+    {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
+]
 FIRST_SLICE = ["text", "text-image", "figures-3", "figures-4", "raid-3", "raid-4", "work-items", "docs-links", "callout", "key-dates"]
 
 
@@ -287,7 +299,8 @@ class Box(Base):
             p.until("document.querySelectorAll('[data-template]').length === 3", "the search narrowed the list")
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["3", "0", "2", "0", "0", "1", "0"])
             p.key("ArrowDown", code="ArrowDown", vk=40)
-            self.assertTrue(p.js("document.activeElement.matches('input[type=search]')"), "none of those can be chosen yet, so Down stays")
+            self.assertTrue(p.js("document.activeElement.matches('input[name=template]:checked') && document.activeElement.value === 'figures-3'"),
+                            "a template that cannot be placed yet can still be reached and chosen, so Down goes to it")
             p.js("var s = document.querySelector('input[type=search]'); s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true}))")
             p.type("text")
             p.until("document.querySelectorAll('[data-template]').length > 2 && !!document.querySelector('input[name=template]:checked')", "a search for text")
@@ -306,21 +319,45 @@ class Box(Base):
             p.until("document.querySelectorAll('[data-template]').length === 0", "nothing in Work items matches")
             self.assertEqual(p.js("document.querySelector('.ad-none').textContent"), "Nothing in Work items matches that search. Try another word, or choose All templates.", "worded by cause: a kind is chosen")
 
-    def test_a_template_not_made_yet_is_listed_but_cannot_be_placed(self):
+    def test_a_template_not_made_yet_is_read_and_reached_but_cannot_be_placed(self):
+        """Romanoff HIGH: nine of ten were greyed with their description replaced and skipped by the arrow keys. Now each is readable and
+        reachable; only Add section stays off, and the reason is in words."""
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("[...document.querySelectorAll('input[name=template]')].filter(i => !i.disabled).map(i => i.value)"), ["text"])
-            self.assertIn("Coming with a later release.", p.js("document.querySelector('[data-template=callout]').textContent"))
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 10, "every template can be focused")
+            self.assertEqual(p.js("document.querySelector('[data-place]').disabled"), False, "Text is chosen and can be placed")
+            cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
+            for tid, desc in cat.items():
+                if tid == "text":
+                    continue
+                row = p.js(f"document.querySelector('[data-template={tid}]').textContent")
+                self.assertIn(desc, row, f"{tid}: its own description is still readable")
+                self.assertIn("Coming with a later release.", row, tid)
+            self.assertNotIn("Coming with a later release.", p.js("document.querySelector('[data-template=text]').textContent"))
+            self.assertIn("ad-l-callout", p.js("document.querySelector('[data-template=callout] input').getAttribute('aria-describedby')"))
+            # the arrow keys walk through all ten, greyed or not, and the preview follows
+            p.js("document.querySelector('input[name=template]:checked').focus()")
+            seen = [p.js("document.activeElement.value")]
+            for _ in range(9):
+                p.key("ArrowDown", code="ArrowDown", vk=40)
+                seen.append(p.js("document.activeElement.value"))
+            self.assertEqual(seen, FIRST_SLICE, "the arrow keys reach every template, in order")
+            self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "Key dates")
+            self.assertIn("What’s coming, from the milestones.", p.js("document.querySelector('.ad-prev').textContent"))
+            self.assertEqual(p.js("document.getElementById('ad-later-prev').textContent"), "Coming with a later release.", "the reason is in text")
+            self.assertTrue(p.js("document.querySelector('[data-place]').disabled"))
+            self.assertEqual(p.js("document.querySelector('[data-place]').getAttribute('aria-describedby')"), "ad-later-prev")
+            p.key("Enter", code="Enter", vk=13)
+            self.assertTrue(p.js("!!document.querySelector('[role=dialog]')"), "Enter on one that cannot be placed does nothing")
+            p.js("document.querySelector('[role=dialog]').requestSubmit()")
+            self.assertEqual(self.sent, [], "a submit with a template that is not there yet sends nothing")
             p.js("document.querySelector('[data-kind=notes]').click()")
             p.until("document.querySelectorAll('[data-template]').length === 1", "Notes")
             self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "Callout", "the preview still shows it")
             self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision"])
-            self.assertTrue(p.js("document.querySelector('[data-place]').disabled"))
-            p.js("document.querySelector('[role=dialog]').requestSubmit()")
-            self.assertEqual(self.sent, [], "a submit with a template that is not there yet sends nothing")
 
     def test_the_button_says_add_section_and_beside_names_the_section(self):
         with chrome() as cdp:
