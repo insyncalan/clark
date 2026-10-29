@@ -368,3 +368,88 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
         return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, tuple(flags))
     kind = "disguised" if disguised else "unreadable"
     return Reply(text.strip(), (), (), False, tuple([Flag(kind, "", UNREADABLE)] + flags))
+
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# THE PROVIDER SEAM (commit 4). A provider takes the one request and returns the reply text, or a plain-words failure. This module
+# names none: the one real provider lives in its own module, and nothing else may say which company's model it is. A provider
+# wraps `request.text` in its own envelope and may add nothing to it: the same request gives the same text for every provider.
+# ---------------------------------------------------------------------------------------------------------------------------
+STOPPED = "Stopped. Nothing was changed."
+COULD_NOT = "The assistant couldn't answer just now. Try again in a moment."
+NOT_READY = "Questions aren't set up on this computer yet. Everything else in the report works as before."
+
+
+@dataclass(frozen=True)
+class Failure:
+    """A provider could not answer. `message` is plain words for the person; it holds no reply, key or request text."""
+    message: str
+
+
+class Provider:
+    """The interface. A subclass sets `provider` (a short lower-case name), and writes `ask(request)` (returns the reply as text, or
+    a `Failure`; it must not raise for an ordinary failure) and `status()` (returns {"connected": bool, "why": plain words}; it
+    holds no key). `envelope(text)` is how the provider wraps the request text for its own wire; the default is none."""
+    provider = ""
+
+    def envelope(self, text):
+        return text
+
+    def ask(self, request):
+        raise NotImplementedError
+
+    def status(self):
+        return {"connected": False, "why": NOT_READY}
+
+
+class StubProvider(Provider):
+    """For tests and for the panel to be built against: answers with the text it was given, or fails with the failure it was given.
+    Keeps what it would have put on the wire in `sent` (a list of strings)."""
+    provider = "stub"
+
+    def __init__(self, reply="", failure=None, connected=True, why=""):
+        self.reply, self.failure, self.connected, self.why, self.sent = reply, failure, connected, why, []
+
+    def ask(self, request):
+        self.sent.append(self.envelope(request.text))
+        return Failure(self.failure) if self.failure else self.reply
+
+    def status(self):
+        return {"connected": bool(self.connected), "why": self.why or ("" if self.connected else NOT_READY)}
+
+
+class FramedStubProvider(StubProvider):
+    """A second fake with a different envelope, so a test can show the request text is the same whichever provider carries it."""
+    provider = "framed-stub"
+
+    def envelope(self, text):
+        return "<request>\n" + text + "\n</request>"
+
+
+def answer_status(provider):
+    """The provider's status as {"connected": bool, "why": str}; anything else it returns, or a status that raises, is "not ready"."""
+    try:
+        st = provider.status()
+    except Exception:  # noqa: BLE001
+        return {"connected": False, "why": NOT_READY}
+    if not (isinstance(st, dict) and isinstance(st.get("connected"), bool) and isinstance(st.get("why", ""), str)):
+        return {"connected": False, "why": NOT_READY}
+    return {"connected": st["connected"], "why": st.get("why", "")}
+
+
+def ask_provider(provider, request, codes=(), exists=lambda ref: False, facts=None):
+    """Send one request through `provider` and read the answer. Returns a `Reply`, or a `Failure` (the provider's, or a plain one
+    when it raised or returned something that isn't text). Nothing is logged and nothing is changed."""
+    if not isinstance(request, Request):
+        return Failure(BAD_INPUT)
+    if not answer_status(provider)["connected"]:
+        return Failure(answer_status(provider)["why"] or NOT_READY)
+    try:
+        got = provider.ask(request)
+    except Exception:  # noqa: BLE001  the class and message of a provider's error could hold request text; neither is kept
+        return Failure(COULD_NOT)
+    if isinstance(got, Failure):
+        return got if isinstance(got.message, str) and got.message else Failure(COULD_NOT)
+    if not isinstance(got, str):
+        return Failure(COULD_NOT)
+    return read_reply(got, request, codes, exists, facts)
