@@ -188,9 +188,33 @@ class Seams:
             s.settimeout(0.5)
             return s.connect_ex(("127.0.0.1", int(port))) != 0
 
-    def stop_process(self, pid):
-        """End a server this helper started (a stopped update never leaves the new one running)."""
+    def identity(self, pid):
+        """Who `pid` is right now: its start time (Linux: /proc; elsewhere `ps`, run through platform.run_python_check so this
+        file starts no program). None when there is no such process or it can't be told. A recycled id has another start time."""
+        if not pid:
+            return None
+        try:
+            fields = Path(f"/proc/{int(pid)}/stat").read_text(encoding="utf-8", errors="replace").rsplit(")", 1)[1].split()
+            return "proc:" + fields[19]
+        except (OSError, IndexError, ValueError):
+            pass
+        code = ("import subprocess, sys\n"
+                "r = subprocess.run(['ps', '-o', 'lstart=', '-p', sys.argv[1]], capture_output=True, text=True)\n"
+                "sys.stderr.write(r.stdout.strip())\n")
+        try:
+            status, text = self.platform.run_python_check(self.helper_python(), code, [int(pid)], timeout=20)
+        except Exception:                       # a timeout or a missing program: the identity can not be told
+            return None
+        text = text.strip()
+        return "ps:" + text if status == 0 and text else None
+
+    def stop_process(self, pid, ident=None):
+        """End a server this helper started (a stopped update never leaves the new one running). Only if the process with this
+        id is still the one that was recorded: after a crash or a restart the id may belong to an unrelated program, which is
+        left alone (the old server counts as gone). With no recorded identity nothing is signalled."""
         if self.process_gone(pid):
+            return
+        if not ident or self.identity(pid) != ident:
             return
         os.kill(pid, signal.SIGTERM)
         end = self.clock() + 10
@@ -341,6 +365,9 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
     if check and new.get("schema_version") != installed_schema:
         from clark import updates
         raise updates.UpdateError("layout", f"data layout {new.get('schema_version')}, installed {installed_schema}")
+    from clark import updates                # the names come from files on disk: '', '..' and absolute names are refused
+    updates.check_record_names(old)
+    updates.check_record_names(new)
     shipped = sorted(set(old["files"]) | set(new["files"]) | {MANIFEST})
     names = order_entries({rel.split("/")[0] for rel in shipped})
     entries = [{"name": n, "had_old": os.path.lexists(app / n), "in_new": os.path.lexists(staging / n)} for n in names]
@@ -553,7 +580,7 @@ class Run:
     def s_start_new(self):
         self.save(phase="started")
         pid = self.seams.start_server(self.app, self.data, self.m["port"], self.data / "server.log")
-        self.save(new_pid=pid)
+        self.save(new_pid=pid, new_ident=self.seams.identity(pid))
         end = self.seams.clock() + WAIT_START_SECONDS
         while not self.seams.server_answers(self.m["port"], self.m["mark_header"], self.m["mark"]):
             if self.seams.clock() > end:
@@ -596,7 +623,7 @@ class Run:
 
     def r_stop_new(self):
         if self.m.get("new_pid"):
-            self.seams.stop_process(self.m["new_pid"])
+            self.seams.stop_process(self.m["new_pid"], self.m.get("new_ident"))
 
     def r_verify(self):
         names = [e["name"] for e in self.m["entries"]]
