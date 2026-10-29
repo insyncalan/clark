@@ -146,7 +146,7 @@ function Box({ after, opener, onClose }) {
               );
             })}
           </fieldset>
-          <section class="ad-prev" aria-label="Preview">
+          <section class="ad-prev" aria-label="About this template">
             {current ? (
               <>
                 <h3 aria-live="polite">{current.name}</h3>

@@ -562,7 +562,7 @@ class Box(Base):
                     return {ok: ok, prevDisplay: getComputedStyle(q('.ad-prev')).display, prevBox: q('.ad-prev').getBoundingClientRect().width > 0,
                       label: q('.ad-prev').getAttribute('aria-label'), live: q('.ad-prev').getAttribute('aria-live'),
                       announced: [...document.querySelectorAll('.ad-prev [aria-live]')].map(e => e.tagName)};})()""")
-                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "Preview", "live": None, "announced": ["H3", "P"]},
+                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "About this template", "live": None, "announced": ["H3", "P"]},
                                  f"{width}: only the heading and the description are announced when the choice changes, not the whole preview")
                 seq = []
                 for _ in range(16):
