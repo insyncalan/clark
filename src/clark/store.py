@@ -31,18 +31,21 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 2          # 2 (#126): documents can be archived
+SCHEMA_V3 = Path(__file__).with_name("schema_v3.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
+SCHEMA_VERSION = 3          # 2 (#126): documents can be archived; 3 (#47): app_settings, the ask switch
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
           "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders")
+SETTINGS_TABLES = ("app_settings",)     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
 # clark: - promises, + use_cases, and + the report's own tables (#65, one amendment: the route admits only report_sections)
 KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "actions": ("id",), "raid": ("id",),
         "decisions": ("id",), "use_cases": ("id",), "links": ("from_item", "to_item", "kind"), "labels": ("name",),
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
-        "documents": ("project", "id"), "source_folders": ("project", "path")}
+        "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",)}
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
     "projects": ("code", "name"),
@@ -60,10 +63,12 @@ REQUIRED_NEW = {
     "glance_tiles": ("project", "tile"),                                # clark: its sort_order is a rule (0 is a number)
     "report_hidden": ("project", "item_id"),
     "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
+    "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
     "documents": ("project", "title", "url"),                           # clark (#126): registered so it can be archived; see DOCUMENTS_LATER
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")   # what Step.archive takes (#126)
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
+SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
 ALLOWED = {
     ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the nine of schema.sql's CHECK
@@ -194,7 +199,7 @@ def shown(iso):
 
 def _table(table):
     """`table` if it is one the writer knows; the only way a table name reaches SQL."""
-    if table not in TABLES:
+    if table not in TABLES and table not in SETTINGS_TABLES:
         raise Invalid(f"unknown table {table!r}")
     return table
 
@@ -318,7 +323,7 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived"})
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled"})
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -755,6 +760,8 @@ def write_item(con, item, step):
         raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
     if table == "documents" and op in ("new", "update") and not reverting:    # clark (#126): no ID scheme, no url rule (doclinks) yet; only an Undo of an archive or restore writes it
         raise Invalid(DOCUMENTS_LATER)
+    if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
+        raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
     if op == "new":
         if not reverting:
@@ -1296,7 +1303,7 @@ def referred_to(con, key):
 
 def why_not(con, r, reverted, done_ids, undoing_a_revert):
     """Why a change_log row can't be put back at all, or None."""
-    if r["tbl"] not in TABLES:
+    if r["tbl"] not in TABLES and r["tbl"] not in SETTINGS_TABLES:
         return "can't be undone"
     if not undoing_a_revert and r["rowid"] in reverted:
         return "already undone"
@@ -1592,7 +1599,18 @@ def migrate_to_2(con):
     _item_events_allow_board(con)
 
 
-MIGRATIONS = ((2, migrate_to_2),)     # version -> the step that brings a file TO that version; the next one (#115: 3) is added here
+def migrate_settings(con):
+    """The settings step (#47): the app_settings table with its one row (ask_enabled, on). The statements are schema_v3.sql's, so
+    a second run changes nothing: the table and the row are made only if missing. It changes no existing value. Runs inside the
+    caller's transaction and does not touch the version (the runner does). It is step 3 in MIGRATIONS."""
+    for statement in _statements(SCHEMA_V3.read_text(encoding="utf-8")):
+        con.execute(statement)
+
+
+# version -> the step that brings a file TO that version. The runner refuses a gap, so a step takes the next free number after
+# main's SCHEMA_VERSION. The settings step (#47) is 3; PR #206 (#120) and #115 also want a step: whichever lands second takes the
+# next number at merge (renumber its frozen file and its entry here, then set SCHEMA_VERSION to the last).
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_settings))
 
 
 def migration_plan(version, table=None):
@@ -2112,6 +2130,27 @@ class Store:
     def history(self, ref):
         from clark import history
         return history.history(self.con, ref)
+
+    def settings_ready(self):
+        """True when this file has the settings step's table with its one row (#47). A file without them makes the settings route
+        say so instead of failing, and asking reads as off (ASK_WHEN_MISSING)."""
+        try:
+            have = self.con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'app_settings'").fetchone()
+            return bool(have and self.con.execute("SELECT 1 FROM app_settings WHERE id = 1").fetchone())
+        except sqlite3.Error:
+            return False
+
+    def ask_enabled(self):
+        """True only while asking is on for this computer (#47): the one row's switch is 1. The server calls this before anything is
+        sent to a model. It never fails open: a file with no such table or row, a value that is not exactly 1, or any database
+        error reads as ASK_WHEN_MISSING (off). Read only."""
+        try:
+            if not self.settings_ready():
+                return ASK_WHEN_MISSING
+            row = self.con.execute("SELECT ask_enabled FROM app_settings WHERE id = 1").fetchone()
+        except sqlite3.Error:
+            return ASK_WHEN_MISSING
+        return row is not None and row[0] == 1
 
     def milestone_moves(self, code):
         """#136: the date and state history of a project's live milestones, for Movement (owner only: never published, never in
