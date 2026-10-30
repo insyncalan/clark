@@ -175,7 +175,14 @@ class Words(unittest.TestCase):
                                   "One card", "All the sections inside a single card.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again"])
+                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Asking",             # #47: the switch and its folders, below the client folder
+                                  "Claude is started on this computer for you.",
+                                  "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs.",
+                                  "Turn off asking", "Folders asking may read",
+                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
+                                  "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
+                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is."])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)

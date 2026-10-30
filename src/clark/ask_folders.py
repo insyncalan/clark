@@ -1,6 +1,6 @@
 """The folders asking may read (#47): the logic of GET and POST /api/ask-folders. Unguarded; server.py only routes to it.
 
-The page sends {project, action: "add" | "remove", path} and shows the answer in its own words: (200, {ok, folders, message}) or
+The page sends {project, action: "choose" | "remove", path} ("choose" opens the system's folder window; "add" with a path is for other callers) and shows the answer in its own words: (200, {ok, folders, message}) or
 (status, {ok: False, code, message}). One more action, "undo" with the apply_id an earlier answer gave, takes a change back.
 Every change is one store step, so it is one entry in the history and one Undo. The folder list is the store's `source_folders`
 table; the store's own rule (reach.never_inside) is the last check, this module's checks come first and say why in plain words.
@@ -17,17 +17,19 @@ from clark.store import Invalid, open_store
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 PATH_LIMIT = 1000
 MAX_FOLDERS = 20
-ACTIONS = ("add", "remove", "undo")
+ACTIONS = ("add", "remove", "undo", "choose")
+PICK_PROMPT = "Choose a folder asking may read"
 
 MESSAGES = {
     "bad_project_code": "That isn't a project clark knows. Nothing was changed.",
     "project_not_found": "That project isn't here. Nothing was changed.",
     "project_archived": "That project is archived. Restore it before changing its folders. Nothing was changed.",
-    "bad_request": "clark couldn't read that request. Nothing was changed.",
-    "bad_action": "clark can only add a folder, remove one, or undo the last change. Nothing was changed.",
-    "not_a_path": "Type the full path of a folder on this computer, on one line. Nothing was changed.",
-    "not_full_path": "Type the full path of the folder, starting with /. Nothing was changed.",
-    "dots": "Type the folder's full path without .. in it. Nothing was changed.",
+    "bad_request": "That request could not be read. Nothing was changed.",
+    "bad_action": "Asking can only add a folder, remove one, or undo the last change. Nothing was changed.",
+    "not_a_path": "That isn't a folder on this computer. Use Choose folder to pick one. Nothing was changed.",
+    "not_full_path": "That isn't a folder on this computer. Use Choose folder to pick one. Nothing was changed.",
+    "dots": "That isn't a folder on this computer. Use Choose folder to pick one. Nothing was changed.",
+    "dialog_failed": "The folder window could not be opened. Try Choose folder again. Nothing was changed.",
     "not_a_folder": "That isn't a folder on this computer. Nothing was changed.",
     "home_folder": "Your whole home folder is too wide for asking. Choose a folder inside it. Nothing was changed.",
     "onedrive_root": "The whole of OneDrive is too wide for asking. Choose a folder inside it. Nothing was changed.",
@@ -36,7 +38,7 @@ MESSAGES = {
     "too_many": "That is as many folders as asking can have. Remove one first. Nothing was changed.",
     "not_in_list": "That folder isn't in the list. Nothing was changed.",
     "no_undo": "There is nothing to undo there. Nothing was changed.",
-    "cant_save": "clark couldn't save that folder. Nothing was changed.",
+    "cant_save": "That folder could not be saved. Try Choose folder again; if it keeps happening, close clark and start it again. Nothing was changed.",
     "added": "Added. Asking may now read the files in that folder.",
     "already": "That folder is already in the list.",
     "removed": "Removed. Asking no longer reads that folder.",
@@ -52,12 +54,13 @@ class AskFolders:
     """`db_path` is the database; `onedrive_roots` as the launcher's; `data_dir` is clark's own folder; `home` and `by_user` are
     seams for tests."""
 
-    def __init__(self, db_path, onedrive_roots=None, *, data_dir=None, home=None, by_user=None):
+    def __init__(self, db_path, onedrive_roots=None, *, data_dir=None, home=None, by_user=None, choose_folder=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
         self.by_user = by_user or platform.login_name
+        self.choose_folder = choose_folder or platform.choose_folder      # the system's folder window (a seam for tests)
         self.lock = threading.Lock()
 
     def fail(self, code, message=None):
@@ -78,7 +81,7 @@ class AskFolders:
             try:
                 store = self.store()
             except Invalid:
-                return 409, self.fail("cant_save", "clark couldn't open its data just now. Try again.")
+                return 409, self.fail("cant_save", "The saved data could not be opened just now. Wait a moment and try again.")
             try:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
@@ -95,13 +98,15 @@ class AskFolders:
             return 400, self.fail("bad_project_code")
         if action not in ACTIONS:
             return 400, self.fail("bad_action")
-        allowed = {"project", "action", "apply_id"} if action == "undo" else {"project", "action", "path"}
+        allowed = {"project", "action", "apply_id"} if action == "undo" else {"project", "action"} if action == "choose" else {"project", "action", "path"}
         if set(body) - allowed or (allowed - {"project", "action"}) - set(body):
             return 400, self.fail("bad_request")
         if action == "undo":
             asked = body["apply_id"]
             if type(asked) is not int or not 1 <= asked < 2 ** 63:
                 return 400, self.fail("no_undo")
+        elif action == "choose":
+            asked = None
         else:
             asked = body["path"]
             if not isinstance(asked, str) or not asked or len(asked) > PATH_LIMIT or any(odd_character(c) for c in asked):
@@ -110,7 +115,7 @@ class AskFolders:
             try:
                 store = self.store()
             except Invalid:
-                return 409, self.fail("cant_save", "clark couldn't open its data just now. Try again.")
+                return 409, self.fail("cant_save", "The saved data could not be opened just now. Wait a moment and try again.")
             try:
                 row = store.read("projects", ref=code)
                 if row is None:
@@ -121,6 +126,8 @@ class AskFolders:
                     return self.undo(store, code, asked)
                 if action == "remove":
                     return self.remove(store, code, asked)
+                if action == "choose":
+                    return self.choose(store, code)
                 return self.add(store, code, asked)
             finally:
                 store.close()
@@ -166,6 +173,21 @@ class AskFolders:
         if step is False:
             return 409, self.fail("cant_save")
         return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["added"], "apply_id": step}
+
+    def choose(self, store, code):
+        """The system's folder window, then the same checks and the same one step as an added folder. Cancelled: nothing changes."""
+        now = self.listed(store, code)
+        start = now[-1] if now else next(iter(self.onedrive_roots), None)
+        try:
+            picked = self.choose_folder(PICK_PROMPT, start=start)
+        except platform.PlatformError:
+            return 409, self.fail("dialog_failed")
+        if picked is None:
+            return 200, {"ok": True, "folders": now}
+        typed = str(picked)
+        if not typed or len(typed) > PATH_LIMIT or any(odd_character(c) for c in typed):
+            return 400, self.fail("not_a_path")
+        return self.add(store, code, typed)
 
     def remove(self, store, code, typed):
         now = self.listed(store, code)

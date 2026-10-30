@@ -251,7 +251,7 @@ class Refused(Base):
         self.refused(self.post({"project": "ABC", "action": "remove", "path": str(self.docs)}), 409, "not_in_list")
 
     def test_actions(self):
-        for bad in ("choose", "clear", "ADD", "", None, 1, ["add"]):
+        for bad in ("pick", "clear", "ADD", "", None, 1, ["add"]):
             got = self.post({"project": "ABC", "action": bad, "path": str(self.docs)})
             self.assertEqual((got[0], got[1]["code"]), (400, "bad_action"))
 
@@ -333,6 +333,63 @@ class Doorway(Base):
         for x in t:
             x.join()
         self.assertEqual((sorted(outs), self.stored()), ([200] * 4, [str(self.docs)]))
+
+
+class Choosing(Base):
+    """#47 fix 2 and 4: the folder is picked in the system's own window; the words never say 'full path' or '..' and the save
+    failure does not start with the product's name."""
+
+    def pick(self, answer):
+        calls = []
+
+        def fake(prompt, start=None):
+            calls.append((prompt, start))
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+        self.service.choose_folder = fake
+        return calls
+
+    def choose(self):
+        return self.post({"project": "ABC", "action": "choose"})
+
+    def test_choosing_saves_the_picked_folder_as_one_step(self):
+        calls = self.pick(self.docs)
+        status, body = self.choose()
+        self.assertEqual((status, body["folders"], self.stored()), (200, [str(self.docs)], [str(self.docs)]))
+        self.assertEqual(str(calls[0][1]), str(self.cloud))
+        self.assertEqual(self.post({"project": "ABC", "action": "undo", "apply_id": body["apply_id"]})[0], 200)
+        self.assertEqual(self.stored(), [])
+
+    def test_cancelling_the_window_changes_nothing(self):
+        self.pick(None)
+        self.assertEqual(self.choose(), (200, {"ok": True, "folders": []}))
+
+    def test_a_picked_folder_is_checked_like_a_typed_one(self):
+        self.pick(self.home)
+        self.refused(self.choose(), 400, "home_folder")
+        self.assertEqual(self.stored(), [])
+
+    def test_a_window_that_will_not_open_says_so_with_a_next_step(self):
+        self.pick(ask_folders.platform.PlatformError("no window"))
+        got = self.choose()
+        self.refused(got, 409, "dialog_failed")
+        self.assertIn("Try Choose folder again", got[1]["message"])
+
+    def test_choose_takes_no_path(self):
+        self.pick(self.docs)
+        self.refused(self.post({"project": "ABC", "action": "choose", "path": str(self.docs)}), 400, "bad_request")
+
+    def test_no_refusal_says_full_path_or_dots_and_none_starts_with_the_product_name(self):
+        for code, text in ask_folders.MESSAGES.items():
+            self.assertNotIn("full path", text.lower(), code)
+            self.assertNotIn("..", text, code)
+            self.assertFalse(text.lower().startswith("clark"), code)
+
+    def test_a_failed_save_has_a_next_step(self):
+        text = ask_folders.MESSAGES["cant_save"]
+        self.assertIn("Try Choose folder again", text)
+        self.assertIn("start it again", text)
 
 
 if __name__ == "__main__":
