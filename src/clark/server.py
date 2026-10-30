@@ -73,7 +73,7 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
-                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024}     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024}     # #65: a change or an undo is small; over is the 400 "too big"
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -588,14 +588,29 @@ def app_settings_route(method):
     return route
 
 
+def ask_route(method):
+    """POST /api/ask, GET /api/ask/status and POST /api/ask/stop (#47): a question about the open project, whether asking can
+    answer, and Stop. The server's `ask` (ask_service.AskService) answers (status, body): it reads the switch from the store before
+    anything is sent, so nothing leaves while asking is off; without one there is nothing to ask: not found. The token, the Host,
+    the Origin, JSON only and the length are checked before this runs; no model code is in this module."""
+    def route(handler, *req):
+        service = getattr(handler.server, "ask", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/ask-folders": ask_folders_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask")}
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
-               "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask")}     # later items: /api/import
+               "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
+               "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop")}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -776,7 +791,7 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, ask_folders=None, app_settings=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, ask_folders=None, app_settings=None, ask=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -789,6 +804,7 @@ class LocalServer(ThreadingHTTPServer):
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
         self.ask_folders = ask_folders        # ask_folders.AskFolders (#47); None: the folder routes answer 404
         self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
+        self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -820,14 +836,14 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, ask_folders=None, app_settings=None):
+          publisher=None, movement=None, use_cases=None, safety=None, ask_folders=None, app_settings=None, ask=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, ask_folders=ask_folders,
-                            app_settings=app_settings)
+                            app_settings=app_settings, ask=ask)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
