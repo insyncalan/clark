@@ -36,13 +36,13 @@ SCHEMA_VERSION = 2          # 2 (#126): documents can be archived
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
-          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents")
+          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders")
 # clark: - promises, + use_cases, and + the report's own tables (#65, one amendment: the route admits only report_sections)
 KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "actions": ("id",), "raid": ("id",),
         "decisions": ("id",), "use_cases": ("id",), "links": ("from_item", "to_item", "kind"), "labels": ("name",),
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
-        "documents": ("project", "id")}
+        "documents": ("project", "id"), "source_folders": ("project", "path")}
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
     "projects": ("code", "name"),
@@ -59,6 +59,7 @@ REQUIRED_NEW = {
     "report_sections": ("project", "type", "title"),                    # clark (#65)
     "glance_tiles": ("project", "tile"),                                # clark: its sort_order is a rule (0 is a number)
     "report_hidden": ("project", "item_id"),
+    "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
     "documents": ("project", "title", "url"),                           # clark (#126): registered so it can be archived; see DOCUMENTS_LATER
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")   # what Step.archive takes (#126)
@@ -107,7 +108,7 @@ BLANKABLE = {"decisions": ("date", "needed_by", "replaces", "reasoning", "option
              "milestones": ("state", "state_reason", "owner", "actual_date", "client_message", "description", "internal_note",
                             "movement", "workstream")}
 CLOSING = {"actions": CLOSED_STATUSES, "raid": CLOSED_STATUSES}          # statuses that set `closed`
-DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden")
+DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders")
 # the only rows a step deletes (Head ruling on #31; #65: + the report's own tables; delete_row refuses a section that isn't text)
 MAX_SECTIONS = 100                                                       # a project's sections (#65)
 TITLE_LIMIT = 120                                                        # a section's title, in characters
@@ -150,7 +151,7 @@ OP_MADE = "insert"                    # the log's word for a row a step made; th
 SEED_VIA = "seed"                     # clark (#65): the via of the default sections a step makes (_seed_sections); an Undo never removes them
 PENDING_VIA = "revert:pending"        # an undo's rows until it knows which rows it put back
 REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "links", "item_labels", "labels",
-                  "report_sections")
+                  "report_sections", "source_folders")
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
 REVERT_CREATED += ("report_hidden",)    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
@@ -520,6 +521,24 @@ def _hidden_item(con, table, row, changed):
         raise Invalid("That isn't an item of this project.")
 
 
+def _source_folder(con, table, row, changed):
+    """clark (#47): a folder asking may read is a whole path with a place in the list, and not one clark keeps off limits."""
+    path = row.get("path")
+    if type(row.get("sort_order")) is not int:
+        raise Invalid("A folder needs its place in the list (sort_order, a whole number).")
+    if not isinstance(path, str) or not path.startswith("/") or len(path) > 1000 or any(unicodedata.category(c).startswith("C") for c in path):
+        raise Invalid("A folder is a full path on this computer, one line, starting with /.")
+    if path.rstrip("/") == "":
+        raise Invalid("The top of the disk can't be a folder for asking.")
+    if "|" in path:                                     # key_of joins (project, path) with '|', so a '|' would split the key wrongly
+        raise Invalid("A folder whose name has a | in it can't be used for asking.")
+    from clark import reach
+    file = next((r[2] for r in con.execute("PRAGMA database_list") if r[1] == "main"), "")
+    why = reach.never_inside(path, Path(file).parent if file else None)
+    if why:
+        raise Invalid(f"Asking can't read that folder: it is, or holds, a place clark keeps closed ({why}).")
+
+
 _ITEM_RULES = (_item_workstream, _project_exists, _milestone_link, _use_case_link)
 ROW_RULES = {
     "actions": _ITEM_RULES,
@@ -535,6 +554,7 @@ ROW_RULES = {
     "report_sections": (_project_exists, _section_rules),                    # clark (#65)
     "glance_tiles": (_project_exists, _tile_rules),
     "report_hidden": (_project_exists, _hidden_item),
+    "source_folders": (_project_exists, _source_folder),                     # clark (#47)
 }
 
 
