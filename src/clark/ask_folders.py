@@ -19,6 +19,7 @@ PATH_LIMIT = 1000
 MAX_FOLDERS = 20
 ACTIONS = ("add", "remove", "undo", "choose")
 PICK_PROMPT = "Choose a folder asking may read"
+WIDE_PLACES = ("/Volumes", "/private/var", "/var", "/private/var/folders", "/private/tmp", "/tmp")   # other disks, and the system's working files (a teammate: LOW)
 
 MESSAGES = {
     "bad_project_code": "That isn't a project clark knows. Nothing was changed.",
@@ -34,6 +35,8 @@ MESSAGES = {
     "home_folder": "Your whole home folder is too wide for asking. Choose a folder inside it. Nothing was changed.",
     "onedrive_root": "The whole of OneDrive is too wide for asking. Choose a folder inside it. Nothing was changed.",
     "top_of_disk": "The top of the disk is too wide for asking. Choose a folder inside it. Nothing was changed.",
+    "wide_place": "That folder holds other disks or the computer's own working files, so it is too wide for asking. Choose a folder of your own. Nothing was changed.",
+    "pipe_in_name": "That folder's name has a | in it, which asking can't use. Rename it or choose another folder. Nothing was changed.",
     "closed_place": "Asking can't read that folder, because it is, or holds, a place clark keeps closed. Nothing was changed.",
     "too_many": "That is as many folders as asking can have. Remove one first. Nothing was changed.",
     "not_in_list": "That folder isn't in the list. Nothing was changed.",
@@ -44,6 +47,15 @@ MESSAGES = {
     "removed": "Removed. Asking no longer reads that folder.",
     "undone": "Undone.",
 }
+
+
+def same_folder(a, b):
+    """Whether two paths name the same folder on disk (os.path.samefile: an identity test, right on a case-sensitive volume too).
+    A path that can't be looked at is not the same as anything."""
+    try:
+        return os.path.samefile(str(a), str(b))
+    except (OSError, ValueError, TypeError):
+        return False
 
 
 def odd_character(c):
@@ -143,10 +155,14 @@ class AskFolders:
             return None, "top_of_disk"
         if not os.path.isdir(real):
             return None, "not_a_folder"
-        if real == str(reach.home(self.home)):
+        if "|" in real:                                      # the store keys a folder as project|path (a teammate's MEDIUM on #162)
+            return None, "pipe_in_name"
+        if same_folder(real, reach.home(self.home)):         # by identity, not spelling: APFS ignores case (a teammate's LOW 1)
             return None, "home_folder"
-        if any(real == os.path.realpath(r) for r in self.onedrive_roots):
+        if any(same_folder(real, r) for r in self.onedrive_roots):
             return None, "onedrive_root"
+        if any(same_folder(real, w) for w in WIDE_PLACES):
+            return None, "wide_place"
         if reach.never_inside(real, self.data_dir, self.home):
             return None, "closed_place"
         return real, None
@@ -164,7 +180,7 @@ class AskFolders:
         if why:
             return (409 if why in ("not_a_folder", "closed_place") else 400), self.fail(why)
         now = self.listed(store, code)
-        if real in now:
+        if any(same_folder(real, p) for p in now):           # the same folder however it is spelt (case, composed accents)
             return 200, {"ok": True, "folders": now, "message": MESSAGES["already"]}
         if len(now) >= MAX_FOLDERS:
             return 409, self.fail("too_many")

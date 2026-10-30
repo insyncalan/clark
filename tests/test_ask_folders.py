@@ -187,6 +187,41 @@ class Refused(Base):
         self.refused(self.add(link), 400, "home_folder")
         self.assertEqual(self.stored(), [])
 
+    def test_the_home_folder_and_the_onedrive_root_in_other_spellings(self):
+        """a teammate's LOW 1 on #162: compared as folders (samefile), not as spellings. On a case-insensitive disk the capitals open
+        the same folder; on a case-sensitive one they are another (missing) folder and are refused as not a folder."""
+        upper = Path(str(self.cloud).upper())
+        if upper.exists():
+            self.refused(self.add(upper), 400, "onedrive_root")
+            self.refused(self.add(Path(str(self.home).upper())), 400, "home_folder")
+        else:
+            self.refused(self.add(upper), 409, "not_a_folder")
+        self.assertEqual(self.stored(), [])
+
+    def test_the_same_folder_spelt_another_way_is_listed_once(self):
+        self.assertEqual(self.add(self.docs)[0], 200)
+        other = Path(str(self.docs).upper())
+        if not other.exists():
+            self.skipTest("this disk tells capitals apart, so there is no second spelling of the same folder")
+        status, body = self.add(other)
+        self.assertEqual((status, body["message"]), (200, ask_folders.MESSAGES["already"]))
+        self.assertEqual(self.stored(), [str(self.docs)])
+
+    def test_a_folder_with_a_pipe_in_its_name_is_refused_in_plain_words(self):
+        """a teammate's MEDIUM on #162: the store keys a folder as project|path; a | in a name once gave a 500."""
+        piped = self.home / "a|b"
+        piped.mkdir()
+        self.refused(self.add(piped), 400, "pipe_in_name")
+        self.assertEqual(self.stored(), [])
+
+    def test_other_disks_and_the_systems_working_files_are_too_wide(self):
+        for place in ask_folders.WIDE_PLACES:
+            if os.path.isdir(place) and os.path.realpath(place) != "/":
+                self.refused(self.add(place), 400, "wide_place")
+        self.assertIn("/Volumes", ask_folders.WIDE_PLACES)
+        self.assertIn("/private/var", ask_folders.WIDE_PLACES)
+        self.assertEqual(self.stored(), [])
+
     def test_a_folder_inside_onedrive_is_fine(self):
         inner = self.cloud / "Engagements"
         inner.mkdir()
@@ -273,6 +308,7 @@ class Refused(Base):
             self.assertEqual((got[0], got[1]["code"]), (400, "bad_request"), raw)
 
     def test_no_more_than_twenty_folders(self):
+        self.assertEqual(ask_folders.MAX_FOLDERS, 20, "a teammate's LOW 3: the cap is pinned, not only looped to")
         for i in range(ask_folders.MAX_FOLDERS):
             p = self.home / f"f{i}"
             p.mkdir()
