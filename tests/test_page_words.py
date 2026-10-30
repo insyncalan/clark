@@ -178,8 +178,8 @@ class Words(unittest.TestCase):
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
                                   "Asking",             # #47: the switch and its folders, below the client folder
                                   "Claude is started on this computer for you.",
-                                  "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs.",
-                                  "Turn off asking", "Folders asking may read",
+                                  "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
+                                  "Turn on asking", "Folders asking may read",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                                   "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is."])

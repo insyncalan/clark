@@ -1,19 +1,32 @@
 // Settings: asking (#47). The on/off switch and the folders asking may read, for the open project. Edit parts only: a published
-// file has no Settings. The switch is askState.js; the folders are saved by the server (the page asks the server to open the folder window and shows
-// what the server answers, in its words).
+// file has no Settings. The switch is askState.js, kept by the server for this computer; the folders are saved by the server too (the
+// page asks the server to open the folder window and shows what the server answers, in its words).
 import { useEffect, useState } from "preact/hooks";
 import { project } from "../stores/report.js";
-import { askOn, setAsk, ASK_OFF_LINE } from "./askState.js";
+import { askOn, askStatus, askSaved, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
 
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
 export function AskSettings() {
   const on = askOn.value;
+  const status = askStatus.value;
+  const saved = askSaved.value;
   const code = project.value;
   const [folders, setFolders] = useState(null);          // null: not read yet; "unavailable"; or the list
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
+
+  useEffect(() => { loadAsk(true); }, []);      // asked again each time Settings opens, so the page never shows a stale choice
+
+  async function flip() {
+    setBusy(true);
+    setMsg(null);
+    const r = await setAsk(!on);
+    setBusy(false);
+    if (!r.ok) setMsg({ kind: "error", text: r.message });
+    else if (r.message) setMsg({ kind: "note", text: r.message });
+  }
 
   useEffect(() => {
     let live = true;
@@ -52,9 +65,10 @@ export function AskSettings() {
     <section class="frame setting" id="ask-settings">
       <h2>Asking</h2>
       <p class="muted">Claude is started on this computer for you.</p>
-      <p id="ask-state">{on ? "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs." : ASK_OFF_LINE}</p>
+      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs." : ASK_OFF_LINE}</p>
+      {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
-        <button type="button" class="btn" data-ask-switch aria-pressed={on ? "true" : "false"} onClick={() => setAsk(!on)}>{on ? "Turn off asking" : "Turn on asking"}</button>
+        <button type="button" class="btn" data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
       </div>
       <h3>Folders asking may read</h3>
       <p class="muted">Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.</p>

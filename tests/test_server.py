@@ -272,13 +272,13 @@ class Saving(ServerTest):
             return 409, {"ok": False, "message": "That step has been undone already.", "code": "undone"}
         return Running(change=change, undo=undo)
 
-    def test_the_post_routes_are_exactly_change_undo_the_publish_ones_the_two_backup_ones_and_ask_folders(self):
+    def test_the_post_routes_are_exactly_change_undo_the_publish_ones_the_two_backup_ones_and_the_ask_settings(self):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/publish", "/api/client-folder", "/api/preview",
-                                                  "/api/backups/preview", "/api/backups/restore", "/api/ask-folders"})     # #43, #111, #147, #47
+                                                  "/api/backups/preview", "/api/backups/restore", "/api/ask-folders", "/api/ask-enabled"})     # #43, #111, #147, #47
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024,
-                                                "/api/backups/restore": 1024, "/api/ask-folders": 4096})     # #111, #47
+                                                "/api/backups/restore": 1024, "/api/ask-folders": 4096, "/api/ask-enabled": 1024})     # #111, #47
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
