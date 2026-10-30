@@ -10,7 +10,7 @@
 CREATE TABLE IF NOT EXISTS app_settings (
   id          INTEGER PRIMARY KEY CHECK (id = 1),
   ask_enabled INTEGER NOT NULL DEFAULT 1 CHECK (ask_enabled IN (0,1)),
-  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at  TEXT                    -- set by the writer when the switch changes; empty until then (a new file is the same every time)
 );
 
 INSERT OR IGNORE INTO app_settings (id) VALUES (1);
