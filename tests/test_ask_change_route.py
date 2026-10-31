@@ -171,7 +171,7 @@ class Forged(Base):
         self.assertEqual(self.dry(got["reply"])[0], 200, "the wrong project did not use it up")
 
     def test_archive_delete_and_more_than_five_stay_refused(self):
-        got = self.answer(change_line(op="archive", id=self.action), change_line(op="delete", id=self.action))
+        got = self.answer(change_line(op="archive", id=self.action), change_line(op=changes.DELETE, id=self.action))
         plans = self.dry(got["reply"])[1]["plans"]
         self.assertEqual([p["code"] for p in plans], ["not_yet", "not_yet"])
         self.assertTrue(all("isn't available yet" in p["message"] for p in plans))
