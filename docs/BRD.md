@@ -196,7 +196,8 @@ Programme managers spend hours each week turning their work items into a report 
 - **FR-91 (new, 28-10-2026):** **The client can comment on work items and use cases** in the client page, and change nothing ("Clients can only add comments to work items also"; use cases: "only comment").
 - **FR-92 (new):** Client comments go **to the database first**, where the user sees them. Each one records who wrote it (as entered) and when. They are **saved to the project's Excel workbook automatically**.
 - **FR-93 (new):** The client sees their earlier comments, and the user's replies, on the next published page.
-- **FR-94 (on hold, "Put this on hold for the client for now - editor only"):** **The client can draft an email too.** On the client page, an envelope in an item's peek, or on a set of ticked items, drafts an email to the project contact the user chose at publish: a question or an update about those items.
+- **FR-94 (hold lifted 31-10-2026; earlier "Put this on hold for the client for now - editor only"):** **The client can draft an email too.** On the client page, an envelope by an item, or the Draft email button on the open items, drafts an email to the project's one outside contact: a question or an update about those items.
+  - One contact per project, set on the Publish screen and kept with the project (saved as an ordinary step, with history and Undo). An address on the team's own domains is refused. There is no warning on the Publish screen that the address goes into the client's file (the owner, 31-10-2026).
   - The same builder and look as FR-44, run inside the page: no server and no model. Nothing leaves the page except what the client copies.
   - Copy for Outlook, Copy as text, and Open in mail app (plain text only, for a short email).
   - Only rows and fields that were published can appear. The contact's name and address are put in the page at publish. Team members' addresses are never in the page.
@@ -439,7 +440,7 @@ Written by a teammate (technical architect), 28-10-2026. It reads with `ARCHITEC
 | D-3 | Client output and team output | **Decided**: "No - a single report output managed by the user / editor. Client visible is toggled on by default for all work items" |
 | D-4 | Who reviews guarded copies here | **Decided**: "the Head Reads" |
 | D-5 | Who leads clark, and which FDE teams join | **Decided:** the Head leads and is Head ("the Head will. lead and owns HEAD"). Which teams build is the Head's to propose |
-| D-6 | Who a client can email from the client page (FR-94) | **On hold**: Draft email is for the editor only for now |
+| D-6 | Who a client can email from the client page (FR-94) | **Decided** (31-10-2026, the hold of 28-10 lifted): one outside contact per project, set on the Publish screen; no warning that the address sits in the client's file |
 | D-7 | How a user signs in to OpenAI (FR-63) | **Decided**: "ChatGPT sign-in too", as well as an API key. The ChatGPT route through OpenAI's Codex command starts with a spike that proves it runs with no tools, with the chosen model, and within the ChatGPT plan's terms |
 | D-8 | Where clark's AI providers code comes from | **Decided**: wait for the creaite release that includes #132, with its guarded patches 01, 03 and 04 |
 | D-9 | Whether a project's data may go to OpenAI (FR-68) | **Decided**: Claude and OpenAI are handled the same, with no per-project switch |
@@ -461,7 +462,7 @@ Written by a teammate (technical architect), 28-10-2026. It reads with `ARCHITEC
 - **v0.4:** Help (#82), client page filters (#69), the milestone calendar (#76), Excel export branding (#85), the design-system pass and entries (#87, #88) and the smaller prototype changes.
 - **v0.5:** **OpenAI and the ChatGPT sign-in** (#54, FR-63 to FR-68 in full; it waits for the creaite release with #132, D-8), and the README (#93).
 - **v0.6: the UX release** ("0.6 is a ux release... load it up with ux improvements we find from now on"). The accepted screen-by-screen UX findings (#132), and every user-experience improvement found from now on.
-- **Later:** the Windows port (#57); client comments and the changes inbox (#21, #40, #62); Draft email on the client page (#51, on hold); team changes (#61, on hold, low priority).
+- **Later:** the Windows port (#57); client comments and the changes inbox (#21, #40, #62); Draft email on the client page (#51, hold lifted 31-10-2026, release still to be set); team changes (#61, on hold, low priority).
 - The waves and lanes are in the release plan, approved by the owner on 28-10-2026: the work list on the planning repo #5.
 
 ## 12. Acceptance

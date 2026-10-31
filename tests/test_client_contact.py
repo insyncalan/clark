@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 
 import _publish_fixture as fx
-from _paths import SRC
+from _paths import ROOT, SRC
 from test_publish_dialog import Pg
 from test_publish_route import DAY, EMPTY_BRANDING, USER, Rig
 from test_page import navigate
@@ -249,6 +249,19 @@ class Source(unittest.TestCase):
         src = (PAGE_SRC / "edit" / "ClientContact.jsx").read_text(encoding="utf-8")
         self.assertNotIn("dangerouslySetInnerHTML", src)
         self.assertNotIn("innerHTML", src)
+
+    def test_the_brd_records_the_hold_as_lifted(self):
+        # The owner lifted the 28-10 hold on 31-10-2026: FR-94, D-6 and the release list must not still say it is on hold.
+        brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
+        lines = brd.splitlines()
+        i = next(n for n, line in enumerate(lines) if line.startswith("- **FR-94"))
+        d6 = next(line for line in lines if line.startswith("| D-6 |"))
+        self.assertNotIn("(on hold", lines[i])
+        self.assertIn("hold lifted 31-10-2026", lines[i])
+        self.assertIn("One contact per project", lines[i + 1])
+        self.assertNotIn("On hold", d6)
+        self.assertIn("**Decided**", d6)
+        self.assertNotIn("(#51, on hold)", brd)
 
 
 class Field(unittest.TestCase):
