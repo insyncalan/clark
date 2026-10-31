@@ -521,8 +521,9 @@ def ask_provider(provider, request, codes=(), exists=lambda ref: False, facts=No
     when it raised or returned something that isn't text). Nothing is logged and nothing is changed."""
     if not isinstance(request, Request):
         return Failure(BAD_INPUT)
-    if not answer_status(provider)["connected"]:
-        return Failure(answer_status(provider)["why"] or NOT_READY)
+    st = answer_status(provider)
+    if not st["connected"]:
+        return Failure(st["why"] or NOT_READY)
     try:
         got = provider.ask(request)
     except Exception:  # noqa: BLE001  the class and message of a provider's error could hold request text; neither is kept
