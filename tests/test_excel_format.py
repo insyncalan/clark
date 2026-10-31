@@ -131,7 +131,7 @@ class Formatting(unittest.TestCase):
             for c in ws[1]:
                 self.assertTrue(c.font.b, (ws.title, c.value))
                 self.assertEqual(c.font.color.rgb[-6:], "FFFFFF")
-                self.assertEqual(c.fill.fgColor.rgb[-6:], "14233A")
+                self.assertEqual(c.fill.fgColor.rgb[-6:], "062F3A")
                 self.assertTrue(c.alignment.wrap_text)
 
     # ── widths and wrapping ──────────────────────────────────────────────────
@@ -216,9 +216,9 @@ class Formatting(unittest.TestCase):
                          {"Urgent": "red", "High": "amber", "Medium": "grey", "Low": "grey"})
         self.assertIs(colours.BY_FIELD[("raid", "priority")], colours.PRIORITY)
         self.assertIs(colours.BY_FIELD[("actions", "priority")], colours.ACTION_PRIORITY)
-        self.assertEqual(colours.hexes("red"), ("F6E1DE", "A3301F"))
-        self.assertEqual(colours.hexes("amber"), ("F7EBDA", "8A5200"))
-        self.assertEqual(colours.hexes("green"), ("DCEFE9", "0B654E"))
+        self.assertEqual(colours.hexes("red"), ("F6E0DD", "A3301F"))
+        self.assertEqual(colours.hexes("amber"), ("FCEFCF", "8A5200"))
+        self.assertEqual(colours.hexes("green"), ("D9F1EC", "006B5E"))
         self.assertEqual(colours.MILESTONE_STATE["At risk"], "amber")
         self.assertEqual(colours.DECISION_STATUS, {"Pending": "amber", "Made": "green", "Withdrawn": "grey"})
 

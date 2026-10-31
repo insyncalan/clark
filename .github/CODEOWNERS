@@ -1,0 +1,10 @@
+# Who must review a change to the files that guard this repository (the scan, the publishing tool, the workflows and the tests
+# that hold them to their rules). With "Require review from Code Owners" switched on in the branch rules, none of these can
+# change without that review. tests/test_ci_scan.py checks that every file the scan protects is listed here.
+/.github/ @insyncalan
+/dev/tools/ci_scan.py @insyncalan
+/dev/tools/publish_public.py @insyncalan
+/tests/test_ci_scan.py @insyncalan
+/tests/test_workflow.py @insyncalan
+/tests/test_no_real_names.py @insyncalan
+/tests/test_publish_public.py @insyncalan
