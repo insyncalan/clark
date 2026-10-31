@@ -661,8 +661,11 @@ class ClientMessageRound2(unittest.TestCase):
     One test per spelling (added below). Fictional names only."""
     ORIG = "We will send the plan by 03-11-2026 and confirm the date with you."
 
-    def blocked(self, sentence, original=None):
-        rep = "We will send the plan by 03-11-2026. " + sentence
+    def blocked(self, sentence, original=None, as_sentence=False):
+        """A reply that adds `sentence` is not shown. The sentence joins the first one after "and", so a new capital first word can't
+        be what blocks it (only the name tests, as_sentence, start a sentence)."""
+        join = ". " if as_sentence else ", and "
+        rep = "We will send the plan by 03-11-2026" + join + (sentence if as_sentence else sentence[0].lower() + sentence[1:])
         r = am.check_reply(reply(rep), original or self.ORIG, "rewrite", "client_message")
         self.assertFalse(r["ok"], sentence)
         self.assertIn("client", r["message"])
@@ -704,9 +707,14 @@ class ClientMessageRound2(unittest.TestCase):
                      "The plan has 250 users in scope.", "Our phase V IP telephony is separate."):
             self.passes(sent)
 
+    def test_a_first_word_is_excused_only_by_its_plain_form_and_only_as_a_first_word(self):
+        self.passes("Plan details follow.")                    # "plan" is in the text
+        r = am.check_reply(reply("We will send the Plan by 03-11-2026 and confirm."), self.ORIG, "rewrite", "client_message")
+        self.assertFalse(r["ok"])                              # a capital in mid-sentence is a name, whatever the plain word
+
     def test_an_ordinary_new_first_word_is_blocked_with_the_try_again_message(self):
         """The price of the stricter name rule: a new first word that is not an everyday opener reads as a possible name."""
-        self.blocked("Testing starts on 05-11-2026.")
+        self.blocked("Testing starts on 05-11-2026.", as_sentence=True)
 
 
 BLOCKED_SPELLINGS = {
@@ -716,7 +724,7 @@ BLOCKED_SPELLINGS = {
     "emphasis_underscore": "This is _internal only_.", "documents": "See documents/plan.",
     "id_spaces": "See ABC A 003.", "id_lower": "See abc-a-003.", "id_short": "See ABC-A-3.", "id_escaped": "See ABC\\-A\\-003.",
     "id_no_letter": "See ABC 100.", "id_zero_o": "See ABC-A-OO3.",
-    "name_after_full_stop": "Omar will join.", "name_after_colon": "Note: Omar will join.", "name_after_newline": "Done.\nOmar joins.",
+    "name_after_full_stop": "Omar will join.", "name_after_colon": "Also: Omar will join.", "name_after_newline": "Noted.\nOmar joins.",
     "name_first_word": "Omar will confirm.",
     "words_spaces": "Please do   not share it.", "words_client": "This is not for the  client.", "health_diff": "See health_diff.",
     "confidentially": "Said confidentially.", "restrictions": "Some restrictions apply.", "restricted": "It is restricted.",
@@ -724,12 +732,12 @@ BLOCKED_SPELLINGS = {
 }
 
 
-def _make(sentence):
-    return lambda self: self.blocked(sentence)
+def _make(sentence, as_sentence):
+    return lambda self: self.blocked(sentence, as_sentence=as_sentence)
 
 
 for _name, _sentence in BLOCKED_SPELLINGS.items():
-    setattr(ClientMessageRound2, "test_blocked_" + _name, _make(_sentence))
+    setattr(ClientMessageRound2, "test_blocked_" + _name, _make(_sentence, _name.startswith(("name_", "entity_name"))))
 
 
 class FormatContract(unittest.TestCase):
