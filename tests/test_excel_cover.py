@@ -8,6 +8,7 @@ import sqlite3
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
@@ -20,6 +21,8 @@ from clark import excel_cover as cover
 from clark import excel_import as xi
 from clark import look
 from clark import page
+
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
 
 
 _NO_BRAND = tempfile.mkdtemp(prefix="clark-no-brand-")    # a brand logo on this computer never changes a test (#133)
@@ -371,10 +374,14 @@ class InTheWorkbook(unittest.TestCase):
         self.assertEqual([n for n in plan.notes if "ignored" in n], [])
 
     def test_the_same_data_and_clock_give_the_same_bytes(self):
-        first = self.path.read_bytes()
-        self.state.unlink()
-        self.path.unlink()
-        self.make()
+        with mock.patch.object(excel, "new_export_id", lambda: FIXED_ID):       # the id is random: held still, as the clock is
+            self.state.unlink()
+            self.path.unlink()
+            self.make()
+            first = self.path.read_bytes()
+            self.state.unlink()
+            self.path.unlink()
+            self.make()
         self.assertEqual(self.path.read_bytes(), first)
 
 
