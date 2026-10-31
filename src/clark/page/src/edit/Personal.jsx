@@ -69,11 +69,18 @@ export function Personal() {
         ))}
       </fieldset>
       <AboutYou />
-      <fieldset class="styles">
-        <legend>Section style</legend>
+      <fieldset class="styles secstyles" role="radiogroup" data-secstyles>
+        <legend>Dashboard sections</legend>
         {STYLES.map(([id, name, line]) => (
-          <label key={id} class="stylepick"><input type="radio" name="secstyle" value={id} checked={style.value === id} onChange={() => setStyle(id)} />
-            <span><b>{name}</b><small>{line}</small></span></label>
+          <label key={id} class={`secpick sk-${id}`}>
+            <input type="radio" name="secstyle" value={id} checked={style.value === id} onChange={() => setStyle(id)} />
+            <span class="secpick-card">
+              <span class="secpick-pic" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="secpick-name"><b>{name}</b>
+                <span class="secpick-tick" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></span></span>
+              <small>{line}</small>
+            </span>
+          </label>
         ))}
       </fieldset>
       <fieldset class="keys">
