@@ -164,8 +164,18 @@ class Store(Base):
     def test_the_limit(self):
         with self.assertRaises(Invalid):
             self.s.undo_many([], USER)
-        with self.assertRaises(Invalid):
+        with self.assertRaisesRegex(Invalid, f"Choose 1 to {MAX_UNDO_MANY} "):
             self.s.undo_many(range(1, MAX_UNDO_MANY + 2), USER)
+
+    def test_a_step_that_wrote_nothing_is_not_there_to_undo(self):
+        a = self.demo.action()
+        b = self.edit(a, owner="Sam Example")
+        self.s.con.execute("INSERT INTO applies (at, proposals, by_user, device) VALUES ('2026-10-01 09:00:00.000', '[]', 'x', 'y')")
+        empty = self.demo.last_step()
+        before = dump(self.s.path)
+        with self.assertRaisesRegex(Invalid, "no step"):
+            self.s.undo_many([b, empty], USER)
+        self.assertEqual(dump(self.s.path), before)
 
 
 class Request(Base):
