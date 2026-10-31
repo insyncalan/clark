@@ -1087,6 +1087,8 @@ def _do_hand_over(store, by_user, req, project, place):
         for ref in ready:
             table = table_of[ref]
             before = store.read(table, ref=ref)
+            if before["status"] in HAND_OVER_DONE:                  # closed or decided since the trial: the whole step rolls back
+                raise Refused(STALE)
             try:
                 st.update(table, ref, {HAND_OVER_FIELD[table]: to})
             except Invalid as e:                                    # changed since the trial: the whole step rolls back

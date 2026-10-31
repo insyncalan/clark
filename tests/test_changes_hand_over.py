@@ -113,6 +113,26 @@ class HandOver(unittest.TestCase):
         self.assertEqual(self.counts(), before, "no step, no history line, nothing written")
         self.assertEqual({self.who(r) for r in self.all}, {"Ada Quillfeather"})
 
+    def test_an_item_closed_or_decided_between_the_trial_and_the_write_rolls_the_whole_step_back(self):
+        cls = type(self.s)
+        real = cls.step
+
+        def second_connection(store, *a, **kw):
+            if not kw.get("dry"):                                    # the trial is over, the real step is about to start: another connection changes a status
+                con = sqlite3.connect(str(self.s.path))
+                try:
+                    con.execute("UPDATE decisions SET status = 'Made', date = '2026-10-01' WHERE id = ?", (self.decisions[0],))
+                    con.commit()
+                finally:
+                    con.close()
+            return real(store, *a, **kw)
+        before = self.counts()
+        with mock.patch.object(cls, "step", second_connection):
+            status, body = self.send(self.all)
+        self.assertEqual((status, body["message"]), (400, changes.STALE), body)
+        self.assertEqual(self.counts()[:1], before[:1], "no step")
+        self.assertEqual({self.who(r) for r in self.all}, {"Ada Quillfeather"}, "no owner changed, the decision's made_by included")
+
     def test_closed_items_and_decisions_made_or_withdrawn_are_left_out_and_named(self):
         for status in changes.HAND_OVER_DONE:
             with self.subTest(status=status):
