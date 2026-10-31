@@ -182,6 +182,7 @@ MAX_CHANGE_FIELDS = 12
 MAX_FIELD_NAME = 40
 MAX_FIELD_VALUE = 1000         # the field limit: one text value in a change
 MAX_REPLY = 60000
+MAX_CHECKED_LINE = 2000     # a line longer than this is not checked for a quoted title or an owner (a real answer line is shorter; the id and cite checks still cover it)
 
 UNREADABLE = ("The answer came back in a form that couldn't be checked, so it is shown as text and nothing is offered to change.")
 NOT_SENT = "A source it named isn't one of the parts it was given."
@@ -212,7 +213,7 @@ class Reply:
 _CITE_ID = re.compile(r"P[1-9]\d{0,2}")
 _INLINE_CITE = re.compile(r"\[(P[1-9]\d{0,2})\]")
 _QUOTED = re.compile(r"[\"“]([^\"“”]{4,120})[\"”]")
-_OWNER = re.compile(r"\b(?:owner|owned by|assigned to)\b\s*(?:is\b|:|-)?\s*([A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]*){0,2})")
+_OWNER = re.compile(r"\b(?:owner|owned by|assigned to)\b\s*(?:(?:is\b|:|-)\s*)?([A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]*){0,2})")
 
 
 def _clean_value(v):
@@ -295,7 +296,7 @@ def check_claims(text, sent, codes, exists, facts=None):
     """The flags for a reply's `text`. `sent` is the request (or its passage IDs); `exists(ref)` says whether an item ID is real in
     this project; `facts(ref)`, if given, returns {"title": ..., "owner": ...} for a real item (either may be missing). Flags:
     an ID that isn't in the project; on a line that names exactly one real item, a quoted title or an owner that doesn't match
-    the data; a passage ID the reply cites that was not sent. `edit_ai.normal` is used to detect only."""
+    the data (a line longer than MAX_CHECKED_LINE is left out of that check, so no line can take long to read); a passage ID the reply cites that was not sent. `edit_ai.normal` is used to detect only."""
     flags, seen = [], set()
     for ref in sorted(_ids_in(codes, exists, text)):
         if not _known(exists, ref) and ref not in seen:
@@ -303,6 +304,8 @@ def check_claims(text, sent, codes, exists, facts=None):
             flags.append(Flag("unknown_id", ref, f"The answer mentioned {ref}, which isn't in this project. Ignore that part."))
     if facts is not None:
         for line in text.splitlines():
+            if len(line) > MAX_CHECKED_LINE:
+                continue
             refs = [r for r in sorted(_ids_in(codes, exists, line)) if _known(exists, r)]
             if len(refs) != 1:
                 continue
