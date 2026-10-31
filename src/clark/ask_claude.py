@@ -42,6 +42,9 @@ NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools",
 NEVER_FLAGS = ("--bare", "--add-dir", "--mcp-config", "--settings", "--dangerously-skip-permissions", "--resume", "--continue")
 SAFE_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 KEEP_ENV = ("HOME", "USER", "LOGNAME", "LANG")      # what the sign-in and the text need; everything else is left out
+# Set in the child, not copied from clark's: no telemetry, no self-update and no other non-essential traffic or file writes of its own
+# (Wanda's read: "no network except the model" holds only because there are no tools; these close the rest of the gap).
+PINNED_ENV = {"DISABLE_TELEMETRY": "1", "DISABLE_AUTOUPDATER": "1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
 MAX_BUDGET_USD = "1.00"                             # the command's own cap on one question's spend (counts against the plan)
 TIME_LIMIT = 120.0                                  # seconds for one answer
 CHECK_LIMIT = 15.0                                  # seconds for --version or --help
@@ -49,6 +52,7 @@ MAX_OUT = 4 * ask.MAX_REPLY                         # bytes read back (UTF-8 can
 MAX_HELP = 512 * 1024
 VERSION = re.compile(rb"^\s*v?(\d+)\.(\d+)\.(\d+)\b")
 
+MAC_ONLY = ("Questions work on a Mac for now. Everything else in the report works as before, and a later version will cover this computer.")
 NOT_INSTALLED = ("Questions need the Claude command, and it isn't installed on this computer. Install it from claude.com/claude-code, "
                  "sign in once, then ask again. Everything else in the report works as before.")
 CANT_USE = "The version of Claude on this computer can't be used safely with clark. Update it, then ask again. Nothing was sent."
@@ -70,7 +74,9 @@ def child_env(home=None, user=None):
     user = user if user is not None else (os.environ.get("USER") or os.environ.get("LOGNAME") or "")
     if user and re.fullmatch(r"[A-Za-z0-9._-]{1,64}", user):
         env["USER"] = env["LOGNAME"] = user
-    return {k: v for k, v in env.items() if k in KEEP_ENV + ("PATH",)}
+    env = {k: v for k, v in env.items() if k in KEEP_ENV + ("PATH",)}
+    env.update(PINNED_ENV)
+    return env
 
 
 def arguments(path):
@@ -114,6 +120,8 @@ class ClaudeCommand(ask.Provider):
     # ----- the checks -----
     def usable(self):
         """(path, None) when the command is found and passes the version and flag check, else (None, plain reason)."""
+        if platform.system() != platform.MAC:           # the fixed places, the process handling and the sign-in are the Mac's (Windows: not built yet)
+            return None, MAC_ONLY
         path = find_command(self.places)
         if path is None:
             return None, NOT_INSTALLED

@@ -25,7 +25,7 @@ from clark import ask, ask_claude as ac
 HELP = "\n".join(f"  {f} <x>   something" for f in ac.NEEDED_FLAGS)
 
 FAKE = r'''#!{python}
-import json, os, sys, time
+import json, os, stat, sys, time
 here = os.path.dirname(os.path.abspath(__file__))
 mode = open(os.path.join(here, "mode")).read().strip()
 args = sys.argv[1:]
@@ -40,9 +40,22 @@ if args == ["--help"]:
     print(text)
     sys.exit(0)
 data = sys.stdin.read()
+FDS, INO, SOCK = [], {{}}, set()
+for name in os.listdir("/dev/fd"):
+    n = int(name)
+    try:
+        st = os.fstat(n)
+    except OSError:
+        continue                                  # the descriptor that listed the folder is already closed
+    FDS.append(n)
+    INO[n] = st.st_ino
+    if stat.S_ISSOCK(st.st_mode):
+        SOCK.add(n)
+FDS.sort()
 with open(os.path.join(here, "seen.json"), "w") as f:
     json.dump({{"args": args, "env": dict(os.environ), "cwd": os.getcwd(), "stdin": data, "pid": os.getpid(),
-               "pgid": os.getpgid(0)}}, f)
+               "pgid": os.getpgid(0),
+               "fds": FDS, "inodes": {{str(n): INO[n] for n in FDS if n > 2 and n in INO}}, "sockets": [n for n in FDS if n in SOCK], "umask": os.umask(0), "stdin_len": len(data)}}, f)
 if mode == "slow":
     time.sleep(60)
 if mode == "helper":
@@ -154,8 +167,8 @@ class Environment(Fake):
         env = self.seen()["env"]
         for name in self.CANARIES:
             self.assertNotIn(name, env, name)
-        self.assertFalse([k for k in env if k.startswith(("ANTHROPIC", "CLAUDE"))], env.keys())
-        allowed = set(ac.KEEP_ENV) | {"PATH", "__CF_USER_TEXT_ENCODING", "PWD", "SHLVL", "_"}      # the last are added by the system or Python
+        self.assertFalse([k for k in env if k.startswith(("ANTHROPIC", "CLAUDE")) and k not in ac.PINNED_ENV], env.keys())
+        allowed = set(ac.KEEP_ENV) | set(ac.PINNED_ENV) | {"PATH", "__CF_USER_TEXT_ENCODING", "PWD", "SHLVL", "_"}      # the last are added by the system or Python
         self.assertLessEqual(set(env), allowed, sorted(set(env) - allowed))
         self.assertEqual(env["PATH"], ac.SAFE_PATH)
         self.assertEqual(env["HOME"], os.path.expanduser("~"), "the command finds its own sign-in")
@@ -163,7 +176,8 @@ class Environment(Fake):
     def test_child_env_is_built_from_nothing(self):
         with mock.patch.dict(os.environ, self.CANARIES):
             env = ac.child_env(home="/Users/tester", user="tester")
-        self.assertEqual(env, {"PATH": ac.SAFE_PATH, "LANG": "en_GB.UTF-8", "HOME": "/Users/tester", "USER": "tester", "LOGNAME": "tester"})
+        self.assertEqual(env, {"PATH": ac.SAFE_PATH, "LANG": "en_GB.UTF-8", "HOME": "/Users/tester", "USER": "tester", "LOGNAME": "tester",
+                               **ac.PINNED_ENV})
         self.assertNotIn("USER", ac.child_env(home="/h", user="bad user;rm"), "an odd user name is left out")
 
     def test_the_version_and_help_checks_are_scrubbed_too(self):
@@ -290,6 +304,73 @@ class Source(unittest.TestCase):
     def test_the_messages_never_start_with_the_product_name(self):
         for name in ("NOT_INSTALLED", "CANT_USE", "READY", "NO_ANSWER", "TOO_SLOW", "TOO_LONG_REPLY", "BUSY"):
             self.assertFalse(getattr(ac, name).lower().startswith(("clark", "ask clark")), name)
+
+
+class TheRunsEdges(Fake):
+    """Wanda's list on slice 3: what the program inherits and where it runs (#47c). Each is tested with the fake, which records them."""
+
+    def test_only_standard_in_out_and_error_reach_the_program_an_open_file_and_socket_of_clarks_do_not(self):
+        import socket
+        planted = open(self.d / "held-open.txt", "w", encoding="utf-8")
+        sock = socket.socket()
+        self.addCleanup(planted.close)
+        self.addCleanup(sock.close)
+        for fd in (planted.fileno(), sock.fileno()):
+            os.set_inheritable(fd, True)               # inheritable on purpose: only close_fds stands between them and the program
+        self.assertIn("The plan is on track.", self.provider.ask(self.request()))
+        seen = self.seen()
+        self.assertTrue({0, 1, 2} <= set(seen["fds"]))
+        self.assertNotIn(os.fstat(planted.fileno()).st_ino, set(seen["inodes"].values()), "clark's open file did not reach the program")
+        self.assertEqual(seen["sockets"], [], "no socket of clark's reached the program")
+        self.assertLessEqual(len([fd for fd in seen["fds"] if fd > 2]), 1, "nothing but the fake's own script file")
+
+    def test_what_the_program_writes_is_the_persons_alone_umask_077(self):
+        self.provider.ask(self.request())
+        self.assertEqual(self.seen()["umask"], 0o077)
+
+    def test_the_whole_request_arrives_and_the_end_of_input_comes_even_when_it_is_larger_than_a_pipe(self):
+        big = ask.Request(text="x" * 3_000_000, question="q")
+        got = self.provider.ask(big)
+        self.assertIn("The plan is on track.", got, "the program saw the end of its input and finished")
+        self.assertEqual(self.seen()["stdin_len"], 3_000_000)
+
+    def test_the_child_environment_pins_the_telemetry_and_update_switches_and_nothing_inherited(self):
+        with mock.patch.dict(os.environ, {"DISABLE_TELEMETRY": "0", "DISABLE_AUTOUPDATER": "0", "ANTHROPIC_API_KEY": "sk-canary"}):
+            env = ac.child_env(home=str(self.d), user="tester")
+        for name, value in ac.PINNED_ENV.items():
+            self.assertEqual(env[name], value, name)
+        self.assertEqual(set(env), {"PATH", "LANG", "HOME", "USER", "LOGNAME"} | set(ac.PINNED_ENV))
+        self.assertNotIn("sk-canary", json.dumps(env))
+        self.provider = ac.ClaudeCommand(places=(str(self.cmd),), env=env, limit=10)
+        self.provider.ask(self.request())
+        seen = self.seen()["env"]
+        self.assertEqual({k: seen[k] for k in ac.PINNED_ENV}, ac.PINNED_ENV)
+
+    def test_the_working_folder_is_never_inside_clarks_data_folder_even_when_tmpdir_says_so(self):
+        from clark import platform
+        data = self.d / "Library" / "Application Support" / "clark"
+        data.mkdir(parents=True)
+        inside = data / "tmp"
+        inside.mkdir()
+        with mock.patch.object(platform, "data_dir", return_value=data), mock.patch.object(platform.tempfile, "gettempdir", return_value=str(inside)):
+            self.assertEqual(platform._scratch_parent(), "/tmp")
+        with mock.patch.object(platform, "data_dir", return_value=data), mock.patch.object(platform.tempfile, "gettempdir", return_value=str(self.d)):
+            self.assertEqual(platform._scratch_parent(), "/tmp", "a temporary folder that holds the data folder is no good either")
+        elsewhere = Path(tempfile.mkdtemp(prefix="clark-else-"))
+        self.addCleanup(shutil.rmtree, elsewhere, True)
+        with mock.patch.object(platform, "data_dir", return_value=data), mock.patch.object(platform.tempfile, "gettempdir", return_value=str(elsewhere)):
+            self.assertEqual(platform._scratch_parent(), str(elsewhere.resolve()))
+        self.provider.ask(self.request())
+        self.assertNotIn(str(data), self.seen()["cwd"])
+
+    def test_only_a_mac_gets_a_run_and_anything_else_says_so_in_words_and_sends_nothing(self):
+        with mock.patch.object(ac.platform, "system", return_value="linux"):
+            got = self.provider.ask(self.request())
+            self.assertEqual(self.provider.status(), {"connected": False, "why": ac.MAC_ONLY})
+        self.assertEqual(got.message, ac.MAC_ONLY)
+        self.assertIsNone(self.seen(), "the command was not started")
+        self.assertFalse(ac.MAC_ONLY.lower().startswith("clark"))
+        self.assertIn("Everything else in the report works as before", ac.MAC_ONLY)
 
 
 if __name__ == "__main__":

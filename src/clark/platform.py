@@ -514,6 +514,20 @@ def _end_group(proc):
             time.sleep(0.05)                    # a helper may outlive its leader by a moment; the kill that follows catches it
 
 
+def _scratch_parent():
+    """The folder run_stoppable makes its empty working folder in: the system's temporary folder, unless TMPDIR put that inside clark's
+    own data folder (a working folder must never be there: the program could then see clark's database and backups through `..`), when
+    it is /tmp."""
+    parent = Path(tempfile.gettempdir()).resolve()
+    try:
+        mine = data_dir().resolve()
+    except (OSError, RuntimeError, NotBuiltYet):
+        return str(parent)
+    if parent == mine or mine in parent.parents or parent in mine.parents:
+        return "/tmp"
+    return str(parent)
+
+
 def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-"):
     """Run one program from an argument list (never a shell) as the leader of its own process group, in a new empty folder of its
     own (removed afterwards), with exactly `env` as its environment, `data` on standard input, and read at most `max_out` bytes
@@ -522,12 +536,13 @@ def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-
     the program finished. Standard error is thrown away (it could hold what it was given). Whatever ends the run, the whole
     group is ended (anything the program started goes too). Used by ask clark's provider (#47c); never raises for the program's
     own faults."""
-    work = tempfile.mkdtemp(prefix=prefix)
+    work = tempfile.mkdtemp(prefix=prefix, dir=_scratch_parent())
     proc = None
     try:
         try:
+            # close_fds: only 0, 1 and 2 reach the program (nothing clark holds open); umask 077: what it writes is the person's alone
             proc = subprocess.Popen(list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=work,
-                                    env=dict(env), close_fds=True, start_new_session=True, shell=False)
+                                    env=dict(env), close_fds=True, start_new_session=True, shell=False, umask=0o077)
         except (OSError, ValueError, subprocess.SubprocessError):
             return "failed", b"", None
 
