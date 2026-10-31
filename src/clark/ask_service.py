@@ -49,6 +49,7 @@ MESSAGES = {
     "change_bad_request": "That change could not be read. Nothing was changed. Reload the page and ask again.",
     "no_reply": "That answer's changes are no longer waiting. Nothing was changed. Ask again.",
     "shown_already": "Those changes were shown already. Nothing was changed. Ask again to see them afresh.",
+    "folders_unreadable": "Your folders couldn't be read just now, so nothing was sent. Try again, or remove a folder in Settings.",
 }
 FIELDS = {"project", "question", "earlier"}
 DRY_FIELDS = {"project", "reply"}
@@ -152,8 +153,11 @@ class AskService:
             finally:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
-        found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
-                                         ask.MAX_PASSAGES - len(data.passages))
+        try:
+            found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
+                                             ask.MAX_PASSAGES - len(data.passages))
+        except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
+            return 200, self.fail("folders_unreadable")
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier)
         except ask.AskRefused as e:

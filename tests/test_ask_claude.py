@@ -40,9 +40,11 @@ if args == ["--help"]:
     print(text)
     sys.exit(0)
 data = sys.stdin.read()
+mask = os.umask(0)
+os.umask(mask)
 with open(os.path.join(here, "seen.json"), "w") as f:
     json.dump({{"args": args, "env": dict(os.environ), "cwd": os.getcwd(), "stdin": data, "pid": os.getpid(),
-               "pgid": os.getpgid(0)}}, f)
+               "pgid": os.getpgid(0), "umask": mask}}, f)
 if mode == "slow":
     time.sleep(60)
 if mode == "helper":
@@ -112,6 +114,7 @@ class Arguments(Fake):
         for flag in ("--print", "--safe-mode", "--disable-slash-commands", "--strict-mcp-config", "--no-session-persistence"):
             self.assertIn(flag, args)
         self.assertEqual(args[args.index("--tools") + 1], "", "no tool at all")
+        self.assertEqual(args[args.index("--setting-sources") + 1], "", "no settings file, so no key helper of the person's runs")
         self.assertEqual(args[args.index("--output-format") + 1], "text")
         self.assertEqual(args[args.index("--max-budget-usd") + 1], ac.MAX_BUDGET_USD)
         self.assertEqual(args[args.index("--system-prompt") + 1], ask.RULES, "the default prompt is replaced by the fixed rules")
@@ -122,7 +125,8 @@ class Arguments(Fake):
         self.assertFalse(any("Send the plan" in a for a in args), "no passage is in the arguments")
 
     def test_the_arguments_hold_nothing_but_the_fixed_flags(self):
-        self.assertEqual(ac.arguments("/x/claude"), ["/x/claude", "--print", "--safe-mode", "--disable-slash-commands", "--tools", "",
+        self.assertEqual(ac.arguments("/x/claude"), ["/x/claude", "--print", "--safe-mode", "--setting-sources", "",
+                                                     "--disable-slash-commands", "--tools", "",
                                                      "--strict-mcp-config", "--no-session-persistence", "--output-format", "text",
                                                      "--max-budget-usd", ac.MAX_BUDGET_USD, "--system-prompt", ask.RULES])
 
@@ -132,6 +136,10 @@ class Arguments(Fake):
         self.assertTrue(Path(cwd).name.startswith("clark-ask-"))
         self.assertNotEqual(Path(cwd).resolve(), Path.cwd().resolve())
         self.assertFalse(Path(cwd).exists(), "the folder is removed after the run")
+
+    def test_files_it_makes_are_private_to_the_person(self):
+        self.provider.ask(self.request())
+        self.assertEqual(self.seen()["umask"], 0o077)
 
     def test_its_own_process_group(self):
         self.provider.ask(self.request())
@@ -196,6 +204,12 @@ class FoundAndChecked(Fake):
             self.assertEqual(provider.status(), {"connected": False, "why": ac.CANT_USE}, flag)
             self.assertEqual(provider.ask(self.request()), ask.Failure(ac.CANT_USE), flag)
             self.assertIsNone(self.seen(), f"nothing was sent without {flag}")
+
+    def test_without_setting_sources_it_refuses_and_sends_nothing(self):
+        (self.bin / "help").write_text(HELP.replace("--setting-sources ", "--other-flag "), encoding="utf-8")
+        self.assertEqual(self.provider.status(), {"connected": False, "why": ac.CANT_USE})
+        self.assertEqual(self.provider.ask(self.request()), ask.Failure(ac.CANT_USE))
+        self.assertIsNone(self.seen(), "nothing was sent")
 
     def test_a_flag_named_only_inside_a_longer_one_does_not_count(self):
         (self.bin / "help").write_text(HELP.replace("--safe-mode ", "--safe-modes ").replace("--tools ", "--toolset "), encoding="utf-8")
