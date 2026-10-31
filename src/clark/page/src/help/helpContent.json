@@ -1487,7 +1487,7 @@
       "ul",
       [
        "**Log level**: **Normal** keeps a line for what clark did and for every error. **Debug** adds detail for fixing a problem. Switch back to Normal when you are done; Settings reminds you after a week.",
-       "Logs hold only counts, IDs and times, never your report text, names, emails or keys. clark keeps one file a day (5 MB at most) for 7 days; **Open the folder** shows it.",
+       "Logs hold only counts, IDs and times, never your report text, names, emails or keys. The log keeps one file a day (5 MB at most) for 7 days; **Open the folder** shows it.",
        "**Copy diagnostics** puts a plain-text report on the clipboard: the version, browser, system, log level, counts, safe settings and the last 20 log lines. It never holds a name, email, project name or report text, so it can go in a chat.",
        "**Errors in the last 7 days** lists what went wrong, or says None."
       ]
