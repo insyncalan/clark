@@ -123,6 +123,17 @@ class Opening(Base):
             self.assertTrue(p.js("!!document.querySelector('#help')"), "Help is still open under it")
 
 
+    def test_it_stands_aside_for_a_question_box_and_a_menu(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for role in ("alertdialog", "menu"):
+                p.js(f"var d=document.createElement('div'); d.id='layer'; d.setAttribute('role','{role}'); document.body.appendChild(d)")
+                p.palette_key()
+                self.assertFalse(p.js("!!document.querySelector('#palette')"), role + " keeps the page")
+                p.js("document.getElementById('layer').remove()")
+            p.show()
+
+
 class Results(Base):
     def test_every_kind_in_order_with_its_kind_in_words(self):
         with chrome() as cdp:
@@ -280,6 +291,11 @@ class Published(unittest.TestCase):
         for needle in ("Search commands, pages", "pal-row", "palette-q", "Go to or do", "light or dark setting of your computer"):
             self.assertNotIn(needle, view)
         self.assertIn("palette-q", page.PAGE.read_text(encoding="utf-8"))
+
+    def test_the_dark_reason_does_not_start_with_the_product_name(self):
+        text = (PAGE_SRC / "edit" / "palette.js").read_text(encoding="utf-8")
+        why = re.search(r'DARK_WHY = "([^"]+)"', text).group(1)
+        self.assertFalse(why.lower().startswith("clark"), why)
 
     def test_the_words_are_plain(self):
         text = (PAGE_SRC / "edit" / "Palette.jsx").read_text(encoding="utf-8") + (PAGE_SRC / "edit" / "palette.js").read_text(encoding="utf-8")

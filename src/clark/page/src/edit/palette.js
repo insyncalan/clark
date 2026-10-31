@@ -11,7 +11,7 @@ import { openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
 
 export const paletteOpen = signal(false);
 export const MOST_ITEMS = 8;          // work items shown at most, so a short word does not fill the box
-export const DARK_WHY = "clark follows the light or dark setting of your computer. Change it there.";
+export const DARK_WHY = "Dark mode follows the light or dark setting of your computer. Change it there.";
 const NEED_PROJECT = "Open a project first.";
 
 const lower = (s) => String(s == null ? "" : s).toLowerCase();

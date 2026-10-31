@@ -35,7 +35,7 @@ export function openPalette() {
 function onKey(e) {
   const k = (e.key || "").toLowerCase();
   if (k === "k" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !e.isComposing) {
-    if (!paletteOpen.value && document.querySelector("dialog[open]")) return;          // another dialog has the page: leave it be
+    if (!paletteOpen.value && document.querySelector("dialog[open], [role=dialog], [role=alertdialog], [role=menu]")) return;          // another dialog, question box or menu has the page: leave it be (Help is none of these, so the palette opens over it)
     e.preventDefault(); e.stopImmediatePropagation();
     if (e.repeat) return;
     if (paletteOpen.value) closePalette(true); else openPalette();
