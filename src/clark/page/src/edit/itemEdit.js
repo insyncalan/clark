@@ -40,17 +40,6 @@ export function statusChoices(row) {
   return row.kind === "decision" && row.status === "Made" ? all.filter((s) => s !== "Pending") : all.slice();
 }
 
-// The Status cell in Edit shows the status itself, the word its picker offers, so a pick and the cell always say the same:
-// Open and Pending blue, Delayed amber, Made green, Closed, Cancelled and Withdrawn grey. (View keeps #36's pills, where a late
-// action reads Overdue and an open risk its colour.)
-const STATUS_TONE = { Open: "b", Pending: "b", Delayed: "a", Made: "g", Closed: "n", Cancelled: "n", Withdrawn: "n" };
-
-/** The Status cell's pill in Edit: {text, class}, with the item's own status as its word. */
-export function statusPill(row) {
-  const s = String(row.status == null ? "" : row.status);
-  return { text: s, class: STATUS_TONE[s] || "n" };
-}
-
 /** The small print under a status in the picker: Made is the one pick that can't be undone. */
 export function statusNote(row, status) {
   return row.kind === "decision" && status === "Made" && row.status !== "Made" ? "Can't be undone" : "";
