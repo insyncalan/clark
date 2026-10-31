@@ -29,7 +29,7 @@ class RaidPriority(Api):
                                          "likelihood": "Low", "raised": "2026-10-01", "source": "demo"})
 
     def item(self, kind, ref, project="ABC", **changes_):
-        return {"project": project, "kind": kind, "op": "update", "id": ref, "changes": changes_, "place": "cell"}
+        return {"project": project, "kind": kind, "op": changes.UPDATE, "id": ref, "changes": changes_, "place": "cell"}
 
     def go(self, kind, ref, **changes_):
         status, body = self.change(self.item(kind, ref, **changes_))

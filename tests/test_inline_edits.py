@@ -481,7 +481,7 @@ class Live(unittest.TestCase):
                     self.assertEqual(self.toast(cdp, sid), "Likelihood of TUL-007 changed to High. Priority is now Urgent.")
                     self.plain_words(cdp, sid)
                     self.assertNotIn("item=", cdp.js("location.hash", sid), "a cell click never opens the peek")
-                    self.assertEqual(self.sent[-1][1], {"project": "TUL", "kind": "raid", "op": "update", "id": "TUL-007", "changes": {"likelihood": "High"}, "place": "cell"})
+                    self.assertEqual(self.sent[-1][1], {"project": "TUL", "kind": "raid", "op": changes.UPDATE, "id": "TUL-007", "changes": {"likelihood": "High"}, "place": "cell"})
                     self.undo(cdp, sid, "likelihood", "Likelihood of TUL-007 is back to Medium.")
                     r = self.row("raid", "TUL-007")
                     self.assertEqual((r["impact"], r["likelihood"], r["priority"]), ("High", "Medium", "High"), "Undo puts back the field and its priority")
