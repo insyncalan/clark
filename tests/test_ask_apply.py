@@ -320,6 +320,32 @@ class NotYet(Base):
         self.assertEqual((status, body["dry"]), (200, True))
         self.assertEqual(self.counts(), before)
 
+    def test_the_save_path_keeps_to_ask_clarks_own_fields(self):
+        ask_change = changes.make_ask_change(self.path, [], USER)
+        before = self.counts()
+        for req in ({"project": "ABC", "kind": "milestones", "op": "update", "id": self.demo.milestone,
+                     "changes": {"baseline_date": "2031-01-01"}},
+                    {"project": "ABC", "kind": "milestones", "op": "update", "id": self.demo.milestone,
+                     "changes": {"client_message": "All is well."}},
+                    {"project": "ABC", "kind": "milestones", "op": "update", "id": self.demo.milestone,
+                     "changes": {"forecast_date": "2031-01-01", "client_message": "All is well."}},
+                    {"project": "ABC", "kind": "actions", "op": "update", "id": self.action, "changes": {"use_case": None}},
+                    {"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x"}, "place": "menu"},
+                    {"project": "ABC", "kind": "actions", "op": "update", "id": self.action, "changes": ["status"]}):
+            for dry in (True, False):
+                status, body = ask_change(req, dry=dry)
+                self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.ASK_NOT_YET), req)
+        self.assertEqual(self.counts(), before)
+
+    def test_ask_apply_reads_its_fields_from_the_guarded_list(self):
+        for table, ops in changes.ASK_FIELDS.items():
+            self.assertEqual(ask_apply.ASK_FIELDS[table][ask_apply.OP_CHANGE], ops[changes.UPDATE])
+            self.assertEqual(set(ask_apply.ASK_FIELDS[table][ask_apply.OP_NEW]), set(ops[changes.NEW]) - {"type"})
+            for op, fields in ops.items():
+                self.assertTrue(set(fields) <= set(changes.CHANGE_KINDS[table][op]), (table, op))
+        self.assertNotIn("client_message", changes.ASK_FIELDS["milestones"][changes.UPDATE])
+        self.assertNotIn("baseline_date", changes.ASK_FIELDS["milestones"][changes.UPDATE])
+
 
 class Undo(Base):
     def test_a_dashboard_undo_only_takes_ask_clarks_work_item_and_milestone_steps(self):
