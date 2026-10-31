@@ -316,7 +316,7 @@ class Page(Base):
             self.assertTrue(wait(lambda: len(self.sent_hand()) == sent + 1), "sent after the answer")
             last = self.sent_hand()[-1]
             self.assertEqual((len(last["ids"]), last.get("confirm")), (26, True))
-            self.assertEqual(self.owner(shown[0]), "Zelda Quince")
+            self.assertTrue(wait(lambda: self.owner(shown[0]) == "Zelda Quince"), "saved once the answer was sent")
 
     def test_nothing_offers_to_delete_or_archive(self):
         with chrome() as cdp:
