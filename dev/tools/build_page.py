@@ -161,7 +161,7 @@ def main(argv):
         print("page.html and page-view.html are up to date")
         return 0
     for f, text in made:
-        f.write_text(text, encoding="utf-8", newline="\n")
+        f.write_bytes(text.encode("utf-8"))      # bytes, so no newline translation and it works on Python 3.9
         print(f"wrote {f.relative_to(ROOT)} ({len(text):,} bytes)")
     return 0
 
