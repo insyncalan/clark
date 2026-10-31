@@ -26,7 +26,7 @@ relevel (clark stores its headings as it shows them).
 import re
 from collections import Counter
 
-from clark import edit_ai
+from clark import edit_ai, sanitise
 from clark.edit_ai import Refused
 
 MAX_TEXT = 12000            # characters of selected text
@@ -363,6 +363,52 @@ def check_reply(reply, original, option, place):
     return {"ok": True, "text": text, "notes": notes_for(original, text), "message": "", "option": option}
 
 
+_BOLD = re.compile(r"\*\*(.+?)\*\*")
+_ITALIC = re.compile(r"(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?![*\w])")
+
+
+def _inline(line):
+    line = sanitise.text_escape(line)
+    return _ITALIC.sub(r"<em>\1</em>", _BOLD.sub(r"<strong>\1</strong>", line))
+
+
+def plain_to_html(text):
+    """The AI's plain text or Markdown as HTML for a rich field: every character escaped first, then paragraphs, "- " bullets,
+    "1. " lists, "#" headings, bold and italic made into the allowed tags. A link is left as text. The result still goes through
+    `sanitise.clean_html` before it is used. (Proposed home: sanitise.py with #66.)"""
+    out, items, kind = [], [], None
+
+    def close():
+        nonlocal items, kind
+        if items:
+            out.append("<%s>%s</%s>" % (kind, "".join("<li>%s</li>" % i for i in items), kind))
+        items, kind = [], None
+    for raw in str(text or "").replace("\r\n", "\n").split("\n"):
+        line = raw.strip()
+        m_bullet = re.match(r"[-*+]\s+(?:\[[ xX]\]\s+)?(.*)", line)
+        m_num = re.match(r"\d+[.)]\s+(.*)", line)
+        m_head = re.match(r"(#{1,3})\s+(.*)", line)
+        if m_bullet or m_num:
+            want = "ul" if m_bullet else "ol"
+            if kind != want:
+                close()
+                kind = want
+            items.append(_inline((m_bullet or m_num).group(1)))
+            continue
+        close()
+        if m_head:
+            out.append("<h%d>%s</h%d>" % (len(m_head.group(1)), _inline(m_head.group(2)), len(m_head.group(1))))
+        elif line:
+            out.append("<p>%s</p>" % _inline(line))
+    close()
+    return "".join(out)
+
+
+def to_html(text):
+    """The cleaned HTML for a suggestion's text: plain_to_html, then the page cleaner. Raises SanitiseError if it can't be cleaned."""
+    return sanitise.clean_html(plain_to_html(text))
+
+
 # ------------------------------------------------------------------------------------------------------- show changes (diff)
 def word_diff(a, b):
     """Word by word, what changed from `a` to `b`: [(kind, text)] with kind "=" (kept), "-" (taken out) or "+" (put in). The spaces
@@ -470,7 +516,7 @@ class Card:
         self.id, self.option, self.instruction, self.place = ident, option, instruction, place
         self.original, self.start, self.end = original, start, end
         self.status, self.message = status, message
-        self.text, self.notes, self.changes, self.key = "", [], False, None
+        self.text, self.notes, self.changes, self.key, self.html = "", [], False, None, ""
 
     @property
     def label(self):
@@ -532,6 +578,11 @@ class AiSession:
             return False
         res = check_reply(reply, card.original, card.option, card.place)
         if res["ok"]:
+            try:
+                card.html = to_html(res["text"])
+            except Exception:  # noqa: BLE001  text that can't be cleaned is not shown
+                card.status, card.message = "failed", "The suggestion couldn't be used. Try again."
+                return True
             card.status, card.text, card.notes = "ready", res["text"], res["notes"]
             self.stats["offered"] += 1
         else:
@@ -558,7 +609,15 @@ class AiSession:
         if editor.text_between(c.start, c.end) != c.original:
             c.message = "The text has changed since you asked; nothing was changed. Try again."
             return False
-        editor.replace(c.start, c.end, c.text)
+        if hasattr(editor, "replace_html"):          # a rich editor takes the cleaned HTML, built again from the text here
+            try:
+                html = to_html(c.text)
+            except Exception:  # noqa: BLE001
+                c.message = "The suggestion couldn't be used. Try again."
+                return False
+            editor.replace_html(c.start, c.end, html)
+        else:
+            editor.replace(c.start, c.end, c.text)
         self.stats["used"] += 1
         self.card = None
         return True

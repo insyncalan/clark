@@ -655,5 +655,54 @@ class ClientMessageIsCheckedAndBlocks(unittest.TestCase):
         self.assertIn("couldn't be checked", r["message"])
 
 
+class FormatContract(unittest.TestCase):
+    """#72 fix round (the Head's format decision with #66): the AI works on plain text or Markdown; what is accepted goes back
+    through plain_to_html() and the page cleaner."""
+
+    def test_plain_to_html_escapes_and_makes_paragraphs_and_lists(self):
+        h = am.plain_to_html("First <b>line</b> & more.\n\nSecond.\n- one\n- two\n**bold** and *it*")
+        self.assertIn("<p>First &lt;b&gt;line&lt;/b&gt; &amp; more.</p>", h)
+        self.assertIn("<ul><li>one</li><li>two</li></ul>", h)
+        self.assertIn("<strong>bold</strong>", h)
+        self.assertNotIn("<b>", h)
+
+    def test_a_delivered_suggestion_carries_cleaned_html(self):
+        s = am.AiSession()
+        c = s.begin("rewrite", "Some text here today.", "notes", 0, 21)
+        self.assertTrue(s.deliver(c, reply("Some words here today.\n- one\n- two")))
+        self.assertIn("<li>one</li>", c.html)
+        self.assertEqual(c.html, am.sanitise.clean_html(c.html))
+
+    def test_accept_gives_a_rich_editor_the_cleaned_html(self):
+        class Rich(FakeEditor):
+            html = None
+
+            def replace_html(self, a, b, html):
+                self.html = html
+                self.replace(a, b, "x")
+        ed = Rich("Some text here today.")
+        s = am.AiSession()
+        c = s.begin("rewrite", ed.text, "notes", 0, len(ed.text))
+        s.deliver(c, reply("Some words here today."))
+        self.assertTrue(s.accept(ed))
+        self.assertEqual(ed.html, "<p>Some words here today.</p>")
+        self.assertEqual(ed.steps, 1)
+
+    def test_html_that_slips_into_the_text_is_cleaned_again_on_accept(self):
+        # even if a card's text were tampered with after the check, the html that reaches the editor is built from the page cleaner
+        class Rich(FakeEditor):
+            def replace_html(self, a, b, html):
+                self.html = html
+                self.replace(a, b, "x")
+        ed = Rich("Some text here today.")
+        s = am.AiSession()
+        c = s.begin("rewrite", ed.text, "notes", 0, len(ed.text))
+        s.deliver(c, reply("Some words here today."))
+        c.text = "Words <script>alert(1)</script> here"
+        s.accept(ed)
+        self.assertNotIn("<script", ed.html)
+        self.assertIn("&lt;script&gt;", ed.html)          # shown as text, never as a tag
+
+
 if __name__ == "__main__":
     unittest.main()
