@@ -9,12 +9,12 @@ function Empty({ title, children, action }) {
 }
 
 export function Milestones({ tools }) {
-  const More = tools && tools.MilestoneMore;      // the owner's extra block under the Plan view (#136): Edit only, so a published page has none
+  const Wrap = tools && tools.MilestonesPage;     // the owner's Plan / Movement switch and Movement view (#136, C-M2): Edit only, so a published page has none
+  const plan = <MsBlock place="page" />;
   return (
     <section class="frame milestones" id="milestones">
       <h1>Milestones</h1>
-      <MsBlock place="page" />
-      {More ? <More /> : null}
+      {Wrap ? <Wrap plan={plan} /> : plan}
     </section>
   );
 }
