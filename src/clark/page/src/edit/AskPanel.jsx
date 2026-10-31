@@ -6,6 +6,7 @@ import { project, show, token } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { panelOpen, panelState, panelModel, panelWidth, panelFocus, turns, pending, closePanel, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
+import { ChangeCards, fixedLine } from "./AskChange.jsx";
 
 async function post(path, body) {
   try {
@@ -53,12 +54,29 @@ export function AskPanel() {
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
       turns.value = [...turns.value, { role: "assistant", text: b.answer }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
+      if (typeof b.reply === "string" && b.reply && Array.isArray(b.changes) && b.changes.length) await showChanges(b.reply);
     } else if (r.status === 409 && b && b.code === "asking_off") {
       panelState.value = "off";
     } else if (r.status === 0) {
       turns.value = [...turns.value, { role: "assistant", text: W.NOT_REACHED_LINE, kind: "problem" }];
     } else {
       const m = r.status === 200 && !(b && typeof b.message === "string" && b.message) ? W.NO_ANSWER_LINE : words(r, "answer");
+      turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
+    }
+  }
+
+  // #47e: the dry run of the changes the answer suggested; the server holds them, so only the reply's ID is sent.
+  async function showChanges(reply) {
+    pending.value = true;
+    const r = await post("/api/ask/change/dry", { project: project.value, reply });
+    pending.value = false;
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.plans)) {
+      turns.value = [...turns.value, { role: "assistant", kind: "changes", text: "", plans: b.plans, fromSource: b.from_source === true, passages: b.passages }];
+    } else if (r.status === 409 && b && b.code === "asking_off") {
+      panelState.value = "off";
+    } else {
+      const m = r.status === 400 || r.status === 409 ? fixedLine(b && b.message, W.CHANGES_GONE_LINE) : W.CHANGES_GONE_LINE;
       turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
     }
   }
@@ -102,7 +120,7 @@ export function AskPanel() {
         {list.map((t, i) => (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
-            <div class="ask-text">{t.text}</div>
+            {t.kind === "changes" ? <ChangeCards turn={t} /> : <div class="ask-text">{t.text}</div>}
           </div>
         ))}
         {busy ? <p class="ask-quip muted" id="ask-quip">{quip}</p> : null}

@@ -29,3 +29,31 @@ export const QUIPS = [
   "Still working. This can take a minute…",
   "Nearly there…",
 ];
+
+// A change an answer suggests (#47e). The before and after come from the saved data, never from the answer's words.
+export const CHANGE_HEAD = "Suggested change";
+export const NEW_HEAD = "Suggested new item";
+export const FIELD = "Field";
+export const NOW = "Now";
+export const AFTER = "After Apply";
+export const NOT_SET = "Not set";
+export const APPLY = "Apply";
+export const APPLYING_LINE = "Saving the change…";
+export const FROM_FILE = "From your file";
+export const CONFIRM_LINE = "This change comes from one of your files. Read the passage, tick the box, then press Apply.";
+export const CONFIRM_NO_PASSAGE_LINE = "This answer read your files, so check the change against them. Tick the box, then press Apply.";
+export const CONFIRM_BOX = "I have checked this change and want to save it";
+export const DONE_LINE = "Done.";
+export const UNDO = "Undo";
+export const UNDONE_LINE = "Undone. The old values are back.";
+export const UNDO_FAILED_LINE = "That could not be undone. Open the item and change it back yourself.";
+export const REFUSED_LINE = "That change can't be made by asking. Nothing was changed. Make it yourself on the board.";
+export const NOT_SAVED_LINE = "The change was not saved. Nothing was changed. Ask again, or make it yourself on the board.";
+export const CHANGES_GONE_LINE = "The suggested changes could not be shown. Nothing was changed. Ask again.";
+export const FIELD_NAMES = {
+  description: "Title", decision: "Decision", name: "Name", owner: "Owner", made_by: "Made by", priority: "Priority",
+  due_date: "Due", status: "Status", workstream: "Workstream", milestone: "Milestone", impact: "Impact", likelihood: "Likelihood",
+  date: "Date", needed_by: "Needed by", baseline_date: "Agreed date", forecast_date: "Forecast", actual_date: "Achieved",
+  closed: "Closed on", raised: "Raised", type: "Type",
+};
+export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones: "Milestone", raid: "Risk or issue" };
