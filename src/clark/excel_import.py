@@ -30,15 +30,16 @@ THE EXPORT'S RECORD (excel.STATE_FILE, beside clark.db; read with excel.load_sta
   * a row in the database that was not in the export (added in clark afterwards, or by an earlier import) is never "removed from
     the workbook": the workbook could not have held it;
   * a row with no id that an earlier import already made is not made again (see NEW ROWS ARE NOT MADE TWICE below).
-- The record is found by the file's path, or else by its SHA-256 (excel.load_state; the menu's export is downloaded by the browser,
-  so it is recorded by its bytes). THE LIMIT, until #169: before its first import, the downloaded workbook is found only while it
-  is exactly what clark wrote (the same bytes, from any folder). Once it is re-saved (Excel changes the bytes) or edited, nothing
-  finds the record and the import treats the file as unrecorded. That is often just when the person imports. A confirmed import
-  of such a file leaves a record under its path (excel.mark_imported: what was imported and the rows it made), but that record
-  holds no export ("hash", "rows"), so the file stays unrecorded however often it is imported. The fix is an export id inside
-  the workbook that the record is keyed by (#169); it is not built yet.
-- A record that names another project (a byte-identical workbook exported from project A, imported into B) is no record:
-  read_workbook treats the workbook as unrecorded for B.
+- The record is found by the export id inside the workbook (excel.load_state): each export writes a random id into the
+  workbook's custom properties (never a cell or the Cover) and keeps its record under that id and the project. So the exported
+  file finds its record from any folder, and still after it was edited, sorted or opened and saved again, and an import of it
+  writes back to that same record (excel.mark_imported). Only an unrecorded file loses it: a workbook with no id (exported
+  before ids, or another program's file) is found by its path, or by its SHA-256 only while it is exactly what clark wrote; a
+  program that rewrites the file without its custom properties drops the id, and then nothing finds the record (fails safe).
+  An id that is not a random UUID as 32 hex digits is ignored, never looked up.
+- A record that names another project is no record: an id is looked up under the project being imported only, so a workbook of
+  project A carrying B's id (copied, or forged) finds nothing, and a byte-identical workbook exported from A and imported into B
+  is passed over too; read_workbook treats the workbook as unrecorded for B.
 - A workbook with no export record (not written by an export from this store, or saved again or edited since) is "unrecorded": creaite refuses it; clark
   reads it and stages it, but accept_all accepts nothing and apply_import refuses until the person confirms it
   (read_workbook(..., allow_unrecorded=True) or plan.confirm_unrecorded()). Without a snapshot the database is what it is
@@ -920,7 +921,7 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
     seen_hash = excel.file_hash(path)
     state_path = Path(state_path) if state_path is not None else Path(store.path).parent / excel.STATE_FILE
     try:
-        record = excel.load_state(state_path, path)
+        record = excel.load_state(state_path, path, project)
     except (OSError, ValueError):
         record = {}
     if record.get("project") not in (None, project):
@@ -951,8 +952,8 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
         rd.plan.unrecorded = not record.get("hash")
         rd.plan.unrecorded_ok = bool(allow_unrecorded)
         if rd.plan.unrecorded:
-            rd.plan.notes.append(f"There is no record of exporting {path.name} from this store as it is now (it is recorded only while it is exactly what clark wrote), so clark can't say what you edited "
-                                 "or what was in the export: every difference from clark is staged and rows no longer in the "
+            rd.plan.notes.append(f"There is no record of exporting {path.name} from this store (a workbook with no export id is recorded only while it is exactly what clark wrote), so clark can't say what you edited "
+                                 "or what was in the export: every difference is staged and rows no longer in the "
                                  "workbook are offered for archiving (nothing is deleted). Check it is the right file, then confirm it to apply anything.")
         found, to_read, area = set(), [], 0
         for ws in wb.worksheets:
@@ -1026,15 +1027,17 @@ def _write(st, store, c):
     return st.archive(c.table, c.id)
 
 
-def _try(store, changes, by_user, commit, src_ref=None, made=None):
+def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel", place="excel"):
     """(problems, step id, refused): try `changes` in one step. If any breaks a rule, every broken one is returned and the step is
     rolled back; with commit False it is rolled back whatever happens (a dry run through the writer's own checks). `refused` is
     the plain reason when the store would not open the step (it is busy, or a check before a step such as the backup refused) or
-    would not commit it: nothing was written, and it is "" otherwise. `made`, if given, is filled with {change number: the id
-    the store gave a new row}; it is only to be trusted when the step committed (no problems, nothing refused)."""
+    would not commit it: nothing was written, and it is "" otherwise. `route` and `place` are the step's (a Word import, #48,
+    passes "word" and None: the Head's ruling on Q6 is that it uses this refuse-and-rollback rather than another). `made`, if
+    given, is filled with {change number: the id the store gave a new row}; it is only to be trusted when the step committed
+    (no problems, nothing refused)."""
     problems, step_id, refused = [], None, ""
     try:
-        with store.step("excel", by_user, place="excel", src_ref=src_ref, dry=not commit) as st:   # #86: a preview takes no backup
+        with store.step(route, by_user, place=place, src_ref=src_ref, dry=not commit) as st:   # #86: a preview takes no backup
             for c in changes:
                 try:
                     ref = _write(st, store, c)
@@ -1087,11 +1090,11 @@ def apply_import(store, plan, by_user, state_path=None):
     if plan.already_imported:
         return ImportResult(False, message=f"{plan.file} was already imported as it is now, so nothing was changed.")
     if plan.unrecorded and not plan.unrecorded_ok:
-        return ImportResult(False, message=f"There is no record of exporting {plan.file} from this store as it is now (it is recorded only while it is exactly what clark wrote), so nothing was "
+        return ImportResult(False, message=f"There is no record of exporting {plan.file} from this store (a workbook with no export id is recorded only while it is exactly what clark wrote), so nothing was "
                             "applied. Check it is the right file, confirm it, and import again.")
     if plan.path and plan.file_hash is not None:
         try:
-            now = excel.load_state(state_path, plan.path)
+            now = excel.load_state(state_path, plan.path, plan.project)
             if now.get("imported_hash") == plan.file_hash and in_force(store, now.get("imported_step")):
                 return ImportResult(False, message=f"{plan.file} has been imported since this plan was made, so nothing "
                                     "was changed.")

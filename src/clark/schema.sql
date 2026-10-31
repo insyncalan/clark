@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS item_events (
   item_id    TEXT NOT NULL,
   change     INTEGER,
   kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
-  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate')),   -- clark: clark's routes (cut down; + client, team)
+  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate','word')),   -- clark: clark's routes (cut down; + client, team, word)
   place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board','eye','draft','email','text','ask')),   -- clark: clark's places (+ board, #126: the board's own moves; + eye, draft, email, text, ask, #123)
   origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),   -- clark: clark's origins
   actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),          -- clark: creaite's two values, renamed
@@ -239,7 +239,7 @@ CREATE TABLE IF NOT EXISTS use_cases (
 CREATE TABLE IF NOT EXISTS report_sections (
   project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
   id      TEXT NOT NULL,
-  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs')),
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker')),
   title   TEXT NOT NULL,
   body    TEXT NOT NULL DEFAULT '',
   beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
