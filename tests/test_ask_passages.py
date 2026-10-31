@@ -220,10 +220,10 @@ class OnTheRoute(tr.Base):
         self.loose = Path(tempfile.mkdtemp(prefix="clark-loose-"))
         for p in (self.mine, self.theirs, self.loose):
             self.addCleanup(shutil.rmtree, p, True)
-        (self.mine / "plan.txt").write_text("ZQ-MINE the cutover is booked")
-        (self.mine / ".env").write_text("ZQ-ENVFILE=1")
-        (self.theirs / "plan.txt").write_text("ZQ-THEIRS other project folder")
-        (self.loose / "plan.txt").write_text("ZQ-LOOSE not saved anywhere")
+        (self.mine / "plan.txt").write_text(("ZQ-MINE the cutover is booked"), encoding="utf-8")
+        (self.mine / ".env").write_text(("ZQ-ENVFILE=1"), encoding="utf-8")
+        (self.theirs / "plan.txt").write_text(("ZQ-THEIRS other project folder"), encoding="utf-8")
+        (self.loose / "plan.txt").write_text(("ZQ-LOOSE not saved anywhere"), encoding="utf-8")
         store = st.open_store(self.db, onedrive_roots=[])
         with store.step("dashboard", "tester", place="menu") as s:
             s.create("source_folders", {"project": tr.CODE, "path": str(self.mine.resolve()), "sort_order": 1})
