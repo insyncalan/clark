@@ -49,6 +49,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from clark import excel_colours as colours
 from clark import excel_cover
 from clark import excel_picture
+from clark import look
 from clark import platform
 from clark.milestones import STATES, milestone_state
 from clark.timefmt import local_text, parse
@@ -146,13 +147,15 @@ ZIP_TIME = (1980, 1, 1, 0, 0, 0)           # the earliest time a zip can hold: e
 
 # Formatting (#85a). Brand colours come from excel_colours (the demo tokens); the layout rules are these.
 HEADER = PatternFill("solid", fgColor=colours.HEADER_FILL)
-HEADER_FONT = Font(bold=True, color=colours.HEADER_TEXT)
+OFFICE_FONT = look.office_font()           # the look's --font-office: one font on every sheet, a font Office has
+HEADER_FONT = Font(name=OFFICE_FONT, bold=True, color=colours.HEADER_TEXT)
+BODY_FONT = Font(name=OFFICE_FONT, size=11)  # the data cells (11 is the size a cell had before it named a font)
 # The item's title column on each sheet: the column frozen beside the ID, so a row stays readable while scrolling across.
 TITLE_OF = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision",
             "use_cases": "title"}
 SHORT_NAMES = {"owner", "made_by", "workstream", "labels"}      # people, streams and labels: a little wider than a status
 NUMBERS = {"sort_order", "percent_complete"}
-LOCKED = PatternFill("solid", fgColor="EFEFEF")
+LOCKED = PatternFill("solid", fgColor=colours.TOKENS["grey-100"])      # the page's quiet grey, for a column the import never reads
 # The ID column (#85d, BRD FR-70d). There are no cell locks and no sheet protection: Excel refuses to sort a range that holds
 # a locked cell, and sorting must stay free. The import is the guard (a changed existing ID is refused for that row; a row with
 # no ID is a new item and gets the next free ID). The ID column is shaded (LOCKED fill) and these words are pinned by a test.
@@ -638,7 +641,7 @@ HISTORY_COLUMNS = (("When", "when_text", 22), ("Who", "who", 18), ("How", "how",
                    ("From", "from", 44), ("To", "to", 44))
 HISTORY_NOTE = "This sheet is read-only and for internal use. Do not send it to a client."
 HISTORY_CELL_LIMIT = 5000                  # characters a history cell holds (design note, section 3)
-HISTORY_FONT = "Arial"
+HISTORY_FONT = OFFICE_FONT
 
 
 def history_cell(value):
@@ -652,7 +655,7 @@ def history_cell(value):
 def write_history(wb, view):
     """The History sheet (#123), after the data sheets: `view` is exactly what history.view_for_project returns, so the sheet and
     the Activity tab show the same rows. Row 1 is the internal note and the footnote, row 2 the header (frozen with it), then the
-    rows newest first, then the closing line (or the empty words). Every cell is a text cell in Arial; the import never reads it."""
+    rows newest first, then the closing line (or the empty words). Every cell is a text cell in the look's office font; the import never reads it."""
     ws = wb.create_sheet(HISTORY_NAME)
 
     def put(row, values, **kw):
@@ -692,6 +695,7 @@ def write_lists(wb, lists):
         for n, v in enumerate(lists[field], start=2):
             c = ws.cell(row=n, column=i, value=v)
             c.data_type = "s"
+            c.font = BODY_FONT
     ws.sheet_state = "hidden"
     return ws
 
@@ -701,7 +705,7 @@ def write_lists(wb, lists):
 COVER_NAME = "Cover"
 COVER_LABELS = {"internal": "Internal", "caution": "Caution", "return": "Sending changes back",
                 "where": "Where to make changes", "ids": "IDs"}
-COVER_FONT = "Arial"
+COVER_FONT = OFFICE_FONT
 
 
 def _cover_cell(value):
@@ -716,8 +720,8 @@ def _cover_font(**kw):
 
 def write_cover(wb, cover, mark=False):
     """The Cover sheet, first in the workbook and the one it opens on (#85b): one label column and one wide wrapped text column,
-    no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). Arial
-    throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
+    no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). The look's
+    office font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
     ws = wb.create_sheet(COVER_NAME, 0)
     ws.column_dimensions["A"].width = 24
     ws.column_dimensions["B"].width = 100
@@ -790,6 +794,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                 r = {**r, "shown_state": milestone_state(r, on), "original_date": r.get("original_date") or r.get("baseline_date")}
             ws.append([to_cell(f, r.get(f)) for _, f in cols])
             for c in ws[ws.max_row]:
+                c.font = BODY_FONT
                 if isinstance(c.value, str):
                     c.data_type = "s"       # text is text: openpyxl would make a string starting "=" a formula, "#N/A" an error
         n_rows = len(rows) + 1 + EXTRA_ROWS
@@ -799,6 +804,9 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             head.font, head.fill = HEADER_FONT, HEADER
             head.alignment = Alignment(wrap_text=True, vertical="center")
             ws.column_dimensions[col].width = column_width(table, field)
+            ws.column_dimensions[col].font = BODY_FONT        # the empty rows below the data, which a person fills in
+            for c in ws[f"{col}2:{col}{n_rows}"]:
+                c[0].font = BODY_FONT           # the data and the spare rows, so typed entries match (#85)
             for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
                 c[0].alignment = Alignment(wrap_text=wraps(table, field), vertical="top")
             if field in DATES:

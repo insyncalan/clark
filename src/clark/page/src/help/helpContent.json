@@ -171,7 +171,7 @@
    ],
    [
     "The profile circle",
-    "Publish, Preview, Export to Excel, Settings and Dark mode. At the top right.",
+    "Publish, Preview, Export to Excel, Appearance (System, Light or Dark) and Settings. At the top right.",
     ""
    ],
    [
@@ -419,9 +419,9 @@
     "s": [
      "On the **Dashboard**, press **Edit**. Press the **+** under the grip of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
-     "Under **Place it**, choose **On its own row** or, when the next section is on a row of its own and the template can be half width, **Beside** that section.",
+     "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
-     "Every template other than **Text** is empty when you add it, with each of its parts labelled. Filling the parts in comes in a later release; until then an empty template is left out of the published page.",
+     "Only **Text** can be added so far. The other templates are listed with “Coming with a later release.” and cannot be added yet.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
     ]
    },
@@ -474,7 +474,7 @@
     "go": "settings",
     "s": [
      "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
-     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Dark mode** in the profile circle menu sets Light or Dark outright.",
+     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ]
    },
@@ -653,7 +653,7 @@
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
        "**Settings**.",
-       "**Dark mode**: ticked when it is on."
+       "**Appearance**: System, Light or Dark; the one in use has a tick."
       ]
      ],
      [
@@ -751,11 +751,11 @@
     "b": [
      [
       "p",
-      "Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the next section (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
+      "Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
      ],
      [
       "p",
-      "**Text** is the exception: it adds an ordinary text section. Each template works at the widths shown."
+      "**Text** is the only one that can be added so far; the others say “Coming with a later release.” Each template works at the widths shown."
      ],
      [
       "tbl",
@@ -776,34 +776,14 @@
         "Full or half"
        ],
        [
-        "Headline band",
-        "Open the report with a message: a milestone reached, a go-live, a change of phase.",
-        "Full"
-       ],
-       [
         "Key figures, four",
         "Three or four numbers with labels and a change since last week.",
         "Full or half"
        ],
        [
         "Key figures, three",
-        "The same, for three numbers. Each card is wider, so a short note fits under the change.",
+        "Three numbers with labels, in wider cards, so a short note fits under the change.",
         "Full or half"
-       ],
-       [
-        "Image gallery",
-        "Two to six pictures in a grid, each with a caption.",
-        "Full"
-       ],
-       [
-        "Table",
-        "Anything with rows: a budget line, a cut-over plan, a training schedule.",
-        "Full"
-       ],
-       [
-        "Link preview",
-        "A web page shown as a card: a dashboard, a news item, a recording.",
-        "Full"
        ],
        [
         "RAID cards, three",
@@ -831,33 +811,8 @@
         "Half or full"
        ],
        [
-        "Image with caption",
-        "One picture beside text.",
-        "Half or full"
-       ],
-       [
-        "Quote",
-        "A voice from the business.",
-        "Half or full"
-       ],
-       [
-        "Contacts",
-        "Who to ask.",
-        "Half or full"
-       ],
-       [
-        "Checklist",
-        "Next steps or readiness, ticked off.",
-        "Half or full"
-       ],
-       [
         "Key dates",
         "What’s coming, from the milestones.",
-        "Half or full"
-       ],
-       [
-        "One document",
-        "A single file to read.",
         "Half or full"
        ]
       ]
@@ -1487,7 +1442,7 @@
       "ul",
       [
        "**Log level**: **Normal** keeps a line for what clark did and for every error. **Debug** adds detail for fixing a problem. Switch back to Normal when you are done; Settings reminds you after a week.",
-       "Logs hold only counts, IDs and times, never your report text, names, emails or keys. clark keeps one file a day (5 MB at most) for 7 days; **Open the folder** shows it.",
+       "Logs hold only counts, IDs and times, never your report text, names, emails or keys. The log keeps one file a day (5 MB at most) for 7 days; **Open the folder** shows it.",
        "**Copy diagnostics** puts a plain-text report on the clipboard: the version, browser, system, log level, counts, safe settings and the last 20 log lines. It never holds a name, email, project name or report text, so it can go in a chat.",
        "**Errors in the last 7 days** lists what went wrong, or says None."
       ]
@@ -1848,8 +1803,8 @@
    ],
    [
     "moon",
-    "Dark mode",
-    "Switch the dark look on or off",
+    "Appearance",
+    "Choose System, Light or Dark",
     "The profile circle"
    ],
    [
