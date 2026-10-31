@@ -7,6 +7,8 @@ import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
 import { scrollTargets, entries } from "../logic/minimap.js";
 import { slots as slotsOf } from "../logic/placement.js";
+import { rowsFor } from "./ItemRows.jsx";
+import { KINDS } from "../logic/sectionRows.js";
 
 // A section set beside the next one shares its row with it (half width each); every other section takes the full row. The rows
 // are read from ALL the sections, then the hidden ones are left out, so a pair with one half hidden shows the other full width and
@@ -46,8 +48,8 @@ export function Dashboard({ tools }) {
   // does not draw yet (only text bodies are drawn, #74). Rows are read from every section first (#95), so a section whose partner
   // is left out takes the full row and never pairs with the next one. The page clark serves is unchanged.
   // The file draws a text section with a body, the At a glance section when it carries tiles and the use case summary when it
-  // carries use cases (#45); the other types are left out until they are drawn.
-  const fileDraws = (s) => (s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : false);
+  // carries use cases (#45), and Risks and issues, Open actions and Decisions when they have a row to show (A-D5); the other types are left out until they are drawn.
+  const fileDraws = (s) => (s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : !!KINDS[s.type] && rowsFor(s.type).length > 0);
   const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s));
   const list = editing ? all : all.filter(shown);
   const places = slots(all, editing ? undefined : shown);

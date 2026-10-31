@@ -34,6 +34,7 @@ TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "Sum
           "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
 IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]
 SECRET = "Server text that a person must never read"
+NOTHING = "Nothing to show this week."                  # a work item section with no row to draw (A-D5)
 QUIET = "Not shown on this page yet."                    # the page clark serves, for every type (#74)
 ALT = 1                                                            # Input.dispatchKeyEvent modifiers: Alt
 
@@ -242,14 +243,15 @@ class Modes(Base):
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases'].includes(s.dataset.type))"
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
-            self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "View: one plain line, the same for every type")
+            want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
+            self.assertEqual(p.js(quiet), want, "View: one plain line, the same for every type that draws no rows")
             self.assertTrue(p.js("!!document.querySelector('.secs > .sec[data-type=milestones] .msv, .secs > .sec[data-type=milestones] [data-no-milestones]')"),
                             "View: the milestones section is drawn, not the plain line")
             p.edit()
             found = edit_elements(cdp, p.sid)
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
                 self.assertEqual(len([f for f in found if what in f]), 11, what)
-            self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "Edit: the same line")
+            self.assertEqual(p.js(quiet), want, "Edit: the same line")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")

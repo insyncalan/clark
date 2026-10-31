@@ -938,3 +938,17 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+
+/* The work item rows of Risks and issues, Open actions and Decisions (A-D5): a state pill, the item, who and when, the ID.
+   A list, not a table, so it stays one column at laptop widths and nothing pushes the page sideways. */
+.wl { list-style: none; margin: 8px 0; padding: 0; }
+.wl-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; padding: 9px 0; border-top: 1px solid var(--grey-100); }
+.wl-row:first-child { border-top: 0; }
+.wl-state { min-width: 0; }
+.wl-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wl-title { overflow-wrap: anywhere; color: var(--text); }
+.wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
+.wl-meta .av { width: 22px; height: 22px; font-size: 12px; }
+.wl-meta .late { color: var(--status-red-text); }
+.wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
+.wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }

@@ -6,6 +6,8 @@
 // draws a saved body as markup until the one editor and the page's cleanHtml arrive (#66); there, every section shows one quiet
 // line, the same for every type.
 import { dropAt, fromFile } from "../stores/report.js";
+import { ItemRows } from "./ItemRows.jsx";
+import { KINDS } from "../logic/sectionRows.js";
 import { anchorId } from "../logic/minimap.js";
 import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
@@ -30,6 +32,7 @@ export function Section({ section, index, count, slot, anchor, tools }) {
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
         : fromFile.value && section.type === "text"
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
+        : KINDS[section.type] ? <ItemRows type={section.type} />          // risks and issues, actions, decisions: their rows (A-D5)
         : <p class="quiet">Not shown on this page yet.</p>}
     </article>
   );
