@@ -76,8 +76,10 @@ class Allowed(Api):
         sections = set(store_module.columns(self.s.con, KIND))
         self.assertTrue(set(changes.SHOWN) <= sections - {"body"} | {"id"})
         self.assertNotIn("body", changes.SHOWN)
-        for never in ("project", "id", "sort_order", "body"):
+        for never in ("project", "id", "sort_order"):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
+        self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
+                         [(KIND, "update")])             # a body is written by one request only: a section's update, and then only for a needs or tracker section
         self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk"})      # #196: + bulk
 
     def test_the_route_admits_only_the_approved_kinds(self):
@@ -119,15 +121,15 @@ class Refusals(Api):
         self.refused(self.req("new", values={"id": "ABC-S-099"}), "The field 'id' can't be set here.")
         self.refused(self.req("new", values={"hidden": 1}), "The field 'hidden' can't be set here.")
         self.refused(self.req("new", values={"body": "x"}), "The field 'body' can't be set here.")
-        self.refused(self.req("new", values={"type": "raid"}), changes.ONLY_TEXT)
-        self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.ONLY_TEXT)
-        self.refused(self.req("new", values={"type": ["text"]}), changes.ONLY_TEXT)
+        self.refused(self.req("new", values={"type": "raid"}), changes.NEW_TYPE_WORDS)
+        self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
+        self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", id="ABC-S-001"), "That change doesn't take 'id'.")
         self.refused(self.req("new", changes={"title": "x"}), "That change doesn't take 'changes'.")
         self.refused(self.req("new", before="ABC-S-001"), "That change doesn't take 'before'.")
         self.refused(self.req("update", id="ABC-S-005", values={"title": "x"}), "That change doesn't take 'values'.")
         self.refused(self.req("update", id="ABC-S-005", changes={"sort_order": 1}), "The field 'sort_order' can't be set here.")
-        self.refused(self.req("update", id="ABC-S-005", changes={"body": "x"}), "The field 'body' can't be set here.")
+        self.refused(self.req("update", id="ABC-S-005", changes={"body": "x"}), changes.NO_BODY_HERE)         # a text section's body write stays closed
         self.refused(self.req("update", id="ABC-S-005", changes={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("update", id="ABC-S-005", changes={}), "Say what to change.")
         self.refused(self.req("update", id="ABC-S-005"), "Say what to change.")
@@ -500,7 +502,7 @@ class Steps(Api):
         self.refused(self.req("new"), "A report can have at most 100 sections.")
 
     def test_delete_only_a_text_section(self):
-        self.refused(self.req("delete", id="ABC-S-001"), "Only a text section can be deleted; hide the others.")
+        self.refused(self.req("delete", id="ABC-S-001"), "Only a text, needs or tracker section can be deleted; hide the others.")
         self.assertEqual(self.ok("delete", id="ABC-S-005")["ref"], "ABC-S-005")
         self.assertNotIn("Summary", self.titles())
 
@@ -536,7 +538,7 @@ class Steps(Api):
         self.ok("update", id="ABC-S-001", changes={"beside": 1})           # S-002 is the second half of S-001; it is not a text section
         before, snap = self.beside_now(), self.snapshot()
         self.assertEqual(before["ABC-S-001"], 1)
-        self.refused(self.req("delete", id="ABC-S-002"), "Only a text section can be deleted; hide the others.")
+        self.refused(self.req("delete", id="ABC-S-002"), "Only a text, needs or tracker section can be deleted; hide the others.")
         self.assertEqual(self.beside_now(), before, "the partner's flag was written inside the step, so the refusal rolled it back")
         self.assertEqual(self.snapshot(), snap, "no step, no change_log row")
 
