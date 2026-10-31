@@ -201,7 +201,7 @@ class Look(Base):
             self.assertEqual(p.js("document.querySelector('#ask-log #ask-work')"), None, "the working line is not in the chat")
             self.assertAlmostEqual(p.js("document.querySelector('#ask-work').getBoundingClientRect().top"), row_top, delta=1)
             self.assertEqual(p.js("(function(){var r=document.querySelector('.ask-form').getBoundingClientRect();return [r.top, r.height];})()"), before)
-            self.assertEqual(p.js("document.querySelector('#ask-work').getAttribute('role')"), "status", "the working line is announced once")
+            self.assertIsNone(p.js("document.querySelector('#ask-work').getAttribute('role')"), "the working line is not a live region of its own: the status line announces the work once")
             self.assertEqual(p.js("document.querySelector('#ask-quip').getAttribute('aria-hidden')"), "true", "the changing quip is not read out each time")
             for width in (1400, 900):
                 for theme in ("light", "dark"):

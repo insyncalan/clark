@@ -103,7 +103,12 @@ export function AskPanel() {
   // To Settings and the Asking card there: scrolled into view and focused, so the link lands on the switch, not at the top.
   function toSettings(e) {
     e.preventDefault(); closePanel(); show("settings");
-    setTimeout(() => { const c = document.getElementById("ask-settings"); if (c) { c.scrollIntoView({ block: "start" }); const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } } }, 120);
+    const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading
+      const c = document.getElementById("ask-settings");
+      if (c) { c.scrollIntoView({ block: "start" }); const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } }
+      else if (tries < 40) setTimeout(() => focusCard(tries + 1), 50);
+    };
+    focusCard(0);
   }
 
   return (
@@ -131,7 +136,7 @@ export function AskPanel() {
         ))}
       </div>
       {busy ? (
-        <p class="ask-work" id="ask-work" role="status">
+        <p class="ask-work" id="ask-work">
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
           <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
           <span class="ask-sr">{W.WORKING}</span>
