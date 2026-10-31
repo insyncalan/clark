@@ -38,7 +38,7 @@ JARGON = re.compile(r"\b(json|api|http|html|markdown|token|route|provider|payloa
 # A date written out or in numbers, and a name (a capital in the middle of a line).
 DATE = re.compile(r"\b\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}\b|\b\d{1,2}(st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|"
                   r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b20\d\d\b", re.I)
-NAME = re.compile(r"(?<=[a-z,] )(?!Claude|Settings)[A-Z][a-z]+")      # a capital in the middle of a line, apart from the two words the card uses
+NAME = re.compile(r"(?<=[a-z,] )(?!(?:Claude|Settings)\b)[A-Z][a-z]+")      # a capital in the middle of a line, apart from the two words the card uses
 
 
 class Page:
