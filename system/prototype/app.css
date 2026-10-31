@@ -1355,7 +1355,7 @@ body.bfull .proto { display: none; }
 .ucx-count { color: var(--text-muted); font-size: 13px; }
 .ucx-list { border-top: 1px solid var(--grey-200); }
 .ucx-row { display: grid; grid-template-columns: 84px minmax(0, 1.1fr) minmax(0, 1.6fr) 112px 92px minmax(0, .9fr) 190px; gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out); }
-.ucx-row:hover { background: var(--grey-50); }
+.ucx-row:hover, .ucx-row:focus-within { background: var(--grey-50); }
 .ucx-hd { cursor: default; padding-top: 8px; padding-bottom: 8px; border-bottom-color: var(--grey-200); font-size: var(--fs-xs); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
 .ucx-hd:hover { background: none; } .ucx-hd .ucx-head, .ucx-hd .ucx-ms { font-size: var(--fs-xs); color: var(--text-muted); display: block; }
 #ucxAdd { background: var(--brand-blue); color: var(--text-on-brand, #fff); } #ucxAdd .w { max-width: 180px; opacity: 1; margin: 0 4px 0 6px; } #ucxAdd:hover, #ucxAdd:focus-visible { background: var(--brand-blue); color: var(--text-on-brand, #fff); box-shadow: 0 4px 12px rgba(57,98,254,.22); }

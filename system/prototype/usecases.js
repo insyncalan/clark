@@ -51,20 +51,25 @@
   const find = k => D.S.usecases.find(u => u.key === k);
   const say = (u, msg, undo) => { C.refresh(); C.toast(`Use case ${refOf(u)} ${msg}`, undo); };
   const EYE_ON = 'On the dashboard', EYE_OFF = 'Not on the dashboard';
-  let lastKey = '';   /* the use case just left by Back or the crumb: its row takes the focus when the list comes back */
+  let lastKey = '';   /* the use case just left by Back, the crumb or Esc: its row takes the focus when the list comes back */
+  let cur = '';       /* the list's current row (its key): the name button of that row is the list's one tab stop */
+  const stopOf = us => us.some(u => u.key === cur) ? cur : us.length ? us[0].key : '';
 
   /* ── the list ── */
   function msWords(u) { const ms = msLinked(u); return ms.length ? ms.map(m => esc(m.name)).join('; ') : '<span class="muted">None</span>'; }
-  function rowHtml(u) {
+  /* the row said in plain words, for the name button: the reference, the name, the status, the work items and the dashboard */
+  const rowSay = u => { const n = itemsOf(u).length, o = openOf(u).length;
+    return [refLab(u), nameOf(u), u.status, n ? `${o} of ${plural(n, 'work item')} open` : 'No work items', u.client ? EYE_ON : EYE_OFF].join(', '); };
+  function rowHtml(u, stop) {
     const K = esc(u.key), on = !!u.client, n = itemsOf(u).length, o = openOf(u).length;
     return `<div class="ucx-row${on ? '' : ' off'}" role="listitem" data-ucx="${K}">
       <span class="ucx-ref" title="${esc(refLab(u))}">${esc(refLab(u))}</span>
-      <span class="ucx-name"><button class="ucx-go" data-ucx-go="${K}" title="Open ${esc(nameOf(u))}">${esc(nameOf(u))}</button><small>${esc(u.headline || 'No headline yet')}</small></span>
+      <span class="ucx-name"><button class="ucx-go" data-ucx-go="${K}" tabindex="${stop === u.key ? 0 : -1}" aria-label="${esc(rowSay(u))}" title="Open ${esc(nameOf(u))}">${esc(nameOf(u))}</button><small>${esc(u.headline || 'No headline yet')}</small></span>
       <span class="ucx-head" title="${esc(u.headline)}">${esc(u.headline || 'No headline yet')}</span>
       <span class="ucx-st">${word(u.status)}</span>
       <span class="ucx-wi">${n ? `<b>${n}</b> linked<small>${o} open</small>` : 'None linked'}</span>
       <span class="ucx-ms">${msWords(u)}</span>
-      <button class="ucx-eye" data-ucx-eye="${K}" aria-pressed="${on}" title="${on ? 'Shown on the dashboard and the published page. Select to take it off' : 'Not shown. Select to put it on the dashboard'}">${C.icon(on ? 'eye' : 'eyeoff', 's')}<span class="w">${on ? EYE_ON : EYE_OFF}</span></button>
+      <button class="ucx-eye" data-ucx-eye="${K}" tabindex="-1" aria-pressed="${on}" title="${on ? 'Shown on the dashboard and the published page. Select to take it off' : 'Not shown. Select to put it on the dashboard'}">${C.icon(on ? 'eye' : 'eyeoff', 's')}<span class="w">${on ? EYE_ON : EYE_OFF}</span></button>
     </div>`;
   }
   function archBoxHtml() {
@@ -80,8 +85,8 @@
   const emptyHtml = f => live().length ? `<div class="empty"><p>No use cases match ${f.q.trim() ? `“${esc(f.q.trim())}”${f.st.length || f.on !== 'all' ? ' with these filters' : ''}` : 'these filters'}.</p><button class="btn" data-ucx-clear>Clear the filters</button></div>`
     : '<div class="empty"><p>No use cases yet. Add one, or import them from an Excel file with a Use cases sheet.</p></div>';
   function listHtml() {
-    const us = list(), f = F();
-    return `${us.length ? `<div class="ucx-list" role="list"><div class="ucx-row ucx-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucx-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucx-ms">Milestones</span><span>Home dashboard</span></div>${us.map(rowHtml).join('')}</div>` : emptyHtml(f)}${footHtml()}${archBoxHtml()}`;
+    const us = list(), f = F(), stop = stopOf(us);
+    return `${us.length ? `<div class="ucx-list" role="list"><div class="ucx-row ucx-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucx-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucx-ms">Milestones</span><span>Home dashboard</span></div>${us.map(u => rowHtml(u, stop)).join('')}</div>` : emptyHtml(f)}${footHtml()}${archBoxHtml()}`;
   }
   const pillLab = (t, vs) => vs.length ? `${t}: ${vs.join(', ')}` : t;
   const countWords = () => { const us = live(), n = list().length; return `Showing ${n} of ${us.length} · ${us.filter(u => u.client).length} on the dashboard`; };
@@ -147,12 +152,12 @@
     html() {
       const u = UI.uc && C.ucAll().find(x => x.id === UI.uc);
       if (UI.uc && !u) { UI.uc = ''; C.ucFixed = true; }   /* a use case that is gone (another project, or undone): back to the list */
-      if (u) lastKey = u.key;
+      if (u) lastKey = cur = u.key;
       return u ? detailPage(u) : listPage();
     },
     wire() {
       if (C.ucFixed) { C.ucFixed = false; setTimeout(() => C.nav('replace'), 0); }   /* after a Back or Forward has finished, so the address is mended too */
-      if (UI.uc) wireDetail(C.ucAll().find(x => x.id === UI.uc)); else { wireBar(); wireList(); if (lastKey) { C.$(`[data-ucx-go="${CSS.escape(lastKey)}"]`)?.focus({ preventScroll: true }); lastKey = ''; } }
+      if (UI.uc) wireDetail(C.ucAll().find(x => x.id === UI.uc)); else { wireBar(); wireList(); wireKeys(); if (lastKey) { C.$(`[data-ucx-go="${CSS.escape(lastKey)}"]`)?.focus({ preventScroll: true }); lastKey = ''; } }
     },
   };
   C.openUc = u => { C.go('usecases', { uc: typeof u === 'string' ? u : u.id }); C.$('.head h1')?.focus({ preventScroll: true }); };
@@ -208,10 +213,38 @@
     C.$$('[data-ucx-go]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); C.openUc(find(b.dataset.ucxGo)); }));
     /* the eye: the dashboard's own switch; the row stays here (muted when off), one step with Undo */
     C.$$('[data-ucx-eye]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const u = find(b.dataset.ucxEye), on = !u.client;
-      const un = D.change('uc', u, { client: on }, D.who('with the eye')); if (un) say(u, on ? 'is on the dashboard' : 'is no longer on the dashboard', un); }));
+      const un = D.change('uc', u, { client: on }, D.who('with the eye')); if (un) say(u, on ? 'is on the dashboard' : 'is no longer on the dashboard', un);
+      C.$(`[data-ucx-eye="${CSS.escape(u.key)}"]`)?.focus({ preventScroll: true }); }));   /* the page redrew: the eye keeps the focus */
     C.$$('[data-ucx-arch]').forEach(b => b.addEventListener('click', () => { setF({ arch: !F().arch }); rer(); C.$('[data-ucx-arch]')?.focus(); }));
     C.$$('[data-ucx-restore]').forEach(b => b.addEventListener('click', () => restore(find(b.dataset.ucxRestore))));
   }
+  /* the list's keys. The list is one tab stop (the current row's name button; the eyes are reached with Right). Up and Down move row to row,
+     Home and End go to the first and last, Right goes to the eye and Left back to the name, Enter or Space does what a click does. A key is
+     taken only when focus is on a row's name or eye, so the search box and the filters keep their own keys, and the page does not scroll. */
+  function wireKeys() {
+    const host = C.$('#ucxList'), ctl = t => t.closest && t.closest('.ucx-row[data-ucx]') && t.closest('.ucx-go, .ucx-eye');
+    const setStop = k => { cur = k; C.$$('.ucx-row[data-ucx] .ucx-go', host).forEach(b => b.setAttribute('tabindex', b.dataset.ucxGo === k ? '0' : '-1')); };
+    host.addEventListener('focusin', e => { if (ctl(e.target)) setStop(e.target.closest('.ucx-row[data-ucx]').dataset.ucx); });
+    host.addEventListener('keyup', e => { if (e.key === ' ' && ctl(e.target)) e.preventDefault(); });   /* the click was made on the key going down */
+    host.addEventListener('keydown', e => {
+      const t = e.target, k = e.key;
+      if (!ctl(t) || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing || e.defaultPrevented || C.typing(t)) return;
+      const r = t.closest('.ucx-row[data-ucx]'), eye = t.classList.contains('ucx-eye');
+      if (k === 'Enter' || k === ' ') { e.preventDefault(); if (!e.repeat) t.click(); return; }
+      if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); C.$(k === 'ArrowRight' ? '.ucx-eye' : '.ucx-go', r).focus(); return; }
+      const rows = C.$$('.ucx-row[data-ucx]', host), i = rows.indexOf(r), j = { ArrowUp: i - 1, ArrowDown: i + 1, Home: 0, End: rows.length - 1 }[k];
+      if (j === undefined) return;
+      e.preventDefault();
+      C.$(eye ? '.ucx-eye' : '.ucx-go', rows[Math.max(0, Math.min(rows.length - 1, j))]).focus();
+    });
+  }
+  /* Esc on a use case's page goes back to the list, to the row it came from. It is left alone while typing (Esc there undoes the edit),
+     and while a menu, a dialog, the peek or ask clark is open (those take the Esc first). */
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || UI.view !== 'usecases' || !UI.uc) return;
+    if (C.typing(document.activeElement) || C.typing(e.target) || UI.peek || (C.popOpen && C.popOpen()) || C.$('#dlg')?.open || (C.askIsOpen && C.askIsOpen())) return;
+    e.preventDefault(); C.go('usecases');
+  });
   function restore(u) { const un = D.archive(u, false, D.who(HOW), 'uc'); if (un) say(u, 'restored. It is back in the lists and counts', un); }
   function wireDetail(u) {
     const host = C.$('#main');

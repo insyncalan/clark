@@ -2275,6 +2275,75 @@
     });
     C.theme(theme0); C.go('dashboard'); await sleep(100);
 
+    /* 12. the keyboard: the list is one tab stop with the arrow keys, a row says itself in plain words; light and dark, 1400 and 900 px */
+    const kd = (el, k, o = {}) => { const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...o }); el.dispatchEvent(e); return e; };
+    const goOf = k => row(k).querySelector('.ucx-go'), eyeOf = k => row(k).querySelector('.ucx-eye'), keys = () => rows().map(r => r.dataset.ucx);
+    const tabStops = () => $$('.ucx-list button').filter(b => b.tabIndex >= 0);
+    const oneStopOn = k => tabStops().length === 1 && tabStops()[0] === goOf(k) && $$('.ucx-list [tabindex="0"]').length === 1;
+    const sayOf = u => { const n = itemsOf(u).length, o = itemsOf(u).filter(C.isOpen).length; return `UC ${u.ref || u.id}, ${u.title.split('\n').join(' · ')}, ${u.status}, ${n ? `${o} of ${n} work item${n === 1 ? '' : 's'} open` : 'No work items'}, ${u.client ? 'On the dashboard' : 'Not on the dashboard'}`; };
+    for (const th of ['light', 'dark']) for (const w of [1400, 900]) await atW(w, async () => {
+      const at = `at ${w} px in ${th}`;
+      C.theme(th); C.go('usecases'); await sleep(250);
+      const ks = keys(), first = ks[0], last = ks.at(-1), second = ks[1], third = ks[2];
+      /* when the remembered row is not in the list, the first row is the stop */
+      { const q = $('#ucxQ'); goOf(last).focus(); q.value = uc(first).title.split('\n')[0]; q.dispatchEvent(new Event('input', { bubbles: true })); await sleep(60);
+        ok(`UC12 ${at}: the list is one tab stop, and it is the first row when the remembered one is not shown`, rows().length > 0 && rows()[0].dataset.ucx === first && !rows().some(r => r.dataset.ucx === last) && oneStopOn(first), tabStops().length + ' stops');
+        q.value = ''; q.dispatchEvent(new Event('input', { bubbles: true })); await sleep(60); }
+      ok(`UC12 ${at}: exactly one name button has tabindex 0, the other names and every eye have -1`, $$('.ucx-list [tabindex="0"]').length === 1 && $$('.ucx-list .ucx-go[tabindex="0"]').length === 1 && $$('.ucx-eye').every(e => e.getAttribute('tabindex') === '-1') && tabStops().length === 1, $$('.ucx-list [tabindex="0"]').length + ' at 0');
+      goOf(first).focus(); await sleep(30);
+      ok(`UC12 ${at}: focus on a row makes that row the one stop`, oneStopOn(first));
+      { const e = kd(document.activeElement, 'ArrowDown'); ok(`UC12 ${at}: ArrowDown moves to the next row, keeps one tab stop on it and does not scroll the page`, document.activeElement === goOf(second) && oneStopOn(second) && e.defaultPrevented); }
+      kd(document.activeElement, 'ArrowDown'); ok(`UC12 ${at}: ArrowDown again moves one more (nothing skipped)`, document.activeElement === goOf(third) && oneStopOn(third));
+      { const e = kd(document.activeElement, 'ArrowUp'); ok(`UC12 ${at}: ArrowUp moves to the row above`, document.activeElement === goOf(second) && oneStopOn(second) && e.defaultPrevented); }
+      kd(document.activeElement, 'End'); ok(`UC12 ${at}: End goes to the last row`, document.activeElement === goOf(last) && oneStopOn(last));
+      { const e = kd(document.activeElement, 'ArrowDown'); ok(`UC12 ${at}: ArrowDown on the last row stays there and still does not scroll the page`, document.activeElement === goOf(last) && e.defaultPrevented); }
+      kd(document.activeElement, 'Home'); ok(`UC12 ${at}: Home goes to the first row`, document.activeElement === goOf(first) && oneStopOn(first));
+      { const e = kd(document.activeElement, 'ArrowUp'); ok(`UC12 ${at}: ArrowUp on the first row stays there`, document.activeElement === goOf(first) && e.defaultPrevented); }
+      /* the tab stop is remembered when focus leaves and comes back */
+      kd(document.activeElement, 'ArrowDown'); $('#ucxQ').focus(); await sleep(30);
+      ok(`UC12 ${at}: with focus out of the list, the stop is still the row it left`, oneStopOn(second)); goOf(second).focus(); await sleep(20);
+      /* Right and Left between the name and the eye */
+      { const e = kd(document.activeElement, 'ArrowRight'); ok(`UC12 ${at}: Right moves from the name to the eye, and the row stays the stop`, document.activeElement === eyeOf(second) && oneStopOn(second) && e.defaultPrevented); }
+      { const e = kd(document.activeElement, 'ArrowRight'); ok(`UC12 ${at}: Right on the eye stays there and does not scroll the page`, document.activeElement === eyeOf(second) && e.defaultPrevented); }
+      kd(document.activeElement, 'ArrowDown'); ok(`UC12 ${at}: Down on an eye goes to the next row's eye`, document.activeElement === eyeOf(third) && oneStopOn(third));
+      kd(document.activeElement, 'ArrowUp'); kd(document.activeElement, 'ArrowLeft'); ok(`UC12 ${at}: Left moves back to the name`, document.activeElement === goOf(second) && oneStopOn(second));
+      { const e = kd(document.activeElement, 'ArrowLeft'); ok(`UC12 ${at}: Left on the name stays there and does not scroll the page`, document.activeElement === goOf(second) && e.defaultPrevented); }
+      /* a key with a modifier is the browser's, not the list's */
+      { const e = kd(document.activeElement, 'ArrowDown', { altKey: true }); ok(`UC12 ${at}: Alt with an arrow is left to the browser`, document.activeElement === goOf(second) && !e.defaultPrevented); }
+      /* typing: the search box and the filter controls keep their own keys */
+      { const q = $('#ucxQ'); q.focus(); const es = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'ArrowLeft', 'ArrowRight'].map(k => kd(q, k));
+        ok(`UC12 ${at}: arrows, Home and End do nothing to the list while typing in the search box`, document.activeElement === q && es.every(e => !e.defaultPrevented) && oneStopOn(second)); }
+      { const pill = $('#ucxS'); pill.focus(); const es = ['ArrowDown', 'ArrowUp', 'Home', 'End'].map(k => kd(pill, k));
+        ok(`UC12 ${at}: and the same on a filter button`, document.activeElement === pill && es.every(e => !e.defaultPrevented) && oneStopOn(second)); }
+      /* a row said in plain words */
+      ok(`UC12 ${at}: every row's name button says the row (reference, name, status, work items open, dashboard) and keeps its visible words`, rows().every(r => { const b = r.querySelector('.ucx-go'), u = uc(r.dataset.ucx); return b.getAttribute('aria-label') === sayOf(u) && b.getAttribute('aria-label').includes(b.textContent.trim()); }), goOf(first).getAttribute('aria-label') + ' / ' + sayOf(uc(first)));
+      ok(`UC12 ${at}: the label reads like the example`, /^UC 1\.2, .+, (On track|Flag|High risk), \d+ of \d+ work items? open, (On|Not on) the dashboard$/.test(goOf('PDF/1.2').getAttribute('aria-label')), goOf('PDF/1.2').getAttribute('aria-label'));
+      ok(`UC12 ${at}: the header row stays visual only, and the label carries what it says`, $('.ucx-hd').getAttribute('aria-hidden') === 'true' && /^UC /.test(goOf(first).getAttribute('aria-label')) && /work item/.test(goOf(first).getAttribute('aria-label')) && /dashboard/.test(goOf(first).getAttribute('aria-label')));
+      /* the focus ring is two pixels */
+      { goOf(first).focus(); const cs = getComputedStyle(goOf(first)), ring = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) === 2; eyeOf(first).focus(); const ce = getComputedStyle(eyeOf(first));
+        ok(`UC12 ${at}: the focus ring shows, 2 px, on the name and on the eye`, ring && ce.outlineStyle !== 'none' && parseFloat(ce.outlineWidth) === 2, `${cs.outlineStyle} ${cs.outlineWidth} / ${ce.outlineStyle} ${ce.outlineWidth}`); }
+      /* Enter opens the detail, Esc returns to the same row */
+      goOf(third).focus(); { const e = kd(document.activeElement, 'Enter'); await waitFor(() => C.UI.uc === uc(third).id && !!$('.ucx-dgrid'));
+        ok(`UC12 ${at}: Enter on the name opens the use case on its own page`, C.UI.uc === uc(third).id && !$('#ucxList') && e.defaultPrevented); }
+      kd(document.activeElement, 'Escape'); await waitFor(() => !C.UI.uc && !!$('#ucxList') && document.activeElement === goOf(third));
+      ok(`UC12 ${at}: Esc on the page returns to the list with the focus on the row it came from`, !C.UI.uc && document.activeElement === goOf(third) && oneStopOn(third));
+      /* Esc inside an edit field only undoes the edit; Esc with a menu open only closes the menu */
+      goOf(third).focus(); kd(document.activeElement, 'Enter'); await waitFor(() => C.UI.uc === uc(third).id && !!$('.ucx-dgrid'));
+      { const nm = $('[data-ucx-name]'), t0 = nm.textContent, h0 = hist(third); nm.focus(); nm.textContent = t0 + ' typed'; kd(nm, 'Escape'); await sleep(80);
+        ok(`UC12 ${at}: Esc in an edit field puts the words back and stays on the page`, !!C.UI.uc && uc(third).title.split('\n')[0] === t0 && hist(third) === h0 && ($('[data-ucx-name]') || {}).textContent === t0); }
+      click($('#ucxStatus')); await sleep(60); { const menu = C.popOpen(); kd(document.activeElement && document.activeElement !== document.body ? document.activeElement : document.body, 'Escape'); await sleep(60);
+        ok(`UC12 ${at}: Esc with a menu open closes the menu and stays on the page`, menu && !C.popOpen() && !!C.UI.uc); }
+      kd(document.body, 'Escape'); await waitFor(() => !C.UI.uc && !!$('#ucxList'));
+      ok(`UC12 ${at}: and then Esc returns to the list`, !C.UI.uc && !!$('#ucxList') && document.activeElement === goOf(third));
+      /* Space or Enter on the eye switches the dashboard, and the focus stays on the eye */
+      { const k = second, was = !!uc(k).client; eyeOf(k).focus(); const e = kd(document.activeElement, ' '); await waitFor(() => !!uc(k).client !== was && row(k)?.querySelector('.ucx-eye .w').textContent === (was ? 'Not on the dashboard' : 'On the dashboard'));
+        ok(`UC12 ${at}: Space on the eye switches "On the dashboard" and the focus stays on that eye`, !!uc(k).client !== was && row(k).querySelector('.ucx-eye .w').textContent === (was ? 'Not on the dashboard' : 'On the dashboard') && document.activeElement === eyeOf(k) && e.defaultPrevented && oneStopOn(k));
+        ok(`UC12 ${at}: the row's label follows the switch`, goOf(k).getAttribute('aria-label').endsWith(was ? ', Not on the dashboard' : ', On the dashboard'), goOf(k).getAttribute('aria-label'));
+        if (th === 'light' && w === 1400) { C.go('dashboard'); await waitFor(() => !!$('#sec-usecases .uc-more')); const on = !!$(`#sec-usecases .ucr[data-uc="${k}"]`); ok('UC12 the dashboard follows the switch made from the keyboard', on === !was); await toList(); }
+        kd(eyeOf(k), 'Enter'); await waitFor(() => !!uc(k).client === was);
+        ok(`UC12 ${at}: Enter on the eye switches it back`, !!uc(k).client === was && document.activeElement === eyeOf(k)); }
+    });
+    C.theme(theme0); C.go('dashboard'); await sleep(100);
     /* 11. Help has an entry */
     C.help.open(); await sleep(150); click($('#hpTabs [data-htab=howto]')); await sleep(120); ok('UC11 Help has an entry for the Use cases page, with Archive and Add', /Work through every use case/.test($('#hpPane').textContent) && /Archive this use case/.test($('#hpPane').textContent) && /Add a use case/.test($('#hpPane').textContent));
     C.go('dashboard'); await sleep(100);
