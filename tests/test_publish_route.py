@@ -855,8 +855,8 @@ class OnlyOneRouteWritesIntoTheClientFolder(Base):
         self.assertEqual(self.rig.listing(self.rig.client), [])
 
     def test_every_route_is_listed_and_the_set_is_what_the_issue_expects(self):
-        self.assertEqual(sorted(sv.POST_ROUTES), ["/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder",
-                                                  "/api/preview", "/api/publish", "/api/undo"])     # #111: the two backup routes; #147: preview
+        self.assertEqual(sorted(sv.POST_ROUTES), ["/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-contact",
+                                                  "/api/client-folder", "/api/preview", "/api/publish", "/api/undo"])     # #111: the two backup routes; #147: preview; #51: client contact
         self.assertEqual(sorted(sv.GET_ROUTES), ["/api/backups", "/api/data", "/api/export", "/api/movement", "/api/projects",
                                                  "/api/publication", "/api/use-cases"])     # #147: export; #136: movement
 

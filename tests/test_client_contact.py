@@ -87,9 +87,9 @@ class Rules(unittest.TestCase):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
             self.assertEqual(settings.own_domains(d), [])
-            Path(d, settings.FILE).write_text(json.dumps({settings.OWN_DOMAINS: ["Team.Example.com", "team.example.com", "not a domain", 4, "x", "a.example.org"]}))
+            Path(d, settings.FILE).write_text(json.dumps({settings.OWN_DOMAINS: ["Team.Example.com", "team.example.com", "not a domain", 4, "x", "a.example.org"]}), encoding="utf-8")
             self.assertEqual(settings.own_domains(d), ["team.example.com", "a.example.org"])
-            Path(d, settings.FILE).write_text(json.dumps({settings.OWN_DOMAINS: "team.example.com"}))
+            Path(d, settings.FILE).write_text(json.dumps({settings.OWN_DOMAINS: "team.example.com"}), encoding="utf-8")
             self.assertEqual(settings.own_domains(d), [])
 
 
@@ -255,7 +255,7 @@ class Field(unittest.TestCase):
     def setUp(self):
         self.rig = rig(self)
 
-    def open(self, cdp, width=1400, height=900):
+    def show(self, cdp, width=1400, height=900):
         sid = navigate(cdp, self.rig.httpd.server_port, "#dashboard&p=PUB")
         p = Pg(self, cdp, sid)
         p.width(width, height)
@@ -280,7 +280,7 @@ class Field(unittest.TestCase):
 
     def test_set_change_clear_and_refuse(self):
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.show(cdp)
             self.assertEqual(self.now(p), "No client contact yet, so the page has no Draft email.")
             self.assertEqual(p.js("document.activeElement.id"), "pub-client", "focus still starts on To client")
             self.fill(p, "Lee", TEAM)
@@ -305,7 +305,7 @@ class Field(unittest.TestCase):
 
     def test_a_name_with_markup_is_shown_as_text(self):
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.show(cdp)
             self.fill(p, "<b>Dana</b> & co", DANA["email"])
             p.until("/Dana/.test(document.querySelector('#pub-contact-now').innerText)", "saved")
             self.assertEqual(self.now(p), "<b>Dana</b> & co · dana@client.example.org")
@@ -314,7 +314,7 @@ class Field(unittest.TestCase):
     def test_it_fits_at_1400_and_900_in_light_and_dark(self):
         with chrome() as cdp:
             for width, height in ((1400, 900), (900, 700)):
-                p = self.open(cdp, width, height)
+                p = self.show(cdp, width, height)
                 p.js("document.querySelector('[data-contact-edit]').click()")
                 p.until("!!document.querySelector('#pub-contact-email')", "the form")
                 self.type(p, "#pub-contact-email", "a" * 60 + "@client.example.org")
