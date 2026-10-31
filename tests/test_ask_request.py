@@ -83,7 +83,19 @@ class Limits(unittest.TestCase):
         with self.assertRaises(ask.AskRefused) as cm:
             ask.build_request("x" * (ask.MAX_QUESTION + 1), P)
         self.assertEqual(str(cm.exception), ask.TOO_LONG)
+        self.assertEqual(ask.TOO_LONG, "That question is too long. It can be 4,000 characters at most. Make it shorter and ask again.")
         ask.build_request("x" * ask.MAX_QUESTION, [])
+
+    def test_a_chat_that_is_too_long_says_so_and_what_to_do(self):
+        self.assertEqual(ask.CHAT_TOO_LONG, "This chat has got too long. Start a new chat and ask again.")
+        for earlier in ([("user", "x" * (ask.MAX_TURN + 1))], [("user", "hi")] * (ask.MAX_EARLIER_TURNS + 1)):
+            with self.assertRaises(ask.AskRefused) as cm:
+                ask.build_request("Q?", P, earlier=earlier)
+            self.assertEqual(str(cm.exception), ask.CHAT_TOO_LONG)
+
+    def test_the_other_refusals_say_what_to_do(self):
+        self.assertEqual(ask.TOO_MUCH, "That needs too much text to send. Ask a narrower question.")
+        self.assertEqual(ask.BAD_INPUT, "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark.")
 
     def test_the_passage_budget_is_forty_thousand_characters(self):
         self.assertEqual(ask.BUDGET, 40000)
@@ -157,7 +169,7 @@ class Secrets(unittest.TestCase):
     )
 
     def test_a_password_looking_string_is_refused_with_the_plain_sentence(self):
-        self.assertEqual(ask.SECRET, "That looks like a password or key. It was not sent.")
+        self.assertEqual(ask.SECRET, "That looks like a password. It was not sent. Take it out and ask again.")
         for text in self.REFUSED:
             with self.assertRaises(ask.AskRefused, msg=text) as cm:
                 ask.build_request(text, P)
@@ -168,8 +180,10 @@ class Secrets(unittest.TestCase):
             ask.build_request(text, P)
 
     def test_the_users_earlier_turns_are_checked_but_the_assistants_are_not(self):
-        with self.assertRaises(ask.AskRefused):
+        with self.assertRaises(ask.AskRefused) as cm:
             ask.build_request("Q?", P, earlier=[("user", "password is hunter22")])
+        self.assertEqual(str(cm.exception), ask.SECRET_EARLIER)
+        self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like it holds a password. Start a new chat and ask again.")
         ask.build_request("Q?", P, earlier=[("assistant", "password is hunter22")])
 
     def test_passage_text_is_not_refused(self):
