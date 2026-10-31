@@ -9,6 +9,7 @@ The browser parts are required: they fail, never skip, without Chrome (set CLARK
 import json
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -191,6 +192,7 @@ class UndoKey(unittest.TestCase):
                     cdp.js(make, sid)
                     press_z(cdp, sid, CTRL)
                     press_z(cdp, sid, META)
+                    time.sleep(0.3)
                     cdp.js("document.getElementById('probe').remove()", sid)
                     self.assertEqual(self.toast(cdp, sid), "", f"{where}: the page said nothing")
             click(cdp, sid, CELL)                               # the page's own menu
@@ -206,10 +208,14 @@ class UndoKey(unittest.TestCase):
             self.assertEqual((self.undos_sent(), self.steps(), self.priority()), (n, before, "Low"), "nothing was undone")
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "back in Edit")
-            cdp.js("location.hash = '#settings'", sid)
+            cdp.js("location.hash = '#settings&p=TUL'", sid)
             self.until(cdp, sid, "location.hash.startsWith('#settings')", "Settings opened")
+            cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
+            self.assertEqual(cdp.js("[document.activeElement.tagName, !!document.querySelector('dialog[open],[role=dialog],[role=menu],[role=listbox]')]", sid), ["BODY", False])
             press_z(cdp, sid, CTRL)
+            time.sleep(0.6)                                     # time for a message to draw, if one were said
             self.assertEqual(self.undos_sent(), n, "not on Settings")
+            self.assertEqual(self.toast(cdp, sid), "", "Settings leaves the key alone: not even Nothing to undo")
             cdp.js("location.hash = '#work&p=TUL&f=mode:all'", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Work items again")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
