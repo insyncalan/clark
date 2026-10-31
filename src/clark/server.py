@@ -21,6 +21,8 @@ Routes:
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
+- POST /api/draft-email  Draft email (#50): the ticks and the email text from the builder; read only, never sends (draft_email_feed.make)
+- POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, never any words of the email (draft_email_feed.make_sent)
 - GET  /api/profile      the name and email typed in Settings › Personal (#180), from the data folder's settings.json; without the seam, not found
 - POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
@@ -75,7 +77,9 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
-                     "/api/profile": 2 * 1024}     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
+                     "/api/draft-email/sent": 4 * 1024}                # #50: the ids, the mode and the day: never the email's words
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -561,6 +565,20 @@ def safety_route(method):
     return route
 
 
+def draft_email_route(seam_name):
+    """POST /api/draft-email and /api/draft-email/sent (#50): hand the request to the server's seam of that name, which answers
+    (status, body). The first writes nothing and sends nothing; the second records one "I sent it" (ids, mode, day; never any text of
+    the email). With no seam there is nothing to ask: not found. Checked like change_route before this runs (token, Host, Origin,
+    JSON only, a Content-Length, the route's own limit)."""
+    def route(handler, req):
+        seam = getattr(handler.server, seam_name)
+        if seam is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = seam(req)
+        return handler.send(status, body)
+    return route
+
+
 def profile_route(method):
     """GET and POST /api/profile (#180): hand the request to the server's `profile` (profile_settings.Profile), which answers (status,
     body). Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the 2 KiB limit)."""
@@ -579,7 +597,8 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
-               "/api/profile": profile_route("save")}     # later items: /api/import
+               "/api/profile": profile_route("save"), "/api/draft-email": draft_email_route("draft_email"),
+               "/api/draft-email/sent": draft_email_route("draft_email_sent")}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -760,7 +779,7 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, profile=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, profile=None, draft_email=None, draft_email_sent=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -771,6 +790,8 @@ class LocalServer(ThreadingHTTPServer):
         self.movement = movement              # store.milestone_moves (#136): the owner-only Movement read; None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
+        self.draft_email = draft_email        # #50: builds a Draft email for a request, read only; None until the launcher gives one
+        self.draft_email_sent = draft_email_sent      # #50: records "I sent it" (ids, mode, day; no text); None until the launcher gives one
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
         super().__init__(server_address, handler)
 
@@ -803,13 +824,14 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, profile=None):
+          publisher=None, movement=None, use_cases=None, safety=None, profile=None, draft_email=None, draft_email_sent=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
-                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, profile=profile)
+                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, profile=profile,
+                            draft_email=draft_email, draft_email_sent=draft_email_sent)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
