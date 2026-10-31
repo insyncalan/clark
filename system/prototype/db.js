@@ -216,6 +216,7 @@
     return () => {
       const was = label || rows[0].text || 'change to ' + rows.map(r => fieldName(r.field, kind).toLowerCase()).join(', '), back = [];
       rows.forEach(r => { if (JSON.stringify(rec[r.field]) !== JSON.stringify(before[r.field])) back.push({ kind, id: r.id, code: rec.code, field: r.field, from: keep(rec[r.field]), to: keep(before[r.field]), how: who('undo'), text: 'Undone: ' + was }); });
+      rows.forEach(r => { if (!(r.field in before)) delete rec[r.field]; });   /* a field that was not there before goes again */
       Object.assign(rec, before);
       write([[store, 'put', rec], ...addHistory(back.length ? back : [{ kind, id: rows[0].id, code: rec.code, field: '*', how: who('undo'), text: 'Undone: ' + was }])]);
     };
