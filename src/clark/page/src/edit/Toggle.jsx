@@ -4,6 +4,7 @@
 import { useEffect } from "preact/hooks";
 import { mode, data } from "../stores/report.js";
 import { modeKey } from "./keys.js";
+import { singleKeys } from "../stores/keyPrefs.js";
 
 export function Toggle() {
   useEffect(() => {
@@ -14,8 +15,8 @@ export function Toggle() {
   const editing = mode.value === "edit";
   return (
     <span class="modes" role="group" aria-label="View or Edit">
-      <button type="button" class="mode" data-mode="view" title="View (V)" aria-keyshortcuts="V" aria-pressed={editing ? "false" : "true"} onClick={() => { mode.value = "view"; }}>View</button>
-      <button type="button" class="mode" data-mode="edit" title="Edit (E)" aria-keyshortcuts="E" aria-pressed={editing ? "true" : "false"} onClick={() => { mode.value = "edit"; }}>Edit</button>
+      <button type="button" class="mode" data-mode="view" title={singleKeys.value ? "View (V)" : "View"} aria-keyshortcuts={singleKeys.value ? "V" : undefined} aria-pressed={editing ? "false" : "true"} onClick={() => { mode.value = "view"; }}>View</button>
+      <button type="button" class="mode" data-mode="edit" title={singleKeys.value ? "Edit (E)" : "Edit"} aria-keyshortcuts={singleKeys.value ? "E" : undefined} aria-pressed={editing ? "true" : "false"} onClick={() => { mode.value = "edit"; }}>Edit</button>
     </span>
   );
 }
