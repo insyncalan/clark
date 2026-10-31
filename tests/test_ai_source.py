@@ -5,13 +5,14 @@ Run: python3 dev/run_tests.py test_ai_source
   reason: launch.py's health check of clark's own server on 127.0.0.1, and __main__.py's free-port check on 127.0.0.1.
 - `--bare` is never in an argument list: the one place the text may appear is ask_claude.NEVER_FLAGS, the list of flags refused.
 - No module but providers.py names a provider's host.
+- reach.py never lets a question read clark's own program folder (providers.py included), even inside a saved folder.
 """
 import ast
 import unittest
 from pathlib import Path
 
 from _paths import SRC
-from clark import ask_claude
+from clark import ask_claude, reach
 
 NETWORK = {"urllib.request", "http.client", "socket", "ssl"}
 CALLER = Path("clark") / "providers.py"
@@ -81,6 +82,15 @@ class NeverBare(unittest.TestCase):
             self.assertEqual(args[args.index("--tools") + 1], "")
             self.assertIn("--strict-mcp-config", args)
             self.assertIn("--no-session-persistence", args)
+
+
+class NeverReadable(unittest.TestCase):
+    def test_providers_py_is_never_readable_even_inside_a_saved_folder(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as data:
+            for name in ("providers.py", "platform.py", "ai_service.py"):
+                kind, why = reach.classify(str(SRC / "clark" / name), "read", [str(SRC)], data)
+                self.assertEqual((kind, why), ("never", reach.PROGRAM), name)
 
 
 if __name__ == "__main__":
