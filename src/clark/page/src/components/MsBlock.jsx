@@ -25,7 +25,7 @@ export function MsBlock({ place }) {
           <button type="button" key={v} class="ib tip" data-msvb={v} aria-label={t} title={t} aria-current={String(view === v)} onClick={() => choose(v)}><Icon name={v === "line" ? "tline" : "cal"} /></button>
         ))}
       </div>
-      {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} /> : <MsTimeline rows={rows} today={today} place={place} open={open} />}
+      {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} />}
       <MsLegend client={client} id={place} />
       <MsList rows={rows} place={place} open={open} internalTag={!client} />
     </div>

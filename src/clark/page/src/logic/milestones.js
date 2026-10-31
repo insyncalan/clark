@@ -185,6 +185,19 @@ export function buckets(kind, start, end) {
   }
 }
 
+/** The period before (k = -1) or after (k = 1) the one holding `iso`, as a bucket, or null when it would leave the years the page
+ *  draws (YEAR_MIN to YEAR_MAX): the calendar then says so and offers Today. */
+export function neighbour(kind, iso, k) {
+  const here = buckets(kind, iso, iso)[0];
+  const day = addDays(k < 0 ? here.start : here.end, k < 0 ? -1 : 1);
+  return inRange(day) ? buckets(kind, day, day)[0] : null;
+}
+
+/** The chips that fall in a period (a bucket), by date then in the order the calendar draws them. */
+export function periodChips(chips, b) {
+  return Object.keys(chips).filter((d) => d >= b.start && d <= b.end).sort().flatMap((d) => chips[d]);
+}
+
 /** {date: [chip]}: a chip on each solid mark, then a ghost chip on each slipped milestone's expected date. */
 export function calendarChips(rows) {
   const out = {};

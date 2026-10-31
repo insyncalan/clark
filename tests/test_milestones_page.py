@@ -65,6 +65,7 @@ class Rules(unittest.TestCase):
             const rows = MS.milestoneRows(c.cases, c.today, false);
             const client = MS.milestoneRows(c.cases, c.today, true);
             const span = MS.timelineSpan(rows, c.today);
+            const chips0 = MS.calendarChips(rows);
             return {
               rows, client, span,
               months: MS.monthStarts(span.start, span.end),
@@ -75,6 +76,9 @@ class Rules(unittest.TestCase):
               rail: [MS.railRows(rows, false).length, MS.railRows(rows, true).length, MS.railRows(rows.slice(0, 5), false).length],
               words: [MS.railWord(9, false), MS.railWord(9, true)],
               lines: MS.labelLines([0, 10, 20, 300, 305], 136),
+              near: [MS.neighbour("month", "2026-12-15", 1), MS.neighbour("week", "2026-10-28", -1), MS.neighbour("quarter", "2026-10-28", -1),
+                     MS.neighbour("month", "2100-12-31", 1), MS.neighbour("month", "2000-01-01", -1), MS.neighbour("week", "2100-12-31", 1)],
+              inPeriod: MS.periodChips(chips0, MS.buckets("month", "2026-12-01", "2026-12-01")[0]).map((c) => c.id),
             };
         }""" + ")(" + json.dumps({"cases": CASES, "today": TODAY, "from": "2026-10-28", "to": "2027-03-02"}) + ")")
         with chrome() as cdp:
@@ -137,6 +141,13 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.js["rail"], [5, len(self.py), 5])
         self.assertEqual(self.js["words"], ["Show all 9 milestones", "Show the first 5"])
         self.assertEqual(self.js["lines"], [0, 1, 2, 0, 1])
+
+    def test_the_next_and_earlier_period_stop_where_the_page_stops_drawing(self):
+        near = self.js["near"]
+        self.assertEqual([n and n["key"] for n in near], ["2027-01", "2026-10-19", "2026-Q3", None, None, None])
+
+    def test_the_period_list_holds_the_chips_of_that_period_by_date(self):
+        self.assertEqual(self.js["inPeriod"], ["X-M-001", "X-M-015", "X-M-002", "X-M-016"])
 
     def test_the_rules_never_read_the_clock_or_the_page(self):
         text = MODULE.read_text(encoding="utf-8")
@@ -269,6 +280,86 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)), "the editor remembers Calendar")
             cdp.js("document.querySelector('[data-msvb=line]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid)))
+
+    def open_calendar(self, cdp, port, hash_="#milestones&p=MOSS"):
+        sid = self.visit(cdp, 1400, hash_, port)
+        cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)))
+        return sid
+
+    def key(self, cdp, sid, name):
+        cdp.js(f"document.querySelector('.cal').dispatchEvent(new KeyboardEvent('keydown', {{key: '{name}', bubbles: true, cancelable: true}}))", sid)
+        time.sleep(0.02)                                  # a person's key presses are never in the same instant
+
+    def title(self, cdp, sid):
+        return cdp.js("document.querySelector('.cal-t').textContent", sid)
+
+    def test_the_scale_is_remembered_for_the_place_and_not_for_another(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
+            sid = self.visit(cdp, 1400, "#milestones&p=MOSS", port, ready=".cal")
+            self.assertEqual(cdp.js("document.querySelector('.cal').dataset.scale", sid), "quarter", "restored on the next visit")
+            self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.startsWith('clark.msv.calv.'))", sid), ["clark.msv.calv.page"], "kept under this place only")
+            cdp.js("window.localStorage.setItem('clark.msv.calv.page', JSON.stringify('decade'))", sid)
+            sid = self.visit(cdp, 1400, "#milestones&p=MOSS", port, ready=".cal")
+            self.assertEqual(cdp.js("document.querySelector('.cal').dataset.scale", sid), "month", "an unknown value opens on Month")
+
+    def test_each_chip_shows_its_status_word_and_the_period_lists_its_milestones(self):
+        port = self.serve()
+        rows = {r["id"]: r for r in self.expected("MOSS")}
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            words = cdp.js("[...document.querySelectorAll('.cal-ms')].filter(c => c.dataset.ghost === '0').map(c => [c.dataset.ms, c.querySelector('.cal-w').textContent, getComputedStyle(c.querySelector('.cal-w')).display])", sid)
+            self.assertTrue(words)
+            for mid, word, display in words:
+                self.assertEqual(word, rows[mid]["state"], "the status word is on screen")
+                self.assertNotEqual(display, "none")
+            self.assertEqual(cdp.js("document.querySelector('.cal-list h4').textContent", sid), "Milestones in this period")
+            listed = cdp.js("[...document.querySelectorAll('.cal-list li')].map(l => [l.dataset.cl, l.dataset.ghost])", sid)
+            chips = cdp.js("[...document.querySelectorAll('.cal-d:not(.out) .cal-ms')].map(c => [c.dataset.ms, c.dataset.ghost])", sid)
+            self.assertEqual(sorted(listed), sorted(chips), "the list is the period's chips")
+            self.assertGreater(len(listed), 0)
+
+    def test_an_empty_period_says_so_with_a_next_step_and_today_brings_it_back(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            for _ in range(40):
+                self.key(cdp, sid, "PageDown")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cal-empty]')", sid)), "an empty period")
+            text = cdp.js("document.querySelector('[data-cal-empty]').textContent", sid)
+            self.assertTrue(text.startswith("No milestones in this period."))
+            self.assertIn("go to today", text)
+            self.assertEqual(cdp.js("document.querySelectorAll('.cal-list li').length", sid), 0)
+            cdp.js("document.querySelector('[data-cal-empty] button').click()", sid)
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "October 2026"))
+
+    def test_the_keys_move_the_period_and_the_range_message_offers_go_to_today(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            for name, want in (("ArrowRight", "November 2026"), ("PageDown", "December 2026"), ("ArrowLeft", "November 2026"), ("PageUp", "October 2026")):
+                self.key(cdp, sid, name)
+                self.assertTrue(wait(lambda: self.title(cdp, sid) == want), f"{name} gives {want}")
+            cdp.js("document.querySelector('[data-scale-b=week]').click()", sid)
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "Week of 26-10-2026"))
+            self.key(cdp, sid, "PageDown")
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "Week of 02-11-2026"))
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-cal-far]').length", sid), 0)
+            cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "Q4 2026"))
+            for _ in range(300):
+                self.key(cdp, sid, "PageDown")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cal-far]')", sid)), "the range message")
+            self.assertIn("Go back to today", cdp.js("document.querySelector('[data-cal-far]').textContent", sid))
+            far_title = self.title(cdp, sid)
+            self.assertTrue(far_title.endswith("2100"), far_title)
+            cdp.js("document.querySelector('[data-cal-home]').click()", sid)
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "Q4 2026"))
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-cal-far]').length", sid), 0)
 
     def test_a_slipped_milestone_also_shows_on_its_expected_day_in_the_calendar(self):
         slipped = [r for r in self.expected("MOSS") if r["marks"]["ghost"]]
