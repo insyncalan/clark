@@ -260,7 +260,8 @@ class Environment(Fake):
         for name, value in self.CANARIES.items():
             self.assertNotEqual(env.get(name), value, name)
         allowed = {"PATH", "LANG", "HOME", "USER", "LOGNAME", "TMPDIR", "CLAUDE_CODE_TMPDIR", *self.PINNED,
-                   "__CF_USER_TEXT_ENCODING", "PWD", "SHLVL", "_"}      # the last four are added by the system or Python
+                   "__CF_USER_TEXT_ENCODING", "PWD", "SHLVL", "_",
+                   "LC_CTYPE"}      # the last five are added by the system or by Python's own locale set-up in the fake program (Linux sets LC_CTYPE)
         self.assertLessEqual(set(env), allowed, sorted(set(env) - allowed))
         self.assertEqual(env["PATH"], "/usr/bin:/bin:/usr/sbin:/sbin")
         self.assertEqual(env["HOME"], pwd.getpwuid(os.getuid()).pw_dir, "the home folder comes from the system's record, never $HOME")
