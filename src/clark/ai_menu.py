@@ -253,12 +253,7 @@ UNSEEN_SPACE = re.compile(r"[\x00-\x20\x7f-\x9f]+")
 MARKER = re.compile(r"<<<SUGGESTION[ \t]*\r?\n(.*?)\r?\n?SUGGESTION>>>", re.S)
 FIGURE = re.compile(r"\d(?:[\d.,:/-]*\d)?")
 CAPS = re.compile(r"\b[A-Z][a-z]{2,}\b")
-# Words that start an ordinary client sentence and are no name; used for a FIRST word only (a name anywhere else is never excused).
-COMMON_FIRST = set("Thanks Thank Please Hello Dear Regards Kind Best Many Happy Sorry Apologies Further Following Also Next Then "
-                   "Today Tomorrow Yesterday Here There Just Let Looking Hope Sure Great Good Noted Understood Attached "
-                   "Meanwhile However Therefore Once After Before Because Currently Overall Finally Firstly Secondly Unfortunately "
-                   "Cheers Sincerely Welcome Regarding Yes Should Would Could Will Can Does Did Has Have Had Are Were Was "
-                   "Being Both Either Neither Every Most More Much Other Same Such Only Still Soon Very Well".split())
+# Words that read as names in a capital but are not (used at any position).
 COMMON_CAPS = set("The This That These Those What When Where Who How Why Some Any All Each Not Our Your You We It Monday Tuesday "
                   "Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October "
                   "November December Summary Notes Details Actions Risks Decisions Next".split())
@@ -275,20 +270,30 @@ def _figures(text):
     return set(FIGURE.findall(edit_ai.normal(text)))
 
 
-def _caps(text, first=False):
-    """The capitalised words of a text that read as names. A sentence's first word is skipped (it is capitalised anyway) unless
-    `first` is set, as the client message check sets it: there a new first word counts too."""
-    out = set()
+def _name_words(people):
+    """The capitalised words of the known people's names (the store's or the register's), in lower case."""
+    return {w.lower() for p in people or () for w in re.findall(r"[A-Za-z]{3,}", str(p))}
+
+
+def _caps(text, first=False, people=()):
+    """The capitalised words of a text that read as names, for the notes under a suggestion: a sentence's first word is skipped
+    (it is capitalised anyway). With `first` set, as the client message check sets it, the rule is creaite's, which names only
+    people it knows: a capitalised word counts anywhere in a sentence, the first word too, only if it is a known person's name
+    (`people`) or stands in a run of two or more capitalised words ("Omar Reid", "Thanks Sam")."""
+    out, known = set(), _name_words(people)
     for sent in re.split(r"(?<=[.!?:])\s+|\n+", text or ""):
         line = re.sub(r"^[-•*#>\s\[\]x0-9.)]*", "", sent.strip())
-        out.update(m.group() for m in CAPS.finditer(line)
-                   if (first or m.start() > 0) and m.group() not in COMMON_CAPS and not (first and m.start() == 0 and m.group() in COMMON_FIRST))
+        words = [m for m in CAPS.finditer(line) if m.group() not in COMMON_CAPS]
+        for n, m in enumerate(words):
+            if not first:
+                if m.start() > 0:
+                    out.add(m.group())
+                continue
+            before = n > 0 and not line[words[n - 1].end():m.start()].strip()
+            after = n + 1 < len(words) and not line[m.end():words[n + 1].start()].strip()
+            if m.group().lower() in known or before or after:
+                out.add(m.group())
     return out
-
-
-def _words_of(text):
-    """Every word of a text in lower case: a new first word whose plain form the original held is not a new name."""
-    return {w.lower() for w in re.findall(r"[A-Za-z]+", text or "")}
 
 
 def notes_for(original, suggestion):
@@ -353,9 +358,11 @@ VIP_SPACED = re.compile(r"(?<![a-z0-9])v\s+i\s+p(?:\s+s)?(?![a-z0-9])", re.I)   
 # ("abc a 3", "abc-a-003", "ABC\\-A\\-OO3") in any case; with none ("ABC 100") only as written in capitals. It fails closed: "Phase B 12"
 # reads as an ID too; the page wiring replaces this with the store's codes.
 _SEP = r"[\s_.\-/:()\\]*"
-_DIGITS = r"(?:[0-9]|(?-i:O)){1,3}"
-LOOSE_LETTERED = re.compile(r"(?i)(?<![a-z0-9])([a-z][a-z0-9]{2,6})%s([a-np-z])%s(%s)(?![0-9]|(?-i:O)|[/:.]\d)" % (_SEP, _SEP, _DIGITS))
-LOOSE_BARE = re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Z0-9]{2,6})%s((?:[0-9]|O){3})(?![0-9O]|[/:.]\d)" % _SEP)
+_DIGITS = r"(?=(?-i:[0-9O])*[0-9])(?:[0-9]|(?-i:O)){1,3}"          # O stands for a zero only in a run with a real digit
+# The code stands alone as a token: it is set off from the letter by a separator, so "week 3" and "Version 2" are no IDs.
+LOOSE_LETTERED = re.compile(r"(?i)(?<![a-z0-9])([a-z][a-z0-9]{2,6})%s([a-np-z])%s(%s)(?![0-9]|(?-i:O)|[/:.]\d)"
+                            % (_SEP.replace("*", "+"), _SEP, _DIGITS))
+LOOSE_BARE = re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Z0-9]{2,6})%s((?=[0-9O]{3})(?!O{3})(?:[0-9]|O){3})(?![0-9O]|[/:.]\d)" % _SEP)
 CLIENT_MESSAGE = "The suggestion added something a client should not see, so it was not shown. Try again."
 _EMPHASIS = re.compile(r"[*`~]|(?<!\w)_+|_+(?!\w)")
 _MD_ESCAPE = re.compile(r"\\([!-/:-@\[-`{-~])")
@@ -396,10 +403,10 @@ def _words(text):
     return {m.group().lower() for t in _forms(text) for m in INTERNAL_WORDS.finditer(t)}
 
 
-def _client_problem(text, original):
+def _client_problem(text, original, people=()):
     """For a client message: a plain message when the suggestion holds VIP in any spelling, a path or marker that is always internal,
-    or adds an item ID (however written), internal wording or a name (a capitalised word the text didn't have, a sentence's first
-    word too) the text didn't have. Text is read decoded, without emphasis marks, and folded by `normal`. Blocking, as creaite's
+    or adds an item ID (however written), internal wording or a name the text didn't have: a capitalised word only when it is a known person's
+    name (`people`) or stands in a run of capitalised words (creaite's check names only the people it knows). Text is read decoded, without emphasis marks, and folded by `normal`. Blocking, as creaite's
     client check is (it drops the reply). The store-aware checks come with the page wiring."""
     forms = _forms(text)
     if any(VIP_RE.search(f) or VIP_LOOSE.search(f) or VIP_SPACED.search(f) for f in forms):
@@ -410,11 +417,9 @@ def _client_problem(text, original):
         return CLIENT_MESSAGE
     if _words(text) - _words(original):
         return CLIENT_MESSAGE
-    held, known = _words_of(original), _caps(original, first=True)
+    known = _caps(original, first=True, people=people)
     for f in forms:
-        new = _caps(f, first=True) - known
-        only_first = new - _caps(f)          # seen only as a sentence's first word: excused if the original held the plain word
-        if (new - only_first) or any(w.lower() not in held for w in only_first):
+        if _caps(f, first=True, people=people) - known:
             return CLIENT_MESSAGE
     return ""
 
@@ -423,7 +428,7 @@ def _fail(message, option=None):
     return {"ok": False, "text": "", "notes": [], "message": message, "option": option}
 
 
-def check_reply(reply, original, option, place):
+def check_reply(reply, original, option, place, people=()):
     """A reply checked before it is shown: {ok, text, notes, message, option}. ok is False (with a plain message and no text) for an
     empty reply, one far too long, one with web code in it, one with characters the reader can't see that the text didn't have,
     one that is the text unchanged, one with a link or address the text didn't have, or (for a plain place) one that turned the
@@ -449,7 +454,7 @@ def check_reply(reply, original, option, place):
             return _fail("The suggestion had web code in it, so it was not used. Try again.", option)
     if place == "client_message":
         try:
-            problem = _client_problem(text, original)
+            problem = _client_problem(text, original, people)
         except Exception:  # noqa: BLE001  a check that breaks fails closed
             return _fail("The suggestion couldn't be checked for a client, so it was not shown.", option)
         if problem:
@@ -602,7 +607,7 @@ class Provider:
         raise NotImplementedError
 
 
-def suggest(provider, option, text, place, instruction=""):
+def suggest(provider, option, text, place, instruction="", people=()):
     """Ask the provider for one suggestion: {ok, text, notes, message, option}. This is the one-shot path, with no card; the card path
     is AiSession.begin then deliver, which runs the same build_prompt and check_reply (the page asks the provider itself). The provider is given the prompt and no tools
     (`tools=()`); nothing else. If AI can't run, the message says why and the provider is not asked."""
@@ -621,7 +626,7 @@ def suggest(provider, option, text, place, instruction=""):
         reply = provider.ask(req["prompt"], tools=tuple(req["tools"]))
     except Exception:  # noqa: BLE001  any provider fault is one plain line, never its text
         return _fail("No suggestion came back. Try again.", option)
-    return check_reply(reply, req["original"], option, place)
+    return check_reply(reply, req["original"], option, place, people)
 
 
 # ------------------------------------------------------------------------------------------------------- the suggestion card
@@ -650,7 +655,8 @@ class AiSession:
     `text_between(start, end)` and `replace(start, end, text)` (the second one step of its history); it is touched only by
     `accept`. `stats` counts offered, used and rejected: counts only, never text."""
 
-    def __init__(self):
+    def __init__(self, people=()):
+        self.people = tuple(people or ())      # the known people's names (the store's), for the client message check
         self.card = None
         self.stats = Counter()
         self._n = 0
@@ -696,7 +702,7 @@ class AiSession:
         if card is not self.card or card.status != "running":
             return False
         try:
-            res = check_reply(reply, card.original, card.option, card.place)
+            res = check_reply(reply, card.original, card.option, card.place, self.people)
         except Exception:  # noqa: BLE001  a check that breaks fails the card; it never stays "running"
             card.status, card.message = "failed", "The suggestion couldn't be checked, so it was not shown."
             return True
