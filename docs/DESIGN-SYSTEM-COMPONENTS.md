@@ -21,7 +21,7 @@ Cards in lanes, with the lanes grouped by status, due date, priority or another 
 
 ## 2. The profile menu
 The round button at the right of the top bar and its menu.
-- **Status of this entry.** It describes the profile menu as built for the Appearance and name-and-email items (#179 and #180), which is not on main yet; it will be true when that lands. On main today the menu holds Publish, Preview and Export, a Dark mode item, Settings and Help. Read the structure, the screen-reader wording, the 900 px rule and the keys below as the target for that change, and check them against the page once it is merged.
+- **Status of this entry.** It describes the profile menu as built for the Appearance and name-and-email items (#179 and #180), which are on main. The 'Measured' line was taken on the branch before it merged.
 - **Structure, top to bottom.** The person's name in bold with the email under it (or only the name), or the link "Add your name in Settings" when neither is set; the actions (Publish, Preview the page in a new tab, Export to Excel); a separator; the group named Appearance with System, Light and Dark, the one in use ticked; a separator; Settings and Help.
 - **Look.** A menu panel on `--surface`, `--radius-lg`, `--shadow`; rows with a hover and keyboard highlight; the tick is `--status-blue-text` in a fixed 1.2 em box so the words line up; the group name is a quiet 13 px `--text-muted` line.
 - **For a screen reader.** The three Appearance choices are radio items inside one group named Appearance, so each is read as "Appearance, Light, radio, checked".
