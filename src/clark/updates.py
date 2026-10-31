@@ -27,12 +27,14 @@ at any time. Installing, backing up and undoing are other steps and live elsewhe
 Standard library only, Python 3.9. A sentence a person reads never starts with the product name, and holds no file path,
 database text or the words zip, manifest or SHA.
 """
+import collections
 import hashlib
 import io
 import json
 import os
 import re
 import stat
+import struct
 import unicodedata
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -42,8 +44,12 @@ from clark.platform import MAX_PATH, RESERVED_NAMES
 
 MANIFEST = release_files.MANIFEST
 INSTALLED_RECORD = MANIFEST            # the installed app folder keeps the manifest of its own release, as its record
-MAX_ZIP_BYTES = 200 * 1024 * 1024
-MAX_TOTAL_BYTES = 500 * 1024 * 1024
+# Limits, sized from a real release (mac): a 1.7 MB download of 387 files, 4.6 MB unpacked, the biggest file 1.1 MB.
+# Each cap is a generous multiple of that, small enough that a hostile file can't take the laptop's memory or disk.
+MAX_ZIP_BYTES = 64 * 1024 * 1024       # the download itself, about 35 times a real one
+MAX_TOTAL_BYTES = 128 * 1024 * 1024    # all files unpacked, about 28 times a real one
+MAX_MEMBER_BYTES = 32 * 1024 * 1024    # one file unpacked, about 30 times the biggest real one
+MAX_MEMBERS = 5000                     # files in the download, about 13 times a real one; checked before the zip is opened
 MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 MAX_NOTES = 20000                      # characters of release notes shown; more is cut
 MAX_INT_DIGITS = 30                     # a number in the manifest longer than this is refused (slow to read on 3.9)
@@ -51,13 +57,14 @@ CHUNK = 1024 * 1024
 MAX_PART = 255
 MAX_DETAIL_NAMES = 5
 COPY_SUFFIX = r"(?: \([0-9]+\))?"                  # a browser's "clark-0.3.1-mac (1).zip", accepted for a chosen file only
-NUM = r"(0|[1-9][0-9]*)"
+NUM = r"(0|[1-9][0-9]{0,8})"            # at most nine digits: no number in a name or version is slow or huge
 NAME_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux)\.zip\Z")
 CHOSEN_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux){COPY_SUFFIX}\.zip\Z")
 SOURCE_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}{COPY_SUFFIX}\.zip\Z")     # GitHub's "Source code (zip)"
 VERSION_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\Z")
 DEV_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\.dev[0-9]*\Z")
 TOP_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}\Z")
+HIDDEN_CATEGORIES = ("Cc", "Cf", "Cs", "Co", "Cn")   # controls (C0, DEL, C1), bidi and zero-width marks, unassigned
 BAD_CHARS = set('<>"|?*:\\')
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400               # a Windows junction or other reparse point
 SYSTEM_NAMES = {"mac": "Mac", "windows": "Windows", "linux": "Linux"}
@@ -92,6 +99,8 @@ MESSAGES = {
             "Download clark again into a new folder.",
     "readonly": "You can't change the clark folder from this account, so the update can't be installed. "
                 "Move the clark folder into your own folders, then try again.",
+    "folder": "Part of the clark folder can't be read from this account, so the update can't be checked. "
+              "Move the clark folder into your own folders, then try again.",
     "toodeep": "The clark folder is too deep in other folders for this update. Move it nearer the top of the drive, "
                "then try again.",
 }
@@ -164,8 +173,8 @@ def path_problem(rel):
             return "empty, dot or dot-dot part"
         if len(part) > MAX_PART:
             return "part longer than 255 characters"
-        if any(ord(c) < 32 or ord(c) == 127 for c in part):
-            return "control character"
+        if any(unicodedata.category(c) in HIDDEN_CATEGORIES for c in part):
+            return "control or hidden character"
         if BAD_CHARS & set(part):
             return "character Windows can't hold"
         if part != part.rstrip(". "):
@@ -228,7 +237,7 @@ class Release:
 def clean_notes(text):
     """Release notes as the page may show them: no control characters but line breaks and tabs, no characters that turn or
     hide text (bidi controls, zero-width marks), at most MAX_NOTES characters."""
-    kept = "".join(c for c in text if c in "\n\t" or unicodedata.category(c) not in ("Cc", "Cf", "Cs", "Co", "Cn"))
+    kept = "".join(c for c in text if c in "\n\t" or unicodedata.category(c) not in HIDDEN_CATEGORIES)
     return kept[:MAX_NOTES].rstrip(" ") + ("\u2026" if len(kept) > MAX_NOTES else "")
 
 
@@ -265,6 +274,8 @@ def _check_manifest_shape(doc, system):
             raise UpdateError("damaged", f"manifest field {key} is missing or the wrong kind")
     if not is_release_version(doc["version"]) or not is_release_version(doc["min_from"]):
         raise UpdateError("damaged", "manifest version is not X.Y.Z")
+    if doc["system"] not in SYSTEM_NAMES:           # checked before the text is used anywhere a person might read it
+        raise UpdateError("damaged", "manifest system is not one clark knows")
     if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", doc["released"]):
         raise UpdateError("damaged", "manifest date is not YYYY-MM-DD")
     for rel, row in doc["files"].items():
@@ -275,9 +286,12 @@ def _check_manifest_shape(doc, system):
 
 
 def _check_structure(infos, max_total):
+    if len(infos) > MAX_MEMBERS:
+        raise UpdateError("damaged", f"{len(infos)} members, over the limit")
     names = [i.filename for i in infos]
-    if len(set(names)) != len(names):
-        raise UpdateError("damaged", "duplicate member names: " + names_for_log(sorted({n for n in names if names.count(n) > 1})))
+    counts = collections.Counter(names)
+    if len(counts) != len(names):
+        raise UpdateError("damaged", "duplicate member names: " + names_for_log(sorted(n for n, c in counts.items() if c > 1)))
     total = 0
     for i in infos:
         if i.filename.endswith("/"):
@@ -293,6 +307,8 @@ def _check_structure(infos, max_total):
             raise UpdateError("unsafe", f"link member {i.filename}")
         if not stat.S_ISREG(mode) or stat.S_IMODE(mode) not in (0o644, 0o755):
             raise UpdateError("damaged", f"mode {oct(mode)} for {i.filename}")
+        if i.file_size > MAX_MEMBER_BYTES:
+            raise UpdateError("damaged", f"{i.filename} is {i.file_size} bytes, over the limit")
         total += i.file_size
     if total > max_total:
         raise UpdateError("damaged", f"declared size {total} is over the cap")
@@ -333,6 +349,16 @@ def read_once(path, max_zip=MAX_ZIP_BYTES):
     except OSError:
         raise UpdateError("unreadable", "the file can't be read")
     return b"".join(out)
+
+
+def member_count(data):
+    """The number of members the zip says it holds, read from its end record without parsing the list (None when there is no
+    end record). 0xFFFF means the 64-bit form, which a release never needs, so it is reported as over any limit."""
+    at = data.rfind(b"PK\x05\x06", max(0, len(data) - 22 - 65535))
+    if at < 0 or at + 22 > len(data):
+        return None
+    total = struct.unpack("<H", data[at + 10:at + 12])[0]
+    return 10 ** 9 if total == 0xFFFF else total
 
 
 def file_digest(path, size):
@@ -397,6 +423,8 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
     version_in_name = check_name(path.name, system, chosen)
     data = read_once(path, max_zip)
     digest = hashlib.sha256(data).hexdigest()
+    if (member_count(data) or 0) > MAX_MEMBERS:
+        raise UpdateError("damaged", "the file lists more members than an update has")
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
     except (zipfile.BadZipFile, OSError):
@@ -406,7 +434,7 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
         doc, top = _manifest_of(zf, infos, system)
         _check_manifest_shape(doc, system)
         if doc["system"] != system:
-            raise UpdateError("system", f"the manifest says {doc['system']}", theirs=SYSTEM_NAMES.get(doc["system"], doc["system"]),
+            raise UpdateError("system", f"the manifest says {doc['system']}", theirs=SYSTEM_NAMES[doc["system"]],
                               ours=SYSTEM_NAMES.get(system, system))
         _check_structure(infos, max_total)
         if not TOP_RE.match(top) or top != f"clark-{doc['version']}" or doc["version"] != version_in_name:
@@ -461,11 +489,15 @@ def check_version(release, installed_version, installed_schema, reinstall=False)
         have = version_key(installed_version)
     except ValueError:
         raise UpdateError("noversion", f"installed version {installed_version!r} is not a version")
-    new = version_key(release.version)
+    try:
+        new = version_key(release.version)
+        need = version_key(release.min_from)
+    except ValueError:
+        raise UpdateError("damaged", "a version in the manifest can't be read as numbers")
     if new <= have and not reinstall:
         raise UpdateError("same" if new == have else "older", f"{release.version} against {installed_version}",
                           theirs=release.version, ours=installed_version)
-    if have < version_key(release.min_from):
+    if have < need:
         raise UpdateError("min_from", f"min_from {release.min_from}, installed {installed_version}", need=release.min_from)
     if release.schema_version != installed_schema:
         raise UpdateError("layout", f"data layout {release.schema_version}, installed {installed_schema}")
@@ -488,17 +520,20 @@ def walk_app(app_dir):
     stack = [base]
     while stack:
         folder = stack.pop()
-        with os.scandir(folder) as it:
-            for e in it:
-                rel = PurePosixPath(Path(e.path).relative_to(base)).as_posix()
-                if _is_link(e.path):
-                    links.append(rel)
-                elif e.is_dir(follow_symlinks=False):
-                    if e.name == "__pycache__" or e.name.startswith((".clark-update-", ".clark-old-")):
-                        continue
-                    stack.append(Path(e.path))
-                elif e.name != ".DS_Store" and not e.name.endswith(".pyc"):
-                    files.append(rel)
+        try:
+            with os.scandir(folder) as it:
+                for e in it:
+                    rel = PurePosixPath(Path(e.path).relative_to(base)).as_posix()
+                    if _is_link(e.path):
+                        links.append(rel)
+                    elif e.is_dir(follow_symlinks=False):
+                        if e.name == "__pycache__" or e.name.startswith((".clark-update-", ".clark-old-")):
+                            continue
+                        stack.append(Path(e.path))
+                    elif e.name != ".DS_Store" and not e.name.endswith(".pyc"):
+                        files.append(rel)
+        except OSError:
+            raise UpdateError("folder", f"a folder in the app folder can't be listed: {folder}")
     return sorted(files), sorted(links)
 
 
@@ -543,9 +578,15 @@ def check_record_names(record):
 
 def _sha256_of(path):
     h = hashlib.sha256()
-    with Path(path).open("rb") as f:
-        for chunk in iter(lambda: f.read(CHUNK), b""):
-            h.update(chunk)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+    try:
+        with os.fdopen(os.open(path, flags), "rb") as f:
+            if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):          # a pipe or device would wait for ever
+                raise UpdateError("folder", f"not a regular file: {path}")
+            for chunk in iter(lambda: f.read(CHUNK), b""):
+                h.update(chunk)
+    except OSError:
+        raise UpdateError("folder", f"a file in the app folder can't be read: {path}")
     return h.hexdigest()
 
 

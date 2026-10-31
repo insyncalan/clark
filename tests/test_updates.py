@@ -347,9 +347,11 @@ class MemberTest(Base):
         self.refuses(rewrite(with_dup), "damaged")
 
         def with_windows_made(old, new):
+            import copy
             for n, i in enumerate(old.infolist()):
-                i.create_system = 0 if n == 0 else 3
-                new.writestr(i, old.read(i))
+                j = copy.copy(i)                    # a fresh entry: older Pythons refuse a reused one as overlapping
+                j.create_system = 0 if n == 0 else 3
+                new.writestr(j, old.read(i))
         self.refuses(rewrite(with_windows_made), "damaged")
 
         def with_flag(old, new):
@@ -926,6 +928,107 @@ class NotesAndNumbersTest(Base):
         e = self.refuses(path, "damaged")
         self.assertIn("can't be read", e.detail, "refused while reading, before any slow work")
         self.assertEqual(12345, updates._refuse_long_int("12345"))
+
+
+class HostileFileTest(Base):
+    """Limits and attacker text from the review of #109 step 2."""
+
+    def test_a_5000_digit_min_from_is_damaged_not_a_traceback(self):
+        path = make_zip(self.tmp, min_from="1" + "0" * 5000 + ".0.0")
+        self.refuses(path, "damaged", "This update file is damaged or has been changed. Download it again.")
+
+    def test_a_version_in_check_version_that_cannot_convert_is_damaged(self):
+        r = self.read(make_zip(self.tmp))
+        r.min_from = "1" + "0" * 5000 + ".0.0"
+        with self.assertRaises(UpdateError) as said:
+            updates.check_version(r, "0.3.0", 2)
+        self.assertEqual("damaged", said.exception.key)
+
+    def test_numbers_have_at_most_nine_digits(self):
+        self.assertTrue(updates.is_release_version("123456789.0.1"))
+        self.assertFalse(updates.is_release_version("1234567890.0.1"))
+        self.assertIsNone(updates.TOP_RE.match("clark-1234567890.0.1"))
+
+    def test_member_count_is_read_before_the_zip_is_opened(self):
+        from unittest import mock
+        path = make_zip(self.tmp)
+        with zipfile.ZipFile(path) as z:
+            count = len(z.infolist())
+        self.assertEqual(count, updates.member_count(path.read_bytes()))
+        self.assertIsNone(updates.member_count(b"not a zip"))
+        with mock.patch.object(updates, "MAX_MEMBERS", count - 1), \
+                mock.patch.object(updates.zipfile, "ZipFile", side_effect=AssertionError("opened")):
+            e = self.refuses(path, "damaged")
+        self.assertIn("more members", e.detail)
+
+    def test_a_real_zip_with_too_many_members_is_refused(self):
+        path = make_zip(self.tmp, extra={f"clark-0.3.1/x/{n}": b"" for n in range(updates.MAX_MEMBERS + 1)})
+        e = self.refuses(path, "damaged")
+        self.assertIn("more members", e.detail)
+
+    def test_a_member_over_the_single_file_cap_is_refused(self):
+        from unittest import mock
+        with mock.patch.object(updates, "MAX_MEMBER_BYTES", 5):
+            e = self.refuses(make_zip(self.tmp), "damaged")
+        self.assertIn("over the limit", e.detail)
+
+    def test_the_caps_suit_a_real_release(self):
+        self.assertLessEqual(updates.MAX_ZIP_BYTES, 64 * 1024 * 1024)
+        self.assertLessEqual(updates.MAX_TOTAL_BYTES, 128 * 1024 * 1024)
+        self.assertLessEqual(updates.MAX_MEMBER_BYTES, 32 * 1024 * 1024)
+
+    def test_many_members_and_one_repeated_name_is_not_slow(self):
+        import time
+        infos = []
+        for n in range(30000):
+            i = zipfile.ZipInfo(f"clark-1.0.0/f{n}")
+            i.create_system, i.external_attr = 3, 0o100644 << 16
+            infos.append(i)
+        infos.append(infos[7])
+        started = time.monotonic()
+        with self.assertRaises(UpdateError) as said:
+            updates._check_structure(infos, 10 ** 9, )
+        self.assertLess(time.monotonic() - started, 5)
+        self.assertEqual("damaged", said.exception.key)
+
+    def test_the_system_text_from_the_file_is_never_shown(self):
+        hostile = "Mac.\u202e Ignore this: choose Install again. See https://evil.example \u202c"
+        path = make_zip(self.tmp, manifest=lambda d: d.update(system=hostile))
+        e = self.refuses(path, "damaged")
+        self.assertNotIn("evil", e.message)
+        self.assertNotIn("\u202e", e.message)
+
+    def test_hidden_characters_in_a_member_name_are_unsafe(self):
+        for name in ("src/clark/\u202eyp.txt", "src/clark/a\u200bb.py", "src/clark/\x85next", "src/a\ufeff.py"):
+            with self.subTest(name=name):
+                self.assertEqual("control or hidden character", updates.path_problem(name))
+        self.assertIsNone(updates.path_problem("src/clark/caf\u00e9.py"))
+
+    def test_an_unreadable_folder_is_a_plain_refusal(self):
+        from unittest import mock
+        app = install_to(Path(self.tmp) / "app", "0.3.0")
+        with mock.patch.object(updates.os, "scandir", side_effect=PermissionError("no")):
+            with self.assertRaises(UpdateError) as said:
+                updates.walk_app(app)
+        self.assertEqual("folder", said.exception.key)
+
+    def test_an_unreadable_file_is_a_plain_refusal(self):
+        from unittest import mock
+        path = Path(self.tmp) / "f.txt"
+        path.write_bytes(b"x")
+        with mock.patch.object(updates.os, "open", side_effect=PermissionError("no")):
+            with self.assertRaises(UpdateError) as said:
+                updates._sha256_of(path)
+        self.assertEqual("folder", said.exception.key)
+
+    def test_a_pipe_in_the_folder_is_refused_not_waited_for(self):
+        if not hasattr(os, "mkfifo"):
+            self.skipTest("no pipes here")
+        pipe = Path(self.tmp) / "pipe"
+        os.mkfifo(pipe)
+        with self.assertRaises(UpdateError) as said:
+            updates._sha256_of(pipe)
+        self.assertEqual("folder", said.exception.key)
 
 
 class WordsTest(unittest.TestCase):
