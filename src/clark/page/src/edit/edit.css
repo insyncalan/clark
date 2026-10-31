@@ -41,3 +41,15 @@
 .mvm-confirm { margin: 12px 0 4px; }
 .mvm-problems p { margin: 4px 0; color: var(--status-red-text); }
 @media (max-width: 1100px) { .mvm-row { grid-template-columns: 1fr auto; } .mvm-track { grid-column: 1 / -1; } }
+
+/* The client contact on the Publish screen (#51): one row, then the two fields when it is being changed. Tokens only. */
+.pub-contact { margin: 0 0 4px; padding: 8px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); }
+.pub-contact-now { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 4px 12px; }
+.pub-contact-what { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.pub-contact-what small { font-size: var(--size-small); color: var(--text-muted); }
+.pub-contact-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.pub-contact-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.pub-contact-form input { width: 100%; box-sizing: border-box; background: var(--surface); color: var(--text); }
+.pub-contact-msg { font-size: var(--size-small); overflow-wrap: anywhere; }
+.pub-contact-msg p { margin: 6px 0 0; }
+.pub-contact-msg .error { color: var(--status-red-text); }

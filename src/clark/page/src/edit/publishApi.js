@@ -1,4 +1,5 @@
-// The page's only way to publish: POST /api/publish, POST /api/client-folder and GET /api/publication (#43). No other file names
+// The page's only way to publish: POST /api/publish, POST /api/client-folder, POST /api/client-contact (#51) and GET
+// /api/publication (#43). No other file names
 // these routes, so the published page (view.jsx) has no way to publish and no mention of them. Nothing here names a folder or a
 // file: the client folder is the one saved in Settings, which the server reads itself.
 import { token, plain } from "../stores/report.js";
@@ -17,6 +18,7 @@ async function call(method, path, body) {
 
 export const publishRequest = (body) => call("POST", "/api/publish", body);
 export const folderRequest = (project, action) => call("POST", "/api/client-folder", { project, action });
+export const contactRequest = (body) => call("POST", "/api/client-contact", body);      // #51: save or clear the project's client contact
 export const previewRequest = (project) => call("POST", "/api/preview", { project });
 export const latestRequest = (project) => call("GET", `/api/publication?project=${encodeURIComponent(project)}`);
 
