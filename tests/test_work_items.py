@@ -381,7 +381,7 @@ class RealBrowser(unittest.TestCase):
         with mock.patch.object(sv, "with_boot", lambda html: real(html).replace(sv.TOKEN, "an-old-token")):
             with chrome() as cdp:                                                   # a page from before a restart
                 sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-                self.assertTrue(wait(lambda: "clark was restarted after you opened this page. Reload the page and try again." in
+                self.assertTrue(wait(lambda: "This page was opened before clark restarted. Reload the page and try again." in
                                      (cdp.js("document.querySelector('main').innerText", sid) or "")), "the page's own words, not the server's")
                 self.assertNotIn(sv.STALE_PAGE, cdp.js("document.querySelector('main').innerText", sid))
                 self.assertEqual(cdp.js("document.querySelectorAll('main button').length", sid), 1, "Try again")
@@ -410,7 +410,7 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('main li button').length", sid) == 2))
             s.close()                                                               # clark goes away; then a project is chosen
             cdp.js("document.querySelector('main li button').click()", sid)
-            self.assertTrue(wait(lambda: "clark has stopped. It stops by itself after a while with nothing open. Start it again from clark.command." in
+            self.assertTrue(wait(lambda: "The app has stopped. It stops by itself after a while with nothing open. Start it again from clark.command." in
                                  (cdp.js("document.querySelector('main').innerText", sid) or "")))
 
     def test_a_project_with_no_work_items_says_so(self):

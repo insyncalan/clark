@@ -23,9 +23,9 @@ from test_server import Running, chrome, wait  # noqa: E402
 
 READ_FAILED = "clark could not read this project. Reload the page. If it happens again, restart clark."
 HIT_PROBLEM = "clark hit a problem reading this project. Reload the page. If it happens again, restart clark."
-NOT_ACCEPTED = "clark did not accept that request. Reload the page."
-STALE = "clark was restarted after you opened this page. Reload the page and try again."
-NOT_ANSWERING = "clark has stopped. It stops by itself after a while with nothing open. Start it again from clark.command."
+NOT_ACCEPTED = "That request was not accepted. Reload the page."
+STALE = "This page was opened before clark restarted. Reload the page and try again."
+NOT_ANSWERING = "The app has stopped. It stops by itself after a while with nothing open. Start it again from clark.command."
 WENT_WRONG = "Something went wrong"
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
