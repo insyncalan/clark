@@ -5,12 +5,13 @@
 import { effect } from "@preact/signals";
 import { item, view, project, openPeek, closePeek, fromFile } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
-import { helpOpen } from "../help/helpStore.js";
 
 const ITEMS = "#work-list tr[data-id], #work-list article.bcard[data-id]";
 const CONTROL = "a, button, input, select, textarea, label, .ddmenu, .dpick, [data-peek]";   // and any text that can be typed in: isContentEditable
-// Open things that take Esc and clicks for themselves: a menu, a picker, a date or filter box, a dialog, the peek.
-const OVERLAY = ".ddmenu, .dpick, .fbox, .pop, [role='dialog'], [aria-modal='true'], [data-peek], .cpop, [data-pop], [role='menu'], [role='listbox']";
+// Open things that take Esc and clicks for themselves: a menu, a picker, a date or filter box, a dialog, the peek, Help.
+// Help is found by its panel, not through its store: the published file has no Help, and an import of the store would bundle
+// Help's words into it.
+const OVERLAY = "#help, .ddmenu, .dpick, .fbox, .pop, [role='dialog'], [aria-modal='true'], [data-peek], .cpop, [data-pop], [role='menu'], [role='listbox']";
 
 /** The ids of the rows or cards on the screen, in the order drawn (a collapsed group's are not drawn). */
 export function drawnOrder() { return Array.from(document.querySelectorAll(ITEMS), (e) => e.dataset.id); }
@@ -84,7 +85,7 @@ export function installSelectionRules() {
     if (e.key !== "Escape" || e.defaultPrevented || sel.size.value === 0 || view.value !== "work") return;
     const t = e.target;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-    if (item.value || helpOpen.value || !document.querySelector("#work-list") || document.querySelector(OVERLAY)) return;
+    if (item.value || !document.querySelector("#work-list") || document.querySelector(OVERLAY)) return;
     e.preventDefault();
     e.stopPropagation();
     sel.clear();
