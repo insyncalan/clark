@@ -205,6 +205,14 @@ class TheBudget(Folders):
         self.assertLessEqual(sum(len(p.text) for p in got.passages), 1500)
         self.assertGreater(got.left_out, 0)
 
+    def test_files_after_the_time_limit_are_left_out(self):
+        self.put(self.box, "a.txt", "alpha one")
+        self.put(self.box, "b.txt", "alpha two")
+        with mock.patch.object(ask_passages, "READ_SECONDS", -1.0):
+            got = self.run_it("alpha")
+        self.assertEqual(list(got.passages), [])
+        self.assertEqual(got.other, 2, "counted with the files past a cap")
+
     def test_every_passage_fits_a_request(self):
         self.put(self.box, "long.txt", "x" * 50000)
         got = self.run_it("x")
@@ -254,6 +262,14 @@ class OnTheRoute(tr.Base):
             status, got = self.question()
         self.assertEqual((status, got["code"]), (409, "asking_off"))
         listing.assert_not_called()
+        self.assertEqual(self.provider.sent, [])
+
+    def test_a_folder_that_fails_unforeseen_sends_nothing(self):
+        with mock.patch.object(ask_passages, "folder_data", side_effect=RuntimeError("boom /secret/path")):
+            status, got = self.question("What is the cutover plan?")
+        self.assertEqual((status, got["ok"], got["code"]), (200, False, "folders_unreadable"))
+        self.assertNotIn("boom", got["message"])
+        self.assertIn("nothing was sent", got["message"])
         self.assertEqual(self.provider.sent, [])
 
     def test_pdf_is_said_to_be_not_supported_yet(self):
