@@ -133,7 +133,7 @@ function Box({ after, opener, onClose }) {
             <legend class="ad-lbl">Where it goes</legend>
             <label><input type="radio" name="where" value="row" checked={!sideOn} onChange={() => setBeside(false)} /> On its own row</label>
             <label class={okBeside.ok ? "" : "off"}><input type="radio" name="where" value="beside" checked={sideOn} disabled={!okBeside.ok}
-              aria-describedby="ad-w-why" onChange={() => setBeside(true)} /> {okBeside.ok ? `Beside “${okBeside.next}” (half width)` : "Beside the next section (half width)"}</label>
+              aria-describedby="ad-w-why" onChange={() => setBeside(true)} /> {okBeside.ok ? `Beside “${okBeside.with}” (half width)` : "Beside the section above (half width)"}</label>
             <p class="muted ad-why" id="ad-w-why">{okBeside.ok ? "" : okBeside.message}</p>
           </fieldset>
           <fieldset class="ad-list">

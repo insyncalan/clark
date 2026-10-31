@@ -44,13 +44,11 @@ export const TEMPLATES = [
 
 export const MESSAGES = {
   gone: "That section isn't in the report any more. Reload the page.",
-  noNext: "This is the last section, so there is nothing to sit beside.",
   noneYet: "There is no section yet to sit beside.",
-  nextFull: "The next row already has two sections. Place it on its own row.",
+  hasPartner: "That section already shares its row. Place it on its own row.",
   needsFull: "This template needs the full width. Place it on its own row.",
   later: "Coming with a later release.",
   unknown: "That template isn't in the list.",
-  notBeside: "The section was added, but it could not be placed beside the next one. Undo removes it.",
   notAlone: "The section was added, but it could not be put on its own row. Undo removes it.",
 };
 
@@ -102,23 +100,24 @@ export function anchor(sections, after) {
   return row ? { ok: true, id: row[row.length - 1].id } : { ok: false, message: MESSAGES.gone };
 }
 
-// Whether a template can sit beside the next section after `after`: { ok: true } or { ok: false, message }.
+// Whether a template can sit beside the section above, section `after`, which it then shares a row with as the second half:
+// { ok: true, with: that section's title } or { ok: false, message }. Only a section on a row of its own can have a partner, and the
+// last section can.
 export function besideState(sections, after, template) {
   if (!template) return { ok: false, message: MESSAGES.unknown };
   if (!template.fit.includes("half")) return { ok: false, message: MESSAGES.needsFull };
   if (after === null || after === undefined) return { ok: false, message: MESSAGES.noneYet };
-  const a = anchor(sections, after);
-  if (!a.ok) return a;
-  const all = rows(sections);
-  const i = all.findIndex((r) => r.some((s) => s.id === a.id));
-  if (i + 1 >= all.length) return { ok: false, message: MESSAGES.noNext };
-  if (all[i + 1].length !== 1) return { ok: false, message: MESSAGES.nextFull };
-  return { ok: true, next: all[i + 1][0].title };
+  const row = rows(sections).find((r) => r.some((x) => x.id === after));
+  if (!row) return { ok: false, message: MESSAGES.gone };
+  if (row.length !== 1) return { ok: false, message: MESSAGES.hasPartner };
+  return { ok: true, with: row[0].title };
 }
 
-// The requests to make to add template `id` below section `after` (null: at the end), alone or beside the next section.
-// { ok: true, requests, words } or { ok: false, message }. A request's `id: "$new"` means the section the first one made.
-// Today a template other than the available ones is refused here, in words, before anything is sent.
+// The requests to make to add template `id` below section `after` (null: at the end), alone or beside that section as its second
+// half. { ok: true, requests, words, partial } or { ok: false, message }. Beside is one request (`new` takes `beside`, and clark sets the pairing in the same step). A section added alone below a
+// last section that carries a stale pairing flag needs a second request to clear it, because `new` does not clear it; `partial` is
+// what the toast says if that second request fails. Today a template other than the available ones is refused here, in words,
+// before anything is sent.
 export function plan(sections, id, after, beside = false) {
   const t = find(id);
   if (!t) return { ok: false, message: MESSAGES.unknown };
@@ -128,13 +127,13 @@ export function plan(sections, id, after, beside = false) {
   if (beside) {
     const b = besideState(sections, after, t);
     if (!b.ok) return b;
+    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, beside: 1, place: "report" }],
+             words: `${t.name} added, beside the section above.`, template: t };
   }
   const requests = [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, place: "report" }];
   const all = rows(sections), tail = all.length ? all[all.length - 1] : null;
   const last = a.id === null ? (tail && tail[tail.length - 1]) : sections.find((s) => s.id === a.id);      // null is "at the end": below the final section
   const lone = last && all.some((r) => r.length === 1 && r[0].id === last.id);
-  if (!beside && lone && last.beside) requests.push({ op: "update", id: last.id, changes: { beside: 0 }, place: "report" });   // a flag on the last section is ignored by the page; the new section after it would pair with it
-  if (beside) requests.push({ op: "update", id: "$new", changes: { beside: 1 }, place: "report" });
-  const partial = beside ? MESSAGES.notBeside : MESSAGES.notAlone;      // what the toast says when the first request worked and the second did not
-  return { ok: true, requests, words: `${t.name} added${beside ? ", beside the next section" : ""}.`, partial, template: t };
+  if (lone && last.beside) requests.push({ op: "update", id: last.id, changes: { beside: 0 }, place: "report" });   // a flag on the last section is ignored by the page; the new section after it would pair with it
+  return { ok: true, requests, words: `${t.name} added.`, partial: MESSAGES.notAlone, template: t };
 }

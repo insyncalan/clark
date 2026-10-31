@@ -166,15 +166,16 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t(f"anchor({lit(S)}, null)"), {"ok": True, "id": None})
         self.assertEqual(self.t(f"anchor({lit(S)}, 'zz')"), {"ok": False, "message": "That section isn't in the report any more. Reload the page."})
 
-    def test_beside_is_offered_only_to_half_width_templates_next_to_a_section_on_its_own(self):
+    def test_beside_is_offered_only_to_half_width_templates_for_a_section_on_its_own_row(self):
         st = lambda after, tid: self.t(f"besideState({lit(S)}, {lit(after)}, T.templates.find({lit(tid)}))")
-        self.assertEqual(st("a", "text"), {"ok": True, "next": "Milestones"}, "the next row (Milestones) is alone, and it is named")
-        self.assertEqual(st("e", "text"), {"ok": False, "message": "This is the last section, so there is nothing to sit beside."})
-        self.assertEqual(st("b", "text"), {"ok": False, "message": "The next row already has two sections. Place it on its own row."})
+        self.assertEqual(st("a", "text"), {"ok": True, "with": "Summary"}, "the section above is alone, and it is named")
+        self.assertEqual(st("e", "text"), {"ok": True, "with": "Decisions"}, "the last section can have a partner")
+        self.assertEqual(st("c", "text"), {"ok": False, "message": "That section already shares its row. Place it on its own row."}, "the left half of a pair")
+        self.assertEqual(st("d", "text"), {"ok": False, "message": "That section already shares its row. Place it on its own row."}, "the right half of a pair")
         self.assertEqual(st("a", "raid-3"), {"ok": False, "message": "This template needs the full width. Place it on its own row."})
-        self.assertEqual(st("a", "key-dates"), {"ok": True, "next": "Milestones"})
+        self.assertEqual(st("a", "key-dates"), {"ok": True, "with": "Summary"})
         self.assertEqual(st(None, "text"), {"ok": False, "message": "There is no section yet to sit beside."})
-        self.assertEqual(st("c", "text"), {"ok": True, "next": "Decisions"}, "below the pair; the next row (Decisions) is alone")
+        self.assertEqual(st("zz", "text"), {"ok": False, "message": "That section isn't in the report any more. Reload the page."})
 
     def test_nothing_shown_says_why_by_cause(self):
         nm = lambda **kw: self.t(f"noMatch({lit(kw)})")
@@ -198,13 +199,18 @@ class Logic(unittest.TestCase):
         pair = self.t(f"plan({lit(S)}, 'text', 'c', false)")
         self.assertEqual(pair["requests"][0]["after"], "d", "below the pair's last section")
 
-    def test_beside_is_a_new_then_a_flag_on_what_was_made(self):
+    def test_beside_is_one_new_request_that_carries_beside(self):
         p = self.t(f"plan({lit(S)}, 'text', 'a', true)")
-        self.assertEqual([r["op"] for r in p["requests"]], ["new", "update"])
-        self.assertEqual(p["requests"][1], {"op": "update", "id": "$new", "changes": {"beside": 1}, "place": "report"})
-        self.assertEqual(p["words"], "Text added, beside the next section.")
-        bad = self.t(f"plan({lit(S)}, 'text', 'b', true)")
-        self.assertEqual((bad["ok"], bad["message"]), (False, "The next row already has two sections. Place it on its own row."))
+        self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": "a", "beside": 1, "place": "report"}])
+        self.assertEqual(p["words"], "Text added, beside the section above.")
+        last = self.t(f"plan({lit(S)}, 'text', 'e', true)")
+        self.assertEqual([r["after"] for r in last["requests"]], ["e"], "beside the last section")
+        self.assertEqual(len(last["requests"]), 1)
+        for after in ("c", "d"):
+            bad = self.t(f"plan({lit(S)}, 'text', {lit(after)}, true)")
+            self.assertEqual((bad["ok"], bad["message"]), (False, "That section already shares its row. Place it on its own row."), after)
+        stale = [sec("a", "Summary"), sec("z", "Last", beside=1)]
+        self.assertEqual(len(self.t(f"plan({lit(stale)}, 'text', 'z', true)")["requests"]), 1, "beside needs no clearing: clark sets the pairing")
 
     def test_a_flag_left_on_the_last_section_is_cleared_so_the_new_one_does_not_pair_with_it(self):
         stale = [sec("a", "Summary"), sec("z", "Last", beside=1)]
@@ -453,14 +459,16 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open_box(p, "ABC-S-004")                                  # the next row is Summary, alone
+            self.open_box(p, "ABC-S-005")                                  # Summary is alone
             self.assertEqual(p.js("document.querySelector('button[data-place]').textContent"), "Add section", "the prototype's word")
             self.assertEqual(p.js("document.querySelector('.ad-where legend').textContent"), "Where it goes", "one name for the step: the heading is Where it goes, the button is Add section")
             self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside “Summary” (half width)")
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("!document.querySelector('[role=dialog]')", "closed")
-            self.open_box(p, "ABC-S-011")                                  # the last section: nothing to name
-            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside the next section (half width)")
+            p.js("document.querySelector('[data-cancel]').click()")
+            p.until("!document.querySelector('[role=dialog]')", "closed")
+            self.open_box(p, "ABC-S-006")                                  # the left half of a pair: nothing to name
+            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside the section above (half width)")
 
     def test_place_a_text_template_below_and_undo_it(self):
         with chrome() as cdp:
@@ -496,71 +504,133 @@ class Box(Base):
             self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "the pair is still a pair")
             self.assertEqual(self.beside_flags()[new], 0)
 
-    def place_beside(self, p):
-        self.open_box(p, "ABC-S-004")                                  # the next row, Summary, is alone
+    def place_beside(self, p, after="ABC-S-005"):
+        self.open_box(p, after)                                        # Summary is alone
         self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
         p.js("document.querySelector('input[name=where][value=beside]').click()")
         p.js("document.querySelector('button[data-place]').click()")
 
-    def test_place_it_beside_the_next_section_is_two_requests_and_the_rows_are_right(self):
+    def test_place_it_beside_the_section_above_is_one_request_and_the_rows_are_right(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             self.place_beside(p)
             p.until("document.querySelectorAll('.sec').length === 12 && document.querySelectorAll('.sec.slot-left').length === 2 && !!document.querySelector('[data-undo]')", "added beside")
             new = [i for i in p.ids() if i not in IDS][0]
-            self.assertEqual(p.ids()[4], new)
-            ops = [r[1]["op"] for r in self.sent]
-            self.assertEqual(ops, ["new", "update"])
-            self.assertEqual(self.sent[-1][1]["changes"], {"beside": 1})
-            self.assertEqual(self.sent[-1][1]["id"], new)
-            self.assertEqual(self.beside_flags()[new], 1)
-            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-right')"), True)
-            self.assertEqual(p.toast(), "Text added, beside the next section.")
+            self.assertEqual(p.ids()[5], new, "just below Summary")
+            self.assertEqual([r[0] for r in self.sent], ["change"], "one request")
+            self.assertEqual(self.sent[-1][1], {"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "text", "title": "New section"},
+                                                "after": "ABC-S-005", "beside": 1, "place": "report"})
+            self.assertEqual(self.beside_flags()["ABC-S-005"], 1, "Summary is the first half")
+            self.assertEqual(self.beside_flags()[new], 0)
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-right')"), True)
+            self.assertEqual(p.toast(), "Text added, beside the section above.")
 
-    def test_one_undo_takes_back_both_the_section_and_its_place_beside_the_next(self):
-        """Two requests, one action: the toast has one Undo, and one click sends the flag's undo first, then the section's."""
+    def test_one_undo_takes_back_the_section_and_the_pairing(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             flags = self.beside_flags()
             self.place_beside(p)
             p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added beside")
+            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1)
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11", "the section is gone after one click")
+            self.assertEqual([r[0] for r in self.sent], ["change", "undo"], "one undo")
+            self.assertEqual(self.ids_in_store(), IDS)
+            self.assertEqual(self.beside_flags(), flags, "Summary is on its own row again")
+            self.assertEqual(p.js("document.querySelectorAll('.sec.slot-left').length"), 1, "only the first pair is left")
+            self.assertEqual(p.toast(), "Undone.")
+            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 0, "nothing more to undo")
+
+    def test_the_last_section_can_have_the_new_one_beside_it(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.place_beside(p, "ABC-S-011")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added beside the last")
+            new = [i for i in p.ids() if i not in IDS][0]
+            self.assertEqual(p.ids()[-1], new)
+            self.assertEqual([r[0] for r in self.sent], ["change"])
+            self.assertEqual(self.beside_flags()["ABC-S-011"], 1)
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"ABC-S-011\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-right')"), True)
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11", "one Undo")
+            self.assertEqual(self.beside_flags()["ABC-S-011"], 0)
+
+    def test_beside_is_unavailable_with_the_reason_for_a_section_that_has_a_partner(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for after in ("ABC-S-006", "ABC-S-007"):                       # either half of This week | Next week
+                self.open_box(p, after)
+                self.assertTrue(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
+                self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "That section already shares its row. Place it on its own row.")
+                self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').getAttribute('aria-describedby')"), "ad-w-why")
+                p.js("document.querySelector('[data-cancel]').click()")
+                p.until("!document.querySelector('[role=dialog]')", "closed")
+            self.open_box(p, "ABC-S-011")                                  # the last section: allowed, so no reason
+            self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
+            self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12", "alone at the end")
+            self.assertEqual(p.ids()[-1] not in IDS, True)
+            self.assertEqual([r[0] for r in self.sent], ["change"])
+            self.assertEqual(self.sent[-1][1].get("beside"), None, "alone: no beside")
+
+    def stale_flag_on_the_last_section(self):
+        """A leftover pairing flag on the last section (the page ignores it): the one case where a plain add is two requests."""
+        code, _ = self.real_change({"project": "ABC", "kind": "report_sections", "op": "update", "id": "ABC-S-011", "changes": {"beside": 1}, "place": "report"})
+        self.assertEqual(code, 200)
+
+    def test_a_plain_add_below_a_stale_flag_is_two_requests_and_one_undo(self):
+        self.stale_flag_on_the_last_section()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-011")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            new = [i for i in p.ids() if i not in IDS][0]
+            self.assertEqual([r[1]["op"] for r in self.sent], ["new", "update"])
+            self.assertEqual(self.sent[-1][1]["changes"], {"beside": 0})
+            self.assertEqual(self.beside_flags()["ABC-S-011"], 0)
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-full')"), True, "on its own row")
             self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1, "one Undo for the one action")
-            self.assertEqual([r[0] for r in self.sent], ["change", "change"])
             p.js("document.querySelector('[data-undo]').click()")
             p.until("document.querySelectorAll('.sec').length === 11", "the section is gone after one click")
             undos = [r[1]["apply_id"] for r in self.sent if r[0] == "undo"]
             self.assertEqual(len(undos), 2, "both steps were undone")
             self.assertGreater(undos[0], undos[1], "the flag first, then the new section")
             self.assertEqual(self.ids_in_store(), IDS)
-            self.assertEqual(self.beside_flags(), flags, "the rows are as they were")
+            self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag is as it was")
             self.assertEqual(p.toast(), "Undone.")
-            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 0, "nothing more to undo")
 
     def test_a_failed_second_request_says_so_plainly_and_undo_removes_the_section(self):
+        self.stale_flag_on_the_last_section()
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"}) if req.get("op") == "update" else self.real_change(req)
-            self.place_beside(p)
+            self.open_box(p, "ABC-S-011")
+            p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "the section was added and the toast offers Undo")
-            self.assertEqual(p.toast(), "The section was added, but it could not be placed beside the next one. Undo removes it.")
-            new = [i for i in p.ids() if i not in IDS][0]
-            self.assertEqual(self.beside_flags()[new], 0, "not beside anything")
+            self.assertEqual(p.toast(), "The section was added, but it could not be put on its own row. Undo removes it.")
             self.failure = None
             p.js("document.querySelector('[data-undo]').click()")
             p.until("document.querySelectorAll('.sec').length === 11", "Undo removed the section")
             self.assertEqual(self.ids_in_store(), IDS)
-            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one step to take back: the flag was never made")
+            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one step to take back: the flag was never changed")
             self.assertEqual(p.toast(), "Undone.")
 
     def test_if_the_first_undo_fails_the_section_stays_and_the_toast_says_so(self):
+        self.stale_flag_on_the_last_section()
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.place_beside(p)
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added beside")
+            self.open_box(p, "ABC-S-011")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
             self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"})
             p.js("document.querySelector('[data-undo]').click()")
             p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
@@ -580,23 +650,6 @@ class Box(Base):
             p.until("document.querySelectorAll('.sec').length === 11", "Undo took it away")
             self.assertEqual([r[0] for r in self.sent], ["change", "undo"], "one undo")
             self.assertEqual(self.ids_in_store(), IDS)
-
-    def test_beside_is_unavailable_with_the_reason_when_the_next_row_is_a_pair_or_there_is_none(self):
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.edit()
-            self.open_box(p, "ABC-S-005")                                  # the next row is a pair
-            self.assertTrue(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
-            self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "The next row already has two sections. Place it on its own row.")
-            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').getAttribute('aria-describedby')"), "ad-w-why")
-            p.js("document.querySelector('[data-cancel]').click()")
-            p.until("!document.querySelector('[role=dialog]')", "closed")
-            self.open_box(p, "ABC-S-011")                                  # the last section
-            self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "This is the last section, so there is nothing to sit beside.")
-            p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12", "alone at the end")
-            self.assertEqual(p.ids()[-1] not in IDS, True)
-            self.assertEqual([r[1]["op"] for r in self.sent], ["new"])
 
     def test_a_refusal_from_clark_is_in_the_toast_and_focus_goes_back(self):
         with chrome() as cdp:

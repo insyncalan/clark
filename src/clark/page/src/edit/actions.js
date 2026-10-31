@@ -64,9 +64,9 @@ export function remove(id, place) {
   return next ? keep(done, next.id, "handle") : done;
 }
 
-// Add template `id` below section `after` (null: at the end), alone or beside the next section (logic/templates.js plan). One
-// request, or two when the section also needs a change after it is made (beside the next section, or a stale flag cleared on the last
-// one): the two are one action to the person, with one Undo that takes both back (stores/changes.js changeThen). Resolves to the
+// Add template `id` below section `after` (null: at the end), alone or beside that section (logic/templates.js plan). One request
+// and one Undo, except below a last section with a stale pairing flag, which takes a second request to clear it: the two are one
+// action to the person, with one Undo that takes both back (stores/changes.js changeThen). Resolves to the
 // first reply, or to null when nothing was added (a refusal in a note, or clark said no in the toast). The new section's title takes
 // focus.
 export async function addFromTemplate(id, after, beside) {
@@ -74,7 +74,7 @@ export async function addFromTemplate(id, after, beside) {
   if (!p.ok) { note(p.message); return null; }
   const [one, two] = p.requests;
   const first = two
-    ? await changeThen(one, (r) => ({ ...two, id: two.id === "$new" ? r.ref : two.id }), p.words, p.partial)
+    ? await changeThen(one, () => two, p.words, p.partial)
     : await change(one, p.words);
   if (first) keep(Promise.resolve(first), "new", "title");
   return first;

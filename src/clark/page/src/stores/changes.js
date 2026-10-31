@@ -73,10 +73,10 @@ export function change(req, done) {
   });
 }
 
-// Two requests the page makes as one action (a new section, then a change to it that clark's `new` cannot take yet). Nothing is said
+// Two requests the page makes as one action (a new section, then a change to the section it was added below). Nothing is said
 // between them. When both worked the toast has one Undo, which takes both back (undo below: the second step first, then the first).
 // `next(reply)` makes the second request from the first reply. When the second fails the first stays made, the toast says so in
-// `partial` and its Undo takes the first step back. Resolves to the first reply, or to null when the first request failed (the toast
+// `partial`, and its Undo takes the first step back. Resolves to the first reply, or to null when the first request failed (the toast
 // says why, and nothing was made).
 export function changeThen(req, next, done, partial) {
   const code = project.value;
@@ -133,7 +133,7 @@ export function undo(applyId, code = project.value) {
       const e = await sendUndo(code, earlier);
       if (!e.ok) {
         await readAgain(code, "The change was undone");
-        say("problem", `The section is no longer beside the next one, but it could not be removed. ${e.message}`, earlier, code);
+        say("problem", `The row was put back as it was, but the new section could not be removed. ${e.message}`, earlier, code);
         return r.reply;
       }
       redraw(code, e.reply);

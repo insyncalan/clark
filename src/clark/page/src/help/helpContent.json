@@ -419,7 +419,7 @@
     "s": [
      "On the **Dashboard**, press **Edit**. Press the **+** under the grip of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
-     "Under **Where it goes**, choose **On its own row** or, when the next section is on a row of its own and the template can be half width, **Beside** that section.",
+     "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
      "Only **Text** can be added so far. The other templates are listed with “Coming with a later release.” and cannot be added yet.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
@@ -751,7 +751,7 @@
     "b": [
      [
       "p",
-      "Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the next section (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
+      "Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
      ],
      [
       "p",
