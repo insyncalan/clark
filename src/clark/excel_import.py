@@ -1026,15 +1026,17 @@ def _write(st, store, c):
     return st.archive(c.table, c.id)
 
 
-def _try(store, changes, by_user, commit, src_ref=None, made=None):
+def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel", place="excel"):
     """(problems, step id, refused): try `changes` in one step. If any breaks a rule, every broken one is returned and the step is
     rolled back; with commit False it is rolled back whatever happens (a dry run through the writer's own checks). `refused` is
     the plain reason when the store would not open the step (it is busy, or a check before a step such as the backup refused) or
-    would not commit it: nothing was written, and it is "" otherwise. `made`, if given, is filled with {change number: the id
-    the store gave a new row}; it is only to be trusted when the step committed (no problems, nothing refused)."""
+    would not commit it: nothing was written, and it is "" otherwise. `route` and `place` are the step's (a Word import, #48,
+    passes "word" and None: the Head's ruling on Q6 is that it uses this refuse-and-rollback rather than another). `made`, if
+    given, is filled with {change number: the id the store gave a new row}; it is only to be trusted when the step committed
+    (no problems, nothing refused)."""
     problems, step_id, refused = [], None, ""
     try:
-        with store.step("excel", by_user, place="excel", src_ref=src_ref, dry=not commit) as st:   # #86: a preview takes no backup
+        with store.step(route, by_user, place=place, src_ref=src_ref, dry=not commit) as st:   # #86: a preview takes no backup
             for c in changes:
                 try:
                     ref = _write(st, store, c)

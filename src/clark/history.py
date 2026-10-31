@@ -23,8 +23,9 @@ def touches(r, item_id):
 
 def history(con, item_id):
     """[event, ...] for `item_id`, newest first. Each event: event_id, at, step, by_user, table, field, before, after, op,
-    route, place, origin, actor, undoes (the event it reverses), undone_by (the event that reversed it) and in_force (False once
-    an undo still in force has reversed it, or its own step was undone)."""
+    route, place, origin, actor, src_ref (how it came in, such as "by Word import (plan.docx)", else None), undoes (the event it
+    reverses), undone_by (the event that reversed it) and in_force (False once an undo still in force has reversed it, or its own
+    step was undone)."""
     rows = con.execute(
         "SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
         "a.by_user, a.undone_at, e.event_id, e.at, e.route, e.place, e.origin, e.actor, e.src_ref, e.undoes "
