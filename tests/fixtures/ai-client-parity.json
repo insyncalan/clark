@@ -1,0 +1,677 @@
+{
+ "_about": "Parity corpora for the client message check (#72 round 3). hostile: creaite's client_problems drops each (the 'creaite' field says which rule; those marked store need the tracker, for which clark stands in with plain code). ordinary: creaite's client_problems has nothing to say about any of them (it names only people it knows and items the tracker holds). clark's verdict must be the same on both lists.",
+ "people": [
+  "Omar Reid"
+ ],
+ "hostile": [
+  {
+   "id": "health_view",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. Internally the project is Red because the vendor slipped.",
+   "creaite": "store: tracker health reason (drafts.internal_findings)"
+  },
+  {
+   "id": "internal_marker",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. [internal only: budget overrun of 40%]",
+   "creaite": "drafts.INTERNAL_MARK, added by the reply"
+  },
+  {
+   "id": "hidden_item",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. See ABC-R-017.",
+   "creaite": "client_leak.text_findings: an item a client may not see (store); clark stands in with any added item ID"
+  },
+  {
+   "id": "vip",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. Our VIP contact joins.",
+   "creaite": "drafts.VIP_RE"
+  },
+  {
+   "id": "vip_dots",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. Our V.I.P. joins.",
+   "creaite": "edit_ai.VIP_LOOSE"
+  },
+  {
+   "id": "vip_underscores",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. Our V_I_P joins.",
+   "creaite": "edit_ai.VIP_LOOSE"
+  },
+  {
+   "id": "entity",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. This is conf&#105;dential.",
+   "creaite": "client_leak.with_decoded, INTERNAL_WORDS"
+  },
+  {
+   "id": "percent",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. This is conf%69dential.",
+   "creaite": "client_leak.with_decoded, INTERNAL_WORDS"
+  },
+  {
+   "id": "emphasis",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. This is inter*nal* only.",
+   "creaite": "client_leak.as_shown, drafts.INTERNAL_MARK"
+  },
+  {
+   "id": "documents",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. See documents/plan.",
+   "creaite": "client_leak.INTERNAL_WORDS"
+  },
+  {
+   "id": "restricted",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. It is restricted.",
+   "creaite": "client_leak.INTERNAL_WORDS"
+  },
+  {
+   "id": "id_spaces",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. See ABC A 003.",
+   "creaite": "edit_ai.loose_ids (store codes)"
+  },
+  {
+   "id": "id_lower",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. See abc-a-003.",
+   "creaite": "edit_ai.loose_ids"
+  },
+  {
+   "id": "id_short",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. See ABC-A-3.",
+   "creaite": "edit_ai.loose_ids"
+  },
+  {
+   "id": "id_escaped",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. See ABC\\-A\\-003.",
+   "creaite": "edit_ai.loose_ids, round 5"
+  },
+  {
+   "id": "id_zero_o",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. See ABC-A-OO3.",
+   "creaite": "edit_ai.loose_ids"
+  },
+  {
+   "id": "name_two_words",
+   "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+   "reply": "We will send the plan by 03-11-2026. Sam Patel is worried.",
+   "creaite": "client_leak.named_beyond (register); clark: two capitalised words"
+  }
+ ],
+ "ordinary": [
+  {
+   "id": "opener_see",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. See the budget stays at 12,500."
+  },
+  {
+   "id": "opener_for",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. For the budget stays at 12,500."
+  },
+  {
+   "id": "opener_with",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. With the budget stays at 12,500."
+  },
+  {
+   "id": "opener_and",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. And the budget stays at 12,500."
+  },
+  {
+   "id": "opener_but",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. But the budget stays at 12,500."
+  },
+  {
+   "id": "opener_everything",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Everything the budget stays at 12,500."
+  },
+  {
+   "id": "opener_kindly",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Kindly the budget stays at 12,500."
+  },
+  {
+   "id": "opener_update",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Update the budget stays at 12,500."
+  },
+  {
+   "id": "opener_status",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Status the budget stays at 12,500."
+  },
+  {
+   "id": "opener_fortunately",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Fortunately the budget stays at 12,500."
+  },
+  {
+   "id": "opener_pleased",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Pleased the budget stays at 12,500."
+  },
+  {
+   "id": "opener_team",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Team the budget stays at 12,500."
+  },
+  {
+   "id": "opener_review",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Review the budget stays at 12,500."
+  },
+  {
+   "id": "opener_support",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Support the budget stays at 12,500."
+  },
+  {
+   "id": "opener_will",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Will the budget stays at 12,500."
+  },
+  {
+   "id": "opener_can",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Can the budget stays at 12,500."
+  },
+  {
+   "id": "opener_does",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Does the budget stays at 12,500."
+  },
+  {
+   "id": "opener_thanks",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Thanks the budget stays at 12,500."
+  },
+  {
+   "id": "opener_please",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Please the budget stays at 12,500."
+  },
+  {
+   "id": "opener_hello",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Hello the budget stays at 12,500."
+  },
+  {
+   "id": "opener_dear",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Dear the budget stays at 12,500."
+  },
+  {
+   "id": "opener_regards",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Regards the budget stays at 12,500."
+  },
+  {
+   "id": "opener_also",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Also the budget stays at 12,500."
+  },
+  {
+   "id": "opener_however",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. However the budget stays at 12,500."
+  },
+  {
+   "id": "opener_therefore",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Therefore the budget stays at 12,500."
+  },
+  {
+   "id": "opener_meanwhile",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Meanwhile the budget stays at 12,500."
+  },
+  {
+   "id": "opener_currently",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Currently the budget stays at 12,500."
+  },
+  {
+   "id": "opener_overall",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Overall the budget stays at 12,500."
+  },
+  {
+   "id": "opener_finally",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Finally the budget stays at 12,500."
+  },
+  {
+   "id": "opener_firstly",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Firstly the budget stays at 12,500."
+  },
+  {
+   "id": "opener_secondly",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Secondly the budget stays at 12,500."
+  },
+  {
+   "id": "opener_unfortunately",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Unfortunately the budget stays at 12,500."
+  },
+  {
+   "id": "opener_today",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Today the budget stays at 12,500."
+  },
+  {
+   "id": "opener_tomorrow",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Tomorrow the budget stays at 12,500."
+  },
+  {
+   "id": "opener_yesterday",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Yesterday the budget stays at 12,500."
+  },
+  {
+   "id": "opener_here",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Here the budget stays at 12,500."
+  },
+  {
+   "id": "opener_there",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. There the budget stays at 12,500."
+  },
+  {
+   "id": "opener_just",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Just the budget stays at 12,500."
+  },
+  {
+   "id": "opener_let",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Let the budget stays at 12,500."
+  },
+  {
+   "id": "opener_looking",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Looking the budget stays at 12,500."
+  },
+  {
+   "id": "opener_hope",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Hope the budget stays at 12,500."
+  },
+  {
+   "id": "opener_sure",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Sure the budget stays at 12,500."
+  },
+  {
+   "id": "opener_great",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Great the budget stays at 12,500."
+  },
+  {
+   "id": "opener_good",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Good the budget stays at 12,500."
+  },
+  {
+   "id": "opener_noted",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Noted the budget stays at 12,500."
+  },
+  {
+   "id": "opener_understood",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Understood the budget stays at 12,500."
+  },
+  {
+   "id": "opener_attached",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Attached the budget stays at 12,500."
+  },
+  {
+   "id": "opener_once",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Once the budget stays at 12,500."
+  },
+  {
+   "id": "opener_after",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. After the budget stays at 12,500."
+  },
+  {
+   "id": "opener_before",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Before the budget stays at 12,500."
+  },
+  {
+   "id": "opener_because",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Because the budget stays at 12,500."
+  },
+  {
+   "id": "opener_soon",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Soon the budget stays at 12,500."
+  },
+  {
+   "id": "opener_still",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Still the budget stays at 12,500."
+  },
+  {
+   "id": "opener_very",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Very the budget stays at 12,500."
+  },
+  {
+   "id": "opener_well",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Well the budget stays at 12,500."
+  },
+  {
+   "id": "opener_testing",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Testing the budget stays at 12,500."
+  },
+  {
+   "id": "opener_phase",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Phase the budget stays at 12,500."
+  },
+  {
+   "id": "opener_planning",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Planning the budget stays at 12,500."
+  },
+  {
+   "id": "opener_delivery",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Delivery the budget stays at 12,500."
+  },
+  {
+   "id": "opener_training",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Training the budget stays at 12,500."
+  },
+  {
+   "id": "opener_workshops",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Workshops the budget stays at 12,500."
+  },
+  {
+   "id": "opener_meetings",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Meetings the budget stays at 12,500."
+  },
+  {
+   "id": "opener_testers",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Testers the budget stays at 12,500."
+  },
+  {
+   "id": "opener_users",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Users the budget stays at 12,500."
+  },
+  {
+   "id": "opener_vendors",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Vendors the budget stays at 12,500."
+  },
+  {
+   "id": "opener_suppliers",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Suppliers the budget stays at 12,500."
+  },
+  {
+   "id": "opener_contracts",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Contracts the budget stays at 12,500."
+  },
+  {
+   "id": "opener_invoices",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Invoices the budget stays at 12,500."
+  },
+  {
+   "id": "opener_reports",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Reports the budget stays at 12,500."
+  },
+  {
+   "id": "opener_dates",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Dates the budget stays at 12,500."
+  },
+  {
+   "id": "opener_next",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Next the budget stays at 12,500."
+  },
+  {
+   "id": "opener_early",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Early the budget stays at 12,500."
+  },
+  {
+   "id": "opener_late",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Late the budget stays at 12,500."
+  },
+  {
+   "id": "opener_several",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Several the budget stays at 12,500."
+  },
+  {
+   "id": "opener_many",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Many the budget stays at 12,500."
+  },
+  {
+   "id": "opener_most",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Most the budget stays at 12,500."
+  },
+  {
+   "id": "opener_some",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Some the budget stays at 12,500."
+  },
+  {
+   "id": "opener_both",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Both the budget stays at 12,500."
+  },
+  {
+   "id": "opener_either",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Either the budget stays at 12,500."
+  },
+  {
+   "id": "opener_neither",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Neither the budget stays at 12,500."
+  },
+  {
+   "id": "opener_every",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Every the budget stays at 12,500."
+  },
+  {
+   "id": "opener_each",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Each the budget stays at 12,500."
+  },
+  {
+   "id": "opener_another",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Another the budget stays at 12,500."
+  },
+  {
+   "id": "opener_nothing",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Nothing the budget stays at 12,500."
+  },
+  {
+   "id": "opener_something",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Something the budget stays at 12,500."
+  },
+  {
+   "id": "opener_anything",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Anything the budget stays at 12,500."
+  },
+  {
+   "id": "opener_nobody",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Nobody the budget stays at 12,500."
+  },
+  {
+   "id": "opener_everyone",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Everyone the budget stays at 12,500."
+  },
+  {
+   "id": "opener_someone",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Someone the budget stays at 12,500."
+  },
+  {
+   "id": "opener_anyone",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Anyone the budget stays at 12,500."
+  },
+  {
+   "id": "opener_whenever",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Whenever the budget stays at 12,500."
+  },
+  {
+   "id": "opener_wherever",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Wherever the budget stays at 12,500."
+  },
+  {
+   "id": "opener_although",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Although the budget stays at 12,500."
+  },
+  {
+   "id": "opener_though",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Though the budget stays at 12,500."
+  },
+  {
+   "id": "opener_unless",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Unless the budget stays at 12,500."
+  },
+  {
+   "id": "opener_since",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Since the budget stays at 12,500."
+  },
+  {
+   "id": "opener_while",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. While the budget stays at 12,500."
+  },
+  {
+   "id": "opener_instead",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Instead the budget stays at 12,500."
+  },
+  {
+   "id": "opener_otherwise",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Otherwise the budget stays at 12,500."
+  },
+  {
+   "id": "opener_likewise",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Likewise the budget stays at 12,500."
+  },
+  {
+   "id": "opener_thereafter",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Thereafter the budget stays at 12,500."
+  },
+  {
+   "id": "opener_moreover",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Moreover the budget stays at 12,500."
+  },
+  {
+   "id": "opener_furthermore",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Furthermore the budget stays at 12,500."
+  },
+  {
+   "id": "opener_additionally",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Additionally the budget stays at 12,500."
+  },
+  {
+   "id": "opener_accordingly",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Accordingly the budget stays at 12,500."
+  },
+  {
+   "id": "opener_hopefully",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Hopefully the budget stays at 12,500."
+  },
+  {
+   "id": "opener_happily",
+   "original": "Hi, the plan is on track. Budget is 12,500.",
+   "reply": "Hi, the plan is on track. Happily the budget stays at 12,500."
+  },
+  {
+   "id": "prose_0",
+   "original": "Hi, the plan is on track.",
+   "reply": "Hi, the plan is on track. The review runs in week 3."
+  },
+  {
+   "id": "prose_1",
+   "original": "Hi, the plan is on track.",
+   "reply": "Hi, the plan is on track. We need 5 testers."
+  },
+  {
+   "id": "prose_2",
+   "original": "Hi, the plan is on track.",
+   "reply": "Hi, the plan is on track. This is Version 2 of it."
+  },
+  {
+   "id": "prose_3",
+   "original": "Hi, the plan is on track.",
+   "reply": "Hi, the plan is on track. Our team is ready."
+  },
+  {
+   "id": "prose_4",
+   "original": "Hi, the plan is on track.",
+   "reply": "Hi, the plan is on track. Thanks for your patience."
+  }
+ ],
+ "known_person": {
+  "original": "We will send the plan by 03-11-2026 and confirm the date with you.",
+  "reply": "We will send the plan by 03-11-2026. Omar will confirm.",
+  "creaite": "client_leak.named_beyond: Omar Reid is in the register"
+ }
+}
