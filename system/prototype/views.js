@@ -398,7 +398,7 @@
   C.ucWord = UC_WORD;
   C.ucTableHtml = (p, editing) => ucTableHtml(p, editing);
   function ucTableHtml(p, editing) {
-    const ucs = D.S.usecases.filter(u => u.code === p.code && u.client), hiddenN = D.S.usecases.filter(u => u.code === p.code && !u.client).length, openId = C.store.get('ucOpen', '');
+    const ucs = D.S.usecases.filter(u => u.code === p.code && u.client && !u.archived), hiddenN = D.S.usecases.filter(u => u.code === p.code && !u.client && !u.archived).length, openId = C.store.get('ucOpen', '');
     const back = editing && hiddenN ? `<button class="link add-from" data-ucback>+ Add a use case from your project record (${hiddenN})</button>` : '';
     if (!ucs.length) return `<p class="muted">No use cases on the page.${editing ? '' : ' Add one in Edit mode, or import them from Excel (a Use cases sheet).'}</p>${back}`;
     const n = s => ucs.filter(u => u.status === s).length, order = ['On track', 'Flag', 'High risk'].filter(s => n(s));
@@ -430,7 +430,7 @@
     if (s.type === 'raid') { const o = its.filter(x => (x.type === 'R' || x.type === 'I') && C.isOpen(x)); const red = o.filter(x => C.ragOf(x) === 'R').length; return red ? `${red} red` : `${o.length}`; }
     if (s.type === 'decisions') { const n = its.filter(x => x.type === 'D' && x.status === 'Pending').length; return n ? `${n} pending` : ''; }
     if (s.type === 'milestones') { const n = D.S.milestones.filter(m => m.code === p.code && m.client && !m.archived && !m.achievedOn && D.slip(m) > 0).length; return n ? `${n} slipped` : ''; }
-    if (s.type === 'usecases') { const n = D.S.usecases.filter(u => u.code === p.code && u.client && u.status !== 'On track').length; return n ? `${n} flagged` : ''; }
+    if (s.type === 'usecases') { const n = D.S.usecases.filter(u => u.code === p.code && u.client && !u.archived && u.status !== 'On track').length; return n ? `${n} flagged` : ''; }
     if (s.type === 'docs') { const n = (p.docs || []).filter(d => !d.hidden && !d.archived).length; return n ? `${n}` : ''; }
     if (s.type === 'needs') { const n = C.needsRows(p, s).length; return n ? `${n} needed` : ''; }
     return '';
@@ -666,7 +666,7 @@
         if (lastSel !== sel && !C.reduce) { P2.classList.remove('swap'); void P2.offsetWidth; P2.classList.add('swap'); } lastSel = sel;   /* the preview cross-fades when the selection moves (idea 10) */
         P2.innerHTML = `<h3>${esc(T.name)}</h3>${skHtml(T, true)}<p>${esc(T.d)}</p>
           <div><span class="atd-lab">Holds</span><div class="atd-els">${T.els.map(e => `<span>${esc(e)}</span>`).join('')}</div></div>
-          <fieldset class="atd-place"><legend class="atd-lab">Place it</legend><label><input type="radio" name="atdPlace" value="row" ${place === 'row' ? 'checked' : ''}> On its own row</label>
+          <fieldset class="atd-place"><legend class="atd-lab">Where it goes</legend><label><input type="radio" name="atdPlace" value="row" ${place === 'row' ? 'checked' : ''}> On its own row</label>
             ${next ? `<label><input type="radio" name="atdPlace" value="beside" ${place === 'beside' ? 'checked' : ''} ${half ? '' : 'disabled'}> Beside “${esc(next.title)}” (half width)${half ? '' : ' <span class="muted">· full width only</span>'}</label>` : ''}</fieldset>
           <button type="button" class="link" data-help>${C.icon('info', 's')} See every template explained in Help</button>`;
         C.$$('[data-help]', P2).forEach(b => b.addEventListener('click', help)); C.$$('input[name=atdPlace]', P2).forEach(i => i.addEventListener('change', () => { place = i.value; }));
@@ -790,7 +790,7 @@
     C.$$('[data-uc-std]').forEach(el => { const u = find(el.dataset.ucStd);
       C.inline(el, { html: u.standing, label: 'Where it stands', placeholder: 'Where the use case stands', place: 'current', draft: () => C.draftUc(u), onSave: h => { const un = D.change('uc', u, { standing: h }, D.who('in the report')); C.refresh(); C.toast(`Use case ${u.ref || u.id} saved`, un); } }); });
     C.$$('[data-uc-eye]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const u = find(b.dataset.ucEye); const row = b.closest('.ucr'); C.hideLater([row, row.nextElementSibling], D.change('uc', u, { client: false }, D.who('with the eye')), `Use case ${u.ref || u.id} taken off the page`); }));
-    C.$('[data-ucback]')?.addEventListener('click', () => C.picker({ title: 'Add a use case from your project record', items: D.S.usecases.filter(u => u.code === p.code && !u.client).map(u => ({ id: u.key, title: `${u.ref || u.id} ${u.title.split('\n')[0]}`, meta: u.headline, badge: ucBadge(u.status) })),
+    C.$('[data-ucback]')?.addEventListener('click', () => C.picker({ title: 'Add a use case from your project record', items: D.S.usecases.filter(u => u.code === p.code && !u.client && !u.archived).map(u => ({ id: u.key, title: `${u.ref || u.id} ${u.title.split('\n')[0]}`, meta: u.headline, badge: ucBadge(u.status) })),
       onAdd: ids => { const un = D.batch(ids.map(k => () => D.change('uc', find(k), { client: true }, D.who('in the report')))); C.refresh(); C.toast(`${ids.length} use case${ids.length > 1 ? 's' : ''} added to the page`, un); } }));
     C.$$('[data-uc-step]').forEach(i => i.addEventListener('keydown', e => { if (e.key !== 'Enter' || !i.value.trim()) return; e.preventDefault(); const u = find(i.dataset.ucStep);
       addInline('A', i.value, { uc: u.id, client: true, source: 'Added from use case ' + (u.ref || u.id) }, `[data-uc-step="${CSS.escape(u.key)}"]`); }));

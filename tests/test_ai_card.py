@@ -50,6 +50,7 @@ class Card(unittest.TestCase):
     def ready(self, **cfg):
         self.h.card(text=TEXT, **cfg)
         self.assertTrue(self.h.until("document.querySelector('.aic').dataset.state === 'ready'"), self.h.state())
+        self.assertTrue(self.h.until("document.activeElement === document.querySelector('.aic-h')"), "the card moves focus to its heading after it draws; wait for that, or it can take focus back from a key the test sends first")
 
     def working(self, **cfg):
         self.h.ev("window.opts.hold = true")
