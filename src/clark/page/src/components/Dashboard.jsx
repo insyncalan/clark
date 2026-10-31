@@ -5,7 +5,8 @@
 import { data, mode, fromFile, dropAt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
-import { scrollTargets, entries } from "../logic/minimap.js";
+import { scrollTargets, entries, countOf } from "../logic/minimap.js";
+import { todayIso } from "../workItems.js";
 import { slots as slotsOf } from "../logic/placement.js";
 import { rowsOf, shownRows } from "../logic/needs.js";
 
@@ -56,6 +57,8 @@ export function Dashboard({ tools }) {
   const emptyWhy = editing ? "This report has no sections yet. Add the first one below." : all.length ? (fromFile.value ? "This report has no sections." : "Every section of this report is hidden. Switch to Edit to show them.") : fromFile.value ? "This report has no sections." : "This report has no sections yet. Switch to Edit to add one.";
   const anchors = {};
   for (const e of entries(list)) anchors[e.id] = e.anchor;      // one anchor per section, shared with the minimap
+  const counts = {};
+  for (const s of list) { const c = countOf(s, d, todayIso(), fromFile.value); if (c) counts[s.id] = c; }
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
   return (
     <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
@@ -66,7 +69,7 @@ export function Dashboard({ tools }) {
         {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} />)}
       </div>
       {editing && list.length === 0 ? <tools.Add /> : null}
-      <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} />
+      <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} counts={counts} />
     </section>
   );
 }

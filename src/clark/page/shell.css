@@ -95,6 +95,13 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc li button:hover { color: var(--text); background: var(--grey-100); }
 .toc li button.on { color: var(--heading); font-weight: var(--weight-medium); }
 .toc li button:focus-visible { outline: 2px solid var(--focus); }
+.toc li button span { flex: 1; min-width: 0; }
+.toc li button em { font-style: normal; font-size: var(--size-small); color: var(--text-muted); margin-left: 8px; white-space: nowrap; }
+.toc li button em.hot { color: var(--status-amber-text); font-weight: var(--weight-medium); }
+.toc-lines i.hot:not(.on) { background: var(--status-amber); }
+.toc-top { all: unset; box-sizing: border-box; display: block; width: 100%; margin-top: 6px; padding: 7px 8px; border-top: 1px solid var(--grey-100); font-size: var(--size-small); color: var(--text-muted); cursor: pointer; }
+.toc-top:hover { color: var(--text); }
+.toc-top:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* The project-record picker (FR-16, #67): one panel, never wider than its place. */
 .picker { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(560px, 90vh); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
@@ -763,11 +770,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .dlg h2 { margin: 0 0 4px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .dlg-sub { margin: 0 0 12px; font-size: var(--size-small); overflow-wrap: anywhere; }
 .dlg-warn { margin: 10px 0 0; font-size: var(--size-small); }
-.pub-fresh { margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); font-size: var(--size-small); }
-.pub-fresh p { margin: 0; }
-.pub-fresh-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 2px 0; }
-.pub-fresh-row span { min-width: 0; overflow-wrap: anywhere; }
-.pub-fresh-note { padding-top: 4px; }
 .pubopts, .pub-clash { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 0; padding: 0; border: 0; min-width: 0; }
 .pubopt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); cursor: pointer; }
 .pubopt.off { color: var(--text-muted); }
