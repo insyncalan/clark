@@ -162,6 +162,12 @@ export function openProject(code) {
   setProject(code);
 }
 
+// Open a project on a given page (Settings › Projects: Open): one new entry.
+export function openProjectAt(code, next) {
+  if (!route.isProject(code)) return;
+  go({ view: next, project: code, item: "", ms: "", f: "" });
+}
+
 // The published file's data block: null when the page is the editor's, "bad" when the block is there but is not ours.
 function published() {
   const el = document.getElementById("clark-data");

@@ -23,11 +23,13 @@ export function Settings({ tools }) {
   const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
+  const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
   return (
     <>
       <Empty title="Settings">Settings are not ready yet.</Empty>
       {ClientFolder ? <ClientFolder /> : null}
       {Personal ? <Personal /> : null}
+      {Projects ? <Projects /> : null}
       {Safety ? <Safety /> : null}
     </>
   );

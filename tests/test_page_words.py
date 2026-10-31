@@ -178,6 +178,9 @@ class Words(unittest.TestCase):
                                   "One card", "All the sections inside a single card.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
+                                  "Projects", "Show archived",      # A-S6: the projects table; this server has no list to give
+                                  "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
+                                  "The list of projects could not be read. Reload the page. If it happens again, restart clark. Try again",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again"])
