@@ -31,7 +31,7 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 2          # 2 (#126): documents can be archived
+SCHEMA_VERSION = 3          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'. Word (#48) takes the next free number, 3 at the time of writing; renumber it (and migrate_to_3) if #120 or #115 land first
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -114,8 +114,8 @@ TITLE_LIMIT = 120                                                        # a sec
 CANCEL_CHANGES = {"actions": {"status": "Cancelled"}, "raid": {"status": "Cancelled"}, "projects": {"active": 0},
                   "workstreams": {"status": "Closed"}}
 
-# clark: a step's route, as item_events records it (data-model.md), and the vias it is written with.
-ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate")
+# clark: a step's route, as item_events records it (data-model.md), and the vias it is written with. "word" (#48, Head ruling Q4): a Word import.
+ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate", "word")
 PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board")      # + board (#126)
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
@@ -1572,7 +1572,43 @@ def migrate_to_2(con):
     _item_events_allow_board(con)
 
 
-MIGRATIONS = ((2, migrate_to_2),)     # version -> the step that brings a file TO that version; the next one (#115: 3) is added here
+def _item_events_allow_word(con):
+    """item_events.route gains 'word' (#48). SQLite cannot change a CHECK in place, so the table is made again from schema.sql's own
+    definition (so an upgraded file matches a new one), the rows are copied across with their numbers, the sequence is kept and the
+    indexes are made again. Only when the table's own definition does not name 'word' yet, so a second run (or a new database)
+    does nothing. Inside the caller's transaction. (schema.sql is read here because it is still version 3's item_events; when a later
+    version changes item_events, version 3's text must be frozen first, as schema_v2.sql is for version 2.)"""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is None or "'word'" in have[0]:
+        return
+    made = None
+    for statement in _statements(SCHEMA.read_text(encoding="utf-8")):
+        if re.match(r"(?:\s*--[^\n]*\n|\s)*CREATE TABLE IF NOT EXISTS item_events \(", statement):
+            made = re.sub(r"CREATE TABLE IF NOT EXISTS item_events \(", "CREATE TABLE item_events_3 (", statement, count=1)
+    if made is None:
+        raise Invalid(MIGRATE_FAILED)
+    seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+    con.execute(made)
+    con.execute("INSERT INTO item_events_3 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes "
+                "FROM item_events ORDER BY event_id")
+    con.execute("DROP TABLE item_events")
+    con.execute("ALTER TABLE item_events_3 RENAME TO item_events")
+    if seq is not None:             # the renamed table keeps the counter's place: make sure it is the old one, never lower
+        con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+        con.execute("INSERT INTO sqlite_sequence (name, seq) SELECT 'item_events', ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'item_events')", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+
+
+def migrate_to_3(con):
+    """Schema version 2 to 3 (#48): item_events accepts the route 'word', which its CHECK did not allow. `publications.word` already
+    exists in every version. Word takes the next free number, 3 at the time of writing: if #120 or #115 land first, this step is
+    renumbered (and SCHEMA_VERSION with it). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _item_events_allow_word(con)
+
+
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3))     # version -> the step that brings a file TO that version; the next one is added here (Word, #48, is 3 at the time of writing)
 
 
 def migration_plan(version, table=None):
@@ -1619,7 +1655,8 @@ def migrate(con, table=None):
                         raise Invalid(MIGRATE_INCONSISTENT)
             con.execute("COMMIT")
         except BaseException:
-            con.execute("ROLLBACK")
+            if con.in_transaction:            # #48: a COMMIT that failed may have ended it already: the real error is the one to report
+                con.execute("ROLLBACK")
             raise
     finally:
         con.execute("PRAGMA foreign_keys = ON")
@@ -1987,19 +2024,23 @@ class Store:
         finally:
             con.close()
 
-    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None):
+    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0):
         """Record one published file: a `publications` row with the file's SHA-256, and nothing else. No change_log,
         no step and no write to any other table: a publication is a record of a file, not an edit (#39; Head ruling,
         28-10-2026), so Undo never meets it. The folder to offer next time is read back from the latest publication
         (`last_publish_folder`), not kept as a field of the project. `client_path` (#43) is the verified copy in the client
         folder, given only when To client was ticked and the copy read back with the same SHA-256; it is the same file, so it
-        is never the Local path. Returns the publication's number."""
+        is never the Local path. `word` is 1 for a Word report (#48, Head ruling Q2: one row for the Word file, with its own SHA-256, beside the web page's). Returns the publication's number."""
         if not str(by_user or "").strip():
             raise Invalid("a publication needs who made it (by_user)")
         if not re.fullmatch(r"[0-9a-f]{64}", str(sha256 or "")):
             raise Invalid("a publication needs the file's SHA-256")
         if not Path(str(path)).is_absolute():
             raise Invalid("a publication needs the file's full path")
+        if type(word) is not int or word not in (0, 1):
+            raise Invalid("a publication's word must be 0 or 1")
+        if client_path is not None and not Path(str(client_path)).is_absolute():
+            raise Invalid("a publication needs the client copy's full path")
         if week_ending is not None:
             try:
                 if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(week_ending)):
@@ -2023,8 +2064,8 @@ class Store:
                 raise Invalid(f"project {code} isn't here")
             cur = self.con.execute(
                 "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user) "
-                "VALUES (?, ?, ?, ?, 0, ?, 'not needed', ?)",
-                (code, week_ending, str(path), None if client_path is None else str(client_path), sha256, str(by_user).strip()))
+                "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?)",
+                (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip()))
             self.con.execute("COMMIT")
             return cur.lastrowid
         except BaseException:
