@@ -290,7 +290,7 @@ def load_state(state_path, path):
 
 
 KEEP_NEWEST = 10          # the most bytes-keyed ("sha256:") records kept for one project (#181); the oldest go first
-KEEP_TOTAL = 30           # and the most the state file holds in all, newest first (#181)
+KEEP_TOTAL = 30           # and the most the state file holds in all, newest first, plus each project's newest (never cut), so more than 30 live projects keep more than 30 (#181)
 
 
 def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST, live=None, keep_total=KEEP_TOTAL, keep=None):
@@ -301,7 +301,7 @@ def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST,
     by the bytes, with the export in it ("hash", "rows"), under that path, so dropping the bytes-keyed one loses nothing for a
     file that was imported. A file still byte for byte the export, kept unimported for over keep_days, then imports as
     unrecorded: every difference is staged for the person to check, and nothing is lost. #181: also, no project keeps more than
-    `keep_newest` of them (the newest by export time), at most `keep_total` stay in all, and, when `live` (a set of project codes) is
+    `keep_newest` of them (the newest by export time), at most `keep_total` stay in all (plus each project's newest, which the total never cuts: with more than `keep_total` live projects the file holds one per project and no more than ten of each), and, when `live` (a set of project codes) is
     given, none of a project outside it (an archived or removed one keeps no snapshot at all). The age rule is not the only brake on
     the file's size; an older export then imports as unrecorded, which stages every difference for checking (fails safe).
     `keep` is the record just written: the caps never cut it, and nor does each project's newest, so the total cap cannot take

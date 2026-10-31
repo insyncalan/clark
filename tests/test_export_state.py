@@ -105,6 +105,23 @@ class State(unittest.TestCase):
         self.assertIn("sha256:y", self.books())
         self.assertIn("/folder/kept.xlsx", self.books(), "a path record is never removed here")
 
+    def test_the_total_is_thirty_exactly_and_the_thirty_first_oldest_one_goes(self):
+        for n in range(6):                                           # 6 projects of 5 records: exactly 30 in all, none is cut
+            for k in range(5):
+                excel.save_state(self.state, f"sha256:p{n}k{k}", record(f"P{n}", f"2026-10-{10 + k}", f"p{n}k{k}"))
+        excel.prune_hash_records(self.state, "2026-10-28")
+        self.assertEqual(len(self.books()), 30)
+        excel.save_state(self.state, "sha256:extra", record("P0", "2026-10-05", "extra"))      # the 31st, and the oldest of all
+        excel.prune_hash_records(self.state, "2026-10-28")
+        self.assertEqual(len(self.books()), 30)
+        self.assertNotIn("sha256:extra", self.books(), "the oldest record that is not a project's newest goes")
+
+    def test_more_than_thirty_live_projects_keep_one_each_and_that_is_the_stated_limit(self):
+        for n in range(33):
+            excel.save_state(self.state, f"sha256:q{n}", record(f"Q{n:02d}", "2026-10-27", f"q{n}"))
+        excel.prune_hash_records(self.state, "2026-10-28")
+        self.assertEqual(len(self.books()), 33, "each project's newest is never cut by the total")
+
     def test_nothing_is_written_when_nothing_is_cut(self):
         excel.save_state(self.state, "sha256:aa", record("ABC", "2026-10-27"))
         with mock.patch.object(platform, "write_file") as write:

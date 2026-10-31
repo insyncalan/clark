@@ -1,5 +1,6 @@
 """#50: Draft email's wording and rules, plain code with no model. Fixed clock, fictional names."""
 import re
+from pathlib import Path
 import unittest
 
 import _paths  # noqa: F401
@@ -358,7 +359,30 @@ class PlainWordsLow(unittest.TestCase):
         self.assertEqual(re.findall(r"<th [^>]*>([^<]*)</th>", h)[:4], ["ID", "Item", "Due", "Priority"])
 
 
+class ToneNames(unittest.TestCase):
+    def test_the_tone_steps_read_first_chase_second_chase_firmer_chase(self):
+        """#208(c): a person sees First chase, Second chase, Firmer chase; the prototype's tone buttons say the same."""
+        self.assertEqual(de.TONE_NAMES, ("First chase", "Second chase", "Firmer chase"))
+        proto = (Path(de.__file__).resolve().parents[2] / "system" / "prototype" / "peek.js").read_text(encoding="utf-8")
+        for name in de.TONE_NAMES:
+            self.assertIn(name, proto)
+        self.assertNotIn("'First']", proto)
+
+
 class Dates(unittest.TestCase):
+    def test_dates_read_one_shape_only(self):
+        self.assertEqual(de.shown("2026-10-29"), "29-10-2026")
+        self.assertEqual(de.weekday_date("2026-10-29"), "Thursday 29-10-2026")
+        self.assertEqual(de.shown("0999-01-02"), "02-01-0999")
+        for text in ("20261029", "2026-W44-3", "2026-10-29T10:00", "2026-10-29 ", "2026-10-29\n", "2026-13-01", "2026-02-30",
+                     "\u0662\u0660\u0662\u0666-\u0661\u0660-\u0662\u0669", "", "12345"):
+            with self.subTest(text=text):
+                self.assertEqual(de.shown(text), text)
+                self.assertEqual(de.weekday_date(text), "")
+        self.assertEqual(de.shown(None), "")
+        self.assertEqual(de.weekday_date(None), "")
+        self.assertEqual(de.shown(12345), "12345")
+
     def test_overdue_and_due_soon_in_words_and_colour(self):
         d = de.due_info("2026-10-09", TODAY)
         self.assertEqual((d["date"], d["words"], d["level"]), ("09-10-2026", "4 days overdue", "over"))
