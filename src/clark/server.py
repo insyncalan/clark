@@ -633,12 +633,44 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publi
 # ===== end of the page and the data =====
 
 
+class Refused:
+    """Calls refused before they were let in (a wrong Host, another site's Origin, no token or a wrong one, headers that can't be
+    trusted) are counted, not written one line each, so a flood from another site can't fill the day's log and push out a real
+    fault. At most one line per `interval` seconds says how many there were; the count since that line waits for the next refusal."""
+
+    def __init__(self, interval=60.0, clock=time.monotonic):
+        self.interval, self.clock = interval, clock
+        self.n, self.last, self.lock = 0, None, threading.Lock()
+
+    def count(self):
+        with self.lock:
+            self.n += 1
+            now = self.clock()
+            if self.last is not None and now - self.last < self.interval:
+                return
+            n, self.n, self.last = self.n, 0, now
+        LOG.info("refused %d calls", n)
+
+
+REFUSED = Refused()
+
+
 class Handler(BaseHTTPRequestHandler):
     """The requests. Every reply carries the security headers; every /api/ route goes through authorised() first."""
     server_version = "clark"
     sys_version = ""                                   # clark: the Python version isn't sent
     default_request_version = "HTTP/1.0"               # clark: a request line that doesn't parse still gets headers
     timeout = 30                                       # clark: an idle or half-sent request never holds a thread
+
+    def parse_request(self):
+        self.let_in = False                            # set by authorised(); fresh for each request on a connection
+        return super().parse_request()
+
+    def log_request(self, code="-", size="-"):
+        """An API call that was not let in is counted (Refused), never written as its own line."""
+        if not getattr(self, "let_in", False) and (getattr(self, "path", "") or "").startswith("/api/"):
+            return REFUSED.count()
+        return super().log_request(code, size)
 
     def log_message(self, fmt, *args):
         """Quiet: one log line per API call; safe when the request line didn't parse. (creaite log_message)"""
@@ -724,6 +756,7 @@ class Handler(BaseHTTPRequestHandler):
         if not token_ok(sent):
             self.send(403, error_body("stale", stale=True))
             return False
+        self.let_in = True
         return True
 
     def run_route(self, route, *args):
