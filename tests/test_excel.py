@@ -194,8 +194,8 @@ class ExcelTests(unittest.TestCase):
                     c = ws.cell(row=row, column=col)
                     self.assertEqual((c.protection.locked, c.protection.hidden), default, (name, row, col))
             for row in range(2, n + 2):
-                self.assertEqual(ws.cell(row=row, column=1).fill.fgColor.rgb[-6:], "EFEFEF", (name, row))
-            self.assertNotEqual(ws.cell(row=n + 2, column=1).fill.fgColor.rgb[-6:], "EFEFEF")
+                self.assertEqual(ws.cell(row=row, column=1).fill.fgColor.rgb[-6:], look.colour("grey-100"), (name, row))
+            self.assertNotEqual(ws.cell(row=n + 2, column=1).fill.fgColor.rgb[-6:], look.colour("grey-100"))
             self.assertIn(excel.ID_NOTE, ws["A1"].comment.text)
             self.assertEqual(excel.ID_NOTE, "IDs are given by clark. Don't change or move an ID, and don't sort the ID column on its own: an ID moved to another row takes that row's details with it when the file is imported. Leave the ID empty on a new row.")
             prompts = {str(dv.sqref): dv for dv in ws.data_validations.dataValidation          # the ID column's (A) prompts;

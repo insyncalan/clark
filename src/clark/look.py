@@ -28,13 +28,22 @@ def _css(css=None):
     return TOKENS_CSS.read_text(encoding="utf-8") if css is None else css
 
 
+def _block(pattern, text):
+    """The inside of a block. The committed file closes each block with a brace at the start of a line; a short text with the
+    brace after a space (a test's) is read too, with the same pattern up to the first brace."""
+    m = re.search(pattern, text, re.S) or re.search(pattern.replace(r"\n\}", r"\}"), text, re.S)
+    if not m:
+        raise KeyError("no block in the look matches " + pattern)
+    return m.group(1)
+
+
 def raw(name, mode="light", css=None):
     """A token's value as written in tokens.css (a var() to another token is followed). The first :root block is the light look; for
     "dark" the data-theme=dark block is read first. KeyError when the token is not there."""
     text = _css(css)
-    blocks = [re.search(LIGHT, text, re.S).group(1)]
+    blocks = [_block(LIGHT, text)]
     if mode == "dark":
-        blocks.insert(0, re.search(DARK, text, re.S).group(1))
+        blocks.insert(0, _block(DARK, text))
     for block in blocks:
         m = re.search(r"(?<![\w-])" + re.escape(name) + r"\s*:\s*([^;]+);", block)
         if m:

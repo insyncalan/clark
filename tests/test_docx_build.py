@@ -463,7 +463,8 @@ class FollowsTheLook(unittest.TestCase):
         styles = parts(docx_build.build(published()))["word/styles.xml"].decode()
         font = look.office_font()
         self.assertEqual(docx_build.FONT, font)
-        names = set(re.findall(r'w:(?:ascii|hAnsi|eastAsia|cs)="([^"]*)"', styles))
+        names = set(re.findall(r'<w:rFonts [^>]*>', styles))
+        names = {v for tag in names for v in re.findall(r'w:(?:ascii|hAnsi|eastAsia|cs)="([^"]*)"', tag)}
         self.assertEqual(names, {font}, "every font in the styles is the one the look names")
 
     def test_a_font_the_look_changes_is_the_font_the_file_uses(self):
