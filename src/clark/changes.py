@@ -31,7 +31,7 @@ from clark.store import Invalid
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
 # "update" or "delete" string anywhere in src/ as SQL (its check is case-blind until #39's case-sensitive version merges), and
 # these are not SQL: no op here is ever put in a statement.
-NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK = "new update move delete archive restore pick bulk".split()
+NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK, HAND_OVER = "new update move delete archive restore pick bulk handover".split()
 
 # The allow-list: kind -> op -> the fields a request may give (`values` for new, `changes` for update). A field must also
 # be a column of the table (tests/test_changes.py asserts it for each). sort_order, project, id and type (after creation)
@@ -92,6 +92,10 @@ CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream
 CHANGE_KINDS["actions"][BULK] = ("status", "owner", "due_date", "priority", "workstream", "milestone")
 CHANGE_KINDS["raid"][BULK] = ("status", "owner", "due_date", "impact", "likelihood", "workstream", "milestone")
 CHANGE_KINDS["decisions"][BULK] = ("made_by",)
+# #199: Hand over, a change of owner for items of any of the three kinds together, in one step with one Undo (_do_hand_over).
+for _kind, _field in (("actions", "owner"), ("raid", "owner"), ("decisions", "made_by")):
+    CHANGE_KINDS[_kind][HAND_OVER] = (_field,)
+HAND_OVER_FIELD = {"actions": "owner", "raid": "owner", "decisions": "made_by"}      # the column that holds "who has it", for each work item table
 for _kind in ARCHIVABLE:                              # #126: every record can be archived and restored, with no fields; the items keep their update
     CHANGE_KINDS.setdefault(_kind, {}).update({ARCHIVE: (), RESTORE: ()})
 ITEM_KINDS = ("actions", "raid", "decisions")        # the work items; every other kind is a report section
@@ -106,7 +110,8 @@ ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in 
 FLAG_FIELDS = ("hidden", "beside")        # 0 or 1 only: a bool, a float, a string or any other number is refused
 BASE_KEYS = ("project", "kind", "op", "place")
 OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before", "flags"), DELETE: ("id",),
-           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm")}
+           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm"),
+           HAND_OVER: ("ids", "to", "confirm")}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
 MAX_BULK = 500                            # #196: a bulk change names at most this many items (the body limit allows about this many)
 BULK_CONFIRM_ABOVE = 25                   # #196: more items than this need the request's `confirm`, counting every id sent
@@ -266,7 +271,7 @@ def _shape(req):
             raise Refused(f"That change doesn't take '{_shown(k)}'.")
     place = req.get("place")
     if place is not None and (not isinstance(place, str) or place not in PLACES + ((MOVEMENT_PLACE,) if (kind, op) == ("milestones", UPDATE) else ())
-                              + ((BULK_PLACE,) if op == BULK else ())):
+                              + ((BULK_PLACE,) if op in (BULK, HAND_OVER) else ())):
         raise Refused(BAD_PLACE)
     return project, kind, op, place
 
@@ -445,7 +450,7 @@ def _do_change(store, by_user, req):
     if store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     table = next(k for k in CHANGE_KINDS if k == kind)              # the allow-list's own spelling, never the request's
-    if (kind == "report_hidden" or op == BULK or (op == NEW and kind in NEWABLE)) and clark_store.is_archived(store.con, project):
+    if (kind == "report_hidden" or op in (BULK, HAND_OVER) or (op == NEW and kind in NEWABLE)) and clark_store.is_archived(store.con, project):
         raise Refused(PROJECT_NOT_ACTIVE)                           # #67: an archived project is read only; said alike for show, hide, pick and a new row
     if op in (ARCHIVE, RESTORE):
         return _do_archive(store, by_user, project, table, op, place, req.get("id"))
@@ -456,6 +461,8 @@ def _do_change(store, by_user, req):
         return _do_new_row(store, by_user, req, project, table, columns, place)
     if op == BULK:
         return _do_bulk(store, by_user, req, project, table, columns, place)
+    if op == HAND_OVER:
+        return _do_hand_over(store, by_user, req, project, place)
     if kind in ITEM_KINDS:
         return _do_item_change(store, by_user, req, project, table, columns, place)
     if kind == "milestones":
@@ -1016,6 +1023,81 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
         apply_id = st.peek_apply_id()
     shown = tuple(dict.fromkeys(ITEM_SHOWN[table] + CHANGE_KINDS[table][BULK] + (("priority",) if table == "raid" else ())))
     items = [{k: r[k] for k in shown} for r in (store.read(table, ref=ref) for ref in changed)]
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "changed": changed, "unchanged": unchanged,
+                 "left_out": left_out, "words": _bulk_words(changed, unchanged, left_out), "items": items}
+
+
+def _do_hand_over(store, by_user, req, project, place):
+    """#199: give several work items to someone else: the same new owner (`to`) on items of any of the three kinds in THIS
+    project, in ONE step with one Undo, one history line per item. An action's or risk's owner and a decision's made-by are the
+    one field here. It is _do_bulk's way, but across kinds: each item is tried first in a step that is always rolled back; an item
+    that can't take it (archived, gone, or refused by the store) is left out and named, and one that has that owner already is
+    counted. Nothing is written when none can take it. More than BULK_CONFIRM_ABOVE ids need `confirm: true`. Only the owner
+    changes: never a status, an archive or a delete."""
+    given = req.get("ids")
+    if not isinstance(given, list) or not given:
+        raise Refused(BULK_NOTHING)
+    if len(given) > MAX_BULK:
+        raise Refused(BULK_TOO_MANY)
+    ids = []
+    for ref in given:
+        m = clark_store.ITEM_ID.fullmatch(ref) if isinstance(ref, str) and ref.isascii() else None
+        if m is None:
+            raise Refused(ITEM_NOT_MINE)
+        if m.group(1) != project:
+            raise Refused(BULK_PROJECTS)
+        if clark_store.item_table(ref) not in HAND_OVER_FIELD:
+            raise Refused(ITEM_NOT_MINE)
+        if ref not in ids:
+            ids.append(ref)
+    to = _checked_item_changes({"owner": req.get("to")})["owner"]
+    confirm = req.get("confirm", False)
+    if type(confirm) is not bool:
+        raise Refused(BULK_CONFIRM)
+    if len(ids) > BULK_CONFIRM_ABOVE and not confirm:
+        raise Refused(f"Change {len(ids)} items?", 409, "confirm", {"count": len(ids)})
+    where = {"place": place or BULK_PLACE}
+    table_of = {ref: clark_store.item_table(ref) for ref in ids}
+    left_out, unchanged, ready = [], [], []
+    with store.step(VIA, by_user, dry=True, **where) as st:         # always rolled back: only a trial of each item
+        for ref in ids:
+            table = table_of[ref]
+            row = store.read(table, ref=ref)
+            if row is None or row["project"] != project:
+                left_out.append({"id": ref, "why": BULK_GONE})
+                continue
+            if row["archived"]:
+                left_out.append({"id": ref, "why": BULK_ARCHIVED})
+                continue
+            try:
+                st.update(table, ref, {HAND_OVER_FIELD[table]: to})
+            except Invalid as e:
+                words_ = _store_words(e)
+                if words_ is None:
+                    raise
+                left_out.append({"id": ref, "why": words_})
+                continue
+            (unchanged if store.read(table, ref=ref) == row else ready).append(ref)
+    if not ready:
+        if left_out and not unchanged:
+            why = {e["why"] for e in left_out}
+            raise Refused(next(iter(why)) if len(why) == 1 else BULK_NONE_CAN, 400, "none_can", {"left_out": left_out})
+        return 200, {"ok": True, "apply_id": None, "undoable": False, "changed": [], "unchanged": unchanged, "left_out": left_out,
+                     "words": _bulk_words([], unchanged, left_out), "items": []}
+    with store.step(VIA, by_user, **where) as st:                   # BEGIN IMMEDIATE: one step for every item that can take it
+        changed = []
+        for ref in ready:
+            table = table_of[ref]
+            before = store.read(table, ref=ref)
+            try:
+                st.update(table, ref, {HAND_OVER_FIELD[table]: to})
+            except Invalid as e:                                    # changed since the trial: the whole step rolls back
+                if _store_words(e) is None:
+                    raise
+                raise Refused(STALE) from None
+            (changed if store.read(table, ref=ref) != before else unchanged).append(ref)
+        apply_id = st.peek_apply_id()
+    items = [{"id": ref, "owner": to} for ref in changed]
     return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "changed": changed, "unchanged": unchanged,
                  "left_out": left_out, "words": _bulk_words(changed, unchanged, left_out), "items": items}
 

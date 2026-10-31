@@ -12,6 +12,7 @@ import { useLayoutEffect, useRef } from "preact/hooks";
 import { data, item, mode, view, fromFile } from "../stores/report.js";
 import { changeBulk, say } from "../stores/changes.js";
 import { workSelection as sel } from "../stores/selection.js";
+import { handing } from "../stores/handover.js";
 import { itemRows, contextFor, announce } from "../stores/work.js";
 import { todayIso } from "../workItems.js";
 import { people } from "./itemEdit.js";
@@ -183,14 +184,14 @@ export function installBulk() {
   // typed keeps the browser's own menu.
   document.addEventListener("contextmenu", (e) => {
     const el = focusedItem(e.target);
-    if (!el || view.value !== "work" || fromFile.value || e.target.isContentEditable || (e.target.closest && e.target.closest("a, input, textarea, select"))) return;
+    if (!el || handing() || view.value !== "work" || fromFile.value || e.target.isContentEditable || (e.target.closest && e.target.closest("a, input, textarea, select"))) return;
     e.preventDefault();
     const id = el.dataset.id;
     if (!sel.has(id)) sel.click(id, {}, [id]);
     openMenu(targetIds(id), { x: e.clientX, y: e.clientY }, el.matches("article") ? "board" : "menu");
   });
   window.addEventListener("keydown", (e) => {
-    if (e.defaultPrevented || e.isComposing || view.value !== "work" || fromFile.value || bulkOpen.value) return;
+    if (e.defaultPrevented || e.isComposing || view.value !== "work" || fromFile.value || bulkOpen.value || handing()) return;   // #199: not while handing over
     const t = e.target, row = focusedItem(t), inPeek = !!item.value && !!(t && t.closest && t.closest("[data-peek]"));
     // Shift+F10 or the Menu key: the same menu, under the row or card.
     if ((e.key === "F10" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) || e.key === "ContextMenu") {

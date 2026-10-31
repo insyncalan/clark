@@ -59,3 +59,17 @@
 .bask { min-width: 280px; max-width: min(420px, calc(100vw - 32px)); padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 .bask-q { margin: 0 0 14px; font-size: var(--size-body); color: var(--heading); }
 .bask-b { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Hand over (#199): the tick column, the bar's "Hand over to" box. Tokens only, so light and dark follow the look. */
+table.items .c-pick { width: 40px; }
+table.items td.c-pick { text-align: center; vertical-align: middle; }
+.rtick { width: 18px; height: 18px; margin: 0; accent-color: var(--brand-blue); cursor: pointer; }
+.rtick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.handbar { gap: 8px 12px; }
+.handbar .hb-to { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
+.handbar .hb-to input { width: 220px; max-width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.handbar .hb-to input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.handbar .btn { min-height: 32px; }
+.handbar #hand-go[aria-disabled="true"] { opacity: .55; cursor: default; }
+@media (max-width: 900px) { .handbar .hb-to { flex: 1 1 100%; } .handbar .hb-to input { flex: 1; width: auto; } }
+@media (max-width: 720px) { table.items td.c-pick, table.items th.c-pick { display: block; grid-column: 1 / 4; text-align: left; } }
