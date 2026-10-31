@@ -49,6 +49,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from clark import excel_colours as colours
 from clark import excel_cover
 from clark import excel_picture
+from clark import look
 from clark import platform
 from clark.milestones import STATES, milestone_state
 from clark.timefmt import local_text, parse
@@ -152,7 +153,7 @@ TITLE_OF = {"milestones": "name", "actions": "description", "raid": "description
             "use_cases": "title"}
 SHORT_NAMES = {"owner", "made_by", "workstream", "labels"}      # people, streams and labels: a little wider than a status
 NUMBERS = {"sort_order", "percent_complete"}
-LOCKED = PatternFill("solid", fgColor="EFEFEF")
+LOCKED = PatternFill("solid", fgColor=colours.TOKENS["grey-100"])      # the page's quiet grey, for a column the import never reads
 # The ID column (#85d, BRD FR-70d). There are no cell locks and no sheet protection: Excel refuses to sort a range that holds
 # a locked cell, and sorting must stay free. The import is the guard (a changed existing ID is refused for that row; a row with
 # no ID is a new item and gets the next free ID). The ID column is shaded (LOCKED fill) and these words are pinned by a test.
@@ -638,7 +639,7 @@ HISTORY_COLUMNS = (("When", "when_text", 22), ("Who", "who", 18), ("How", "how",
                    ("From", "from", 44), ("To", "to", 44))
 HISTORY_NOTE = "This sheet is read-only and for internal use. Do not send it to a client."
 HISTORY_CELL_LIMIT = 5000                  # characters a history cell holds (design note, section 3)
-HISTORY_FONT = "Arial"
+HISTORY_FONT = look.office_font()          # the look's --font-office, a font Office has
 
 
 def history_cell(value):
@@ -652,7 +653,7 @@ def history_cell(value):
 def write_history(wb, view):
     """The History sheet (#123), after the data sheets: `view` is exactly what history.view_for_project returns, so the sheet and
     the Activity tab show the same rows. Row 1 is the internal note and the footnote, row 2 the header (frozen with it), then the
-    rows newest first, then the closing line (or the empty words). Every cell is a text cell in Arial; the import never reads it."""
+    rows newest first, then the closing line (or the empty words). Every cell is a text cell in the look's office font; the import never reads it."""
     ws = wb.create_sheet(HISTORY_NAME)
 
     def put(row, values, **kw):
@@ -701,7 +702,7 @@ def write_lists(wb, lists):
 COVER_NAME = "Cover"
 COVER_LABELS = {"internal": "Internal", "caution": "Caution", "return": "Sending changes back",
                 "where": "Where to make changes", "ids": "IDs"}
-COVER_FONT = "Arial"
+COVER_FONT = look.office_font()
 
 
 def _cover_cell(value):
@@ -716,8 +717,8 @@ def _cover_font(**kw):
 
 def write_cover(wb, cover, mark=False):
     """The Cover sheet, first in the workbook and the one it opens on (#85b): one label column and one wide wrapped text column,
-    no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). Arial
-    throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
+    no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). The look's
+    office font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
     ws = wb.create_sheet(COVER_NAME, 0)
     ws.column_dimensions["A"].width = 24
     ws.column_dimensions["B"].width = 100
