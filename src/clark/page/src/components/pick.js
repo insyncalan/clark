@@ -5,11 +5,12 @@
 import { effect } from "@preact/signals";
 import { item, view, project, openPeek, closePeek, fromFile } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
+import { helpOpen } from "../help/helpStore.js";
 
 const ITEMS = "#work-list tr[data-id], #work-list article.bcard[data-id]";
 const CONTROL = "a, button, input, select, textarea, label, .ddmenu, .dpick, [data-peek]";   // and any text that can be typed in: isContentEditable
 // Open things that take Esc and clicks for themselves: a menu, a picker, a date or filter box, a dialog, the peek.
-const OVERLAY = ".ddmenu, .dpick, .fbox, .pop, [data-pop], [role='dialog'], [aria-modal='true'], [data-peek]";   // #196: + a picker's own panel
+const OVERLAY = ".ddmenu, .dpick, .fbox, .pop, [role='dialog'], [aria-modal='true'], [data-peek], .cpop, [data-pop], [role='menu'], [role='listbox']";
 
 /** The ids of the rows or cards on the screen, in the order drawn (a collapsed group's are not drawn). */
 export function drawnOrder() { return Array.from(document.querySelectorAll(ITEMS), (e) => e.dataset.id); }
@@ -24,8 +25,16 @@ export function ownClick(target, within) {
   return !c || c === within || !within.contains(c);
 }
 
-/** A mouse press with Shift would select the text between the clicks: stop that, so a Shift range reads only as a range. */
-export function noTextRange(e) { if (e.shiftKey && e.button === 0) e.preventDefault(); }
+/** A mouse press with Shift would select the text between the clicks: stop that, so a Shift range reads only as a range.
+ *  Stopping it also stops the browser moving focus, so the clicked row or card takes the keyboard here (a Shift+Arrow next starts
+ *  from it). A link, button or box inside keeps its own press. */
+export function noTextRange(e) {
+  if (!e.shiftKey || e.button !== 0) return;
+  const row = e.currentTarget;
+  if (!ownClick(e.target, row)) return;
+  e.preventDefault();
+  if (row && row.focus) row.focus({ preventScroll: true });
+}
 
 /** A click on a row or card: plain selects only it; Cmd or Ctrl adds or removes it; Shift selects the range from the last one,
  *  in the drawn order; Cmd or Ctrl with Shift adds the range. With the peek open on one item, the peek follows. */
@@ -75,7 +84,7 @@ export function installSelectionRules() {
     if (e.key !== "Escape" || e.defaultPrevented || sel.size.value === 0 || view.value !== "work") return;
     const t = e.target;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-    if (item.value || document.querySelector(OVERLAY)) return;
+    if (item.value || helpOpen.value || !document.querySelector("#work-list") || document.querySelector(OVERLAY)) return;
     e.preventDefault();
     e.stopPropagation();
     sel.clear();
