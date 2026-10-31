@@ -502,7 +502,7 @@ class PlainWords(unittest.TestCase):
             msgs.append(am.check_reply(rep, "Chase the supplier by 03-11-2026.", "rewrite", "email")["message"])
         s = am.AiSession()
         c = s.begin("rewrite", "Some text.", "plain", 0, 10)
-        s.fail(c, "Stopped.")
+        s.fail(c, "stopped")
         msgs.append(c.message)
         for m in msgs:
             self.assertTrue(m)
@@ -730,6 +730,37 @@ class HiddenCharacters(unittest.TestCase):
         self.assertFalse(r["ok"])
         self.assertIn("hidden characters", r["message"])
         self.assertTrue(am.check_reply(reply("Chase the \u200bsupplier soon by 03-11-2026."), orig, "rewrite", "plain")["ok"])
+
+
+class FaultsAreFixedLines(unittest.TestCase):
+    """#72 fix round L2: a provider's status() that breaks, and a fault text given to AiSession.fail, never reach the person."""
+
+    def test_a_status_that_raises_is_one_plain_line(self):
+        class Boom(FakeProvider):
+            def status(self):
+                raise RuntimeError("Traceback secret-token-9 /Users/x/key.py")
+        p = Boom()
+        r = am.suggest(p, "rewrite", "Some text.", "plain")
+        self.assertFalse(r["ok"])
+        self.assertNotIn("secret-token", r["message"])
+        self.assertFalse(NEVER.search(r["message"]))
+        self.assertEqual(p.calls, [])
+
+    def test_fail_shows_a_fixed_line_whatever_text_it_is_given(self):
+        s = am.AiSession()
+        c = s.begin("rewrite", "Some text.", "plain", 0, 10)
+        s.fail(c, "Traceback secret-token-9 at /Users/x/key.py")
+        self.assertEqual(c.status, "failed")
+        self.assertNotIn("secret-token", c.message)
+        self.assertEqual(c.message, am.FAULT_MESSAGES["default"])
+
+    def test_fail_takes_a_known_code(self):
+        s = am.AiSession()
+        c = s.begin("rewrite", "Some text.", "plain", 0, 10)
+        s.fail(c, "stopped")
+        self.assertEqual(c.message, am.FAULT_MESSAGES["stopped"])
+        for m in am.FAULT_MESSAGES.values():
+            self.assertFalse(NEVER.search(m), m)
 
 
 if __name__ == "__main__":

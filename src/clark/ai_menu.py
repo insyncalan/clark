@@ -488,6 +488,10 @@ def why_off(state, provider=DEFAULT_PROVIDER):
     return "AI suggestions aren't available right now. Check Settings, under AI."
 
 
+FAULT_MESSAGES = {"default": "No suggestion came back. Try again.", "stopped": "Stopped. Nothing was changed.",
+                  "no_connection": "The connection was lost. Nothing was changed. Try again."}
+
+
 def confidential_question(provider=DEFAULT_PROVIDER):
     """What is asked once before a confidential text is sent."""
     return f"This text is marked confidential. Send the part you selected to {provider}?"
@@ -514,9 +518,13 @@ class Provider:
 def suggest(provider, option, text, place, instruction=""):
     """Ask the provider for one suggestion: {ok, text, notes, message, option}. The provider is given the prompt and no tools
     (`tools=()`); nothing else. If AI can't run, the message says why and the provider is not asked."""
-    state = provider.status()
+    try:
+        state = provider.status()
+        name = provider.name if isinstance(provider.name, str) else DEFAULT_PROVIDER
+    except Exception:  # noqa: BLE001  a provider whose status breaks is "not available", never its fault text
+        return _fail(why_off("unavailable"), option)
     if state != "ready":
-        return _fail(why_off(state, provider.name), option)
+        return _fail(why_off(state, name), option)
     try:
         req = build_prompt(option, text, place, instruction)
     except Refused as e:
@@ -609,10 +617,12 @@ class AiSession:
             card.status, card.message = "failed", res["message"]
         return True
 
-    def fail(self, card, message):
-        """A fault while it ran (stopped, no connection): one plain line on the card."""
+    def fail(self, card, code="default"):
+        """A fault while it ran: one fixed plain line on the card (FAULT_MESSAGES[code]; any other code is "default"). The text of a
+        fault is never shown."""
         if card is self.card and card.status == "running":
-            card.status, card.message = "failed", message
+            card.status = "failed"
+            card.message = FAULT_MESSAGES.get(code if isinstance(code, str) else "default", FAULT_MESSAGES["default"])
         return card
 
     def toggle_changes(self):
