@@ -14,6 +14,7 @@ Routes:
 - POST /api/here         "still here" from an open page (#71); stops a launcher-started server when no page is left
 - POST /api/publish      Publish (#43): Local, and the client folder only when the body says `to_client: true`; publish_flow.py
 - POST /api/client-folder  choose or clear the project's client folder (#43); never writes into it
+- POST /api/client-contact  save or clear the project's one client contact (#51); publish_flow.py checks and saves it
 - GET  /api/publication  ?project=<CODE>: when the project was last published and whether to the client (#43)
 - POST /api/preview      Preview (#147): builds the page as publish would, in memory; answers a one-visit address (publish_flow.py)
 - GET  /preview          ?id=<from /api/preview>: that page, once, local only (a new tab cannot send the token header)
@@ -72,7 +73,8 @@ MESSAGES = {
 # bad_request and any 500 or more server_error.
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
-ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024}     # #65: a change or an undo is small; over is the 400 "too big"
+ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+                     "/api/client-contact": 1024}     # #65: a change or an undo is small; over is the 400 "too big"
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -563,6 +565,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/movement": movement_route}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
+               "/api/client-contact": publisher_route("client_contact"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore")}     # later items: /api/import
 # ===== end of the page and the data =====
 
