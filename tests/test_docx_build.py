@@ -19,7 +19,7 @@ from unittest import mock
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 
 import _publish_fixture as fx
-from clark import docx_build, docx_read, platform, publish
+from clark import docx_build, docx_read, look, platform, publish
 from clark.docx_build import WordError
 
 SENSITIVE_WORDS = r"(?i)traceback|exception|\bxml\b|\bzip\b|errno|\bAPI\b"
@@ -456,6 +456,25 @@ class Brand(unittest.TestCase):
         self.assertNotIn("123456", everything)
         self.assertIn("ABCDEF", everything)
         self.assertEqual(docx_build.palette(bad)["brand-navy"], docx_build.TOKENS["brand-navy"])
+
+
+class FollowsTheLook(unittest.TestCase):
+    def test_the_font_is_the_looks_office_font_in_every_run_style(self):
+        styles = parts(docx_build.build(published()))["word/styles.xml"].decode()
+        font = look.office_font()
+        self.assertEqual(docx_build.FONT, font)
+        names = set(re.findall(r'w:(?:ascii|hAnsi|eastAsia|cs)="([^"]*)"', styles))
+        self.assertEqual(names, {font}, "every font in the styles is the one the look names")
+
+    def test_a_font_the_look_changes_is_the_font_the_file_uses(self):
+        css = ":root { --font-office: Verdana; --font-email: Calibri, Arial, sans-serif; }"
+        self.assertEqual(look.office_font(css), "Verdana")
+        with mock.patch.object(docx_build, "FONT", look.office_font(css)):
+            self.assertIn('w:ascii="Verdana"', parts(docx_build.build(published()))["word/styles.xml"].decode())
+
+    def test_the_colours_are_the_looks_light_values(self):
+        for name, hexa in docx_build.TOKENS.items():
+            self.assertEqual(hexa, look.colour(name), name)
 
 
 class Refusals(unittest.TestCase):
