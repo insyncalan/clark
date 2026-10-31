@@ -325,7 +325,7 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-cal-say]').textContent", sid) == "Showing November 2026"))
 
     def test_the_calendar_has_no_hard_coded_fallback_year(self):
-        src = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "components" / "MsCalendar.jsx").read_text()
+        src = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "components" / "MsCalendar.jsx").read_text(encoding="utf-8")
         self.assertNotIn("2026-01-01", src, "the fallback comes from the data or today")
 
     def test_each_chip_shows_its_status_word_and_the_period_lists_its_milestones(self):
