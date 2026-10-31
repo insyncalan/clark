@@ -293,7 +293,7 @@ KEEP_NEWEST = 10          # the most bytes-keyed ("sha256:") records kept for on
 KEEP_TOTAL = 30           # and the most the state file holds in all, newest first (#181)
 
 
-def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST, live=None, keep_total=KEEP_TOTAL):
+def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST, live=None, keep_total=KEEP_TOTAL, keep=None):
     """Remove the bytes-keyed ("sha256:") records exported more than keep_days before `today`, so the state file does not grow for
     ever (each holds a copy of every row). Path-keyed records are left alone. #147. A record is aged by its export date only, on
     purpose: an import never writes to the bytes-keyed record (mark_imported writes under the workbook's path, which is kept),
@@ -303,13 +303,16 @@ def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST,
     unrecorded: every difference is staged for the person to check, and nothing is lost. #181: also, no project keeps more than
     `keep_newest` of them (the newest by export time), at most `keep_total` stay in all, and, when `live` (a set of project codes) is
     given, none of a project outside it (an archived or removed one keeps no snapshot at all). The age rule is not the only brake on
-    the file's size; an older export then imports as unrecorded, which stages every difference for checking (fails safe)."""
+    the file's size; an older export then imports as unrecorded, which stages every difference for checking (fails safe).
+    `keep` is the record just written: the caps never cut it, and nor does each project's newest, so the total cap cannot take
+    the snapshot a person has just made. An export date after today (a clock set back) ranks as today."""
     state_path = Path(state_path)
     with STATE_LOCK:
         if not state_path.exists():
             return
         whole = json.loads(state_path.read_text(encoding="utf-8"))
         books, cutoff = whole.get("workbooks", {}), str(date.fromisoformat(str(today)[:10]) - timedelta(days=keep_days))
+        now = str(today)[:10]
         old = [k for k, v in books.items() if k.startswith("sha256:") and str(v.get("exported_at") or "9")[:10] < cutoff]
         # #181: none of a project that is not live; no more than `keep_newest` for any one project; no more than `keep_total` in all.
         # Newest by export time, then by the order they were saved in (two exports in one second), so the same records go every time: a hundred exports in one day must not make a state
@@ -320,15 +323,19 @@ def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST,
                 if live is not None and v.get("project") not in live:
                     old.append(k)
                 else:
-                    left.setdefault(str(v.get("project") or ""), []).append((str(v.get("exported_at") or ""), at, k))
-        kept = []
+                    when = str(v.get("exported_at") or "")
+                    left.setdefault(str(v.get("project") or ""), []).append((min(when, now + " ~"), at, k))     # "~" sorts after the digits
+        must = {keep} if keep else set()
+        kept, capped = [], []
         for mine in left.values():
             mine.sort(reverse=True)
+            must.add(mine[0][2])                                     # each project's newest is exempt from the total cap
             kept += mine[:max(keep_newest, 1)]
-            old += [k for _, _, k in mine[max(keep_newest, 1):]]
+            capped += [k for _, _, k in mine[max(keep_newest, 1):]]
         if keep_total and len(kept) > max(keep_total, 1):
             kept.sort(reverse=True)
-            old += [k for _, _, k in kept[max(keep_total, 1):]]
+            capped += [k for _, _, k in kept[max(keep_total, 1):]]
+        old += [k for k in capped if k not in must]
         if old:
             for k in old:
                 del books[k]

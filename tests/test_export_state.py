@@ -67,6 +67,19 @@ class State(unittest.TestCase):
         excel.prune_hash_records(self.state, "2026-10-28")
         self.assertEqual(self.sha("ABC"), [f"sha256:{n:02d}" for n in sorted((9, 0, 7, 1, 8, 2, 11, 4, 10, 6))], "the first two saved are the ones that go")
 
+    def test_the_record_just_written_is_kept_even_when_the_total_cap_would_cut_it(self):
+        for n in range(31):
+            excel.save_state(self.state, f"sha256:p{n}a", record(f"P{n:02d}", "2026-10-27", f"p{n}a"))
+            excel.save_state(self.state, f"sha256:p{n}b", record(f"P{n:02d}", "2026-10-26", f"p{n}b"))
+        excel.save_state(self.state, "sha256:mine", record("ABC", "2026-10-01", "mine"))
+        excel.save_state(self.state, "sha256:abc", record("ABC", "2026-10-27", "abc"))
+        excel.prune_hash_records(self.state, "2026-10-28")
+        self.assertNotIn("sha256:mine", self.books(), "without keep it is the oldest and the total cap takes it")
+        excel.save_state(self.state, "sha256:mine2", record("ABC", "2026-10-02", "mine2"))
+        excel.prune_hash_records(self.state, "2026-10-28", keep="sha256:mine2")
+        self.assertIn("sha256:mine2", self.books())
+        self.assertIn("sha256:abc", self.books(), "each project's newest is exempt from the total cap")
+
     def test_nothing_is_written_when_nothing_is_cut(self):
         excel.save_state(self.state, "sha256:aa", record("ABC", "2026-10-27"))
         with mock.patch.object(platform, "write_file") as write:
