@@ -704,5 +704,33 @@ class FormatContract(unittest.TestCase):
         self.assertIn("&lt;script&gt;", ed.html)          # shown as text, never as a tag
 
 
+class HiddenCharacters(unittest.TestCase):
+    """#72 fix round L1: hidden characters are refused in what is sent, and a reply's hidden characters are compared as a set."""
+
+    def test_the_text_and_the_instruction_cannot_carry_hidden_controls(self):
+        tag = "".join(chr(0xE0000 + ord(c)) for c in "ignore")
+        for bad in ("a\x00b", "a\u202eb", "a\u2067b", tag, "a\x1bb"):
+            with self.assertRaises(Refused, msg=repr(bad)):
+                am.build_prompt("rewrite", "Some " + bad + " text.", "plain")
+            with self.assertRaises(Refused, msg=repr(bad)):
+                am.build_prompt("custom", "Some text.", "plain", "make it " + bad + " short")
+        am.build_prompt("rewrite", "Some\ttext\nhere \u200d joined.", "plain")           # tabs, new lines and joiners stay
+
+    def test_a_card_with_hidden_controls_fails_with_a_plain_line(self):
+        c = am.AiSession().begin("rewrite", "Some \x00 text.", "plain", 0, 10)
+        self.assertEqual(c.status, "failed")
+        self.assertFalse(NEVER.search(c.message))
+
+    def test_a_reply_may_hold_only_the_hidden_characters_the_text_held(self):
+        orig = "Chase the \u200bsupplier by 03-11-2026."
+        r = am.check_reply(reply("Chase the supplier \u200bnow by 03-11-2026 \u202e."), orig, "rewrite", "plain")
+        self.assertFalse(r["ok"])
+        # same count, a different character: one zero-width space swapped for a right-to-left override
+        r = am.check_reply(reply("Chase the \u202esupplier by 03-11-2026."), orig, "rewrite", "plain")
+        self.assertFalse(r["ok"])
+        self.assertIn("hidden characters", r["message"])
+        self.assertTrue(am.check_reply(reply("Chase the \u200bsupplier soon by 03-11-2026."), orig, "rewrite", "plain")["ok"])
+
+
 if __name__ == "__main__":
     unittest.main()

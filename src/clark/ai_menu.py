@@ -24,6 +24,7 @@ sheet, minutes, report, readonly and line places, the project facts, the email a
 relevel (clark stores its headings as it shows them).
 """
 import re
+import unicodedata
 from collections import Counter
 
 from clark import edit_ai, sanitise
@@ -172,11 +173,28 @@ TEMPLATE = (
     "SUGGESTION>>>\n")
 
 
+UNSAFE_HIDDEN = re.compile("[\u202a-\u202e\u2066-\u2069\U000e0000-\U000e007f]")
+HIDDEN_MESSAGE = "That text has characters that can't be seen, so it wasn't sent. Take them out and try again."
+
+
+def _unsafe(text):
+    """Whether a text holds a control character, a direction override or isolate, or a Unicode tag character: ways to hide words."""
+    return bool(edit_ai.CONTROLS.search(text.replace("\x0b", "").replace("\x0c", "")) or UNSAFE_HIDDEN.search(text))
+
+
+def _hidden_set(text):
+    """The kinds of hidden character a text holds (the ones `hidden_count` counts), as a set."""
+    return {c for c in text or "" if edit_ai.CONTROLS.match(c) or ord(c) in edit_ai.SHOWN_AS_NOTHING or ord(c) in edit_ai.SHOWN_AS_SPACE
+            or unicodedata.category(c) == "Cf"}
+
+
 def _instruction(option, instruction):
     """The user's own instruction (Ask…), spaces squeezed; needed for Ask…, capped; ignored for every other option."""
     if option != "custom":
         return ""
     clean = " ".join(str(instruction or "").split())
+    if _unsafe(clean):
+        raise Refused(HIDDEN_MESSAGE)
     if not clean:
         raise Refused("Say what you want done with the text.")
     if len(clean) > MAX_INSTRUCTION:
@@ -192,6 +210,8 @@ def check_request(option, text, place, instruction=""):
     text = str(text or "")
     if not text.strip():
         raise Refused("Select some text first.")
+    if _unsafe(text):
+        raise Refused(HIDDEN_MESSAGE)
     if len(text) > MAX_TEXT:
         raise Refused(f"That's too much text for one suggestion; select under {MAX_TEXT // 1000}k characters.")
     if option == "notes" and sum(1 for ln in text.splitlines() if ln.strip()) < 2:
@@ -353,7 +373,7 @@ def check_reply(reply, original, option, place):
     problem = _link_problem(text, original)
     if problem:
         return _fail(problem, option)
-    if edit_ai.hidden_count(text) > edit_ai.hidden_count(original):
+    if not _hidden_set(text) <= _hidden_set(original) or edit_ai.hidden_count(text) > edit_ai.hidden_count(original):
         return _fail("The suggestion had hidden characters in it, so it was not used. Try again.", option)
     if FORMATS[place] == "plain" and re.search(r"(?m)^\s{0,3}(?:#{1,6}\s|[-*+]\s\[[ xX]\]\s)", text) and \
             not re.search(r"(?m)^\s{0,3}(?:#{1,6}\s|[-*+]\s\[[ xX]\]\s)", original):
