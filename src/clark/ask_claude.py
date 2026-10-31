@@ -37,7 +37,8 @@ from clark import ask, platform
 PROVIDER = "claude"
 PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude")
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config",
-                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
+                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd", "--model")
+MODELS = ("opus", "sonnet", "haiku")               # #54: the model names the command takes; a chosen model is one of these only
 NEVER_FLAGS = ("--bare", "--add-dir", "--mcp-config", "--settings", "--dangerously-skip-permissions", "--resume", "--continue")
 SAFE_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 KEEP_ENV = ("HOME", "USER", "LOGNAME", "LANG")      # what the sign-in and the text need; everything else is left out
@@ -72,10 +73,12 @@ def child_env(home=None, user=None):
     return {k: v for k, v in env.items() if k in KEEP_ENV + ("PATH",)}
 
 
-def arguments(path):
-    """The command line for one run: the fixed flags, the fixed rules as the system prompt, and nothing the person typed."""
+def arguments(path, model=None):
+    """The command line for one run: the fixed flags, the chosen model (#54; one of MODELS, else the command's own default), the
+    fixed rules as the system prompt, and nothing the person typed."""
+    chosen = ["--model", model] if model in MODELS else []
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
-            "--no-session-persistence", "--output-format", "text", "--max-budget-usd", MAX_BUDGET_USD,
+            "--no-session-persistence", "--output-format", "text", "--max-budget-usd", MAX_BUDGET_USD, *chosen,
             "--system-prompt", ask.RULES]
 
 
@@ -140,7 +143,7 @@ class ClaudeCommand(ask.Provider):
         return {"connected": path is not None, "why": READY if path is not None else why}
 
     # ----- one question -----
-    def ask(self, request):
+    def ask(self, request, model=None):
         if not self.lock.acquire(blocking=False):
             return ask.Failure(BUSY)
         try:
@@ -149,7 +152,7 @@ class ClaudeCommand(ask.Provider):
             if path is None:
                 return ask.Failure(why)
             data = self.envelope(request.text).encode("utf-8")
-            status, out, _code = run(arguments(path), data, self.env, self.limit, self.max_out, stop=self.stop_event)
+            status, out, _code = run(arguments(path, model), data, self.env, self.limit, self.max_out, stop=self.stop_event)
             if status == "stopped":
                 return ask.Failure(ask.STOPPED)
             if status == "slow":
