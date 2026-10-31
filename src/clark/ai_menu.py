@@ -95,9 +95,9 @@ GROUPS = {
 FORMATS = {"notes": "markdown", "current": "markdown", "plain": "plain", "email": "plain", "client_message": "plain"}
 FORMAT_RULES = {
     "markdown": ("The text is Markdown. Reply in Markdown, using only bold, italic, \"- \" bullets, numbered lists, \"# \", \"## \" "
-                 "and \"### \" headings, quotes and links. Keep any link exactly as it is."),
+                 "and \"### \" headings, quotes and links. Keep any link, image or HTML comment exactly as it is."),
     "notes": ("The text is Markdown. Reply in Markdown, using only bold, italic, \"- \" bullets, numbered lists, \"# \", \"## \" "
-              "and \"### \" headings, quotes, links and \"- [ ] \" task items. Keep any link exactly as it is."),
+              "and \"### \" headings, quotes, links and \"- [ ] \" task items. Keep any link, image or HTML comment exactly as it is."),
     "plain": ("The text is plain text, one paragraph a line. Reply in plain text: no Markdown, no bullets or symbols that weren't "
               "there, one paragraph a line."),
 }
@@ -347,7 +347,10 @@ def _fail(message, option=None):
 def check_reply(reply, original, option, place):
     """A reply checked before it is shown: {ok, text, notes, message, option}. ok is False (with a plain message and no text) for an
     empty reply, one far too long, one with web code in it, one with characters the reader can't see that the text didn't have,
-    one that is the text unchanged, or (for a plain place) one that turned the text into headings or a list it can't hold."""
+    one that is the text unchanged, one with a link or address the text didn't have, or (for a plain place) one that turned the
+    text into headings or task items it can't hold; bold, bullets and links the text allowed pass. For a client message it also
+    blocks a reply that adds an item ID, internal wording or a name. Web code, links and hidden characters are compared match by
+    match with the text, never as a whole."""
     place_of(place)
     if reply is not None and not isinstance(reply, str):
         return _fail("No suggestion came back.", option)
@@ -518,7 +521,8 @@ class Provider:
 
 
 def suggest(provider, option, text, place, instruction=""):
-    """Ask the provider for one suggestion: {ok, text, notes, message, option}. The provider is given the prompt and no tools
+    """Ask the provider for one suggestion: {ok, text, notes, message, option}. This is the one-shot path, with no card; the card path
+    is AiSession.begin then deliver, which runs the same build_prompt and check_reply (the page asks the provider itself). The provider is given the prompt and no tools
     (`tools=()`); nothing else. If AI can't run, the message says why and the provider is not asked."""
     try:
         state = provider.status()

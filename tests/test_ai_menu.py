@@ -815,5 +815,15 @@ class StrictInputs(unittest.TestCase):
             am.build_prompt("custom", "Some text.", "plain", "y" * 401)
 
 
+class RulesText(unittest.TestCase):
+    def test_the_format_rules_keep_links_images_and_comments_as_they_are(self):
+        for rule in am.FORMAT_RULES.values():
+            if rule.startswith("The text is Markdown"):
+                self.assertIn("link, image or HTML comment exactly as it is", rule)
+
+    def test_the_prompt_for_a_markdown_place_carries_the_rule(self):
+        self.assertIn("image or HTML comment", am.build_prompt("rewrite", "Some text.", "notes")["prompt"])
+
+
 if __name__ == "__main__":
     unittest.main()
