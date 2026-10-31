@@ -246,7 +246,7 @@ class WordingRound(unittest.TestCase):
 
     def test_no_leftover_from_the_prototype(self):                                           # MEDIUM
         self.assertNotIn("The real clark", self.ALL)
-        self.assertIn("clark keeps one file a day", self.ALL)
+        self.assertIn("The log keeps one file a day", self.ALL)
 
     def test_published_line_is_plainer(self):                                                # LOW
         self.assertIn("“Published” on its date, to the client (or locally)", self.ALL)
