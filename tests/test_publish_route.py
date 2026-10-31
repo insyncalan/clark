@@ -859,7 +859,7 @@ class OnlyOneRouteWritesIntoTheClientFolder(Base):
                                                   "/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply",
                                                   "/api/ask/change/dry", "/api/ask/stop", "/api/backups/preview", "/api/backups/restore",
                                                   "/api/change", "/api/client-folder", "/api/preview", "/api/publish", "/api/undo"])
-        # #111: the two backup routes; #147: preview; #47: asking, its switch and its folders (none writes a file)
+        # #111: the two backup routes; #147: preview; #47: asking, its switch and its folders (none writes a file); #47e: the dry run and Apply of a suggested change (the change goes through the store's one undoable step)
         self.assertEqual(sorted(sv.GET_ROUTES), ["/api/ai/status", "/api/ask-enabled", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/data", "/api/export",
                                                  "/api/movement", "/api/projects", "/api/publication", "/api/use-cases"])     # #147: export; #136: movement
 

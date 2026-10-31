@@ -1,10 +1,12 @@
 // What the ask panel says (#47a). Every sentence is here, so one test can read them all. None starts with the product's name; each
 // says what happened and what to do next.
 export const PANEL_TITLE = "Ask about this project";
-export const OFF_LINE = "ask clark is off. Turn it on in Settings.";                  // shown while the switch is off or not yet known
+export const OFF_LINE = "Asking is off. Turn it on in Settings.";                     // shown while the switch is off or not yet known
 export const OFF_LINK = "Open Settings";
 export const SIGNED_OUT_LINE = "Claude is not signed in on this computer, so there is nothing to ask yet. Sign in to Claude on this computer, then open this panel again.";
 export const SETTINGS_LINK = "Open Settings";
+// #47a: the connect box says where the words go and who pays for them.
+export const SENT_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
