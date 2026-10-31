@@ -25,7 +25,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import appfiles, backup, changes, idle, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, store as clark_store, use_cases_read, word_route
+from clark import appfiles, backup, changes, history, idle, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, store as clark_store, use_cases_read, word_route
 
 DB_NAME = "clark.db"
 HERE = Path(__file__).resolve().parent
@@ -298,6 +298,18 @@ def use_case_ids_on_file(store):
     return ids
 
 
+def use_case_history(store):
+    """The use cases' history for the Use cases page (#157): {ref: events} for the refs asked, from one read-only connection.
+    It writes nothing."""
+    def read(refs):
+        con = clark_store.connect(store.path, readonly=True)
+        try:
+            return {ref: history.history(con, ref) for ref in refs}
+        finally:
+            con.close()
+    return read
+
+
 def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.open_url, home=None, onedrive_roots=None,
          change=None, undo=None, environ=None, is_free=port_free, word_import=None, word_export=None):
     """Run the launcher; the exit code. `serve`, `open_url`, `home` (for the default data folder) and `onedrive_roots` are
@@ -354,7 +366,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
                      profile=who,
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
-                     use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store)),
+                     use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store), use_case_history(store)),
                      safety=safety.Safety(store.path, roots),
                      **handlers)
         if done == 0:

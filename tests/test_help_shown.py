@@ -135,7 +135,8 @@ class AgainstThePage(unittest.TestCase):
         # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...); lower this only when a feature lands, never to hide a missing one
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now)
         # 68 with the section templates (#96) as well (their words in the Add a section box and in Help name things the page does now: measured on the merged tree)
-        self.assertGreaterEqual(len(names), 68)
+        # 67 with the use case page (Where it stands, Archive and Restore name something on the page now)
+        self.assertGreaterEqual(len(names), 67)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
