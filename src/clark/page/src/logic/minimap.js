@@ -2,6 +2,9 @@
 // It lists the visible sections only, works out which one is current while the page scrolls, where a click should scroll
 // to (below the sticky section bar), and what a key does inside the list.
 
+import { isOpen, todayIso } from "../workItems.js";
+import { milestoneRows } from "./milestones.js";
+
 // A section's anchor id on the page: "sec-" and its id, with anything outside letters, digits, "_" and "-" turned into "-".
 // The same id always gives the same anchor, so the report and the minimap agree without passing it around.
 export function anchorId(id) {
@@ -71,4 +74,30 @@ export function onKey(state, key) {
   const moves = ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End"];
   if (!moves.includes(key)) return { ...state, handled: false };
   return { index: nextOnKey(state.index, state.count, key), open: true, handled: true };
+}
+
+// The count beside a section in the list (the prototype's "3 flagged", "2 slipped", "1 red", "1 late", "2"), worked out only from
+// the report's own data block, so a published file shows the same words. Returns { text, hot } or null when there is nothing to say;
+// `hot` marks a count that needs a look. A section type the data does not cover gets no count. `today` is YYYY-MM-DD; `client`
+// is true for a published file (its milestone states are already worked out).
+export function countOf(section, d, today, client) {
+  const data = d || {};
+  const on = today || todayIso();
+  const live = (rows) => (rows || []).filter((r) => !r.archived);
+  const some = (n, word) => (n ? { text: `${n} ${word}`, hot: true } : null);
+  switch (section && section.type) {
+    case "usecases": return some(live(data.use_cases).filter((u) => u.status && u.status !== "On track").length, "flagged");
+    case "milestones": return some(milestoneRows(data.milestones, on, !!client).filter((m) => m.slip > 0).length, "slipped");
+    case "actions": {
+      const open = live(data.actions).filter(isOpen), late = open.filter((r) => r.due_date && r.due_date < on).length;
+      return late ? some(late, "late") : open.length ? { text: String(open.length), hot: false } : null;
+    }
+    case "raid": {
+      const open = live(data.raid).filter(isOpen), red = open.filter((r) => r.priority === "High" || r.priority === "Urgent").length;
+      return red ? some(red, "red") : open.length ? { text: String(open.length), hot: false } : null;
+    }
+    case "decisions": return some(live(data.decisions).filter((r) => r.status === "Pending").length, "pending");
+    case "docs": { const n = (data.documents || []).length; return n ? { text: String(n), hot: false } : null; }
+    default: return null;
+  }
 }
