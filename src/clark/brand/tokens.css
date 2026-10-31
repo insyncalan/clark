@@ -6,6 +6,8 @@
   --pill-bg: linear-gradient(90deg, #8FF2EF, #38E0EE); --pill-color: #38E0EE; --pill-fg: #04222A; --pill-glow: 0 0 30px rgba(56, 224, 238, .35); --pill-glow-hover: 0 0 44px rgba(56, 224, 238, .55);
   --bar-end: color-mix(in srgb, var(--brand-navy), var(--brand-cyan) 12%); --accent-line: linear-gradient(90deg, #8FF2EF, #38E0EE);
   --font-head: Montserrat, Inter, Arial, sans-serif; --font-label: Inter, Arial, sans-serif;
+  /* for the files that cannot carry the page's fonts: Word and Excel (a font Office has) and an email (Outlook's Word engine); clark/look.py reads them */
+  --font-office: Arial; --font-email: Calibri, Arial, sans-serif;
   --brand-navy: #062F3A; --brand-ink: #0E2430; --brand-cyan: #38E0EE; --brand-charcoal: #3B4A5C;
   --brand-blue: #5B47D8; --brand-blue-strong: #4A37C2; --brand-blue-tint: #ECE9FF;
   --grey-50: #F3F6FC; --grey-100: #E6EBF6; --grey-200: #D9E0EF; --grey-300: #C4CEE3; --grey-500: #8592AD; --grey-700: #475577;
