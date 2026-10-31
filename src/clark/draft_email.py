@@ -17,6 +17,7 @@ reach an email: an internal note, a source or anything else on the dict is never
 
 Standard library only, Python 3.9.
 """
+import re
 import unicodedata
 from datetime import date, timedelta
 from html import escape
@@ -93,20 +94,29 @@ def one_line(text):
     return " ".join(flat.split())
 
 
+DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")       # the one shape clark stores: no week or ordinal forms, no spaces, ASCII digits only
+
+
+def _as_day(iso):
+    """The date of a stored YYYY-MM-DD that is a real day, else None. The same on every Python (3.11 reads more forms)."""
+    if not isinstance(iso, str) or not DAY.fullmatch(iso):
+        return None
+    try:
+        return date(int(iso[:4]), int(iso[5:7]), int(iso[8:]))
+    except ValueError:
+        return None
+
+
 def shown(iso):
     """YYYY-MM-DD as DD-MM-YYYY; anything else comes back as it is."""
-    try:
-        return date.fromisoformat(str(iso)).strftime("%d-%m-%Y")
-    except ValueError:
-        return str(iso or "")
+    day = _as_day(iso)
+    return f"{day.day:02d}-{day.month:02d}-{day.year:04d}" if day else str(iso or "")
 
 
 def weekday_date(iso):
     """YYYY-MM-DD as "Thursday 15-10-2026", the way the email names a reply-by date; '' when it is not a date."""
-    try:
-        return f"{WEEKDAYS[date.fromisoformat(str(iso)).weekday()]} {shown(iso)}"
-    except ValueError:
-        return ""
+    day = _as_day(iso)
+    return f"{WEEKDAYS[day.weekday()]} {shown(iso)}" if day else ""
 
 
 def short(text, limit=60):
