@@ -50,12 +50,12 @@ class ProfileMenu(Base):
             self.open_menu(p)
             self.assertEqual(self.labels(p), [WHO] + ITEMS, "the items and their order")
 
-    def test_C_the_menu_has_a_separator_before_settings_and_the_dark_mode_group_below_it(self):
+    def test_C_the_menu_has_a_separator_before_settings_and_the_appearance_group_below_it(self):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,separator,presentation,menuitemradio,menuitemradio,menuitemradio,menuitem,menuitem")
+                             "menuitem,menuitem,menuitem,menuitem,separator,presentation,menuitemradio,menuitemradio,menuitemradio,separator,menuitem,menuitem")
 
     def test_C_the_last_published_note_is_reachable_when_narrow(self):
         for w in (390, 900):

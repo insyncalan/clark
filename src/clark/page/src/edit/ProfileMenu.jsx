@@ -88,7 +88,7 @@ export function ProfileMenu() {
   const me = profile.value;
   const who = me.name || me.email ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true };
-  const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...rest];
+  const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
   const pick = (id) => {
     if (id === "publish") openPublish();
     else if (id === "preview") preview();

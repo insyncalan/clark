@@ -890,3 +890,4 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 
 /* the home banner: a still picture a person's own look may set (--art-home, --art-home-height); empty and flat by default */
 .frame.empty::before { content: ""; display: block; height: var(--art-home-height); background: var(--art-home) center / contain no-repeat; }
+.ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
