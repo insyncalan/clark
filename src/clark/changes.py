@@ -1102,8 +1102,8 @@ def _eligible(rows, project):
     if (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
         return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA) and pick_row(r) for r in rows)
     if any(item_field_row(r) for r in rows):                        # a step of work-item fields: nothing else in it (#47e: ask clark's too)
-        return all(r["via"] in (VIA, ASSISTANT, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA)
-                   and (item_field_row(r) or item_stamp_row(r)) for r in rows)
+        return all((r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
+                   and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r)) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
     page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "note"))
                       for r in rows)

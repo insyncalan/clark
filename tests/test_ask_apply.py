@@ -332,6 +332,14 @@ class Undo(Base):
         status, body = self.undo({"project": "ABC", "apply_id": step})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
 
+    def test_an_assistant_step_on_a_use_case_is_not_undoable(self):
+        with self.s.step("assistant", USER, actor="clark") as st:      # a use case is not one of ask clark's kinds
+            st.update("use_cases", self.demo.use_case, {"headline": "Changed by ask clark"})
+        step = self.demo.last_step()
+        status, body = self.undo({"project": "ABC", "apply_id": step})
+        self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
+        self.assertEqual(self.s.read("use_cases", ref=self.demo.use_case)["headline"], "Changed by ask clark")
+
 
 class Source(unittest.TestCase):
     """The one-writer rule for ask_apply.py: it never opens the database for writing and never makes a step itself."""
