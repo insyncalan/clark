@@ -147,9 +147,9 @@ ZIP_TIME = (1980, 1, 1, 0, 0, 0)           # the earliest time a zip can hold: e
 
 # Formatting (#85a). Brand colours come from excel_colours (the demo tokens); the layout rules are these.
 HEADER = PatternFill("solid", fgColor=colours.HEADER_FILL)
-OFFICE_FONT = look.office_font()           # the look's --font-office, a font Office has (#85)
+OFFICE_FONT = look.office_font()           # the look's --font-office: one font on every sheet, a font Office has
 HEADER_FONT = Font(name=OFFICE_FONT, bold=True, color=colours.HEADER_TEXT)
-DATA_FONT = Font(name=OFFICE_FONT, size=11)  # data cells: the workbook's default size, in the look's font (#85)
+BODY_FONT = Font(name=OFFICE_FONT, size=11)  # the data cells (11 is the size a cell had before it named a font)
 # The item's title column on each sheet: the column frozen beside the ID, so a row stays readable while scrolling across.
 TITLE_OF = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision",
             "use_cases": "title"}
@@ -641,7 +641,7 @@ HISTORY_COLUMNS = (("When", "when_text", 22), ("Who", "who", 18), ("How", "how",
                    ("From", "from", 44), ("To", "to", 44))
 HISTORY_NOTE = "This sheet is read-only and for internal use. Do not send it to a client."
 HISTORY_CELL_LIMIT = 5000                  # characters a history cell holds (design note, section 3)
-HISTORY_FONT = look.office_font()          # the look's --font-office, a font Office has
+HISTORY_FONT = OFFICE_FONT
 
 
 def history_cell(value):
@@ -695,6 +695,7 @@ def write_lists(wb, lists):
         for n, v in enumerate(lists[field], start=2):
             c = ws.cell(row=n, column=i, value=v)
             c.data_type = "s"
+            c.font = BODY_FONT
     ws.sheet_state = "hidden"
     return ws
 
@@ -704,7 +705,7 @@ def write_lists(wb, lists):
 COVER_NAME = "Cover"
 COVER_LABELS = {"internal": "Internal", "caution": "Caution", "return": "Sending changes back",
                 "where": "Where to make changes", "ids": "IDs"}
-COVER_FONT = look.office_font()
+COVER_FONT = OFFICE_FONT
 
 
 def _cover_cell(value):
@@ -793,6 +794,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                 r = {**r, "shown_state": milestone_state(r, on), "original_date": r.get("original_date") or r.get("baseline_date")}
             ws.append([to_cell(f, r.get(f)) for _, f in cols])
             for c in ws[ws.max_row]:
+                c.font = BODY_FONT
                 if isinstance(c.value, str):
                     c.data_type = "s"       # text is text: openpyxl would make a string starting "=" a formula, "#N/A" an error
         n_rows = len(rows) + 1 + EXTRA_ROWS
@@ -802,8 +804,9 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             head.font, head.fill = HEADER_FONT, HEADER
             head.alignment = Alignment(wrap_text=True, vertical="center")
             ws.column_dimensions[col].width = column_width(table, field)
+            ws.column_dimensions[col].font = BODY_FONT        # the empty rows below the data, which a person fills in
             for c in ws[f"{col}2:{col}{n_rows}"]:
-                c[0].font = DATA_FONT           # the data and the spare rows, so typed entries match
+                c[0].font = BODY_FONT           # the data and the spare rows, so typed entries match (#85)
             for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
                 c[0].alignment = Alignment(wrap_text=wraps(table, field), vertical="top")
             if field in DATES:

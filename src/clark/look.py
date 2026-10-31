@@ -24,8 +24,18 @@ FAMILY = re.compile(r"[A-Za-z0-9][A-Za-z0-9 .-]*")        # one font family name
 GENERIC = ("sans-serif", "serif", "monospace")
 
 
+class LookError(ValueError):
+    """The look cannot give a value, in plain words naming the token or the file. The one error this module raises for a missing file,
+    a missing token, a token that refers to itself, a colour that is not a plain hex colour and a font token with no usable name."""
+
+
 def _css(css=None):
-    return TOKENS_CSS.read_text(encoding="utf-8") if css is None else css
+    if css is not None:
+        return css
+    try:
+        return TOKENS_CSS.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        raise LookError("clark's look file (src/clark/brand/tokens.css) is missing or cannot be read.") from None
 
 
 def _block(pattern, text):
@@ -33,13 +43,15 @@ def _block(pattern, text):
     brace after a space (a test's) is read too, with the same pattern up to the first brace."""
     m = re.search(pattern, text, re.S) or re.search(pattern.replace(r"\n\}", r"\}"), text, re.S)
     if not m:
-        raise KeyError("no block in the look matches " + pattern)
+        raise LookError("The look has no block of tokens in the shape clark reads (the first :root block, and the dark block).")
     return m.group(1)
 
 
-def raw(name, mode="light", css=None):
+def raw(name, mode="light", css=None, _seen=()):
     """A token's value as written in tokens.css (a var() to another token is followed). The first :root block is the light look; for
-    "dark" the data-theme=dark block is read first. KeyError when the token is not there."""
+    "dark" the data-theme=dark block is read first. LookError when the token is not there or refers back to itself."""
+    if name in _seen:
+        raise LookError(f"The look's token {name} refers back to itself.")
     text = _css(css)
     blocks = [_block(LIGHT, text)]
     if mode == "dark":
@@ -49,17 +61,17 @@ def raw(name, mode="light", css=None):
         if m:
             value = m.group(1).strip()
             ref = VAR.fullmatch(value)
-            return raw(ref.group(1), mode, text) if ref else value
-    raise KeyError(name)
+            return raw(ref.group(1), mode, text, _seen + (name,)) if ref else value
+    raise LookError(f"The look has no token named {name}.")
 
 
 def colour(name, mode="light", css=None):
     """A colour token as six upper-case hex digits, no #: `colour("brand-navy")` is "062F3A". The name may carry its leading --.
-    #fff is read as FFFFFF. KeyError when the token is missing; ValueError when it is not a plain hex colour."""
-    value = raw(name if name.startswith("--") else "--" + name, mode, css)
-    m = HEX.fullmatch(value)
+    #fff is read as FFFFFF. LookError when the token is missing or is not a plain hex colour."""
+    token = name if name.startswith("--") else "--" + name
+    m = HEX.fullmatch(raw(token, mode, css))
     if not m:
-        raise ValueError(f"{name} is not a plain hex colour in the look")
+        raise LookError(f"The look's token {token} is not a plain hex colour (such as #0E2430).")
     digits = m.group(1).upper()
     return "".join(c * 2 for c in digits) if len(digits) == 3 else digits
 
@@ -67,11 +79,14 @@ def colour(name, mode="light", css=None):
 def families(name, css=None):
     """The font families a font token lists, in order, without quotes: ["Calibri", "Arial", "sans-serif"]. A name with anything
     but letters, digits, spaces, dots and hyphens is left out, so a family can never put markup or a quote into a file."""
+    token = name if name.startswith("--") else "--" + name
     out = []
-    for part in raw(name if name.startswith("--") else "--" + name, "light", css).split(","):
+    for part in raw(token, "light", css).split(","):
         part = part.strip().strip("'\"").strip()
         if FAMILY.fullmatch(part):
             out.append(part)
+    if not out:
+        raise LookError(f"The look's token {token} names no usable font (use plain names, such as Arial).")
     return out
 
 
