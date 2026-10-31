@@ -78,8 +78,12 @@ def report(kind, port, folder, free=port_free):
     if kind == OTHER_DATA:
         return (f"Another copy of clark is already open with different data (this one uses {platform.with_tilde(folder)}). "
                 f"Close that copy, then start clark again.{try_another(port, free)}")
+    try:
+        launcher = platform.launcher_name()
+    except platform.NotBuiltYet:                     # the launcher file is the Mac's: say it in general words elsewhere
+        launcher = "the clark launcher"
     return ("Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. "
-            f"Close that Terminal window, then double-click {platform.launcher_name()} again. If that does not help, restart your Mac.{try_another(port, free)}")
+            f"Close that Terminal window or program, then double-click {launcher} again. If that does not help, restart your Mac.{try_another(port, free)}")
 
 
 def wait_for_clark(port, mark, process, seconds=START_WAIT, health=ask_health, sleep=time.sleep, clock=time.monotonic):
