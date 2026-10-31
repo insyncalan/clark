@@ -1375,7 +1375,7 @@ body.bfull .proto { display: none; }
 .ucx-chk { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
 @media (max-width: 1100px) {
   .ucx-row { grid-template-columns: 70px minmax(0, 1fr) 112px 92px 190px; gap: 10px; }
-  .ucx-head, .ucx-ms { display: none; }
+  .ucx-head, .ucx-ms, .ucx-hd .ucx-head, .ucx-hd .ucx-ms { display: none; }
   .ucx-name small { display: block; }
 }
 /* one use case */
