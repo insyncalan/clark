@@ -46,7 +46,8 @@ MAC_APP = "/Applications/Google" + " Chrome.app/Contents/MacOS/Google" + " Chrom
 ON_PATH = "command -v google-chrome || command -v chrom" + "ium || command -v chrom" + "ium-browser"
 BRANCH = "github.head_ref || github.ref_name"
 RELEASE_BRANCH = f"(startsWith({BRANCH}, 'release-') || (startsWith({BRANCH}, 'v') && contains({BRANCH}, '-release')))"
-WANTS_MACOS = f"{RELEASE_BRANCH} || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')"
+WANTS_MACOS = ("github.event_name == 'pull_request' || "
+               f"{RELEASE_BRANCH} || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')")
 
 
 class Workflow(unittest.TestCase):
@@ -129,7 +130,7 @@ class Workflow(unittest.TestCase):
         for job in ("tests", "macos"):
             self.assertEqual(set(re.findall(r"shard: (\d+), shards: (\d+)", self.jobs[job])), {("1", "1")}, job)
 
-    def test_macos_on_release_branches_and_by_hand_and_required_there(self):
+    def test_macos_on_every_pull_request_and_on_release_branches_and_by_hand(self):
         mac = self.jobs["macos"]
         self.assertIn(f"if: {WANTS_MACOS}\n", mac + "\n")
         self.assertRegex(mac, r"runs-on: macos-latest")
