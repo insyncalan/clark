@@ -1,6 +1,6 @@
 """The one provider module: the Claude command on this computer (#47c, commit 5 of the design note). GUARDED-DERIVED: new code
 written for clark, not a copy (creaite's environment scrub is unreleased; the isolating flags, standard input, the fixed places,
-the version and flag check and the process-group Stop are all new here). Two readers and Alan's own words before it merges.
+the version and flag check and the process-group Stop are all new here). Two readers and the owner's own words before it merges.
 
 What it does, and nothing more: it starts the person's own `claude` command, signed in with their own Claude plan, with every
 customisation switched off and no tools, gives it the one request text on standard input, and reads the reply from standard

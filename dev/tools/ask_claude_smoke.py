@@ -1,4 +1,4 @@
-"""The real-command smoke test for ask clark's Claude provider (#47c, slice 3; Wanda's HIGH 1; development only, never shipped).
+"""The real-command smoke test for ask clark's Claude provider (#47c, slice 3; the design read's HIGH 1; development only, never shipped).
 
 Run (on a Mac, with the real command installed and signed in with a Claude plan):
     python3 dev/tools/ask_claude_smoke.py [--claude PATH] [--skip-real] [--report FILE]
