@@ -388,7 +388,7 @@ def _cap(flags):
         else:
             left += 1
     if left:
-        kept.append(Flag("more", "", f"and {left} more like these."))
+        kept.append(Flag("more", "", f"and {left} more."))
     return tuple(kept)
 
 
@@ -438,9 +438,21 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
 # wraps `request.text` in its own envelope and may add nothing to it: the same request gives the same text for every provider.
 # ---------------------------------------------------------------------------------------------------------------------------
 STOPPED = "Stopped. Nothing was changed."
-COULD_NOT = "That didn't get an answer. Try again in a moment. If it keeps happening, check that you are signed in."
+DROPPED_MANY = "The oldest messages in this chat were left out to make room."
+DROPPED_ONE = "The oldest message in this chat was left out to make room."
+COULD_NOT = ("Your question didn't get an answer. Try again in a moment. If it keeps happening, check that the program that "
+             "answers questions on this computer is signed in.")
+# NOT_READY is generic on purpose: this module may not name the provider. The panel must show the design note's provider line
+# (which names the program and the step to take) instead of this sentence; this one is only the fallback for a provider's status().
 NOT_READY = ("Asking clark isn't set up on this computer yet. Sign in to the program that answers questions on this computer, then try again. "
              "Everything else in the report works as before.")
+
+
+def dropped_note(count):
+    """The plain-words line for `Request.dropped_turns`: how the panel says the oldest earlier messages were left out. "" for none."""
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+        return ""
+    return DROPPED_ONE if count == 1 else DROPPED_MANY
 
 
 @dataclass(frozen=True)
