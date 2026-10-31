@@ -1,4 +1,4 @@
-// The project's client contact, on the Publish screen (#51; FR-94; Alan, 31-10-2026: one per project, no warning). A published
+// The project's client contact, on the Publish screen (#51; FR-94; the owner, 31-10-2026: one per project, no warning). A published
 // page carries a Draft email addressed to this contact, and only when one is saved. The server checks the address (one plain
 // address, not on your own team's domain) and saves it as an ordinary step; the page only shows what the server says. Every value
 // is shown as text (Preact escapes it), never as markup. Edit parts only: a published file has none of this.

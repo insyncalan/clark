@@ -1583,7 +1583,7 @@ CONTACT_COLUMNS = (
 
 def migrate_to_3(con):
     """Schema version 2 to 3 (#51): the project's contact, the outside address a published page's Draft email is addressed to
-    (one per project; Alan, 31-10-2026). Two nullable columns on projects, each added only when it is not there yet (a
+    (one per project; the owner, 31-10-2026). Two nullable columns on projects, each added only when it is not there yet (a
     half-applied copy is safe). Runs inside the caller's transaction and does not touch the version (the runner does)."""
     have = columns(con, "projects")
     for name, statement in CONTACT_COLUMNS:

@@ -1,4 +1,4 @@
-"""#51 (Alan, 31-10-2026): the project's one client contact, set on the Publish screen, and the Draft email it puts in a published
+"""#51 (the owner, 31-10-2026): the project's one client contact, set on the Publish screen, and the Draft email it puts in a published
 page. One contact per project; no warning about the address on the Publish screen.
 
 Run: python3 dev/run_tests.py test_client_contact
@@ -171,7 +171,7 @@ class Route(unittest.TestCase):
             self.assertFalse(text.lower().startswith("clark"), key)
             self.assertNotRegex(text, r"(?i)\brequest\b|\bpath\b|!", key)
         self.assertNotRegex(" ".join(publish_flow.MESSAGES[k] for k in publish_flow.MESSAGES if k.startswith("contact")),
-                            r"(?i)client's file|personal data|anyone who holds", "no warning about the address in the file (Alan)")
+                            r"(?i)client's file|personal data|anyone who holds", "no warning about the address in the file (the owner)")
 
 
 class Published(unittest.TestCase):
@@ -298,7 +298,7 @@ class Field(unittest.TestCase):
             self.assertEqual(saved(self.rig), (DANA["name"], DANA["email"]))
             self.assertTrue(p.js("!!document.querySelector('#publish-dialog[open]')"), "Enter saved the contact and did not publish")
             self.assertEqual(self.rig.rows(), [])
-            self.assertNotRegex(p.dialog_text(), r"(?i)client's file|personal data|anyone who", "no warning (Alan)")
+            self.assertNotRegex(p.dialog_text(), r"(?i)client's file|personal data|anyone who", "no warning (the owner)")
             p.js("document.querySelector('[data-contact-clear]').click()")
             p.until("/No client contact yet/.test(document.querySelector('#pub-contact-now').innerText)", "cleared")
             self.assertEqual(saved(self.rig), (None, None))
