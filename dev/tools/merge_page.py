@@ -3,13 +3,18 @@
 src/clark/page/page.html and page-view.html are written by dev/tools/build_page.py from the JSX sources, so merging their text is
 pointless and always conflicts. This driver does what a person would: take the other side, then rebuild from the MERGED sources.
 
-Git calls it as: python3 dev/tools/merge_page.py %O %A %B %P   (set up once per clone by dev/tools/install_merge_driver.py)
+Git calls it as: python3 <this clone>/dev/tools/merge_page.py %O %A %B %P   (set up once per clone by dev/tools/install_merge_driver.py)
   %A  the file the result is left in      %B  the other side's version      %P  the path being merged
 
 Git has not written the merged sources into the work tree when it calls a driver, so the driver gets them itself: `git merge-tree`
 merges HEAD with the other side in memory, the result is unpacked into a temporary folder and that folder's own build_page.py
 makes the page. It exits 1 (git reports a conflict, %A is left as it was) when the sources conflict, when there is no merge in
 progress it can read (a single merged commit), or when the build fails; nothing is ever half-written to %A.
+
+TRUST: the rebuild runs the MERGED branch's own dev/tools/build_page.py (and the esbuild.py and src/clark/*.py it imports), with
+your rights, during the merge and before you have read the change. A bad change to those files therefore spreads through the
+driver. Before you merge a branch you do not trust, look at what it changes under dev/tools and src/clark
+(git diff HEAD...<branch> -- dev/tools src/clark); if you have not read it, do not merge with the driver set up.
 """
 import io
 import os
@@ -20,7 +25,16 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+
+
+def work_tree():
+    """The work tree git is merging in: git runs a driver from its top folder, so this is also right in a linked work tree.
+    Falls back to the clone this file is in."""
+    r = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    return Path(r.stdout.strip()).resolve() if r.returncode == 0 and r.stdout.strip() else Path(__file__).resolve().parents[2]
+
+
+ROOT = work_tree()
 PAGES = ("src/clark/page/page.html", "src/clark/page/page-view.html")
 INNER = "CLARK_MERGE_PAGE_INNER"          # set while the driver's own git call runs, so it can never call itself
 
