@@ -878,3 +878,11 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 
 /* the home banner: a still picture a person's own look may set (--art-home, --art-home-height); empty and flat by default */
 .frame.empty::before { content: ""; display: block; height: var(--art-home-height); background: var(--art-home) center / contain no-repeat; }
+
+/* The Use Cases tab of a published file (view only): each use case is a closed row that opens in place. */
+.ucp { border-top: 1px solid var(--grey-100); }
+.ucp summary { cursor: pointer; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.ucp-title { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
+.ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
+.ucp-body h2 { margin: 14px 0 4px; font-size: 15px; font-weight: var(--weight-medium); color: var(--heading); }
+.ucp-headline { margin: 0 0 8px; }

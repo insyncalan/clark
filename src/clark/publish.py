@@ -233,6 +233,48 @@ def _pick(row, fields):
     return {f: row.get(f) for f in fields}
 
 
+def _keeper(d, code, hidden_ids, blocked):
+    """keep(row, table): whether a row may be published. The one test of the gates (archived, the eye, the project, the
+    report-hidden list, the exclude labels), shared by select and client_use_cases."""
+    item_labels = d.get("labels") or {}
+
+    def keep(row, table):
+        return (row.get("archived") == 0 and ("client_visible" not in GATES[table] or row.get("client_visible") == 1)
+                and row.get("project", code) == code and row.get("id") not in hidden_ids
+                and not any(str(n).casefold() in blocked for n in item_labels.get(row.get("id"), ())))
+    return keep
+
+
+OPEN_STEPS = ("Open", "Delayed")                                # an action's statuses that are still to do
+
+
+def client_use_cases(data, code, hidden_ids=(), label_rules=(), hidden_types=()):
+    """The single place for "what a client may see of a use case". Given `data` (as Store.data_for gives it), the project
+    `code`, the report-hidden ids, the label rules and the hidden section types, returns a list, in the data's order, of
+    {"id", "next_steps": [action ids], "milestones": [milestone ids]}, one per use case the client may see, and nothing else.
+
+    A use case is in the list when it is not archived, is on the dashboard (client_visible, the eye), belongs to the project,
+    is not report-hidden, has no Sensitive or exclude label, and the Use cases section is not hidden. Its next steps are
+    the actions that point at it that pass the same gates and are still open (and the Actions section is not hidden). Its
+    milestones are the milestones named by those next steps that pass the gates (and the Milestones section is not hidden).
+    Ids only: the rows are published once, by select, and an id can only name a row that was published. The caller (the
+    published file, or a route that tells the editor what the client sees) never repeats this rule."""
+    hidden_types = set(hidden_types or ())
+    keep = _keeper(data, code, set(hidden_ids or ()), _excluded_labels(label_rules))
+
+    def shown(kind):
+        return [] if SECTION_OF_KIND[kind] in hidden_types else [r for r in data.get(kind) or () if keep(r, kind)]
+    steps = [a for a in shown("actions") if a.get("status") in OPEN_STEPS]
+    milestone_ids = {m["id"] for m in shown("milestones")}
+    pages = []
+    for u in shown("use_cases"):
+        mine = [a for a in steps if a.get("use_case") == u["id"]]
+        named = {a.get("milestone") for a in mine}
+        pages.append({"id": u["id"], "next_steps": [a["id"] for a in mine],
+                      "milestones": sorted(named & milestone_ids)})
+    return pages
+
+
 def select(inputs):
     """What goes in the file, from `inputs` (read_inputs' shape: data as Store.data_for gives it, and hidden, sections,
     label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at"}. Everything not allowed is absent,
@@ -248,10 +290,7 @@ def select(inputs):
     blocked = _excluded_labels(inputs.get("label_rules"))
     item_labels = d.get("labels") or {}
 
-    def keep(row, table):
-        return (row.get("archived") == 0 and ("client_visible" not in GATES[table] or row.get("client_visible") == 1)
-                and row.get("project", code) == code and row.get("id") not in hidden_ids
-                and not any(str(n).casefold() in blocked for n in item_labels.get(row.get("id"), ())))
+    keep = _keeper(d, code, hidden_ids, blocked)
 
     rows = {k: ([r for r in d.get(k) or () if keep(r, k)] if SECTION_OF_KIND[k] not in hidden_types else [])
             for k in KINDS}
@@ -270,6 +309,9 @@ def select(inputs):
             c = _pick(r, PUBLISH_FIELDS[k])
             for f in RICH.get(k, ()):
                 c[f] = clean_html(c[f])
+            if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
+                for f in ("ref", "title", "headline"):
+                    c[f] = reason_text(c[f])
             ref(c, "milestone", "milestones")
             ref(c, "use_case", "use_cases")
             ref(c, "replaces", "decisions")
@@ -307,11 +349,14 @@ def select(inputs):
         if s["type"] == "text":
             c["body"] = clean_html(s.get("body"))
         shown.append(c)
+    out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
     tabs = ["dashboard"]
     if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):
         tabs.append("work")
     if "milestones" not in hidden_types:
         tabs.append("milestones")
+    if out["use_case_pages"]:
+        tabs.append("usecases")
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at}
 
 
