@@ -1,31 +1,32 @@
 # Design: #51 Draft email on the client page
 
-Written by a teammate's agent, 31-10-2026. **Part built, not merged.** The build is on a separate branch. Not built: the Publish-screen field, its `server.py` route, and a per-item ticked set. **Sources:** #51 and the owner's hold (28-10-2026: "Put this on hold for the client for now - editor only"), BRD FR-94, FR-95 and D-6, and the branch diff.
+Written by a teammate's agent, 31-10-2026. **Built in PR 31 (not merged when this note was written).** PR 31 builds the Publish-screen field, the per-project storage and the guarded route. Not built: a per-item ticked set, and an undo button in the Publish dialog. **Sources:** #51 and the owner's earlier hold (28-10-2026: "Put this on hold for the client for now - editor only"), BRD FR-94, FR-95 and D-6, and the PR 31 diff.
 
-**The hold is lifted** (Decisions, below). BRD D-6 still says "On hold" and needs updating.
+**The owner lifted the hold on 31-10-2026** (Decisions, below). BRD D-6 still says "On hold" and needs updating.
 
 ## Decisions (the owner, 31-10-2026)
 1. **The 28-10 hold is lifted.** Build it.
 2. **One outside contact per project**, not chosen at each publish. It is a project setting (schema version 3: `projects.contact_name`, `projects.contact_email`), set on the Publish screen and saved as an ordinary step with history and Undo.
 3. **No warning** on the Publish screen that the address will sit in the client's file.
 
-Question 4 (per-item ticked sets) was not answered; "this item" and "all open items" stay as built. The build is on a separate branch.
+Per-item ticked sets were not asked for; "this item" and "all open items" stay as built. The built dialog has a tick box per item, which is not the same as a saved ticked set.
 
 ## 1. What the person sees
 The client opens a published report. If the file carries a contact, the Work items page shows a **Draft email** button, and each row shows a small **envelope** by its title. The envelope opens the draft on that item alone; the button opens it on every open item. The client types their name (it signs the email), picks a kind (update request, chase, decision), and sees the email addressed to the contact. They copy it out with **Copy for Outlook**, **Copy as text**, or **Open in mail app** (short emails only). A file with no contact shows no button and no envelope. Nothing is sent by clark.
 
 ## 2. Where the contact is set
-At publish, on the Publish screen: two fields, the contact's name and address, remembered per project. **Not built.** Saving them needs a new `server.py` route (a guarded file), so the route is guarded by tier, not by choice: it writes a person's address that later goes into a client file. It must refuse without the session token, check the address as in section 3, and store nothing else. Until it exists, `build()` and `publish()` take the contact as arguments and the tests pass it in.
+On the Publish screen, two fields (the contact's name and address), kept per project and saved as an ordinary step with history and Undo. PR 31 builds the field (`edit/ClientContact.jsx` on `Publish.jsx`), the storage (schema version 3 migration) and the route `POST /api/client-contact` (`publish_flow.py` and `server.py`, body limit 1 KB). The route is guarded by tier, because it writes a person's address that later goes into a client file. It refuses without the session token, refuses a bad or team address with a plain message and stores nothing else.
 
 ## 3. What the client page may and may not show
 The page holds only what publish kept, so a hidden row or an internal note is not in the file to be drafted from. On top of that:
 - Rows whose text, response or update contain "confidential" or "restricted" (read through the look-alike scan) are never offered.
 - A row flagged sensitive is left out when the contact is outside the team's domains.
-- The contact must be one plain address (no spaces, no list, no angle brackets) and **must not be on the team's own domains**. A team address, or a bad one, is dropped with no error; the file simply carries no contact.
+- The contact must be one plain address (no spaces, no list, no angle brackets) and **must not be on the team's own domains**. The route refuses a team address or a bad one with a plain message. If one is written past the route, `build()` drops it silently and the file carries no contact.
+- **Own domains are a list in the settings file (`settings.own_domains`) with no screen.** Until someone sets it, nothing counts as a team address, so the team-address rule does not apply on its own. A screen for it is not built.
 - Name and address are one line of plain text; the name is cut to 80 characters.
 
 ## 4. The exact change to `publish.py` (a guarded file)
-Four edits, 18 lines:
+Four edits, 18 lines in `publish.py`. PR 31's other guarded files are `store.py` (migration step 3), `publish_flow.py`, `settings.py` and the schema.
 1. `import draft_email`.
 2. `build()` and `publish()` gain `contact=None, own_domains=()`; `publish()` passes them on.
 3. In `build()`, after `select()` and `add_glance()`, the contact goes through `draft_email.client_contact(...)`; if it passes, it is set as `published["contact"]`.
@@ -43,23 +44,21 @@ The page builder (`draftEmailBuild.js`) is a port of `draft_email.py`: same word
 - The email shows the client the same rows they can already see; it adds no row.
 
 ## 7. Tests
-**Exist (`tests/test_client_email.py`, 15):** Python and page builders agree; hidden, confidential and look-alike rows never offered; text read as the Python scan reads it; published rows become items; contact must be one plain address; outside contact kept and cut; team, bad or no address never kept; the file carries the contact and no team address or hidden marker; the dialog drafts to the contact from published rows only; a name is needed, then the email is ready; no kind or set of items puts a hidden row, an internal note or a team address in an email; the envelope opens that item alone; the page asks for nothing outside itself; no button without a contact; fit at 1400 and 900, light and dark.
+**`tests/test_client_email.py` (15):** Python and page builders agree; hidden, confidential and look-alike rows never offered; text read as the Python scan reads it; published rows become items; contact must be one plain address; outside contact kept and cut; team, bad or no address never kept; the file carries the contact and no team address or hidden marker; the dialog drafts to the contact from published rows only; a name is needed, then the email is ready; no kind or set of items puts a hidden row, an internal note or a team address in an email; the envelope opens that item alone; the page asks for nothing outside itself; no button without a contact; fit at 1400 and 900, light and dark.
+
+**`tests/test_client_contact.py` (26):** the route refuses without the token and refuses a bad or team address in plain words, changing nothing; save then undo puts the old value back; one contact per project; a file built without a contact is what it was before and has no button; the saved contact is in the file and in the client copy; a team address written past the route never reaches a file; no hidden or sensitive row reaches a file that carries a contact; the published page has no contact field or route; the field shows values as text only; fit at 1400 and 900, light and dark.
 
 **Still needed:**
-- The Publish route refuses without the token.
-- The route drops a team address and says so.
-- A file published without a contact is byte for byte the file built before the change.
-- A published page has no button when the contact is stripped.
-- The contact never reaches a draft in which a sensitive row is included, and a sensitive row never reaches a draft to an outside contact.
-- The ticked-set path, once built.
+- A screen for the own-domains setting, and a test that a team address is refused once it is set from there.
+- The ticked-set path, if it is ever wanted.
 
 ## 8. Tier
 **Full.** It edits `publish.py` and (when built) `server.py`, both guarded, and its output goes to a client. Two readers are needed, one of them reading section 4 against the publish scan.
 
-## 9. Questions for the owner
-1. **Is the 28-10 hold lifted?** If not, the branch stays unmerged and the page keeps no button.
-2. Is the project contact one per project (D-6's recommendation), or chosen at each publish?
-3. Should the Publish screen warn that the address will sit in the client's file?
-4. Per-item ticked sets: wanted now, or is "this item" and "all open items" enough?
+## 9. Questions for the owner, and where they stand
+1. **Is the 28-10 hold lifted?** Yes, on 31-10-2026.
+2. **One contact per project, or chosen at each publish?** One per project.
+3. **Should the Publish screen warn that the address will sit in the client's file?** No.
+4. **Per-item ticked sets?** Not asked for; "this item" and "all open items" are enough for now.
 
-**Recommendation.** Do not merge while the hold stands. If lifted, build the Publish field and route next as one Full item, with the section 7 tests.
+**Recommendation.** The note's work is built in PR 31, which needs two readers (section 8). Merge this note after, or with, that PR. Next step: decide whether the own-domains setting needs a screen.
