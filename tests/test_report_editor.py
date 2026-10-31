@@ -976,7 +976,9 @@ class Gutter(Base):
             p = self.visit(cdp)
             p.edit()
             ctl = self.CTL % "ABC-S-004"
-            self.assertNotEqual(p.js(f"getComputedStyle({ctl}).transitionDuration"), "0s", "it fades normally")
+            # a computer set to reduce motion (a macOS runner is) would report 0s here, so ask for the normal case
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.until(f"getComputedStyle({ctl}).transitionDuration !== '0s'", "it fades normally")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.until(f"getComputedStyle({ctl}).transitionDuration === '0s'", "no fade when the person asked for less motion")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
