@@ -305,7 +305,7 @@ def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST,
     given, none of a project outside it (an archived or removed one keeps no snapshot at all). The age rule is not the only brake on
     the file's size; an older export then imports as unrecorded, which stages every difference for checking (fails safe).
     `keep` is the record just written: the caps never cut it, and nor does each project's newest, so the total cap cannot take
-    the snapshot a person has just made. An export date after today (a clock set back) ranks as today."""
+    the snapshot a person has just made. An export date after today (a clock set back) ranks at the start of today, below every real export made today."""
     state_path = Path(state_path)
     with STATE_LOCK:
         if not state_path.exists():
@@ -324,7 +324,7 @@ def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST,
                     old.append(k)
                 else:
                     when = str(v.get("exported_at") or "")
-                    left.setdefault(str(v.get("project") or ""), []).append((min(when, now + " ~"), at, k))     # "~" sorts after the digits
+                    left.setdefault(str(v.get("project") or ""), []).append((min(when, now + " 00:00:00"), at, k))     # a future date ranks at the start of today
         must = {keep} if keep else set()
         kept, capped = [], []
         for mine in left.values():
