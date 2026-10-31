@@ -886,8 +886,10 @@ class RealBrowser(unittest.TestCase):
                 click(cdp, sid, "#newBtn")                                                    # All: a menu of every type
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#newBtnMenu')")))
                 self.assertEqual(js("[...document.querySelectorAll('#newBtnMenu [role=menuitem]')].map(b => b.textContent)"), ["Add action", "Add risk", "Add issue", "Add decision"])
-                click(cdp, sid, "#newBtnMenu [data-kind=issue]")                              # the stub says what it did, and adds nothing
-                self.assertTrue(wait(lambda: "Add issue" in js("document.querySelector('#work-note').textContent")))
+                click(cdp, sid, "#newBtnMenu [data-kind=issue]")                              # B-8: a pick asks clark to add it (test_work_add_item);
+                self.assertTrue(wait(lambda: js("!!document.querySelector('.toast')")))         # this harness has no change route, so the toast says so and nothing is added
+                self.assertFalse(js("!!document.querySelector('[data-undo]')"))
+                js("document.querySelector('[data-dismiss]').click()")
                 self.assertEqual(js("document.querySelectorAll('#work tbody tr[data-id]').length"), len(expect(self.rows_of(cdp, sid))))
                 for type_, words in (("action", "Add action"), ("decision", "Add decision"), ("risk", "Add risk or issue"), ("all", "Add item")):
                     click(cdp, sid, f"[data-type={type_}]")
@@ -902,7 +904,7 @@ class RealBrowser(unittest.TestCase):
                 click(cdp, sid, "[data-type=action]")                                         # Actions: no menu, one click
                 self.assertTrue(wait(lambda: tile()[3] is None))
                 click(cdp, sid, "#newBtn")
-                self.assertTrue(wait(lambda: "Add action" in js("document.querySelector('#work-note').textContent")))
+                self.assertTrue(wait(lambda: js("!!document.querySelector('.toast')")), "one click asks for the action")
                 self.assertEqual(js("document.documentElement.scrollWidth <= window.innerWidth"), True)
 
     def test_the_add_button_grows_to_its_words_on_hover_and_on_keyboard_focus(self):
