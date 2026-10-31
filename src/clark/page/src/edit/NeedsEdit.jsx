@@ -28,7 +28,7 @@ function focusLater(section, selector) {
 function RowForm({ id, draft, setDraft, error, busy, onSave, onCancel, label }) {
   const first = useRef(null);
   useEffect(() => { if (first.current) first.current.focus(); }, []);
-  const set = (k) => (e) => setDraft({ ...draft, [k]: e.currentTarget.value });
+  const set = (k) => (e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, [k]: v })); };      // from the latest draft, so two quick edits never undo each other
   return (
     <tr class="n-form" data-row-form onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCancel(); } else if (e.key === "Enter" && !e.isComposing && e.target.tagName === "INPUT") { e.preventDefault(); onSave(); } }}>
       <td class="n-what">
