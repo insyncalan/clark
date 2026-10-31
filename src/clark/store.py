@@ -31,7 +31,7 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 2          # 2 (#126): documents can be archived
+SCHEMA_VERSION = 3          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'. Word (#48) takes the next free number, 3 at the time of writing; renumber it (and migrate_to_3) if #120 or #115 land first
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -1572,7 +1572,43 @@ def migrate_to_2(con):
     _item_events_allow_board(con)
 
 
-MIGRATIONS = ((2, migrate_to_2),)     # version -> the step that brings a file TO that version; the next one (#115: 3) is added here
+def _item_events_allow_word(con):
+    """item_events.route gains 'word' (#48). SQLite cannot change a CHECK in place, so the table is made again from schema.sql's own
+    definition (so an upgraded file matches a new one), the rows are copied across with their numbers, the sequence is kept and the
+    indexes are made again. Only when the table's own definition does not name 'word' yet, so a second run (or a new database)
+    does nothing. Inside the caller's transaction. (schema.sql is read here because it is still version 3's item_events; when a later
+    version changes item_events, version 3's text must be frozen first, as schema_v2.sql is for version 2.)"""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is None or "'word'" in have[0]:
+        return
+    made = None
+    for statement in _statements(SCHEMA.read_text(encoding="utf-8")):
+        if re.match(r"(?:\s*--[^\n]*\n|\s)*CREATE TABLE IF NOT EXISTS item_events \(", statement):
+            made = re.sub(r"CREATE TABLE IF NOT EXISTS item_events \(", "CREATE TABLE item_events_3 (", statement, count=1)
+    if made is None:
+        raise Invalid(MIGRATE_FAILED)
+    seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+    con.execute(made)
+    con.execute("INSERT INTO item_events_3 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes "
+                "FROM item_events ORDER BY event_id")
+    con.execute("DROP TABLE item_events")
+    con.execute("ALTER TABLE item_events_3 RENAME TO item_events")
+    if seq is not None:
+        con.execute("DELETE FROM sqlite_sequence WHERE name = 'item_events'")
+        con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('item_events', ?)", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+
+
+def migrate_to_3(con):
+    """Schema version 2 to 3 (#48): item_events accepts the route 'word', which its CHECK did not allow. `publications.word` already
+    exists in every version. Word takes the next free number, 3 at the time of writing: if #120 or #115 land first, this step is
+    renumbered (and SCHEMA_VERSION with it). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _item_events_allow_word(con)
+
+
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3))     # version -> the step that brings a file TO that version; the next one is added here (Word, #48, is 3 at the time of writing)
 
 
 def migration_plan(version, table=None):
@@ -1619,7 +1655,8 @@ def migrate(con, table=None):
                         raise Invalid(MIGRATE_INCONSISTENT)
             con.execute("COMMIT")
         except BaseException:
-            con.execute("ROLLBACK")
+            if con.in_transaction:            # #48: a COMMIT that failed may have ended it already: the real error is the one to report
+                con.execute("ROLLBACK")
             raise
     finally:
         con.execute("PRAGMA foreign_keys = ON")
