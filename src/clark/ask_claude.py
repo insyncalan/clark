@@ -10,7 +10,8 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
 - FOUND IN FIXED PLACES ONLY (`PLACES`): an absolute path, never the PATH of whatever started clark, never a shell.
 - FAILS CLOSED ON VERSION AND FLAGS: before a run (and in status) `claude --version` must read as a version and `claude --help`
   must list every flag in `NEEDED_FLAGS`; otherwise nothing is sent and the status says to update the command.
-- ISOLATED RUN: `--safe-mode` (no CLAUDE.md, memory, skills, plugins, hooks, MCP servers or custom commands),
+- ISOLATED RUN: `--safe-mode` (no CLAUDE.md, memory, skills, plugins, hooks, MCP servers or custom commands), `--setting-sources ""`
+  (no settings file is read: the smoke test found that `--safe-mode` alone still ran the person's `apiKeyHelper`, a script that supplies an API key),
   `--disable-slash-commands`, `--tools ""` (no tool at all), `--strict-mcp-config` (no MCP server), `--no-session-persistence`
   (nothing saved under ~/.claude), `--system-prompt` with the fixed rules (the default prompt, which carries the folder, the
   platform and the date, is replaced), a pinned `--output-format text` and a `--max-budget-usd` cap. Never `--bare` (it would
@@ -36,7 +37,7 @@ from clark import ask, platform
 
 PROVIDER = "claude"
 PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude")
-NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config",
+NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
                 "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
 NEVER_FLAGS = ("--bare", "--add-dir", "--mcp-config", "--settings", "--dangerously-skip-permissions", "--resume", "--continue")
 SAFE_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
@@ -75,7 +76,7 @@ def child_env(home=None, user=None):
 def arguments(path):
     """The command line for one run: the fixed flags, the fixed rules as the system prompt, and nothing the person typed."""
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
-            "--no-session-persistence", "--output-format", "text", "--max-budget-usd", MAX_BUDGET_USD,
+            "--setting-sources", "", "--no-session-persistence", "--output-format", "text", "--max-budget-usd", MAX_BUDGET_USD,
             "--system-prompt", ask.RULES]
 
 

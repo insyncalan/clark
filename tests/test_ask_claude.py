@@ -111,6 +111,7 @@ class Arguments(Fake):
         args = seen["args"]
         for flag in ("--print", "--safe-mode", "--disable-slash-commands", "--strict-mcp-config", "--no-session-persistence"):
             self.assertIn(flag, args)
+        self.assertEqual(args[args.index("--setting-sources") + 1], "", "no settings file is read (the person's apiKeyHelper, hooks and env stay out)")
         self.assertEqual(args[args.index("--tools") + 1], "", "no tool at all")
         self.assertEqual(args[args.index("--output-format") + 1], "text")
         self.assertEqual(args[args.index("--max-budget-usd") + 1], ac.MAX_BUDGET_USD)
@@ -123,8 +124,8 @@ class Arguments(Fake):
 
     def test_the_arguments_hold_nothing_but_the_fixed_flags(self):
         self.assertEqual(ac.arguments("/x/claude"), ["/x/claude", "--print", "--safe-mode", "--disable-slash-commands", "--tools", "",
-                                                     "--strict-mcp-config", "--no-session-persistence", "--output-format", "text",
-                                                     "--max-budget-usd", ac.MAX_BUDGET_USD, "--system-prompt", ask.RULES])
+                                                     "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence",
+                                                     "--output-format", "text", "--max-budget-usd", ac.MAX_BUDGET_USD, "--system-prompt", ask.RULES])
 
     def test_it_runs_in_an_empty_folder_of_its_own_that_is_removed_afterwards(self):
         self.provider.ask(self.request())

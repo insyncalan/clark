@@ -35,6 +35,7 @@ QUESTION = "Reply with the single word OK and nothing else."
 CANARY_WORD = "SMOKE-CLAUDE-MD-7F3A"
 HOOK_EVENTS = ("SessionStart", "UserPromptSubmit", "PreToolUse", "Stop", "SessionEnd")
 LIMIT = 120.0
+CONTROL_LIMIT = 45.0                          # the control only has to start (the canaries run at start); it is not waited for to the end
 SETTLE = 2.0                                  # seconds to wait after a run for a helper or server that starts late
 PASS, FAIL, INCONCLUSIVE, NOTE = "PASS", "FAIL", "INCONCLUSIVE", "NOTE"
 
@@ -87,7 +88,7 @@ def control_args(command):
 
 
 def run_control(command, env, marks):
-    status, out, _ = ask_claude.run(control_args(command), QUESTION.encode("utf-8"), env, LIMIT, ask_claude.MAX_OUT)
+    status, out, _ = ask_claude.run(control_args(command), QUESTION.encode("utf-8"), env, CONTROL_LIMIT, ask_claude.MAX_OUT)
     return status, out.decode("utf-8", "replace"), fired(marks)
 
 
@@ -108,8 +109,6 @@ def smoke(command, real=True):
         home.mkdir()
         marks = plant(home, marks_dir)
         env = ask_claude.child_env(home=str(home), user=os.environ.get("USER", ""))
-        before = tree(home / ".claude")
-        json_hash = hashlib.sha256((home / ".claude.json").read_bytes()).hexdigest()
         status, said, ran = run_control(command, env, marks)
         armed = bool(ran)
         add("control: the canaries run when nothing isolates the command", PASS if armed else INCONCLUSIVE,
@@ -117,6 +116,9 @@ def smoke(command, real=True):
             " (the canaries were never armed, so the isolation checks below prove nothing: sign the command in under this user, or check the planting)"))
         for marker in list(marks.values()):
             marker.unlink(missing_ok=True)
+        # the baseline is taken AFTER the control, which runs without the flags and so writes what it likes: only the isolated run is judged
+        before = tree(home / ".claude")
+        json_hash = hashlib.sha256((home / ".claude.json").read_bytes()).hexdigest()
         usable, why, got, ran = run_isolated(command, env, marks)
         add("the version and flag check accepts this command", PASS if usable else FAIL, "accepted" if usable else str(why))
         for name in sorted(marks):
@@ -127,7 +129,10 @@ def smoke(command, real=True):
             add("isolated: the answer is not shaped by the CLAUDE.md canary", PASS if CANARY_WORD not in got else FAIL,
                 f"answered {got.strip()[:60]!r}")
         else:
-            add("isolated: an answer came back", INCONCLUSIVE, "no answer under the throw-away home (not signed in there); the marker checks above still stand because the control armed the canaries" if armed else "no answer")
+            add("isolated: the CLAUDE.md canary could not be tested", NOTE if armed else INCONCLUSIVE,
+                "no answer under the throw-away home (the command is not signed in there, and the real ~/.claude is never touched), so whether "
+                "the marker word would have shaped an answer is not shown; the hooks, helper and MCP checks above stand because the control armed them. "
+                "--safe-mode is documented to switch CLAUDE.md off, and --system-prompt replaces the default prompt" if armed else "no answer")
         after = tree(home / ".claude")
         new = sorted(set(after) - set(before))
         add("isolated: no new file under the throw-away ~/.claude", PASS if not new else FAIL, "none" if not new else "new: " + ", ".join(new))

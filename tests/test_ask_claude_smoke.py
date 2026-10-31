@@ -97,6 +97,19 @@ class Smoke(unittest.TestCase):
                 self.assertEqual(state, smoke.INCONCLUSIVE, name)
         self.assertNotEqual(smoke.text_report("fake", report).splitlines()[-1], "RESULT: PASS")
 
+    def test_no_answer_under_the_throw_away_home_is_a_note_when_the_canaries_were_armed_and_inconclusive_when_not(self):
+        path = Path(self.tmp.name) / "claude-silent"
+        path.write_text(FAKE.replace("print(text)", "sys.exit(1)") % ("honours", list(ask_claude.NEEDED_FLAGS)), encoding="utf-8")
+        path.chmod(path.stat().st_mode | stat.S_IXUSR)
+        states = {n: s for n, s, _ in smoke.smoke(path, real=False)}
+        self.assertEqual(states["isolated: the CLAUDE.md canary could not be tested"], smoke.NOTE)
+        self.assertEqual(smoke.text_report("fake", smoke.smoke(path, real=False)).splitlines()[-1], "RESULT: PASS")
+        mute = Path(self.tmp.name) / "claude-mute"
+        mute.write_text(FAKE.replace("print(text)", "sys.exit(1)") % ("quiet", list(ask_claude.NEEDED_FLAGS)), encoding="utf-8")
+        mute.chmod(mute.stat().st_mode | stat.S_IXUSR)
+        quiet = {n: s for n, s, _ in smoke.smoke(mute, real=False)}
+        self.assertEqual(quiet["isolated: the CLAUDE.md canary could not be tested"], smoke.INCONCLUSIVE)
+
     def test_a_command_the_check_refuses_fails_the_check(self):
         path = Path(self.tmp.name) / "claude-old"
         path.write_text("#!/bin/sh\necho 1.0.0\n", encoding="utf-8")        # a version, but --help lists none of the flags
