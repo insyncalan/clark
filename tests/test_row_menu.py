@@ -154,7 +154,9 @@ class Menu(board.Base):
             self.assertEqual(cdp.js("document.activeElement.dataset.id", sid), shown, "focus is back on the row")
             self.open_menu(cdp, sid, self.TABLE % hidden)
             self.assertIn("Show to the client", [e[1] for e in self.entries(cdp, sid)])
-            cdp.js("document.body.insertAdjacentHTML('beforeend', '<div id=away style=\"position:fixed;left:0;bottom:0;width:30px;height:30px\"></div>')", sid)
+            cdp.js("document.body.insertAdjacentHTML('beforeend', '<div id=away style=\"position:fixed;left:0;top:0;width:30px;height:30px;z-index:60\"></div>')", sid)
+            hit = cdp.js("(() => { const a = document.querySelector('#away').getBoundingClientRect(); const e = document.elementFromPoint(a.x + 15, a.y + 15); return e && (e.id || e.outerHTML.slice(0, 60)); })()", sid)
+            self.assertEqual(hit, "away", f"the click-away spot is covered by {hit}")      # say so, instead of waiting out a timeout
             click(cdp, sid, "#away")
             self.shut(cdp, sid)
             right_click(cdp, sid, ".head h1")
