@@ -1,5 +1,6 @@
 """#50: Draft email's wording and rules, plain code with no model. Fixed clock, fictional names."""
 import re
+from pathlib import Path
 import unittest
 
 import _paths  # noqa: F401
@@ -356,6 +357,16 @@ class PlainWordsLow(unittest.TestCase):
     def test_the_table_headings_are_id_item_due_priority(self):
         h = build()["html"]
         self.assertEqual(re.findall(r"<th [^>]*>([^<]*)</th>", h)[:4], ["ID", "Item", "Due", "Priority"])
+
+
+class ToneNames(unittest.TestCase):
+    def test_the_tone_steps_read_first_chase_second_chase_firmer_chase(self):
+        """#208(c): a person sees First chase, Second chase, Firmer chase; the prototype's tone buttons say the same."""
+        self.assertEqual(de.TONE_NAMES, ("First chase", "Second chase", "Firmer chase"))
+        proto = (Path(de.__file__).resolve().parents[2] / "system" / "prototype" / "peek.js").read_text(encoding="utf-8")
+        for name in de.TONE_NAMES:
+            self.assertIn(name, proto)
+        self.assertNotIn("'First']", proto)
 
 
 class Dates(unittest.TestCase):
