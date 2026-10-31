@@ -13,6 +13,7 @@ import { KIND_WORDS, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIs
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { NewTile } from "./NewTile.jsx";
+import { ClientEmailButton, RowEmail } from "./ClientEmail.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
@@ -63,7 +64,7 @@ function Row({ row, today, Cell, stop }) {
     <tr data-id={row.id} data-kind={row.kind} class={isOpen(row) ? "" : "done"} tabIndex={stop ? 0 : -1} aria-label={`Open ${row.id}`} onFocusIn={() => { active.value = row.id; }} onKeyDown={(e) => keys(e, row)} onClick={(e) => { if (!e.target.isContentEditable && !e.target.closest("a,button,input,select,textarea,label") && !String(window.getSelection()).length) openPeek(row.id, "item"); }}>
       <td class="c-type"><span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span></td>
       <td class="c-item">
-        <span class="t">{row.title}</span>
+        <span class="t">{row.title}<RowEmail id={row.id} /></span>
         <span class="meta">{metaOf(row)}{row.client ? <span class="tag cl">Shown to client</span> : null}</span>
       </td>
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
@@ -151,6 +152,7 @@ export function WorkItems({ tools }) {
       <div class="head">
         <h1>Work items</h1>
         {tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} /> : null}   {/* a published file is read only: no Add (#204) */}
+        <ClientEmailButton />
       </div>
       <p class="muted note" role="status" id="work-note">{filterNote.value || asked.value}</p>
       <p class="sr" role="status" aria-live="polite" id="work-live">{announce.value}</p>

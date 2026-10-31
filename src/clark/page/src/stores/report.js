@@ -7,6 +7,7 @@ import * as route from "../router.js";
 import { rowsOf } from "../workItems.js";
 import { decode, encode, fits } from "../filters.js";
 import { useFileStyle } from "./style.js";
+import { contactOf } from "../logic/draftEmailBuild.js";
 
 export const VIEWS = route.VIEWS;
 export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", settings: "Settings" };
@@ -33,6 +34,7 @@ export const message = signal("");
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
+export const contact = signal(null);         // view mode: the project contact the file carries for its Draft email (#51), {name, email} or null
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
 export const tabs = signal(VIEWS);           // the views the tab bar offers; a published file has no Settings
 export const moves = signal(0);              // counts Back and Forward (and a typed address): a menu that is open closes on each
@@ -180,6 +182,7 @@ function openPublished(p) {
   if (!tabs.value.includes(view.value)) view.value = tabs.value[0];
   project.value = p.data.project.code;
   asAt.value = p.as_at || "";
+  contact.value = contactOf(p.contact);
   useFileStyle(p.style);                                  // the look it was published with (#45); a file written before that has the default
   data.value = { ...p.data, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show
   status.value = "ready";

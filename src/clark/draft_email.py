@@ -17,6 +17,7 @@ reach an email: an internal note, a source or anything else on the dict is never
 
 Standard library only, Python 3.9.
 """
+import re
 import unicodedata
 from datetime import date, timedelta
 from html import escape
@@ -522,6 +523,22 @@ def build(opts):
     problems = ([] if items else [NOTHING_TICKED if offerable else NO_OPEN_ITEMS]) + ([] if sender else [NO_SENDER])
     return {"to": one_line(opts.get("email")), "internal_ids": internal_ids, "problems": problems, "ready": not problems, "subject": subject(mode, items, today, tone, names, opts.get("reply_by") or ""), "html": html,
             "text": "\n".join(lines), "items": [{k: i[k] for k in ITEM_KEYS if k in i} for i in items], "ids": ids, "tone": tone, "mode": mode}
+
+
+# ---- the contact a published page carries (#51; FR-94) --------------------------------------------------------------------
+
+CONTACT_ADDRESS = re.compile(r"[^\s@<>(),;:\"]+@[^\s@<>(),;:\"]+\.[^\s@<>(),;:\"]+")
+CONTACT_NAME_MAX = 80
+
+
+def client_contact(name, email, own_domains=()):
+    """{name, email} for the project contact a published page offers its Draft email to, or None when there is none to offer.
+    Both are one line of plain text (one_line). The address must be a single, well-formed address, and never one on the user's
+    own domains: a team member's address is never put in a page. The name is cut to CONTACT_NAME_MAX characters."""
+    address = one_line(email)
+    if not CONTACT_ADDRESS.fullmatch(address) or not is_outside(address, own_domains):
+        return None
+    return {"name": one_line(name)[:CONTACT_NAME_MAX], "email": address}
 
 
 # ---- copying, and "I sent it" -------------------------------------------------------------------------------------------

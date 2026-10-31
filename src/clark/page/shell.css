@@ -878,3 +878,14 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 
 /* the home banner: a still picture a person's own look may set (--art-home, --art-home-height); empty and flat by default */
 .frame.empty::before { content: ""; display: block; height: var(--art-home-height); background: var(--art-home) center / contain no-repeat; }
+/* Draft email on the published page (#51) */
+.cde-open { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
+.cde-open .i, .cde-row .i { width: 16px; height: 16px; }
+.cde-row { margin-left: 6px; padding: 0 4px; min-width: 24px; min-height: 24px; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; vertical-align: middle; }
+.cde-row:hover, .cde-row:focus-visible { color: var(--brand-blue); }
+.cde-row:focus-visible, .cde-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cde-back { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(0, 0, 0, .45); }
+.cde-box { display: flex; flex-direction: column; gap: 8px; max-width: 100%; max-height: 96vh; }
+.cde-from { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: var(--radius); background: var(--surface); }
+.cde-from input { flex: 1; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.cde-from input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }

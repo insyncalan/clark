@@ -38,7 +38,7 @@ import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import milestones, page, platform
+from clark import draft_email, milestones, page, platform
 from clark.store import Invalid as StoreInvalid, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
@@ -809,7 +809,8 @@ def data_block(published, as_at):
     block nor be read as markup, and ensure_ascii makes U+2028 and U+2029 escapes too."""
     style = published.get("style")
     body = json.dumps({"v": VERSION, "as_at": as_at, "style": style if style in STYLES else DEFAULT_STYLE,
-                       "data": published["data"], "sections": published["sections"], "tabs": published["tabs"]}, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+                       "data": published["data"], "sections": published["sections"], "tabs": published["tabs"],
+                       **({"contact": published["contact"]} if published.get("contact") else {})}, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
     for ch in "<>&":
         body = body.replace(ch, "\\u%04x" % ord(ch))
     return f'<script type="application/json" id="clark-data">{body}</script>'
@@ -858,11 +859,13 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
-def build(store, code, now=None, branding=None):
+def build(store, code, now=None, branding=None, contact=None, own_domains=()):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
     date (YYYY-MM-DD); due dates and Overdue read as at that date. publish() and the To client route (#43) both start here, so
-    the file written to Local and the file copied to the client are the same bytes, made once."""
+    the file written to Local and the file copied to the client are the same bytes, made once. `contact` ({name, email}) is the
+    project contact the page's Draft email (#51) is addressed to; it is checked by draft_email.client_contact and left out, with
+    no error, when it is not a well-formed address or is on one of `own_domains` (a team address never goes in a page)."""
     as_at = str(now or milestones.today())
     try:
         if not re.fullmatch(r"\d{4}-\d\d-\d\d", as_at):          # Python 3.11 and later also read 20261028
@@ -874,6 +877,9 @@ def build(store, code, now=None, branding=None):
     if inputs["data"]["project"].get("archived"):           # #126: checked here, not in select (glance.kept_rows calls select and must still work)
         raise PublishError("An archived project can't be published. Restore it first.")
     published = add_glance(select(inputs), inputs)
+    kept = draft_email.client_contact((contact or {}).get("name"), (contact or {}).get("email"), own_domains) if contact else None
+    if kept:
+        published["contact"] = kept
     project = published["data"]["project"]
     text = render(published, page.page_html(branding, view=True), as_at, project["name"])      # #65: the view-only page
     body = text.encode("utf-8")
@@ -883,7 +889,7 @@ def build(store, code, now=None, branding=None):
     return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published}
 
 
-def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
+def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None, contact=None, own_domains=()):
     """Write {folder}/{CODE}-report-{date}.html and return {"path", "sha256", "bytes", "seq"}. The file is encoded once,
     hashed once, written with platform.write_file (a temporary file, then replaced: never half a file), read back and
     compared; only then is it recorded with Store.log_publication (once). An existing file of that name is refused unless
@@ -892,7 +898,7 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
     folder = Path(folder)
     if not folder.is_dir():
         raise PublishError(f"{platform.folder_phrase(folder, True)} isn't there. Choose a folder that exists.")
-    built = build(store, code, now, branding)
+    built = build(store, code, now, branding, contact, own_domains)
     project, as_at, body = built["project"], built["as_at"], built["body"]
     dest = folder / file_name(code, project["week_ending"], as_at, folder)
     reserved = False

@@ -4,6 +4,7 @@ import { TopBar } from "./TopBar.jsx";
 import { Milestones, Settings, Gate } from "./Views.jsx";
 import { Dashboard } from "./Dashboard.jsx";
 import { WorkItems } from "./WorkItems.jsx";
+import { ClientEmail } from "./ClientEmail.jsx";
 
 const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, settings: Settings };
 
@@ -16,6 +17,7 @@ export function App({ tools }) {
     <>
       <TopBar tools={tools} />
       <main id="main">{Layer ? <Layer>{body}</Layer> : body}</main>
+      <ClientEmail />
       {Toast ? <Toast /> : null}
     </>
   );
