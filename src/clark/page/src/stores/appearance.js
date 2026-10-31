@@ -2,7 +2,7 @@
 // computer, remembered in the browser (never in a project's data, as the section style is), applied at once as `data-theme` on the
 // page: Light sets no attribute (the page's default), Dark sets "dark", and System sets "auto", which brand/tokens.css answers
 // with the computer's own colour scheme, so it changes with the computer and needs no reload. Only Edit's parts import this file, so
-// a published file never has it: it carries no `data-theme` and follows the viewer's own setting.
+// a published file never has it: it carries no `data-theme`, so the tokens draw it light, always.
 import { signal } from "@preact/signals";
 
 export const MODES = ["system", "light", "dark"];                 // the ruled order: System first, the default
