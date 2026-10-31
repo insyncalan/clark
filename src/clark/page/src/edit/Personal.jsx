@@ -59,7 +59,7 @@ function AboutYou() {
 export function Personal() {
   return (
     <section class="frame personal" id="personal" aria-labelledby="personal-h">
-      <h2 id="personal-h">Personal</h2>
+      <h2 id="personal-h" tabIndex={-1}>Personal</h2>
       <p class="muted">These are for you, on this computer. This changes the page you edit. The published page uses Slim gaps for now.</p>
       <fieldset class="styles" data-appearance>
         <legend>Appearance</legend>

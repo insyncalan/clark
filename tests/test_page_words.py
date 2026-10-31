@@ -163,8 +163,10 @@ class Words(unittest.TestCase):
             sid = self.visit(cdp)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
-            self.shown(cdp, sid, ["Settings", "Settings are not ready yet.",
-                                  "Client folder",      # #43: the one setting built so far; the rest of Settings is FR-1
+            self.shown(cdp, sid, ["Settings",
+                                  "Where reports are published, how clark looks for you, and your backups. More settings are still to come.",
+                                  "Client folder", "Personal", "Backups",      # the chips: one for each card below, in the order they are on the page
+                                  "Client folder",      # #43: the client folder card
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder",

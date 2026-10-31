@@ -30,7 +30,7 @@ export function ClientFolder() {
 
   return (
     <section class="frame setting" id="client-folder">
-      <h2>Client folder</h2>
+      <h2 id="client-folder-h" tabIndex={-1}>Client folder</h2>
       <p class="muted">This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page into it when you tick To client; OneDrive then uploads it.</p>
       <p class="folder-now" id="client-folder-now">{saved ? <b>{folderName(saved)}</b> : <span class="muted">No client folder yet.</span>}</p>
       <div class="row">
