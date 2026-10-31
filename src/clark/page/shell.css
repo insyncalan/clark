@@ -37,6 +37,13 @@ a { color: var(--status-blue-text); }
 main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .frame { width: 100%; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 24px 28px; }
 .frame h1 { margin: 0 0 12px; font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
+/* The report's cover band (A-D1): navy, full width of the frame, the name, the kind of report, the week and the client. */
+.cover { margin: -24px -28px 20px; padding: 24px 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.frame .cover h1 { margin: 0 0 6px; color: var(--white); }
+.cover-line { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: var(--size-small); color: var(--white); }
+.cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
+.cover-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
+@media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px 16px 16px; } }
 .crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
 .glance { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }
