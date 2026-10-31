@@ -29,3 +29,9 @@ export function resetWidth() {
   width.value = limit(DEFAULT);
   try { localStorage.removeItem(KEY); } catch (e) { /* as above */ }
 }
+
+// Which part of the peek shows in Edit: "details" (the fields) or "activity" (#42). Memory only; View has no tabs.
+export const peekTab = signal("details");
+
+// The rule for the peek and multi-select (#195), in peek/follow.js so it can be checked without the page.
+export { peekFollowsSelection } from "../peek/follow.js";

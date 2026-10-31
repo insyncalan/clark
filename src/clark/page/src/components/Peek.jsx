@@ -1,10 +1,11 @@
 // The peek (#42a): one work item's or milestone's fields beside the list. Read only in View and in a published file: fields and
-// nothing else (no history, no words box, no /api/ text). `tools.Words` and `tools.WordsButton` are the Edit part.
+// nothing else (no history, no words box, no /api/ text). `tools.Words`, `tools.WordsButton`, `tools.PeekTabs` and
+// `tools.PeekActivity` (Details and Activity, #42) are the Edit part.
 // The address holds which item is open (router.js, #63); Previous and Next replace that entry, Esc and Close go through
 // closePeek(). The width is dragged from the left edge (keys too), double-click resets it.
 import { useEffect, useRef } from "preact/hooks";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile } from "../stores/report.js";
-import { width, wide, setWidth, resetWidth, MIN } from "../stores/peekState.js";
+import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso } from "../workItems.js";
 import { itemIds, milestoneIds, around } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
@@ -73,6 +74,8 @@ export function Peek({ tools }) {
   const box = useRef(null), back = useRef(null);
   const editing = !!tools && !fromFile.value && mode.value === "edit";
   const Words = editing && tools.Words, WordsBtn = editing && tools.WordsButton;
+  const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
+  const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   // Focus goes in when the peek opens and back to where it was when it closes.
   useEffect(() => {
     if (!p) return undefined;
@@ -122,7 +125,11 @@ export function Peek({ tools }) {
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
       <h2 class="pk-title">{title}</h2>
-      {row ? <ItemFields row={row} editing={editing} /> : <MilestoneFields m={m} />}
+      {Tabs ? <Tabs /> : null}
+      {showActivity ? <Activity key={p.id} id={p.id} />
+        : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
+          {row ? <ItemFields row={row} editing={editing} /> : <MilestoneFields m={m} />}
+        </div>}
       {Words && wordsOpen.value && row ? <Words key={row.id} row={row} /> : null}
     </aside>
   );
