@@ -408,9 +408,9 @@ class Board(InBrowser):
 
     def test_remembered_state_defaults_clamps_and_survives_blocked_storage(self):
         fake = "{getItem(k){return this.d[k]===undefined?null:this.d[k]}, setItem(k,v){this.d[k]=v}, d:{}}"
-        self.assertEqual(self.val(f"T.board.readState('ABC', {fake})"), {"view": "table", "group": "workstream", "lane": None, "collapsed": []})
+        self.assertEqual(self.val(f"T.board.readState('ABC', {fake})"), {"view": "table", "group": "workstream", "lane": None, "collapsed": [], "order": {}, "widths": {}})
         self.assertEqual(self.val(f"(function(){{ const s = {fake}; T.board.writeState('ABC', {{view:'board', group:'owner', lane:'type'}}, s); T.board.writeState('XYZ', {{view:'board'}}, s); return [T.board.readState('ABC', s), T.board.readState('XYZ', s).group, Object.keys(JSON.parse(s.d['clark.work.v1']))]; }})()"),
-                         [{"view": "board", "group": "owner", "lane": "type", "collapsed": []}, "workstream", ["ABC", "XYZ"]])
+                         [{"view": "board", "group": "owner", "lane": "type", "collapsed": [], "order": {}, "widths": {}}, "workstream", ["ABC", "XYZ"]])
         for junk in ('"not an object"', '{"ABC": 5}', '{"ABC": {"view": "x", "group": "nope", "lane": "owner", "collapsed": [1, "a:b", null]}}', "[1,2]", "{not json"):
             got = self.val(f"T.board.readState('ABC', {{getItem(){{return {junk!r} === {junk!r} ? {lit(junk)} : null}}, setItem(){{}}}})")
             self.assertEqual(got["view"], "table", junk)
@@ -419,7 +419,7 @@ class Board(InBrowser):
             self.assertLessEqual(len(got["collapsed"]), 1, junk)
         blocked = "{getItem(){throw new Error('blocked')}, setItem(){throw new Error('blocked')}}"
         self.assertEqual(self.val(f"T.board.readState('ABC', {blocked})")["group"], "workstream")
-        self.assertEqual(self.val(f"T.board.writeState('ABC', {{view:'board'}}, {blocked})"), {"state": {"view": "board", "group": "workstream", "lane": None, "collapsed": []}, "saved": False})
+        self.assertEqual(self.val(f"T.board.writeState('ABC', {{view:'board'}}, {blocked})"), {"state": {"view": "board", "group": "workstream", "lane": None, "collapsed": [], "order": {}, "widths": {}}, "saved": False})
         self.assertTrue(self.val("T.board.writeState('ABC', {view:'board'}).saved"), "the page's own storage, or the pure fallback, takes it")
 
     def test_a_lane_that_is_the_group_is_dropped_and_nothing_reads_as_status(self):
@@ -429,6 +429,25 @@ class Board(InBrowser):
     def test_collapsed_columns_toggle_and_stale_ones_are_ignored(self):
         got = self.val("(function(){ let s = T.board.cleanState({group:'status'}); s = T.board.toggleCollapsed(s, 'status', 'Closed'); s = T.board.toggleCollapsed(s, 'status', 'Gone'); const a = T.board.isCollapsed(s, 'status', 'Closed'); const now = T.board.collapsedNow(s, 'status', [{key:'Open'},{key:'Closed'}]); const t = T.board.toggleCollapsed(s, 'status', 'Closed'); return [a, now, T.board.isCollapsed(t, 'status', 'Closed'), T.board.collapsedNow(s, 'owner', [{key:'Closed'}])]; })()")
         self.assertEqual(got, [True, ["Closed"], False, []])
+
+    def test_column_order_and_widths_are_the_viewers_own_and_clamped(self):
+        got = self.val("""(function(){ const B = T.board, cols = [{key:'a'},{key:'b'},{key:'c'}];
+          let s = B.cleanState({group:'status'});
+          const natural = B.orderedColumns(s, 'status', cols).map(c => c.key);
+          s = B.moveColumn(s, 'status', cols, 'c', 'a');
+          const moved = B.orderedColumns(s, 'status', cols).map(c => c.key);
+          const end = B.orderedColumns(B.moveColumn(s, 'status', cols, 'c', null), 'status', cols).map(c => c.key);
+          const edge = B.stepColumn(s, 'status', cols, 'c', -1), step = B.stepColumn(s, 'status', cols, 'c', 1);
+          const another = B.orderedColumns(s, 'owner', cols).map(c => c.key);
+          const grown = [{key:'a'},{key:'z'},{key:'b'},{key:'c'}];
+          const late = B.orderedColumns(s, 'status', grown).map(c => c.key);
+          let w = B.setColumnWidth(s, 'status', 'a', 9999); const hi = B.widthOf(w, 'status', 'a');
+          w = B.setColumnWidth(w, 'status', 'b', 10); const lo = B.widthOf(w, 'status', 'b');
+          w = B.setColumnWidth(w, 'status', 'a', 272); const back = B.widthOf(w, 'status', 'a');
+          const junk = B.cleanState({order: {status: ['x', 1, 'x', null], nope: ['y'], owner: 'q'}, widths: {status: {a: 100, b: 700, c: 300.4, d: '300', e: 272}, owner: 5}});
+          return [natural, moved, end, [edge.moved, edge.index, step.moved, step.index, step.count], another, late, hi, lo, back, junk.order, junk.widths, B.widthOf(w, 'owner', 'b')]; })()""")
+        self.assertEqual(got, [["a", "b", "c"], ["c", "a", "b"], ["a", "b", "c"], [False, 1, True, 2, 3], ["a", "b", "c"], ["c", "a", "b", "z"],
+                               640, 260, 0, {"status": ["x"]}, {"status": {"c": 300}}, 0])
 
     # the generic drag
 
