@@ -405,7 +405,8 @@ class Page(Base):
             tap(cdp, sid, self.rsel(rows[3]), SHIFT)
             order = cdp.js("[...document.querySelectorAll('#work-list a, #work-list button, #work-list input, #work-list [tabindex]')]"
                            ".filter(e => e.tabIndex >= 0 && !e.disabled && !e.closest('tr.grp')).map(e => e.id || (e.matches('tr') ? 'row' : e.className))", sid)
-            self.assertEqual(order[:2], ["sel-all", "sel-clear"], order)
+            self.assertEqual(order[0], "sel-all", order)          # #196: the bar's change buttons come between, then the X
+            self.assertEqual(order[order.index("sel-clear") - 1], "sb-a", order)
             self.assertLess(order.index("sel-clear"), order.index("row"), "the bar comes before the table")
             self.assertEqual(order.count("row"), 1, "the table is one tab stop")
 

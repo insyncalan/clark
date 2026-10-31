@@ -91,14 +91,14 @@ class Held(unittest.TestCase):
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["keys"])
         self.assertEqual(s["start"]["parts"], [])
-        self.assertEqual(len(s["reference"]["keys"]), 30 - len(LATER["keys"]))
+        self.assertEqual(len(s["reference"]["keys"]), 32 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Work items"])
         self.assertEqual(s["reference"]["groups"], ["Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (26, 30, 30))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (26, 30, 32))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -139,7 +139,8 @@ class AgainstThePage(unittest.TestCase):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
         self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
                                 "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
-                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection"])
+                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection",
+                                "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]"])     # #196
 
 
 class NeverDelete(unittest.TestCase):

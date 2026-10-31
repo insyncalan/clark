@@ -9,7 +9,7 @@ import { workSelection as sel } from "../stores/selection.js";
 const ITEMS = "#work-list tr[data-id], #work-list article.bcard[data-id]";
 const CONTROL = "a, button, input, select, textarea, label, .ddmenu, .dpick, [data-peek]";   // and any text that can be typed in: isContentEditable
 // Open things that take Esc and clicks for themselves: a menu, a picker, a date or filter box, a dialog, the peek.
-const OVERLAY = ".ddmenu, .dpick, .fbox, .pop, [role='dialog'], [aria-modal='true'], [data-peek]";
+const OVERLAY = ".ddmenu, .dpick, .fbox, .pop, [data-pop], [role='dialog'], [aria-modal='true'], [data-peek]";   // #196: + a picker's own panel
 
 /** The ids of the rows or cards on the screen, in the order drawn (a collapsed group's are not drawn). */
 export function drawnOrder() { return Array.from(document.querySelectorAll(ITEMS), (e) => e.dataset.id); }
