@@ -25,13 +25,13 @@ from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from clark import platform
+from clark import platform, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 3          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'. Word (#48) takes the next free number, 3 at the time of writing; renumber it (and migrate_to_3) if #120 or #115 land first
+SCHEMA_VERSION = 4          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -63,9 +63,12 @@ REQUIRED_NEW = {
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")   # what Step.archive takes (#126)
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
+                 "needs", "tracker")            # the eleven of schema.sql's CHECK ('needs' and 'tracker' carry content: section_bodies.py)
+BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
+DELETABLE_TYPES = BODY_TYPES                    # a section added by hand may be deleted; the built-in ones are hidden, never deleted
 ALLOWED = {
-    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the nine of schema.sql's CHECK
+    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the eleven of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
     ("glance_tiles", "outline"): ("R", "A", "G", "N"),                  # and '' (a blank is never checked)
     ("actions", "status"): ("Open", "Delayed", "Closed", "Cancelled"),
@@ -490,13 +493,48 @@ def section_title(value):
     return title
 
 
+def _plain_ok(value):
+    """The store's text rule for content: it can be saved as UTF-8 (a lone surrogate can't) and holds no control, format
+    (bidi, zero-width), private-use or separator character, as a section title may not."""
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return not any(unicodedata.category(c) in _BAD_TITLE_KINDS for c in value)
+
+
+def _visible_ok(value):
+    """Whether the text holds a visible letter, number or symbol (section_title's rule)."""
+    return any(unicodedata.category(c)[0] in "LNPS" and c not in _BLANK_LOOKING for c in value)
+
+
+BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok)
+
+
+def check_section_body(kind, body):
+    """The content of a `kind` section (needs or tracker) as it is stored, or Invalid in plain words (never quoting it). The one
+    door to section_bodies.check: _section_rules (every write, an Undo too) and publish (a second look, at publish time) use it."""
+    try:
+        return section_bodies.check(kind, body, BODY_RULES)
+    except section_bodies.Bad as e:
+        raise Invalid(str(e)) from None
+
+
 def _section_rules(con, table, row, changed):
     """clark (#65): a section's own rules, in plain words. Runs before the id exists on a new row, so the id rules need an id."""
     row["title"] = section_title(row.get("title"))
     if type(row.get("sort_order")) is not int:
         raise Invalid("A section needs its place in the report (sort_order, a whole number).")
-    if row.get("body") not in (None, "") and (row.get("type") != "text" or not isinstance(row["body"], str)):
-        raise Invalid("Only a text section has a body.")
+    if row.get("body") not in (None, ""):
+        if row.get("type") not in BODY_TYPES:
+            raise Invalid("Only a text, needs or tracker section has a body.")
+        if not isinstance(row["body"], str):
+            raise Invalid("A section's body must be text.")
+    if row.get("type") in section_bodies.CHECKERS and ({"body", "type", "id"} & set(changed) or not row.get("id")):
+        # content: the type's own checker whenever the body is written, a new row is made or a deleted one is put back (an Undo too);
+        # what is stored is its canonical text, never the request's. A write that leaves the body alone (a rename, hide, move or
+        # renumber) does not re-check it, so a body saved under an older, looser checker never locks its section; publish checks it again
+        row["body"] = check_section_body(row["type"], row.get("body"))
     if row.get("id") and not str(row["id"]).startswith(f"{row.get('project')}-S-"):
         raise Invalid("That section's id doesn't belong to its project.")
     if "id" in changed or not row.get("id"):          # a new section, or one put back by an undo: never count the row itself
@@ -1033,8 +1071,8 @@ def delete_row(con, table, key, current, step):
     if table not in DELETED_ON_CANCEL:
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
-    if table == "report_sections" and current["type"] != "text":
-        raise Invalid("Only a text section can be deleted; hide the others.")
+    if table == "report_sections" and current["type"] not in DELETABLE_TYPES:     # a needs or tracker section goes like a text one (added by hand, kept in change_log, put back by Undo); 'we archive, we never delete' is about work items, and is not breached
+        raise Invalid("Only a text, needs or tracker section can be deleted; hide the others.")
     if table == "labels":
         if current["builtin"]:
             raise Invalid(f"{current['name']} is a built-in label and can't be deleted")
@@ -1608,7 +1646,49 @@ def migrate_to_3(con):
     _item_events_allow_word(con)
 
 
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3))     # version -> the step that brings a file TO that version; the next one is added here (Word, #48, is 3 at the time of writing)
+# The report_sections table as schema.sql makes it once a section may be of type needs or tracker, frozen here (a later change to
+# schema.sql never changes what this step makes; tests/test_store_migration.py pins it to schema.sql as it is today).
+REPORT_SECTIONS_WITH_CONTENT_TYPES = """CREATE TABLE IF NOT EXISTS report_sections (
+  project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
+  id      TEXT NOT NULL,
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker')),
+  title   TEXT NOT NULL,
+  body    TEXT NOT NULL DEFAULT '',
+  beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
+  hidden  INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0,1)),
+  sort_order INTEGER NOT NULL,
+  PRIMARY KEY (project, id)
+)"""
+
+
+def _report_sections_allow_content_types(con):
+    """report_sections.type gains 'needs' and 'tracker'. SQLite cannot change a CHECK in place, so the table is made again from the
+    frozen text above and the rows are copied in their order (nothing references this table, it has no trigger or index, and its
+    one outgoing key is kept). Only when the table's own definition does not name 'needs' yet, so a second run (or a new database)
+    does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_CONTENT_TYPES)
+        return
+    if "'needs'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_CONTENT_TYPES.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_content (", 1))
+    con.execute("INSERT INTO report_sections_content (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_content RENAME TO report_sections")
+
+
+def migrate_section_bodies(con):
+    """A section may be of type needs or tracker (the shared base for #121 and #189): report_sections is made again with the wider
+    type CHECK. Its own step and its own number (SCHEMA_VERSION: renumber at merge, the order is ruled by the Head); it touches no
+    other table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _report_sections_allow_content_types(con)
+
+
+# version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
+# number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies))
 
 
 def migration_plan(version, table=None):
