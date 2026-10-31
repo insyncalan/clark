@@ -312,6 +312,19 @@ class EditTiles(Setup):
             self.undo(p)
             self.assertEqual(self.rows()["overdue"]["outline"], "")
 
+    def test_edit_says_under_the_tiles_what_a_tile_can_do_and_view_says_nothing(self):
+        want = ("Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. "
+                "Hidden tiles are left out of the published page.")
+        for width in (1400, 900):
+            for dark in (False, True):
+                with chrome() as cdp:
+                    p = self.show(cdp, width=width, dark=dark)
+                    self.assertEqual(p.js("document.querySelectorAll('[data-glance-hint]').length"), 0, "View has no hint")
+                    p.edit()
+                    self.assertEqual(p.js("(document.querySelector('[data-glance-hint]') || {}).textContent"), want)
+                    self.assertEqual(p.js("document.querySelector('[data-glance-hint]').previousElementSibling.matches('[data-glance]')"), True, "it sits right under the tiles")
+                    self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
+
     def test_view_has_no_tile_control(self):
         with chrome() as cdp:
             p = self.show(cdp)
@@ -463,7 +476,7 @@ class Published(Setup):
 class PublishedPage(unittest.TestCase):
     def test_page_view_html_holds_nothing_that_only_the_owner_has(self):
         text = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Slim gaps"):
+        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "data-glance-hint", "Section style", "Slim gaps"):
             self.assertNotIn(owner_only, text, owner_only)
 
 

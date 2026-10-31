@@ -55,6 +55,7 @@ main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .fig textarea.hreason.needs { border-color: var(--status-amber); }
 .fig textarea.hreason:focus-visible, .pillbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; font-size: 13px; }
+.glance-hint { margin: 8px 2px 0; font-size: var(--size-small); color: var(--text-muted); }
 .glance .fig.go { cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
 .glance .fig.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
 .glance .fig.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }

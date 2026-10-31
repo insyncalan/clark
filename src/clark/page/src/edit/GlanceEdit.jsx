@@ -127,4 +127,9 @@ function Reason({ health, reason }) {
   );
 }
 
-export const GLANCE = { Cell, HealthPill, Reason };
+// The line under the tiles in Edit: what a tile can do. Edit only; the published page never carries it.
+function Hint() {
+  return <p class="glance-hint" data-glance-hint>Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. Hidden tiles are left out of the published page.</p>;
+}
+
+export const GLANCE = { Cell, HealthPill, Reason, Hint };
