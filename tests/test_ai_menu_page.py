@@ -3,9 +3,7 @@
 Run: python3 dev/run_tests.py test_ai_menu_page
 The page's copy only decides what to draw; src/clark/ai_menu.py (the server's menu()) is the authority. The parity test bundles
 aiMenu.js alone with the pinned esbuild, runs it in headless Chrome and compares menu(place) with ai_menu.menu(place) for all five
-places. While src/clark/ai_menu.py is not in this tree (the logic branch has not landed), the server's menu is read from
-tests/fixtures/ai_menu_logic_branch.py, a checked-in copy of that branch's file, so the comparison always runs and fails if the page
-table differs. When the logic branch lands, delete the fixture and the fallback below: the test then reads the real module.
+places. The server's menu is read only from clark.ai_menu (no checked-in copy); if that module is missing the test fails.
 """
 import json
 import re
@@ -21,14 +19,7 @@ sys.path.insert(0, str(TOOLS))
 import esbuild  # noqa: E402
 from test_server import chrome  # noqa: E402
 
-try:
-    from clark import ai_menu
-except ImportError:           # the logic branch is not on main yet: use the checked-in copy of its file
-    import importlib.util
-    _spec = importlib.util.spec_from_file_location("ai_menu_logic_branch", Path(__file__).parent / "fixtures" / "ai_menu_logic_branch.py")
-    ai_menu = importlib.util.module_from_spec(_spec)
-    sys.modules["ai_menu_logic_branch"] = ai_menu
-    _spec.loader.exec_module(ai_menu)
+from clark import ai_menu  # noqa: E402  the server's own module; no fallback: if it is missing this test fails
 
 LOGIC = ROOT / "src" / "clark" / "page" / "src" / "logic"
 PLACES = ["current", "notes", "plain", "email", "client_message"]
@@ -102,6 +93,19 @@ class Menu(unittest.TestCase):
         self.assertEqual({k: list(v) for k, v in self.options.items()}, {k: [v[0], v[1]] for k, v in ai_menu.OPTIONS.items()})
         self.assertEqual(self.page.ev("AM.PLACES"), ai_menu.PLACES)
         self.assertEqual(self.page.ev("AM.MAKE_INTO"), ai_menu.MAKE_INTO)
+
+    def test_the_comparison_is_against_the_real_server_module(self):
+        self.assertEqual(Path(ai_menu.__file__).resolve(), (ROOT / "src" / "clark" / "ai_menu.py").resolve())
+        import copy
+        saved = copy.deepcopy(ai_menu.GROUPS)
+        try:   # a changed group on the server side must make the page's menu differ
+            first = ai_menu.GROUPS["email"][0]
+            ai_menu.GROUPS["email"][0] = (first[0] + " x", first[1])
+            self.assertNotEqual(self.menus["email"], ai_menu.menu("email"))
+        finally:
+            ai_menu.GROUPS.clear()
+            ai_menu.GROUPS.update(saved)
+        self.assertEqual(self.menus["email"], ai_menu.menu("email"))
 
     def test_an_unknown_place_is_refused_by_both(self):
         self.assertIsNone(self.page.ev("AM.menu('nowhere')"))
