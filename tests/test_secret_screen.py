@@ -50,6 +50,17 @@ FAMILIES = {
     "tsv columns": "user\tpass" + "word\nmail\t" + "Welcome" + "2026!",
     "zero-width in the key": "DB_PASS\u200b" + "WORD=" + PW,
     "look-alike letter in the key": "DB_PASS" + "W\u039fRD=" + PW,
+    "prose password": "The wifi pass" + "word is " + "Sunshine" + "2026",
+    "prose pw": "the p" + "w is " + "Zk4" + "mQ9xLw2",
+    "prose was": "the pass" + "code was " + "Blue" + "7Harbour",
+    "pass key": "pa" + "ss=" + PW,
+    "pw key": "p" + "w: " + PW,
+    "creds key": "cre" + "ds: " + PW,
+    "credentials key": "credent" + "ials = " + PW,
+    "pin key": "PIN: " + "4829" + "15ab",
+    "ssh key name": "ssh_private" + "_key=" + "A1b2C3d4E5f6G7h8I9j0K1l2",
+    "pass header table": "user,p" + "w\nmail," + "Welcome" + "2026!",
+    "quoted passphrase with spaces": "pass" + 'word = "correct horse 9 battery"',
     "long token near a word": "the api " + "key is " + "Xk9" + "Qm2Lp7" * 5 + "Zt4Rw8Vb1Nc",
 }
 
@@ -125,6 +136,12 @@ class Screen(unittest.TestCase):
                      "![x](data:image/png;base64," + "iVBORw0KGgo" * 40 + ")", "user,name\nmail,bob",
                      "Password,Owner,Date\nreset,Sam,01-11-2026"):
             with self.subTest(text[:30]):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_harmless_prose_about_a_password_is_not_a_secret(self):
+        for text in ("the password is required", "the password was reset yesterday", "The secret is good-quality data.",
+                     "The pin is loose and the pass is closed.", "the credentials are stored safely", "password is Required."):
+            with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
     def test_the_address_shape_still_finds_an_address(self):

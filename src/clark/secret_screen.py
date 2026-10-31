@@ -43,13 +43,20 @@ UNQUOTED_SECRET = r"""(?i)(?:api[_-]?key|secret|token|(passw(?:or)?d|pwd))\w*["'
 # The same ideas, written for this screen (#215 review): a prefix such as DB_ before the key word and a closing quote after it
 # are allowed, a quoted value needs only 8 characters, a table cell or a comma, tab or bar between the word and its value counts,
 # and every gap is bounded so a long run of key words takes a time that grows with the size, not with its square.
-_KEY = r"(?:api[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|passcode)"
+_PW = r"(?:passw(?:or)?d|pwd|passcode|(?<![A-Za-z])(?:pass|pw|pin|creds|credentials)(?![A-Za-z]))"
+_KEY = r"(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|" + _PW + r")"
 QUOTED_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?\s{0,20}[:=]\s{0,20}["']([^"'\s]{8,})["']"""
-UNQUOTED_LOCAL = (r"""(?i)(?:api[_-]?key|access[_-]?key|secret|token|(passw(?:or)?d|pwd|passcode))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
+UNQUOTED_LOCAL = (r"""(?i)(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|(""" + _PW + r"""))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
                   r"""([^\s"'`$<>{}()\[\],;]{8,})""")
 CELL_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?[ \t]{0,20}:?[ \t]{0,20}[|\t,][ \t]{0,20}["']?([^\s|,;"'`$<>{}()\[\]]{8,})"""
 SHORT_PASSWORD = r"""(?i)\b(?:passw(?:or)?d|pwd|passcode)\b["']?[ \t]{0,20}[:=][ \t]{0,20}["']?(\S{4,})"""
-HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|secret|token|passw(?:or)?d|pwd|passcode)\w{0,20}$")
+HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?private[ _-]?key|secret|token|passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials)\w{0,20}$")
+# A passphrase with spaces, in matching quotes (the password family only), and a password written as prose ("the wifi password is
+# Sunshine2026"): a key word, is or was, then a mixed value of 8 or more characters.
+QUOTED_PHRASE = r"""(?i)""" + _PW + r"""\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([^"\n]{8,80})"|'([^'\n]{8,80})')"""
+PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|secret)\b)["']?[ \t]{1,3}(?:is|was)[ \t]{1,3}["'(]?([^\s"'`$<>{}()\[\],;]{8,})"""
+# Known gaps, kept as Tech Debt: a secret of letters only ("correcthorsebattery") and a bare 40-character hex string with no key
+# word are not caught; guessing them would drop too many ordinary files.
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 
 # The publish scan's address shape starts at every letter and can take a long time on a long run of letters, so here it starts at
@@ -60,6 +67,8 @@ _SHAPES = tuple(re.compile(ADDRESS_LINEAR if k == ADDRESS_KIND else p) for k, p 
 _QUOTED = re.compile(QUOTED_LOCAL)
 _UNQUOTED = re.compile(UNQUOTED_LOCAL)
 _CELL = re.compile(CELL_LOCAL)
+_PHRASE = re.compile(QUOTED_PHRASE)
+_PROSE = re.compile(PROSE_SECRET)
 _SHORT = re.compile(SHORT_PASSWORD)
 _RUN = re.compile(BASE64_RUN)
 _BYTE_SHAPES = tuple(re.compile((ADDRESS_LINEAR if k == ADDRESS_KIND else p).encode("ascii")) for k, p in SECRET_PATTERNS)
@@ -148,6 +157,12 @@ def _one(text):
             return True
     for m in _CELL.finditer(text):
         if _mixed(m.group(1)):
+            return True
+    for m in _PHRASE.finditer(text):
+        if _mixed(m.group(1) or m.group(2)):
+            return True
+    for m in _PROSE.finditer(text):
+        if _mixed(m.group(1).rstrip(".!?:")):
             return True
     return _in_base64(text) or _loose(text) or _columns(text)
 
