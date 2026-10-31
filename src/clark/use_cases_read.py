@@ -19,6 +19,12 @@ with control, surrogate and invisible formatting characters removed. Plain text 
 own words; a missing owner or date is null. Standing text longer than the cleaner allows comes back empty, so the page must
 not save a use case from this payload. The page escapes text it draws.
 
+When the server is given `history_of` (the launcher does), each use case also carries `history`: what was done to it, newest
+first, at most HISTORY_MAX lines, each {at, who, how, field, before, after, made, undo}. `at` is the stored UTC time (the page shows
+it in the person's own time), `how` is the route the step came by ("dashboard", "assistant", "excel", "undo", ...), `field` is one of
+HISTORY_FIELDS (or "id" for the step that made the use case), and `before` and `after` are short plain values (never the standing
+text, which is only ever "edited"). A history that cannot be read leaves `history` an empty list; it never fails the read.
+
 Standard library only, Python 3.9.
 """
 import unicodedata
@@ -105,11 +111,45 @@ def use_cases_of(data, shown):
     return out
 
 
-def make_read(data_for, client_ids):
+HISTORY_MAX = 40
+HISTORY_FIELDS = ("title", "headline", "status", "standing", "client_visible", "archived")
+SHORT = 120
+
+
+def history_lines(events, ref):
+    """A use case's history lines from history.history's events (newest first): one line for the step that made it, and one for
+    each change of a field the page can change. Writes nothing; text is cleaned like every other field here."""
+    out = []
+    for e in events or ():
+        if not isinstance(e, dict) or e.get("table") != "use_cases" or e.get("ref") != ref:
+            continue
+        made, field = e.get("op") == "insert", e.get("field")
+        if made and field != "id" or not made and field not in HISTORY_FIELDS:
+            continue
+        keep = field not in ("standing", "id")
+        out.append({"at": plain(e.get("at")), "who": plain(e.get("by_user")), "how": plain(e.get("route")), "field": field,
+                    "before": plain(e.get("before"))[:SHORT] if keep and e.get("before") is not None else None,
+                    "after": plain(e.get("after"))[:SHORT] if keep and e.get("after") is not None else None,
+                    "made": made, "undo": bool(e.get("is_undo"))})
+    return out[:HISTORY_MAX]
+
+
+def make_read(data_for, client_ids, history_of=None):
     """The `use_cases` seam: `read(code)` is the list of the project's use cases, or None when there is no such project.
     `data_for(code)` is the store's read of one project. `client_ids(code)` is the injected rule: the set of use case ids the
-    published file carries (what `publish.client_use_cases` decides); this module holds no copy of it. Nothing is written."""
+    published file carries (what `publish.client_use_cases` decides); this module holds no copy of it. `history_of(refs)` is
+    optional: {ref: history.history events} for those use cases, read on one connection. Nothing is written."""
     def read(code):
         data = data_for(code)
-        return None if data is None else use_cases_of(data, client_ids(code))
+        if data is None:
+            return None
+        out = use_cases_of(data, client_ids(code))
+        if history_of is not None and out:
+            try:
+                events = history_of([u["id"] for u in out])
+            except Exception:  # noqa: BLE001  the history is extra: a read that fails leaves it empty, never the list
+                events = {}
+            for u in out:
+                u["history"] = history_lines((events or {}).get(u["id"]), u["id"])
+        return out
     return read
