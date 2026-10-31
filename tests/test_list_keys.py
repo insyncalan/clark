@@ -11,6 +11,7 @@ from _paths import ROOT
 
 import test_inline_edits as ie  # noqa: E402  (not bound by name, so its own tests are not run again here)
 from test_inline_edits import key  # noqa: E402
+from test_server import chrome  # noqa: E402,F401  (the browser tier: this file drives Chrome through ie.chrome())
 
 PAGE = ROOT / "src" / "clark" / "page"
 LIST_KEYS = (PAGE / "src" / "listKeys.js").read_text(encoding="utf-8")
