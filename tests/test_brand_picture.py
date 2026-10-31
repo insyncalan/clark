@@ -1,5 +1,5 @@
 """#98: the brand's picture. The server answers GET /assets/<name> for four fixed names, from the local brand folder, and nothing
-else; the brand layering finds its place by a named hook. Rules: the Done-when on clark-plan #98.
+else; the brand layering finds its place by a named hook. Rules: the Done-when of item #98.
 
 Run: python3 dev/run_tests.py test_brand_picture
 Every picture here is made by the test, a few bytes in a temporary folder: no real brand's file is read or committed. The
