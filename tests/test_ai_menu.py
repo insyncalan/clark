@@ -763,5 +763,57 @@ class FaultsAreFixedLines(unittest.TestCase):
             self.assertFalse(NEVER.search(m), m)
 
 
+class StrictInputs(unittest.TestCase):
+    """#72 fix round L3, L7, L8, L9."""
+
+    def test_L3_a_reply_that_is_not_text_is_not_used(self):
+        for rep in (["Better text."], {"text": "Better"}, 42, b"Better text 03-11-2026.", object()):
+            r = am.check_reply(rep, "Chase the supplier by 03-11-2026.", "rewrite", "plain")
+            self.assertFalse(r["ok"], repr(rep))
+            self.assertEqual(r["message"], "No suggestion came back.")
+        self.assertFalse(am.check_reply(None, "x", "rewrite", "plain")["ok"])
+
+    def test_L7_an_unhashable_place_or_option_is_refused_in_plain_words(self):
+        for bad in ([], {}, ["plain"], {"a": 1}):
+            with self.assertRaises(Refused):
+                am.build_prompt("rewrite", "Some text.", bad)
+            with self.assertRaises(Refused):
+                am.build_prompt(bad, "Some text.", "plain")
+            with self.assertRaises(Refused):
+                am.menu(bad)
+            with self.assertRaises(Refused):
+                am.check_reply(reply("x"), "y", "rewrite", bad)
+            c = am.AiSession().begin(bad, "Some text.", "plain", 0, 5)
+            self.assertEqual(c.status, "failed")
+
+    def test_L8_the_notice_is_cleared_by_the_next_question(self):
+        ed = FakeEditor("Some text here.")
+        s = am.AiSession()
+        c = s.begin("rewrite", ed.text, "plain", 0, 15)
+        s.deliver(c, reply("Some words here."))
+        ed.text = "Other text here."
+        s.retry(ed)
+        self.assertTrue(s.notice)
+        s.begin("rewrite", ed.text, "plain", 0, 16)
+        self.assertEqual(s.notice, "")
+
+    def test_L8_a_selection_that_is_not_a_range_fails_the_card(self):
+        s = am.AiSession()
+        for start, end in ((5, 2), (-1, 4), ("a", 4), (None, None), (0, 1.5), (True, 3)):
+            c = s.begin("rewrite", "Some text.", "plain", start, end)
+            self.assertEqual(c.status, "failed", (start, end))
+            self.assertFalse(NEVER.search(c.message))
+        self.assertEqual(s.begin("rewrite", "Some text.", "plain", 0, 10).status, "running")
+
+    def test_L9_the_limits_are_pinned(self):
+        self.assertEqual((am.MAX_TEXT, am.MAX_INSTRUCTION, am.MAX_REPLY), (12000, 400, 60000))
+        am.build_prompt("rewrite", "x " * 6000, "plain")
+        with self.assertRaises(Refused):
+            am.build_prompt("rewrite", "x" * 12001, "plain")
+        am.build_prompt("custom", "Some text.", "plain", "y" * 400)
+        with self.assertRaises(Refused):
+            am.build_prompt("custom", "Some text.", "plain", "y" * 401)
+
+
 if __name__ == "__main__":
     unittest.main()

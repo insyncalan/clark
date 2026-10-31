@@ -119,7 +119,7 @@ PLACE_TABLE = {
 
 def place_of(place):
     """The place's name, or Refused. A place clark doesn't know is never guessed at."""
-    if place not in PLACES:
+    if not isinstance(place, str) or place not in PLACES:
         raise Refused("That text can't be changed with AI here.")
     return place
 
@@ -205,7 +205,7 @@ def _instruction(option, instruction):
 def check_request(option, text, place, instruction=""):
     """The request checked: (option, text, place, instruction) or Refused (plain words)."""
     place_of(place)
-    if option not in PLACES[place]:
+    if not isinstance(option, str) or option not in PLACES[place]:
         raise Refused("That option isn't offered here.")
     text = str(text or "")
     if not text.strip():
@@ -349,7 +349,9 @@ def check_reply(reply, original, option, place):
     empty reply, one far too long, one with web code in it, one with characters the reader can't see that the text didn't have,
     one that is the text unchanged, or (for a plain place) one that turned the text into headings or a list it can't hold."""
     place_of(place)
-    reply = str(reply or "")
+    if reply is not None and not isinstance(reply, str):
+        return _fail("No suggestion came back.", option)
+    reply = reply or ""
     if len(reply) > MAX_REPLY * 4:
         return _fail("The suggestion was far too long to use. Try again.", option)
     text = parse(reply)
@@ -574,7 +576,10 @@ class AiSession:
         running, waiting for a yes (confidential), or failed with the reason (AI off, no sign-in, busy, too much text...)."""
         self._drop()
         self._n += 1
+        self.notice = ""
         try:
+            if not all(type(x) is int for x in (start, end)) or not 0 <= start <= end:
+                raise Refused("Select the text again.")
             option, text, place, instruction = check_request(option, text, place, instruction)
         except Refused as e:
             self.card = Card(self._n, option, instruction, place, str(text or ""), start, end, "failed", str(e))
