@@ -90,7 +90,7 @@ class Appearance(Base):
                 p.width(w)
                 self.open_menu(p)
                 roles = p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')})")
-                self.assertEqual(roles[:6], ["menuitem", "menuitem", "menuitem", "separator", "presentation", "menuitemradio"])
+                self.assertEqual(roles[:8], ["menuitem", "menuitem", "menuitem", "menuitem", "separator", "presentation", "menuitemradio", "menuitemradio"])
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
                 self.assertEqual(p.js("[...document.querySelectorAll('#profile-menu [role=menuitemradio]')].map(i => i.textContent.replace('✓', ''))"), ORDER)
                 self.assertEqual(self.in_menu(p), ["System"], "the one in use is marked")
