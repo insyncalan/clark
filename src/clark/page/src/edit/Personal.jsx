@@ -4,6 +4,7 @@ import { style, setStyle } from "../stores/style.js";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
+import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Sections close together, divided by a thin line."],
@@ -74,6 +75,11 @@ export function Personal() {
           <label key={id} class="stylepick"><input type="radio" name="secstyle" value={id} checked={style.value === id} onChange={() => setStyle(id)} />
             <span><b>{name}</b><small>{line}</small></span></label>
         ))}
+      </fieldset>
+      <fieldset class="keys">
+        <legend>Keys</legend>
+        <label class="stylepick"><input type="checkbox" checked={singleKeys.value} onChange={(e) => setSingleKeys(e.currentTarget.checked)} />
+          <span><b>Single-key shortcuts</b><small>Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</small></span></label>
       </fieldset>
     </section>
   );
