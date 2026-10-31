@@ -311,8 +311,9 @@ class Cards(Base):
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             a = self.id_of("Send the invitations")
-            card = cdp.js(f"(() => {{ const c = document.querySelector(\"article[data-id='{a}']\"); return {{type: c.querySelector('.type').textContent, id: c.querySelector('.bc-id').textContent, title: c.querySelector('.bc-title').textContent, initials: c.querySelector('.av').textContent, owner: c.querySelector('.av').title, due: c.querySelector('.due-l').textContent, pill: c.querySelector('.pill').textContent, eye: !!c.querySelector('.eye'), eyeWords: c.querySelector('.eye .sr').textContent, label: c.querySelector('.bc-main').getAttribute('aria-label'), role: c.querySelector('.bc-main').getAttribute('role')}}; }})()", sid)
+            card = cdp.js(f"(() => {{ const c = document.querySelector(\"article[data-id='{a}']\"); return {{type: c.querySelector('.type').getAttribute('aria-label'), letter: c.querySelector('.type').textContent, move: !!c.querySelector('.bc-move'), moveOpacity: getComputedStyle(c.querySelector('.bc-move')).opacity, id: c.querySelector('.bc-id').textContent, title: c.querySelector('.bc-title').textContent, initials: c.querySelector('.av').textContent, owner: c.querySelector('.av').title, due: c.querySelector('.due-l').textContent, pill: c.querySelector('.pill').textContent, eye: !!c.querySelector('.eye'), eyeWords: c.querySelector('.eye .sr').textContent, label: c.querySelector('.bc-main').getAttribute('aria-label'), role: c.querySelector('.bc-main').getAttribute('role')}}; }})()", sid)
             self.assertEqual((card["type"], card["id"], card["title"], card["initials"], card["owner"], card["pill"]), ("Action", a, "Send the invitations", "PN", "Priya Nair", "Delayed"))
+            self.assertEqual((card["letter"], card["move"], card["moveOpacity"]), ("A", True, "1"), "a letter badge named in full, and the ... always there in Edit")
             self.assertRegex(card["due"], r"^In \d+ days$|^\d+ days late$|Today|Tomorrow")
             self.assertTrue(card["eye"])
             self.assertEqual(card["eyeWords"], "Shown to the client")
@@ -320,6 +321,22 @@ class Cards(Base):
             self.assertTrue(card["label"].startswith(f"{a} Send the invitations, Delayed"), card["label"])
             self.assertEqual(cdp.js(f"!!document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] .eye\")", sid), False)
             self.assertEqual(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] .av\")", sid), None, "no initials for an item with no owner")
+
+    def test_the_letter_badge_and_the_dots_read_clearly_in_light_and_dark_at_both_widths(self):
+        """B-15: every badge's text is 4.5:1 on its own background, the ... is in every card in Edit, and a card is compact."""
+        js = ("(() => { const lum = (c) => { const v = c.match(/[\\d.]+/g).slice(0, 3).map(Number).map((x) => { x /= 255; return x <= .03928 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4); }); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };"
+              " const out = [...document.querySelectorAll('.bcard .type.tl')].map((b) => { const s = getComputedStyle(b), a = lum(s.color), z = lum(s.backgroundColor), hi = Math.max(a, z), lo = Math.min(a, z); return (hi + .05) / (lo + .05); });"
+              " return {ratios: out, cards: document.querySelectorAll('.bcard').length, dots: document.querySelectorAll('.bcard .bc-move').length, h: Math.max(...[...document.querySelectorAll('.bcard')].map((c) => c.getBoundingClientRect().height))}; })()")
+        for theme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                    sid = self.visit(cdp, width=width, height=700)
+                    cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
+                    self.board(cdp, sid, "status")
+                    r = cdp.js(js, sid)
+                    self.assertTrue(r["ratios"] and min(r["ratios"]) >= 4.5, r)
+                    self.assertEqual(r["dots"], r["cards"])
+                    self.assertLess(r["h"], 130, "compact")
 
     def test_one_level_of_swimlanes_by_workstream_or_type(self):
         with chrome() as cdp:

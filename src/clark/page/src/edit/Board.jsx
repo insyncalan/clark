@@ -13,6 +13,7 @@ import { Menu, MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 
 const TONED = ["status", "due", "priority"];             // the groups whose columns carry their state's colour
+const TYPE_LETTER = { action: "A", risk: "R", issue: "I", assumption: "S", dependency: "P", decision: "D" };   // the card's badge; its full word is the badge's accessible name
 const LANE_WORDS = { workstream: "Workstream", type: "Type" };
 
 // The peek is #42's. Until it claims this, a click on a card puts the item in the address (the router's `item`) and tells the page.
@@ -33,7 +34,7 @@ function Card({ card, editing, selected, dragging, ask, menu, onOpen, onMenu, ch
     <article class={`bcard k-${card.typeClass.slice(2)}${selected ? " sel" : ""}${dragging ? " drag" : ""}${card.open ? "" : " done"}`} data-id={card.id} data-kind={card.typeClass.slice(2)}>
       <div class="bc-main" role="button" tabIndex={0} aria-label={label} onClick={() => onOpen(card.id)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(card.id); } }}>
-        <div class="bc-top"><span class={`type ${card.typeClass}`}>{card.type}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
+        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
         <div class="bc-title">{card.title}</div>
         <div class="bc-foot">
           {card.initials ? <span class="av" title={card.owner} aria-hidden="true">{card.initials}</span> : null}
