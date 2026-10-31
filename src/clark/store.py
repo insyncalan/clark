@@ -31,7 +31,7 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 2          # 2 (#126): documents can be archived
+SCHEMA_VERSION = 3          # 2 (#126): documents can be archived; 3 (#51): a project has a contact for the published page's Draft email
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -124,7 +124,8 @@ PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
 NEVER_PUBLISH = frozenset({"internal_note", "movement", "source", "reasoning", "options", "response_action", "keywords",
-                           "aliases", "lead", "publish_local", "publish_client", "by_user", "device"})
+                           "aliases", "lead", "publish_local", "publish_client", "by_user", "device",
+                           "contact_name", "contact_email"})     # #51: the contact reaches a file only through publish.build's own checked key
 PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions": "id", "raid": "id", "decisions": "id",
                  "use_cases": "sort_order, id"}                                                  # this order
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal
@@ -1572,7 +1573,25 @@ def migrate_to_2(con):
     _item_events_allow_board(con)
 
 
-MIGRATIONS = ((2, migrate_to_2),)     # version -> the step that brings a file TO that version; the next one (#115: 3) is added here
+# The two columns version 3 adds, exactly as schema.sql has them (a test keeps the two the same); whole fixed statements, so
+# no SQL is built from a name.
+CONTACT_COLUMNS = (
+    ("contact_name", "ALTER TABLE projects ADD COLUMN contact_name TEXT CHECK (contact_name IS NULL OR length(contact_name) <= 80)"),
+    ("contact_email", "ALTER TABLE projects ADD COLUMN contact_email TEXT CHECK (contact_email IS NULL OR length(contact_email) BETWEEN 3 AND 254)"),
+)
+
+
+def migrate_to_3(con):
+    """Schema version 2 to 3 (#51): the project's contact, the outside address a published page's Draft email is addressed to
+    (one per project; Alan, 31-10-2026). Two nullable columns on projects, each added only when it is not there yet (a
+    half-applied copy is safe). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    have = columns(con, "projects")
+    for name, statement in CONTACT_COLUMNS:
+        if name not in have:
+            con.execute(statement)
+
+
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3))     # version -> the step that brings a file TO that version (#51 takes 3)
 
 
 def migration_plan(version, table=None):

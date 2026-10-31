@@ -107,7 +107,8 @@ COMMON = {
 FIELD_NAMES = {
     "projects": {"name": "Project name", "phase": "Phase", "sponsor": "Sponsor", "health": "Health", "health_reason": "Reason for the health",
                  "active": "Active", "client_name": "Client", "current_state": "Where things stand", "week_ending": "Week ending",
-                 "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
+                 "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder",
+                 "contact_name": "Client contact's name", "contact_email": "Client contact's address"},
     "milestones": {"name": "Name", "status": "Status"},
     "actions": {"description": "Action"},
     "raid": {"description": "Description", "type": "Type"},

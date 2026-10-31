@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS projects (
   layout          TEXT NOT NULL DEFAULT 'boxed' CHECK (layout IN ('boxed','spine','cover')),             -- clark: report layout
   publish_local   TEXT,                                   -- clark: the local folder last used
   publish_client  TEXT,                                   -- clark: the client's SharePoint folder, as synced on this machine
+  contact_name    TEXT CHECK (contact_name IS NULL OR length(contact_name) <= 80),            -- clark: (#51, version 3) the project contact's name
+  contact_email   TEXT CHECK (contact_email IS NULL OR length(contact_email) BETWEEN 3 AND 254),   -- clark: (#51, version 3) the outside address a published page's Draft email goes To
   updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
