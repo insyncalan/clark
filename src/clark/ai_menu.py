@@ -222,6 +222,12 @@ def build_prompt(option, text, place, instruction=""):
 # ------------------------------------------------------------------------------------------------------------------- the reply
 TAGS = re.compile(r"<!--|-->|<!\[CDATA\[|\]\]>|</?[A-Za-z!?][^<>]*>?|<\s*/?\s*[A-Za-z]")
 SCRIPTY = re.compile(r"(?:java|vb)script\s*:|data\s*:\s*text/html|\bon[a-z]{3,}\s*=", re.I)
+LINK_TARGET = re.compile(r"\]\(([^)]*)")                       # [text](target) and ![alt](target)
+REF_TARGET = re.compile(r"(?m)^\s{0,3}\[[^\]\n]*\]:\s*(\S+)")        # [1]: target
+BARE_ADDRESS = re.compile(r"(?i)(?:https?://|mailto:|www\.)[^\s<>()\]]*")
+SCHEME = re.compile(r"^([a-z][a-z0-9+.-]*):")
+SCHEMES_KEPT = ("http", "https", "mailto")
+UNSEEN_SPACE = re.compile(r"[\x00-\x20\x7f-\x9f]+")
 MARKER = re.compile(r"<<<SUGGESTION[ \t]*\r?\n(.*?)\r?\n?SUGGESTION>>>", re.S)
 FIGURE = re.compile(r"\d(?:[\d.,:/-]*\d)?")
 CAPS = re.compile(r"\b[A-Z][a-z]{2,}\b")
@@ -273,6 +279,28 @@ def notes_for(original, suggestion):
     return out
 
 
+def _targets(text):
+    """Every address in a text: link and image targets, reference targets and bare web or mail addresses, with tabs, line breaks
+    and other control characters taken out (so "java<TAB>script:" is read as javascript:) and lower case."""
+    t = edit_ai.normal(text)
+    found = LINK_TARGET.findall(t) + REF_TARGET.findall(t) + BARE_ADDRESS.findall(t)
+    return {UNSEEN_SPACE.sub("", f).strip("<>").lower() for f in found if UNSEEN_SPACE.sub("", f)}
+
+
+def _link_problem(text, original):
+    """A plain message when the suggestion holds an address the text didn't, or a kept one that isn't a web or mail link."""
+    held = _targets(original)
+    for target in sorted(_targets(text)):
+        scheme = SCHEME.match(target)
+        if target not in held or (scheme and scheme.group(1) not in SCHEMES_KEPT):
+            return "The suggestion had a link or address your text didn't have, so it was not used. Try again."
+    compact = UNSEEN_SPACE.sub("", edit_ai.normal(text)).lower()
+    if re.search(r"(?:java|vb)script:|data:text/html", compact) and not re.search(
+            r"(?:java|vb)script:|data:text/html", UNSEEN_SPACE.sub("", edit_ai.normal(original)).lower()):
+        return "The suggestion had a link or address your text didn't have, so it was not used. Try again."
+    return ""
+
+
 def _fail(message, option=None):
     return {"ok": False, "text": "", "notes": [], "message": message, "option": option}
 
@@ -296,6 +324,9 @@ def check_reply(reply, original, option, place):
         held = {m.group().strip() for m in pattern.finditer(orig_norm)}
         if any(m.group().strip() not in held for m in pattern.finditer(text_norm)):
             return _fail("The suggestion had web code in it, so it was not used. Try again.", option)
+    problem = _link_problem(text, original)
+    if problem:
+        return _fail(problem, option)
     if edit_ai.hidden_count(text) > edit_ai.hidden_count(original):
         return _fail("The suggestion had hidden characters in it, so it was not used. Try again.", option)
     if FORMATS[place] == "plain" and re.search(r"(?m)^\s{0,3}(?:#{1,6}\s|[-*+]\s\[[ xX]\]\s)", text) and \

