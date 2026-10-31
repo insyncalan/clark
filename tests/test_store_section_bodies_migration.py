@@ -90,7 +90,7 @@ class TheNumberIsOneConstant(Base):
 
     def test_the_step_does_not_name_a_number_anywhere_else_in_store_py(self):
         src = (ROOT / "src" / "clark" / "store.py").read_text(encoding="utf-8")
-        self.assertNotIn("migrate_to_3", src)
+        self.assertNotIn(f"migrate_to_{store_module.SCHEMA_VERSION}", src)         # the step is named for what it does, not for its number
         self.assertEqual(len(re.findall(r"^SCHEMA_VERSION = ", src, re.M)), 1)
 
     def test_the_step_changes_no_other_table(self):

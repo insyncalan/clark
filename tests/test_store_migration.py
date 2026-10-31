@@ -324,7 +324,7 @@ class OrderedMigrations(unittest.TestCase):
 
     def test_a_file_already_at_the_current_version_runs_only_a_later_step(self):
         path = make_v1(self.dir)
-        open_store(path, onedrive_roots=[]).close()
+        open_store(path, onedrive_roots=[]).close()           # now at the current version
         ran = []
         later = store_module.SCHEMA_VERSION + 1
         con = connect(path)
