@@ -49,6 +49,7 @@ An own look may also add rules (a logo picture, a still picture for the home ban
 - **Tables:** a header row in capitals, one hairline per row, dates `DD-MM-YYYY` on one line. The Due column is wide enough for a date in the text face at 900 px.
 - **Empty states** say what is missing and the next step. A view filtered to nothing says why.
 - **Home banner:** an empty strip above "No project open"; `--art-home` and `--art-home-height` fill it in an own look. It is a still picture, never animated.
+- **Components clark adds** (the Work items board, the profile menu, the milestone Calendar, Legend and timeline, and the rest as they are written) are described in `docs/DESIGN-SYSTEM-COMPONENTS.md`.
 
 ## 6. Motion
 Only while something is working or changing state. Durations come from `--dur-*`; entrances use `--ease-enter`; nothing bounces. Anything that animates is switched off under `prefers-reduced-motion`.
