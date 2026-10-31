@@ -50,7 +50,7 @@ class Pg:
     def palette_key(self):
         self.key("k", CTRL, "KeyK", 75)
 
-    def open(self):
+    def show(self):
         self.palette_key()
         self.until("!!document.querySelector('#palette[open]')", "the palette opened")
 
@@ -93,12 +93,12 @@ class Opening(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.js("var i=document.createElement('input'); i.id='tb'; document.body.appendChild(i); i.focus()")
-            p.open()
+            p.show()
             self.assertEqual(p.js("document.activeElement.id"), "palette-q", "the search box has focus")
             p.key("Escape", 0, "Escape", 27)
             p.until("!document.querySelector('#palette')", "Esc closed it")
             self.assertEqual(p.js("document.activeElement.id"), "tb", "focus went back to the box")
-            p.open()
+            p.show()
             p.palette_key()
             p.until("!document.querySelector('#palette')", "the same keys closed it")
             self.assertEqual(p.js("document.activeElement.id"), "tb")
@@ -117,7 +117,7 @@ class Opening(Base):
             p = self.visit(cdp)
             p.key("?", 0, "Slash", 191)
             p.until("!!document.querySelector('#help')", "Help opened")
-            p.open()
+            p.show()
             p.key("Escape", 0, "Escape", 27)
             p.until("!document.querySelector('#palette')", "the palette closed")
             self.assertTrue(p.js("!!document.querySelector('#help')"), "Help is still open under it")
@@ -127,7 +127,7 @@ class Results(Base):
     def test_every_kind_in_order_with_its_kind_in_words(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.open()
+            p.show()
             kinds = [r[0] for r in p.rows()]
             self.assertEqual(kinds[:6], ["Command"] * 6)
             self.assertEqual(p.rows()[0][1], "Publish…")
@@ -156,14 +156,14 @@ class Results(Base):
         self.addCleanup(DATA.update, {"ABC": project("ABC", "Example Programme")})
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.open()
+            p.show()
             p.find("abc-r-002")
             self.assertEqual([r[1] for r in p.rows()], ["Supplier may slip", "Check ABC-R-002 with the supplier"])
 
     def test_up_and_down_wrap_and_skip_what_cannot_run(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.open()
+            p.show()
             self.assertEqual(p.active(), "Publish…")
             names = [r[1] for r in p.rows() if not r[2]]
             p.key("ArrowUp", 0, "ArrowUp", 38)
@@ -177,7 +177,7 @@ class Results(Base):
     def test_a_result_that_cannot_run_says_why_and_does_nothing(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.open()
+            p.show()
             p.find("dark")
             row = p.js("[document.querySelector('#palette .pal-row').getAttribute('aria-disabled'), document.querySelector('#palette .pal-why').textContent]")
             self.assertEqual(row[0], "true")
@@ -190,14 +190,14 @@ class Results(Base):
         """The page only holds what the server gave it, and the palette searches that and nothing else."""
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.open()
+            p.show()
             p.find("ABC-A-099")
             self.assertEqual(p.rows(), [])
 
 
 class Enter(Base):
     def run_first(self, p, text):
-        p.open()
+        p.show()
         p.find(text)
         p.key("Enter", 0, "Enter", 13)
         p.until("!document.querySelector('#palette')", "the palette closed on Enter")
@@ -250,7 +250,7 @@ class Looks(Base):
                 for dark in (False, True):
                     p.width(w)
                     p.dark(dark)
-                    p.open()
+                    p.show()
                     p.find("e")
                     box = p.js("(function(){var r=document.querySelector('#palette').getBoundingClientRect(), c=document.documentElement.clientWidth;"
                                "return [r.left >= 0, r.right <= c, r.top >= 0, r.bottom <= document.documentElement.clientHeight, "
