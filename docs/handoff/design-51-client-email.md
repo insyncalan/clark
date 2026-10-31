@@ -2,7 +2,14 @@
 
 Written by Team Lang's agent, 31-10-2026. **Part built, not merged.** The build is on `team-lang-51-client-email` (9383331d). Not built: the Publish-screen field, its `server.py` route, and a per-item ticked set. **Sources:** #51 and Alan's hold (28-10-2026: "Put this on hold for the client for now - editor only"), BRD FR-94, FR-95 and D-6, and the branch diff.
 
-**The hold is the first question.** BRD D-6 still says "On hold". This note does not assume it is lifted (see "Questions for Alan").
+**The hold is lifted** (Decisions, below). BRD D-6 still says "On hold" and needs updating.
+
+## Decisions (Alan, 31-10-2026)
+1. **The 28-10 hold is lifted.** Build it.
+2. **One outside contact per project**, not chosen at each publish. It is a project setting (schema version 3: `projects.contact_name`, `projects.contact_email`), set on the Publish screen and saved as an ordinary step with history and Undo.
+3. **No warning** on the Publish screen that the address will sit in the client's file.
+
+Question 4 (per-item ticked sets) was not answered; "this item" and "all open items" stay as built. The build is on `team-lang-51-contact`.
 
 ## 1. What the person sees
 The client opens a published report. If the file carries a contact, the Work items page shows a **Draft email** button, and each row shows a small **envelope** by its title. The envelope opens the draft on that item alone; the button opens it on every open item. The client types their name (it signs the email), picks a kind (update request, chase, decision), and sees the email addressed to the contact. They copy it out with **Copy for Outlook**, **Copy as text**, or **Open in mail app** (short emails only). A file with no contact shows no button and no envelope. Nothing is sent by clark.
