@@ -119,13 +119,14 @@ class Adding(Content):
         for kind in TYPES:
             with self.subTest(kind=kind):
                 ref, _ = self.make(kind)
-                self.ok("update", id=ref, changes={"body": text({"v": 1, "old": "shape"})})            # accepted by today's checker
+                old = text(BODY) if kind == "needs" else text({"v": 1, "old": "shape"})                  # needs has its real shape now; the tracker takes any
+                self.ok("update", id=ref, changes={"body": old})                                       # accepted by today's checker
                 strict = {k: (lambda value, rules: (_ for _ in ()).throw(sb.Bad("Stricter now."))) for k in TYPES}
                 with mock.patch.dict(sb.CHECKERS, strict):
                     self.ok("update", id=ref, changes={"title": "Renamed"})                          # the body is not written, so it is not checked
                     self.ok("update", id=ref, changes={"hidden": 1})
                     self.ok("update", id=ref, changes={"hidden": 0})
-                    self.refused_body(ref, text({"v": 1, "old": "shape"}), "Stricter now.")           # writing a body meets the checker
+                    self.refused_body(ref, old, "Stricter now.")           # writing a body meets the checker
                     self.assertEqual(self.s.read(KIND, ref=ref)["title"], "Renamed")
 
     def test_the_type_can_not_be_changed(self):
