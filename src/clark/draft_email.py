@@ -7,7 +7,7 @@ time, and returns the To, the Subject, the HTML and the plain text. clark never 
 draft; the page copies the two texts to the clipboard and the user pastes them.
 
 The HTML is for Outlook's Word engine: every element carries its own inline style, tables have cellpadding and a bottom
-border on each cell, Calibri then Arial at 11 pt, and there are no classes, style blocks, variables, spans or images. It is
+border on each cell, the look's email fonts (Calibri then Arial) at 11 pt, and there are no classes, style blocks, variables, spans or images. It is
 always drawn on white. Colour is never the only signal: the words say overdue and due soon too. Dates in the text are
 DD-MM-YYYY; the items carry them as YYYY-MM-DD.
 
@@ -23,6 +23,7 @@ from datetime import date, timedelta
 from html import escape
 from urllib.parse import quote
 
+from clark import look
 from clark.confusables import skeleton
 
 # The mode is named "update_request" and its subject word is joined from parts because the one-writer test in
@@ -46,13 +47,18 @@ MAILTO_LIMIT = 2000        # the longest finished mailto: link (encoded) that ev
 HELD_WORDS = ("confidential", "restricted")
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
-# The email is drawn on white whatever the theme. Every pair used for text is at least 4.5:1 on white (tested).
-COLOURS = {"red": "#B3261E", "amber": "#8A5A00", "ink": "#1E1F1E", "muted": "#5C5D60", "head": "#F1F3F4",
-           "rule": "#D9D9E0", "white": "#FFFFFF"}
+# The email is drawn on white whatever the theme, in the committed look's light colours (read from tokens.css by look.py, not written
+# here): red and amber are the status text colours, ink and muted the text colours, head and rule the page's quiet grey and its
+# border. Every pair used for text is at least 4.5:1 on white (tested).
+COLOURS = {key: "#" + look.colour(token) for key, token in (
+    ("red", "status-red-text"), ("amber", "status-amber-text"), ("ink", "text"), ("muted", "text-muted"), ("head", "grey-50"),
+    ("rule", "grey-300"), ("white", "white"))}
 # The only keys of an item the module reads; the items it hands back carry these and nothing else.
 ITEM_KEYS = ("id", "project", "kind", "text", "due", "priority", "owner", "type", "response", LATEST, "status", "client_visible",
              "sensitive", "hidden")
-FONT = "font-family:Calibri,Arial,sans-serif;font-size:11pt;"
+# The page's own fonts (Inter and Montserrat) are embedded in the page and a mail app does not have them, so an email cannot use them:
+# it takes the look's --font-email list (Calibri, then Arial, then the generic sans-serif), at 11 pt.
+FONT = f"font-family:{look.email_font_family()};font-size:11pt;"
 
 OPEN = "I'm pulling together where things stand on the items below."
 ASK = "Could you let me know where each one stands, and flag anything that's blocking you or that you need from me?"
