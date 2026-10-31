@@ -19,7 +19,7 @@ from clark import publish
 from clark.store import open_store
 from test_server import chrome, wait
 from test_work_filters import need_chrome
-from test_work_items import page_target
+from test_work_items import bundled, page_target
 
 TODAY = "2026-10-28"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
@@ -208,6 +208,48 @@ class ClientPageFilters(unittest.TestCase):
                 self.settle(cdp, sid, "!!document.querySelector('#work-list')")
                 self.assertEqual(self.count(cdp, sid), 6, "the start page: every open row")
                 self.assertFalse(cdp.js("!!document.querySelector('.fchip')", sid))
+
+
+class ModelMatchesPage(unittest.TestCase):
+    """The reference model (client_filters.py) and the page's own functions (filters.js, workItems.js, clientView.js, bundled and run
+    in Chrome) give the same ids and the same Open / Closed / All and type counts for every case in the shared cases file."""
+    PAGE_DIM = {"ws": "workstream", "status": "status", "due": "due", "owner": "owner", "priority": "priority", "uc": "use_case",
+                "ms": "milestone"}
+    PAGE_TYPE = {"all": "all", "A": "action", "R": "risk", "D": "decision"}
+
+    def test_every_case_gives_the_same_answer(self):
+        need_chrome()
+        f = json.loads((ROOT / "tests" / "fixtures" / "client-filter-cases.json").read_text(encoding="utf-8"))
+        entry = Path(tempfile.mkdtemp(prefix="clark-parity-")) / "entry.js"
+        src = ROOT / "src" / "clark" / "page" / "src"
+        entry.write_text(f'export * from "{src / "filters.js"}"; export {{ rowsOf }} from "{src / "workItems.js"}"; '
+                         f'export {{ searchIndex, searchRows, normalise }} from "{src / "clientView.js"}";\n', encoding="utf-8")
+        script = bundled(entry, "P") + """;
+        window.run = (data, today, st) => {
+          P.setPublished(true);
+          const rows = P.rowsOf(data), index = P.searchIndex(data);
+          const state = P.normalise(st, rows, today);
+          const hit = P.searchRows(rows, index, st.q || "");
+          const s = { mode: state.mode, type: state.type, filters: state.filters, not: state.not };
+          const ids = P.applyFilters(hit, s, today).map((r) => r.id);
+          return { ids, show: P.counts(hit, s, today), type: P.typeCounts(hit, s, today), filters: state.filters };
+        }; true"""
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            res = cdp.call("Runtime.evaluate", {"expression": script, "returnByValue": True}, sid)
+            self.assertNotIn("exceptionDetails", res, res)
+            for c in f["cases"]:
+                want = c["expect"]
+                st = {"type": self.PAGE_TYPE[c["state"].get("type", "all")], "mode": c["state"].get("show", "open"),
+                      "filters": {self.PAGE_DIM[k]: v for k, v in c["state"].get("f", {}).items()},
+                      "not": {self.PAGE_DIM[k]: v for k, v in c["state"].get("not", {}).items()}, "q": c["state"].get("q", "")}
+                got = cdp.js(f"window.run({json.dumps(f['published'])}, {json.dumps(f['today'])}, {json.dumps(st)})", sid)
+                with self.subTest(state=c["state"]):
+                    self.assertEqual(sorted(got["ids"]), sorted(i["id"] for i in want["items"]))
+                    self.assertEqual(got["show"], want["counts"]["show"])
+                    self.assertEqual({self.PAGE_TYPE[k]: v for k, v in want["counts"]["type"].items()}, got["type"])
+                    self.assertEqual(sorted(got["filters"]), sorted(self.PAGE_DIM[k] for k in want["state"]["f"]),
+                                     "a stale choice is dropped on both sides")
 
 
 if __name__ == "__main__":

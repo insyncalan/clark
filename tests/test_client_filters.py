@@ -34,8 +34,11 @@ def dec(n, status="Pending", **v):
             "client_message": "", "use_case": None, **v}
 
 
-def pub(actions=(), raid=(), decisions=()):
-    return {"actions": list(actions), "raid": list(raid), "decisions": list(decisions)}
+def pub(actions=(), raid=(), decisions=(), **more):
+    return {"actions": list(actions), "raid": list(raid), "decisions": list(decisions), **more}
+
+
+LINKS = {"use_cases": [{"id": "ABC-U-001", "ref": "UC-1"}], "milestones": [{"id": "ABC-M-001", "name": "Go live"}]}
 
 
 def sample():
@@ -43,7 +46,7 @@ def sample():
         [act(1, "2026-10-20"), act(2, "2026-10-30", owner="Bo", priority="Urgent", workstream="Build", milestone="ABC-M-001"),
          act(3, "2026-11-20", status="Closed", use_case="ABC-U-001"), act(4, None, status="Delayed", owner=None, workstream=None)],
         [risk(1), risk(2, "Issue", priority="Low", status="Closed", due_date="2026-10-01")],
-        [dec(1, needed_by="2026-11-03"), dec(2, "Made", date="2026-10-01")]), ON)
+        [dec(1, needed_by="2026-11-03"), dec(2, "Made", date="2026-10-01")], **LINKS), ON)
 
 
 def st(**kw):
@@ -170,8 +173,17 @@ class Dimensions(unittest.TestCase):
         self.assertEqual(self.one("owner", ["Bo"]), ["ABC-A-002", "ABC-001", "ABC-002"])
         self.assertEqual(self.one("owner", ["(none)"]), ["ABC-A-004"])
         self.assertEqual(self.one("priority", ["Urgent", "Low"]), ["ABC-A-002", "ABC-002"])
-        self.assertEqual(self.one("uc", ["ABC-U-001"]), ["ABC-A-003"])
-        self.assertEqual(self.one("ms", ["ABC-M-001"]), ["ABC-A-002"])
+        self.assertEqual(self.one("uc", ["Use case UC-1"]), ["ABC-A-003"])
+        self.assertEqual(self.one("ms", ["Go live"]), ["ABC-A-002"])
+        self.assertEqual(cf.normalise(st(f={"ms": ["ABC-M-001"]}), sample())["f"], {}, "the key is the milestone's name, never its id")
+
+    def test_a_link_the_data_cannot_resolve_is_none(self):
+        rows = cf.rows_of(pub([act(1, milestone="ABC-M-404", use_case="ABC-U-404")]), ON)
+        self.assertEqual((rows[0]["milestone"], rows[0]["use_case"]), (None, None))
+
+    def test_a_decision_has_no_workstream_milestone_or_priority(self):
+        d = cf.rows_of(pub(decisions=[dec(1, workstream="Build", milestone="ABC-M-001", priority="High")], **LINKS), ON)[0]
+        self.assertEqual((d["workstream"], d["milestone"], d["priority"]), (None, None, None))
 
     def test_two_dimensions_are_all_of_and_values_in_one_are_any_of(self):
         r = cf.apply_state(sample(), st(f={"owner": ["Bo", "Cy"], "due": ["soon"]}), ON)
@@ -234,6 +246,14 @@ class Search(unittest.TestCase):
         self.assertEqual(q("action 2"), ["ABC-A-002"])
         self.assertEqual(q("  "), ["ABC-A-001", "ABC-A-002"])
         self.assertEqual(q("nothing like this"), [])
+
+    def test_search_matches_every_word_in_any_order(self):
+        rows = cf.rows_of(pub([act(1, description="Book the crane"), act(2, description="Order the pumps")]), ON)
+        q = lambda text: ids(cf.apply_state(rows, st(q=text), ON))
+        self.assertEqual(q("crane book"), ["ABC-A-001"])
+        self.assertEqual(q("BOOK   crane"), ["ABC-A-001"])
+        self.assertEqual(q("the"), ["ABC-A-001", "ABC-A-002"])
+        self.assertEqual(q("crane pumps"), [])
 
     def test_search_does_not_read_a_field_that_is_not_published(self):
         rows = cf.rows_of(pub([act(1, internal_note="ZQ-SECRET", source="ZQ-SRC")]), ON)
@@ -342,6 +362,19 @@ class Remembered(unittest.TestCase):
         got = cf.recall(json.dumps({"v": 1, "f": {"owner": ["Gone"]}}), sample())
         self.assertEqual(got["f"], {})
         self.assertEqual(cf.apply_state(sample(), got, ON)["chips"], [])
+
+    def test_a_project_coded_v1_does_not_share_the_editors_key(self):
+        self.assertEqual(cf.storage_key("ABC"), "clark.work.ABC")
+        self.assertIsNone(cf.storage_key("v1"))
+        self.assertIsNone(cf.remember(cf.new_state(), "v1")[0])
+
+    def test_options_sort_by_plain_code_order_as_the_page_does(self):
+        rows = cf.rows_of(pub([act(1, owner="bo"), act(2, owner="Zed"), act(3, owner="Ana")]), ON)
+        self.assertEqual(cf.options(rows, "owner"), ["Ana", "Zed", "bo"])
+
+    def test_a_due_bucket_no_row_has_is_dropped(self):
+        got = cf.recall(json.dumps({"v": 1, "f": {"due": ["later"]}}), sample()[:1])
+        self.assertEqual(got["f"], {})
 
     def test_the_module_sends_nothing_anywhere(self):
         src = (ROOT / "src" / "clark" / "client_filters.py").read_text(encoding="utf-8")

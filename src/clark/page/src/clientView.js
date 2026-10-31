@@ -2,7 +2,7 @@
 // no clock and no network. The filters themselves are the editor's (filters.js, switched to the published rules with setPublished),
 // and Group by is the editor's too (logic/board.js). Everything here works on the rows the file holds, so an option, a count or a
 // remembered choice is only ever built from rows the client may see. It mirrors src/clark/client_filters.py (the reference model).
-import { fieldList, dueBuckets, valueOf, initial, setFilter, MODES, TYPES } from "./filters.js";
+import { fieldList, valueOf, initial, setFilter, MODES, TYPES } from "./filters.js";
 import { GROUPS } from "./logic/board.js";
 
 export const STORAGE_PREFIX = "clark.work.";           // the published page's own key: the editor's is "clark.work.v1" and is never read here
@@ -40,14 +40,15 @@ export function normalise(st, rows, today) {
   let s = { mode: out.mode, type: out.type, filters: {}, not: {} };
   for (const f of fieldList()) {
     const vals = Array.isArray(filters[f]) ? filters[f] : [];
-    const has = new Set(f === "due" ? dueBuckets().map((d) => d[0]) : rows.map((r) => valueOf(r, f, today)));
+    const has = new Set(rows.map((r) => valueOf(r, f, today)));      // a Due bucket no row is in any more is dropped too, as every other value
     const keep = vals.filter((v) => isStr(v) && has.has(v));
     if (keep.length) s = setFilter(s, f, keep, not[f] === true);
   }
   return { ...s, group: out.group };
 }
 
-export function storageKey(code) { return STORAGE_PREFIX + code; }
+// A project coded "v1" would share the editor's key: for it nothing is kept (null).
+export function storageKey(code) { const k = STORAGE_PREFIX + code; return k === STORAGE_PREFIX + "v1" ? null : k; }
 
 /** The text to keep: Open / Closed / All, type, filters and Group by. The search words are not kept. */
 export function remember(st, group) {
@@ -62,5 +63,5 @@ export function recall(text, rows, today) {
 }
 
 // localStorage can be blocked (a private window, a policy) or full: both are silent, and the page works without it.
-export function save(code, text) { try { window.localStorage.setItem(storageKey(code), text); } catch (e) { /* not kept */ } }
-export function load(code) { try { return window.localStorage.getItem(storageKey(code)); } catch (e) { return null; } }
+export function save(code, text) { try { const k = storageKey(code); if (k) window.localStorage.setItem(k, text); } catch (e) { /* not kept */ } }
+export function load(code) { try { const k = storageKey(code); return k ? window.localStorage.getItem(k) : null; } catch (e) { return null; } }

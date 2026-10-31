@@ -31,10 +31,13 @@ The model
   control applied but its own, so a count says what a click on it would show), each dimension's options with counts and an
   `active` flag, the chips, and the groups. Clear all (`clear_all`) empties the dimension filters and the search; it leaves
   the type, Open/Closed/All and Group by alone.
-- Search is a case-folded substring of the id, title, owner, update, client message and use case id, as the editor's.
+- Search matches every word typed, in any order, case ignored, each as a substring of the id, title, owner, update, client
+  message and use case id, as the page does ("crane book" finds "Book the crane").
+- Use case and Milestone filter by what the client reads, as the page does: the milestone's name and "Use case <ref>", worked
+  out from the published data's `use_cases` (id, ref) and `milestones` (id, name). A link the data cannot resolve is "(none)".
 - Order is stable: rows in the file's order (actions, then risks and issues, then decisions, each by id as published); option
   lists in a fixed order (statuses and priorities in their natural order, due buckets in their fixed order, the rest sorted
-  by case-folded name, "(none)" last); groups in their option order.
+  by name (plain code order, as the page's), "(none)" last); groups in their option order.
 - Remembered choices: the client's own browser only (`remember` -> a storage key and a JSON text; `recall` reads one back).
   Only type, show, f, not and group are kept, as the editor keeps them; the search text is not. Unknown keys, a wrong version,
   bad JSON, unknown values and values no published row has any more are ignored, so a stale choice can never empty the list
@@ -55,6 +58,7 @@ from datetime import date, timedelta
 from clark import glance
 
 STORAGE_PREFIX = "clark.work."
+EDITOR_KEY = "clark.work.v1"      # the editor's own key: a project coded "v1" would share it, so nothing is kept for that code
 VERSION = 1
 NONE = "(none)"
 TYPES = ("all", "A", "R", "D")
@@ -99,18 +103,21 @@ def bucket_of(row, today):
     return "past" if a < b else "later"
 
 
-def _row(kind, r, today):
+def _row(kind, r, today, ucs=None, ms=None):
     out = {"id": r.get("id"), "kind": kind, "type": KIND_TYPE.get(kind, "R"),
            "title": r.get("decision") if kind == "decision" else r.get("description"),
            "owner": r.get("made_by") if kind == "decision" else r.get("owner"),
-           "workstream": r.get("workstream"), "status": r.get("status"), "priority": r.get("priority"),
-           "use_case": r.get("use_case"), "milestone": r.get("milestone"),
+           "workstream": None if kind == "decision" else r.get("workstream"), "status": r.get("status"),
+           "priority": None if kind == "decision" else r.get("priority"),
+           "use_case": "Use case %s" % (ucs or {})[r.get("use_case")] if (ucs or {}).get(r.get("use_case")) else None,
+           "milestone": None if kind == "decision" else (ms or {}).get(r.get("milestone")) or None,
            "latest_update": r.get("latest_update") or r.get("client_message") or ""}
     out["due"] = glance.due_field({"kind": kind, "status": r.get("status"), "due_date": r.get("due_date"),
                                    "needed_by": r.get("needed_by"), "date": r.get("date")})
     out["bucket"] = bucket_of(out, today)
     # the search also reads the client message when the update is a different text
     out["_search"] = " ".join(str(x) for x in (r.get("client_message"), r.get("latest_update")) if x)
+    out["_uc_id"] = r.get("use_case") or ""
     return out
 
 
@@ -118,13 +125,15 @@ def rows_of(published, today):
     """The work items of the published data (`publish.select(...)["data"]`): actions, then risks and issues, then decisions,
     in the order the file holds them. Refuses a row that is still marked not the client's."""
     glance._need_today(today)
+    ucs = {u.get("id"): u.get("ref") for u in published.get("use_cases") or []}
+    ms = {m.get("id"): m.get("name") for m in published.get("milestones") or []}
     out = []
     for table, kind_of in (("actions", lambda r: "action"), ("raid", lambda r: str(r.get("type")).lower()),
                            ("decisions", lambda r: "decision")):
         for r in published.get(table) or []:
             if r.get("archived") or ("client_visible" in r and r.get("client_visible") not in (1, True)):
                 raise Refused("A row that should not be on this page reached the filters, so nothing is shown. Publish the report again; if it still happens, check the row's Shown to client setting in the editor.")
-            out.append(_row(kind_of(r), r, today))
+            out.append(_row(kind_of(r), r, today, ucs, ms))
     return out
 
 
@@ -149,7 +158,7 @@ def value_of(row, dim):
     if dim == "due":
         return row["bucket"]
     if dim == "owner":
-        return row["owner"] or NONE
+        return (row["owner"] and str(row["owner"]).strip()) or NONE
     if dim == "priority":
         return row["priority"] or NONE
     if dim == "uc":
@@ -160,7 +169,7 @@ def value_of(row, dim):
 
 
 def _rank(order):
-    return lambda v: (0, order.index(v), "") if v in order else (1, 0, str(v).casefold()) if v != NONE else (2, 0, "")
+    return lambda v: (0, order.index(v), "") if v in order else (1, 0, str(v)) if v != NONE else (2, 0, "")
 
 
 def _sort_values(dim, values):
@@ -246,11 +255,11 @@ def _matches(row, state, skip=()):
             continue
         if (value_of(row, dim) in vs) == bool(state["not"].get(dim)):
             return False
-    q = state["q"].strip().casefold()
-    if "q" not in skip and q:
+    words = state["q"].lower().split()
+    if "q" not in skip and words:
         hay = " ".join(str(x) for x in (row["id"], row["title"], row["owner"], row["latest_update"], row["_search"],
-                                        row["use_case"]) if x).casefold()
-        if q not in hay:
+                                        row["_uc_id"]) if x).lower()
+        if not all(w in hay for w in words):
             return False
     return True
 
@@ -268,7 +277,7 @@ def _group_key(row, group, today):
     if group == "status":
         return row["status"] or NONE
     if group == "owner":
-        return row["owner"] or NONE
+        return (row["owner"] and str(row["owner"]).strip()) or NONE
     if group == "priority":
         return row["priority"] or NONE
     if group == "ms":
@@ -337,8 +346,9 @@ def apply_state(rows, state, today):
 # ── Remembered choices (the client's own browser) ─────────────────────────────
 
 def storage_key(code):
-    """The localStorage key for a project: STORAGE_PREFIX + its code."""
-    return STORAGE_PREFIX + str(code)
+    """The localStorage key for a project: STORAGE_PREFIX + its code; None for the editor's own key (nothing is kept then)."""
+    key = STORAGE_PREFIX + str(code)
+    return None if key == EDITOR_KEY else key
 
 
 def remember(state, code):
