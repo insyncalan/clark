@@ -150,7 +150,12 @@ export function WorkItems({ tools }) {
       <p class="crumbs">{d.project.name}</p>
       <div class="head">
         <h1>Work items</h1>
-        {tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} /> : null}   {/* a published file is read only: no Add (#204) */}
+        {tools ? (
+          <div class="hacts">
+            {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
+            <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} />   {/* a published file is read only: no Add (#204) */}
+          </div>
+        ) : null}
       </div>
       <p class="muted note" role="status" id="work-note">{filterNote.value || asked.value}</p>
       <p class="sr" role="status" aria-live="polite" id="work-live">{announce.value}</p>

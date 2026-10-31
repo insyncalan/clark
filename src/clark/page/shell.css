@@ -169,6 +169,7 @@ table.items tr.done .t { color: var(--text-muted); }
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .head h1 { margin-bottom: 0; }
+.hacts { display: flex; align-items: center; gap: 8px; }
 .note { margin: 8px 0 0; font-size: 13px; }
 .note:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
