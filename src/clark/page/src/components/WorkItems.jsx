@@ -44,7 +44,7 @@ function keys(e, row) {
   const cell = t !== tr && t.matches && t.matches("[data-cell]") ? t : null;
   if (t !== tr && !cell) return;
   if (selecting() && pickKeys(e, row.id, (id) => focusRow(tr, id, cell), { space: !cell })) return;
-  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || (selecting() && e.shiftKey)) return;
   if (!cell && e.key === "Enter") { openPeek(row.id, "item"); return; }
   const rows = Array.from(tr.closest("table").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups, never a group heading
   const cells = Array.from(tr.querySelectorAll("[data-cell]")), c = cells.indexOf(cell);
@@ -84,7 +84,7 @@ function Row({ row, today, Cell, stop }) {
   };
   const dbl = (e) => { if (on && ownClick(e.target, e.currentTarget)) pickOpen(row.id); };
   return (
-    <tr data-id={row.id} data-kind={row.kind} class={`${isOpen(row) ? "" : "done"}${picked ? " picked" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-label={`Open ${row.id}`}
+    <tr data-id={row.id} data-kind={row.kind} class={`${isOpen(row) ? "" : "done"}${picked ? " picked" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-label={on ? `Select or open ${row.id}` : `Open ${row.id}`}
       aria-selected={on ? (picked ? "true" : "false") : undefined}
       onFocusIn={() => { active.value = row.id; if (on) sel.moveCursor(row.id); }} onKeyDown={(e) => keys(e, row)} onMouseDown={on ? noTextRange : undefined} onClick={click} onDblClick={dbl}>
       <td class="c-type"><span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span></td>

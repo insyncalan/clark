@@ -14,6 +14,8 @@ import unittest
 from _paths import SRC
 
 from test_server import CHROME, Running, chrome, wait  # noqa: E402
+from test_sizes import DATA, published_page  # noqa: E402
+from test_page import navigate  # noqa: E402
 from test_work_board_page import Base, FIXED  # noqa: E402
 from test_work_filters import click, where  # noqa: E402
 from test_work_items import bundled  # noqa: E402
@@ -136,6 +138,11 @@ class Rules(unittest.TestCase):
         got = self.run_("let s = {...E, ids: ['A', 'B', 'C'], anchor: 'B'}; const r = SEL.sync(s, ['A', 'X'], ['A', 'B', 'C', 'X']);"
                         " const same = SEL.sync(r.sel, ['A'], ['A']); return [r.sel.ids, r.sel.anchor, r.left, same.left, same.sel === r.sel];")
         self.assertEqual(got, [["A"], None, 2, 0, True])
+
+    def test_all_matching_keeps_the_same_selection_when_nothing_changed(self):
+        got = self.run_("let s = SEL.selectMatching({...E, ids: ['A', 'B']}, ['A', 'B', 'C']); const r = SEL.sync(s, ['A'], ['A', 'B', 'C']);"
+                        " return [r.sel === s, r.left];")
+        self.assertEqual(got, [True, 0], "a redraw with the same matches hands back the same selection, so nothing redraws again")
 
     def test_the_words(self):
         got = self.run_("return [SEL.countWords(0), SEL.countWords(1), SEL.countWords(3), SEL.leftWords(1), SEL.leftWords(3), SEL.matchingWords(12)];")
@@ -268,7 +275,7 @@ class Page(Base):
             tap(cdp, sid, f"tbody[data-group='{g}'] .grp-b")
             self.until(cdp, sid, f"document.querySelector('#sel-note') && document.querySelector('#sel-note').textContent === '{len(ids)} left the selection'", "the note")
             self.assertEqual(self.picked(cdp, sid), [other[0]])
-            self.assertEqual(cdp.js("document.querySelector('#sel-live').textContent", sid), f"{len(ids)} left the selection. 1 selected")
+            self.assertEqual(cdp.js("document.querySelector('#sel-live').textContent.trim()", sid), f"{len(ids)} left the selection. 1 selected")
 
     def test_select_all_matching_takes_collapsed_groups_and_follows_the_filters(self):
         with chrome() as cdp:
@@ -374,8 +381,21 @@ class Page(Base):
             self.assertTrue(cdp.js(f"getComputedStyle({on}).boxShadow.includes('inset')", sid), "a border")
             self.assertTrue(cdp.js(f"{on}.querySelector('.tick').getAttribute('aria-hidden') === 'true'", sid), "the tick is not read twice")
             live = "document.querySelector('#sel-live')"
-            self.assertEqual(cdp.js(f"[{live}.getAttribute('role'), {live}.getAttribute('aria-live'), {live}.textContent]", sid), ["status", "polite", "2 selected"])
+            self.assertEqual(cdp.js(f"[{live}.getAttribute('role'), {live}.getAttribute('aria-live'), {live}.textContent.trim()]", sid), ["status", "polite", "2 selected"])
             self.assertEqual(cdp.js("document.querySelector('#sel-clear').getAttribute('aria-label')", sid), "Clear the selection")
+
+    def test_the_same_count_twice_is_still_told(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            live = "document.querySelector('#sel-live').textContent"
+            tap(cdp, sid, self.rsel(rows[0]))
+            first = cdp.js(live, sid)
+            tap(cdp, sid, self.rsel(rows[1]))
+            second = cdp.js(live, sid)
+            self.assertEqual((first.strip(), second.strip()), ("1 selected", "1 selected"))
+            self.assertNotEqual(first, second, "the polite region's text changes, so a screen reader reads it again")
+            self.assertEqual(cdp.js(f"document.querySelector(\"tr[data-id='{rows[0]}']\").getAttribute('aria-label')", sid), f"Select or open {rows[0]}")
 
     def test_focus_order_the_bar_comes_before_the_table_and_the_table_is_still_one_stop(self):
         with chrome() as cdp:
@@ -421,6 +441,25 @@ class Page(Base):
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[1]), MOD)
             self.assertEqual(self.picked(cdp, sid), rows[:2])
+
+
+class PublishedFile(unittest.TestCase):
+    """A published file is read only: nothing to do with several, so no selection; Shift with an arrow still moves the row."""
+
+    def test_no_selection_and_shift_arrows_still_move(self):
+        s = Running(data_for=DATA.get, page_html=published_page)
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = navigate(cdp, s.port, "#work&p=ABC")
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tr[data-id]').length > 1", sid)), "the rows drew")
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
+            rows = cdp.js("[...document.querySelectorAll('#work tr[data-id]')].map(r => r.dataset.id)", sid)
+            self.assertEqual(cdp.js("[document.querySelector('#work table').getAttribute('aria-multiselectable'), !!document.querySelector('#sel-live, .gtick'),"
+                                    " document.querySelector('#work tr[data-id]').getAttribute('aria-label')]", sid), [None, False, f"Open {rows[0]}"])
+            cdp.js("document.querySelector('#work tr[data-id]').focus()", sid)
+            press(cdp, sid, "ArrowDown", SHIFT)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.id", sid) == rows[1]), "Shift+Down moved to the next row")
+            self.assertEqual(cdp.js("clarkPage.selected()", sid), [], "and selected nothing")
 
 
 class OnTheBoard(Base):

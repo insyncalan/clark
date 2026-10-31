@@ -78,6 +78,9 @@ export function selectMatching(st, matching) { return make(matching, st.anchor, 
 export function sync(st, drawn, matching) {
   if (st.all) {
     if (!matching.length) return { sel: EMPTY, left: st.ids.length };
+    const same = matching.length === st.ids.length && matching.every((id, i) => id === st.ids[i])
+      && (st.anchor == null || matching.includes(st.anchor)) && (st.cursor == null || matching.includes(st.cursor));
+    if (same) return { sel: st, left: 0 };
     const kept = make(matching, matching.includes(st.anchor) ? st.anchor : null, matching.includes(st.cursor) ? st.cursor : null, true);
     return { sel: kept, left: 0 };
   }

@@ -20,6 +20,10 @@ export function createSelection() {
   const live = signal("");
   const note = signal("");
   const listeners = new Set();
+  let flip = false;
+  // A polite region is read when its text changes: the same words twice in a row ("1 selected" for row A, then row B) would
+  // be read once. A trailing space that comes and goes makes each one a change; a screen reader does not read the space.
+  const speak = (words) => { flip = !flip; live.value = flip ? words : words + " "; };
   const ids = computed(() => state.value.ids);
   const size = computed(() => state.value.ids.length);
 
@@ -28,7 +32,7 @@ export function createSelection() {
     if (next === before) return;
     state.value = next;
     if (next.ids.length !== before.ids.length || next.ids.some((id, i) => id !== before.ids[i])) {
-      live.value = words || S.countWords(next.ids.length);
+      speak(words || S.countWords(next.ids.length));
       if (!words) note.value = "";
       listeners.forEach((fn) => { try { fn(next, before); } catch (e) { /* a listener's fault never stops the selection */ } });
     }

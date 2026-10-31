@@ -1682,8 +1682,20 @@
     "On the left edge of the peek or ask clark: back to the usual width"
    ],
    [
-    "Click, [[Mod]] or [[Shift]] and click",
-    "Work items: a click selects a row or card. Hold [[Mod]] and click to add or take out one; hold [[Shift]] and click to select every one between, as shown. A double-click opens the item"
+    "Click",
+    "Work items: select one row or card. A double-click opens the item"
+   ],
+   [
+    "[[Mod]]+click",
+    "Work items: add a row or card to the selection, or take it out"
+   ],
+   [
+    "[[Shift]]+click",
+    "Work items: select every row from the last one you clicked to this one, in the order on screen. On the board the order runs lane by lane, then column by column, then down each column"
+   ],
+   [
+    "[[Mod+Shift]]+click",
+    "Work items: add that run of rows or cards to what is already selected"
    ],
    [
     "[[Shift+Up]] [[Shift+Down]]",
@@ -1696,6 +1708,14 @@
    [
     "[[Mod+A]]",
     "Work items, on a row or card: select every one shown"
+   ],
+   [
+    "The tick box on a group",
+    "Work items: select or clear every row in that group. It is off while the group is closed"
+   ],
+   [
+    "[[Esc]] with a selection",
+    "Work items, with no menu or box open: clear the selection"
    ]
   ],
   "icons": [
