@@ -297,7 +297,7 @@ class Shown(unittest.TestCase):
         self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "howto-add-a-section-from-a-template", "ref-keys"], ["work", "dashboard+edit"]))
         for q in ("peek", "publish", "sneak"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match
             self.assertEqual(s["q"][q], [], q)
-        self.assertEqual(s["q"]["keys"], ["ref-keys", "ref-section-templates"])
+        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
         w = self.shown["where"]
