@@ -11,6 +11,7 @@ import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCo
 import { createDrag } from "../logic/dragCore.js";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { cursor, stopOf, cardKeys } from "../listKeys.js";
 
 const TONED = ["status", "due", "priority"];             // the groups whose columns carry their state's colour
 const LANE_WORDS = { workstream: "Workstream", type: "Type" };
@@ -27,12 +28,12 @@ function Eye() {
   return <span class="eye" title="Shown to the client"><Icon name="eye" /><span class="sr">Shown to the client</span></span>;
 }
 
-function Card({ card, editing, selected, dragging, ask, menu, onOpen, onMenu, children }) {
+function Card({ card, editing, selected, dragging, ask, menu, stop, onOpen, onMenu, children }) {
   const label = `${card.id} ${card.title}, ${card.state.text}${card.due.words ? ", " + card.due.words.toLowerCase() : ""}`;
   return (
     <article class={`bcard k-${card.typeClass.slice(2)}${selected ? " sel" : ""}${dragging ? " drag" : ""}${card.open ? "" : " done"}`} data-id={card.id} data-kind={card.typeClass.slice(2)}>
-      <div class="bc-main" role="button" tabIndex={0} aria-label={label} onClick={() => onOpen(card.id)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(card.id); } }}>
+      <div class="bc-main" role="button" tabIndex={stop ? 0 : -1} data-cursor={card.id} aria-label={label} onClick={() => onOpen(card.id)} onFocusIn={() => { cursor.value = card.id; }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(card.id); } else cardKeys(e, card.id); }}>
         <div class="bc-top"><span class={`type ${card.typeClass}`}>{card.type}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
         <div class="bc-title">{card.title}</div>
         <div class="bc-foot">
@@ -265,11 +266,14 @@ export function Board({ rows, today, type }) {
     return out;
   }
 
+  const drawn = [];                                   // the cards on screen in reading order: the board's one tab stop (#194)
+  b.lanes.forEach((ln) => ln.columns.forEach((c) => { if (!isCollapsed(st, g, c.key)) c.cards.forEach((cd) => drawn.push(cd.id)); }));
+  const stopId = stopOf(drawn);
   const cardNode = (cd, ln, c) => {
     const here = cardCell[cd.id];
     return (
       <div key={cd.id} class="bwrap" onPointerDown={(e) => startDrag(e, cd.id, ln.key, c.key)}>
-        <Card card={cd} editing={editing} selected={peeked === cd.id} dragging={dragId === cd.id} menu={menu === cd.id}
+        <Card card={cd} editing={editing} stop={cd.id === stopId} selected={peeked === cd.id} dragging={dragId === cd.id} menu={menu === cd.id}
           onOpen={open} onMenu={(id) => setMenu(menu === id ? null : id)}
           ask={ask && ask.id === cd.id
             ? ask.kind === "date"

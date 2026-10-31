@@ -91,14 +91,14 @@ class Held(unittest.TestCase):
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["keys"])
         self.assertEqual(s["start"]["parts"], [])
-        self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
+        self.assertEqual(len(s["reference"]["keys"]), 24 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Work items"])
         self.assertEqual(s["reference"]["groups"], ["Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (26, 30, 21))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (26, 30, 24))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -137,7 +137,8 @@ class AgainstThePage(unittest.TestCase):
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
-        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]"])
+        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
+                                "[[Up]] [[Down]] [[Home]] [[End]]", "[[Up]] [[Down]] [[Left]] [[Right]]", "[[Enter]]"])
 
 
 class NeverDelete(unittest.TestCase):
