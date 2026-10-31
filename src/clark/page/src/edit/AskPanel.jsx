@@ -1,6 +1,6 @@
-// The ask panel (#47a): a full-height panel on the right, over the open page. Edit pages only (a published file has none). A stub
-// look, built from the page's own tokens; the real look (#102) lands over it. The reply is drawn as text only: it is never read as
-// markup. Nothing is sent while asking is off.
+// The ask panel (#47a): a full-height panel on the right, over the open page. Edit pages only (a published file has none). The look
+// is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
+// never read as markup. Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token } from "../stores/report.js";
 import { words } from "./publishApi.js";
@@ -38,15 +38,17 @@ export function AskPanel() {
 
   if (!open) return null;
 
-  async function send(e) {
+  // `preset` is a suggestion's words: it is asked as it stands and leaves what is typed in the box alone.
+  async function send(e, preset) {
     if (e) e.preventDefault();
     if (state !== "ready" || busy) return;
-    const q = text.trim();
+    const q = (preset || text).trim();
     if (!q) { setNote(W.EMPTY_LINE); return; }
     setNote("");
     const earlier = list.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
     turns.value = [...list, { role: "user", text: q }];
-    setText("");
+    if (!preset) setText("");
+    if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
     const r = await post("/api/ask", { project: project.value, question: q, earlier });
     pending.value = false;
@@ -98,37 +100,51 @@ export function AskPanel() {
     const d = e.key === "ArrowLeft" ? 24 : e.key === "ArrowRight" ? -24 : 0;
     if (d) { e.preventDefault(); setWidth(panelWidth.value + d, true); }
   }
-  function toSettings(e) { e.preventDefault(); closePanel(); show("settings"); }
+  // To Settings and the Asking card there: scrolled into view and focused, so the link lands on the switch, not at the top.
+  function toSettings(e) {
+    e.preventDefault(); closePanel(); show("settings");
+    setTimeout(() => { const c = document.getElementById("ask-settings"); if (c) { c.scrollIntoView({ block: "start" }); const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } } }, 120);
+  }
 
   return (
     <aside id="ask-panel" class="ask-panel" role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
-        <button type="button" class="btn sm quiet" id="ask-close" onClick={closePanel}>{W.CLOSE}</button>
+        <button type="button" class="btn sm" id="ask-close" onClick={closePanel}>{W.CLOSE}</button>
       </header>
-      <p class="ask-status muted" id="ask-status" role="status" aria-live="polite">
+      <p class="ask-status" id="ask-status" role="status" aria-live="polite">
         {state === "checking" ? W.CHECKING_LINE : state === "off" ? null : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
       </p>
-      {state === "ready" || state === "signed-out" ? <p class="ask-sent muted" id="ask-sent">{W.SENT_LINE}</p> : null}
       {state === "off" || state === "checking" ? (
         <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
       {state === "signed-out" ? (
         <p class="ask-off" id="ask-signed-out">{W.SIGNED_OUT_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
-      <div class="ask-log" id="ask-log" role="log" aria-live="polite" ref={log}>
+      <div class="ask-log" id="ask-log" role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
         {list.map((t, i) => (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
             {t.kind === "changes" ? <ChangeCards turn={t} /> : <div class="ask-text">{t.text}</div>}
           </div>
         ))}
-        {busy ? <p class="ask-quip muted" id="ask-quip">{quip}</p> : null}
       </div>
-      <p class="ask-note muted" id="ask-note" role="status" aria-live="polite">{note}</p>
+      {busy ? (
+        <p class="ask-work" id="ask-work" role="status">
+          <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
+          <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
+          <span class="ask-sr">{W.WORKING}</span>
+        </p>
+      ) : state === "ready" ? (
+        <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
+          {W.SUGGESTIONS.map((q) => <button type="button" key={q} onClick={() => send(null, q)}>{q}</button>)}
+        </div>
+      ) : null}
+      {state === "ready" || state === "signed-out" ? <p class="ask-sent" id="ask-sent">{W.SENT_LINE}</p> : null}
+      <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>
       <form class="ask-form" onSubmit={send}>
-        <textarea ref={box} id="ask-box" rows="3" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready"}
+        <textarea ref={box} id="ask-box" rows="2" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready"}
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
