@@ -5,7 +5,7 @@ import { useState } from "preact/hooks";
 import { recall, remember } from "../logic/remember.js";
 import { MsMark } from "./MsMark.jsx";
 import { Icon } from "./Icon.jsx";
-import { calendarChips, buckets, neighbour, periodChips, addDays, showDate, MONTHS, inRange } from "../logic/milestones.js";
+import { calendarChips, buckets, neighbour, periodChips, addDays, showDate, MONTHS, inRange, markDates } from "../logic/milestones.js";
 import { dayNumber } from "../workItems.js";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -52,13 +52,16 @@ export function MsCalendar({ rows, today, open, place, client }) {
   // The scale is remembered per place, as the Timeline / Calendar choice is; a published file remembers nothing.
   const [scale, setScale] = useState(() => { const s = client || !place ? null : recall(`msv.calv.${place}`, null); return SCALE_KEYS.includes(s) ? s : "month"; });
   const chips = calendarChips(rows);
-  const [at, setAt] = useState(inRange(today) ? today : "2026-01-01");        // any day inside the period shown
+  // Where to open when today is out of range: the earliest dated mark, else the start of this year.
+  const home = () => inRange(today) ? today : (markDates(rows).sort()[0] || `${new Date().getFullYear()}-01-01`);
+  const [at, setAt] = useState(home);        // any day inside the period shown
   const [far, setFar] = useState(false);
+  const [moved, setMoved] = useState(false);   // true once the person has changed the period, so it is announced then and not on load
   const here = buckets(scale, at, at)[0];
-  const go = (k) => { const b = neighbour(scale, at, k); if (b) { setFar(false); setAt(b.start); } else setFar(true); };
-  const toToday = () => { setFar(false); setAt(inRange(today) ? today : "2026-01-01"); };
+  const go = (k) => { const b = neighbour(scale, at, k); if (b) { setFar(false); setMoved(true); setAt(b.start); } else setFar(true); };
+  const toToday = () => { setFar(false); setMoved(true); setAt(home()); };
   // The new scale opens on today when today is in what is shown, else on what starts it.
-  const pick = (s) => { if (!client && place) remember(`msv.calv.${place}`, s); setFar(false); setScale(s); setAt(here.start <= today && today <= here.end ? today : here.start); };
+  const pick = (s) => { if (!client && place) remember(`msv.calv.${place}`, s); setFar(false); setMoved(true); setScale(s); setAt(here.start <= today && today <= here.end ? today : here.start); };
   const keys = (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     const k = { ArrowLeft: -1, PageUp: -1, ArrowRight: 1, PageDown: 1 }[e.key];
@@ -77,13 +80,15 @@ export function MsCalendar({ rows, today, open, place, client }) {
   } else {
     body = (
       <div class="cal-q">{here.months.map((m) => (
-        <div key={m}><button type="button" class="cal-qm" data-goto={m} title={`Show ${MONTHS[+m.slice(5) - 1]}`} onClick={() => { if (!client && place) remember(`msv.calv.${place}`, "month"); setScale("month"); setAt(`${m}-01`); }}>{MONTHS[+m.slice(5) - 1]}</button>
+        <div key={m}><button type="button" class="cal-qm" data-goto={m} title={`Show ${MONTHS[+m.slice(5) - 1]}`} onClick={() => { if (!client && place) remember(`msv.calv.${place}`, "month"); setScale("month"); setMoved(true); setAt(`${m}-01`); }}>{MONTHS[+m.slice(5) - 1]}</button>
           <MonthGrid month={m} chips={chips} today={today} open={open} /></div>
       ))}</div>
     );
   }
   return (
-    <div class="cal" data-scale={scale} data-at={here.key} onKeyDown={keys} tabIndex={0} aria-label="Milestone calendar. Left and Right arrows or Page Up and Page Down move to the earlier or later period." title="Left and Right arrows or Page Up and Page Down move the period">
+    <div class="cal" data-scale={scale} data-at={here.key} onKeyDown={keys} tabIndex={0} role="group" aria-label="Milestone calendar" aria-describedby="cal-hint">
+      <span id="cal-hint" class="sr-only">Left and Right arrows or Page Up and Page Down move to the earlier or later period.</span>
+      <span class="sr-only" role="status" aria-live="polite" data-cal-say>{moved ? `Showing ${here.label}` : ""}</span>
       <div class="cal-bar">
         <button type="button" class="ib" data-cal="-1" aria-label="Earlier" onClick={() => go(-1)}><Icon name="left" /></button>
         <button type="button" class="ib" data-cal="1" aria-label="Later" onClick={() => go(1)}><Icon name="right" /></button>

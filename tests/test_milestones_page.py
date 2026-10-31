@@ -307,6 +307,27 @@ class RealBrowser(unittest.TestCase):
             sid = self.visit(cdp, 1400, "#milestones&p=MOSS", port, ready=".cal")
             self.assertEqual(cdp.js("document.querySelector('.cal').dataset.scale", sid), "month", "an unknown value opens on Month")
 
+    def test_the_focusable_calendar_has_a_role_a_short_name_a_hidden_hint_and_announces_a_move(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            self.assertEqual(cdp.js("document.querySelector('.cal').getAttribute('role')", sid), "group", "a name needs a role")
+            self.assertEqual(cdp.js("document.querySelector('.cal').getAttribute('aria-label')", sid), "Milestone calendar", "short name")
+            self.assertIsNone(cdp.js("document.querySelector('.cal').getAttribute('title')", sid), "the hint is not repeated in a tooltip")
+            hint = cdp.js("(() => { const c = document.querySelector('.cal'); const h = document.getElementById(c.getAttribute('aria-describedby')); "
+                          "return h ? [h.textContent, h.className] : null; })()", sid)
+            self.assertIsNotNone(hint, "the hint is described by an element")
+            self.assertIn("Page Down", hint[0])
+            self.assertIn("sr-only", hint[1])
+            self.assertEqual(cdp.js("document.querySelector('[data-cal-say]').textContent", sid), "", "nothing announced on load")
+            self.assertEqual(cdp.js("document.querySelector('[data-cal-say]').getAttribute('aria-live')", sid), "polite")
+            cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-cal-say]').textContent", sid) == "Showing November 2026"))
+
+    def test_the_calendar_has_no_hard_coded_fallback_year(self):
+        src = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "components" / "MsCalendar.jsx").read_text()
+        self.assertNotIn("2026-01-01", src, "the fallback comes from the data or today")
+
     def test_each_chip_shows_its_status_word_and_the_period_lists_its_milestones(self):
         port = self.serve()
         rows = {r["id"]: r for r in self.expected("MOSS")}
