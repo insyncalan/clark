@@ -173,6 +173,8 @@ class Words(unittest.TestCase):
                                   "Section style", "Slim gaps", "Sections close together, divided by a thin line.",
                                   "Roomy gaps", "More space between sections.", "Grey headers", "Each section's title sits on a grey band.",
                                   "One card", "All the sections inside a single card.",
+                                  "Keys", "Single-key shortcuts",            # #193
+                                  "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again"])
@@ -250,6 +252,13 @@ class Words(unittest.TestCase):
                 if line.lstrip().startswith("//"):
                     continue
                 self.assertIsNone(starts.search(line), f"{f.name}:{n}: a sentence starts with the product name")
+
+    def test_help_names_no_version_that_may_not_exist(self):
+        """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
+        for path in (PAGE_SRC / "help" / "helpContent.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("**Review X.Y.Z**", text, path.name)
+            self.assertNotRegex(text, r"Review \d+\.\d+\.\d+", path.name)
 
     def test_every_publish_message_a_person_can_see_is_plain_words(self):
         """#43: the publish routes' messages hold no system text slot, no jargon and no request talk."""
