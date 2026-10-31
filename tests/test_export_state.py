@@ -80,6 +80,31 @@ class State(unittest.TestCase):
         self.assertIn("sha256:mine2", self.books())
         self.assertIn("sha256:abc", self.books(), "each project's newest is exempt from the total cap")
 
+    def test_ten_future_dated_records_do_not_take_the_one_just_written(self):
+        for n in range(10):
+            excel.save_state(self.state, f"sha256:f{n}", record("ABC", f"2027-01-0{n + 1}", f"f{n}"))
+        excel.save_state(self.state, "sha256:now", record("ABC", "2026-10-28", "now"))
+        excel.prune_hash_records(self.state, "2026-10-28", keep="sha256:now")
+        self.assertIn("sha256:now", self.books(), "the export just made survives")
+
+    def test_the_total_cap_alone_keeps_the_newest_of_each_project(self):
+        for n in range(6):
+            excel.save_state(self.state, f"sha256:a{n}", record(f"P{n}", "2026-10-27", f"a{n}"))
+            excel.save_state(self.state, f"sha256:b{n}", record(f"P{n}", "2026-10-26", f"b{n}"))
+        excel.prune_hash_records(self.state, "2026-10-28", keep_total=4)
+        left = set(self.books())
+        self.assertTrue({f"sha256:a{n}" for n in range(6)} <= left, "each project's newest stays, even over the total")
+        self.assertFalse(any(f"sha256:b{n}" in left for n in range(6)), "the older ones go to meet the total")
+
+    def test_a_project_that_is_not_live_keeps_nothing(self):
+        excel.save_state(self.state, "sha256:x", record("OLD", "2026-10-27", "x"))
+        excel.save_state(self.state, "sha256:y", record("NEW", "2026-10-27", "y"))
+        excel.save_state(self.state, "/folder/kept.xlsx", {**record("OLD", "2026-10-01"), "imported_hash": "z"})
+        excel.prune_hash_records(self.state, "2026-10-28", live={"NEW"})
+        self.assertNotIn("sha256:x", self.books())
+        self.assertIn("sha256:y", self.books())
+        self.assertIn("/folder/kept.xlsx", self.books(), "a path record is never removed here")
+
     def test_nothing_is_written_when_nothing_is_cut(self):
         excel.save_state(self.state, "sha256:aa", record("ABC", "2026-10-27"))
         with mock.patch.object(platform, "write_file") as write:
