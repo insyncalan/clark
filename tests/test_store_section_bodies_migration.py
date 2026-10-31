@@ -1,9 +1,8 @@
 """The migration step that lets report_sections hold the types 'needs' and 'tracker' (the shared base for 'Needs from you' and
 'Progress tracker'; src/clark/store.py, guarded).
 
-THE STEP'S NUMBER IS A PLACEHOLDER: renumber at merge; the order is ruled by the Head. It is written in one place, SCHEMA_VERSION
-in store.py, and MIGRATIONS reads it. The tests below never write the number: they read SCHEMA_VERSION (and the version just before
-it), so renumbering is a one-line change in store.py, plus the tests that name a version (test_store_migration.py).
+The step is number 4, after Word's 3. Its number is written as a literal in MIGRATIONS and SCHEMA_VERSION says 4; a step that lands
+before it renumbers it (both places). The other tests read SCHEMA_VERSION and the version just before it, so they follow a renumber.
 
 Run: python3 dev/run_tests.py test_store_section_bodies_migration
 """
@@ -83,14 +82,15 @@ class Base(unittest.TestCase):
         return sorted((self.dir / "backups").glob("*-migrate.db")) if (self.dir / "backups").exists() else []
 
 
-class TheNumberIsOneConstant(Base):
-    def test_the_step_is_the_last_one_and_takes_its_number_from_schema_version_renumber_at_merge(self):
-        self.assertEqual(store_module.MIGRATIONS[-1], (store_module.SCHEMA_VERSION, store_module.migrate_section_bodies))
+class TheNumber(Base):
+    def test_the_step_is_number_4_and_the_version_is_4(self):
+        self.assertIn((4, store_module.migrate_section_bodies), store_module.MIGRATIONS)
+        self.assertEqual(store_module.SCHEMA_VERSION, 4)         # both written out: a step that lands first renumbers this one, on purpose, in both places
         self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
 
-    def test_the_step_does_not_name_a_number_anywhere_else_in_store_py(self):
+    def test_the_step_is_named_for_what_it_does_not_for_its_number(self):
         src = (ROOT / "src" / "clark" / "store.py").read_text(encoding="utf-8")
-        self.assertNotIn("migrate_to_3", src)
+        self.assertNotIn("migrate_to_4", src)
         self.assertEqual(len(re.findall(r"^SCHEMA_VERSION = ", src, re.M)), 1)
 
     def test_the_step_changes_no_other_table(self):
