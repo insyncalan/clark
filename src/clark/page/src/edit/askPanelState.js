@@ -8,6 +8,9 @@ import { helpOpen } from "../help/helpStore.js";
 import { askOn } from "./askState.js";
 import { QUIPS } from "./askWords.js";
 
+const MIN = 320, DEFAULT = 420;
+const KEY = "clark.askWidth";
+
 export const panelOpen = signal(false);
 export const panelState = signal("checking");        // "checking" | "off" | "signed-out" | "ready"
 export const panelModel = signal("");                 // the model's name when the status route gives one
@@ -16,11 +19,9 @@ export const panelFocus = signal(0);                  // bumped to ask the panel
 export const turns = signal([]);                       // the chat: [{role: "user" | "assistant", text, kind?}]; kept while the panel is closed
 export const pending = signal(false);                  // a question is out
 
-const MIN = 320, DEFAULT = 420;
-const KEY = "clark.askWidth";
-const room = () => Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9));     // clientWidth: never the scrollbar's width
+function room() { return Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9)); }     // clientWidth: never the scrollbar's width
 
-export const clampWidth = (w) => Math.min(room(), Math.max(MIN, Math.round(Number(w) || DEFAULT)));
+export function clampWidth(w) { return Math.min(room(), Math.max(MIN, Math.round(Number(w) || DEFAULT))); }
 function initialWidth() {
   try { const w = parseInt(localStorage.getItem(KEY), 10); if (w >= MIN) return clampWidth(w); } catch (e) { /* only a convenience */ }
   return clampWidth(DEFAULT);
