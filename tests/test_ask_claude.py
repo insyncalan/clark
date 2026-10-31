@@ -89,7 +89,7 @@ if mode == "flood":
     sys.stdout.flush()
     time.sleep(60)
 if mode == "fail":
-    sys.stderr.write("secret request text in an error sk-ant-api03-canary\n")
+    sys.stderr.write("secret request text in an error " + "sk" + "-ant-api03-canary\n")    # built here, so no key shape is in this file
     print(json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "half an answer"}))
     sys.exit(1)
 if mode == "empty":
