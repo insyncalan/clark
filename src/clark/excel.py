@@ -147,7 +147,9 @@ ZIP_TIME = (1980, 1, 1, 0, 0, 0)           # the earliest time a zip can hold: e
 
 # Formatting (#85a). Brand colours come from excel_colours (the demo tokens); the layout rules are these.
 HEADER = PatternFill("solid", fgColor=colours.HEADER_FILL)
-HEADER_FONT = Font(bold=True, color=colours.HEADER_TEXT)
+OFFICE_FONT = look.office_font()           # the look's --font-office, a font Office has (#85)
+HEADER_FONT = Font(name=OFFICE_FONT, bold=True, color=colours.HEADER_TEXT)
+DATA_FONT = Font(name=OFFICE_FONT, size=11)  # data cells: the workbook's default size, in the look's font (#85)
 # The item's title column on each sheet: the column frozen beside the ID, so a row stays readable while scrolling across.
 TITLE_OF = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision",
             "use_cases": "title"}
@@ -800,6 +802,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             head.font, head.fill = HEADER_FONT, HEADER
             head.alignment = Alignment(wrap_text=True, vertical="center")
             ws.column_dimensions[col].width = column_width(table, field)
+            for c in ws[f"{col}2:{col}{n_rows}"]:
+                c[0].font = DATA_FONT           # the data and the spare rows, so typed entries match
             for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
                 c[0].alignment = Alignment(wrap_text=wraps(table, field), vertical="top")
             if field in DATES:

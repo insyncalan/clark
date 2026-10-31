@@ -135,6 +135,15 @@ class Formatting(unittest.TestCase):
                 self.assertEqual(c.fill.fgColor.rgb[-6:], look.colour("brand-navy"))
                 self.assertTrue(c.alignment.wrap_text)
 
+    def test_the_looks_office_font_on_the_header_and_the_data_cells_of_each_data_sheet(self):
+        wb = load_workbook(self.build(self.everything()))
+        font = look.office_font()
+        for name in ("Milestones", "Actions", "Risks and issues", "Decisions", "Use cases"):
+            ws = wb[name]
+            self.assertEqual(ws["A1"].font.name, font, (name, "header"))
+            self.assertEqual(ws["B2"].font.name, font, (name, "data"))
+            self.assertEqual(ws["B2"].font.sz, 11, (name, "data size"))
+
     # ── widths and wrapping ──────────────────────────────────────────────────
 
     def test_widths_and_wrap_by_kind(self):
