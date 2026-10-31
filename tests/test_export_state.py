@@ -122,6 +122,16 @@ class State(unittest.TestCase):
         excel.prune_hash_records(self.state, "2026-10-28")
         self.assertEqual(len(self.books()), 33, "each project's newest is never cut by the total")
 
+    def test_ten_future_dated_records_rank_below_the_real_exports_made_today(self):
+        for n in range(10):
+            excel.save_state(self.state, f"sha256:f{n}", record("ABC", f"2027-01-0{n + 1}", f"f{n}"))
+        excel.save_state(self.state, "sha256:r1", record("ABC", "2026-10-28", "r1"))
+        excel.save_state(self.state, "sha256:r2", record("ABC", "2026-10-28", "r2"))
+        excel.prune_hash_records(self.state, "2026-10-28", keep="sha256:r2")
+        self.assertIn("sha256:r1", self.books(), "the earlier real export of today survives")
+        self.assertIn("sha256:r2", self.books())
+        self.assertEqual(len(self.sha("ABC")), excel.KEEP_NEWEST)
+
     def test_nothing_is_written_when_nothing_is_cut(self):
         excel.save_state(self.state, "sha256:aa", record("ABC", "2026-10-27"))
         with mock.patch.object(platform, "write_file") as write:
