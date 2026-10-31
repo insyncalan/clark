@@ -169,6 +169,21 @@ class Bulk(unittest.TestCase):
         self.assertEqual(self.counts(), before)
         self.assertEqual([self.value("actions", r, "owner") for r in self.actions], ["Ada Quillfeather"] * 3)
 
+    def test_an_item_that_has_the_value_by_the_write_is_not_said_to_have_changed(self):
+        real = clark_store.Step.update
+        calls = []
+
+        def same_by_then(st, kind, ref, changes_, **kw):
+            calls.append(ref)
+            if len(calls) == len(self.actions) + 1:                  # the first item of the real step: it has the value by now, so nothing is written
+                return ref
+            return real(st, kind, ref, changes_, **kw)
+        with mock.patch.object(clark_store.Step, "update", same_by_then):
+            status, body = self.send("actions", self.actions, {"owner": "Zelda Quince"})
+        self.assertEqual((status, body["changed"], body["unchanged"]), (200, self.actions[1:], self.actions[:1]), body)
+        self.assertEqual(body["words"], "Changed 2 items. 1 already had that.")
+        self.assertEqual([i["id"] for i in body["items"]], self.actions[1:])
+
     def test_the_trial_never_writes(self):
         before = self.counts()
         self.send("actions", self.actions + ["ABC-A-901"], {"owner": "Ada Quillfeather"})

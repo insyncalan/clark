@@ -1003,18 +1003,21 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
         return 200, {"ok": True, "apply_id": None, "undoable": False, "changed": [], "unchanged": unchanged, "left_out": left_out,
                      "words": _bulk_words([], unchanged, left_out), "items": []}
     with store.step(VIA, by_user, **where) as st:                   # BEGIN IMMEDIATE: one step for every item that can take it
+        changed = []
         for ref in ready:
+            before = store.read(table, ref=ref)
             try:
                 st.update(table, ref, changes)
             except Invalid as e:                                    # changed since the trial: the whole step rolls back
                 if _store_words(e) is None:
                     raise
                 raise Refused(STALE) from None
+            (changed if store.read(table, ref=ref) != before else unchanged).append(ref)    # what was written, not what the trial said
         apply_id = st.peek_apply_id()
     shown = tuple(dict.fromkeys(ITEM_SHOWN[table] + CHANGE_KINDS[table][BULK] + (("priority",) if table == "raid" else ())))
-    items = [{k: r[k] for k in shown} for r in (store.read(table, ref=ref) for ref in ready)]
-    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "changed": ready, "unchanged": unchanged,
-                 "left_out": left_out, "words": _bulk_words(ready, unchanged, left_out), "items": items}
+    items = [{k: r[k] for k in shown} for r in (store.read(table, ref=ref) for ref in changed)]
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "changed": changed, "unchanged": unchanged,
+                 "left_out": left_out, "words": _bulk_words(changed, unchanged, left_out), "items": items}
 
 
 def _tiles(store, code):

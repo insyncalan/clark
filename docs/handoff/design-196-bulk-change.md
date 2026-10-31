@@ -48,6 +48,18 @@ The batch is one step, so the existing `/api/undo` reverses it whole, and #197 s
 fields (impact and likelihood) in its work-item family. An undo of the undo is the store's, as for one edit; the page route
 still refuses it.
 
+"One Undo restores all" holds unless an item was changed again after the batch: then the Undo puts the others back, leaves
+that item as it is and says why (the store's standing rule for every Undo, not new here).
+
+## Deliberate choices, for the readers to confirm
+
+- A bulk change tells an archived item ("It is archived. Restore it first.") apart from a missing one ("It isn't in this
+  project now."). Both are this project's own ids, so nothing about another project is told.
+- Impact and likelihood can be changed in bulk only; a single change still doesn't take them. This widens what a request may
+  change on a risk or issue.
+- `changed` lists only the items whose row is different after the real write; one that had the value by then is counted
+  with `unchanged`.
+
 ## Guarded files
 
 Only `src/clark/changes.py`. No change to the store, the server, the schema or backups. `Refused` gains an optional `extra`
