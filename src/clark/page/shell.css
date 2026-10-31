@@ -938,3 +938,20 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+
+/* Show archived on the Milestones page (C-M4): the pill with its count, and the Archived box. Tokens only, so dark mode follows. */
+.arch-bar { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+.arch-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); font: inherit; font-size: 14px; cursor: pointer; white-space: nowrap; transition: background-color var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
+.arch-pill:hover { color: var(--text); }
+.arch-pill:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.arch-pill[aria-pressed="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); border-color: transparent; color: var(--pill-fg); font-weight: 700; }
+.arch-pill .i { width: 14px; height: 14px; }
+.arch-pill em { font-style: normal; font-size: 12px; }
+.tag.arch { gap: 4px; align-items: center; border: 1px solid var(--border); }
+.tag.arch .i { width: 12px; height: 12px; }
+.arch-box { margin-top: 18px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.arch-h { display: flex; align-items: baseline; gap: 10px; font-size: 16px; font-weight: 500; margin: 0 0 8px; color: var(--text-muted); }
+.arch-h span { font-size: 13px; font-weight: 400; }
+.arch-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.arch-l li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--text-muted); font-size: 14px; }
+.arch-l .arch-n { color: var(--text); font-weight: 500; }

@@ -311,6 +311,45 @@ def publish_with_plants():
     return demo, folder, Path(done["path"]), (a, b, c, d)
 
 
+    def test_the_pill_counts_the_archived_milestones_and_the_box_toggles_by_click_and_keyboard(self):
+        mid = self.store.data_for("TUL")["milestones"][0]["id"]       # C-M4: Show archived pill, count and box
+        self.store.archive("milestones", mid)
+        self.addCleanup(self.store.restore, "milestones", mid)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width, "#milestones&p=TUL")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#mArchBtn em').textContent", sid) == "1"), "the count")
+                self.assertEqual(cdp.js("document.querySelector('#mArchBtn').textContent.trim()", sid), "Show archived 1")
+                self.assertEqual(cdp.js("document.querySelector('#mArchBtn').getAttribute('aria-pressed')", sid), "false")
+                self.assertIsNone(cdp.js("document.querySelector('#mArchList')", sid), "closed to begin with")
+                self.assertNotIn(mid, cdp.js("document.querySelector('.msl').textContent", sid) or "")
+                cdp.js("document.querySelector('#mArchBtn').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#mArchList')", sid)))
+                self.assertEqual(cdp.js("document.querySelector('#mArchBtn').getAttribute('aria-pressed')", sid), "true")
+                self.assertEqual(cdp.js("document.querySelector('#mArchList').getAttribute('aria-labelledby')", sid), "mArchH")
+                self.assertEqual(cdp.js("document.querySelector('#mArchH').textContent", sid), "Archived 1 milestone")
+                self.assertEqual(cdp.js("document.querySelectorAll('#mArchList li').length", sid), 1)
+                self.assertRegex(cdp.js("document.querySelector('#mArchList li').textContent", sid), r"Archived.*work items? still linked")
+                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no page-wide scroll")
+                # the keyboard: the pill is a real button, so Space and Enter act on it; focus stays on it
+                cdp.js("document.querySelector('#mArchBtn').focus()", sid)
+                for key, code in (("Enter", "Enter"), (" ", "Space")):
+                    before = cdp.js("!!document.querySelector('#mArchList')", sid)
+                    for typ in ("keyDown", "keyUp"):
+                        cdp.call("Input.dispatchKeyEvent", {"type": typ, "key": key, "code": code, "text": key if typ == "keyDown" else ""}, sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#mArchList')", sid) != before), f"{code} toggles")
+                    self.assertEqual(cdp.js("document.activeElement.id", sid), "mArchBtn")
+
+    def test_a_project_with_none_says_so_and_a_published_file_has_no_pill(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp, 1400, "#milestones&p=MOSS")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#mArchBtn')", sid)))
+            self.assertEqual(cdp.js("document.querySelector('#mArchBtn em').textContent", sid), "0")
+            cdp.js("document.querySelector('#mArchBtn').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#mArchList')", sid)))
+            self.assertEqual(cdp.js("document.querySelector('#mArchList p').textContent", sid), "No archived milestones.")
+
+
 class Published(unittest.TestCase):
     def test_the_file_draws_the_plan_in_client_words_and_holds_nothing_internal(self):
         demo, folder, path, (a, b, c, d) = publish_with_plants()

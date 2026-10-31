@@ -3,6 +3,7 @@
 import { status, message, project, projects, projectsState, openProject, tryAgain } from "../stores/report.js";
 
 import { MsBlock } from "./MsBlock.jsx";
+import { MsArchPill, MsArchBox } from "./MsArchived.jsx";
 
 function Empty({ title, children, action }) {
   return <section class="frame empty"><h1>{title}</h1><p class="muted">{children}</p>{action}</section>;
@@ -13,8 +14,10 @@ export function Milestones({ tools }) {
   return (
     <section class="frame milestones" id="milestones">
       <h1>Milestones</h1>
+      <MsArchPill />
       <MsBlock place="page" />
       {More ? <More /> : null}
+      <MsArchBox />
     </section>
   );
 }
