@@ -402,6 +402,8 @@ table.items tbody tr:focus-visible { outline: 2px solid var(--brand-blue); outli
 
 /* Work items: Group by, the table or board icon switch, grouped table headings (#68). Tokens only. */
 .vctl { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.vctl .search input { box-sizing: border-box; width: 220px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; }
+.vctl .search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .btn.gb { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; }
 .btn.gb .i { width: 14px; height: 14px; }
 .seg.icons button, .bib { all: unset; box-sizing: border-box; position: relative; display: inline-grid; place-items: center; width: 34px; height: 32px; cursor: pointer; color: var(--text-muted); }

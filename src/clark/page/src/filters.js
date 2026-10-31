@@ -58,20 +58,37 @@ const memberOf = (row, field, v, today) => (field === "reviewed" ? freshnessValu
 export function hasReviewDates(rows) {
   return (rows || []).some((r) => r && (typeof r.not_reviewed === "boolean" || r.last_reviewed || r.raised));
 }
+// The published file (#69): everything on its page is already the client's, so it has no Client filter and no Freshness filter (the
+// seven the client gets: Workstream, Status, Due, Owner, Priority, Use case, Milestone), and a finished item dated in the past is
+// "Earlier" (a finished item is never overdue). The page switches this on once, when it opens a published file; the editor never
+// does. It is the only module-level state here.
+let published = false;
+export function setPublished(on) { published = !!on; }
+export function fieldList() { return published ? FIELDS.filter((f) => f !== "client" && f !== "reviewed") : FIELDS; }
+export function dueBuckets() { return published ? [...DUE, ["past", "Earlier"]] : DUE; }
+
 export function offeredFields(rows, state) {
+  if (published) return fieldList();
   const keep = hasReviewDates(rows) || (state && isActive(state, "reviewed"));
   return FIELDS.filter((f) => f !== "reviewed" || keep);
 }
 
 export function initial() { return { mode: "open", type: "all", filters: {}, not: {} }; }
-export function clearAll() { return initial(); }
+// Clear all: the editor goes back to the start. A published file keeps the type and Open / Closed / All the client chose and clears
+// the filters only (its search words are the page's own and are cleared there).
+export function clearAll(state) {
+  if (!published || !state) return initial();
+  const s = copy(state);
+  s.filters = {}; s.not = {};
+  return s;
+}
 
 // Due, in the prototype's buckets: before today is Overdue, today to 7 days on is Due in 7 days, later is Later, no (real) date is
 // No date. One difference: a closed row with a date is in none of them, so Overdue never lists work that is done (the prototype's did).
 export function dueBucket(row, today) {
   const a = dayNumber(dueField(row)), t = dayNumber(today);
   if (a === null || t === null) return "none";
-  if (!isOpen(row)) return "";
+  if (!isOpen(row)) return published ? (a < t ? "past" : "later") : "";
   return a < t ? "overdue" : a - t <= 7 ? "soon" : "later";
 }
 
@@ -92,7 +109,7 @@ export function valueOf(row, field, today) {
 
 export function labelOf(field, value) {
   if (value === NONE) return NO_WORDS[field] || NONE;
-  if (field === "due") return (DUE.find((d) => d[0] === value) || [0, value])[1];
+  if (field === "due") return (dueBuckets().find((d) => d[0] === value) || [0, value])[1];
   if (field === "reviewed") return (REVIEWED.find((d) => d[0] === value) || [0, value])[1];
   if (field === "client") return (CLIENT.find((d) => d[0] === value) || [0, value])[1];
   return value;
@@ -104,7 +121,7 @@ export function inType(row, type) {
 }
 
 function inFilters(row, state, today, skip) {
-  for (const f of FIELDS) {
+  for (const f of fieldList()) {
     if (f === skip) continue;
     const chosen = state.filters[f];
     if (!chosen || !chosen.length) continue;
@@ -155,7 +172,7 @@ export function options(rows, field, state, today) {
   const tally = new Map();
   const count = (v) => scope.reduce((n, r) => n + (memberOf(r, field, v, today) ? 1 : 0), 0);
   let values;
-  if (field === "due") values = DUE.map((d) => d[0]);
+  if (field === "due") values = dueBuckets().map((d) => d[0]);
   else if (field === "client") values = CLIENT.map((d) => d[0]);
   else if (field === "reviewed") values = REVIEWED.map((d) => d[0]);
   else {
@@ -172,7 +189,7 @@ export function options(rows, field, state, today) {
 
 export function isActive(state, field) { return !!(state.filters[field] && state.filters[field].length); }
 
-export function activeFields(state) { return FIELDS.filter((f) => isActive(state, f)); }
+export function activeFields(state) { return fieldList().filter((f) => isActive(state, f)); }
 
 // What shows beside the count: one chip for each active filter, "Due: Overdue", "Owner is not: Sam Rivers, Priya Nair".
 export function chips(state) {
@@ -183,7 +200,7 @@ export function chips(state) {
 }
 
 // Clear all is offered when anything differs from the start: a filter, a type, or Closed / All.
-export function canClear(state) { return activeFields(state).length > 0 || state.type !== "all" || state.mode !== "open"; }
+export function canClear(state) { return activeFields(state).length > 0 || (!published && (state.type !== "all" || state.mode !== "open")); }
 
 // The words beside the chips: "17 open items", "1 closed item", "3 items".
 export function countText(n, mode) {
@@ -198,7 +215,7 @@ export function setMode(state, mode) { const s = copy(state); if (MODES.some((m)
 export function setType(state, type) { const s = copy(state); if (TYPES.some((t) => t[0] === type)) s.type = type; return s; }
 
 export function setFilter(state, field, values, not) {
-  if (!FIELDS.includes(field)) return state;
+  if (!fieldList().includes(field)) return state;
   const s = copy(state), list = [...new Set(values)];
   if (list.length) { s.filters[field] = list; if (not) s.not[field] = true; else delete s.not[field]; }
   else { delete s.filters[field]; delete s.not[field]; }
@@ -254,7 +271,7 @@ export function encode(state) {
   if (text.length <= MAX_F) return text;
   let cut = copy(s);
   for (let guard = 0; text.length > MAX_F && guard < 10000; guard++) {
-    const f = [...FIELDS].reverse().find((x) => isActive(cut, x));
+    const f = [...fieldList()].reverse().find((x) => isActive(cut, x));
     if (!f) return "";                                  // only mode, type and "not" are left and they still do not fit: nothing fits
     cut = setFilter(cut, f, cut.filters[f].slice(0, -1), !!cut.not[f]);
     text = whole(cut);
@@ -285,7 +302,7 @@ export function decode(text) {
   if (MODES.some((m) => m[0] === mode)) s.mode = mode;
   if (TYPES.some((t) => t[0] === type)) s.type = type;
   const nots = (part.get("not") || "").split(",");
-  for (const f of FIELDS) {
+  for (const f of fieldList()) {
     if (!part.has(f)) continue;
     const vals = part.get(f).split(",").map(safe).filter((v) => v !== "" && !/[\u0000-\u001f\u007f-\u009f]/.test(v));
     if (vals.length) { s.filters[f] = [...new Set(vals)]; if (nots.includes(f)) s.not[f] = true; }

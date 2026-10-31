@@ -2,10 +2,14 @@
 // dot on each active filter, and each filter's box. The rules are in ../filters.js. These controls are never re-created by a
 // filter change (only their words and pressed states change), so a click on a second filter while one is open lands first time.
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
-import { rows as allRows, filterState, setFilterState, openFilter, refusals } from "../stores/report.js";
+import { rows as everyRow, found, query, filterState, setFilterState, openFilter, refusals } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { offeredFields, NAMES, MODES, TYPES, counts, typeCounts, isActive, options, setMode, setType, toggleValue, setNot, removeFilter } from "../filters.js";
+import { searchRows } from "../clientView.js";
 import { Icon } from "./Icon.jsx";
+
+// The rows the search leaves (the search words are the published file's; the editor never has any): every count and box reads these.
+const allRows = { get value() { return searchRows(everyRow.value, found.value, query.value); } };
 
 export function Switches({ children }) {
   const st = filterState.value, today = todayIso(), rows = allRows.value;
