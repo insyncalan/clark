@@ -19,6 +19,7 @@ path is returned or logged here.
 """
 import codecs
 import os
+import time
 from dataclasses import dataclass
 
 from clark import ask, ask_data, docx_read, reach
@@ -31,6 +32,7 @@ MAX_FILES_READ = 300                       # files opened for one question
 MAX_BYTES_READ = 60 * 1024 * 1024          # all the bytes opened for one question
 MAX_CHARS = 2_000_000                      # all the text kept before passages are chosen
 MAX_PARTS = 40                             # passages one file can give
+READ_SECONDS = 20.0                        # time spent opening files for one question; files after it are left out
 
 
 @dataclass(frozen=True)
@@ -97,6 +99,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
     safety += listing.skipped
     roots = reach.roots(usable, home)
     passages, files_read, bytes_read, chars = [], 0, 0, 0
+    deadline = time.monotonic() + READ_SECONDS
     for path in listing.files:
         low = str(path).lower()
         if low.endswith(PDF_TYPES):
@@ -111,7 +114,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
         if label is None:
             safety += 1
             continue
-        if files_read >= MAX_FILES_READ or bytes_read >= MAX_BYTES_READ or chars >= MAX_CHARS:
+        if files_read >= MAX_FILES_READ or bytes_read >= MAX_BYTES_READ or chars >= MAX_CHARS or time.monotonic() > deadline:
             other += 1
             continue
         files_read += 1

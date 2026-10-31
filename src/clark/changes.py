@@ -1420,6 +1420,21 @@ def make_undo(path, onedrive_roots=None, by_user=None):
 # - an Apply may carry `expect`, the `before` its dry run showed: if the row is not that now, nothing is written.
 ASK_KINDS = ("actions", "raid", "decisions", "milestones")
 ASK_OPS = (NEW, UPDATE)
+# The fields ask clark may give, per kind and op: narrower than CHANGE_KINDS (no use case link, no client wording, no state, no
+# Movement, no agreed date moved: that is a rebaseline). Checked here, the one guarded chokepoint; ask_apply reads it from here.
+# A RAID item's `type` is set from the suggestion's kind (risk, issue and so on), never named by it.
+ASK_FIELDS = {
+    "actions": {NEW: ("description", "owner", "priority", "due_date", "workstream", "milestone"),
+                UPDATE: ("description", "owner", "priority", "due_date", "status", "workstream", "milestone")},
+    "raid": {NEW: ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone"),
+             UPDATE: ("description", "owner", "due_date", "status", "workstream", "milestone")},
+    "decisions": {NEW: ("decision", "made_by", "status", "date", "needed_by"),
+                  UPDATE: ("decision", "made_by", "status", "date", "needed_by")},
+    "milestones": {NEW: ("name", "owner", "baseline_date", "workstream"),
+                   UPDATE: ("forecast_date", "actual_date", "status")},
+}
+ASK_KEYS = {NEW: ("project", "kind", "op", "values"), UPDATE: ("project", "kind", "op", "id", "changes")}
+ASK_PART = {NEW: "values", UPDATE: "changes"}
 ASK_OFF = "Asking is off, so nothing was changed. Turn it on in Settings first."
 ASK_NOT_YET = "That change can't be made by asking yet. Nothing was changed. Make it yourself on the board."
 ASK_CHANGED = "That item has changed since the change was shown. Nothing was changed. Look at the change again."
@@ -1467,7 +1482,10 @@ class _AskStore:
 
 def _do_ask(store, by_user, req, dry, expect):
     project, kind, op, place = _shape(req)
-    if kind not in ASK_KINDS or op not in ASK_OPS or "place" in req or "rebaseline" in req:
+    if kind not in ASK_KINDS or op not in ASK_OPS or any(k not in ASK_KEYS[op] for k in req):
+        raise Refused(ASK_NOT_YET, code="not_yet")
+    part = req.get(ASK_PART[op])
+    if not isinstance(part, dict) or any(f not in ASK_FIELDS[kind][op] for f in part):
         raise Refused(ASK_NOT_YET, code="not_yet")
     if store.ask_enabled() is not True:
         raise Refused(ASK_OFF, 409, "asking_off")
