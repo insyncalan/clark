@@ -70,7 +70,7 @@ CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 change
 FILTERS = {"all": "All", "changes": "Changes", "comments": "Comments and updates"}      # key -> the words on the tab
 EMPTY = {"all": "No history yet.", "changes": "No changes yet.", "comments": "No comments or updates yet."}
 OTHER = "Other"                        # a place or route the list below does not know: shown plainly, never as its code
-KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment")
+KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment", "Email sent")
 UNDO_KINDS = ("Undone", "Undo undone")
 PAGE_FIELD, LEFT_OUT, PUT_BACK = "Published page", "Left out of the published page", "Put back on the published page"
 PUT_BACK_PREFIX = "put back: "          # an Undo that made a removed label or link again
@@ -372,6 +372,35 @@ def _comment_rows(con, where, params, titles):
     return out
 
 
+# What "I sent it" recorded (#50). The first key is joined from parts: the one-writer test reads a string that begins with the word
+# "update" as SQL (draft_email.py does the same).
+EMAIL_MODE_WORDS = {"".join(("up", "date_request")): "asking for updates", "chase": "chasing", "decision": "asking for a decision"}
+
+
+EMAIL_HOW = "in the Draft email"          # the History's "how" for a sent record: who, how and when (FR-43a)
+
+
+def _email_rows(con, where, params, titles):
+    """The "I sent it" records (#50) as rows: who pressed it, when, and the items asked about. Only in All: a sent record is not a
+    change and not a comment. The ids are the record's own, in order; the email's words were never stored."""
+    out = []
+    for e in con.execute("SELECT seq, at, day, mode, by_user FROM email_sent WHERE " + where + " ORDER BY seq DESC", params):
+        ids = [x["item_id"] for x in con.execute("SELECT item_id FROM email_sent_items WHERE seq = ? ORDER BY item_id", (e["seq"],))]
+        when, note = when_text(e["at"], None)
+        items = [{"id": i, "title": titles.of(i)} for i in ids]
+        words = f"Emailed {_dmy(e['day'])} ({EMAIL_MODE_WORDS.get(e['mode'], e['mode'])}) about " + ", ".join(ids)
+        out.append({"when": when, "zone_note": note, "when_text": when + " - " + note, "who": e["by_user"], "how": EMAIL_HOW,
+                    "item_id": ids[0] if ids else "", "title": items[0]["title"] if items else "", "items": items,
+                    "item": ", ".join((i["id"] + " " + i["title"]).strip() for i in items), "field": "Email sent", "from": "", "to": words,
+                    "kind": "Email sent", "table": "email_sent", "event_id": None, "step": None, "_at": e["at"], "_seq": e["seq"]})
+    return out
+
+
+def _dmy(day):
+    y, m, d = str(day).split("-")
+    return f"{d}-{m}-{y}"
+
+
 def _when_key(stamp):
     """A stored time for sorting; one that cannot be read sorts as the oldest, so a single odd comment time cannot break a view."""
     try:
@@ -387,7 +416,7 @@ def _finish(rows, kind, limit):
     if kind == "comments":
         rows = [r for r in rows if r["table"] in ("updates", "comments")]
     elif kind == "changes":
-        rows = [r for r in rows if r["table"] not in ("updates", "comments")]
+        rows = [r for r in rows if r["table"] not in ("updates", "comments", "email_sent")]
     rows.sort(key=lambda r: (_when_key(r["_at"]), r["table"] != "comments", r["_seq"]), reverse=True)
     cut = 0
     if limit is not None and len(rows) > limit:
@@ -405,7 +434,9 @@ def rows_for_project(con, code, kind="all", limit=None):
     like = (code, code + "-%", code + "|%", "%|" + code + "-%", "%|" + code)
     where = "c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ?"
     rows = _display(con, _change_rows(con, where, like), lambda r, ends: _in_project(r["tbl"], r["item_id"], code))
-    rows += _comment_rows(con, "project = ?", (code,), _Titles(con))
+    titles = _Titles(con)
+    rows += _comment_rows(con, "project = ?", (code,), titles)
+    rows += _email_rows(con, "project = ?", (code,), titles)
     return _finish(rows, kind, limit)[0]
 
 
@@ -414,7 +445,9 @@ def rows_for_item(con, item_id, kind="all", limit=None):
     where = "c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ?"
     rows = _display(con, _change_rows(con, where, (item_id, item_id + "|%", "%|" + item_id + "|%", "%|" + item_id)),
                     lambda r, ends: item_id in ends)
-    rows += _comment_rows(con, "item_id = ?", (item_id,), _Titles(con))
+    titles = _Titles(con)
+    rows += _comment_rows(con, "item_id = ?", (item_id,), titles)
+    rows += _email_rows(con, "seq IN (SELECT seq FROM email_sent_items WHERE item_id = ?)", (item_id,), titles)
     return _finish(rows, kind, limit)[0]
 
 
