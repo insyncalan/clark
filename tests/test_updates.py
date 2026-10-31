@@ -720,6 +720,16 @@ class ReviewTest(Base):
         self.assertEqual("05-01-2027", updates.date_text("2027-01-05"))
 
 
+class PathReasonTest(unittest.TestCase):
+    def test_each_unsafe_part_gives_its_own_reason(self):
+        for rel, reason in (("a/../b", "empty, dot or dot-dot part"), ("..", "empty, dot or dot-dot part"),
+                            ("a/./b", "empty, dot or dot-dot part"), ("a//b", "empty, dot or dot-dot part"),
+                            ("a/b.", "trailing dot or space"), ("/a", "absolute path"), ("a\\b", "backslash")):
+            with self.subTest(rel=rel):
+                self.assertEqual(reason, updates.path_problem(rel))
+        self.assertIsNone(updates.path_problem("src/clark/a.py"))
+
+
 class NotesAndNumbersTest(Base):
     def test_hidden_and_control_characters_are_taken_out_of_the_notes(self):
         notes = "Fixes a typo.\r\nAdds \u202ea thing\u202c.\x00\x1b[31m\u200b Tab\there.\n"
