@@ -13,7 +13,16 @@ from clark import changes, section_bodies as sb, store as store_module
 from test_changes import Api, KIND
 
 MARK = "ZQ-CONTENT-MARK"
-BODY = {"v": 1, "rows": [{"what": MARK + " <b>x</b>", "from": "Example team"}]}
+BODY = {"v": 1, "rows": [{"what": MARK + " <b>x</b>", "kind": "decision", "from": "Example team", "by": "", "hidden": 0}]}      # whole: the checker's own shape
+
+
+def one(what):
+    """A needs body of one row (the shape _checked_needs gives back), for the tests that need only some content."""
+    return {"v": 1, "rows": [{"what": what, "kind": "decision", "from": "", "by": "", "hidden": 0}]}
+
+
+def canon(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
 TYPES = ("needs", "tracker")
 
 
@@ -237,8 +246,8 @@ class Writing(Content):
             with self.s.step("dashboard", USER) as st:
                 st.update(KIND, ref, {"body": ["not text"]})
         with self.s.step("dashboard", USER) as st:
-            st.update(KIND, ref, {"body": ' {"b": 1, "a": 2} '})
-        self.assertEqual(self.stored(ref), '{"a":2,"b":1}')                            # canonical, not what was asked
+            st.update(KIND, ref, {"body": ' {"rows": [ {"kind": "date", "what": "x"} ], "v": 1} '})
+        self.assertEqual(self.stored(ref), '{"rows":[{"by":"","from":"","hidden":0,"kind":"date","what":"x"}],"v":1}')      # canonical and whole, not what was asked
 
 
 class Undo(Content):
@@ -246,8 +255,8 @@ class Undo(Content):
         """_merged_row runs the row rules on a revert, so a body put back by an Undo meets the checker again. If a later
         release makes a limit stricter, the Undo of an old body is refused in plain words and nothing is half written."""
         ref, _ = self.make("needs")
-        first = self.write(ref, text({"a": "x" * 500}))[1]
-        second = self.write(ref, text({"a": "short"}))[1]
+        first = self.write(ref, text(one("x" * 250)))[1]
+        second = self.write(ref, text(one("short")))[1]
         before = self.state()
         with mock.patch.dict(sb.LIMITS, {"needs": 100}):                                # stricter than the old body
             status, got = self.undone(second["apply_id"])
@@ -257,13 +266,13 @@ class Undo(Content):
         self.assertNotIn("x" * 20, json.dumps(got))
         self.assertEqual(self.state(), before)                                           # nothing half written
         self.assertEqual(self.undone(second["apply_id"])[0], 200)                       # with the old limit it works
-        self.assertEqual(self.stored(ref), '{"a":"%s"}' % ("x" * 500))
+        self.assertEqual(self.stored(ref), canon(one("x" * 250)))
         self.assertEqual(self.undone(first["apply_id"])[0], 200)
 
     def test_undo_runs_the_checker_not_a_copy_of_the_old_text(self):
         ref, _ = self.make("needs")
-        first = self.write(ref, text({"a": 1}))[1]
-        second = self.write(ref, text({"a": 2}))[1]
+        first = self.write(ref, text(one("first")))[1]
+        second = self.write(ref, text(one("second")))[1]
         calls = []
         real = store_module.check_section_body
 
@@ -272,7 +281,7 @@ class Undo(Content):
             return real(kind, body)
         with mock.patch.object(store_module, "check_section_body", spy):
             self.undone(second["apply_id"])
-        self.assertIn(("needs", '{"a":1}'), calls)
+        self.assertIn(("needs", canon(one("first"))), calls)
 
 
 class Deleting(Content):
@@ -304,7 +313,7 @@ class Deleting(Content):
 
     def test_undo_of_a_delete_checks_the_body_again(self):
         ref, _ = self.make("needs")
-        self.write(ref, text({"a": "x" * 500}))
+        self.write(ref, text(one("x" * 250)))
         deleted = self.ok("delete", id=ref)
         before = self.state()
         with mock.patch.dict(sb.LIMITS, {"needs": 100}):

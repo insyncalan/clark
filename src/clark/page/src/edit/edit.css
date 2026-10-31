@@ -62,3 +62,17 @@
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
+
+/* 'Needs from you' in Edit (#121): the row's own buttons sit under its date; a row being edited is a row of fields; a row left out of the
+   published page is dashed and tagged, never dimmed (dimming lowers the text's contrast). */
+.needs-edit .n-acts { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.needs-edit .n-date { display: inline-block; }
+.needs-edit tr.n-left td { border-top-style: dashed; background: var(--grey-50); }
+.needs-edit tr.n-left td .tag.hid { margin-left: 4px; }
+.needs-edit .n-f { display: block; margin: 0 0 6px; }
+.needs-edit .n-f input, .needs-edit .n-f select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.needs-edit .n-f input:focus-visible, .needs-edit .n-f select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.needs-edit tr.n-form td { background: var(--grey-50); }
+.needs-edit .n-err { margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
+.needs-edit .n-add { margin: 8px 0 4px; }
+.needs-edit .btn:disabled { color: var(--text-muted); cursor: default; }

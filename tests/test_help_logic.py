@@ -112,7 +112,7 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
         self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 26)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 27)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -156,7 +156,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 26 + 30)
+        self.assertEqual(len(p), 7 + 27 + 30)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
