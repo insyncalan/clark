@@ -175,6 +175,13 @@ class SettingsRoutes(Rig):
         self.assertEqual(self.opened, [self.tmp / "logs"])
         self.assertTrue((self.tmp / "logs").is_dir())
 
+    def test_open_folder_ignores_the_request_body(self):
+        other = tempfile.mkdtemp(dir=str(self.tmp))
+        for body in ({"folder": other}, {"path": other, "dir": other}):
+            self.opened.clear()
+            self.assertEqual(self.api("POST", "/api/logging/open-folder", body)[0], 200)
+            self.assertEqual(self.opened, [self.tmp / "logs"])
+
     def test_open_folder_that_fails_says_so_in_plain_words(self):
         self.fail_open = True
         status, b = self.api("POST", "/api/logging/open-folder", {})
