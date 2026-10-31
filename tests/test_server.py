@@ -277,7 +277,7 @@ class Saving(ServerTest):
                                                   "/api/backups/preview", "/api/backups/restore", "/api/ask-folders", "/api/ask-enabled",
                                                   "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
                                                   "/api/ask/change/apply", "/api/ai/connect", "/api/ai/models",
-                                                  "/api/ai/choose", "/api/ai/disconnect"})     # #43, #111, #147, #47, #47e, #54
+                                                  "/api/ai/choose", "/api/ai/disconnect", "/api/profile"})     # #43, #111, #147, #47, #47e, #54, #180
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024,
@@ -285,7 +285,7 @@ class Saving(ServerTest):
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
                                                 "/api/ai/connect": 2048, "/api/ai/models": 4096, "/api/ai/choose": 1024,
-                                                "/api/ai/disconnect": 1024})     # #111, #47, #47e, #54
+                                                "/api/ai/disconnect": 1024, "/api/profile": 2 * 1024})     # #111, #47, #47e, #54
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
