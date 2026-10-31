@@ -23,9 +23,11 @@ longer names a person; the reply check is clark's own and uses `edit_ai.normal` 
 sheet, minutes, report, readonly and line places, the project facts, the email address rules, the VIP and minutes checks, and
 relevel (clark stores its headings as it shows them).
 """
+import html
 import re
 import unicodedata
 from collections import Counter
+from urllib.parse import unquote
 
 from clark import edit_ai, sanitise
 from clark.edit_ai import Refused
@@ -251,6 +253,12 @@ UNSEEN_SPACE = re.compile(r"[\x00-\x20\x7f-\x9f]+")
 MARKER = re.compile(r"<<<SUGGESTION[ \t]*\r?\n(.*?)\r?\n?SUGGESTION>>>", re.S)
 FIGURE = re.compile(r"\d(?:[\d.,:/-]*\d)?")
 CAPS = re.compile(r"\b[A-Z][a-z]{2,}\b")
+# Words that start an ordinary client sentence and are no name; used for a FIRST word only (a name anywhere else is never excused).
+COMMON_FIRST = set("Thanks Thank Please Hello Dear Regards Kind Best Many Happy Sorry Apologies Further Following Also Next Then "
+                   "Today Tomorrow Yesterday Here There Just Let Looking Hope Sure Great Good Noted Understood Attached "
+                   "Meanwhile However Therefore Once After Before Because Currently Overall Finally Firstly Secondly Unfortunately "
+                   "Cheers Sincerely Welcome Regarding Yes Should Would Could Will Can Does Did Has Have Had Are Were Was "
+                   "Being Both Either Neither Every Most More Much Other Same Such Only Still Soon Very Well".split())
 COMMON_CAPS = set("The This That These Those What When Where Who How Why Some Any All Each Not Our Your You We It Monday Tuesday "
                   "Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October "
                   "November December Summary Notes Details Actions Risks Decisions Next".split())
@@ -267,12 +275,20 @@ def _figures(text):
     return set(FIGURE.findall(edit_ai.normal(text)))
 
 
-def _caps(text):
+def _caps(text, first=False):
+    """The capitalised words of a text that read as names. A sentence's first word is skipped (it is capitalised anyway) unless
+    `first` is set, as the client message check sets it: there a new first word counts too."""
     out = set()
     for sent in re.split(r"(?<=[.!?:])\s+|\n+", text or ""):
         line = re.sub(r"^[-•*#>\s\[\]x0-9.)]*", "", sent.strip())
-        out.update(m.group() for m in CAPS.finditer(line) if m.start() > 0 and m.group() not in COMMON_CAPS)
+        out.update(m.group() for m in CAPS.finditer(line)
+                   if (first or m.start() > 0) and m.group() not in COMMON_CAPS and not (first and m.start() == 0 and m.group() in COMMON_FIRST))
     return out
+
+
+def _words_of(text):
+    """Every word of a text in lower case: a new first word whose plain form the original held is not a new name."""
+    return {w.lower() for w in re.findall(r"[A-Za-z]+", text or "")}
 
 
 def notes_for(original, suggestion):
@@ -321,22 +337,85 @@ def _link_problem(text, original):
     return ""
 
 
-INTERNAL_WORDS = re.compile(r"(?i)\b(?:internal\w*|vip|confidential|restricted|sensitive|health|red|amber|rag)\b|do not share|"
-                            r"not for (?:the )?client")
+# Internal wording, matched after the folds below. The first group are words (a diff against the original: only an ADDED one blocks);
+# the substring words and paths are creaite's client_leak.INTERNAL_WORDS and drafts.INTERNAL_MARK (v2.6.11): "confidentially" and
+# "restrictions" count, "documents/" and "health_diff" block whether or not the original held them.
+INTERNAL_WORDS = re.compile(r"(?i)\b(?:internal\w*|sensitive|health|red|amber|rag)\b|confidential|restrict\w*|"
+                            r"do\s+not\s+share|not\s+for\s+(?:the\s+)?client")
+ALWAYS_BLOCKED = re.compile(r"(?i)documents/|\bhealth_diff\b")
+# VIP, as creaite's drafts.VIP_RE and edit_ai.VIP_LOOSE (v2.6.11; a copy of part of guarded edit_ai): up to two marks (dots, dashes,
+# underscores) between the letters, each run allowed one space after it, never a bare space ("Phase V IP" is not VIP).
+VIP_RE = re.compile(r"\bVIPs?\b", re.I)
+_VIP_GAP = r"(?:[^\w\s]{1,2}\s?|_{1,2})?"
+VIP_LOOSE = re.compile(r"(?<![a-z0-9])v%si%sp(?:%ss)?(?![a-z0-9])" % (_VIP_GAP, _VIP_GAP, _VIP_GAP), re.I)
+VIP_SPACED = re.compile(r"(?<![a-z0-9])v\s+i\s+p(?:\s+s)?(?![a-z0-9])", re.I)         # clark's addition: three lone letters, "v i p"
+# Item IDs with no store to ask: any code of the right shape (creaite's loose_ids reads the tracker's own codes). With a letter part
+# ("abc a 3", "abc-a-003", "ABC\\-A\\-OO3") in any case; with none ("ABC 100") only as written in capitals. It fails closed: "Phase B 12"
+# reads as an ID too; the page wiring replaces this with the store's codes.
+_SEP = r"[\s_.\-/:()\\]*"
+_DIGITS = r"(?:[0-9]|(?-i:O)){1,3}"
+LOOSE_LETTERED = re.compile(r"(?i)(?<![a-z0-9])([a-z][a-z0-9]{2,6})%s([a-np-z])%s(%s)(?![0-9]|(?-i:O)|[/:.]\d)" % (_SEP, _SEP, _DIGITS))
+LOOSE_BARE = re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Z0-9]{2,6})%s((?:[0-9]|O){3})(?![0-9O]|[/:.]\d)" % _SEP)
 CLIENT_MESSAGE = "The suggestion added something a client should not see, so it was not shown. Try again."
+_EMPHASIS = re.compile(r"[*`~]|(?<!\w)_+|_+(?!\w)")
+_MD_ESCAPE = re.compile(r"\\([!-/:-@\[-`{-~])")
+
+
+def _decoded(text):
+    """Percent-encoding then HTML entities, again until nothing changes (at most five rounds)."""
+    t = text or ""
+    for _ in range(5):
+        u = html.unescape(unquote(t))
+        if u == t:
+            break
+        t = u
+    return t
+
+
+def _forms(text):
+    """The forms of a text a client check reads, each folded by `normal`: as written, decoded, and decoded with emphasis marks and
+    Markdown escapes taken off ("inter*nal*", "_internal only_", "ABC\\-A\\-003"). A match in any form counts."""
+    plain = _decoded(text)
+    bare = _MD_ESCAPE.sub(r"\1", _EMPHASIS.sub("", plain))
+    return [edit_ai.normal(f) for f in dict.fromkeys((text or "", plain, bare, _EMPHASIS.sub("", plain)))]
+
+
+def _loose_ids(text):
+    """Every item ID a text holds however it is written, as CODE-L-NNN or CODE-NNN, with no store to ask."""
+    out = set()
+    for t in _forms(text):
+        out.update(edit_ai.ID_RE.findall(t))
+        for m in LOOSE_LETTERED.finditer(t):
+            out.add("%s-%s-%s" % (m.group(1).upper(), m.group(2).upper(), m.group(3).upper().replace("O", "0").zfill(3)))
+        for m in LOOSE_BARE.finditer(t):
+            out.add("%s-%s" % (m.group(1), m.group(2).replace("O", "0")))
+    return out
+
+
+def _words(text):
+    return {m.group().lower() for t in _forms(text) for m in INTERNAL_WORDS.finditer(t)}
 
 
 def _client_problem(text, original):
-    """For a client message: a plain message when the suggestion adds an item ID, internal wording or a name the text didn't have.
-    Blocking, as creaite's client check is (it drops the reply). The caller's store-aware checks come with the page wiring."""
-    ids_o = set(edit_ai.ID_RE.findall(edit_ai.normal(original)))
-    if set(edit_ai.ID_RE.findall(edit_ai.normal(text))) - ids_o:
+    """For a client message: a plain message when the suggestion holds VIP in any spelling, a path or marker that is always internal,
+    or adds an item ID (however written), internal wording or a name (a capitalised word the text didn't have, a sentence's first
+    word too) the text didn't have. Text is read decoded, without emphasis marks, and folded by `normal`. Blocking, as creaite's
+    client check is (it drops the reply). The store-aware checks come with the page wiring."""
+    forms = _forms(text)
+    if any(VIP_RE.search(f) or VIP_LOOSE.search(f) or VIP_SPACED.search(f) for f in forms):
         return CLIENT_MESSAGE
-    words = lambda t: {m.group().lower() for m in INTERNAL_WORDS.finditer(edit_ai.normal(t))}      # noqa: E731
-    if words(text) - words(original):
+    if any(ALWAYS_BLOCKED.search(f) for f in forms):
         return CLIENT_MESSAGE
-    if _caps(text) - _caps(original):
+    if _loose_ids(text) - _loose_ids(original):
         return CLIENT_MESSAGE
+    if _words(text) - _words(original):
+        return CLIENT_MESSAGE
+    held, known = _words_of(original), _caps(original, first=True)
+    for f in forms:
+        new = _caps(f, first=True) - known
+        only_first = new - _caps(f)          # seen only as a sentence's first word: excused if the original held the plain word
+        if (new - only_first) or any(w.lower() not in held for w in only_first):
+            return CLIENT_MESSAGE
     return ""
 
 
@@ -375,7 +454,10 @@ def check_reply(reply, original, option, place):
             return _fail("The suggestion couldn't be checked for a client, so it was not shown.", option)
         if problem:
             return _fail(problem, option)
-    problem = _link_problem(text, original)
+    try:
+        problem = _link_problem(text, original)
+    except Exception:  # noqa: BLE001  a check that breaks fails closed, so the card fails rather than waits
+        return _fail("The suggestion couldn't be checked, so it was not shown.", option)
     if problem:
         return _fail(problem, option)
     if not _hidden_set(text) <= _hidden_set(original) or edit_ai.hidden_count(text) > edit_ai.hidden_count(original):
@@ -613,7 +695,11 @@ class AiSession:
         checked in plain code; only a good one makes the card ready (counted as offered)."""
         if card is not self.card or card.status != "running":
             return False
-        res = check_reply(reply, card.original, card.option, card.place)
+        try:
+            res = check_reply(reply, card.original, card.option, card.place)
+        except Exception:  # noqa: BLE001  a check that breaks fails the card; it never stays "running"
+            card.status, card.message = "failed", "The suggestion couldn't be checked, so it was not shown."
+            return True
         if res["ok"]:
             try:
                 card.html = to_html(res["text"])

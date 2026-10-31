@@ -655,6 +655,83 @@ class ClientMessageIsCheckedAndBlocks(unittest.TestCase):
         self.assertIn("couldn't be checked", r["message"])
 
 
+class ClientMessageRound2(unittest.TestCase):
+    """#72 round 2: the client message check reads text as creaite's client check does: decoded, without emphasis marks, folded by
+    `normal`, VIP spelt loosely, loose item IDs with no store, any new capitalised word a name, internal words with any spacing.
+    One test per spelling (added below). Fictional names only."""
+    ORIG = "We will send the plan by 03-11-2026 and confirm the date with you."
+
+    def blocked(self, sentence, original=None):
+        rep = "We will send the plan by 03-11-2026. " + sentence
+        r = am.check_reply(reply(rep), original or self.ORIG, "rewrite", "client_message")
+        self.assertFalse(r["ok"], sentence)
+        self.assertIn("client", r["message"])
+
+    def passes(self, sentence, original=None):
+        rep = "We will send you the plan by 03-11-2026. " + sentence
+        r = am.check_reply(reply(rep), original or self.ORIG, "rewrite", "client_message")
+        self.assertTrue(r["ok"], (sentence, r))
+
+    def test_a_vip_in_the_original_is_still_blocked(self):
+        self.blocked("Our VIP contact joins.", original=self.ORIG + " Our VIP contact joins.")
+
+    def test_a_link_check_that_breaks_fails_the_card(self):
+        real = am._link_problem
+        try:
+            def boom(*a):
+                raise RuntimeError("x")
+            am._link_problem = boom
+            r = am.check_reply(reply("We will send you the plan by 03-11-2026 and confirm."), self.ORIG, "rewrite", "client_message")
+        finally:
+            am._link_problem = real
+        self.assertFalse(r["ok"])
+
+    def test_a_check_error_in_deliver_fails_the_card(self):
+        real = am.check_reply
+        try:
+            def boom(*a):
+                raise RuntimeError("x")
+            am.check_reply = boom
+            s = am.AiSession()
+            c = s.begin("rewrite", self.ORIG, "client_message", 0, len(self.ORIG))
+            s.deliver(c, reply("anything"))
+        finally:
+            am.check_reply = real
+        self.assertEqual(c.status, "failed")
+
+    def test_ordinary_client_sentences_still_pass(self):
+        for sent in ("Thanks for your patience.", "Please let us know if that works.", "Plan details follow soon.",
+                     "The plan has 250 users in scope.", "Our phase V IP telephony is separate."):
+            self.passes(sent)
+
+    def test_an_ordinary_new_first_word_is_blocked_with_the_try_again_message(self):
+        """The price of the stricter name rule: a new first word that is not an everyday opener reads as a possible name."""
+        self.blocked("Testing starts on 05-11-2026.")
+
+
+BLOCKED_SPELLINGS = {
+    "vip_dots": "Our V.I.P. joins.", "vip_spaced": "Our v i p joins.", "vip_underscores": "Our V_I_P joins.",
+    "vip_plural": "Our VIPs join.", "vip_lower_plural": "Our vips join.", "vip_dotted_plural": "Our V.I.P.s join.",
+    "entity": "This is conf&#105;dential.", "percent": "This is conf%69dential.", "emphasis": "This is inter*nal* only.",
+    "emphasis_underscore": "This is _internal only_.", "documents": "See documents/plan.",
+    "id_spaces": "See ABC A 003.", "id_lower": "See abc-a-003.", "id_short": "See ABC-A-3.", "id_escaped": "See ABC\\-A\\-003.",
+    "id_no_letter": "See ABC 100.", "id_zero_o": "See ABC-A-OO3.",
+    "name_after_full_stop": "Omar will join.", "name_after_colon": "Note: Omar will join.", "name_after_newline": "Done.\nOmar joins.",
+    "name_first_word": "Omar will confirm.",
+    "words_spaces": "Please do   not share it.", "words_client": "This is not for the  client.", "health_diff": "See health_diff.",
+    "confidentially": "Said confidentially.", "restrictions": "Some restrictions apply.", "restricted": "It is restricted.",
+    "entity_name_hidden": "&#79;mar will join.",
+}
+
+
+def _make(sentence):
+    return lambda self: self.blocked(sentence)
+
+
+for _name, _sentence in BLOCKED_SPELLINGS.items():
+    setattr(ClientMessageRound2, "test_blocked_" + _name, _make(_sentence))
+
+
 class FormatContract(unittest.TestCase):
     """#72 fix round (the Head's format decision with #66): the AI works on plain text or Markdown; what is accepted goes back
     through plain_to_html() and the page cleaner."""
