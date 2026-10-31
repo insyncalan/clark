@@ -506,7 +506,7 @@
      "The two icons at the top right switch between **Timeline** and **Calendar**. Your choice is kept.",
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
-     "**Show milestone details** lists them with their date, state and progress. The first five show; **Show all** shows the rest."
+     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],
     "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”."
    },
