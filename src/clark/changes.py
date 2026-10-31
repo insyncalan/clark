@@ -1203,8 +1203,10 @@ def _eligible(rows, project):
         return r["table"] in items and bool(items[r["table"]].fullmatch(str(r["key"]))) and (r["table"], str(r["key"])) not in flagged
 
     def item_field_row(r):
+        if not of_item(r):
+            return False
         fields = tuple(CHANGE_KINDS[r["table"]].get(UPDATE, ())) + tuple(CHANGE_KINDS[r["table"]].get(BULK, ())) + ("closed", "priority")   # #196: + a bulk change's
-        return of_item(r) and ((r.get("op") == MADE_OP and r["table"] != "use_cases") or r.get("field") in fields)
+        return (r.get("op") == MADE_OP and r["table"] != "use_cases") or r.get("field") in fields
 
     def item_stamp_row(r):
         return of_item(r) and r.get("field") == "updated_at"
