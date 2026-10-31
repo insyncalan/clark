@@ -1,0 +1,262 @@
+{
+ "_about": "A copy of creaite v2.6.11 (1c192ce) edit_ai.py OPTIONS, PLACES, FORMATS and stores/aiEdit.js AI_GROUPS, for the parity test only. Read from the tag; no creaite path is read at test time.",
+ "options": {
+  "rewrite": {
+   "name": "Rewrite clearly",
+   "line": "The same points, in plainer words",
+   "instruction": "Rewrite the text so it reads clearly: plain words, short sentences, the same points in the same order."
+  },
+  "shorter": {
+   "name": "Shorter",
+   "line": "About half the length; the facts kept",
+   "instruction": "Make the text shorter, about half its length. Keep every date, number, name and item ID that matters."
+  },
+  "longer": {
+   "name": "Longer",
+   "line": "Fuller sentences; adds no facts",
+   "instruction": "Make the text a little longer and fuller, so each point is explained. Add no facts: no new dates, numbers, names, items or claims that the text doesn't already hold."
+  },
+  "executive": {
+   "name": "Make it executive",
+   "line": "The executive voice: the position and what matters first",
+   "instruction": "Rewrite the text in the executive voice below: bottom line first, quantified, names and dates, outcomes before activities. Keep its facts and add none."
+  },
+  "format": {
+   "name": "Add headings and bold",
+   "line": "Sub-headings, lists and bold where they help",
+   "instruction": "Format the text so it is easy to scan: short paragraphs, bulleted or numbered lists and sub-headings where they help, bold for the few key words. Keep the words themselves."
+  },
+  "checklist": {
+   "name": "Pull out the tasks",
+   "line": "Finds the tasks and writes one a line to tick off",
+   "instruction": "Turn the text into a checklist: one task a line, each starting with a verb, written as Markdown task items (\"- [ ] \"). Keep the owner and date with a task when the text gives them."
+  },
+  "summary": {
+   "name": "Summarise at the top",
+   "line": "A short summary first; the text kept below it",
+   "instruction": "Write a two- or three-sentence summary of the text, as a paragraph that starts with \"**Summary.**\", then a blank line, then the text exactly as it was."
+  },
+  "polish": {
+   "name": "Polish",
+   "line": "Spelling, grammar and a lighter touch on the wording; the facts and length kept",
+   "instruction": "Polish the text: correct spelling, grammar and punctuation in British English, and smooth awkward wording lightly. Keep its facts, its order, its length and its voice; add and remove nothing."
+  },
+  "notes": {
+   "name": "Format notes",
+   "line": "Rough notes sorted under headings, with bullets; every point kept",
+   "instruction": "Format these rough notes: sort them under short headings with bullets beneath. Keep every point and every date, number, name and item ID; add nothing and drop nothing. If the text already has headings (a Working session note's template), keep those headings and file the points under them."
+  },
+  "formal": {
+   "name": "More formal",
+   "line": "A more formal tone for the email",
+   "instruction": "Rewrite the text in a more formal, professional tone. Keep its facts and its length."
+  },
+  "warmer": {
+   "name": "Warmer",
+   "line": "A warmer, friendlier tone for the email",
+   "instruction": "Rewrite the text in a warmer, friendlier tone, still professional. Keep its facts and its length."
+  },
+  "custom": {
+   "name": "Or say what you want…",
+   "line": "Your own instruction",
+   "instruction": ""
+  }
+ },
+ "places": {
+  "notes": [
+   "notes",
+   "rewrite",
+   "shorter",
+   "longer",
+   "executive",
+   "format",
+   "checklist",
+   "summary",
+   "custom"
+  ],
+  "current": [
+   "notes",
+   "rewrite",
+   "shorter",
+   "longer",
+   "executive",
+   "format",
+   "summary",
+   "custom"
+  ],
+  "plain": [
+   "rewrite",
+   "shorter",
+   "executive",
+   "custom"
+  ],
+  "email": [
+   "rewrite",
+   "shorter",
+   "longer",
+   "formal",
+   "warmer",
+   "custom"
+  ],
+  "line": [
+   "rewrite",
+   "shorter",
+   "executive",
+   "custom"
+  ],
+  "report": [
+   "shorter",
+   "executive",
+   "polish",
+   "custom"
+  ],
+  "minutes": [
+   "shorter",
+   "executive",
+   "polish",
+   "custom"
+  ],
+  "client": [
+   "shorter",
+   "executive",
+   "polish",
+   "custom"
+  ],
+  "client_message": [
+   "rewrite",
+   "shorter",
+   "executive",
+   "custom"
+  ],
+  "readonly": []
+ },
+ "formats": {
+  "notes": "markdown",
+  "current": "markdown",
+  "plain": "plain",
+  "email": "plain",
+  "line": "line",
+  "report": "markdown",
+  "minutes": "markdown",
+  "client": "markdown",
+  "readonly": "plain",
+  "client_message": "plain"
+ },
+ "groups": {
+  "notes": [
+   [
+    "Improve",
+    [
+     "rewrite",
+     "shorter",
+     "longer",
+     "executive"
+    ]
+   ],
+   [
+    "Structure",
+    [
+     "format",
+     "checklist",
+     "summary"
+    ]
+   ]
+  ],
+  "current": [
+   [
+    "Improve",
+    [
+     "rewrite",
+     "shorter",
+     "longer",
+     "executive"
+    ]
+   ],
+   [
+    "Structure",
+    [
+     "format",
+     "summary"
+    ]
+   ]
+  ],
+  "plain": [
+   [
+    "Improve",
+    [
+     "rewrite",
+     "shorter",
+     "executive"
+    ]
+   ]
+  ],
+  "email": [
+   [
+    "Improve",
+    [
+     "rewrite",
+     "shorter",
+     "longer"
+    ]
+   ],
+   [
+    "Tone",
+    [
+     "formal",
+     "warmer"
+    ]
+   ]
+  ],
+  "line": [
+   [
+    "Improve",
+    [
+     "rewrite",
+     "shorter",
+     "executive"
+    ]
+   ]
+  ],
+  "report": [
+   [
+    "Improve",
+    [
+     "shorter",
+     "executive",
+     "polish"
+    ]
+   ]
+  ],
+  "minutes": [
+   [
+    "Improve",
+    [
+     "shorter",
+     "executive",
+     "polish"
+    ]
+   ]
+  ],
+  "client": [
+   [
+    "Improve",
+    [
+     "shorter",
+     "executive",
+     "polish"
+    ]
+   ]
+  ],
+  "client_message": [
+   [
+    "Improve",
+    [
+     "rewrite",
+     "shorter",
+     "executive"
+    ]
+   ]
+  ],
+  "readonly": []
+ }
+}
