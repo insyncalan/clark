@@ -1,4 +1,4 @@
-# FIXTURE: a copy of src/clark/ai_menu.py from the branch team-stark-72-ai-menu-logic (the logic branch), at its head when this was made.
+# FIXTURE: a copy of src/clark/ai_menu.py from the AI menu logic branch, at its head when this was made.
 # It is here only so the page table can be compared with the server menu before that branch lands. Replace this file by the
 # real module (delete the fixture and the fallback in tests/test_ai_menu_page.py) when the logic branch lands on main.
 """clark ai_menu: the pure parts of the AI menu in every editor (#72). Standard library only, Python 3.9.

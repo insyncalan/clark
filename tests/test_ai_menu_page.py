@@ -35,10 +35,10 @@ PLACES = ["current", "notes", "plain", "email", "client_message"]
 # Words a person should never meet in a line of the menu or the card.
 JARGON = re.compile(r"\b(json|api|http|html|markdown|token|route|provider|payload|exception|error|traceback|undefined|null|nan|"
                     r"timeout|stack|endpoint|prompt|llm|regex)\b|!", re.I)
-# A date written out or in numbers, and the names a person could be called by (fictional demo names and common first names).
+# A date written out or in numbers, and a name (a capital in the middle of a line).
 DATE = re.compile(r"\b\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}\b|\b\d{1,2}(st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|"
                   r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b20\d\d\b", re.I)
-NAME = re.compile(r"\b(alan|alex|sam|sara|omar|mia|john|jane|anna|tom|james|david|sarah|emma|priya|nina)\b", re.I)
+NAME = re.compile(r"(?<=[a-z,] )(?!Claude|Settings)[A-Z][a-z]+")      # a capital in the middle of a line, apart from the two words the card uses
 
 
 class Page:
@@ -149,7 +149,7 @@ class Menu(unittest.TestCase):
                 self.assertIsNone(NAME.search(line), "a person's name")
 
     def test_the_word_check_catches_what_it_should(self):
-        for bad in ("Clark made this", "The JSON came back", "Wait for 12-03-2026", "Sent by Alan", "Done on Monday 5 March"):
+        for bad in ("Clark made this", "The JSON came back", "Wait for 12-03-2026", "Sent by Priya", "Done on Monday 5 March"):
             self.assertTrue(re.match(r"\s*clark\b", bad, re.I) or JARGON.search(bad) or DATE.search(bad) or NAME.search(bad), bad)
         card = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "AiCard.jsx").read_text(encoding="utf-8")
         for line in re.findall(r'aria-label=\{`([^`$]*)', card):             # the card's own fixed words
