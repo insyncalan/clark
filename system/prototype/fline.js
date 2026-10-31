@@ -43,7 +43,7 @@
       opts: () => [['overdue', 'Overdue (the date has passed)'], ['today', 'Today'], ['next-7-days', 'In the next 7 days'], ['later', 'Later than 7 days'], ['none', 'No date']] },
     workstream: { t: 'Workstream', of: x => x.ws ? [x.ws] : [], none: x => !x.ws, opts: () => [...new Set([...(C.P()?.ws || []), ...C.items().map(x => x.ws).filter(Boolean)])].map(w => [w, w]) },
     usecase: { t: 'Use case', of: x => x.uc ? [x.uc] : [], none: x => !x.uc,
-      opts: () => D.S.usecases.filter(u => u.code === C.P()?.code).map(u => [u.id, `${u.ref || u.id} ${u.title.split('\n')[0]}`]) },
+      opts: () => D.S.usecases.filter(u => u.code === C.P()?.code && !u.archived).map(u => [u.id, `${u.ref || u.id} ${u.title.split('\n')[0]}`]) },
     milestone: { t: 'Milestone', of: x => { const m = msOf(x); return m ? [m.name, m.id] : []; }, none: x => !x.ms, opts: () => C.mss().map(m => [m.name, m.name]) },
     client: { t: 'Client', of: x => x.client ? ['shown', 'yes'] : ['internal', 'no'], opts: () => [['shown', 'Shown to the client'], ['internal', 'Internal only']] },
     is: { t: 'Is', of: x => [C.isOpen(x) ? 'open' : 'closed', C.isOpen(x) && x.due && D.days(x.due) < 0 ? 'overdue' : '', D.notReviewed(x) ? 'quiet' : '', D.gap(x) ? 'incomplete' : '', x.clientAct ? 'needed' : ''].filter(Boolean),

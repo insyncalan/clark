@@ -179,7 +179,7 @@
     d => C.$('#cfYes', d).addEventListener('click', () => { d.close(); onYes(); }));
 
   /* ── state of the page ── */
-  const UI = C.UI = { view: 'dashboard', code: C.store.get('project', 'PDF'), editing: false, peek: null };
+  const UI = C.UI = { view: 'dashboard', code: C.store.get('project', 'PDF'), editing: false, peek: null, uc: '' };   /* uc: the use case open on the Use cases page (its own address), '' for the list */
   /* an archived project (FR-43c) is out of every default view: the switcher, the pages, the owners list. Settings › Projects can show it again and Restore it. */
   C.live = () => D.S.projects.filter(p => !p.archived);
   C.P = () => C.live().find(p => p.code === UI.code) || C.live()[0];
@@ -191,6 +191,9 @@
   C.mss = () => C.mssAll().filter(m => !m.archived);
   /* a work item keeps its link to an archived milestone, and shows it as "(archived)" */
   C.msName = id => { const m = id && C.mssAll().find(x => x.id === id); return m ? m.name + (m.archived ? ' (archived)' : '') : ''; };
+  /* a use case that is archived (FR-43c) is out of the dashboard, the published page, the counts and the Excel file; the Use cases page lists it under Show archived */
+  C.ucAll = () => D.S.usecases.filter(u => u.code === C.P()?.code);
+  C.ucs = () => C.ucAll().filter(u => !u.archived);
   C.isOpen = x => !['Closed', 'Cancelled', 'Withdrawn', 'Made'].includes(x.status);   // creaite: Delayed counts as open
   /* creaite has no RAG on risks and issues: the colour is the priority (D-12: "agreed with recommendations") */
   C.ragOf = x => ({ Urgent: 'R', High: 'R', Medium: 'A', Low: 'G' })[x.priority] || 'A';
@@ -225,7 +228,7 @@
     return [...new Set(D.S.items.filter(use).map(i => i.owner).concat(D.S.milestones.filter(use).map(m => m.owner)).filter(Boolean))].sort(); };
 
   /* ── the shell ── */
-  const VIEWS = { dashboard: 'Dashboard', work: 'Work items', milestones: 'Milestones', usecases: 'Use Cases', settings: 'Settings', help: 'Help', past: 'Past reports' };
+  const VIEWS = { dashboard: 'Dashboard', work: 'Work items', milestones: 'Milestones', usecases: 'Use cases', settings: 'Settings', help: 'Help', past: 'Past reports' };
   C.drawTop = () => {
     const p = C.P();
     C.$('#projBtn .v').textContent = p ? p.name : 'No project';
@@ -239,10 +242,10 @@
   /* standard browser navigation (#63: "backward swipe on trackpad should navigate back a page"): each page, project
      and open peek has its own address (#work&p=PDF&item=PDF-A-012), so Back and Forward, the trackpad swipe and the mouse's buttons
      step through them. Back with a peek open closes the peek first. Filters, scrolling and Edit mode add no steps. */
-  const navOf = () => ({ v: UI.view, p: UI.code || '', k: UI.peek ? (C.peekKind ? C.peekKind() : 'item') : '', id: UI.peek || '' });
-  const navHash = s => '#' + s.v + (s.p ? '&p=' + encodeURIComponent(s.p) : '') + (s.id ? `&${s.k === 'ms' ? 'ms' : 'item'}=${encodeURIComponent(s.id)}` : '');
+  const navOf = () => ({ v: UI.view, p: UI.code || '', u: UI.view === 'usecases' ? UI.uc || '' : '', k: UI.peek ? (C.peekKind ? C.peekKind() : 'item') : '', id: UI.peek || '' });
+  const navHash = s => '#' + s.v + (s.p ? '&p=' + encodeURIComponent(s.p) : '') + (s.u ? '&uc=' + encodeURIComponent(s.u) : '') + (s.id ? `&${s.k === 'ms' ? 'ms' : 'item'}=${encodeURIComponent(s.id)}` : '');
   const navParse = h => { const [v, ...kv] = String(h || '').replace(/^#/, '').split('&'), q = Object.fromEntries(kv.map(x => x.split('=').map(decodeURIComponent)));
-    return { v, p: q.p || '', k: q.ms ? 'ms' : q.item ? 'item' : '', id: q.ms || q.item || '' }; };
+    return { v, p: q.p || '', u: q.uc || '', k: q.ms ? 'ms' : q.item ? 'item' : '', id: q.ms || q.item || '' }; };
   C.navBusy = false;
   C.nav = mode => { if (C.navBusy) return; const s = navOf(); try { history[mode === 'push' ? 'pushState' : 'replaceState'](s, '', navHash(s)); } catch (e) { /* a page without history */ } };
   window.addEventListener('popstate', e => {
@@ -251,6 +254,7 @@
     try {
       if (s.p && s.p !== UI.code && C.live().some(p => p.code === s.p)) { UI.code = s.p; C.store.set('project', s.p); UI.editing = false; }
       if (VIEWS[s.v] && s.v !== UI.view) { UI.view = s.v; UI.editing = false; C.store.set('view', s.v); }
+      UI.uc = UI.view === 'usecases' ? s.u || '' : '';
       if (!s.id) C.closePeek && C.closePeek({ quiet: true });
       C.drawTop(); C.render();
       if (s.id) (s.k === 'ms' ? C.openMs : C.openItem)(s.id);
@@ -259,8 +263,9 @@
   C.go = (view, opts = {}) => {
     document.body.classList.remove('bfull');
     if (!VIEWS[view]) view = 'dashboard';
-    const moved = UI.view !== view;
-    if (moved) C.log('info', 'nav', 'view ' + view);
+    const uc = view === 'usecases' ? opts.uc || '' : '', moved = UI.view !== view || (UI.uc || '') !== uc;
+    if (moved) C.log('info', 'nav', 'view ' + view + (uc ? ' ' + uc : ''));
+    UI.uc = uc;
     if (UI.view !== view) { UI.editing = false; }
     UI.view = view; C.store.set('view', view);
     if (!opts.keepPeek) C.closePeek && C.closePeek({ quiet: true });
@@ -282,7 +287,7 @@
     } finally { rendering = false; }
   };
   C.refresh = () => { const y = scrollY; C.drawTop(); C.render(); scrollTo(0, y); if (UI.peek) C.redrawPeek && C.redrawPeek(); };
-  C.setProject = code => { const moved = UI.code !== code; if (moved) C.log('info', 'nav', 'project ' + code); UI.code = code; C.store.set('project', code); UI.editing = false; C.closePeek && C.closePeek({ quiet: true }); C.nav(moved ? 'push' : 'replace'); C.drawTop(); C.render(); };
+  C.setProject = code => { const moved = UI.code !== code; if (moved) C.log('info', 'nav', 'project ' + code); UI.code = code; C.store.set('project', code); UI.editing = false; UI.uc = ''; C.closePeek && C.closePeek({ quiet: true }); C.nav(moved ? 'push' : 'replace'); C.drawTop(); C.render(); };
 
   function projectMenu(anchor) {
     C.menu(anchor, [...C.live().map(p => ({ html: `<span>${C.esc(p.name)}<small>${D.S.items.filter(i => i.code === p.code && C.isOpen(i) && !i.archived).length} open items</small></span>`, selected: p.code === UI.code, onPick: () => { C.setProject(p.code); C.toast(`Switched to ${p.name}`); } })),
@@ -351,6 +356,7 @@
     const h = navParse(location.hash);
     if (h.p && C.live().some(p => p.code === h.p)) UI.code = h.p;
     UI.view = VIEWS[h.v] ? h.v : C.store.get('view', 'dashboard');
+    UI.uc = UI.view === 'usecases' ? h.u || '' : '';
     C.drawTop(); C.render();
     C.nav('replace');
     if (h.id) { C.navBusy = true; (h.k === 'ms' ? C.openMs : C.openItem)(h.id); C.navBusy = false; C.nav('replace'); }   // a reload or a bookmark opens the same peek
