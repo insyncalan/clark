@@ -49,6 +49,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from clark import excel_colours as colours
 from clark import excel_cover
 from clark import excel_picture
+from clark import look
 from clark import platform
 from clark.milestones import STATES, milestone_state
 from clark.timefmt import local_text, parse
@@ -152,7 +153,7 @@ TITLE_OF = {"milestones": "name", "actions": "description", "raid": "description
             "use_cases": "title"}
 SHORT_NAMES = {"owner", "made_by", "workstream", "labels"}      # people, streams and labels: a little wider than a status
 NUMBERS = {"sort_order", "percent_complete"}
-LOCKED = PatternFill("solid", fgColor="EFEFEF")
+LOCKED = PatternFill("solid", fgColor=colours.TOKENS["grey-100"])      # the page's quiet grey, for a column the import never reads
 # The ID column (#85d, BRD FR-70d). There are no cell locks and no sheet protection: Excel refuses to sort a range that holds
 # a locked cell, and sorting must stay free. The import is the guard (a changed existing ID is refused for that row; a row with
 # no ID is a new item and gets the next free ID). The ID column is shaded (LOCKED fill) and these words are pinned by a test.
@@ -289,21 +290,53 @@ def load_state(state_path, path):
     return found if found is not None else {}
 
 
-def prune_hash_records(state_path, today, keep_days=30):
+KEEP_NEWEST = 10          # the most bytes-keyed ("sha256:") records kept for one project (#181); the oldest go first
+KEEP_TOTAL = 30           # and the most the state file holds in all, newest first, plus each project's newest (never cut), so more than 30 live projects keep more than 30 (#181)
+
+
+def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST, live=None, keep_total=KEEP_TOTAL, keep=None):
     """Remove the bytes-keyed ("sha256:") records exported more than keep_days before `today`, so the state file does not grow for
     ever (each holds a copy of every row). Path-keyed records are left alone. #147. A record is aged by its export date only, on
     purpose: an import never writes to the bytes-keyed record (mark_imported writes under the workbook's path, which is kept),
     so the export date is the only date it has. Nor does an import need it afterwards: mark_imported copies the record it found
     by the bytes, with the export in it ("hash", "rows"), under that path, so dropping the bytes-keyed one loses nothing for a
     file that was imported. A file still byte for byte the export, kept unimported for over keep_days, then imports as
-    unrecorded: every difference is staged for the person to check, and nothing is lost."""
+    unrecorded: every difference is staged for the person to check, and nothing is lost. #181: also, no project keeps more than
+    `keep_newest` of them (the newest by export time), at most `keep_total` stay in all (plus each project's newest, which the total never cuts: with more than `keep_total` live projects the file holds one per project and no more than ten of each), and, when `live` (a set of project codes) is
+    given, none of a project outside it (an archived or removed one keeps no snapshot at all). The age rule is not the only brake on
+    the file's size; an older export then imports as unrecorded, which stages every difference for checking (fails safe).
+    `keep` is the record just written: the caps never cut it, and nor does each project's newest, so the total cap cannot take
+    the snapshot a person has just made. An export date after today (a clock set back) ranks at the start of today, below every real export made today."""
     state_path = Path(state_path)
     with STATE_LOCK:
         if not state_path.exists():
             return
         whole = json.loads(state_path.read_text(encoding="utf-8"))
         books, cutoff = whole.get("workbooks", {}), str(date.fromisoformat(str(today)[:10]) - timedelta(days=keep_days))
+        now = str(today)[:10]
         old = [k for k, v in books.items() if k.startswith("sha256:") and str(v.get("exported_at") or "9")[:10] < cutoff]
+        # #181: none of a project that is not live; no more than `keep_newest` for any one project; no more than `keep_total` in all.
+        # Newest by export time, then by the order they were saved in (two exports in one second), so the same records go every time: a hundred exports in one day must not make a state
+        # file of a hundred copies of every row.
+        left = {}
+        for at, (k, v) in enumerate(books.items()):                  # `at` is the order they were saved in: the tie-break for two in one second
+            if k.startswith("sha256:") and k not in old:
+                if live is not None and v.get("project") not in live:
+                    old.append(k)
+                else:
+                    when = str(v.get("exported_at") or "")
+                    left.setdefault(str(v.get("project") or ""), []).append((min(when, now + " 00:00:00"), at, k))     # a future date ranks at the start of today
+        must = {keep} if keep else set()
+        kept, capped = [], []
+        for mine in left.values():
+            mine.sort(reverse=True)
+            must.add(mine[0][2])                                     # each project's newest is exempt from the total cap
+            kept += mine[:max(keep_newest, 1)]
+            capped += [k for _, _, k in mine[max(keep_newest, 1):]]
+        if keep_total and len(kept) > max(keep_total, 1):
+            kept.sort(reverse=True)
+            capped += [k for _, _, k in kept[max(keep_total, 1):]]
+        old += [k for k in capped if k not in must]
         if old:
             for k in old:
                 del books[k]
@@ -316,6 +349,8 @@ def save_state(state_path, path, record):
     state_path = Path(state_path)
     with STATE_LOCK:
         whole = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+        if whole.get("workbooks", {}).get(_key(path)) == record:
+            return                                                    # #181: the same record again (the same bytes): nothing to write
         whole.setdefault("workbooks", {})[_key(path)] = record
         state_path.parent.mkdir(parents=True, exist_ok=True)
         platform.write_file(state_path, json.dumps(whole, indent=1, ensure_ascii=False))
@@ -604,7 +639,7 @@ HISTORY_COLUMNS = (("When", "when_text", 22), ("Who", "who", 18), ("How", "how",
                    ("From", "from", 44), ("To", "to", 44))
 HISTORY_NOTE = "This sheet is read-only and for internal use. Do not send it to a client."
 HISTORY_CELL_LIMIT = 5000                  # characters a history cell holds (design note, section 3)
-HISTORY_FONT = "Arial"
+HISTORY_FONT = look.office_font()          # the look's --font-office, a font Office has
 
 
 def history_cell(value):
@@ -618,7 +653,7 @@ def history_cell(value):
 def write_history(wb, view):
     """The History sheet (#123), after the data sheets: `view` is exactly what history.view_for_project returns, so the sheet and
     the Activity tab show the same rows. Row 1 is the internal note and the footnote, row 2 the header (frozen with it), then the
-    rows newest first, then the closing line (or the empty words). Every cell is a text cell in Arial; the import never reads it."""
+    rows newest first, then the closing line (or the empty words). Every cell is a text cell in the look's office font; the import never reads it."""
     ws = wb.create_sheet(HISTORY_NAME)
 
     def put(row, values, **kw):
@@ -667,7 +702,7 @@ def write_lists(wb, lists):
 COVER_NAME = "Cover"
 COVER_LABELS = {"internal": "Internal", "caution": "Caution", "return": "Sending changes back",
                 "where": "Where to make changes", "ids": "IDs"}
-COVER_FONT = "Arial"
+COVER_FONT = look.office_font()
 
 
 def _cover_cell(value):
@@ -682,8 +717,8 @@ def _cover_font(**kw):
 
 def write_cover(wb, cover, mark=False):
     """The Cover sheet, first in the workbook and the one it opens on (#85b): one label column and one wide wrapped text column,
-    no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). Arial
-    throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
+    no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). The look's
+    office font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
     ws = wb.create_sheet(COVER_NAME, 0)
     ws.column_dimensions["A"].width = 24
     ws.column_dimensions["B"].width = 100
