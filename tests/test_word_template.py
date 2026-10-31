@@ -10,8 +10,10 @@ import io
 import os
 import re
 import tempfile
+import errno
 import unittest
 import zipfile
+from unittest import mock
 
 from _paths import ROOT   # noqa: F401
 
@@ -154,6 +156,20 @@ class Stops(unittest.TestCase):
             self.assertIn("x", main_of(open(dst, "rb").read()))
             with self.assertRaises(NotFilled):
                 fill_to_file(src, dst, {"A": "y"})
+            self.assertIn(">x<", main_of(open(dst, "rb").read()))
+            self.assertEqual(sorted(os.listdir(d)), ["out.docx", "t.docx"])
+
+    def test_a_disk_that_cannot_hard_link_still_gets_the_file_and_still_never_replaces_one(self):
+        no_link = OSError(errno.EPERM, "no hard links here")           # a cloud-synced or network folder
+        with tempfile.TemporaryDirectory() as d:
+            src, dst = os.path.join(d, "t.docx"), os.path.join(d, "out.docx")
+            with open(src, "wb") as f:
+                f.write(make(P("{{A}}")))
+            with mock.patch("os.link", side_effect=no_link):
+                fill_to_file(src, dst, {"A": "x"})
+                self.assertIn(">x<", main_of(open(dst, "rb").read()))
+                with self.assertRaises(NotFilled):
+                    fill_to_file(src, dst, {"A": "y"})
             self.assertIn(">x<", main_of(open(dst, "rb").read()))
             self.assertEqual(sorted(os.listdir(d)), ["out.docx", "t.docx"])
 

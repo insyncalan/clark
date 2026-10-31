@@ -21,6 +21,7 @@ import re
 import zipfile
 
 from clark import docx_read as _r
+from clark import platform
 from clark.docx_read import WordRefused
 
 MAX_VALUE = 100_000                                  # characters in one value
@@ -175,17 +176,9 @@ def fill(template, values, name="The template"):
 
 
 def fill_to_file(template_path, target_path, values):
-    """Fill the template file into a new file at target_path, only if the whole fill succeeds. Never replaces a file."""
+    """Fill the template file into a new file at target_path, only if the whole fill succeeds. Never replaces a file. The file is
+    placed by platform.write_file_unless_exists, which also works on a disk that cannot hard-link (a cloud-synced or network folder)."""
     with open(template_path, "rb") as f:
         result = fill(f.read(), values, os.path.basename(template_path))
-    temp = f"{target_path}.part-{os.getpid()}"
-    try:
-        with open(temp, "xb") as f:
-            f.write(result)
-        try:
-            os.link(temp, target_path)                # fails, and so never replaces, if the target exists
-        except FileExistsError:
-            raise NotFilled(f"{os.path.basename(target_path)} already exists. Nothing was written.") from None
-    finally:
-        if os.path.exists(temp):
-            os.remove(temp)
+    if not platform.write_file_unless_exists(target_path, result):
+        raise NotFilled(f"{os.path.basename(target_path)} already exists. Nothing was written.")
