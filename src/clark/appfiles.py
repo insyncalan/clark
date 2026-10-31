@@ -20,6 +20,8 @@ import os
 import re
 from pathlib import Path
 
+from clark import look
+
 HERE = Path(__file__).resolve().parent
 APP = HERE / "app"
 ICONS_FROM = HERE / "page" / "assets"          # the icons are #73's files, served from where they are: one copy
@@ -99,6 +101,7 @@ def offline_page(launcher="clark.command"):
     css = TOKENS_CSS.read_text(encoding="utf-8")
     for holder, (mode, name) in OFFLINE_COLOURS.items():
         page = page.replace(holder, token_value(css, mode, name))
+    page = page.replace("@FONT@", look.family_list("--font", css))      # the page's own list: it loads no font, so the first that is installed shows
     page = page.replace("@LAUNCHER@", html.escape(launcher)).replace("@COMMAND@", html.escape("./" + launcher))
     return page.encode("utf-8")
 
