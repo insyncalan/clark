@@ -23,7 +23,7 @@ What is not carried: links between items, labels, pictures, comments, and the ed
 in the published rows). A Cancelled milestone is left out, as the page's client list leaves it out. A shown table with no rows says
 "None recorded."; an empty current state or text section is left out (FR-14c).
 
-Colours are the demo tokens (excel_colours.TOKENS, with three more here); `build(..., colours={"brand-navy": "14233A", ...})` lays a
+Colours are the committed tokens (excel_colours.TOKENS); `build(..., colours={"brand-navy": "062F3A", ...})` lays a
 local brand's values over them, each a #rrggbb or rrggbb that is checked, so a brand cannot put markup into the file.
 
 Standard library only, Python 3.9.
@@ -52,7 +52,7 @@ DOC_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml"
 HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 ROOT = f'xmlns:w="{NS_W}" xmlns:r="{NS_R}"'
 
-TOKENS = {**colours_table.TOKENS, "brand-ink": "18232B", "grey-300": "D3D5D8", "grey-50": "F3F5F8"}
+TOKENS = dict(colours_table.TOKENS)
 HEX = re.compile(r"#?([0-9A-Fa-f]{6})")
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
@@ -135,7 +135,7 @@ def para(runs="", style=None, keep_next=False, num=None, rule=False, fill=None, 
     if num:
         props += f'<w:numPr><w:ilvl w:val="{int(num[1])}"/><w:numId w:val="{int(num[0])}"/></w:numPr>'
     if rule:
-        props += '<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="D3D5D8"/></w:pBdr>'
+        props += '<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="C4CEE3"/></w:pBdr>'
     if fill:
         props += f'<w:shd w:val="clear" w:color="auto" w:fill="{fill}"/>'
     if tabs:
