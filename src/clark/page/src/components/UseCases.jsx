@@ -4,8 +4,8 @@
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
 import { useState } from "preact/hooks";
-import { data, rows, openWork, fromFile } from "../stores/report.js";
-import { isOpen } from "../workItems.js";
+import { data, rows, openWork, openPeek, fromFile } from "../stores/report.js";
+import { isOpen, dueField, showDate } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
@@ -32,8 +32,8 @@ const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventD
 
 function Row({ s, shown, toggle }) {
   const { u } = s, id = `uc-${u.id}`, label = u.ref ? `Use case ${u.ref}` : "";
-  // "See all N" counts the open items and the link opens the open ones: one list, `s.open`, for both.
-  const n = s.open.length, go = () => openWork(setFilter(initial(), "use_case", [label], false));
+  // "See all N" counts every linked item, open or closed, and the link opens that same list (the All switch), as the prototype does.
+  const n = s.linked.length, go = () => openWork({ ...setFilter(initial(), "use_case", [label], false), mode: "all" });
   return (
     <li class={`ucrow${shown ? " open" : ""}`} data-uc={u.id}>
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id} onClick={toggle} onKeyDown={(e) => press(e, toggle)}>
@@ -45,11 +45,20 @@ function Row({ s, shown, toggle }) {
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>
-          <h3>Where it stands</h3>
-          {fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Nothing written yet."}</p>}
-          <h3>Next steps</h3>
-          {s.steps.length ? <ul class="plain">{s.steps.map((r) => <li key={r.id}><b>{(r.owner || "No owner").trim() || "No owner"}:</b> {r.title}</li>)}</ul> : <p class="muted">No open next steps.</p>}
-          {n && label ? <span class="link" role="button" tabIndex={0} data-seeall onClick={go} onKeyDown={(e) => press(e, go)}>{`See all ${n} open work ${n === 1 ? "item" : "items"}`}</span> : n ? <p class="muted">{`${n} open work ${n === 1 ? "item" : "items"}.`}</p> : <p class="muted">No open work items.</p>}
+          <div class="ucdcols">
+            <div>
+              <h3>Where it stands</h3>
+              {fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Nothing written yet."}</p>}
+            </div>
+            <div>
+              <h3>{`Next steps \u00b7 ${s.steps.length}`}</h3>
+              {s.steps.length ? <ul class="plain">{s.steps.map((r) => {
+                const due = dueField(r), see = () => openPeek(r.id, "item");
+                return <li key={r.id}><b>{(r.owner || "No owner").trim() || "No owner"}:</b> {r.title} <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span>{due ? <span class="muted">{` \u00b7 due ${showDate(due)}`}</span> : null}</li>;
+              })}</ul> : <p class="muted">No open next steps.</p>}
+            </div>
+          </div>
+          {n && label ? <span class="link" role="button" tabIndex={0} data-seeall onClick={go} onKeyDown={(e) => press(e, go)}>{`See all ${n} work ${n === 1 ? "item" : "items"} for ${u.ref}`}</span> : n ? <p class="muted">{`${n} work ${n === 1 ? "item" : "items"}.`}</p> : <p class="muted">No work items.</p>}
         </div>
       ) : null}
     </li>

@@ -805,6 +805,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucsteps { color: var(--text-muted); font-size: var(--size-small); }
 .ucdetail { padding: 4px 4px 12px 72px; }
 .ucdetail h3 { margin: 8px 0 2px; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ucdcols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; gap: 8px; } .ucdetail { padding-left: 52px; } }
