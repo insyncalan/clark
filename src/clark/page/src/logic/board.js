@@ -314,7 +314,7 @@ export function browserStorage() {
   try { return window.localStorage || memoryStorage; } catch (e) { return memoryStorage; }
 }
 
-export const DEFAULT_STATE = { view: "table", group: "workstream", lane: null, collapsed: [] };
+export const DEFAULT_STATE = { view: "table", group: "workstream", lane: null, collapsed: [], order: {}, widths: {} };
 
 // Anything stored is untrusted: clamp it to what the board understands.
 export function cleanState(raw) {
@@ -322,7 +322,36 @@ export function cleanState(raw) {
   const group = GROUP_IDS.includes(o.group) ? o.group : DEFAULT_STATE.group;
   const lane = LANE_GROUPS.includes(o.lane) && o.lane !== (group === "nothing" ? "status" : group) ? o.lane : null;
   const collapsed = Array.isArray(o.collapsed) ? o.collapsed.filter((x) => typeof x === "string" && x.length <= 120).slice(0, 200) : [];
-  return { view: o.view === "board" ? "board" : "table", group, lane, collapsed };
+  return { view: o.view === "board" ? "board" : "table", group, lane, collapsed, order: cleanOrder(o.order), widths: cleanWidths(o.widths) };
+}
+
+// Column order and widths are the viewer's own presentation (B-16): kept per grouping, here with the other view choices and never
+// in the project's data. Anything stored is clamped: a width outside 260 to 640 px, or a name that isn't text, is dropped.
+export const COL_MIN = 260, COL_MAX = 640, COL_DEFAULT = 272, COL_STEP = 16;
+const isMap = (v) => v && typeof v === "object" && !Array.isArray(v);
+function cleanOrder(raw) {
+  const out = {};
+  if (!isMap(raw)) return out;
+  for (const g of GROUP_IDS) {
+    if (!Array.isArray(raw[g])) continue;
+    const keys = [...new Set(raw[g].filter((x) => typeof x === "string" && x.length <= 120))].slice(0, 200);
+    if (keys.length) out[g] = keys;
+  }
+  return out;
+}
+function cleanWidths(raw) {
+  const out = {};
+  if (!isMap(raw)) return out;
+  for (const g of GROUP_IDS) {
+    if (!isMap(raw[g])) continue;
+    const one = {};
+    for (const k of Object.keys(raw[g]).slice(0, 200)) {
+      const w = raw[g][k];
+      if (k.length <= 120 && typeof w === "number" && Number.isFinite(w) && w >= COL_MIN && w <= COL_MAX && w !== COL_DEFAULT) one[k] = Math.round(w);
+    }
+    if (Object.keys(one).length) out[g] = one;
+  }
+  return out;
 }
 
 export function readState(project, storage = browserStorage()) {
@@ -358,4 +387,41 @@ export function toggleCollapsed(state, group, key) {
 export function collapsedNow(state, group, columns) {
   const have = new Set(columns.map((c) => collapseKey(group, c.key)));
   return state.collapsed.filter((k) => have.has(k)).map((k) => k.slice(k.indexOf(":") + 1));
+}
+
+// ── Moving and resizing a column (B-16) ───────────────────────────────────────
+// The columns as the viewer has put them: the saved order first, a column with no saved place after, in its natural order.
+export function orderedColumns(state, group, columns) {
+  const saved = (state.order || {})[boardGroup(group)] || [];
+  const at = (c, i) => { const j = saved.indexOf(c.key); return j < 0 ? 1e3 + i : j; };
+  return columns.map((c, i) => [c, at(c, i)]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+}
+const withOrder = (state, group, keys) => ({ ...state, order: { ...(state.order || {}), [boardGroup(group)]: keys } });
+// Put `key` before the column `before` (null: at the end). A key that is not a column, or a move to itself, changes nothing.
+export function moveColumn(state, group, columns, key, before) {
+  const keys = orderedColumns(state, group, columns).map((c) => c.key), i = keys.indexOf(key);
+  if (i < 0 || key === before || (before !== null && !keys.includes(before))) return state;
+  keys.splice(i, 1);
+  keys.splice(before === null ? keys.length : keys.indexOf(before), 0, key);
+  return withOrder(state, group, keys);
+}
+// One place left (-1) or right (1). `moved` is false at an edge; `index` is the new place, from 1.
+export function stepColumn(state, group, columns, key, dir) {
+  const keys = orderedColumns(state, group, columns).map((c) => c.key), i = keys.indexOf(key), j = i + dir;
+  if (i < 0 || j < 0 || j >= keys.length) return { state, moved: false, index: i + 1, count: keys.length };
+  keys.splice(i, 1); keys.splice(j, 0, key);
+  return { state: withOrder(state, group, keys), moved: true, index: j + 1, count: keys.length };
+}
+// The saved width of a column, or 0 for the default.
+export function widthOf(state, group, key) {
+  const w = ((state.widths || {})[boardGroup(group)] || {})[key];
+  return typeof w === "number" && w >= COL_MIN && w <= COL_MAX ? w : 0;
+}
+export function clampWidth(w) { return Math.round(Math.max(COL_MIN, Math.min(COL_MAX, Number(w) || COL_DEFAULT))); }
+// Set a width (clamped to 260 to 640 px); the default width is the same as none, so it is not kept.
+export function setColumnWidth(state, group, key, w) {
+  const g = boardGroup(group), v = clampWidth(w), now = {};
+  for (const [k, x] of Object.entries((state.widths || {})[g] || {})) if (k !== key) now[k] = x;
+  if (v !== COL_DEFAULT) now[key] = v;
+  return { ...state, widths: { ...(state.widths || {}), [g]: now } };
 }
