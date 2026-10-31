@@ -150,6 +150,8 @@ BULK_KINDS = "These items are of different kinds."
 BULK_PROJECTS = "These items are in different projects."
 BULK_CONFIRM = "Send confirm as true or false."
 BULK_ARCHIVED = "It is archived. Restore it first."
+BULK_DECIDED = "It has been made or withdrawn, so who made it stays as recorded. Record a new decision instead."
+DECIDED = ("Made", "Withdrawn")              # #196: a decision with one of these keeps its `made_by` in a bulk change
 BULK_GONE = "It isn't in this project now. Reload the page."
 BULK_NONE_CAN = "Nothing changed: none of these items can take that change."
 BULK_ALREADY = "Nothing changed: they already have that."
@@ -986,6 +988,9 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
                 continue
             if row["archived"]:
                 left_out.append({"id": ref, "why": BULK_ARCHIVED})
+                continue
+            if table == "decisions" and "made_by" in changes and row["status"] in DECIDED:
+                left_out.append({"id": ref, "why": BULK_DECIDED})       # the record of who decided is not rewritten
                 continue
             try:
                 st.update(table, ref, changes)

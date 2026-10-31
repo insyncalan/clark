@@ -124,6 +124,25 @@ class Bulk(unittest.TestCase):
             with self.subTest(field=field):
                 self.refused("decisions", self.decisions, {field: "Made"}, words)
 
+    def test_a_made_or_withdrawn_decision_keeps_who_made_it(self):
+        with self.s.step("dashboard", USER) as st:
+            made = st.create("decisions", {"project": "ABC", "decision": "Go", "made_by": "Board", "status": "Made", "date": "2026-10-01", "source": "demo"})
+            withdrawn = st.create("decisions", {"project": "ABC", "decision": "Stop", "made_by": "Board", "status": "Withdrawn", "source": "demo"})
+        pending = self.decisions[0]
+        status, body = self.send("decisions", [made, pending, withdrawn], {"made_by": "Steering group"})
+        self.assertEqual((status, body["changed"]), (200, [pending]), body)
+        self.assertEqual(body["left_out"], [{"id": made, "why": changes.BULK_DECIDED}, {"id": withdrawn, "why": changes.BULK_DECIDED}])
+        self.assertEqual([self.value("decisions", r, "made_by") for r in (made, pending, withdrawn)], ["Board", "Steering group", "Board"])
+        body = self.refused("decisions", [made, withdrawn], {"made_by": "Someone else"}, changes.BULK_DECIDED)
+        self.assertEqual((body["code"], len(body["left_out"])), ("none_can", 2))
+        self.assertEqual([self.value("decisions", r, "made_by") for r in (made, withdrawn)], ["Board", "Board"])
+
+    def test_reopen_of_a_closed_item_still_works(self):
+        self.send("actions", self.actions, {"status": "Closed"})
+        _, body = self.send("actions", self.actions, {"status": "Open"})
+        self.assertEqual(body["changed"], self.actions, body)
+        self.assertEqual([self.value("actions", r, "status") for r in self.actions], ["Open"] * 3)
+
     def test_workstream_and_milestone_reach_every_item(self):
         _, body = self.send("actions", self.actions, {"workstream": "Build", "milestone": self.demo.milestone, "due_date": "2030-01-15"})
         self.assertEqual(body["changed"], self.actions, body)
