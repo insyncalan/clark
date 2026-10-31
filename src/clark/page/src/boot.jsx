@@ -8,6 +8,7 @@ export function boot(tools) {
   // router.js, as a click will.
   window.clarkPage = Object.freeze({ show, openPeek, closePeek, setProject, setFilters, filters: () => f.value, peek: () => peek.value, project: () => project.value, ...(tools && tools.help ? { help: Object.freeze({ open: tools.help.open, close: tools.help.close, isOpen: tools.help.isOpen }) } : {}) });
   if (tools && tools.help) tools.help.installKeys();
+  if (tools && tools.pageErrors) tools.pageErrors();        // page faults reach the log through the server (#110); a published file has none
   render(<App tools={tools} />, document.getElementById("app"));
   document.documentElement.dataset.ready = "1";
   // The server puts this run's token in a data block after this script, and a published file (#39) has its data in one: read

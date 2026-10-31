@@ -81,15 +81,17 @@ def home_to_tilde(text, home=None):
     return text
 
 
-def scrub(text, limit=MESSAGE_LIMIT, home=None):
+def scrub(text, limit=MESSAGE_LIMIT, home=None, keep=None):
     """One safe line from a message: home folder to `~`, web addresses, email addresses, quoted text, other paths and long
-    tokens replaced, control characters (newlines too) spaces, and a long text cut."""
+    tokens replaced, control characters (newlines too) spaces, and a long text cut. A path that is exactly one of the routes in
+    `keep` (the ones clark itself serves) stays, so a request line still says which route it was."""
     t = str(text)
     t = home_to_tilde(t, home)
     t = WEB.sub(GONE, t)
     t = ADDRESS.sub(GONE, t)
     t = QUOTED.sub(GONE, t)
-    t = PATH_LIKE.sub(lambda m: "~/" + GONE if m.group(0).startswith(("~/", "~\\")) else GONE, t)
+    t = PATH_LIKE.sub(lambda m: m.group(0) if keep and m.group(0) in keep
+                      else "~/" + GONE if m.group(0).startswith(("~/", "~\\")) else GONE, t)
     t = TOKEN.sub(GONE, t)
     t = CONTROL.sub(" ", t).strip()
     return t if len(t) <= limit else t[:limit - 1] + GONE
@@ -112,6 +114,10 @@ PAGE_WORDS = frozenset("""a an and are as at be but by cannot can could not read
     token end input json parse expected missing failed fetch network request load loading error errors type reference
     syntax range maximum call stack size exceeded script resource blocked policy access denied aborted timeout timed out
     out undefined variable assignment constant typeerror referenceerror syntaxerror rangeerror""".split())
+
+
+# The only names a page error may carry for its kind: the browsers' own fault classes. Any other name is written as Error.
+PAGE_KINDS = frozenset("Error TypeError ReferenceError SyntaxError RangeError EvalError URIError".split())
 
 
 def page_words(message, limit=100):
@@ -269,7 +275,7 @@ class Log:
                     if FULL_NOTICE not in self._last_bytes(path):
                         self._append(path, f"{now:%Y-%m-%d %H:%M:%S} {LABELS[30]} {'log':<12} {FULL_NOTICE}\n")
                     return
-                head = f"{now:%Y-%m-%d %H:%M:%S} {LABELS[level]} {area_of(area):<12} {scrub(message, home=self.home)}"
+                head = f"{now:%Y-%m-%d %H:%M:%S} {LABELS[level]} {area_of(area):<12} {scrub(message, home=self.home, keep=self.routes)}"
                 tail = details(pairs, self.routes)
                 lines = [head + ("  " + tail if tail else "")] + ["    " + x for x in extra]
                 self._append(path, "\n".join(lines) + "\n")
@@ -327,7 +333,7 @@ class Log:
                 if len(self._page) >= PAGE_ERRORS_PER_MINUTE:
                     return False
                 self._page.append(t)
-            name = str(kind) if NAME_OK.match(str(kind)) else "Error"
+            name = str(kind) if str(kind) in PAGE_KINDS else "Error"
             self._emit(40, "page", f"{name}: {page_words(message)}")
             return True
         except Exception:

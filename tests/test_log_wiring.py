@@ -1,0 +1,346 @@
+"""#110 part 2: the log is installed when clark starts, the page-error and diagnostics routes, and the Settings controls.
+
+Run: python3 dev/run_tests.py test_log_wiring
+Every test uses a temporary folder and a fake folder opener; nothing reads or writes the real log folder. The routes run on a real
+server (LocalServer) with a real Logs seam; the Settings tests run the real page in headless Chrome (required: they fail, never
+skip, without it) at 1400 and 900 px wide, in the light and the dark colour scheme.
+"""
+import http.client
+import io
+import json
+import logging
+import shutil
+import tempfile
+import threading
+import unittest
+from datetime import datetime
+from pathlib import Path
+from unittest import mock
+
+from _paths import SRC
+from test_page import DATA, navigate
+from test_server import chrome, wait
+
+from clark import __main__ as launcher, log as clog, log_routes, page, platform as pl, server as sv
+
+NOW = datetime(2026, 10, 29, 9, 30, 0)
+MARK = "ZQWIRETITLE"
+PAGE_MARK = "ZQWIREPAGE"
+WIDTHS = (1400, 900)
+SCHEMES = ("light", "dark")
+
+
+class Rig(unittest.TestCase):
+    """A real server with a real Logs seam over a temporary folder and a fake folder opener."""
+    counts = {"projects": 2}
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="clark-wiring-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        (self.tmp / "data").mkdir()
+        self.log = clog.Log(self.tmp / "logs", data=self.tmp / "data", clock=lambda: NOW)
+        self.opened = []
+        self.fail_open = False
+        self.logs = log_routes.Logs(self.log, counts=lambda: self.counts, opener=self.opener, version="0.4.0")
+        self.start(self.logs)
+
+    def opener(self, folder):
+        if self.fail_open:
+            raise pl.PlatformError("the folder could not be shown")
+        self.opened.append(Path(folder))
+
+    def start(self, logs):
+        self.httpd = sv.LocalServer((sv.HOST, 0), page_html=page.page_html, logs=logs, data_for=DATA.get,
+                                    projects=lambda: [{"code": "ABC", "name": "Example Programme"}])
+        self.httpd.handle_error = lambda *a: None
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        self.addCleanup(self.stop)
+
+    def stop(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+    def api(self, method, path, body=None, token=None):
+        conn = http.client.HTTPConnection(sv.HOST, self.httpd.server_port, timeout=10)
+        try:
+            h = {"Host": f"127.0.0.1:{self.httpd.server_port}", sv.TOKEN_HEADER: sv.TOKEN if token is None else token}
+            data = json.dumps(body).encode() if body is not None else None
+            if data is not None:
+                h.update({"Content-Type": "application/json", "Content-Length": str(len(data))})
+            conn.putrequest(method, path, skip_host=True, skip_accept_encoding=True)
+            for k, v in h.items():
+                conn.putheader(k, v)
+            conn.endheaders(data)
+            r = conn.getresponse()
+            raw = r.read()
+            return r.status, json.loads(raw) if raw else None
+        finally:
+            conn.close()
+
+    def text(self):
+        return "\n".join(p.read_text(encoding="utf-8") for p in self.log.files())
+
+
+class PageErrorRoute(Rig):
+    def test_a_fault_becomes_one_line_of_the_browsers_own_words(self):
+        status, body = self.api("POST", "/api/page-error", {"kind": "TypeError", "message": f"Cannot read properties of undefined (reading '{PAGE_MARK}')"})
+        self.assertEqual((status, body), (200, {"ok": True}))
+        (line,) = self.log.lines() if hasattr(self.log, "lines") else self.text().splitlines()
+        self.assertIn("ERROR page", line)
+        self.assertIn("TypeError", line)
+        self.assertNotIn(PAGE_MARK.lower(), self.text().lower())
+
+    def test_a_kind_that_is_not_a_browser_fault_class_is_written_as_error(self):
+        self.api("POST", "/api/page-error", {"kind": f"{PAGE_MARK}Title", "message": "x"})
+        self.assertNotIn(PAGE_MARK.lower(), self.text().lower())
+        self.assertIn("Error:", self.text())
+
+    def test_twenty_a_minute_then_the_rest_are_dropped_and_still_answered(self):
+        for _ in range(25):
+            status, _ = self.api("POST", "/api/page-error", {"kind": "Error", "message": "failed"})
+            self.assertEqual(status, 200)
+        self.assertEqual(self.text().count("ERROR page"), 20)
+
+    def test_a_flood_of_reports_leaves_at_most_twenty_lines_about_the_route(self):
+        handler = clog.install(self.log)
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        for _ in range(25):
+            self.api("POST", "/api/page-error", {"kind": "Error", "message": "failed"})
+        self.assertLessEqual(len(self.text().splitlines()), 20)       # the capped ERROR lines only: no request line for the route
+
+    def test_a_body_that_is_not_a_report_is_answered_and_writes_nothing_odd(self):
+        for body in ({}, {"kind": 5, "message": ["a"]}, {"kind": None}):
+            self.assertEqual(self.api("POST", "/api/page-error", body)[0], 200)
+        self.assertNotIn(PAGE_MARK, self.text())
+
+    def test_the_token_is_checked_and_a_large_body_refused(self):
+        self.assertEqual(self.api("POST", "/api/page-error", {"kind": "Error"}, token="wrong")[0], 403)
+        self.assertEqual(self.text(), "")
+        self.assertEqual(self.api("POST", "/api/page-error", {"message": "x" * 5000})[0], 400)
+
+    def test_with_no_logs_seam_the_routes_are_not_found(self):
+        self.stop()
+        self.start(None)
+        for method, path in (("POST", "/api/page-error"), ("GET", "/api/diagnostics"), ("POST", "/api/logging")):
+            self.assertEqual(self.api(method, path, {} if method == "POST" else None)[0], 404, path)
+
+
+class SettingsRoutes(Rig):
+    def test_diagnostics_gives_the_level_the_errors_and_the_report(self):
+        self.log.error("page", "TypeError: reading")
+        status, b = self.api("GET", "/api/diagnostics")
+        self.assertEqual(status, 200)
+        self.assertEqual((b["ok"], b["level"], b["notice"]), (True, "normal", ""))
+        self.assertEqual([(e["count"], e["message"], e["last"]) for e in b["errors"]], [(1, "TypeError: reading", "29-10-2026 09:30")])
+        self.assertTrue(b["report"].startswith("Diagnostics report\nMade on 29-10-2026 09:30"))
+        self.assertIn("Version: 0.4.0", b["report"])
+        self.assertIn("  projects: 2", b["report"])
+
+    def test_the_report_holds_no_planted_marker(self):
+        self.counts = {"projects": 1, MARK: 3}
+        self.log.info("server", "saved", title=MARK, note=f"{MARK} {MARK}")
+        self.log.error("server", "failed", project=MARK)
+        self.api("POST", "/api/page-error", {"kind": MARK, "message": f"{MARK} is not defined"})
+        b = self.api("GET", "/api/diagnostics")[1]
+        self.assertNotIn(MARK.lower(), json.dumps(b).lower())
+
+    def test_the_level_is_saved_and_read_back(self):
+        self.assertEqual(self.api("POST", "/api/logging", {"level": "debug"})[1]["level"], "debug")
+        self.assertEqual(self.api("GET", "/api/diagnostics")[1]["level"], "debug")
+        self.assertEqual(self.log.level(), "debug")
+        self.assertEqual(self.api("POST", "/api/logging", {"level": "normal"})[1]["level"], "normal")
+        self.assertEqual(self.log.level(), "normal")
+
+    def test_debug_for_more_than_seven_days_shows_the_notice(self):
+        self.api("POST", "/api/logging", {"level": "debug"})
+        later = datetime(2026, 11, 8, 9, 0, 0)
+        self.log.clock = lambda: later
+        notice = self.api("GET", "/api/diagnostics")[1]["notice"]
+        self.assertEqual(notice, "Debug has been on for 10 days. It keeps more detail, so switch it back to Normal when you have finished.")
+
+    def test_a_level_that_is_not_one_of_the_two_is_refused(self):
+        for level in ("verbose", "", None, 5, "DEBUG"):
+            status, b = self.api("POST", "/api/logging", {"level": level})
+            self.assertEqual((status, b["code"]), (400, "bad_level"), level)
+        self.assertEqual(self.log.level(), "normal")
+
+    def test_a_level_that_cannot_be_saved_says_so_and_keeps_the_old_one(self):
+        with mock.patch.object(pl, "write_file", side_effect=OSError("read-only")):
+            status, b = self.api("POST", "/api/logging", {"level": "debug"})
+        self.assertEqual((status, b["code"], b["level"]), (409, "not_saved", "normal"))
+        self.assertEqual(b["message"], "The logging level could not be saved. Check that the folder can be written to, then try again.")
+
+    def test_open_folder_makes_the_folder_and_shows_it(self):
+        self.assertEqual(self.api("POST", "/api/logging/open-folder", {})[0], 200)
+        self.assertEqual(self.opened, [self.tmp / "logs"])
+        self.assertTrue((self.tmp / "logs").is_dir())
+
+    def test_open_folder_that_fails_says_so_in_plain_words(self):
+        self.fail_open = True
+        status, b = self.api("POST", "/api/logging/open-folder", {})
+        self.assertEqual((status, b["code"]), (503, "not_opened"))
+        self.assertEqual(b["message"], "The log folder could not be opened. Try again; if it keeps happening, restart clark.")
+
+    def test_every_new_route_needs_the_token(self):
+        for method, path in (("GET", "/api/diagnostics"), ("POST", "/api/logging"), ("POST", "/api/logging/open-folder")):
+            self.assertEqual(self.api(method, path, {} if method == "POST" else None, token="wrong")[0], 403, path)
+
+
+class StartedByTheLauncher(unittest.TestCase):
+    """main() installs the log: the production code really writes it, and removes the handler when it stops."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="clark-wiring-main-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        patch = mock.patch.object(pl, "system", return_value=pl.MAC)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def run_main(self, *argv, **kw):
+        calls = []
+
+        def serve(**k):
+            calls.append(k)
+            logging.getLogger("clark.server").info("%s %s", "GET", "/api/projects")
+            return 0
+
+        out, err = io.StringIO(), io.StringIO()
+        code = launcher.main(list(argv), out=out, err=err, serve=serve, home=self.tmp, environ={}, is_free=lambda p: True, **kw)
+        return code, calls, err.getvalue()
+
+    def logs(self):
+        return "\n".join(p.read_text(encoding="utf-8") for p in sorted((self.tmp / "Library" / "Logs" / "clark").glob("clark-*.log")))
+
+    def test_a_normal_start_writes_the_log_and_gives_the_server_its_seam(self):
+        code, calls, err = self.run_main("--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        self.assertIsInstance(calls[0]["logs"], log_routes.Logs)
+        text = self.logs()
+        self.assertIn("started on port 8123", text)
+        self.assertIn("GET /api/projects", text)
+        self.assertIn("stopped with code 0", text)
+
+    def test_the_handler_is_taken_off_when_it_stops(self):
+        before = list(logging.getLogger("clark").handlers)
+        self.run_main("--port", "8123")
+        self.assertEqual(list(logging.getLogger("clark").handlers), before)
+
+    def test_a_demo_run_leaves_no_log_in_the_real_log_folder(self):
+        code, calls, err = self.run_main("--demo", "--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        self.assertEqual(self.logs(), "")
+        self.assertFalse((self.tmp / "Library" / "Logs").exists())
+
+    def test_a_system_with_no_log_folder_still_starts(self):
+        with mock.patch.object(pl, "log_dir", side_effect=pl.NotBuiltYet("not built")):
+            code, calls, err = self.run_main("--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        self.assertIsNone(calls[0]["logs"])
+
+    def test_the_launcher_names_every_route_it_may_log(self):
+        log, handler, logs = launcher.start_log(self.tmp, lambda: [], home=self.tmp)
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        for route in ("/api/page-error", "/api/diagnostics", "/api/logging", "/api/logging/open-folder", "/api/change"):
+            self.assertIn(route, log.routes)
+
+
+class Settings(Rig):
+    """Settings > Logs and diagnostics in the real page, at 1400 and 900 px, in the light and the dark colour scheme."""
+
+    def show(self, cdp, width, scheme):
+        sid = navigate(cdp, self.httpd.server_port, "#settings&p=ABC")
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+        self.sid, self.cdp = sid, cdp
+        self.until("!!document.querySelector('#diagnostics [data-level]') && !document.querySelector('[data-level=normal]').disabled", "Settings read")
+
+    def js(self, expr):
+        return self.cdp.js(expr, self.sid)
+
+    def until(self, expr, what, seconds=15):
+        self.assertTrue(wait(lambda: self.js(expr), seconds), what)
+
+    def each(self):
+        with chrome() as cdp:
+            for scheme in SCHEMES:
+                for width in WIDTHS:
+                    self.show(cdp, width, scheme)
+                    yield width, scheme
+
+    def test_the_controls_and_the_words(self):
+        for width, scheme in self.each():
+            text = self.js("document.querySelector('#diagnostics').innerText")
+            for want in ("Logs and diagnostics", "never records report text, names, email addresses, notes", "Nothing is sent anywhere.",
+                         "Normal", "Debug", "Open folder", "Copy diagnostics", "Errors in the last 7 days", "None."):
+                self.assertIn(want, text, f"{want} at {width} {scheme}")
+            self.assertEqual(self.js("document.querySelector('[data-level=normal]').getAttribute('aria-pressed')"), "true")
+            self.assertTrue(self.js("document.documentElement.scrollWidth <= window.innerWidth"), f"nothing scrolls sideways at {width}")
+            self.assertTrue(self.js(f"matchMedia('(prefers-color-scheme: {scheme})').matches"))
+
+    def test_debug_and_back_are_saved(self):
+        for width, scheme in self.each():
+            self.js("document.querySelector('[data-level=debug]').click()")
+            self.until("document.querySelector('[data-level=debug]').getAttribute('aria-pressed') === 'true'", "Debug is chosen")
+            self.assertEqual(self.log.level(), "debug")
+            self.js("document.querySelector('[data-level=normal]').click()")
+            self.until("document.querySelector('[data-level=normal]').getAttribute('aria-pressed') === 'true'", "Normal is chosen")
+            self.assertEqual(self.log.level(), "normal")
+
+    def test_the_seven_day_notice_shows(self):
+        self.log.set_level("debug")
+        self.log.clock = lambda: datetime(2026, 11, 8, 9, 0, 0)
+        for width, scheme in self.each():
+            self.assertIn("Debug has been on for 10 days.", self.js("document.querySelector('#debug-notice').innerText"))
+
+    def test_a_level_that_cannot_be_saved_is_said_on_the_page(self):
+        for width, scheme in self.each():
+            with mock.patch.object(pl, "write_file", side_effect=OSError("read-only")):
+                self.js("document.querySelector('[data-level=debug]').click()")
+                self.until("!!document.querySelector('#diagnostics [role=alert]') && document.querySelector('#diagnostics [role=alert]').innerText.length > 0", "a message")
+            self.assertIn("The logging level could not be saved. Check that the folder can be written to, then try again.",
+                          self.js("document.querySelector('#diagnostics [role=alert]').innerText"))
+            self.assertEqual(self.js("document.querySelector('[data-level=normal]').getAttribute('aria-pressed')"), "true")
+
+    def test_copy_diagnostics_copies_the_report(self):
+        self.log.error("page", "TypeError: reading")
+        for width, scheme in self.each():
+            self.js("window.__copied = null; Object.defineProperty(navigator, 'clipboard', {value: {writeText: function (t) { window.__copied = t; return Promise.resolve(); }}, configurable: true})")
+            self.js("document.querySelector('[data-copy-diagnostics]').click()")
+            self.until("window.__copied !== null", "something was copied")
+            copied = self.js("window.__copied")
+            self.assertTrue(copied.startswith("Diagnostics report\nMade on 29-10-2026 09:30"), copied[:60])
+            self.assertIn("TypeError: reading", copied)
+            self.until("document.querySelector('#diagnostics [role=status] p') !== null", "the line under the buttons")
+            self.assertEqual(self.js("document.querySelector('#diagnostics [role=status] p').innerText"),
+                             "Copied. Paste it into a message to the person who is helping you.")
+
+    def test_open_folder_shows_the_log_folder_and_says_when_it_cannot(self):
+        for width, scheme in self.each():
+            self.opened.clear()
+            self.fail_open = False
+            self.js("document.querySelector('[data-open-log]').click()")
+            self.until("!document.querySelector('[data-open-log]').disabled", "done")
+            self.assertEqual(self.opened, [self.tmp / "logs"])
+            self.fail_open = True
+            self.js("document.querySelector('[data-open-log]').click()")
+            self.until("!!document.querySelector('#diagnostics [role=alert]') && document.querySelector('#diagnostics [role=alert]').innerText.length > 0", "a message")
+            self.assertEqual(self.js("document.querySelector('#diagnostics [role=alert]').innerText"),
+                             "The log folder could not be opened. Try again; if it keeps happening, restart clark.")
+
+    def test_a_fault_in_the_page_reaches_the_log_without_its_text(self):
+        with chrome() as cdp:
+            self.show(cdp, 1400, "light")
+            self.js(f"setTimeout(function () {{ throw new TypeError('{PAGE_MARK} is not a function') }}, 0)")
+            self.until("true", "ran")
+            self.assertTrue(wait(lambda: "ERROR page" in self.text(), 15), "the fault was logged")
+        self.assertIn("TypeError", self.text())
+        self.assertNotIn(PAGE_MARK.lower(), self.text().lower())
+
+    def test_the_published_page_has_none_of_it(self):
+        view = (Path(page.PAGE).parent / "page-view.html").read_text(encoding="utf-8")
+        for name in ("/api/page-error", "/api/diagnostics", "/api/logging", "Copy diagnostics"):
+            self.assertNotIn(name, view)
+
+
+if __name__ == "__main__":
+    unittest.main()
