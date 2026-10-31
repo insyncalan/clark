@@ -1,9 +1,10 @@
 // What each edit control asks of clark: one change, one request, one toast (stores/changes.js). The ordered list is the one on
 // the page (data.report_sections), which is the one clark last sent. Nothing here edits it.
 import { data } from "../stores/report.js";
-import { change } from "../stores/changes.js";
+import { change, changeThen } from "../stores/changes.js";
 import { keep } from "./focus.js";
 import { note } from "./notes.js";
+import { plan as planTemplate } from "../logic/templates.js";
 import { place, step, beside as besideOf, fullWidth as fullOf, rows } from "../logic/placement.js";
 
 export const TITLE_MAX = 120;
@@ -61,4 +62,20 @@ export function remove(id, place) {
   const next = all[i + 1] || all[i - 1];
   const done = change({ op: "delete", id, place }, "Section deleted.");
   return next ? keep(done, next.id, "handle") : done;
+}
+
+// Add template `id` below section `after` (null: at the end), alone or beside that section (logic/templates.js plan). One request
+// and one Undo, except below a last section with a stale pairing flag, which takes a second request to clear it: the two are one
+// action to the person, with one Undo that takes both back (stores/changes.js changeThen). Resolves to the
+// first reply, or to null when nothing was added (a refusal in a note, or clark said no in the toast). The new section's title takes
+// focus.
+export async function addFromTemplate(id, after, beside) {
+  const p = planTemplate(list(), id, after, beside);
+  if (!p.ok) { note(p.message); return null; }
+  const [one, two] = p.requests;
+  const first = two
+    ? await changeThen(one, () => two, p.words, p.partial)
+    : await change(one, p.words);
+  if (first) keep(Promise.resolve(first), "new", "title");
+  return first;
 }
