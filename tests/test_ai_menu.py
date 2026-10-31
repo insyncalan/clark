@@ -545,5 +545,30 @@ class RetryKeepsTheQuestion(unittest.TestCase):
         self.assertEqual(s.begin("rewrite", "", "plain", 0, 0, confidential_key="k").key, "k")
 
 
+class WebCodeIsComparedPerMatch(unittest.TestCase):
+    """#72 fix round M1: a text that already holds one tag does not switch the web-code check off for the rest."""
+
+    def check(self, rep, original, place="notes"):
+        return am.check_reply(reply(rep), original, "rewrite", place)
+
+    def test_a_new_tag_beside_a_tag_the_text_had_is_not_used(self):
+        for rep, orig in (("Alpha <script>alert(1)</script> <b>b</b>", "Alpha <b>x</b> delta"),
+                          ("Alpha <iframe src=//evil></iframe>", "Alpha a<b delta"),
+                          ("Alpha <img src=x onerror=alert(1)>", "Alpha <b>x</b> and x onerror=1"),
+                          ("Alpha <b>x</b> <i>y</i>", "Alpha <b>x</b> delta")):
+            for place in ("notes", "plain"):
+                r = self.check(rep, orig, place)
+                self.assertFalse(r["ok"], (rep, orig, place))
+                self.assertIn("web code", r["message"])
+
+    def test_only_tags_the_text_held_are_let_through(self):
+        self.assertTrue(self.check("Use <b> for bold, said Alpha.", "Use <b> for bold.")["ok"])
+        self.assertTrue(self.check("Use <b> and </b> for bold, said.", "Use <b> and </b> for bold.")["ok"])
+
+    def test_a_less_than_sign_in_a_sum_is_a_tag_like_match_only_when_new(self):
+        self.assertTrue(self.check("If x < y then stop, said Alpha.", "If x < y then stop.")["ok"])
+        self.assertFalse(self.check("If x < y then stop, said Alpha.", "If x is less than y then stop.")["ok"])
+
+
 if __name__ == "__main__":
     unittest.main()

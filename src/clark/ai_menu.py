@@ -291,8 +291,10 @@ def check_reply(reply, original, option, place):
     if len(text) > min(MAX_REPLY, len(original) * MAX_REPLY_FACTOR + MAX_REPLY_EXTRA):
         return _fail("The suggestion was far too long to use. Try again.", option)
     orig_norm = edit_ai.normal(original)
-    for pattern in (TAGS, SCRIPTY):
-        if pattern.search(edit_ai.normal(text)) and not pattern.search(orig_norm):
+    text_norm = edit_ai.normal(text)
+    for pattern in (TAGS, SCRIPTY):             # per match: a reply may hold only the tags and scripts strings the text held
+        held = {m.group().strip() for m in pattern.finditer(orig_norm)}
+        if any(m.group().strip() not in held for m in pattern.finditer(text_norm)):
             return _fail("The suggestion had web code in it, so it was not used. Try again.", option)
     if edit_ai.hidden_count(text) > edit_ai.hidden_count(original):
         return _fail("The suggestion had hidden characters in it, so it was not used. Try again.", option)
