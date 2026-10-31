@@ -101,7 +101,7 @@ def looks_like(ctype, head):
 
 def brand_picture(name, branding=None):
     """(bytes, content type) of one of the brand's pictures, or None. `name` must be one of PICTURES; the file is
-    <the user's tokens.css folder>/assets/<name>, and it must still be inside the brand folder after symlinks are
+    <the user's tokens.css folder>/assets/<name>, and it must still be inside the pictures folder (itself inside the brand folder) after symlinks are
     followed, be a regular file, be at most PICTURE_MAX_BYTES, and begin with the bytes its type needs. None for anything
     else (no tokens.css, no file, a link out of the folder, a wrong type): the server answers 404."""
     ctype = PICTURES.get(name)
@@ -110,8 +110,9 @@ def brand_picture(name, branding=None):
         return None
     base = (Path(branding) if branding is not None else BRANDING).resolve()
     try:
+        folder = (tokens.parent / PICTURE_DIR).resolve()
         found = (tokens.parent / PICTURE_DIR / name).resolve()
-        if not found.is_relative_to(base) or not found.is_file():
+        if not folder.is_relative_to(base) or not found.is_relative_to(folder) or not found.is_file():       # inside the pictures folder, which is inside the brand folder
             return None
         with open(found, "rb") as f:
             data = f.read(PICTURE_MAX_BYTES + 1)

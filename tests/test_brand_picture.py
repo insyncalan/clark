@@ -212,6 +212,10 @@ class Route(unittest.TestCase):
         self.brand.put("real.png", PNG)
         os.symlink(self.brand.assets / "real.png", self.brand.assets / "cover.png")              # a link that stays inside
         self.assertEqual(self.s.ask("GET", "/assets/cover.png")[2], PNG)
+        (self.brand.assets / "cover.png").unlink()
+        (self.brand.dir / "private.png").write_bytes(PNG)
+        os.symlink(self.brand.dir / "private.png", self.brand.assets / "cover.png")             # a link to another file in the brand folder, outside the pictures folder
+        self.assertEqual(self.s.ask("GET", "/assets/cover.png")[0], 404, "only the pictures folder is served from")
 
     def test_the_names_are_looked_up_and_never_joined_onto_a_path(self):
         self.brand.put("cover.png", PNG)
