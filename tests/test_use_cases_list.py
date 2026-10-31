@@ -135,8 +135,8 @@ class Tab(Setup):
             p.js("document.querySelector('[data-view=usecases]').click()")
             p.until("!!document.querySelector('#usecases .ucl-row')", "the list")
             p.js("document.querySelector('[data-uc=\"%s\"] .ucl-go').click()" % self.uc2)
-            p.until("location.hash === '#usecases&p=ABC&uc=1.2' && !!document.querySelector('#usecase')", "a use case has its own address and page")
-            self.assertIn("1.2", p.js("document.querySelector('#usecase .crumbs').textContent"))
+            p.until("location.hash === '#usecases&p=ABC&uc=1.2' && !!document.querySelector('[data-ucd]')", "a use case has its own address and page")
+            self.assertIn("1.2", p.js("document.querySelector('[data-ucd] .ucd-crumb').textContent"))
             self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-row').length"), 0)
             p.js("history.back()")
             p.until("location.hash === '#usecases&p=ABC' && !!document.querySelector('#usecases .ucl-row')", "Back to the list")
@@ -146,16 +146,16 @@ class Tab(Setup):
             p.js("history.forward()")
             p.until("location.hash === '#usecases&p=ABC' && !!document.querySelector('#usecases .ucl-row')", "Forward to the list")
             p.js("history.forward()")
-            p.until("location.hash === '#usecases&p=ABC&uc=1.2' && !!document.querySelector('#usecase')", "Forward to the use case")
+            p.until("location.hash === '#usecases&p=ABC&uc=1.2' && !!document.querySelector('[data-ucd]')", "Forward to the use case")
 
     def test_a_typed_address_opens_a_use_case_and_an_unknown_one_opens_the_list(self):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#usecases&p=ABC&uc=1.10")          # a reference with a dot, typed
-            p.until("!!document.querySelector('#usecase')", "the page of use case 1.10")
-            self.assertIn("Supplier portal", p.js("document.querySelector('#usecase h1').textContent"))
+            p.until("!!document.querySelector('[data-ucd]')", "the page of use case 1.10")
+            self.assertIn("Supplier portal", p.js("document.querySelector('[data-ucd] h1').textContent"))
         with chrome() as cdp:
             p = self.show(cdp, hash_="#usecases&p=ABC&uc=" + self.uc4)       # its id also names it
-            p.until("!!document.querySelector('#usecase')", "the page of use case 2.1 by its id")
+            p.until("!!document.querySelector('[data-ucd]')", "the page of use case 2.1 by its id")
         with chrome() as cdp:
             p = self.show(cdp, hash_="#usecases&p=ABC&uc=9.9")
             p.until("location.hash === '#usecases&p=ABC' && !!document.querySelector('#usecases .ucl-row')", "an unknown use case: the list, the entry rewritten")
@@ -506,7 +506,7 @@ class Keys(Setup):
                 else:
                     self.assertEqual(self.focused(p), f"{ids[0]}:ucl-go", "no eye to go to in View")
                 self.press(p, "Enter")
-                p.until("!!document.querySelector('#usecase')", "Enter opens the use case")
+                p.until("!!document.querySelector('[data-ucd]')", "Enter opens the use case")
 
     def test_enter_and_space_work_the_eye_and_the_keys_leave_the_search_box_alone(self):
         with chrome() as cdp:

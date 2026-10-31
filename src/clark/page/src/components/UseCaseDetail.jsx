@@ -16,13 +16,14 @@ import { RichField } from "../edit/RichField.jsx";
 import { cleanHtml } from "../logic/cleanHtml.js";
 import { isOpen, pillOf, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
+import { refOf } from "../logic/useCasesList.js";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 const NAME_MAX = 120, HEAD_MAX = 300, SHOW = 8;
 const EYE = { on: "On the dashboard", off: "Not on the dashboard" };
 
-const refWords = (u) => (u.ref ? `UC ${u.ref}` : "Use case");
+const refWords = (u) => refOf(u) || "Use case";
 const safe = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
 
 // The work items linked to a use case, as the list rows (rowsOf): every action, risk, issue and decision that names it.

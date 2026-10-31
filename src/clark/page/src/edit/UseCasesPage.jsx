@@ -10,6 +10,7 @@ import { signal, computed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { data, rows as allRows, project, uc, mode, openUseCase } from "../stores/report.js";
 import { change } from "../stores/changes.js";
+import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { listOf, ucFor, tidy, recalled, keep, shownOf, onCounts, narrowed, countWords, rowSay, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS } from "../logic/useCasesList.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { Menu } from "../components/Menu.jsx";
@@ -119,9 +120,11 @@ function UseCasesList() {
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
   const list = useRef(null);
   useEffect(() => {      // coming back from a use case: its row takes the focus
-    if (!returning) return;
-    const el = list.current && list.current.querySelector(`[data-uc="${CSS.escape(returning)}"] .ucl-go`);
+    const from = returning || cameBackFrom.value;       // Back (this page noted it) or the detail's crumb and Esc (the detail left it)
     returning = "";
+    cameBackFrom.value = "";
+    if (!from) return;
+    const el = list.current && list.current.querySelector(`[data-uc="${CSS.escape(from)}"] .ucl-go`);
     if (el) el.focus({ preventScroll: true });
   }, []);
   const sortWord = (SORTS.find(([k]) => k === f.sort) || SORTS[0])[1];
