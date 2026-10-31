@@ -1680,6 +1680,10 @@
    [
     "Double-click",
     "On the left edge of the peek or ask clark: back to the usual width"
+   ],
+   [
+    "[[Mod+K]]",
+    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back"
    ]
   ],
   "icons": [

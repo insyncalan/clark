@@ -41,3 +41,20 @@
 .mvm-confirm { margin: 12px 0 4px; }
 .mvm-problems p { margin: 4px 0; color: var(--status-red-text); }
 @media (max-width: 1100px) { .mvm-row { grid-template-columns: 1fr auto; } .mvm-track { grid-column: 1 / -1; } }
+
+/* The command palette (#198), Edit parts only: a modal box with one search box and the results under it. */
+.pal { width: min(620px, calc(100% - 32px)); margin-top: 10vh; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; }
+.pal[open] { display: flex; }
+.pal-q { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.pal-q input { width: 100%; min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.pal-q input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pal-list { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+.pal-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-height: 32px; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+.pal-row.on { background: var(--grey-100); outline: 1px solid var(--grey-300); }
+.pal-row.off { cursor: default; }
+.pal-row.off .pal-label, .pal-row.off .pal-kind { color: var(--text-muted); }
+.pal-kind { flex: none; min-width: 78px; font-size: var(--size-small); color: var(--text-muted); }
+.pal-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.pal-more, .pal-why { font-size: var(--size-small); }
+.pal-why { flex-basis: 100%; padding-left: 88px; }
+.pal-none { margin: 0; padding: 14px 16px; }
