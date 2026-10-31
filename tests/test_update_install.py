@@ -414,6 +414,13 @@ class UndoTest(Base):
             ui.stage_undo(backup_dir, self.app, UNDO_STAMP)
         self.assertEqual("backup_damaged", said.exception.key)
 
+    def test_a_set_whose_update_never_went_in_is_not_offered_for_undo(self):
+        self.taken()
+        ui.back_up(self.app, self.data, self.db, STAMP, "0.3.0", "0.3.1")
+        with self.assertRaises(ui.InstallError) as said:
+            ui.undo_choice(self.data, self.db)
+        self.assertEqual("no_update", said.exception.key)
+
     def test_no_update_to_undo(self):
         with self.assertRaises(ui.InstallError) as said:
             ui.undo_choice(self.data, self.db)

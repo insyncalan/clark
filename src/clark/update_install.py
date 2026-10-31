@@ -209,7 +209,7 @@ def back_up(app_dir, data_dir, db_path, stamp, from_version, to_version, plan_=N
                   "app_files": hashes, "settings": had_settings, "db_before": db_before, "db_after": None,
                   "planned": ({"added": plan_.added, "replaced": plan_.replaced, "removed": plan_.removed,
                                "by_hand": plan_.by_hand} if plan_ else None),
-                  "undone": False}
+                  "installed": False, "undone": False}
         if fault:
             fault("back_up:record")
         update_helper.write_json(part / RECORD, record)
@@ -248,11 +248,12 @@ def sets(data_dir):
 
 
 def note_installed(backup_dir, db_path):
-    """After the new version answers: the data as it stands (db_after), which Undo compares with later."""
+    """After the new version answers: the update went in, and the data as it stands (db_after), which Undo compares with later."""
     record = read_set(backup_dir)
     if record is None:
         return
     record["db_after"] = summary_of(db_path)
+    record["installed"] = True
     update_helper.write_json(Path(backup_dir) / RECORD, record)
 
 
@@ -371,8 +372,9 @@ def hand_over(data_dir, app_dir, staging, stamp, from_version, to_version, insta
 # --- undo -------------------------------------------------------------------------------------------------------------
 
 def last_update(data_dir):
-    """The newest backup set made by an update (not by an undo) that is not undone: (folder, record), or None."""
-    found = [(f, r) for f, r in sets(data_dir) if r.get("kind") == "update"]
+    """The newest backup set of an update (not an undo) that went in: (folder, record), or None. A set whose update stopped
+    before it was installed (the old version was kept) is not one."""
+    found = [(f, r) for f, r in sets(data_dir) if r.get("kind") == "update" and r.get("installed") is True]
     return found[-1] if found else None
 
 

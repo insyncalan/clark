@@ -27,6 +27,11 @@ Routes:
 - POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
 - POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
 - POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
+- GET  /api/update       Settings › Version and updates: what is installed, an update in Downloads, the last update (updater.py)
+- POST /api/update/review     {from, reinstall}: check the newest file in Downloads, or one chosen in the system's dialog, and review it
+- POST /api/update/install    {review_id}: install the reviewed update; the server stops after the answer so the helper can swap
+- POST /api/update/arm-undo   {}: arm Undo update for a few seconds; says whether only the app and settings can be put back
+- POST /api/update/undo       {arm_id, app_only}: the armed undo; the server stops after the answer, as for an install
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
 
 Run: python3 -m clark.server   (CLARK_PORT sets the port; the default is 8766, beside creaite's 8765)
@@ -75,6 +80,8 @@ MESSAGES = {
     "server_error": "Something went wrong, and nothing was changed. Try again, or restart clark.",
     "no_backups": "Backups can't be shown right now. Restart clark the usual way and try again.",
     "saving_off": "Saving is switched off, so that change was not kept. Restart clark the usual way to turn it on.",
+    "updating": "An update is being installed, so nothing was changed. Wait a minute, then reload the page.",
+    "no_updates": "Updates can't be shown right now. Restart clark the usual way and try again.",
 }
 # The standard library's error status → the code of the plain reply (Handler.send_error). Any other 400 to 499 is
 # bad_request and any 500 or more server_error.
@@ -83,7 +90,8 @@ BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
-                     "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
+                     "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
+                     "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/undo": 1024}
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -622,13 +630,43 @@ def profile_route(method):
     return route
 
 
+def update_route(method):
+    """A route that hands its request to the server's `updater` (updater.Updater), which answers (status, body). Without one: 503.
+    An answer that says "restart" (an install or an undo was handed to the update helper) stops this server once it is sent, so
+    the helper can replace the files; the helper starts the new version."""
+    def route(handler, *req):
+        updater = handler.server.updater
+        if updater is None:
+            return handler.send(503, error_body("no_updates"))
+        status, body = getattr(updater, method)(*req)
+        handler.send(status, body)
+        if status == 200 and body.get("restart") is True:
+            threading.Thread(target=handler.server.shutdown, daemon=True).start()
+        return None
+    return route
+
+
+UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo")
+
+
+def updating(handler, route):
+    """While an update is being installed every route but the update's own answers 503 in plain words (sent here)."""
+    updater = getattr(handler.server, "updater", None)
+    if updater is None or route in UPDATE_ROUTES or route == HERE_ROUTE or not updater.installing():
+        return False
+    handler.send(503, error_body("updating"))
+    return True
+
+
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
-              "/api/movement": movement_route, "/api/profile": profile_route("get")}
+              "/api/movement": movement_route, "/api/profile": profile_route("get"), "/api/update": update_route("status")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
-               "/api/profile": profile_route("save"),
+               "/api/profile": profile_route("save"), "/api/update/review": update_route("review"),
+               "/api/update/install": update_route("install"), "/api/update/arm-undo": update_route("arm_undo"),
+               "/api/update/undo": update_route("undo"),
                "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
 # ===== end of the page and the data =====
 
@@ -771,7 +809,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.run_route(brand_picture_route, route[len(BRAND_PREFIX):])
         api = GET_ROUTES.get(route)
         if api or route.startswith("/api/"):
-            if not self.authorised():
+            if not self.authorised() or updating(self, route):
                 return None
             if api:
                 return self.run_route(api)
@@ -785,7 +823,7 @@ class Handler(BaseHTTPRequestHandler):
         route = self.path.split("?")[0]
         if route == CSP_REPORT_ROUTE:
             return csp_report_route(self)
-        if not self.authorised():
+        if not self.authorised() or updating(self, route):
             return None
         if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
             return self.send(415, error_body("send_json"))
@@ -812,7 +850,8 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None,
+                 updater=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -826,6 +865,7 @@ class LocalServer(ThreadingHTTPServer):
         self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
+        self.updater = updater                # updater.Updater: Settings › Version and updates; None: those routes answer 503
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -857,14 +897,15 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None,
+          updater=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile,
-                            word_import=word_import, word_export=word_export)
+                            word_import=word_import, word_export=word_export, updater=updater)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
