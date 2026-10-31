@@ -13,6 +13,12 @@ export function todayIso() {
   return `${String(t.getFullYear()).padStart(4, "0")}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
 }
 
+// "YYYY-MM-DD HH:MM" now, local time: the one place that reads the clock for a time of day (the Draft email's greeting, #51).
+export function nowStamp() {
+  const t = new Date(), z = (n) => String(n).padStart(2, "0");
+  return `${todayIso()} ${z(t.getHours())}:${z(t.getMinutes())}`;
+}
+
 // A day number for a real calendar day, null for anything else (including 2026-02-30). Both dates are read as plain days
 // in UTC, so a clock change never moves a count.
 export function dayNumber(iso) {

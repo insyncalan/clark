@@ -8,6 +8,7 @@ import { data, contact, asAt, fromFile } from "../stores/report.js";
 import { DraftEmail } from "./DraftEmail.jsx";
 import { Icon } from "./Icon.jsx";
 import { itemsOf, build, barred, NO_SENDER_HERE } from "../logic/draftEmailBuild.js";
+import { todayIso, nowStamp } from "../workItems.js";
 import { buildOptions, startPicks } from "../logic/draftEmail.js";
 
 const opened = signal(null);            // null, or the ids ticked to start with
@@ -18,7 +19,7 @@ export const canDraft = () => fromFile.value && !!contact.value;
 export function openEmail(ids) { opened.value = ids && ids.length ? ids.slice() : []; }
 
 function offered() { return itemsOf(data.value).filter((i) => !barred(i, true)); }
-function now() { const d = new Date(), z = (n) => String(n).padStart(2, "0"); return `${asAt.value || `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`} ${z(d.getHours())}:${z(d.getMinutes())}`; }
+function now() { return `${asAt.value || todayIso()}${nowStamp().slice(10)}`; }
 
 function Dialog({ ids }) {
   const items = offered(), list = items.map((i) => ({ id: i.id, text: i.text }));
