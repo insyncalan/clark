@@ -8,6 +8,7 @@ The file is a JSON object. A missing file, a file that isn't a JSON object, a va
 error: the default is used, so a bad settings file can never stop a backup or its tidying up. Standard library only, Python 3.9.
 """
 import json
+import re
 from pathlib import Path
 
 from clark import platform
@@ -65,3 +66,23 @@ def set_backups_kept(data_dir, number):
     current[BACKUPS_KEPT] = number
     platform.write_file(data_dir / FILE, json.dumps(current, indent=2, sort_keys=True) + "\n")
     return number
+
+
+# #51: the user's own (team's) mail domains, e.g. ["team.example.com"]. A project contact on one of them is refused, and never
+# reaches a published page. There is no screen for it yet (FR-1): the file's list is read as it is, and anything that isn't a
+# plain domain name is skipped. No list means no address counts as the team's.
+OWN_DOMAINS = "own_domains"
+OWN_DOMAINS_MAX = 20
+DOMAIN = re.compile(r"(?=.{3,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+")
+
+
+def own_domains(data_dir):
+    """The user's own mail domains from the settings file, lower case, each a plain domain name; at most OWN_DOMAINS_MAX."""
+    value = read(data_dir).get(OWN_DOMAINS)
+    if not isinstance(value, list):
+        return []
+    out = []
+    for d in value:
+        if isinstance(d, str) and DOMAIN.fullmatch(d.strip().lower()) and d.strip().lower() not in out:
+            out.append(d.strip().lower())
+    return out[:OWN_DOMAINS_MAX]

@@ -529,14 +529,54 @@ def build(opts):
 
 CONTACT_ADDRESS = re.compile(r"[^\s@<>(),;:\"]+@[^\s@<>(),;:\"]+\.[^\s@<>(),;:\"]+")
 CONTACT_NAME_MAX = 80
+CONTACT_EMAIL_MAX = 254                 # the longest address mail accepts (RFC 5321's path limit, less the angle brackets)
+# What the Publish screen says when it refuses a contact (#51). Plain words, each with the next step.
+CONTACT_WORDS = {
+    "hidden": "There is a hidden or control character in it. Type it again by hand, then save.",
+    "no_address": "Type the client contact's email address, then save.",
+    "too_long": f"That address is too long. Use one of {CONTACT_EMAIL_MAX} characters or fewer, then save.",
+    "name_too_long": f"That name is too long. Use {CONTACT_NAME_MAX} characters or fewer, then save.",
+    "not_one": "That is not one email address. Type a single address, like sam@example.org, then save.",
+    "own_domain": "That address is on your own team's domain. Use the client contact's own address, then save.",
+}
+
+
+def _hidden_char(text):
+    """True when the text holds a character a person can't see or that is not plain text: a control character, a line or
+    paragraph break, a format character (zero-width space, joiners, a soft hyphen, the direction marks) or an unassigned one."""
+    return any(unicodedata.category(c) in ("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp") for c in str(text))
+
+
+def contact_problem(name, email, own_domains=()):
+    """Why this contact can't be the project's, as a key of CONTACT_WORDS, or None when it can. `name` may be empty; `email` must
+    be one well-formed address of at most CONTACT_EMAIL_MAX characters, with nothing hidden in either, and never on one of the
+    user's own domains. Only spaces round the edges are forgiven; nothing is cut or changed to make a value pass."""
+    if not isinstance(name, (str, type(None))) or not isinstance(email, (str, type(None))):
+        return "not_one"
+    name, address = (name or "").strip(" "), (email or "").strip(" ")
+    if _hidden_char(name) or _hidden_char(address):
+        return "hidden"
+    if not address:
+        return "no_address"
+    if len(name) > CONTACT_NAME_MAX:
+        return "name_too_long"
+    if len(address) > CONTACT_EMAIL_MAX:
+        return "too_long"
+    if not CONTACT_ADDRESS.fullmatch(address):
+        return "not_one"
+    if not is_outside(address, own_domains):
+        return "own_domain"
+    return None
 
 
 def client_contact(name, email, own_domains=()):
     """{name, email} for the project contact a published page offers its Draft email to, or None when there is none to offer.
-    Both are one line of plain text (one_line). The address must be a single, well-formed address, and never one on the user's
-    own domains: a team member's address is never put in a page. The name is cut to CONTACT_NAME_MAX characters."""
+    Both are one line of plain text (one_line). The address must be a single, well-formed address of at most CONTACT_EMAIL_MAX
+    characters with nothing hidden in it, and never one on the user's own domains: a team member's address is never put in a
+    page. The name is cut to CONTACT_NAME_MAX characters."""
     address = one_line(email)
-    if not CONTACT_ADDRESS.fullmatch(address) or not is_outside(address, own_domains):
+    if len(address) > CONTACT_EMAIL_MAX or _hidden_char(address) or not CONTACT_ADDRESS.fullmatch(address) \
+            or not is_outside(address, own_domains):
         return None
     return {"name": one_line(name)[:CONTACT_NAME_MAX], "email": address}
 
