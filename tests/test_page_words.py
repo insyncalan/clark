@@ -21,8 +21,8 @@ from clark import page, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
-READ_FAILED = "clark could not read this project. Reload the page. If it happens again, restart clark."
-HIT_PROBLEM = "clark hit a problem reading this project. Reload the page. If it happens again, restart clark."
+READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark."
+HIT_PROBLEM = "A problem came up reading this project. Reload the page. If it happens again, restart clark."
 NOT_ACCEPTED = "That request was not accepted. Reload the page."
 STALE = "This page was opened before clark restarted. Reload the page and try again."
 NOT_ANSWERING = "The app has stopped. It stops by itself after a while with nothing open. Start it again from clark.command."
@@ -139,7 +139,7 @@ class Words(unittest.TestCase):
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
         odd = "ValueError: bad JSON in /Users/someone/file.py"
-        cases = {500: HIT_PROBLEM, 400: "clark could not read that request. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
+        cases = {500: HIT_PROBLEM, 400: "That request could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
         for code, wanted in cases.items():
             def route(handler, code=code):
                 handler.send(code, {"ok": False, "message": odd})

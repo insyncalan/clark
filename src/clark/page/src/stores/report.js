@@ -195,13 +195,13 @@ let reading = 0;                                       // the newest read wins w
 // What the page says when clark could not give the data. The page never shows the server's own text, because it might be a
 // program's error name or a technical phrase: it looks the server's message up here by the HTTP status, and a message it does not
 // know (or none at all) gets the plain fallback for that status. Every line says what to do next. A status of 0 is "no answer".
-const READ_FAILED = "clark could not read this project. Reload the page. If it happens again, restart clark.";
+const READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark.";
 const STALE = "This page was opened before clark restarted. Reload the page and try again.";
 const BAD_CODE = "Use a project code of 3 to 7 capital letters or digits.";
 const NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list.";
 const NOT_ACCEPTED = "That request was not accepted. Reload the page.";
 const ALLOWED = {
-  400: { fallback: "clark could not read that request. Reload the page.",
+  400: { fallback: "That request could not be read. Reload the page.",
          known: { [BAD_CODE]: BAD_CODE } },
   403: { fallback: NOT_ACCEPTED,
          known: { "Not allowed": NOT_ACCEPTED, [NOT_ACCEPTED]: NOT_ACCEPTED, [STALE]: STALE,
@@ -209,7 +209,7 @@ const ALLOWED = {
   404: { fallback: "Check the project's code.",
          known: { [NO_PROJECT]: NO_PROJECT,
                   "There is no project with that code.": NO_PROJECT } },
-  500: { fallback: "clark hit a problem reading this project. Reload the page. If it happens again, restart clark.", known: {} },
+  500: { fallback: "A problem came up reading this project. Reload the page. If it happens again, restart clark.", known: {} },
   0: { fallback: "The app has stopped. It stops by itself after a while with nothing open. Start it again from clark.command.", known: {} },
 };
 export function plain(code, body) {
@@ -253,7 +253,7 @@ export function plainChange(code, body) {
   return CHANGE_FAILED;
 }
 
-const LIST_FAILED = "clark could not read the list of projects. Reload the page. If it happens again, restart clark.";
+const LIST_FAILED = "The list of projects could not be read. Reload the page. If it happens again, restart clark.";
 // The list's own words, picked by status like plain(): a refusal or no answer says what plain() says; anything else is LIST_FAILED.
 function plainList(code, body) {
   return code === 0 || code === 400 || code === 403 ? plain(code, body) : LIST_FAILED;
