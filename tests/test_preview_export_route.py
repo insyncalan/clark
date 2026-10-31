@@ -16,6 +16,7 @@ from unittest import mock
 
 from _paths import SRC  # noqa: F401
 from openpyxl import load_workbook
+from _workbook import set_custom_part
 from clark import excel, excel_import, platform, publish, publish_flow, server as sv
 import test_publish_route as base
 
@@ -151,15 +152,19 @@ class Export(Case):
             mine.write_bytes(raw)
             plan = excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state)
             self.assertFalse(plan.unrecorded, folder)
-        # a file whose bytes differ is not the export: nothing says what it was made from
+        # a file whose bytes differ still carries the export id, so it is still that export
         other = Path(self.rig.root) / "elsewhere.xlsx"
         other.write_bytes(raw + b"x")
-        self.assertTrue(excel_import.read_workbook(self.rig.store, other, "PUB", state_path=state, allow_unrecorded=False).unrecorded)
-        self.assertEqual(excel.load_state(state, other), {})
+        self.assertFalse(excel_import.read_workbook(self.rig.store, other, "PUB", state_path=state, allow_unrecorded=False).unrecorded)
+        # one whose bytes differ and that carries no id is not the export: nothing says what it was made from
+        bare = Path(self.rig.root) / "bare.xlsx"
+        bare.write_bytes(raw)
+        set_custom_part(bare, None)
+        self.assertTrue(excel_import.read_workbook(self.rig.store, bare, "PUB", state_path=state, allow_unrecorded=False).unrecorded)
+        self.assertEqual(excel.load_state(state, bare), {})
 
-    def test_known_limit_until_169_a_workbook_saved_again_with_no_edit_is_unrecorded(self):
-        """The record is found only while the file is exactly what clark wrote. A re-save (openpyxl, no edit) changes the bytes, so the
-        import calls it unrecorded. This pins the limit; #169 (an export id inside the workbook) is what lifts it, and then this changes."""
+    def test_a_workbook_saved_again_with_no_edit_keeps_its_record(self):
+        """A re-save (openpyxl, no edit) changes the bytes but keeps the custom properties, so the export id finds the record."""
         _, _, raw = get(self.rig, "/api/export?project=PUB")
         state, mine = self.rig.data_dir / excel.STATE_FILE, Path(self.rig.root) / "PUB-resaved.xlsx"
         mine.write_bytes(raw)
@@ -167,7 +172,22 @@ class Export(Case):
         wb = load_workbook(mine)
         wb.save(mine)                                                                        # saved again, nothing edited
         self.assertNotEqual(mine.read_bytes(), raw)
-        self.assertTrue(excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state).unrecorded)
+        plan = excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state)
+        self.assertFalse(plan.unrecorded)
+        self.assertEqual([c for c in plan.changes], [], "nothing was edited, so nothing is staged")
+
+    def test_a_rewrite_that_drops_the_export_id_falls_back_to_the_bytes_and_is_unrecorded(self):
+        _, _, raw = get(self.rig, "/api/export?project=PUB")
+        state, mine = self.rig.data_dir / excel.STATE_FILE, Path(self.rig.root) / "PUB-rewritten.xlsx"
+        mine.write_bytes(raw)
+        wb = load_workbook(mine)
+        wb.custom_doc_props = type(wb.custom_doc_props)()                                    # another program, saving without them
+        wb.save(mine)
+        self.assertIsNone(excel.export_id_of(mine))
+        plan = excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state)
+        self.assertTrue(plan.unrecorded, "no id and other bytes: there is no record, so every difference is staged")
+        self.assertIn("is recorded only while it is exactly what clark wrote", " ".join(plan.notes))
+        self.assertFalse(excel_import.apply_import(self.rig.store, plan, base.USER, state_path=state).applied)
 
     def test_records_kept_by_bytes_older_than_thirty_days_are_dropped_on_the_next_export(self):
         get(self.rig, "/api/export?project=PUB")
@@ -180,7 +200,8 @@ class Export(Case):
         kept = json.loads(state.read_text(encoding="utf-8"))["workbooks"]
         self.assertNotIn("sha256:" + "0" * 64, kept)
         self.assertIn("/some/path.xlsx", kept)
-        self.assertEqual(len([k for k in kept if k.startswith("sha256:")]), 1)
+        self.assertEqual(len([k for k in kept if k.startswith(excel.KEYED)]), 1, "the export's own record, under its id")
+        self.assertEqual([k for k in kept if k.startswith("sha256:")], [])
 
     def test_a_second_export_on_the_same_day_does_not_replace_the_first_ones_record(self):
         _, _, first = get(self.rig, "/api/export?project=PUB")
@@ -294,24 +315,26 @@ class ExportRecord(Case):
             self.assertEqual(excel.load_state(state, f).get("hash"), excel.file_hash(f), f"export {n} has no record")
             self.assertFalse(excel_import.read_workbook(self.rig.store, f, "PUB", state_path=state).unrecorded, n)
 
-    def test_known_limit_until_169_an_edited_workbook_is_unrecorded_and_stays_so_after_a_confirmed_import(self):
-        """What load_state's comment says: an edit loses the record, and a confirmed import leaves a record under the path with no
-        export in it, so the next edit of the same file is unrecorded again. #169 lifts this, and then this changes."""
+    def test_an_edited_workbook_keeps_its_record_and_still_does_after_an_import_of_it(self):
+        """What load_state's comment says: the export id survives an edit and a save, so the import finds the record; the import
+        writes back to that record, so the next edit of the same file is recorded too."""
         state = self.rig.data_dir / excel.STATE_FILE
         mine, raw = self.download()
         self.edit_milestone(mine, "Pilot live, moved in Excel")
         plan = excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state)
-        self.assertTrue(plan.unrecorded)
-        self.assertIn("it is recorded only while it is exactly what clark wrote", " ".join(plan.notes))
-        self.assertEqual(excel.load_state(state, mine), {})
-        plan.confirm_unrecorded()
+        self.assertFalse(plan.unrecorded)
+        key, record = excel.find_state(state, mine, "PUB")
+        self.assertEqual(key, excel.id_key("PUB", excel.export_id_of(mine)))
+        self.assertTrue(record.get("hash") and record.get("rows"))
         plan.accept(*[c.n for c in plan.changes if c.kind == "changed"])
         self.assertTrue(excel_import.apply_import(self.rig.store, plan, base.USER, state_path=state).applied)
-        left = excel.load_state(state, mine)                          # the import's record, under the path
+        key2, left = excel.find_state(state, mine, "PUB")                 # written back to the export's own record
+        self.assertEqual(key2, key)
         self.assertEqual(left.get("imported_hash"), excel.file_hash(mine))
-        self.assertFalse(left.get("hash") or left.get("rows"))
+        self.assertTrue(left.get("hash") and left.get("rows"))
+        self.assertEqual(excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state).already_imported, True)
         self.edit_milestone(mine, "Pilot live, moved again")
-        self.assertTrue(excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state).unrecorded)
+        self.assertFalse(excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state).unrecorded)
 
     def test_the_same_bytes_imported_into_another_project_have_no_record(self):
         with self.rig.store.step("dashboard", base.USER) as st:
@@ -322,9 +345,29 @@ class ExportRecord(Case):
         self.assertFalse(excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state).unrecorded)
         self.assertTrue(excel_import.read_workbook(self.rig.store, mine, "OTH", state_path=state).unrecorded)
 
+    def old_export(self, mine, state):
+        """Make the download what an export before export ids was: no id in the file, its record kept by its bytes only."""
+        key, record = excel.find_state(state, mine, "PUB")
+        set_custom_part(mine, None)
+        whole = json.loads(state.read_text(encoding="utf-8"))
+        del whole["workbooks"][key]
+        record.pop("export_id", None)
+        record["hash"] = excel.file_hash(mine)
+        whole["workbooks"][excel.hash_key(record["hash"])] = record
+        state.write_text(json.dumps(whole), encoding="utf-8")
+
+    def test_an_old_workbook_with_no_id_imports_as_before(self):
+        state = self.rig.data_dir / excel.STATE_FILE
+        mine, _ = self.download()
+        self.old_export(mine, state)
+        self.assertFalse(excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state).unrecorded, "the same bytes: found")
+        self.edit_milestone(mine, "Pilot live, moved in Excel")
+        self.assertTrue(excel_import.read_workbook(self.rig.store, mine, "PUB", state_path=state).unrecorded, "edited, no id: not found")
+
     def test_a_record_kept_by_bytes_is_aged_by_its_export_and_the_path_record_an_import_left_is_kept(self):
         state = self.rig.data_dir / excel.STATE_FILE
         mine, _ = self.download()
+        self.old_export(mine, state)
         excel.mark_imported(mine, state, project="PUB", step={"step": 1, "db_id": "x", "at": "2026-10-28 09:00:00"})
         whole = json.loads(state.read_text(encoding="utf-8"))
         self.assertEqual(sum(k.startswith("sha256:") for k in whole["workbooks"]), 1)    # the import did not touch it...
@@ -347,7 +390,7 @@ class ExportSnapshotBound(Case):
         return json.loads(state.read_text(encoding="utf-8"))["workbooks"] if state.exists() else {}
 
     def hashed(self):
-        return [k for k in self.books() if k.startswith("sha256:")]
+        return [k for k in self.books() if k.startswith(excel.KEYED)]          # kept by the bytes or by the export id
 
     def change(self, n):
         with self.rig.store.step("dashboard", base.USER) as st:

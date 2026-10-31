@@ -24,6 +24,7 @@ from clark import excel_colours as colours
 
 DUBAI, NEW_YORK = "Asia/Dubai", "America/New_York"
 ZONES = (DUBAI, NEW_YORK)
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
 NOW = datetime(2030, 6, 1, 20, 30, 45, 123456)    # UTC: 02-06-2030 00:30 in Dubai (UTC+4), 01-06-2030 16:30 in New York (EDT)
 
 
@@ -59,8 +60,8 @@ class ExcelTimeTests(unittest.TestCase):
         """Export in zone `tz` with the clock fixed at `now` (UTC); returns (bytes, state-file entry, path)."""
         self.n += 1
         path, state = self.dir / f"{self.n}.xlsx", self.dir / f"state{self.n}.json"
-        with zone(tz), mock.patch.object(excel, "clock", lambda: now):
-            excel.export(path, "DEMO", self.rows(), state, on=on)
+        with zone(tz), mock.patch.object(excel, "clock", lambda: now), mock.patch.object(excel, "new_export_id", lambda: FIXED_ID):
+            excel.export(path, "DEMO", self.rows(), state, on=on)       # the export id is random: pinned here, as the clock is
         entry = json.loads(state.read_text(encoding="utf-8"))["workbooks"][excel._key(path)]
         return path.read_bytes(), entry, path
 
