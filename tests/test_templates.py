@@ -380,7 +380,7 @@ class Box(Base):
             p.type("zzz")
             p.until("document.querySelectorAll('[data-template]').length === 0", "nothing matches")
             self.assertEqual(p.js("document.querySelector('.ad-none').textContent"), "No template matches that search. Try another word.")
-            self.assertTrue(p.js("document.querySelector('[data-place]').disabled"), "nothing chosen: Place it is off")
+            self.assertTrue(p.js("document.querySelector('button[data-place]').disabled"), "nothing chosen: Place it is off")
             p.js("document.querySelector('[data-kind=work]').click()")
             p.js("var s = document.querySelector('input[type=search]'); s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true}))")
             p.until("document.querySelectorAll('[data-template]').length === 3", "Work items shows three")
@@ -397,7 +397,7 @@ class Box(Base):
             p.edit()
             self.open_box(p, "ABC-S-003")
             self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 10, "every template can be focused")
-            self.assertEqual(p.js("document.querySelector('[data-place]').disabled"), False, "Text is chosen and can be placed")
+            self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():
                 if tid == "text":
@@ -417,8 +417,8 @@ class Box(Base):
             self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "Key dates")
             self.assertIn("What’s coming, from the milestones.", p.js("document.querySelector('.ad-prev').textContent"))
             self.assertEqual(p.js("document.getElementById('ad-later-prev').textContent"), "Coming with a later release.", "the reason is in text")
-            self.assertTrue(p.js("document.querySelector('[data-place]').disabled"))
-            self.assertEqual(p.js("document.querySelector('[data-place]').getAttribute('aria-describedby')"), "ad-later-prev")
+            self.assertTrue(p.js("document.querySelector('button[data-place]').disabled"))
+            self.assertEqual(p.js("document.querySelector('button[data-place]').getAttribute('aria-describedby')"), "ad-later-prev")
             self.assertEqual(p.js("document.activeElement.getAttribute('aria-disabled')"), "true", "a template that cannot be placed is read out as unavailable")
             self.assertIsNone(p.js("document.querySelector('[data-template=\"text\"] input').getAttribute('aria-disabled')"), "and one that can be placed is not")
             p.key("Enter", code="Enter", vk=13)
@@ -454,7 +454,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-004")                                  # the next row is Summary, alone
-            self.assertEqual(p.js("document.querySelector('[data-place]').textContent"), "Add section", "the prototype's word")
+            self.assertEqual(p.js("document.querySelector('button[data-place]').textContent"), "Add section", "the prototype's word")
             self.assertEqual(p.js("document.querySelector('.ad-where legend').textContent"), "Where it goes", "one name for the step: the heading is Where it goes, the button is Add section")
             self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside “Summary” (half width)")
             p.js("document.querySelector('[data-cancel]').click()")
@@ -488,7 +488,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-006")                                  # the left half of This week | Next week
-            p.js("document.querySelector('[data-place]').click()")
+            p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12", "added")
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual(p.ids().index(new), 7, "below Next week, after the pair")
@@ -503,7 +503,7 @@ class Box(Base):
             self.open_box(p, "ABC-S-004")                                  # the next row, Summary, is alone
             self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
             p.js("document.querySelector('input[name=where][value=beside]').click()")
-            p.js("document.querySelector('[data-place]').click()")
+            p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12 && document.querySelectorAll('.sec.slot-left').length === 2", "added beside")
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual(p.ids()[4], new)
@@ -527,7 +527,7 @@ class Box(Base):
             p.until("!document.querySelector('[role=dialog]')", "closed")
             self.open_box(p, "ABC-S-011")                                  # the last section
             self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "This is the last section, so there is nothing to sit beside.")
-            p.js("document.querySelector('[data-place]').click()")
+            p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12", "alone at the end")
             self.assertEqual(p.ids()[-1] not in IDS, True)
             self.assertEqual([r[1]["op"] for r in self.sent], ["new"])
@@ -538,7 +538,7 @@ class Box(Base):
             p.edit()
             self.failure = lambda req: (409, {"ok": False, "error": "x"})
             self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
-            p.js("document.querySelector('[data-place]').click()")
+            p.js("document.querySelector('button[data-place]').click()")
             p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 11)
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]')"), 5), "focus went back to the opener")
@@ -566,7 +566,7 @@ class Box(Base):
             self.open_box(p, "ABC-S-003")
             self.assertEqual(p.js("document.querySelector('.ad-main').scrollTop"), 0, "nothing scrolled")
             seen = p.js("""(function(){var m=document.querySelector('.ad-main').getBoundingClientRect(), w=document.querySelector('.ad-where').getBoundingClientRect(),
-                l=document.querySelector('.ad-list').getBoundingClientRect(), b=document.querySelector('[data-place]').getBoundingClientRect();
+                l=document.querySelector('.ad-list').getBoundingClientRect(), b=document.querySelector('button[data-place]').getBoundingClientRect();
                 return {inView: w.top >= m.top && w.bottom <= m.bottom, aboveList: w.bottom <= l.top + 1, buttonInView: b.bottom <= window.innerHeight};})()""")
             self.assertEqual(seen, {"inView": True, "aboveList": True, "buttonInView": True})
             p.js("document.querySelector('[data-cancel]').click()")
@@ -613,7 +613,7 @@ class Box(Base):
                 p.js(f"document.documentElement.setAttribute('data-theme', {json.dumps(theme)})")
                 self.open_box(p, "ABC-S-003")
                 want = p.js(probe)
-                for sel in ("input[type=search]", ".ad-kind", "input[name=template]", "input[name=where]", "[data-place]", "[data-cancel]"):
+                for sel in ("input[type=search]", ".ad-kind", "input[name=template]", "input[name=where]", "button[data-place]", "[data-cancel]"):
                     p.js(f"document.querySelector({json.dumps(sel)}).focus()")
                     got = p.js(f"(function(){{var e=document.querySelector({json.dumps(sel)});return e.matches(':focus-visible') ? getComputedStyle(e).outlineColor : 'not visible';}})()")
                     self.assertIn(got, (want, "not visible"), f"{theme}: {sel}")
