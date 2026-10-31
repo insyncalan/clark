@@ -16,6 +16,7 @@ from openpyxl import load_workbook
 
 from clark import excel
 from clark import excel_colours as colours
+from clark import look
 from test_excel import Demo, ON
 
 TODAY = date(2030, 6, 1)
@@ -125,13 +126,13 @@ class Formatting(unittest.TestCase):
         for name, table, cols, _ in excel.SHEETS:
             self.assertTrue(wb[name].auto_filter.ref.startswith("A1:"), name)
 
-    def test_header_is_bold_white_on_the_brand_navy_and_wraps(self):
+    def test_header_is_bold_white_on_the_looks_brand_navy_and_wraps(self):
         wb = load_workbook(self.build(self.everything()))
         for ws in wb:
             for c in ws[1]:
                 self.assertTrue(c.font.b, (ws.title, c.value))
-                self.assertEqual(c.font.color.rgb[-6:], "FFFFFF")
-                self.assertEqual(c.fill.fgColor.rgb[-6:], "062F3A")
+                self.assertEqual(c.font.color.rgb[-6:], look.colour("white"))
+                self.assertEqual(c.fill.fgColor.rgb[-6:], look.colour("brand-navy"))
                 self.assertTrue(c.alignment.wrap_text)
 
     # ── widths and wrapping ──────────────────────────────────────────────────
