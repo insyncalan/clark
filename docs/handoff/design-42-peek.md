@@ -1,6 +1,6 @@
 # Design: #42 the peek and Sneak peek: the Activity tab and the rule with multi-select
 
-**Status, 01-11-2026:** built on branch team-lang-42-peek-r. Short note: what the peek shows in each mode, where its history comes from, and the one rule it follows when multi-select (#195) lands.
+**Status, 01-11-2026:** built on the peek branch. Short note: what the peek shows in each mode, where its history comes from, and the one rule it follows when multi-select (#195) lands.
 
 ## 1. What the peek shows
 - **View and a published file:** the item's fields and nothing else: no tabs, no Activity, no words box, no `/api/` text.
