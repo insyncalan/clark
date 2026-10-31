@@ -179,7 +179,7 @@ class Words(unittest.TestCase):
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
                                   "Asking",             # #47: the switch and its folders, below the client folder
-                                  "Claude is started on this computer for you.",
+                                  "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
                                   "Turn on asking", "Folders asking may read",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
@@ -247,6 +247,17 @@ class Words(unittest.TestCase):
             self.assertNotIn("report editor", text.lower(), f.name)
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
+
+    def test_no_sentence_in_the_edit_screens_starts_with_the_product_name(self):
+        """A screen sentence does not start with the product name (the rule set in #170): the strings in the edit screens' code."""
+        starts = re.compile(r"""[`"'>]\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
+        files = sorted(PAGE_SRC.glob("edit/**/*.js")) + sorted(PAGE_SRC.glob("edit/**/*.jsx"))
+        self.assertTrue(files)
+        for f in files:
+            for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                if line.lstrip().startswith("//"):
+                    continue
+                self.assertIsNone(starts.search(line), f"{f.name}:{n}: a sentence starts with the product name")
 
     def test_help_names_no_version_that_may_not_exist(self):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""

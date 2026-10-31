@@ -65,7 +65,8 @@ CHANGE_KINDS = {
     "report_hidden": {NEW: (), DELETE: (), PICK: ()},
 }
 KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
-                "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)}}
+                "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
+                "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
 TILE_WORDS = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
@@ -424,6 +425,22 @@ def _flags_to_clear(rows, ref):
     return []
 
 
+def _on_its_own(rows, ref):
+    """Whether section `ref` is on its own: not half of a pair, read the way the page reads pairs (a 1 on a second half or on
+    the last row is ignored)."""
+    ids = [r["id"] for r in rows]
+    flag = {r["id"]: r["beside"] for r in rows}
+    i = 0
+    while i < len(ids):
+        if flag[ids[i]] == 1 and i + 1 < len(ids):
+            if ref in (ids[i], ids[i + 1]):
+                return False
+            i += 2
+        else:
+            i += 1
+    return True
+
+
 def _do_change(store, by_user, req):
     project, kind, op, place = _shape(req)
     if store.read("projects", ref=project) is None:
@@ -456,6 +473,9 @@ def _do_change(store, by_user, req):
             raise Refused(ONLY_TEXT)
         title = clark_store.section_title(values["title"]) if "title" in values else DEFAULT_TITLE
         after = _id_or_none(req.get("after"), STALE)
+        beside = _flag(req["beside"]) if "beside" in req else 0
+        if beside and after is None:
+            raise Refused(INVALID_LAYOUT)                           # "beside" needs the section it goes beside
     elif op == UPDATE:
         changes = _checked_changes(_fields(req.get("changes"), kind, op, columns, "the changes"))
         if not changes:
@@ -472,7 +492,13 @@ def _do_change(store, by_user, req):
             rows = _sections(store, project)
         ids = [r["id"] for r in rows]
         if op == NEW:
+            if beside:
+                _mine(after, ids, STALE)
+                if not _on_its_own(rows, after):
+                    raise Refused(STALE)                            # it has a partner now: nothing is written, the page redraws
             ref = _add(st, project, rows, ids, title, after)
+            if beside:
+                st.update(table, after, {"beside": 1})              # the same step: one Undo removes the section and the pairing
         else:
             _mine(ref, ids, NOT_MINE)
             if op == UPDATE:
