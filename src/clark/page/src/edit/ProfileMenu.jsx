@@ -2,7 +2,7 @@
 // the page as it would be published in a new tab, and Export downloads the project's workbook; both ask the server (publishApi.js)
 // and neither publishes or saves a file. Settings is a tab, Help is the Help page. The tooltip lists the entries that carry a short
 // word (`tip`), so it follows the entries; Help has none, as its "?" key is its own way in. The accessible name is just "Your menu".
-// Dark mode (Light, Dark, System) is in the menu (#179); there is no profile (name or email) yet to show.
+// Appearance (Light, Dark, System) is in the menu (#179); there is no profile (name or email) yet to show.
 import { signal } from "@preact/signals";
 import { Menu } from "../components/Menu.jsx";
 import { data, tabs, show, project, mode } from "../stores/report.js";
@@ -76,9 +76,9 @@ export function ProfileMenu() {
   const tip = menuTip(items);
   const last = lastLine(latest.value);
   // The last-published note is hidden from the bar in a narrow window, so the menu says it too; a separator sets the settings apart.
-  // Dark mode (#179): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
+  // Appearance (#179; its group is called Appearance in the menu and in Settings): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
-  const look = [{ id: "look-lab", lab: "Dark mode" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
+  const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
   const actions = items.filter((i) => ["publish", "preview", "export"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const shown = [...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...rest];
   const pick = (id) => {

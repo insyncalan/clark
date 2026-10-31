@@ -1,4 +1,4 @@
-"""#179: Appearance (Light, Dark, System) in Settings › Personal and as Dark mode in the profile menu, in a real browser at 1400 and
+"""#179: Appearance (System, Light, Dark) in Settings › Personal and as the same Appearance group in the profile menu, in a real browser at 1400 and
 900 px. Run: python3 dev/run_tests.py test_appearance
 
 The choice is one setting for this person on this computer, remembered in the browser as the section style is and applied as
@@ -18,7 +18,7 @@ from test_server import chrome
 from clark import page
 
 WIDTHS = (1400, 900)
-ORDER = ["Light", "Dark", "System"]
+ORDER = ["System", "Light", "Dark"]
 
 
 def scheme(p, value):
@@ -91,7 +91,7 @@ class Appearance(Base):
                 self.open_menu(p)
                 roles = p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')})")
                 self.assertEqual(roles[:6], ["menuitem", "menuitem", "menuitem", "separator", "presentation", "menuitemradio"])
-                self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Dark mode")
+                self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
                 self.assertEqual(p.js("[...document.querySelectorAll('#profile-menu [role=menuitemradio]')].map(i => i.textContent.replace('✓', ''))"), ORDER)
                 self.assertEqual(self.in_menu(p), ["System"], "the one in use is marked")
 
@@ -154,10 +154,10 @@ class Source(unittest.TestCase):
 
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        for words in ('["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]', '["system", "System", "Follows your Mac\'s setting."]',
+        for words in ('["system", "System", "Follows your Mac\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
                       "<legend>Appearance</legend>"):
             self.assertIn(words, text)
-        self.assertIn('lab: "Dark mode"', (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
+        self.assertIn('lab: "Appearance"', (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

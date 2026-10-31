@@ -10,10 +10,10 @@ export const STYLES = [
   ["card", "One card", "All the sections inside a single card."],
 ];
 
-export const APPEARANCES = [
+export const APPEARANCES = [                                 // the ruled order: System first, the default
+  ["system", "System", "Follows your Mac's setting."],
   ["light", "Light", "Always light."],
   ["dark", "Dark", "Always dark."],
-  ["system", "System", "Follows your Mac's setting."],
 ];
 
 export function Personal() {

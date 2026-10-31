@@ -5,7 +5,7 @@
 // a published file never has it: it carries no `data-theme` and follows the viewer's own setting.
 import { signal } from "@preact/signals";
 
-export const MODES = ["light", "dark", "system"];
+export const MODES = ["system", "light", "dark"];                 // the ruled order: System first, the default
 const KEY = "clark.appearance";
 export const DEFAULT_MODE = "system";
 export const valid = (v) => MODES.includes(v);

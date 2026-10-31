@@ -3,7 +3,7 @@ menu's (arrows, Home, End, Esc back to the circle); the tooltip is the spec's wo
 
 Run: python3 dev/run_tests.py test_profile_menu
 Preview and Export (#147) ask the server's routes (tests/test_preview_export_route.py); here they are tested as the page uses them.
-Dark mode and the name-and-email line are not in the menu: the page has no dark-mode setting and holds no profile. Chrome is required.
+Appearance (System, Light, Dark) is in the menu (#179); the name-and-email line is not: the page holds no profile yet. Chrome is required.
 """
 import json
 import re
@@ -18,7 +18,7 @@ from clark import excel, server as sv
 TIP = "Your menu: Publish, Preview, Export, Settings"
 NAME = "Your menu"
 ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Settings", "Help"]       # the commands
-LOOK = ["Light", "Dark", "System"]                                                                            # the Dark mode group (#179), radio items between Export and Settings
+LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 ORDER = ITEMS[:3] + LOOK + ITEMS[3:]
 
 
