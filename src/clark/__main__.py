@@ -287,11 +287,12 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
 
 
 def use_case_ids_on_file(store):
-    """The rule for Use Cases' on_dashboard, as a function of the project code: today publish.select's own choice. When
-    publish.client_use_cases exists (#168) this is the one place to point at it."""
+    """The rule for Use Cases' on_dashboard, as a function of the project code: the use cases the published file's Use Cases
+    tab carries, which publish.client_use_cases decides (select stores its answer as use_case_pages). The route never
+    repeats the rule."""
     def ids(code):
         chosen = publish.select(publish.read_inputs(store, code))
-        return {u["id"] for u in chosen["data"]["use_cases"]}
+        return {p["id"] for p in chosen["data"]["use_case_pages"]}
     return ids
 
 

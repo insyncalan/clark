@@ -1,4 +1,4 @@
-"""The Use Cases tab in the published file (clark-plan #168), in the style of test_publish.
+"""The Use Cases tab in the published file (item #168), in the style of test_publish.
 
 Run: python3 dev/run_tests.py test_publish_usecases
 The rule lives in publish.client_use_cases; select calls it. Each dropped thing carries a marker (ZQ-...) that is searched for in
@@ -123,6 +123,26 @@ class Absent(unittest.TestCase):
         self.assertNotIn("ZQ-KEEP-USECASE-1", text)
         self.assertNotIn("ZQ-KEEP-STANDING", text)
 
+    def test_no_tab_when_no_use_case_is_on_the_dashboard(self):
+        def all_off(plant):
+            planted(plant)
+            for u in plant["data"]["use_cases"]:
+                u["client_visible"] = 0
+        _, pub, text = made(all_off)
+        self.assertEqual(pub["data"]["use_case_pages"], [])
+        self.assertNotIn("usecases", pub["tabs"])
+        self.assertEqual(block(text)["tabs"], ["dashboard", "work", "milestones"])
+        self.assertNotIn("ZQ-KEEP-USECASE-1", text)
+
+    def test_a_use_case_carries_no_eye_no_history_and_no_note(self):
+        allowed = set(publish.PUBLISH_FIELDS["use_cases"])
+        for u in self.pub["data"]["use_cases"]:
+            self.assertLessEqual(set(u), allowed)
+            self.assertNotIn("client_visible", u)
+        for f in ("client_visible", "internal_note", "movement", "source", "updated_at", "archived"):
+            self.assertNotIn(f, allowed, f)
+        self.assertEqual(set(block(self.text)["data"]["use_case_pages"][0]), {"id", "next_steps", "milestones"})
+
     def test_a_next_step_that_is_closed_is_not_shown(self):
         def closed(plant):
             planted(plant)
@@ -158,7 +178,7 @@ class Present(unittest.TestCase):
         self.assertIn('usecases: "Use Cases"', (ROOT / "src/clark/page/src/stores/report.js").read_text(encoding="utf-8"))
 
     def test_the_page_has_no_route(self):
-        source = (ROOT / "src/clark/page/src/components/UseCases.jsx").read_text(encoding="utf-8")
+        source = (ROOT / "src/clark/page/src/components/UseCasesTab.jsx").read_text(encoding="utf-8")
         self.assertNotRegex(source, r"api\.js|fetch|XMLHttpRequest|/api/|http|location|history|Edit|edit")
         view = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
         self.assertEqual(set(re.findall(r"/api/[a-z]+", view)), {"/api/projects", "/api/data"},
@@ -207,11 +227,11 @@ class RealBrowser(unittest.TestCase):
                                  "Dashboard,Work items,Milestones,Use Cases")
                 cdp.js("document.querySelector('[data-view=usecases]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == "Use Cases"))
-                cdp.js("document.querySelector('.uc summary').click()", sid)
-                body = cdp.js("document.querySelector('.uc-body').innerText", sid)
+                cdp.js("document.querySelector('.ucp summary').click()", sid)
+                body = cdp.js("document.querySelector('.ucp-body').innerText", sid)
                 for word in ("ZQ-KEEP-STANDING", "Next steps", "ZQ-KEEP-MESSAGE-1", "Milestones", "ZQ-KEEP-MILESTONE-1"):
                     self.assertIn(word, body)
-                self.assertEqual(cdp.js("document.querySelectorAll('.uc').length", sid), 1)
+                self.assertEqual(cdp.js("document.querySelectorAll('.ucp').length", sid), 1)
                 for width in (1400, 900):
                     for scheme in ("light", "dark"):
                         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
@@ -219,7 +239,7 @@ class RealBrowser(unittest.TestCase):
                         self.assertTrue(wait(lambda: cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid)),
                                         f"no sideways scroll at {width} px, {scheme}")
                         self.assertTrue(cdp.js("(r => r.left >= 0 && r.right <= window.innerWidth)"
-                                               "(document.querySelector('.uc-body').getBoundingClientRect())", sid))
+                                               "(document.querySelector('.ucp-body').getBoundingClientRect())", sid))
                 self.assertEqual(cdp.js("window.violations", sid), [])
 
 
