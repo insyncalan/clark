@@ -50,6 +50,8 @@ export const MESSAGES = {
   needsFull: "This template needs the full width. Place it on its own row.",
   later: "Coming with a later release.",
   unknown: "That template isn't in the list.",
+  notBeside: "The section was added, but it could not be placed beside the next one. Undo removes it.",
+  notAlone: "The section was added, but it could not be put on its own row. Undo removes it.",
 };
 
 const FIT_WORDS = { full: "Full width", half: "Half width" };
@@ -133,5 +135,6 @@ export function plan(sections, id, after, beside = false) {
   const lone = last && all.some((r) => r.length === 1 && r[0].id === last.id);
   if (!beside && lone && last.beside) requests.push({ op: "update", id: last.id, changes: { beside: 0 }, place: "report" });   // a flag on the last section is ignored by the page; the new section after it would pair with it
   if (beside) requests.push({ op: "update", id: "$new", changes: { beside: 1 }, place: "report" });
-  return { ok: true, requests, words: `${t.name} added${beside ? ", beside the next section" : ""}.`, template: t };
+  const partial = beside ? MESSAGES.notBeside : MESSAGES.notAlone;      // what the toast says when the first request worked and the second did not
+  return { ok: true, requests, words: `${t.name} added${beside ? ", beside the next section" : ""}.`, partial, template: t };
 }

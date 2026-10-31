@@ -496,15 +496,18 @@ class Box(Base):
             self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "the pair is still a pair")
             self.assertEqual(self.beside_flags()[new], 0)
 
-    def test_place_it_beside_the_next_section_is_two_steps_and_the_rows_are_right(self):
+    def place_beside(self, p):
+        self.open_box(p, "ABC-S-004")                                  # the next row, Summary, is alone
+        self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
+        p.js("document.querySelector('input[name=where][value=beside]').click()")
+        p.js("document.querySelector('button[data-place]').click()")
+
+    def test_place_it_beside_the_next_section_is_two_requests_and_the_rows_are_right(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open_box(p, "ABC-S-004")                                  # the next row, Summary, is alone
-            self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
-            p.js("document.querySelector('input[name=where][value=beside]').click()")
-            p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && document.querySelectorAll('.sec.slot-left').length === 2", "added beside")
+            self.place_beside(p)
+            p.until("document.querySelectorAll('.sec').length === 12 && document.querySelectorAll('.sec.slot-left').length === 2 && !!document.querySelector('[data-undo]')", "added beside")
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual(p.ids()[4], new)
             ops = [r[1]["op"] for r in self.sent]
@@ -514,6 +517,69 @@ class Box(Base):
             self.assertEqual(self.beside_flags()[new], 1)
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-right')"), True)
             self.assertEqual(p.toast(), "Text added, beside the next section.")
+
+    def test_one_undo_takes_back_both_the_section_and_its_place_beside_the_next(self):
+        """Two requests, one action: the toast has one Undo, and one click sends the flag's undo first, then the section's."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            flags = self.beside_flags()
+            self.place_beside(p)
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added beside")
+            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1, "one Undo for the one action")
+            self.assertEqual([r[0] for r in self.sent], ["change", "change"])
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11", "the section is gone after one click")
+            undos = [r[1]["apply_id"] for r in self.sent if r[0] == "undo"]
+            self.assertEqual(len(undos), 2, "both steps were undone")
+            self.assertGreater(undos[0], undos[1], "the flag first, then the new section")
+            self.assertEqual(self.ids_in_store(), IDS)
+            self.assertEqual(self.beside_flags(), flags, "the rows are as they were")
+            self.assertEqual(p.toast(), "Undone.")
+            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 0, "nothing more to undo")
+
+    def test_a_failed_second_request_says_so_plainly_and_undo_removes_the_section(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"}) if req.get("op") == "update" else self.real_change(req)
+            self.place_beside(p)
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "the section was added and the toast offers Undo")
+            self.assertEqual(p.toast(), "The section was added, but it could not be placed beside the next one. Undo removes it.")
+            new = [i for i in p.ids() if i not in IDS][0]
+            self.assertEqual(self.beside_flags()[new], 0, "not beside anything")
+            self.failure = None
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11", "Undo removed the section")
+            self.assertEqual(self.ids_in_store(), IDS)
+            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one step to take back: the flag was never made")
+            self.assertEqual(p.toast(), "Undone.")
+
+    def test_if_the_first_undo_fails_the_section_stays_and_the_toast_says_so(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.place_beside(p)
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added beside")
+            self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"})
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
+            self.assertTrue(p.toast().endswith("The section was not removed."), p.toast())
+            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "stopped after the first Undo failed")
+            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12)
+
+    def test_the_plain_add_is_one_step_and_one_undo(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-003")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            self.assertEqual([r[0] for r in self.sent], ["change"], "one request")
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11", "Undo took it away")
+            self.assertEqual([r[0] for r in self.sent], ["change", "undo"], "one undo")
+            self.assertEqual(self.ids_in_store(), IDS)
 
     def test_beside_is_unavailable_with_the_reason_when_the_next_row_is_a_pair_or_there_is_none(self):
         with chrome() as cdp:
