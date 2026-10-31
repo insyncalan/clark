@@ -55,7 +55,10 @@ export function Dashboard({ tools }) {
   const anchors = {};
   for (const e of entries(list)) anchors[e.id] = e.anchor;      // one anchor per section, shared with the minimap
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
+  const Bar = tools && tools.ReportBar && !fromFile.value ? tools.ReportBar : null;      // a page clark serves only (A-D2)
   return (
+    <>
+    {Bar ? <Bar /> : null}
     <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
       <p class="crumbs">{d.project.client_name || "Report"}</p>
       <h1>{d.project.name}</h1>
@@ -66,5 +69,6 @@ export function Dashboard({ tools }) {
       {editing && list.length === 0 ? <tools.Add /> : null}
       <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} />
     </section>
+    </>
   );
 }
