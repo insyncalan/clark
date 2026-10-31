@@ -17,7 +17,9 @@ from clark import excel, server as sv
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
 TIP = "Your menu: Publish, Preview, Export, Settings"
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Settings", "Help"]
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Settings", "Help"]       # the commands
+LOOK = ["Light", "Dark", "System"]                                                                            # the Dark mode group (#179), radio items between Export and Settings
+ORDER = ITEMS[:3] + LOOK + ITEMS[3:]
 
 
 class ProfileMenu(Base):
@@ -29,7 +31,7 @@ class ProfileMenu(Base):
         return p.js("[].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent})")
 
     def active(self, p):
-        return p.js("document.activeElement.textContent")
+        return p.js("document.activeElement.textContent.replace('✓', '')")
 
     def test_C_the_tooltip_lists_the_items_and_the_name_is_short(self):
         with chrome() as cdp:
@@ -47,12 +49,12 @@ class ProfileMenu(Base):
             self.open_menu(p)
             self.assertEqual(self.labels(p), ITEMS, "the items and their order")
 
-    def test_C_the_menu_has_a_separator_before_settings(self):
+    def test_C_the_menu_has_a_separator_before_settings_and_the_dark_mode_group_below_it(self):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,separator,menuitem,menuitem")
+                             "menuitem,menuitem,menuitem,separator,presentation,menuitemradio,menuitemradio,menuitemradio,menuitem,menuitem")
 
     def test_C_the_last_published_note_is_reachable_when_narrow(self):
         for w in (390, 900):
@@ -167,7 +169,7 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(self.active(p), "Publish…", "focus is on the first item")
-            for want in ITEMS[1:]:
+            for want in ORDER[1:]:
                 p.key("ArrowDown", vk=40)
                 self.assertEqual(self.active(p), want)
             p.key("ArrowDown", vk=40)

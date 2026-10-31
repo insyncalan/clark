@@ -2,7 +2,7 @@
 // the page as it would be published in a new tab, and Export downloads the project's workbook; both ask the server (publishApi.js)
 // and neither publishes or saves a file. Settings is a tab, Help is the Help page. The tooltip lists the entries that carry a short
 // word (`tip`), so it follows the entries; Help has none, as its "?" key is its own way in. The accessible name is just "Your menu".
-// There is no dark-mode setting in the page and no profile (name or email) to show, so the menu has neither.
+// Dark mode (Light, Dark, System) is in the menu (#179); there is no profile (name or email) yet to show.
 import { signal } from "@preact/signals";
 import { Menu } from "../components/Menu.jsx";
 import { data, tabs, show, project, mode } from "../stores/report.js";
@@ -11,8 +11,10 @@ import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
 import { latest } from "./publishState.js";
 import { previewRequest, exportRequest, words } from "./publishApi.js";
+import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 
 export const MENU_NAME = "Your menu";
+const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };
 export const menuTip = (items) => `${MENU_NAME}: ${items.filter((i) => i.tip).map((i) => i.tip).join(", ")}`;
 
 // What Preview or Export did, in words, until it is closed (or 20 seconds). The change toast is for Edit only, and this menu is in View too.
@@ -74,11 +76,16 @@ export function ProfileMenu() {
   const tip = menuTip(items);
   const last = lastLine(latest.value);
   // The last-published note is hidden from the bar in a narrow window, so the menu says it too; a separator sets the settings apart.
-  const shown = [...(last ? [{ id: "note", lab: last }] : []), ...items.flatMap((i) => (i.id === "settings" || (i.id === "help" && !tabs.value.includes("settings")) ? [{ id: "sep", sep: true }, i] : [i]))];
+  // Dark mode (#179): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
+  // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
+  const look = [{ id: "look-lab", lab: "Dark mode" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
+  const actions = items.filter((i) => ["publish", "preview", "export"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
+  const shown = [...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...rest];
   const pick = (id) => {
     if (id === "publish") openPublish();
     else if (id === "preview") preview();
     else if (id === "export") exportExcel();
+    else if (id.startsWith("look-")) setAppearance(id.slice(5));
     else if (id === "settings") show("settings");
     else if (id === "help") openHelp();
   };
