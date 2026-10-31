@@ -275,7 +275,7 @@ class EditTiles(Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
-            p.js("document.querySelector('[data-tile=overdue] [data-tile-grip]').focus()")
+            p.js("document.querySelector('[data-tile=overdue] .fig').focus()")
             p.key("ArrowRight", ALT, code="ArrowRight", vk=39)
             p.saved()
             p.until("JSON.stringify([...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)) === JSON.stringify(['health','risks','overdue','decisions'])", "moved")
@@ -288,7 +288,7 @@ class EditTiles(Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
-            gx, gy, _ = p.box("[data-tile=risks] [data-tile-grip]")
+            gx, gy, _ = p.box("[data-tile=risks] .fig")
             tx, ty, _ = p.box("[data-tile=health]")
             p.mouse("mousePressed", gx, gy, 1)
             for step in range(1, 9):
@@ -296,6 +296,33 @@ class EditTiles(Setup):
             p.mouse("mouseReleased", tx - 120, ty, 0)
             p.saved()
             self.assertEqual(self.tiles(p)[:2], ["risks", "health"])
+
+    def test_a_tile_has_an_eye_and_no_grip_and_nothing_overlaps_at_1400_and_900_in_light_and_dark(self):
+        script = """(() => {
+          const hit = (a, b) => { const x = a.getBoundingClientRect(), y = b.getBoundingClientRect(); return x.width && y.width && x.left < y.right && y.left < x.right && x.top < y.bottom && y.top < x.bottom; };
+          const out = [];
+          for (const cell of document.querySelectorAll('.glance > .tcell')) {
+            const eye = cell.querySelector('.teye'), tag = cell.querySelector('.thid');
+            const texts = [...cell.querySelectorAll('.k, .v, .dd, .tw')].filter((e) => e.textContent.trim());
+            for (const t of texts) {
+              // the text's own box, not its stretched block: measure the range the words occupy
+              const r = document.createRange(); r.selectNodeContents(t); const b = r.getBoundingClientRect();
+              const box = { getBoundingClientRect: () => b };
+              if (eye && hit(box, eye)) out.push(cell.dataset.tile + ' text under the eye');
+              if (tag && hit(box, tag)) out.push(cell.dataset.tile + ' text under the hidden tag');
+            }
+          }
+          return out;
+        })()"""
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    p = self.show(cdp, width, dark)
+                    p.edit()
+                    p.until("!!document.querySelector('[data-tile=decisions].is-hidden')", "the hidden tile drew")
+                    self.assertEqual(p.js("document.querySelectorAll('.tgrip, [data-tile-grip]').length"), 0, "no grip on any tile")
+                    self.assertGreater(p.js("document.querySelectorAll('.glance .teye').length"), 0)
+                    self.assertEqual(p.js(script), [])
 
     def test_right_click_sets_the_outline_colour_and_undo_puts_it_back(self):
         with chrome() as cdp:
@@ -315,7 +342,7 @@ class EditTiles(Setup):
     def test_view_has_no_tile_control(self):
         with chrome() as cdp:
             p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelectorAll('[data-tile-grip], [data-tile-eye], [data-reason], #health-pill, .tilemenu').length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('[data-tile-drag], [data-tile-eye], [data-reason], #health-pill, .tilemenu').length"), 0)
             p.js("document.querySelector('[data-tile=overdue]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))")
             self.assertEqual(p.js("document.querySelectorAll('.tilemenu').length"), 0)
 
@@ -415,7 +442,7 @@ class Published(Setup):
                 self.assertEqual(p.js("[...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)"), ["health", "overdue", "risks"])
                 self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "1", "the client counts only what the file holds")
                 self.assertEqual(p.js("document.querySelectorAll('.glance button, .glance textarea, .glance input, .uc textarea, .uc input').length"), 0)
-                self.assertEqual(p.js("document.querySelectorAll('[data-tile-grip], [data-tile-eye], [data-reason], #health-pill').length"), 0)
+                self.assertEqual(p.js("document.querySelectorAll('[data-tile-drag], [data-tile-eye], [data-reason], #health-pill').length"), 0)
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
                 health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
                 self.assertAlmostEqual(health, 2 * overdue + 12, delta=1.5)
