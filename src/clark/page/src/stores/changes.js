@@ -116,6 +116,23 @@ export function changeItem(req, done) {
   });
 }
 
+// Add one work item (gap list B-8: the Add menu on Work items). `req` is {kind: actions | raid | decisions, op: "new", values, place}
+// as edit/addItem.js builds it. The work items are read again so the new row is drawn as clark saved it; the toast says "<ID> added"
+// with Undo, and that Undo says "<ID> removed." A refusal says why, and nothing was added. Resolves to the reply, or null.
+export function newItem(req) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendItemChange(code, req);
+    if (!r.ok) { say("problem", r.message); return null; }
+    const ref = String(r.reply.ref || r.reply.item.id);
+    if (!(await readAgain(code, `${ref} was added`))) return r.reply;
+    const step = r.reply.apply_id || null;
+    if (step) itemSteps.set(step, `${ref} removed.`);
+    say("done", `${ref} added`, step, code);
+    return r.reply;
+  });
+}
+
 // Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). A step
 // made together with an earlier one (changeThen) takes the earlier one back after it; if the first Undo fails nothing more is
 // undone, and if the second fails the toast says so and offers Undo for what is left. If some rows were left as they are, the toast
