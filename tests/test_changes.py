@@ -562,6 +562,78 @@ class Steps(Api):
         self.assertEqual(self.s.read(KIND, ref="ABC-S-005")["body"], BODY, "the body itself is untouched")
 
 
+class AddBeside(Api):
+    """#149: adding a section beside another is one change and one Undo, never an add and then a pairing."""
+
+    def lone(self):
+        return next(r["id"] for r in self.rows() if changes._on_its_own(self.rows(), r["id"]) and r["id"] != self.ids_now()[-1])
+
+    def paired(self):
+        first = next(i for i, r in enumerate(self.rows()) if r["beside"] == 1 and i + 1 < len(self.rows()))
+        return self.rows()[first]["id"]
+
+    def test_add_below_is_as_it_was(self):
+        target = self.lone()
+        got = self.ok("new", values={"title": "Below"}, after=target)
+        self.assertEqual(self.ids_now().index(got["ref"]), self.ids_now().index(target) + 1)
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[target], 0)
+
+    def test_add_beside_is_one_change_with_the_pairing_in_it(self):
+        target = self.lone()
+        before = {r["id"]: r["beside"] for r in self.rows()}
+        got = self.ok("new", values={"title": "Beside"}, after=target, beside=1)
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual(self.ids_now().index(got["ref"]), self.ids_now().index(target) + 1, "the new section is just after its partner")
+        self.assertEqual((flags[target], flags[got["ref"]]), (1, 0), "the one above starts the pair, the new one is its second half")
+        self.assertEqual({k: v for k, v in flags.items() if k not in (target, got["ref"])}, {k: v for k, v in before.items() if k != target})
+        self.assertIsNotNone(got["apply_id"])
+        updates = [(r["key"], r["field"]) for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"]
+        self.assertEqual(updates, [(target, "beside")], "one step holds the new row and the one flag: nothing else")
+
+    def test_one_undo_removes_the_section_and_the_pairing(self):
+        target = self.lone()
+        before = self.snapshot()[2]
+        got = self.ok("new", values={"title": "Beside"}, after=target, beside=1)
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertEqual(self.snapshot()[2], before, "the section is gone and the one above is on its own again")
+
+    def test_a_section_that_already_has_a_partner_is_refused_and_nothing_is_written(self):
+        self.refused(self.req("new", values={"title": "No"}, after=self.paired(), beside=1), changes.STALE)
+
+    def test_the_second_half_of_a_pair_is_refused_too(self):
+        first = self.paired()
+        second = self.ids_now()[self.ids_now().index(first) + 1]
+        self.refused(self.req("new", values={"title": "No"}, after=second, beside=1), changes.STALE)
+
+    def test_beside_needs_the_section_it_goes_beside(self):
+        self.refused(self.req("new", values={"title": "No"}, beside=1), changes.INVALID_LAYOUT)
+        self.refused(self.req("new", values={"title": "No"}, after=None, beside=1), changes.INVALID_LAYOUT)
+
+    def test_a_hostile_target_is_refused_with_nothing_written(self):
+        for hostile in ("ABC-S-999", "XYZ-S-001", "ABC-S-001; DROP TABLE report_sections", "", 5, ["ABC-S-001"], {"id": "ABC-S-001"}):
+            with self.subTest(after=hostile):
+                self.refused(self.req("new", values={"title": "No"}, after=hostile, beside=1), changes.STALE)
+
+    def test_beside_is_0_or_1_and_nothing_else(self):
+        target = self.lone()
+        for bad in (True, False, 2, -1, "1", 1.0, None, [1]):
+            with self.subTest(beside=bad):
+                self.refused(self.req("new", values={"title": "No"}, after=target, beside=bad), changes.FLAG_WORDS)
+
+    def test_beside_0_is_a_plain_add(self):
+        target = self.lone()
+        got = self.ok("new", values={"title": "Plain"}, after=target, beside=0)
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[target], 0)
+        self.assertEqual([r for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"], [], "no flag is touched")
+
+    def test_no_other_kind_takes_beside(self):
+        for kind in ("actions", "raid", "decisions", "milestones"):
+            with self.subTest(kind=kind):
+                status, body = self.change({"project": "ABC", "kind": kind, "op": "new", "values": {}, "beside": 1})
+                self.assertEqual((status, body["ok"]), (400, False))
+                self.assertEqual(body["message"], "That change doesn't take 'beside'.")
+
+
 class Undoing(Api):
     def test_undo_only_this_pages_steps(self):
         a = self.demo.action()

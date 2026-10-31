@@ -18,6 +18,7 @@ from clark import excel
 from clark import excel_colours as colours
 from clark import excel_cover as cover
 from clark import excel_import as xi
+from clark import look
 from clark import page
 
 
@@ -304,11 +305,11 @@ class InTheWorkbook(unittest.TestCase):
         self.assertNotIn("provenance", "\n".join(str(c.value) for row in ws.iter_rows() for c in row).lower())
         self.assertNotIn("Provenance", repr(excel.COVER_LABELS))
 
-    def test_everything_on_the_cover_is_arial_text_and_no_line_starts_with_the_product_name(self):
+    def test_everything_on_the_cover_is_the_looks_office_font_text_and_no_line_starts_with_the_product_name(self):
         ws = self.cover_sheet()
         for row in ws.iter_rows():
             for c in row:
-                self.assertEqual(c.font.name, "Arial", c.coordinate)
+                self.assertEqual(c.font.name, look.office_font(), c.coordinate)
                 self.assertIn(c.data_type, ("s", "inlineStr"), c.coordinate)
                 self.assertFalse(str(c.value or "").lower().startswith("clark"), c.coordinate)
 
