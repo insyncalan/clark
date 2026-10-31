@@ -1,0 +1,153 @@
+{
+ "about": "Prototype-only or creaite-only text taken out of the shipped Help. Not shown anywhere. The review decides what replaces it.",
+ "held": [
+  {
+   "where": "howto-write-the-weekly-report note",
+   "text": "In this prototype, Draft with AI and the other AI options are written by rules, not by Claude.",
+   "why": "describes the prototype's rule-based drafting; waits for the real AI behaviour"
+  },
+  {
+   "where": "howto-publish-the-report note (first sentence)",
+   "text": "In this prototype, To client is not sent: the message says where it would go.",
+   "why": "prototype behaviour"
+  },
+  {
+   "where": "howto-add-a-work-item note",
+   "text": "IDs follow creaite’s: actions CODE-A-001, decisions CODE-D-001, and risks and issues share one series, CODE-001.",
+   "why": "names creaite; the owner to say how clark's item numbers are described"
+  },
+  {
+   "where": "howto-improve-wording-with-ai note (last sentence)",
+   "text": "In this prototype, rules stand in for Claude, so the wording is mechanical.",
+   "why": "prototype behaviour"
+  },
+  {
+   "where": "howto-set-your-profile note",
+   "text": "Your profile is kept on this computer only. Reset demo data keeps it.",
+   "why": "names the demo data; waits for the real reset behaviour"
+  },
+  {
+   "where": "howto-undo-a-mistake step 5",
+   "text": "**Reset demo data**, at the foot of the page or in Settings › Data, puts the prototype back as it started.",
+   "why": "demo data and prototype"
+  },
+  {
+   "where": "howto-update-clark step 2 (last sentence)",
+   "text": "The source code zip is refused.",
+   "why": "plain-words: 'refused' reworded to 'Not the source code zip.' (the review to confirm)"
+  },
+  {
+   "where": "ref-top-bar paragraph",
+   "text": "A bar at the foot of every page says this is a prototype with demo data, kept in this browser’s database, with **Reset demo data**.",
+   "why": "prototype banner and demo data"
+  },
+  {
+   "where": "ref-section-templates paragraph (first sentence)",
+   "text": "In this prototype an added template is empty, with each part labelled, and an empty template is left out of the published page and the Word file.",
+   "why": "prototype behaviour"
+  },
+  {
+   "where": "ref-ask-clark paragraph",
+   "text": "In this prototype, answers are worked out by rules from the project’s data, and folders are not read.",
+   "why": "prototype behaviour of ask clark"
+  },
+  {
+   "where": "ref-settings row text",
+   "text": "and Reset the demo data",
+   "why": "demo data"
+  },
+  {
+   "where": "ref-updating-clark bullet",
+   "text": "In this prototype nothing is installed for real. **Simulate a new release** makes a clark 0.3.0 appear so you can try the steps.",
+   "why": "simulated release in the prototype"
+  },
+  {
+   "where": "ref-diagnostics bullet",
+   "text": "In this prototype the log lives in memory for the visit.",
+   "why": "prototype log in memory"
+  },
+  {
+   "where": "ref-saving bullet",
+   "text": "In this prototype, everything is kept in this browser’s database. If the browser blocks it, changes last for this visit only, and Settings › Data says so.",
+   "why": "prototype storage in the browser"
+  },
+  {
+   "where": "start footer (second sentence)",
+   "text": "This is a prototype with demo data, kept in this browser’s database: **Reset demo data** at the foot of the page puts it back as it started.",
+   "why": "prototype and demo data"
+  },
+  {
+   "where": "start hero label",
+   "text": "clark · first day",
+   "why": "a line of user text must not start with the product name; reworded (the review to confirm)"
+  },
+  {
+   "where": "ref-diagnostics bullet (the folder's path)",
+   "text": "in `~/Library/Logs/clark/`",
+   "why": "a file path in user text; removed (the review to decide whether to name the folder in words)"
+  },
+  {
+   "where": "howto-set-the-health step 3 (last sentence)",
+   "text": "In the Cover-led layout the health and its reason sit in the cover too.",
+   "why": "Cover-led is in the backlog (BRD FR-4, #46), not built"
+  },
+  {
+   "where": "ref-sections bullet The cover",
+   "text": "(with the health in the Cover-led layout)",
+   "why": "Cover-led is in the backlog (BRD FR-4, #46), not built"
+  }
+ ],
+ "gaps_about": "Features in the BRD with no Help entry yet (PLACEHOLDERS only: no text is written for them, the review writes it). Never shipped: the page does not load this file.",
+ "gaps": [
+  {
+   "fr": "FR-44, FR-45, FR-95",
+   "feature": "Draft email (build item pending)",
+   "suggest": "a How do I... task and a Reference section once built"
+  },
+  {
+   "fr": "FR-62a",
+   "feature": "ask clark creating, changing and deleting every work item and milestone",
+   "suggest": "extend the ask clark section and add a task"
+  },
+  {
+   "fr": "FR-63, FR-64, FR-65, FR-66, FR-67, FR-68",
+   "feature": "Signing in to Claude or OpenAI, keys kept in the computer's keychain, model choice, limits",
+   "suggest": "a Settings task and a Reference section once built"
+  },
+  {
+   "fr": "FR-90a",
+   "feature": "The client filtering work items on the client page (backlog)",
+   "suggest": "add to the client page section when built"
+  },
+  {
+   "fr": "FR-91, FR-92, FR-93",
+   "feature": "Client comments on work items and use cases, and replies on the next page",
+   "suggest": "a task and a Reference section once built"
+  },
+  {
+   "fr": "FR-96 to FR-99d",
+   "feature": "Teammates: owner keeps the master, Export my changes, Import changes, review before anything changes",
+   "suggest": "a How do I... group and a Reference section once built"
+  },
+  {
+   "fr": "FR-4",
+   "feature": "One Boxed report layout (check the Layouts section says it is the only layout)",
+   "suggest": "the review to check the layouts section"
+  },
+  {
+   "fr": "FR-5",
+   "feature": "Reset demo data (demo builds only)",
+   "suggest": "stays out of shipped Help; see the held text above"
+  },
+  {
+   "fr": "FR-122",
+   "feature": "Help entry in the profile menu (page part waits for #64's profile circle)",
+   "suggest": "add the entry when #64 lands: window.clarkPage.help.open()"
+  },
+  {
+   "fr": "prototype",
+   "feature": "Small controls with no named entry: Calendar scale, Milestone view, Diagnostics report, Choose a release zip, Search the work items, Take off the page",
+   "suggest": "the review to say which need a line"
+  }
+ ]
+}

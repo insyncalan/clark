@@ -1,0 +1,17 @@
+# Real client brand material: on this laptop only, never committed (RULES.md)
+system/branding/
+
+comms/
+__pycache__/
+
+# Development downloads (the pinned esbuild and Tiptap packages), fetched per machine
+dev/.cache/
+
+# The test runner's own record of this machine's runs (dev/run_tests.py)
+tests/.durations
+tests/.last-failed
+tests/.flaky.jsonl
+src/clark/page/src/help/shown/
+
+# The downloads dev/tools/package.py builds (#57)
+dist/
