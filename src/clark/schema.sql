@@ -187,7 +187,8 @@ CREATE TABLE IF NOT EXISTS applies (
   file_ops    TEXT,
   undone_at   TEXT,
   by_user     TEXT NOT NULL,                -- clark: who made the step (the settings name); needed for history now, and for several users later
-  device      TEXT NOT NULL                 -- clark: which installation wrote it (a random id made at setup); for several users later
+  device      TEXT NOT NULL,                -- clark: which installation wrote it (a random id made at setup); for several users later
+  utc_offset  TEXT CHECK (utc_offset IS NULL OR (length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]'))   -- clark: (#123) the writer's offset from UTC when the step was made, e.g. '+04:00'; NULL on a row made before (zone not recorded)
 );
 CREATE TABLE IF NOT EXISTS change_log (
   at         TEXT NOT NULL DEFAULT (datetime('now')),
@@ -208,7 +209,7 @@ CREATE TABLE IF NOT EXISTS item_events (
   change     INTEGER,
   kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
   route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate')),   -- clark: clark's routes (cut down; + client, team)
-  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board')),   -- clark: clark's places (+ board, #126: the board's own moves)
+  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board','eye','draft','email','text','ask')),   -- clark: clark's places (+ board, #126: the board's own moves; + eye, draft, email, text, ask, #123)
   origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),   -- clark: clark's origins
   actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),          -- clark: creaite's two values, renamed
   src_ref    TEXT CHECK (src_ref IS NULL OR (length(src_ref) <= 300 AND instr(src_ref, char(10)) = 0)),
