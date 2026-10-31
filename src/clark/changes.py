@@ -22,6 +22,7 @@ database file; the launcher passes those to server.serve. Standard library only,
 import re
 import threading
 import unicodedata
+from datetime import date
 from pathlib import Path
 
 from clark import backup, milestone_rows, milestones, order, platform, sanitise
@@ -50,7 +51,7 @@ CHANGE_KINDS = {
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
-    "projects": {UPDATE: ("health", "health_reason")},
+    "projects": {UPDATE: ("health", "health_reason", "week_ending")},     # week_ending: the report bar's date (YYYY-MM-DD)
     # #136: Milestones Movement. The dates, Done, the state with its reason, the client wording and the Movement choice. Never the
     # internal note, the owner, the name, the workstream, the place or the archive flag (archive stays its own op).
     "milestones": {UPDATE: ("baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
@@ -79,7 +80,7 @@ HEALTHS = ("On track", "At risk", "Off track")
 # that changed another project field (a name, a phase) is never undone from here. `updated_at` and `note` follow any change.
 UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions": None, "report_hidden": None,
             "glance_tiles": ("hidden", "outline", "sort_order"),
-            "projects": ("health", "health_reason", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
+            "projects": ("health", "health_reason", "week_ending", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement"),     # #136: a Movement step; its decision is a work item's row (see _movement_step)
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",), "workstreams": ("archived",)}
@@ -124,6 +125,7 @@ NOT_MINE = "That section isn't in this project."
 NOT_MINE_RECORD = "That isn't in this project. Reload the page and try again."        # #126: another project's record and a missing one get the same words
 NOT_A_TILE = "That tile isn't in this project."          # an unknown tile and another project's: the same words
 BAD_OUTLINE = "That outline colour isn't one clark has."
+BAD_WEEK = "The week ending date must be a real date. The old date was kept. Pick a date and try again."
 BAD_HEALTH = "Health can be On track, At risk or Off track."
 HEALTH_NEEDS_REASON = "Say why in a line or two before the health changes."
 PROJECT_NOT_ACTIVE = "That project is archived. Restore it first."
@@ -992,6 +994,13 @@ def _checked_project_changes(fields):
     for k, v in fields.items():
         if k == "health" and (not isinstance(v, str) or v not in HEALTHS):
             raise Refused(BAD_HEALTH)
+        if k == "week_ending":
+            try:
+                if not isinstance(v, str) or not re.fullmatch(r"\d{4}-\d\d-\d\d", v):
+                    raise ValueError(v)
+                date.fromisoformat(v)
+            except ValueError:
+                raise Refused(BAD_WEEK) from None
         if k == "health_reason":
             try:
                 out[k] = clark_store.health_reason_text(v)      # the store's own check, called here so the first refusal is the route's
@@ -1028,7 +1037,7 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
         apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
     now = store.read(table, ref=project)
     return 200, {"ok": True, "apply_id": apply_id, "ref": project,
-                 "project": {"health": now["health"], "health_reason": now["health_reason"]}}
+                 "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"]}}
 
 
 def _add(st, project, rows, ids, title, after):
@@ -1072,7 +1081,7 @@ def _row_is_ours(row, project, project_step, flagged):
         return False
     if field == "archived":
         return _belongs(table, key, project)
-    if table == "projects" and key == project and field in ("health", "health_reason", "note"):      # #45: the health change
+    if table == "projects" and key == project and field in ("health", "health_reason", "week_ending", "note"):      # #45: the health change
         return True
     if field == "updated_at":                                       # the stamp goes only with its own record's flag or change
         return ((table, key) in flagged and _belongs(table, key, project)) or (table == "projects" and key == project)
@@ -1090,7 +1099,7 @@ def _eligible(rows, project):
     record in the same step that is its archive flag, its `active`, or its health change. The project's own row has the bare code
     as its key."""
     flagged = {(r["table"], str(r["key"])) for r in rows if r.get("field") == "archived"}
-    beside = {(r["table"], str(r["key"])) for r in rows if r.get("field") in ("archived", "active", "health", "health_reason", "note")}
+    beside = {(r["table"], str(r["key"])) for r in rows if r.get("field") in ("archived", "active", "health", "health_reason", "week_ending", "note")}
     project_step = ("projects", project) in flagged
     items = {"actions": re.compile(re.escape(project) + r"-A-\d{3}"), "raid": re.compile(re.escape(project) + r"-\d{3}"),
              "decisions": re.compile(re.escape(project) + r"-D-\d{3}"),
@@ -1128,7 +1137,7 @@ def _eligible(rows, project):
         return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA)
                    and (item_field_row(r) or item_stamp_row(r)) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
-    page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "note"))
+    page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "week_ending", "note"))
                       for r in rows)
     if archive_family and page_family:                              # a mix of families is not undone from here
         return False
@@ -1264,6 +1273,11 @@ def words(reversed_, skipped, names):
                 seen.add(phrase)
                 put.append(phrase)
             continue
+        if e["field"] == "week_ending":
+            if "the week ending date" not in seen:
+                seen.add("the week ending date")
+                put.append("the week ending date")
+            continue
         if e["field"] == "closed" and ITEM_REF.fullmatch(str(e["ref"])):
             continue                                                # a closing date follows the status: one line says both
         if HIDDEN_REF.fullmatch(str(e["ref"])):                     # #67: the eye, undone either way
@@ -1374,7 +1388,7 @@ def _do_undo(store, by_user, req):
         out["hidden"] = _hidden_ids(store, project)                 # #67: what the report hides now
     if any(r["table"] == "projects" for r in step_rows):
         now = store.read("projects", ref=project)
-        out["project"] = {"health": now["health"], "health_reason": now["health_reason"]}
+        out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"]}
     return 200, out
 
 
