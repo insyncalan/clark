@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS applies (
   undone_at   TEXT,
   by_user     TEXT NOT NULL,                -- clark: who made the step (the settings name); needed for history now, and for several users later
   device      TEXT NOT NULL,                -- clark: which installation wrote it (a random id made at setup); for several users later
-  utc_offset  TEXT CHECK (utc_offset IS NULL OR (length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]'))   -- clark: (#123) the writer's offset from UTC when the step was made, e.g. '+04:00'; NULL on a row made before (zone not recorded)
+  utc_offset  TEXT CHECK (utc_offset IS NULL OR (length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]' AND substr(utc_offset, 2, 2) <= '14' AND substr(utc_offset, 5, 2) IN ('00','15','30','45') AND (substr(utc_offset, 2, 2) < '14' OR substr(utc_offset, 5, 2) = '00') AND utc_offset <> '-00:00'))   -- clark: (#123) the writer's offset from UTC when the step was made, e.g. '+04:00': a real offset, -14:00 to +14:00 in quarter hours, UTC as '+00:00'; NULL on a row made before (zone not recorded)
 );
 CREATE TABLE IF NOT EXISTS change_log (
   at         TEXT NOT NULL DEFAULT (datetime('now')),
