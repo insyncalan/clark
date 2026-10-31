@@ -15,9 +15,9 @@ export function MenuPick({ anchor, label, choices, current, onPick, onClose }) {
   return (
     <Pop anchor={anchor} label={label} role="menu" cls="cmenu" onClose={onClose}>
       <div ref={list} onKeyDown={(e) => roam(e, items())}>
-        {choices.map((c) => (
+        {choices.map((c) => c.heading ? <div class="menu-head" role="presentation" key={`h-${c.heading}`}>{c.heading}</div> : (
           <button type="button" role="menuitemradio" class="menu-item" key={c.value} data-value={c.value}
-            aria-checked={c.value === current ? "true" : "false"} onClick={() => onPick(c.value)}>
+            aria-checked={(Array.isArray(current) ? current.includes(c.value) : c.value === current) ? "true" : "false"} onClick={() => onPick(c.value)}>
             <span class="mi-t">{c.text}</span>{c.note ? <small class="mi-note">{c.note}</small> : null}</button>
         ))}
       </div>

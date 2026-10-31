@@ -22,7 +22,7 @@ from _demo import USER
 from _paths import SRC
 
 from clark import changes, page, server as sv  # noqa: E402
-from clark.store import open_store  # noqa: E402
+from clark.store import open_store, priority as store_priority  # noqa: E402
 from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, TODAY, bundled, load_demo, page_target  # noqa: E402
 
@@ -145,6 +145,17 @@ class Rules(unittest.TestCase):
                       f"{json.dumps(self.PENDING)}, {json.dumps(self.MADE)}, {json.dumps({**self.MADE, 'status': 'Withdrawn'})}, {json.dumps({**self.ACTION, 'status': 'Closed'})}].map(E.statusPill)")
         self.assertEqual(got, [{"text": "Delayed", "class": "a"}, {"text": "Open", "class": "b"}, {"text": "Open", "class": "b"}, {"text": "Cancelled", "class": "n"},
                                {"text": "Pending", "class": "b"}, {"text": "Made", "class": "g"}, {"text": "Withdrawn", "class": "n"}, {"text": "Closed", "class": "n"}])
+
+    def test_rating_rules(self):
+        self.assertEqual(self.js(f"E.ratingChoices({json.dumps(self.RISK)})"), ["Red", "Amber", "Green"])
+        self.assertEqual(self.js(f"[E.ratingChoices({json.dumps(self.ACTION)}), E.ratingChoices({json.dumps(self.PENDING)})]"), [[], []])
+        self.assertEqual(self.change(self.RISK, "rating", "rating:Green"), {"changes": {"impact": "Low", "likelihood": "Low"}, "words": "ABC-007 rated Green.",
+                                                                            "back": "ABC-007 is back to Red."})
+        self.assertEqual(self.change(self.RISK, "rating", "rating:Amber")["changes"], {"impact": "Medium", "likelihood": "Medium"})
+        self.assertIsNone(self.change(self.RISK, "rating", "rating:Red"), "the colour it already has sends nothing")
+        self.assertNotIn("priority", self.change(self.RISK, "rating", "rating:Green")["changes"], "priority is worked out by the store, never sent")
+        self.assertIn("error", self.change(self.ACTION, "rating", "rating:Red"))
+        self.assertEqual(self.js("[E.pickField('status', 'rating:Red'), E.pickField('status', 'Open'), E.pickField('owner', 'x')]"), ["rating", "status", "owner"])
 
     def test_a_raid_items_priority_says_why_it_is_not_a_picker(self):
         got = self.js(f"[{json.dumps(self.RISK)}, {json.dumps({**self.RISK, 'kind': 'issue'})}, {json.dumps(self.ACTION)}, {json.dumps(self.PENDING)}].map(r => E.whyFixed(r, 'priority'))")
@@ -425,7 +436,8 @@ class Live(unittest.TestCase):
                 before = self.steps()
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent)", sid), ["Open", "Closed", "Cancelled"])
+                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent)", sid), ["Open", "Closed", "Cancelled", "Red", "Amber", "Green"])
+                self.assertEqual(cdp.js("(document.querySelector('[data-pop] .menu-head') || {}).textContent", sid), "Rating", "a Rating section under the statuses")
                 click(cdp, sid, "[data-pop] [data-value=Closed]")
                 self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
                 r = self.row("raid", "TUL-007")
@@ -441,7 +453,7 @@ class Live(unittest.TestCase):
                 cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
                 key(cdp, sid, " ")
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "Space opens it")
-                key(cdp, sid, "End")
+                key(cdp, sid, "ArrowDown"); key(cdp, sid, "ArrowDown")
                 self.assertEqual(self.focused(cdp, sid), "Cancelled")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved by keyboard")
@@ -457,6 +469,25 @@ class Live(unittest.TestCase):
                 self.assertEqual(self.toast(cdp, sid), "Status of TUL-A-001 changed to Delayed.")
                 self.undo(cdp, sid, "action status")
                 self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Open'", "Undo draws it Open")
+
+    def test_rating_from_the_status_picker_sets_impact_and_likelihood_and_the_colour_follows(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width)
+                cell = "[data-cell='TUL-007:status']"
+                before = self.steps()
+                click(cdp, sid, cell)
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
+                click(cdp, sid, "[data-pop] [data-value='rating:Green']")
+                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
+                r = self.row("raid", "TUL-007")
+                self.assertEqual((r["impact"], r["likelihood"], r["priority"], r["status"]), ("Low", "Low", "Low", "Open"))
+                self.changed_once(before, "rating")
+                self.assertEqual(self.toast(cdp, sid), "TUL-007 rated Green.")
+                self.undo(cdp, sid, "rating")
+                r = self.row("raid", "TUL-007")
+                self.assertNotEqual((r["impact"], r["likelihood"]), ("Low", "Low"), "Undo puts impact and likelihood back")
+                self.assertEqual(r["priority"], store_priority(r["impact"], r["likelihood"]))
 
     def test_a_pending_decision_made_gets_todays_date_and_no_undo(self):
         with chrome() as cdp:

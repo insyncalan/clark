@@ -9,7 +9,7 @@ import { useRef } from "preact/hooks";
 import { data } from "../../stores/report.js";
 import { changeCell } from "../../stores/changes.js";
 import { todayIso } from "../../workItems.js";
-import { canPick, changeFor, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
+import { canPick, changeFor, pickField, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
 import { OwnerPick } from "./OwnerPick.jsx";
 import { DuePick } from "./DuePick.jsx";
 import { PriorityPick } from "./PriorityPick.jsx";
@@ -41,7 +41,7 @@ export function Cell({ row, field, said, children }) {
   const close = (back) => { if (openCell.value === k) openCell.value = ""; if (back && button.current) button.current.focus(); };
   const pick = (value) => {
     const today = todayIso();
-    const c = changeFor(row, field, value, today);
+    const c = changeFor(row, pickField(field, value), value, today);
     if (c && c.error) return c.error;
     close(true);
     if (c) changeCell(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made" }).then(() => refocus(k));
