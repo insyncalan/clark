@@ -171,7 +171,7 @@
    ],
    [
     "The profile circle",
-    "Publish, Preview, Export to Excel, Settings and Dark mode. At the top right.",
+    "Publish, Preview, Export to Excel, Appearance (System, Light or Dark) and Settings. At the top right.",
     ""
    ],
    [
@@ -474,7 +474,7 @@
     "go": "settings",
     "s": [
      "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
-     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Dark mode** in the profile circle menu sets Light or Dark outright.",
+     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ]
    },
@@ -653,7 +653,7 @@
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
        "**Settings**.",
-       "**Dark mode**: ticked when it is on."
+       "**Appearance**: System, Light or Dark; the one in use has a tick."
       ]
      ],
      [
@@ -1803,8 +1803,8 @@
    ],
    [
     "moon",
-    "Dark mode",
-    "Switch the dark look on or off",
+    "Appearance",
+    "Choose System, Light or Dark",
     "The profile circle"
    ],
    [
