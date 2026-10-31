@@ -40,11 +40,15 @@ GENERIC_SECRET = r"""(?i)(?:api[_-]?key|secret|token|passw(?:or)?d|pwd)["']?\s*[
 UNQUOTED_SECRET = r"""(?i)(?:api[_-]?key|secret|token|(passw(?:or)?d|pwd))\w*["']?[ \t]*[:=][ \t]*([^\s"'`$<>{}()\[\],;]{8,})"""
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 
-_SHAPES = tuple(re.compile(p) for _, p in SECRET_PATTERNS)
+# The publish scan's address shape starts at every letter and can take a long time on a long run of letters, so here it starts at
+# the "://" instead (the same addresses are found).
+ADDRESS_KIND = "a password in an address"
+ADDRESS_LINEAR = r"[A-Za-z0-9+.-]://[^/\s:@]+:[^/\s@]+@[^/\s]"
+_SHAPES = tuple(re.compile(ADDRESS_LINEAR if k == ADDRESS_KIND else p) for k, p in SECRET_PATTERNS)
 _GENERIC = re.compile(GENERIC_SECRET)
 _UNQUOTED = re.compile(UNQUOTED_SECRET)
 _RUN = re.compile(BASE64_RUN)
-_BYTE_SHAPES = tuple(re.compile(p.encode("ascii")) for _, p in SECRET_PATTERNS)
+_BYTE_SHAPES = tuple(re.compile((ADDRESS_LINEAR if k == ADDRESS_KIND else p).encode("ascii")) for k, p in SECRET_PATTERNS)
 _BREAKS = re.compile(r"[\r\n]+")
 
 
