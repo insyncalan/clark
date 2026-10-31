@@ -623,10 +623,12 @@ class LongAndOddText(Base):
         self.assertNotIn("zqlong", report)
 
     def test_a_word_the_cut_goes_through_is_dropped_whole(self):
-        text = "https://a.example/x " * 24 + "zqcutname.example@corp.test"
+        text = "https://a.example/x " * 23 + "padding12 " + "zqcutname.example@corp.test"      # the cut falls inside the address
+        self.assertLess(len(text) - len("zqcutname.example@corp.test"), clog.MESSAGE_LIMIT * 4)
         self.assertGreater(len(text), clog.MESSAGE_LIMIT * 4)
         self.assertNotIn("zqcut", clog.scrub(text))
-        self.assertNotIn("zqcut", clog.scrub_line("w " * 999 + "zqcutname.example@corp.test"))
+        line = "a@b.cd " * 284 + "zqcutname.example@corp.test"                                  # 1988 characters, then the address
+        self.assertNotIn("zqcut", clog.scrub_line(line))
 
     def test_a_next_line_character_cannot_make_a_second_entry(self):
         self.log.info("server", "one\x85ERROR forged entry\u2028two")
@@ -682,7 +684,7 @@ class PathsWherePeopleWrite(Base):
         text = self.text().lower()
         for marker in MARKERS:
             self.assertNotIn(marker.lower(), text, marker)
-        self.assertIn("post /api/", text, "the real server did log the request")
+        self.assertRegex(text, r" server +post ", "the real server did log the request")
 
     def test_an_item_title_and_note_saved_from_the_page_log_no_content(self):
         """The change route, the way the page (the table's cells today, the peek later) saves an item's text."""
@@ -690,9 +692,12 @@ class PathsWherePeopleWrite(Base):
         ref = self.demo.action(description="Draft the plan")
         post = self.serve(change=changes.make_change(self.demo.store.path, [], USER))
 
+        rounds = iter(("first", "second"))
+
         def run():
             status, got = post("/api/change", {"project": "ABC", "kind": "actions", "op": "update", "id": ref, "place": "cell",
-                                               "changes": {"description": f"Send {m[1]} to {m[0]}", "latest_update": f"{m[2]} {HOME}/{m[5]}"}})
+                                               "changes": {"description": f"Send {m[1]} {m[2]} to {HOME}/{m[5]} {next(rounds)}",
+                                                           "owner": f"{m[0]} Example"}})
             self.assertEqual(status, 200, got)
         self.check(run)
 
@@ -711,9 +716,10 @@ class PathsWherePeopleWrite(Base):
         post = self.serve(word_import=word_route.make_word_import(self.demo.store.path, [], USER))
         body = (P("Actions", style="Heading1") + TBL(TR("Action", "Owner", "Due"), TR(f"Send {m[1]} {m[2]}", m[0], "30-11-2026"))
                 + P("Risks", style="Heading1") + P(f"{m[3]} may slip"))
-        data = base64.b64encode(docx(body)).decode("ascii")
+        rounds = iter(("first", "second"))
 
         def run():
+            data = base64.b64encode(docx(body + P("Decisions", style="Heading1") + P(f"{m[4]} agreed {next(rounds)}"))).decode("ascii")
             status, got = post("/api/word-import", {"op": "check", "project": "ABC", "name": f"{HOME}/{m[5]}.docx", "data": data})
             self.assertEqual(status, 200, got)
             status, got = post("/api/word-import", {"op": "apply", "project": "ABC", "plan": got["plan"], "accept": "all"})
