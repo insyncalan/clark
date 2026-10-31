@@ -942,7 +942,7 @@ class ByUser(Api):
 
 
 ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description"},
-               "raid": {"status", "workstream", "owner", "due_date", "milestone", "use_case", "description"},
+               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description"},
                "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision"}}      # #67: + the title
 
 
@@ -1168,7 +1168,7 @@ class Items(Api):
         self.no(self.item("actions", self.a, colour="red"), "The field 'colour' can't be set here.")
         self.no(self.item("actions", self.a, type="raid"), changes.ITEM_KEEPS_TYPE)
         self.no(self.item("raid", self.r, type="Issue"), changes.ITEM_KEEPS_TYPE)
-        self.no(self.item("raid", self.r, impact="Low"), "The field 'impact' can't be set here.")
+        self.no(self.item("raid", self.r, raised="2026-10-02"), "The field 'raised' can't be set here.")
         self.no(self.item("actions", self.a, **{"status; DROP TABLE actions": "x"}), "The field 'status DROP TABLE actions' can't be set here.")
         self.no({**self.item("actions", self.a, status="Closed"), "values": {}}, "That change doesn't take 'values'.")
         self.no({**self.item("actions", self.a, status="Closed"), "after": None}, "That change doesn't take 'after'.")
