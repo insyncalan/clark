@@ -805,6 +805,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             head.alignment = Alignment(wrap_text=True, vertical="center")
             ws.column_dimensions[col].width = column_width(table, field)
             ws.column_dimensions[col].font = BODY_FONT        # the empty rows below the data, which a person fills in
+            for c in ws[f"{col}2:{col}{n_rows}"]:
+                c[0].font = BODY_FONT           # the data and the spare rows, so typed entries match (#85)
             for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
                 c[0].alignment = Alignment(wrap_text=wraps(table, field), vertical="top")
             if field in DATES:
