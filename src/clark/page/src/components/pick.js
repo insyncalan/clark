@@ -7,7 +7,7 @@ import { item, view, project, openPeek, closePeek, fromFile } from "../stores/re
 import { workSelection as sel } from "../stores/selection.js";
 
 const ITEMS = "#work-list tr[data-id], #work-list article.bcard[data-id]";
-const CONTROL = "a, button, input, select, textarea, label, [contenteditable=''], [contenteditable='true'], .ddmenu, .dpick, [data-peek]";
+const CONTROL = "a, button, input, select, textarea, label, .ddmenu, .dpick, [data-peek]";   // and any text that can be typed in: isContentEditable
 // Open things that take Esc and clicks for themselves: a menu, a picker, a date or filter box, a dialog, the peek.
 const OVERLAY = ".ddmenu, .dpick, .fbox, .pop, [role='dialog'], [aria-modal='true'], [data-peek]";
 

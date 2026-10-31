@@ -1615,23 +1615,7 @@
    ],
    [
     "[[Esc]]",
-    "Close the top thing: a menu, the command menu, Sneak peek, ask clark, the peek. In an editor or a field, cancel and put the old text back. On Work items, with nothing else open: clear the selection"
-   ],
-   [
-    "Click, [[Mod]] or [[Shift]] and click",
-    "Work items: a click selects a row or card. Hold [[Mod]] and click to add or take out one; hold [[Shift]] and click to select every one between, as shown. A double-click opens the peek"
-   ],
-   [
-    "[[Shift+Up]] [[Shift+Down]]",
-    "Work items, on a row or card: select the next one up or down as well"
-   ],
-   [
-    "[[Space]]",
-    "Work items, on a row or card: select it, or take it out of the selection"
-   ],
-   [
-    "[[Mod+A]]",
-    "Work items, on a row or card: select every one shown"
+    "Close the top thing: a menu, the command menu, Sneak peek, ask clark, the peek. In an editor or a field, cancel and put the old text back"
    ],
    [
     "[[Enter]]",
@@ -1696,6 +1680,22 @@
    [
     "Double-click",
     "On the left edge of the peek or ask clark: back to the usual width"
+   ],
+   [
+    "Click, [[Mod]] or [[Shift]] and click",
+    "Work items: a click selects a row or card. Hold [[Mod]] and click to add or take out one; hold [[Shift]] and click to select every one between, as shown. A double-click opens the item"
+   ],
+   [
+    "[[Shift+Up]] [[Shift+Down]]",
+    "Work items, on a row or card: select the next one up or down as well"
+   ],
+   [
+    "[[Space]]",
+    "Work items, on a row or card: select it, or take it out of the selection"
+   ],
+   [
+    "[[Mod+A]]",
+    "Work items, on a row or card: select every one shown"
    ]
   ],
   "icons": [

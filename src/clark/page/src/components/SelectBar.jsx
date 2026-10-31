@@ -35,10 +35,12 @@ export function GroupTick({ ids, label, shut, sel: given }) {
   useLayoutEffect(() => { if (box.current) box.current.indeterminate = state === "mixed"; });
   const what = `${label}, ${ids.length === 1 ? "1 item" : ids.length + " items"}`;
   return (
+    <label class="gtick-hit" onClick={(e) => e.stopPropagation()}>
     <input type="checkbox" ref={box} class="gtick" data-gtick={label} checked={state === "checked"} disabled={shut}
       aria-label={shut ? `Select ${what}. Open the group first` : `Select ${what}`}
       title={shut ? "Open the group to select its items" : undefined}
       onClick={(e) => e.stopPropagation()}
       onChange={() => { if (!shut) s.toggleGroup(ids); }} />
+    </label>
   );
 }

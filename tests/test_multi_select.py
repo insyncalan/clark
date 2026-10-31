@@ -148,7 +148,7 @@ class Page(Base):
     ROWS = "[...document.querySelectorAll('#work-list tr[data-id]')].map(r => r.dataset.id)"
     PICKED = "clarkPage.selected()"
 
-    def open(self, cdp, width=1400, edit=True, mode="all"):
+    def load(self, cdp, width=1400, edit=True, mode="all"):
         sid = self.visit(cdp, width=width, edit=edit)
         if mode != "open":
             click(cdp, sid, f"[data-show={mode}]")
@@ -165,7 +165,7 @@ class Page(Base):
     def test_click_cmd_and_ctrl_click_shift_ranges_in_the_drawn_order(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                sid = self.open(cdp, width)
+                sid = self.load(cdp, width)
                 rows = cdp.js(self.ROWS, sid)
                 self.assertNotEqual(rows, sorted(rows), "the test needs a drawn order that is not the order of the ids")
                 tap(cdp, sid, self.rsel(rows[1]))
@@ -188,7 +188,7 @@ class Page(Base):
 
     def test_a_double_click_opens_the_peek_and_links_buttons_and_boxes_keep_their_job(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[2]), count=2)
             self.until(cdp, sid, f"location.hash.includes('item={rows[2]}')", "a double click opens the peek")
@@ -205,7 +205,7 @@ class Page(Base):
 
     def test_keys_shift_arrows_space_and_select_all(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             cdp.js(f"document.querySelector(\"tr[data-id='{rows[1]}']\").focus()", sid)
             press(cdp, sid, " ")
@@ -229,7 +229,7 @@ class Page(Base):
 
     def test_select_all_keys_in_a_box_are_the_box_s_own(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             click(cdp, sid, "[data-fb]")
             self.until(cdp, sid, "!!document.querySelector('.fbox')", "a filter's box")
             cdp.js("(document.querySelector('.fbox input') || document.querySelector('.fbox button')).focus()", sid)
@@ -239,7 +239,7 @@ class Page(Base):
     def test_group_ticks_checked_part_checked_and_off_when_collapsed(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                sid = self.open(cdp, width)
+                sid = self.load(cdp, width)
                 groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
                 g, ids = next((k, v) for k, v in groups if len(v) >= 2)
                 box = f"tbody[data-group='{g}'] .gtick"
@@ -260,7 +260,7 @@ class Page(Base):
 
     def test_collapsing_a_group_drops_its_rows_and_says_how_many(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
             (g, ids), (_, other) = [x for x in groups if len(x[1]) >= 2][:2]
             tap(cdp, sid, f"tbody[data-group='{g}'] .gtick")
@@ -272,7 +272,7 @@ class Page(Base):
 
     def test_select_all_matching_takes_collapsed_groups_and_follows_the_filters(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
             every = [i for _, v in groups for i in v]
             shut, hidden = groups[-1]
@@ -298,7 +298,7 @@ class Page(Base):
 
     def test_filtering_drops_rows_no_longer_shown(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             kinds = cdp.js("Object.fromEntries([...document.querySelectorAll('#work-list tr[data-id]')].map(r => [r.dataset.id, r.dataset.kind]))", sid)
             act = [r for r in rows if kinds[r] == "action"][:1]
@@ -313,7 +313,7 @@ class Page(Base):
 
     def test_two_or_more_close_the_peek(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[0]), count=2)
             self.until(cdp, sid, "!!clarkPage.peek()", "the peek opened")
@@ -323,7 +323,7 @@ class Page(Base):
 
     def test_the_ways_a_selection_ends(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             pick2 = lambda: (tap(cdp, sid, self.rsel(rows[0])), tap(cdp, sid, self.rsel(rows[2]), MOD))
             pick2()
@@ -350,7 +350,7 @@ class Page(Base):
 
     def test_esc_leaves_an_open_menu_its_own(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[1]), MOD)
@@ -362,7 +362,7 @@ class Page(Base):
 
     def test_shown_not_only_by_colour_and_told_to_a_screen_reader(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work table.items')].map(t => [t.getAttribute('role'), t.getAttribute('aria-multiselectable')])", sid), [["grid", "true"]])
             self.assertTrue(cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].every(r => r.getAttribute('aria-selected') === 'false')", sid))
@@ -379,7 +379,7 @@ class Page(Base):
 
     def test_focus_order_the_bar_comes_before_the_table_and_the_table_is_still_one_stop(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[3]), SHIFT)
@@ -391,7 +391,7 @@ class Page(Base):
 
     def test_reduced_motion_has_no_movement(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#work-list tr[data-id]')).transitionDuration", sid), "0s")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, sid)
@@ -399,7 +399,7 @@ class Page(Base):
 
     def test_the_bar_fits_at_both_widths_in_light_and_dark(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[2]), SHIFT)
@@ -416,7 +416,7 @@ class Page(Base):
 
     def test_view_mode_selects_too(self):
         with chrome() as cdp:
-            sid = self.open(cdp, edit=False)
+            sid = self.load(cdp, edit=False)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[1]), MOD)
