@@ -123,7 +123,10 @@ export function UseCaseDetail({ id }) {
     return () => { stale = true; };
   }, [id, code, d]);
 
-  useEffect(() => { if (head.current) head.current.focus({ preventScroll: true }); }, [id]);
+  // The heading takes the focus when a use case is drawn (and again when another is opened), so the page is announced and the
+  // keys carry on from the top.
+  const shown = !!(live || gone.row || (mine && snap.current));
+  useEffect(() => { if (head.current) head.current.focus({ preventScroll: true }); }, [id, shown || gone.done]);
 
   // Esc leaves for the list, unless focus is in a field, the editor or a menu (they take Esc themselves).
   useEffect(() => {

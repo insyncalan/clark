@@ -191,6 +191,7 @@ class Detail(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#report').dataset.mode === 'edit'", sid)), "Edit")
         cdp.js(f"window.clarkMountUc({json.dumps(uc)})", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-ucd]') && !/Loading the use case/.test(document.querySelector('[data-ucd]').innerText)", sid)))
+        self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('ucd-h')", "the heading took the focus")
         return sid
 
     def until(self, cdp, sid, expr, what, seconds=20):
