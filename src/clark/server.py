@@ -203,10 +203,11 @@ def csp_hashes(html):
 def csp_policy(html, host=None):
     """The enforced policy for one page: this page's script and style hashes, nothing from outside this machine.
     style="" attributes stay allowed (style-src-attr 'unsafe-inline'), which Preact and Tiptap need. Images come from data:,
-    blob: and, under the Host the page was asked for (host_allowed, so nothing else is let in), the brand's /assets/ route only."""
+    blob: and, under the Host the page was asked for (host_allowed, so nothing else is let in), the brand's /assets/ route and the app's own
+    icons under /app/ (the manifest's, which the browser fetches as images) only."""
     h = csp_hashes(html if isinstance(html, str) else html.decode("utf-8", "surrogateescape"))
     scripts = " ".join(h["script"]) or "'none'"
-    images = ["data:", "blob:"] + ([f"http://{host}{BRAND_PREFIX}"] if host_allowed(host) else [])
+    images = ["data:", "blob:"] + ([f"http://{host}{BRAND_PREFIX}", f"http://{host}{APP_ICON_PREFIX}"] if host_allowed(host) else [])
     return "; ".join([
         "default-src 'self'", f"script-src {scripts}", "worker-src 'self'",
         "style-src 'self' 'unsafe-inline'", " ".join(["style-src-elem 'self'"] + h["style"]), "style-src-attr 'unsafe-inline'",
@@ -307,6 +308,7 @@ def csp_report_route(handler):
 
 # ===== The brand's pictures (#98) =====
 BRAND_PREFIX = "/assets/"
+APP_ICON_PREFIX = "/app/"                 # the app icons (appfiles.ICONS): an image source too, or the browser cannot show the manifest's icons
 BRAND_PICTURES = ("cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
 
 

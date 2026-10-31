@@ -602,19 +602,19 @@ class Headers(ServerTest):
         self.assertNotIn("blob:", re.search(r"worker-src ([^;]*)", policy).group(1))
 
     def test_images_come_from_data_blob_and_the_brand_route_only(self):
-        """#98: img-src has no 'self' (so no other path of this server is an image source), only the route, under the Host
+        """#98: img-src has no 'self' (so no other path of this server is an image source), only the brand route and the app icons' folder, under the Host
         asked for; a Host that is not this machine's adds nothing."""
         html = sv.with_boot(sv.PLACEHOLDER)
         img = lambda p: re.search(r"img-src ([^;]*)", p).group(1)
         self.assertEqual(img(sv.csp_policy(html)), "data: blob:")
-        self.assertEqual(img(sv.csp_policy(html, "127.0.0.1:8766")), "data: blob: http://127.0.0.1:8766/assets/")
-        self.assertEqual(img(sv.csp_policy(html, "[::1]:9")), "data: blob: http://[::1]:9/assets/")
+        self.assertEqual(img(sv.csp_policy(html, "127.0.0.1:8766")), "data: blob: http://127.0.0.1:8766/assets/ http://127.0.0.1:8766/app/")
+        self.assertEqual(img(sv.csp_policy(html, "[::1]:9")), "data: blob: http://[::1]:9/assets/ http://[::1]:9/app/")
         for host in ("evil.example", "127.0.0.1:8766 https://evil.example", "127.0.0.1;x", "", None):
             self.assertEqual(img(sv.csp_policy(html, host)), "data: blob:", repr(host))
         for host in ("localhost", f"localhost:{self.s.port}", f"[::1]:{self.s.port}"):
             _, msg, _ = self.s.ask("GET", "/", host=host)
             policy = next(p for p in msg.get_all("Content-Security-Policy") if p != "frame-ancestors 'none'")
-            self.assertEqual(img(policy), f"data: blob: http://{host}/assets/")
+            self.assertEqual(img(policy), f"data: blob: http://{host}/assets/ http://{host}/app/")
 
     def test_a_500_names_only_the_kind_of_fault(self):
         with mock.patch.object(self.s.httpd, "data_for", side_effect=RuntimeError("/Users/someone/secret")), \
