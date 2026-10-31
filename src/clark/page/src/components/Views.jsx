@@ -1,6 +1,7 @@
 // The other pages as a shell: Work items and the Dashboard (Dashboard.jsx) sit in one frame of the same width (
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
-import { status, message, project, projects, projectsState, openProject, tryAgain } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, data, asAt, fromFile } from "../stores/report.js";
+import { milestoneRows, summaryOf, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
 
@@ -10,9 +11,17 @@ function Empty({ title, children, action }) {
 
 export function Milestones({ tools }) {
   const More = tools && tools.MilestoneMore;      // the owner's extra block under the Plan view (#136): Edit only, so a published page has none
+  const d = data.value, today = fromFile.value && asAt.value ? asAt.value : todayIso();
+  const sum = summaryOf(milestoneRows(d.milestones, today, fromFile.value));
   return (
     <section class="frame milestones" id="milestones">
-      <h1>Milestones</h1>
+      <p class="crumbs">{d.project.name}</p>
+      <div class="head">
+        <div>
+          <h1>Milestones</h1>
+          <p class="muted summary" id="ms-summary">{sum.name ? <b>{sum.name}</b> : null}{sum.text}</p>
+        </div>
+      </div>
       <MsBlock place="page" />
       {More ? <More /> : null}
     </section>

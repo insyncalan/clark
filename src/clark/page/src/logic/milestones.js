@@ -117,6 +117,19 @@ export function milestoneRows(list, today, client) {
   return out.sort(sortKey);
 }
 
+/** The Milestones page's one-line summary (C-M1), from the display rows: the last milestone by agreed date, whether it has slipped,
+ *  then how many are achieved and how many are still to come. A Cancelled one is in neither count and is never the last; one with
+ *  no agreed date is counted but is the last only when none has a date (the prototype's milestones all have one).
+ *  Returns {name, text}: the name is drawn in bold, `text` is the rest of the sentence, so no markup is built here. */
+export function summaryOf(rows) {
+  const live = rows.filter((r) => r.state !== CANCELLED), dated = live.filter((r) => r.baseline), last = dated[dated.length - 1] || live[live.length - 1];
+  if (!last) return { name: "", text: "No milestones yet." };
+  const achieved = live.filter((r) => r.state === "Achieved").length, toCome = live.length - achieved;
+  const when = !last.baseline ? " has no agreed date yet"
+    : ` is agreed for ${showDate(last.baseline)}${last.slip > 0 && last.expected ? ` and now expected ${showDate(last.expected)}` : ""}`;
+  return { name: last.name, text: `${when}. ${achieved} achieved, ${toCome} to come.` };
+}
+
 export const clampZoom = (z) => { const n = Number(z); return Number.isFinite(n) ? Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, n)) : 1; };
 
 // A date the axis and the Calendar draw: a real day in the years 2000 to 2100. Anything else (a typo such as 0026 or 2126, or a

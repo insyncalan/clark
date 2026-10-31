@@ -75,6 +75,7 @@ class Rules(unittest.TestCase):
               rail: [MS.railRows(rows, false).length, MS.railRows(rows, true).length, MS.railRows(rows.slice(0, 5), false).length],
               words: [MS.railWord(9, false), MS.railWord(9, true)],
               lines: MS.labelLines([0, 10, 20, 300, 305], 136),
+              summary: [MS.summaryOf(rows), MS.summaryOf(client), MS.summaryOf([]), MS.summaryOf(rows.filter((r) => r.state !== "Achieved" && r.state !== "Cancelled" && r.baseline).slice(0, 1)), MS.summaryOf(MS.milestoneRows(c.cases.filter((r) => r.status === "Cancelled"), c.today, false))],
             };
         }""" + ")(" + json.dumps({"cases": CASES, "today": TODAY, "from": "2026-10-28", "to": "2027-03-02"}) + ")")
         with chrome() as cdp:
@@ -138,6 +139,22 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.js["words"], ["Show all 9 milestones", "Show the first 5"])
         self.assertEqual(self.js["lines"], [0, 1, 2, 0, 1])
 
+    def test_the_summary_line_names_the_last_milestone_and_counts_achieved_and_to_come(self):
+        """C-M1. The prototype's sentence: '<last> is agreed for DD-MM-YYYY[ and now expected DD-MM-YYYY]. N achieved, M to come.'"""
+        dmy = lambda iso: f"{iso[8:]}-{iso[5:7]}-{iso[:4]}"
+        live = [r for r in self.py if r["state"] != "Cancelled"]
+        last = [r for r in live if r["baseline"]][-1]
+        done = sum(r["state"] == "Achieved" for r in live)
+        text = f" is agreed for {dmy(last['baseline'])}"
+        if last["slip"]:
+            text += f" and now expected {dmy(last['expected'])}"
+        text += f". {done} achieved, {len(live) - done} to come."
+        self.assertEqual(self.js["summary"][0], {"name": last["name"], "text": text})
+        self.assertRegex(self.js["summary"][0]["text"], r"^ is agreed for \d\d-\d\d-\d{4}.*\. \d+ achieved, \d+ to come\.$")
+        self.assertEqual(self.js["summary"][2], {"name": "", "text": "No milestones yet."})
+        self.assertEqual(self.js["summary"][4], {"name": "", "text": "No milestones yet."}, "a cancelled milestone is not counted")
+        self.assertTrue(self.js["summary"][3]["text"].endswith(". 0 achieved, 1 to come."), self.js["summary"][3])
+
     def test_the_rules_never_read_the_clock_or_the_page(self):
         text = MODULE.read_text(encoding="utf-8")
         for bad in ("new Date()", "Date.now", "document.", "window.", "fetch("):
@@ -174,6 +191,25 @@ class RealBrowser(unittest.TestCase):
     def expected(self, code):
         rows = mr.milestone_rows(self.store.data_for(code)["milestones"], TODAY)
         return rows
+
+    def test_the_header_has_the_project_name_the_title_and_the_summary_at_1400_and_900(self):
+        for code in ("TUL", "MOSS"):
+            for width in (1400, 900):
+                with self.subTest(code=code, width=width), chrome() as cdp:
+                    sid = self.visit(cdp, width, f"#milestones&p={code}")
+                    got = cdp.js("(() => { const f = document.querySelector('#milestones'); const c = f.querySelector('.crumbs'), h = f.querySelector('h1'), s = f.querySelector('#ms-summary');"
+                                 " return [c.textContent, h.textContent, s.textContent, s.querySelector('b').textContent, c.getBoundingClientRect().bottom <= h.getBoundingClientRect().top,"
+                                 " h.getBoundingClientRect().bottom <= s.getBoundingClientRect().top, s.getBoundingClientRect().right <= window.innerWidth,"
+                                 " getComputedStyle(s).color === getComputedStyle(c).color]; })()", sid)
+                    rows = [r for r in self.expected(code) if r["state"] != "Cancelled"]
+                    done = sum(r["state"] == "Achieved" for r in rows)
+                    self.assertEqual(got[0], self.store.data_for(code)["project"]["name"], "the project name above the title")
+                    self.assertEqual(got[1], "Milestones")
+                    self.assertEqual(got[3], [r for r in rows if r["baseline"]][-1]["name"], "the last milestone, in bold")
+                    self.assertTrue(got[2].startswith([r for r in rows if r["baseline"]][-1]["name"] + " is agreed for "), got[2])
+                    self.assertTrue(got[2].endswith(f". {done} achieved, {len(rows) - done} to come."), got[2])
+                    self.assertEqual(got[4:7], [True, True, True], "project name, title and summary stack inside the screen")
+                    self.assertTrue(got[7], "muted, like the project name")
 
     def test_the_timeline_holds_every_milestone_with_a_ghost_and_its_days_for_a_slipped_one(self):
         for code in ("TUL", "MOSS"):
