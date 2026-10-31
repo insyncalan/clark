@@ -1,7 +1,7 @@
 """Draft email: the wording and the rules, as plain code with no model (#50; BRD FR-44, FR-45, BR-9).
 
 Brought across from creaite's Draft email and Draft chase (BL-83, BL-224, BL-298; v2.6.11 drafts.js and drafts.py): the
-greeting by the time of day, the subject, the update request, the chase (First, Second, Firmer), the decision request, due
+greeting by the time of day, the subject, the update request, the chase (First chase, Second chase, Firmer chase), the decision request, due
 and overdue marking, and the email's HTML. It reads nothing and writes nothing: it takes the items, the options and the
 time, and returns the To, the Subject, the HTML and the plain text. clark never sends mail and never makes an Outlook
 draft; the page copies the two texts to the clipboard and the user pastes them.
@@ -30,7 +30,7 @@ from clark.confusables import skeleton
 UPDATE_REQUEST = "".join(("Up", "date request"))
 LATEST = "".join(("up", "date"))              # the item field holding the latest update
 MODES = ("update_request", "chase", "decision")
-TONE_NAMES = ("First", "Second", "Firmer")
+TONE_NAMES = ("First chase", "Second chase", "Firmer chase")   # what a person reads on the tone buttons
 RECORD_MODES = MODES                                  # what "I sent it" records
 DUE_SOON_DAYS = 7
 SENT_KIND = "email_sent"
@@ -272,7 +272,7 @@ def chase_counts(entries):
 
 
 def tone_for(ids, counts):
-    """0 First, 1 Second, 2 Firmer: stepped up with the most often chased of the items picked."""
+    """0 First chase, 1 Second chase, 2 Firmer chase: stepped up with the most often chased of the items picked."""
     n = max([0] + [(counts or {}).get(i, {}).get("n", 0) for i in ids])
     return min(n, 2)
 
