@@ -25,6 +25,9 @@ MACRO = {"word/vbaProject.bin": b"\0\1\2"}
 
 class Folders(unittest.TestCase):
     def setUp(self):
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)    # a Linux runner has no Mac read
+        patch.start()
+        self.addCleanup(patch.stop)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
         self.data = self.d / "data"
@@ -223,6 +226,9 @@ class TheBudget(Folders):
 class OnTheRoute(tr.Base):
     def setUp(self):
         super().setUp()
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)
+        patch.start()
+        self.addCleanup(patch.stop)
         self.mine = Path(tempfile.mkdtemp(prefix="clark-mine-"))
         self.theirs = Path(tempfile.mkdtemp(prefix="clark-theirs-"))
         self.loose = Path(tempfile.mkdtemp(prefix="clark-loose-"))

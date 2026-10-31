@@ -1,11 +1,11 @@
 """ask: a plain-code screen for secrets in text read from a saved folder (#215). No model, no file, no network, no logging.
 Standard library only.
 
-ONE LIST. The shapes are the publish scan's own (`dev/tools/publish_public.py`, SECRET_PATTERNS, GENERIC_SECRET and
-UNQUOTED_SECRET), written here as text because that tool is a development tool that is not shipped; a test compares the two
-lists, so they cannot drift apart. The question screen `ask.looks_like_secret` is used too (named secrets with a value, long
-mixed runs, web addresses with a password), on the text as the client check sees it (hidden characters and look-alike letters
-undone).
+ONE LIST. The key shapes are the publish scan's own (`dev/tools/publish_public.py`, SECRET_PATTERNS and BASE64_RUN), written here as
+text because that tool is a development tool that is not shipped; a test compares the two lists, so they cannot drift apart. The
+key-word lines are this screen's own, wider than the publish scan's (a prefix such as DB_, a closing quote, short quoted values,
+table cells, CSV and TSV columns) and bounded in time. Text is read as it is and as the client check sees it (hidden characters and
+look-alike letters undone).
 
 THE SAFE CHOICE. If any of it matches, the WHOLE file is left out, never part of it. The caller counts it and names its label
 and the reason; the matched text is not kept, not returned and not put in an error. The file is read two ways (as it is and
@@ -16,11 +16,13 @@ looked at up to a cap, past which the file counts as a hit (fail closed).
 import base64
 import re
 
-from clark import ask
+from clark import ask, edit_ai
 
 REASON = "looks like it holds a secret"
 NEXT_STEP = "Remove the secret from the file or move it out of the saved folder."
-MAX_RUNS = 2000                      # base64-looking runs looked at in one file; more than this counts as a hit
+MAX_RUNS = 20000                     # different base64-looking runs looked at in one file; more than this counts as a hit
+MAX_ROWS = 400                       # rows under a table header looked at for a secret column
+MAX_HEADER = 2000                    # characters: a longer line is not read as a table header
 
 SECRET_PATTERNS = (
     ("a private key", r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP |ENCRYPTED )?PRIVATE KEY"),
@@ -38,6 +40,16 @@ SECRET_PATTERNS = (
 )
 GENERIC_SECRET = r"""(?i)(?:api[_-]?key|secret|token|passw(?:or)?d|pwd)["']?\s*[:=]\s*["']([^"'\s]{16,})["']"""
 UNQUOTED_SECRET = r"""(?i)(?:api[_-]?key|secret|token|(passw(?:or)?d|pwd))\w*["']?[ \t]*[:=][ \t]*([^\s"'`$<>{}()\[\],;]{8,})"""
+# The same ideas, written for this screen (#215 review): a prefix such as DB_ before the key word and a closing quote after it
+# are allowed, a quoted value needs only 8 characters, a table cell or a comma, tab or bar between the word and its value counts,
+# and every gap is bounded so a long run of key words takes a time that grows with the size, not with its square.
+_KEY = r"(?:api[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|passcode)"
+QUOTED_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?\s{0,20}[:=]\s{0,20}["']([^"'\s]{8,})["']"""
+UNQUOTED_LOCAL = (r"""(?i)(?:api[_-]?key|access[_-]?key|secret|token|(passw(?:or)?d|pwd|passcode))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
+                  r"""([^\s"'`$<>{}()\[\],;]{8,})""")
+CELL_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?[ \t]{0,20}:?[ \t]{0,20}[|\t,][ \t]{0,20}["']?([^\s|,;"'`$<>{}()\[\]]{8,})"""
+SHORT_PASSWORD = r"""(?i)\b(?:passw(?:or)?d|pwd|passcode)\b["']?[ \t]{0,20}[:=][ \t]{0,20}["']?(\S{4,})"""
+HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|secret|token|passw(?:or)?d|pwd|passcode)\w{0,20}$")
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 
 # The publish scan's address shape starts at every letter and can take a long time on a long run of letters, so here it starts at
@@ -45,8 +57,10 @@ BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 ADDRESS_KIND = "a password in an address"
 ADDRESS_LINEAR = r"[A-Za-z0-9+.-]://[^/\s:@]+:[^/\s@]+@[^/\s]"
 _SHAPES = tuple(re.compile(ADDRESS_LINEAR if k == ADDRESS_KIND else p) for k, p in SECRET_PATTERNS)
-_GENERIC = re.compile(GENERIC_SECRET)
-_UNQUOTED = re.compile(UNQUOTED_SECRET)
+_QUOTED = re.compile(QUOTED_LOCAL)
+_UNQUOTED = re.compile(UNQUOTED_LOCAL)
+_CELL = re.compile(CELL_LOCAL)
+_SHORT = re.compile(SHORT_PASSWORD)
 _RUN = re.compile(BASE64_RUN)
 _BYTE_SHAPES = tuple(re.compile((ADDRESS_LINEAR if k == ADDRESS_KIND else p).encode("ascii")) for k, p in SECRET_PATTERNS)
 _BREAKS = re.compile(r"[\r\n]+")
@@ -57,9 +71,13 @@ def _mixed(value):
 
 
 def _in_base64(text):
-    for i, m in enumerate(_RUN.finditer(text)):
-        if i >= MAX_RUNS:
-            return True                                   # too many to look at: leave the file out
+    seen = set()
+    for m in _RUN.finditer(text):
+        if m.group() in seen:
+            continue
+        seen.add(m.group())
+        if len(seen) > MAX_RUNS:
+            return True                                   # too many different ones to look at: leave the file out
         run = m.group().replace("-", "+").replace("_", "/")
         for offset in range(4):
             chunk = run[offset:]
@@ -75,24 +93,76 @@ def _in_base64(text):
     return False
 
 
+def _columns(text):
+    """A table (Word cells joined by " | ", CSV, TSV) whose header names a secret: the cells under it are the secret."""
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        if len(line) > MAX_HEADER:
+            continue
+        for sep in ("|", "\t", ","):
+            if sep not in line:
+                continue
+            cells = [c.strip(" \t\r\"'`") for c in line.split(sep)]
+            for col, cell in enumerate(cells):
+                if not HEADER_WORDS.match(cell):
+                    continue
+                for row in lines[i + 1:i + 1 + MAX_ROWS]:
+                    if len(row) > MAX_HEADER:
+                        continue
+                    parts = [c.strip(" \t\r\"'`") for c in row.split(sep)]
+                    if col < len(parts) and len(parts[col]) >= 8 and _mixed(parts[col]) and " " not in parts[col]:
+                        return True
+    return False
+
+
+def _loose(text):
+    """The long-run guess, narrower than the question screen's (that one is for a short question; here a hit drops a whole file):
+    a long mixed run with the look of a random key (the class of character changes often), not a word-joined name, not an
+    address's path, not inside a picture's data address (the base64 look is decoded and read separately)."""
+    for m in re.finditer(r"[A-Za-z0-9+/_=-]{32,}", text):
+        run = m.group()
+        if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run):
+            continue
+        before = text[max(0, m.start() - 200):m.start()].rsplit(None, 1)
+        word = before[-1] if before else ""
+        if "://" in word or word.startswith("data:") or "base64," in word:
+            continue
+        kind = [("l" if c.islower() else "u" if c.isupper() else "d" if c.isdigit() else "o") for c in run]
+        if sum(1 for x, y in zip(kind, kind[1:]) if x != y) >= len(run) // 2:
+            return True
+    for m in _SHORT.finditer(text):
+        value = m.group(1).strip(".,;)'\"")
+        if any(not c.isalpha() for c in value):
+            return True
+    return False
+
+
 def _one(text):
     if any(rx.search(text) for rx in _SHAPES):
         return True
-    for m in _GENERIC.finditer(text):
+    for m in _QUOTED.finditer(text):
         if _mixed(m.group(1)):
             return True
     for m in _UNQUOTED.finditer(text):
         if len(m.group(2)) >= (8 if m.group(1) else 16) and _mixed(m.group(2)):
             return True
-    return _in_base64(text) or ask.looks_like_secret(text)
+    for m in _CELL.finditer(text):
+        if _mixed(m.group(1)):
+            return True
+    return _in_base64(text) or _loose(text) or _columns(text)
 
 
 def looks_like_secret(text):
     """Whether `text` looks like it holds a secret. Never raises, never keeps or returns what matched; text that cannot be
-    read as a string counts as a hit."""
+    read as a string counts as a hit. Read as it is, as the client check sees it (hidden characters and look-alike letters
+    undone) and with line breaks taken out of each."""
     if not isinstance(text, str):
         return True
     try:
-        return _one(text) or _one(_BREAKS.sub("", text))
+        seen = text, edit_ai.normal(text)
+        for t in dict.fromkeys(seen):
+            if _one(t) or _one(_BREAKS.sub("", t)):
+                return True
+        return False
     except (RecursionError, MemoryError, ValueError):
         return True                                       # fail closed

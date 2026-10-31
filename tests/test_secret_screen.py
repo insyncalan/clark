@@ -35,6 +35,21 @@ FAMILIES = {
     "secret line": "client_" + "secret: " + "a1b2c3d4e5f6a7b8",
     "env line": "DB_PASS" + "WORD=" + PW,
     "env key line": "AWS_SECRET" + "_ACCESS_KEY=" + "wJalr" + "XUtnFEMI9K7MDENG",
+    "stripe live key": "sk_" + "live_" + "A1b2C3d4E5f6G7h8",
+    "google api key": "AI" + "za" + "SyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6",
+    "npm token": "npm" + "_" + "A1b2C3d4E5f6G7h8I9j0K1l2",
+    "npm auth line": "//registry.example.org/:_auth" + "Token=" + "A1b2C3d4E5f6G7h8I9j0",
+    "pypi token": "py" + "pi-" + "A1b2C3d4E5f6G7h8I9j0K1l2",
+    "prefixed quoted key": "DB_PASS" + 'WORD="' + "Welcome" + '2026!"',
+    "exported quoted key": "export ADMIN_P" + "WD='" + "Welcome" + "2026!'",
+    "json password": '{"db_pass' + 'word": "' + "Welcome" + '2026!"}',
+    "json short api key": '"api_' + 'key": "a1b2c3d4e5f6"',
+    "word table row": "Pass" + "word | " + "Welcome" + "2026!",
+    "word table row with colon": "Pass" + "word: | " + "Welcome" + "2026!",
+    "csv columns": "user,pass" + "word\nmail," + "Welcome" + "2026!",
+    "tsv columns": "user\tpass" + "word\nmail\t" + "Welcome" + "2026!",
+    "zero-width in the key": "DB_PASS\u200b" + "WORD=" + PW,
+    "look-alike letter in the key": "DB_PASS" + "W\u039fRD=" + PW,
     "long token near a word": "the api " + "key is " + "Xk9" + "Qm2Lp7" * 5 + "Zt4Rw8Vb1Nc",
 }
 
@@ -57,6 +72,10 @@ class Screen(unittest.TestCase):
     def test_a_break_inside_the_secret_does_not_hide_it(self):
         token = "gh" + "p_" + "A1b2C3d4" * 5
         self.assertTrue(secret_screen.looks_like_secret(token[:20] + "\n" + token[20:]))
+        short = "gh" + "p_" + "A1b2C3d4" * 3
+        self.assertFalse(secret_screen.looks_like_secret(short[:8]))                 # neither piece alone is a key
+        self.assertFalse(secret_screen.looks_like_secret(short[8:]))
+        self.assertTrue(secret_screen.looks_like_secret(short[:8] + "\n" + short[8:]))      # only the joined text is
         self.assertTrue(secret_screen.looks_like_secret("pass" + "word:\r\n" + PW))
 
     def test_not_text_counts_as_a_hit(self):
@@ -69,8 +88,8 @@ class Screen(unittest.TestCase):
         finally:
             sys.path.pop(0)
         self.assertEqual([(k, rx.pattern.decode()) for k, rx in pp.SECRET_PATTERNS], list(secret_screen.SECRET_PATTERNS))
-        self.assertEqual(pp.GENERIC_SECRET.pattern.decode(), secret_screen.GENERIC_SECRET)
-        self.assertEqual(pp.UNQUOTED_SECRET.pattern.decode(), secret_screen.UNQUOTED_SECRET)
+        self.assertEqual(pp.GENERIC_SECRET.pattern.decode(), secret_screen.GENERIC_SECRET)       # kept as the publish scan's; this
+        self.assertEqual(pp.UNQUOTED_SECRET.pattern.decode(), secret_screen.UNQUOTED_SECRET)     # screen reads the wider local forms
         self.assertEqual(pp.BASE64_RUN.pattern.decode(), secret_screen.BASE64_RUN)
 
     def test_base64_hidden_key_is_caught(self):
@@ -85,6 +104,28 @@ class Screen(unittest.TestCase):
                      "x://a:" + "b" * 1_000_000, "authorization: " + " " * 1_000_000):
             secret_screen.looks_like_secret(text)
         self.assertLess(time.monotonic() - start, 30)
+
+    def test_a_run_of_key_words_takes_time_that_grows_with_the_size(self):
+        def took(n):
+            start = time.monotonic()
+            secret_screen.looks_like_secret("token" * n)
+            return time.monotonic() - start
+        took(1000)
+        small, big = took(8000), took(64000)                     # eight times the text: a square would take sixty-four times
+        self.assertLess(big, max(small * 24, 2.0))
+        self.assertLess(took(200000), 30)
+
+    def test_many_ordinary_long_runs_are_not_a_secret(self):
+        import uuid
+        self.assertFalse(secret_screen.looks_like_secret("\n".join(str(uuid.UUID(int=i * 7919 + 12345678901234567890)) for i in range(5000))))
+
+    def test_ordinary_text_that_looks_a_little_like_a_key_is_not(self):
+        for text in ("https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+                     "getProjectMilestoneSummaryForReport2026V2", "Token: 2026-11-01", "The secret is good-quality data.",
+                     "![x](data:image/png;base64," + "iVBORw0KGgo" * 40 + ")", "user,name\nmail,bob",
+                     "Password,Owner,Date\nreset,Sam,01-11-2026"):
+            with self.subTest(text[:30]):
+                self.assertFalse(secret_screen.looks_like_secret(text))
 
     def test_the_address_shape_still_finds_an_address(self):
         self.assertTrue(secret_screen.looks_like_secret("see s3://user:" + PW + "@host/x"))
