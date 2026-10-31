@@ -1532,7 +1532,7 @@ class TheSnapshot(Base):
 # EXCLUDED in dev/tools/publish_public.py to keep it private. (README.md is the public README, swapped in by the tool.)
 KNOWN_PUBLIC = frozenset({
     ".gitattributes", ".gitignore", "LICENSE", "NOTICE.md", "README.md", "SECURITY.md", "clark.command",
-    "docs/ARCHITECTURE.md", "docs/BRD.md", "docs/DESIGN-SYSTEM.md", "docs/PROJECT-BRIEF.md", "docs/REUSE-FROM-CREAITE.md", "docs/RULES.md",
+    "docs/ARCHITECTURE.md", "docs/BRD.md", "docs/DESIGN-SYSTEM.md", "docs/DESIGN-SYSTEM-COMPONENTS.md", "docs/PROJECT-BRIEF.md", "docs/REUSE-FROM-CREAITE.md", "docs/RULES.md",
     "docs/publishing-the-public-copy.md", "docs/testing-on-linux.md",
     # #93: the README's pictures, taken from the fictional demo data (the prototype and `python3 -m clark --demo`)
     "docs/img/app-work-items-dark.png", "docs/img/app-work-items-light.png", "docs/img/ask-clark.png",

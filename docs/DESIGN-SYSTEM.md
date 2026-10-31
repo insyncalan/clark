@@ -49,6 +49,7 @@ An own look may also add rules (a logo picture, a still picture for the home ban
 - **Tables:** a header row in capitals, one hairline per row, dates `DD-MM-YYYY` on one line. The Due column is wide enough for a date in the text face at 900 px.
 - **Empty states** say what is missing and the next step. A view filtered to nothing says why.
 - **Home banner:** an empty strip above "No project open"; `--art-home` and `--art-home-height` fill it in an own look. It is a still picture, never animated.
+- **Components clark adds** (the Work items board, the profile menu, the milestone Calendar, Legend and timeline, and the rest as they are written) are described in `docs/DESIGN-SYSTEM-COMPONENTS.md`.
 
 ## 6. Motion
 Only while something is working or changing state. Durations come from `--dur-*`; entrances use `--ease-enter`; nothing bounces. Anything that animates is switched off under `prefers-reduced-motion`.
@@ -56,7 +57,7 @@ Only while something is working or changing state. Durations come from `--dur-*`
 ## 7. Checks for every screen
 Look at the live page, never a static picture, at **1400 px and 900 px**, in **light and dark** (laptop widths only for now). Then:
 1. Text 4.5 to 1 and controls 3 to 1, measured.
-2. Nothing under 13 px; no horizontal scroll of a table or row at 900 px.
+2. Nothing under 13 px; no horizontal scroll of the page, a table or a row at 900 px (the Work items board's lanes and the milestone timeline strip scroll inside their own boxes: those are the exceptions).
 3. The thing to do is the loudest thing on the first screen.
 4. One label says a thing once; no stray separators; no bare dashes for empty values.
 5. Plain words: no file path, script name, extension or jargon where a person reads. Dates `DD-MM-YYYY`, times 24-hour, British English.
