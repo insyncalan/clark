@@ -49,6 +49,13 @@ class TheLaunchersLine(unittest.TestCase):
             text = self.say(lambda p: False)
         self.assertIn("then double-click the clark launcher again.", text)
 
+    def test_off_a_mac_a_free_port_nearby_and_either_kind_of_port_still_read_and_do_not_raise(self):
+        with mock.patch.object(platform, "launcher_name", side_effect=platform.NotBuiltYet("not built")):
+            for kind in (launch.NOT_CLARK, launch.OTHER_DATA):
+                text = launch.report(kind, 8800, Path("/tmp/clark-data"), free=lambda p: p == 8801)
+                self.assertTrue(text)
+                self.assertNotIn("--port", text, "no command to type off a Mac")
+
     def test_the_step_covers_another_program_as_well_as_a_window(self):
         self.assertIn("Close that Terminal window or program, then double-click", self.say(lambda p: False))
 
