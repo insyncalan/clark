@@ -20,3 +20,8 @@
 *.pdf binary
 *.zip binary
 *.db binary
+
+# The built page files are a pure function of their sources (dev/tools/build_page.py), so a merge rebuilds them instead of
+# merging text. Needs the one set-up command per clone: python3 dev/tools/install_merge_driver.py (README.md, "For people who build clark").
+src/clark/page/page.html merge=clark-page
+src/clark/page/page-view.html merge=clark-page
