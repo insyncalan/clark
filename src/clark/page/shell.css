@@ -18,6 +18,12 @@ a { color: var(--status-blue-text); }
 .logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h2); letter-spacing: .02em; }
 .top .divider { width: 1px; height: 26px; background: rgba(255,255,255,.2); }
 .proj { font-size: 14px; color: rgba(255,255,255,.85); }
+.projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: var(--radius); cursor: pointer; font-size: 14px; color: rgba(255,255,255,.85); }
+.projbtn:hover { background: rgba(255,255,255,.14); }
+.projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.projbtn .nch { width: 14px; height: 14px; }
+.top .projbtn { display: inline-flex; max-width: 260px; }
+.projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .asat { margin-left: auto; font-size: 13px; color: rgba(255,255,255,.75); }
 .tab { all: unset; position: relative; display: flex; align-items: center; padding: 0 14px; font-size: 14px; color: rgba(255,255,255,.75); cursor: pointer; transition: color var(--dur-instant) var(--ease-out); }
