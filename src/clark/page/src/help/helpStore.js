@@ -3,6 +3,7 @@
 // the project and the open view, so Esc puts you back exactly where you were. Plain JS, no JSX.
 import { signal, effect } from "@preact/signals";
 import { view, project, show, mode } from "../stores/report.js";
+import { singleKeys } from "../stores/keyPrefs.js";
 import { placeOf, TABS } from "./helpLogic.js";
 
 export const helpOpen = signal(false);
@@ -123,7 +124,7 @@ export function installKeys() {
     }
     if (typing(e.target) || otherLayerOpen()) return;
     if (e.key === "?") { e.preventDefault(); if (helpOpen.value) helpFocusSearch.value++; else openHelp(); }
-    else if (e.key === "/" && helpOpen.value) { e.preventDefault(); e.stopImmediatePropagation(); helpFocusSearch.value++; }
+    else if (e.key === "/" && helpOpen.value && singleKeys.value) { e.preventDefault(); e.stopImmediatePropagation(); helpFocusSearch.value++; }
   }, true);
   // Moving to another page or project closes Help.
   let seen = view.value + "|" + project.value;

@@ -474,7 +474,8 @@
     "go": "settings",
     "s": [
      "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
-     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Dark mode** in the profile circle menu sets Light or Dark outright."
+     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Dark mode** in the profile circle menu sets Light or Dark outright.",
+     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ]
    },
    {
@@ -1422,7 +1423,7 @@
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says **Up to date**, or **Review 0.3.0** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check.",
+       "**Installed** is the version you have. **Update** says **Up to date**, or **Review X.Y.Z** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check.",
        "**Choose zip…** takes a release file you saved. It must be named clark-X.Y.Z.zip, from the release page: not the source code zip.",
        "**Review** shows the version change, the release notes (**Copy the notes**), how many files are replaced and added, and that your projects, settings and published reports are kept.",
        "Everything is backed up first, and if a step fails clark puts the old version back. A release is checked file by file against its list of checksums before anything changes.",
@@ -1558,7 +1559,7 @@
    ],
    [
     "[[/]]",
-    "ask clark (when you aren’t typing in a box). In Help, it goes to the search box instead"
+    "ask clark (when you aren’t typing in a box). In Help, it goes to the search box instead. Like the letter keys, it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Mod+J]]",
@@ -1602,11 +1603,11 @@
    ],
    [
     "[[V]]",
-    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box"
+    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[E]]",
-    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box"
+    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
