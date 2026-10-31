@@ -357,7 +357,7 @@
     "w": "An open peek › the sparkle, or [[/]] [[/]]",
     "go": "work",
     "s": [
-     "With an item or milestone open in the peek, press [[/]] twice quickly (when you aren’t typing in a box), press the sparkle at the top, or press “Change this item in words” at the foot.",
+     "With an item or milestone open in the peek, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "The words clark read are marked above the box, and a card shows each field before and after.",
      "Press [[Enter]] (or [[Shift+Enter]]), or **Make the change**, to save it. **Not now** or [[Esc]] closes it. The fields that changed flash for a moment, and the message has **Undo**.",
@@ -1091,8 +1091,7 @@
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, with **Draft**; then when it was last updated.",
        "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
-       "**History**: All, Activity, Updates and Source.",
-       "**The foot**: “Change this item in words”, and “Each change saves on its own, with Undo”."
+       "**History**: All, Activity, Updates and Source."
       ]
      ],
      [
