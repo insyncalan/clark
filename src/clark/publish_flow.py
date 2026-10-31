@@ -10,6 +10,10 @@ One class, Publisher, with three public methods (each returns (status, body) for
 - client_folder(body): POST /api/client-folder {project, action: "choose" | "clear"}. Saves or clears that folder as an
   ordinary step (so it is in history and can be undone). It never writes into the folder.
 - latest(code): GET /api/publication?project=. The date and kind of the latest publication, for the report bar; no path.
+- client_contact(body): POST /api/client-contact {project, action: "save" | "clear", name?, email?} (#51). Saves or clears the
+  project's one contact (projects.contact_name, contact_email) as an ordinary step (history, Undo). The address is checked by
+  draft_email.contact_problem: one plain outside address, never on the user's own domains (settings.own_domains). Publish and
+  Preview read it from the store and pass it to publish.build, which checks it again; a project with none publishes no Draft email.
 
 This is the only module besides to_client.py that may reach a client-folder writer (a test pins it). It opens its own short-lived
 store for each call (the server answers from several threads), takes no network address, and sends nothing anywhere: OneDrive's
@@ -27,7 +31,7 @@ import threading
 import time
 from pathlib import Path
 
-from clark import milestones, page, platform, publish, to_client
+from clark import draft_email, milestones, page, platform, publish, settings, to_client
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -70,7 +74,14 @@ MESSAGES = {
     "preview_not_made": "The preview could not be made. {reason}",
     "preview_ready": "The preview is ready. This is the version kept on this computer, not the client's copy. It is not published.",
     "export_failed": "The workbook could not be made. Nothing was changed. Try again.",
+    "contact_saved": "The client contact is saved. A page you publish now has a Draft email to {email}.",
+    "contact_cleared": "The client contact is cleared. A page you publish now has no Draft email.",
+    "contact_unchanged": "That is already the client contact.",
+    "contact_bad_action": "Say whether to save the client contact or clear it.",
+    "contact_refused": "{reason}",
+    "contact_failed": "The client contact could not be saved. Nothing was changed. Try again.",
 }
+CONTACT_KEYS = {"save": {"project", "action", "name", "email"}, "clear": {"project", "action"}}
 
 
 # The start of each PublishError that is about clark's own page or the brand's styling, and the fixed words that stand for it.
@@ -151,7 +162,7 @@ class Publisher:
     never be in)."""
 
     def __init__(self, db_path, onedrive_roots=None, *, fs=None, choose_save_file=None, choose_folder=None, today=None,
-                 by_user=None, data_dir=None, branding=None, backups_dir=None):
+                 by_user=None, data_dir=None, branding=None, backups_dir=None, own_domains=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.fs = fs or to_client.RealFs()
@@ -161,11 +172,22 @@ class Publisher:
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
+        self._own_domains = None if own_domains is None else list(own_domains)      # a test's list; else the settings file's, each time
         self.lock = threading.Lock()          # one publish at a time
         self.previews, self.preview_lock = {}, threading.Lock()      # {nonce: (bytes, time made)}: in memory only
 
     def store(self):
         return open_store(self.db_path, onedrive_roots=self.onedrive_roots)
+
+    def own_domains(self):
+        """The user's own mail domains (#51): a test's list, else settings.own_domains read now, so a change needs no restart."""
+        return list(self._own_domains) if self._own_domains is not None else settings.own_domains(self.data_dir)
+
+    def build(self, store, code, today, row=None):
+        """publish.build with the project's saved contact (#51), which build checks again (draft_email.client_contact)."""
+        row = row if row is not None else store.read("projects", ref=code) or {}
+        contact = {"name": row.get("contact_name") or "", "email": row["contact_email"]} if row.get("contact_email") else None
+        return publish.build(store, code, today, self.branding, contact, self.own_domains())
 
     # ----- publish -----
     def publish(self, body):
@@ -197,7 +219,7 @@ class Publisher:
         want_client, confirmed = asked["to_client"], asked["confirmed"]
         today = str(self.today())
         try:
-            built = publish.build(store, code, today, self.branding)
+            built = self.build(store, code, today, row)
         except publish.PublishError as e:
             return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
         week = built["project"]["week_ending"]
@@ -224,7 +246,7 @@ class Publisher:
             # The Save window may have been open a while. What the client is to get is made again now, so a flag turned off
             # meanwhile is honoured; if anything differs, every check before the copy runs again on the new file.
             try:
-                again = publish.build(store, code, today, self.branding)
+                again = self.build(store, code, today)          # the row read again: a contact changed meanwhile is honoured
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
             # The client folder is checked again whether or not the file changed: it may have been swapped for a link (or
@@ -396,6 +418,50 @@ class Publisher:
         return 200, {"ok": True, "changed": True, "folder": folder, "folder_name": to_client.folder_name(folder),
                      "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"]}
 
+    # ----- the client contact (#51) -----
+    def client_contact(self, body):
+        """Save or clear the project's one client contact. Fails closed: a body with any other key, a value that isn't text, or an
+        address draft_email.contact_problem refuses changes nothing and says why, with the next step."""
+        body = body if isinstance(body, dict) else {}
+        code, action = body.get("project"), body.get("action")
+        if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
+            return 400, self.fail("bad_project_code")
+        if action not in CONTACT_KEYS or set(body) - CONTACT_KEYS[action]:
+            return 400, self.fail("contact_bad_action")
+        name, email = body.get("name"), body.get("email")
+        if action == "save":
+            why = draft_email.contact_problem(name, email, self.own_domains())
+            if why:
+                return 400, self.fail("contact_refused", MESSAGES["contact_refused"].format(reason=draft_email.CONTACT_WORDS[why]))
+            name, email = (name or "").strip(" ") or None, email.strip(" ")
+        else:
+            name = email = None
+        with self.lock:
+            store = self.store()
+            try:
+                row = store.read("projects", ref=code)
+                if row is None:
+                    return 404, self.fail("project_not_found")
+                was = {"contact_name": row.get("contact_name"), "contact_email": row.get("contact_email")}
+                want = {"contact_name": name, "contact_email": email}
+                if want == was:
+                    return 200, {"ok": True, "changed": False, "contact": self.shown_contact(want),
+                                 "message": MESSAGES["contact_unchanged" if email else "contact_cleared"]}
+                try:
+                    with store.step("dashboard", self.by_user(), place="menu") as st:
+                        st.update("projects", code, {k: v for k, v in want.items() if v != was[k]})
+                        step = st.peek_apply_id()
+                except Invalid:
+                    return 409, self.fail("contact_failed")
+            finally:
+                store.close()
+        return 200, {"ok": True, "changed": True, "contact": self.shown_contact(want), "step": step,
+                     "message": MESSAGES["contact_saved"].format(email=email) if email else MESSAGES["contact_cleared"]}
+
+    @staticmethod
+    def shown_contact(values):
+        return {"name": values.get("contact_name") or "", "email": values["contact_email"]} if values.get("contact_email") else None
+
     # ----- preview and export (#147) -----
     def preview(self, body):
         """POST /api/preview {project}: the published page as publish would make it (publish.build), kept in memory for one visit
@@ -408,7 +474,7 @@ class Publisher:
             if store.read("projects", ref=code) is None:
                 return 404, self.fail("project_not_found")
             try:
-                built = publish.build(store, code, str(self.today()), self.branding)
+                built = self.build(store, code, str(self.today()))
             except publish.PublishError as e:
                 return 409, self.fail("preview_not_made", MESSAGES["preview_not_made"].format(reason=made_words(e)))
         finally:
