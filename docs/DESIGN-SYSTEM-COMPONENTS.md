@@ -4,6 +4,8 @@ The entries for the parts of clark that the main design system (`docs/DESIGN-SYS
 
 Every entry is checked on the live page at 1400 and 900 px, in light and dark, against the checks in section 7 of the main design system: text 4.5 to 1, controls and rings 3 to 1, text at least 12 px, targets at least 24 px, no sideways scroll of the page. "Not yet checked" is written where a check has not been made.
 
+**How the figures were taken.** Each 'Measured' line comes from a headless browser run over the open page with fictional demo data: a script reads the page's own colours and sizes and reports text below 4.5 to 1 contrast, text under 12 px, controls under 24 px, elements that overflow their box and sideways scroll of the page. The board, Calendar, Legend and timeline were measured on the 0.2.1 release (the v0.2.1 tag); the profile menu on the branch of the Appearance and name-and-email change. The figures are repeatable with the same script; they are not part of the test suite.
+
 **Status of the set.** This is the first batch: five entries. The rest are still to write: the peek and Sneak peek, ask clark (panel, bubbles, chips), the AI suggestion card, the Add tiles and the growing Add button, the Forecast state, the filter bar and its pills, form controls, dialogs and toasts, the Help view, use case rows (and the new Use cases page), editor tables against the report table, dark mode, empty states, keyboard shortcuts, and tooltips. Phone width is out of scope for now (laptop only).
 
 ## 1. The Work items board
@@ -19,6 +21,7 @@ Cards in lanes, with the lanes grouped by status, due date, priority or another 
 
 ## 2. The profile menu
 The round button at the right of the top bar and its menu.
+- **Status of this entry.** It describes the profile menu as built for the Appearance and name-and-email items (#179 and #180), which is not on main yet; it will be true when that lands. On main today the menu holds Publish, Preview and Export, a Dark mode item, Settings and Help. Read the structure, the screen-reader wording, the 900 px rule and the keys below as the target for that change, and check them against the page once it is merged.
 - **Structure, top to bottom.** The person's name in bold with the email under it (or only the name), or the link "Add your name in Settings" when neither is set; the actions (Publish, Preview the page in a new tab, Export to Excel); a separator; the group named Appearance with System, Light and Dark, the one in use ticked; a separator; Settings and Help.
 - **Look.** A menu panel on `--surface`, `--radius-lg`, `--shadow`; rows with a hover and keyboard highlight; the tick is `--status-blue-text` in a fixed 1.2 em box so the words line up; the group name is a quiet 13 px `--text-muted` line.
 - **For a screen reader.** The three Appearance choices are radio items inside one group named Appearance, so each is read as "Appearance, Light, radio, checked".
