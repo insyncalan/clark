@@ -528,21 +528,28 @@ def _scratch_parent():
     return str(parent)
 
 
-def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-"):
+def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-", tmp_names=("TMPDIR",)):
     """Run one program from an argument list (never a shell) as the leader of its own process group, in a new empty folder of its
     own (removed afterwards), with exactly `env` as its environment, `data` on standard input, and read at most `max_out` bytes
     of standard output within `limit` seconds. `stop` (a threading.Event) ends it early. Returns (status, out, code): status is
     "ok" (exit code 0), "failed" (any other code, or it could not start), "slow", "too_much" or "stopped"; `out` is empty unless
     the program finished. Standard error is thrown away (it could hold what it was given). Whatever ends the run, the whole
-    group is ended (anything the program started goes too). Used by ask clark's provider (#47c); never raises for the program's
+    group is ended (anything the program started goes too). Each name in `tmp_names` is set in the program's environment to a
+    second new folder of its own (0700, removed afterwards), so its temporary files are never shared with another run. Standard
+    input reaches its end as soon as `data` is written. Used by ask clark's provider (#47c); never raises for the program's
     own faults."""
-    work = tempfile.mkdtemp(prefix=prefix, dir=_scratch_parent())
-    proc = None
+    parent = _scratch_parent()
+    work = tempfile.mkdtemp(prefix=prefix, dir=parent)
+    tmp, proc = None, None
     try:
+        tmp = tempfile.mkdtemp(prefix=prefix + "tmp-", dir=parent)
+        env = dict(env)
+        env.update({name: tmp for name in tmp_names})
         try:
-            # close_fds: only 0, 1 and 2 reach the program (nothing clark holds open); umask 077: what it writes is the person's alone
+            # close_fds and no pass_fds: only 0, 1 and 2 reach the program (nothing clark holds open); umask 077: what it writes is
+            # the person's alone
             proc = subprocess.Popen(list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=work,
-                                    env=dict(env), close_fds=True, start_new_session=True, shell=False, umask=0o077)
+                                    env=env, close_fds=True, pass_fds=(), start_new_session=True, shell=False, umask=0o077)
         except (OSError, ValueError, subprocess.SubprocessError):
             return "failed", b"", None
 
@@ -596,3 +603,5 @@ def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-
                 except (OSError, ValueError, AttributeError):
                     pass
         shutil.rmtree(work, ignore_errors=True)
+        if tmp is not None:
+            shutil.rmtree(tmp, ignore_errors=True)
