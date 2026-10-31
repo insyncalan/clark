@@ -8,6 +8,7 @@ written.
 import json
 import sqlite3
 import unittest
+from unittest import mock
 
 from _demo import USER, DemoStore
 from clark import changes, server as sv
@@ -95,6 +96,44 @@ class HandOver(unittest.TestCase):
         status, body = self.send(self.all)
         self.assertEqual((status, body["apply_id"], body["changed"], body["unchanged"], body["words"]), (200, None, [], self.all, changes.BULK_ALREADY))
         self.assertEqual(self.counts(), before)
+
+    def test_a_refusal_while_writing_leaves_every_item_as_it_was(self):
+        real = clark_store.Step.update
+        calls = []
+
+        def failing(st, kind, ref, changes_, **kw):
+            calls.append(ref)
+            if len(calls) == len(self.all) + 2:                      # the second item of the real step, after the trial of all four
+                raise clark_store.Invalid("owner must be one of nobody")
+            return real(st, kind, ref, changes_, **kw)
+        before = self.counts()
+        with mock.patch.object(clark_store.Step, "update", failing):
+            status, body = self.send(self.all)
+        self.assertEqual((status, body["message"]), (400, changes.STALE), body)
+        self.assertEqual(self.counts(), before, "no step, no history line, nothing written")
+        self.assertEqual({self.who(r) for r in self.all}, {"Ada Quillfeather"})
+
+    def test_closed_items_and_decisions_made_or_withdrawn_are_left_out_and_named(self):
+        for status in changes.HAND_OVER_DONE:
+            with self.subTest(status=status):
+                if status in ("Closed", "Cancelled"):
+                    ref = self.demo.action(owner="Ada Quillfeather")
+                    self.demo.update("actions", ref, {"status": status})
+                    table, why = "actions", changes.BULK_CLOSED
+                else:
+                    ref = self.decisions[0]
+                    self.demo.update("decisions", ref, {"status": status, **({"date": "2026-10-01"} if status == "Made" else {})})
+                    table, why = "decisions", changes.BULK_DECIDED
+                before = self.counts()
+                got, body = self.send([ref])
+                self.assertEqual((got, body["code"], body["left_out"]), (400, "none_can", [{"id": ref, "why": why}]), body)
+                self.assertEqual(self.counts(), before)
+                self.assertEqual(self.who(ref), "Ada Quillfeather", "the owner stays as recorded")
+                other = self.risks
+                got, body = self.send([ref] + other)
+                self.assertEqual((got, body["changed"], body["left_out"]), (200, other, [{"id": ref, "why": why}]), body)
+                self.assertEqual(self.who(ref), "Ada Quillfeather")
+                self.undo({"project": "ABC", "apply_id": body["apply_id"]})
 
     def test_hostile_requests_write_nothing(self):
         many = [f"ABC-A-{i % 999 + 1:03d}" for i in range(changes.MAX_BULK + 1)]

@@ -154,7 +154,7 @@ export function changeBulk(req, back) {
     }
     await reread(code);
     const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
-    if (step) itemSteps.set(step, back || "");
+    if (step) itemSteps.set(step, typeof back === "function" ? back(r.reply) : back || "");     // #199: `back` may work out its words from the reply
     say(step ? "done" : "note", r.reply.words, step, code);
     return r;
   });

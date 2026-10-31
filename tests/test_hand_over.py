@@ -244,6 +244,9 @@ class Page(Base):
             self.assertIn("Changed 3 items.", text)
             self.assertIn(f"Left out {shown[0]}: It is archived. Restore it first.", text)
             self.assertEqual(self.owner(shown[0]), "Sara Khan")
+            click(cdp, sid, ".toast [data-undo]")
+            self.until(cdp, sid, "document.querySelector('.toast .toast-text') && document.querySelector('.toast .toast-text').textContent.startsWith('Undone')", "the undo")
+            self.assertEqual(cdp.js("document.querySelector('.toast .toast-text').textContent", sid), "Undone: 3 items are back with their owner.", "counts those that changed, not those ticked")
 
     def test_cancel_and_esc_leave_pick_mode_and_change_nothing(self):
         with chrome() as cdp:

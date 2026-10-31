@@ -42,7 +42,7 @@ export function handOverNow() {
   if (!st) return Promise.resolve(null);
   const ids = ticks.ids.value.slice(), to = st.to, rows = itemRows.value;
   if (H.why(ids.length, to)) return Promise.resolve(null);
-  const go = (confirm) => changeBulk(H.requestFor(rows, ids, to, { confirm }), H.backWords(ids.length)).then((r) => {
+  const go = (confirm) => changeBulk(H.requestFor(rows, ids, to, { confirm }), (reply) => H.backWords(reply.changed.length)).then((r) => {
     if (r && !r.ok && r.code === "confirm") { ask(H.confirmWords(r.count || ids.length, to), () => go(true)); return null; }
     if (r && r.ok && r.reply.changed.length) stop(false);
     return r && r.ok ? r.reply : null;

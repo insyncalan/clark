@@ -95,6 +95,7 @@ CHANGE_KINDS["decisions"][BULK] = ("made_by",)
 # #199: Hand over, a change of owner for items of any of the three kinds together, in one step with one Undo (_do_hand_over).
 for _kind, _field in (("actions", "owner"), ("raid", "owner"), ("decisions", "made_by")):
     CHANGE_KINDS[_kind][HAND_OVER] = (_field,)
+HAND_OVER_DONE = ("Closed", "Cancelled", "Made", "Withdrawn")      # #199: an item with one of these is never handed over (the page's CLOSED list, workItems.js)
 HAND_OVER_FIELD = {"actions": "owner", "raid": "owner", "decisions": "made_by"}      # the column that holds "who has it", for each work item table
 for _kind in ARCHIVABLE:                              # #126: every record can be archived and restored, with no fields; the items keep their update
     CHANGE_KINDS.setdefault(_kind, {}).update({ARCHIVE: (), RESTORE: ()})
@@ -156,6 +157,7 @@ BULK_PROJECTS = "These items are in different projects."
 BULK_CONFIRM = "Send confirm as true or false."
 BULK_ARCHIVED = "It is archived. Restore it first."
 BULK_DECIDED = "It has been made or withdrawn, so who made it stays as recorded. Record a new decision instead."
+BULK_CLOSED = "It is closed, so it stays with its owner. Reopen it first."
 DECIDED = ("Made", "Withdrawn")              # #196: a decision with one of these keeps its `made_by` in a bulk change
 BULK_GONE = "It isn't in this project now. Reload the page."
 BULK_NONE_CAN = "Nothing changed: none of these items can take that change."
@@ -931,8 +933,8 @@ def _do_pick(store, by_user, req, project, table, place):
 
 
 def _bulk_ids(given, project, table):
-    """A bulk change's `ids`: a list of 1 to MAX_BULK work item ids, each of THIS project and of `table`'s kind, duplicates
-    dropped (first kept). Worked out from the id alone, before anything is read, so a refusal tells nothing of what exists."""
+    """A bulk change's `ids`: a list of 1 to MAX_BULK work item ids, each of THIS project and of `table`'s kind (#199: of any work
+    item kind when `table` is None), duplicates dropped (first kept). Worked out from the id alone, before anything is read, so a refusal tells nothing of what exists."""
     if not isinstance(given, list) or not given:
         raise Refused(BULK_NOTHING)
     if len(given) > MAX_BULK:
@@ -944,7 +946,10 @@ def _bulk_ids(given, project, table):
             raise Refused(ITEM_NOT_MINE)
         if m.group(1) != project:
             raise Refused(BULK_PROJECTS)
-        if clark_store.item_table(ref) != table:
+        if table is None:
+            if clark_store.item_table(ref) not in HAND_OVER_FIELD:
+                raise Refused(ITEM_NOT_MINE)
+        elif clark_store.item_table(ref) != table:
             raise Refused(BULK_KINDS)
         if ref not in ids:
             ids.append(ref)
@@ -1039,22 +1044,7 @@ def _do_hand_over(store, by_user, req, project, place):
     that can't take it (archived, gone, or refused by the store) is left out and named, and one that has that owner already is
     counted. Nothing is written when none can take it. More than BULK_CONFIRM_ABOVE ids need `confirm: true`. Only the owner
     changes: never a status, an archive or a delete."""
-    given = req.get("ids")
-    if not isinstance(given, list) or not given:
-        raise Refused(BULK_NOTHING)
-    if len(given) > MAX_BULK:
-        raise Refused(BULK_TOO_MANY)
-    ids = []
-    for ref in given:
-        m = clark_store.ITEM_ID.fullmatch(ref) if isinstance(ref, str) and ref.isascii() else None
-        if m is None:
-            raise Refused(ITEM_NOT_MINE)
-        if m.group(1) != project:
-            raise Refused(BULK_PROJECTS)
-        if clark_store.item_table(ref) not in HAND_OVER_FIELD:
-            raise Refused(ITEM_NOT_MINE)
-        if ref not in ids:
-            ids.append(ref)
+    ids = _bulk_ids(req.get("ids"), project, None)
     to = _checked_item_changes({"owner": req.get("to")})["owner"]
     confirm = req.get("confirm", False)
     if type(confirm) is not bool:
@@ -1073,6 +1063,9 @@ def _do_hand_over(store, by_user, req, project, place):
                 continue
             if row["archived"]:
                 left_out.append({"id": ref, "why": BULK_ARCHIVED})
+                continue
+            if row["status"] in HAND_OVER_DONE:                     # a closed item, or a decision made or withdrawn: its owner stays as recorded
+                left_out.append({"id": ref, "why": BULK_DECIDED if table == "decisions" else BULK_CLOSED})
                 continue
             try:
                 st.update(table, ref, {HAND_OVER_FIELD[table]: to})
