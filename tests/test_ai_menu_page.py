@@ -3,8 +3,9 @@
 Run: python3 dev/run_tests.py test_ai_menu_page
 The page's copy only decides what to draw; src/clark/ai_menu.py (the server's menu()) is the authority. The parity test bundles
 aiMenu.js alone with the pinned esbuild, runs it in headless Chrome and compares menu(place) with ai_menu.menu(place) for all five
-places. It is SKIPPED, with a plain reason, while ai_menu.py is not in this tree (the logic branch has not been merged yet); the
-shape checks and the plain-words checks below do not need it and always run.
+places. While src/clark/ai_menu.py is not in this tree (the logic branch has not landed), the server's menu is read from
+tests/fixtures/ai_menu_logic_branch.py, a checked-in copy of that branch's file, so the comparison always runs and fails if the page
+table differs. When the logic branch lands, delete the fixture and the fallback below: the test then reads the real module.
 """
 import json
 import re
@@ -22,14 +23,22 @@ from test_server import chrome  # noqa: E402
 
 try:
     from clark import ai_menu
-except ImportError:           # the logic branch (#72) is not merged into this tree yet
-    ai_menu = None
+except ImportError:           # the logic branch is not on main yet: use the checked-in copy of its file
+    import importlib.util
+    _spec = importlib.util.spec_from_file_location("ai_menu_logic_branch", Path(__file__).parent / "fixtures" / "ai_menu_logic_branch.py")
+    ai_menu = importlib.util.module_from_spec(_spec)
+    sys.modules["ai_menu_logic_branch"] = ai_menu
+    _spec.loader.exec_module(ai_menu)
 
 LOGIC = ROOT / "src" / "clark" / "page" / "src" / "logic"
 PLACES = ["current", "notes", "plain", "email", "client_message"]
 # Words a person should never meet in a line of the menu or the card.
 JARGON = re.compile(r"\b(json|api|http|html|markdown|token|route|provider|payload|exception|error|traceback|undefined|null|nan|"
                     r"timeout|stack|endpoint|prompt|llm|regex)\b|!", re.I)
+# A date written out or in numbers, and the names a person could be called by (fictional demo names and common first names).
+DATE = re.compile(r"\b\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}\b|\b\d{1,2}(st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|"
+                  r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b20\d\d\b", re.I)
+NAME = re.compile(r"\b(alan|alex|sam|sara|omar|mia|john|jane|anna|tom|james|david|sarah|emma|priya|nina)\b", re.I)
 
 
 class Page:
@@ -84,20 +93,16 @@ class Menu(unittest.TestCase):
     def tearDownClass(cls):
         cls.page.__exit__(None, None, None)
 
-    @unittest.skipIf(ai_menu is None, "src/clark/ai_menu.py is not in this tree yet (the #72 logic branch is not merged), so there is "
-                                      "no server menu to compare with")
     def test_same_as_the_servers_menu_for_all_five_places(self):
         for place in PLACES:
             with self.subTest(place=place):
                 self.assertEqual(self.menus[place], ai_menu.menu(place))
 
-    @unittest.skipIf(ai_menu is None, "src/clark/ai_menu.py is not in this tree yet")
     def test_same_names_lines_and_places_as_the_server(self):
         self.assertEqual({k: list(v) for k, v in self.options.items()}, {k: [v[0], v[1]] for k, v in ai_menu.OPTIONS.items()})
         self.assertEqual(self.page.ev("AM.PLACES"), ai_menu.PLACES)
         self.assertEqual(self.page.ev("AM.MAKE_INTO"), ai_menu.MAKE_INTO)
 
-    @unittest.skipIf(ai_menu is None, "src/clark/ai_menu.py is not in this tree yet")
     def test_an_unknown_place_is_refused_by_both(self):
         self.assertIsNone(self.page.ev("AM.menu('nowhere')"))
         with self.assertRaises(Exception):
@@ -126,6 +131,12 @@ class Menu(unittest.TestCase):
                 for i in g["items"]:
                     self.assertTrue(i["name"] and i["line"], i)
 
+    def test_parity_fails_if_a_place_is_missing_from_the_page_table(self):
+        self.assertEqual(sorted(self.page.ev("Object.keys(AM.PLACES)")), sorted(PLACES))
+        self.assertEqual(sorted(ai_menu.PLACES), sorted(PLACES))
+        self.assertEqual(self.page.ev("AM.GROUPS"), {k: [[a, list(b)] for a, b in v] for k, v in ai_menu.GROUPS.items()})
+        self.assertEqual(self.page.ev("AM.WORDS.notSignedIn"), "Connect Claude in Settings to use this.")
+
     def test_plain_words(self):
         everything = list(strings(self.menus)) + list(strings(self.words)) + list(strings(self.options)) \
             + list(strings(self.page.ev("AM.MAKE_INTO")))
@@ -134,6 +145,15 @@ class Menu(unittest.TestCase):
             with self.subTest(line=line):
                 self.assertFalse(re.match(r"\s*clark\b", line, re.I), "starts with the product name")
                 self.assertIsNone(JARGON.search(line), "jargon")
+                self.assertIsNone(DATE.search(line), "a date")
+                self.assertIsNone(NAME.search(line), "a person's name")
+
+    def test_the_word_check_catches_what_it_should(self):
+        for bad in ("Clark made this", "The JSON came back", "Wait for 12-03-2026", "Sent by Alan", "Done on Monday 5 March"):
+            self.assertTrue(re.match(r"\s*clark\b", bad, re.I) or JARGON.search(bad) or DATE.search(bad) or NAME.search(bad), bad)
+        card = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "AiCard.jsx").read_text(encoding="utf-8")
+        for line in re.findall(r'aria-label=\{`([^`$]*)', card):             # the card's own fixed words
+            self.assertIsNone(JARGON.search(line), line)
 
     def test_the_card_names_the_shown_option(self):
         self.assertEqual(self.page.ev("AM.optionName('shorter')"), "Shorter")
