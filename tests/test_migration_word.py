@@ -126,7 +126,7 @@ class OldDatabase(unittest.TestCase):
         def broken(con):
             store_module.migrate_to_3(con)
             raise RuntimeError("stopped")
-        with mock.patch.object(store_module, "MIGRATIONS", ((2, store_module.migrate_to_2), (3, broken))):
+        with mock.patch.object(store_module, "MIGRATIONS", ((2, store_module.migrate_to_2), (3, broken), *store_module.MIGRATIONS[2:])):       # the later steps stay in the table: the runner refuses a table that ends short
             with self.assertRaisesRegex(Invalid, "Nothing was changed") as seen:
                 open_store(self.path, onedrive_roots=[])
         self.assertNotIn("RuntimeError", str(seen.exception))

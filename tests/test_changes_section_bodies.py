@@ -106,6 +106,19 @@ class Adding(Content):
         self.ok("update", id=ref, changes={"title": "Weekly progress", "hidden": 0})
         self.assertEqual(self.s.read(KIND, ref=ref)["title"], "Weekly progress")
 
+    def test_a_body_saved_under_a_looser_checker_never_locks_its_section(self):
+        for kind in TYPES:
+            with self.subTest(kind=kind):
+                ref, _ = self.make(kind)
+                self.ok("update", id=ref, changes={"body": text({"v": 1, "old": "shape"})})            # accepted by today's checker
+                strict = {k: (lambda value, rules: (_ for _ in ()).throw(sb.Bad("Stricter now."))) for k in TYPES}
+                with mock.patch.dict(sb.CHECKERS, strict):
+                    self.ok("update", id=ref, changes={"title": "Renamed"})                          # the body is not written, so it is not checked
+                    self.ok("update", id=ref, changes={"hidden": 1})
+                    self.ok("update", id=ref, changes={"hidden": 0})
+                    self.refused_body(ref, text({"v": 1, "old": "shape"}), "Stricter now.")           # writing a body meets the checker
+                    self.assertEqual(self.s.read(KIND, ref=ref)["title"], "Renamed")
+
     def test_the_type_can_not_be_changed(self):
         ref, _ = self.make("needs")
         self.refused(self.req("update", id=ref, changes={"type": "tracker"}), changes.KEEPS_TYPE)

@@ -31,7 +31,7 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 4          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker (renumber at merge; the order is ruled by the Head). THE ONE PLACE the last step's number is written: MIGRATIONS below reads it
+SCHEMA_VERSION = 4          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -530,7 +530,10 @@ def _section_rules(con, table, row, changed):
             raise Invalid("Only a text, needs or tracker section has a body.")
         if not isinstance(row["body"], str):
             raise Invalid("A section's body must be text.")
-    if row.get("type") in section_bodies.CHECKERS:      # content: always the type's own checker, on every write (an Undo too); what is stored is its canonical text, never the request's
+    if row.get("type") in section_bodies.CHECKERS and ({"body", "type", "id"} & set(changed) or not row.get("id")):
+        # content: the type's own checker whenever the body is written, a new row is made or a deleted one is put back (an Undo too);
+        # what is stored is its canonical text, never the request's. A write that leaves the body alone (a rename, hide, move or
+        # renumber) does not re-check it, so a body saved under an older, looser checker never locks its section; publish checks it again
         row["body"] = check_section_body(row["type"], row.get("body"))
     if row.get("id") and not str(row["id"]).startswith(f"{row.get('project')}-S-"):
         raise Invalid("That section's id doesn't belong to its project.")
@@ -1683,9 +1686,9 @@ def migrate_section_bodies(con):
     _report_sections_allow_content_types(con)
 
 
-# version -> the step that brings a file TO that version. The last step's number is SCHEMA_VERSION itself (one place); a step that lands
-# before it takes the next number and this one is renumbered by changing SCHEMA_VERSION's line (the runner refuses a gap).
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (SCHEMA_VERSION, migrate_section_bodies))
+# version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
+# number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies))
 
 
 def migration_plan(version, table=None):
