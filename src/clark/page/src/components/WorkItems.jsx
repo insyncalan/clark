@@ -37,7 +37,7 @@ const active = cursor;                          // the id of the row that is the
 // The arrow keys inside the table. Only a key on a row or on a cell's own button: never one meant for an open picker.
 function keys(e, row, edit) {
   const tr = e.currentTarget, t = e.target;
-  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;   // Shift is left to the selection code
   const cell = t !== tr && t.matches && t.matches("[data-cell]") ? t : null;
   if (t !== tr && !cell) return;
   if (!cell && e.key === "Enter") { openAt(row.id); return; }

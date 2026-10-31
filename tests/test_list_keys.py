@@ -154,6 +154,35 @@ class Keys(ie.Live):
                 self.until(cdp, sid, f"location.hash.includes('item={ids[1]}')", "with the peek open, the peek follows the cursor")
                 self.assertEqual(cdp.js("(document.querySelector('[data-move]') || {}).tagName || 'none'", sid), "none", "View: no Move to button")
 
+    def test_space_does_not_open_a_row_or_card_and_shift_arrows_are_left_alone(self):
+        shift = lambda cdp, sid, name, vk: [cdp.call("Input.dispatchKeyEvent", {"type": t, "key": name, "code": name, "windowsVirtualKeyCode": vk, "modifiers": 8}, sid) for t in ("keyDown", "keyUp")]
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                rows = cdp.js(ROWS, sid)
+                cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
+                key(cdp, sid, " ")
+                self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "Space does not open a row")
+                shift(cdp, sid, "ArrowDown", 40)
+                self.assertEqual(cdp.js(FOCUS, sid), rows[0], "Shift+Down does not move the row cursor")
+                self.board(cdp, sid)
+                cdp.js("document.querySelector('#work-board .bc-main').focus()", sid)
+                first = cdp.js("document.activeElement.closest('[data-id]').dataset.id", sid)
+                key(cdp, sid, " ")
+                self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "Space does not open a card")
+                shift(cdp, sid, "ArrowRight", 39)
+                self.assertEqual(cdp.js("document.activeElement.closest('[data-id]').dataset.id", sid), first, "Shift+Right does not move the card cursor")
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, f"location.hash.includes('item={first}')", "Enter still opens the card")
+
+    def test_the_board_is_one_tab_stop_in_edit_too(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=True)
+                self.board(cdp, sid)
+                self.assertEqual(cdp.js("document.querySelectorAll('#work-board .bc-main[tabindex=\"0\"]').length", sid), 1, "one tab stop")
+                self.assertGreater(cdp.js("document.querySelectorAll('#work-board .bc-main[tabindex=\"-1\"]').length", sid), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
