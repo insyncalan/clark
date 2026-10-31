@@ -234,6 +234,48 @@ class Offset(unittest.TestCase):
                 self.s.con.execute("UPDATE applies SET utc_offset = ? WHERE apply_id = 1", (bad,))
 
 
+# A real offset: a sign, hours 00 to 14, minutes 00, 15, 30 or 45, at most +14:00 or -14:00. UTC is written as '+00:00' (local_offset
+# never writes 'Z' or '-00:00', so neither is accepted). Shared by the column, the migrated column and the store's own check.
+REAL_OFFSETS = ("+00:00", "+04:00", "-12:00", "+05:45", "+05:30", "-03:30", "+14:00", "-14:00", "+12:45", "-09:30")
+NOT_OFFSETS = ("+99:99", "+14:30", "+14:15", "+15:00", "+24:00", "+23:59", "+04:10", "+04:60", "-00:00", "Z", "00:00", "+04:00\n",
+               "+\u0664\u0664:00", "", "garbage", "+04.00", "++4:00")
+
+
+def refuses_and_takes(case, con):
+    """The applies.utc_offset CHECK on `con` takes every REAL_OFFSETS value and refuses every NOT_OFFSETS one."""
+    for good in REAL_OFFSETS:
+        with case.subTest(good=good):
+            con.execute("UPDATE applies SET utc_offset = ? WHERE apply_id = 1", (good,))
+    for bad in NOT_OFFSETS:
+        with case.subTest(bad=bad), case.assertRaises(sqlite3.IntegrityError):
+            con.execute("UPDATE applies SET utc_offset = ? WHERE apply_id = 1", (bad,))
+
+
+class RealOffset(unittest.TestCase):
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.s = self.demo.store
+        self.a = self.demo.action()
+
+    def test_the_column_takes_a_real_offset_and_refuses_one_beyond_14_hours_or_off_the_quarter_hour(self):
+        refuses_and_takes(self, self.s.con)
+
+    def test_the_store_check_agrees_with_the_column(self):
+        for good in REAL_OFFSETS:
+            self.assertEqual(store_module.checked_offset(good), good)
+        for bad in NOT_OFFSETS + (None, 4, b"+04:00"):
+            self.assertIsNone(store_module.checked_offset(bad), repr(bad))
+
+    def test_an_odd_machine_offset_is_written_as_zone_not_recorded_and_the_step_still_goes_in(self):
+        for odd in ("+99:99", "+14:15", "+05:20"):
+            with self.subTest(odd=odd), mock.patch.object(store_module, "local_offset", return_value=odd):
+                with self.s.step("dashboard", USER) as st:
+                    st.update("actions", self.a, {"owner": f"Owner {odd}"})
+                got = self.s.con.execute("SELECT utc_offset FROM applies WHERE apply_id = ?", (self.demo.last_step(),)).fetchone()[0]
+                self.assertIsNone(got)
+
+
 class NeverPruned(unittest.TestCase):
     def test_no_writer_deletes_a_history_row(self):
         demo = DemoStore()
@@ -285,21 +327,58 @@ class NeverPruned(unittest.TestCase):
         self.assertEqual(counts()[1] > 0, True)
 
 
+# item_events as version 3 (Word, #48) made it and version 4 kept it: the route 'word', the places before #123. Frozen here, so a
+# file at version 3 or 4 is the one a released clark wrote, whatever schema.sql says today.
+VERSION_3_ITEM_EVENTS = """CREATE TABLE item_events_old (
+  event_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         TEXT NOT NULL,
+  apply_id   INTEGER REFERENCES applies(apply_id),
+  item_id    TEXT NOT NULL,
+  change     INTEGER,
+  kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
+  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate','word')),
+  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board')),
+  origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),
+  actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),
+  src_ref    TEXT CHECK (src_ref IS NULL OR (length(src_ref) <= 300 AND instr(src_ref, char(10)) = 0)),
+  undoes     INTEGER REFERENCES item_events(event_id)
+)"""
+
+
+def as_version_3_made_it(path):
+    """Give the file at `path` (version 3 or 4, no rows yet) the item_events table a released version 3 or 4 made."""
+    con = sqlite3.connect(str(path), isolation_level=None)
+    try:
+        con.execute("PRAGMA foreign_keys = OFF")
+        con.execute("BEGIN")
+        con.execute(VERSION_3_ITEM_EVENTS)
+        con.execute("INSERT INTO item_events_old SELECT * FROM item_events")
+        con.execute("DROP TABLE item_events")
+        con.execute("ALTER TABLE item_events_old RENAME TO item_events")
+        con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+        con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+        con.execute("COMMIT")
+    finally:
+        con.close()
+
+
 class Migration(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, self.dir, True)
 
     def file_at(self, level, events=3):
-        """A file at schema version `level` (1 or 2) holding steps and events, one of them an Undo that points at another."""
+        """A file at schema version `level` (1 to 4) holding steps and events, one of them an Undo that points at another."""
         path = make_v1(self.dir)
         con = connect(path)
         try:
             if level >= 2:
                 with mock.patch.object(store_module, "SCHEMA_VERSION", level):
-                    migrate(con, table=((2, store_module.migrate_to_2),))
+                    migrate(con, table=tuple(store_module.MIGRATIONS[:level - 1]))
         finally:
             con.close()
+        if level >= 3:
+            as_version_3_made_it(path)
         con = sqlite3.connect(str(path), isolation_level=None)
         con.execute("INSERT INTO applies (apply_id, at, by_user, device) VALUES (1, '2026-10-01 10:00:00.000', 'Old Person', 'd1')")
         con.execute("INSERT INTO change_log (at, apply_id, tbl, item_id, field, old_value, new_value, op, via) "
@@ -340,6 +419,58 @@ class Migration(unittest.TestCase):
 
     def test_from_version_2(self):
         self.check_migrated(self.file_at(2))
+
+    def with_word_and_section_rows(self, level):
+        """A file at `level` (3 or 4) holding a Word-route event (event 4) and, at 4, a section of type needs."""
+        path = self.file_at(level)
+        con = sqlite3.connect(str(path), isolation_level=None)
+        con.execute("INSERT INTO item_events (at, apply_id, item_id, change, kind, route, place, actor) "
+                    "VALUES ('2026-10-02', 1, 'ABC', 1, 'change', 'word', NULL, 'you')")
+        if level >= 4:
+            con.execute("INSERT INTO report_sections (project, id, type, title, body, beside, hidden, sort_order) "
+                        "VALUES ('ABC', 'needs-1', 'needs', 'What we need', 'A decision on the plan', 0, 0, 1)")
+        con.close()
+        self.assertEqual(version(path), str(level))
+        return path
+
+    def test_a_version_3_file_holding_a_word_row_migrates_keeps_it_and_opens(self):
+        path = self.with_word_and_section_rows(3)
+        self.check_migrated(path, events=4)
+        self.check_word_row(path)
+
+    def test_a_version_4_file_holding_a_word_row_and_a_section_body_migrates_keeps_both_and_opens(self):
+        path = self.with_word_and_section_rows(4)
+        self.check_migrated(path, events=4)
+        self.check_word_row(path)
+        con = sqlite3.connect(str(path))
+        try:
+            self.assertEqual(con.execute("SELECT type, title, body FROM report_sections WHERE id = 'needs-1'").fetchone(),
+                             ("needs", "What we need", "A decision on the plan"))
+        finally:
+            con.close()
+
+    def check_word_row(self, path):
+        s = open_store(path, onedrive_roots=[])
+        try:
+            con = s.con
+            self.assertEqual(con.execute("SELECT route FROM item_events WHERE event_id = 4").fetchone()[0], "word")
+            sql = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()[0]
+            for w in ("'word'", "'eye'", "'ask'", "'board'"):
+                self.assertIn(w, sql)
+            con.execute("INSERT INTO item_events (at, apply_id, item_id, change, kind, route, place, actor) "
+                        "VALUES ('2026-10-03', 1, 'ABC', 1, 'change', 'word', 'eye', 'you')")          # a Word row still goes in after the step
+        finally:
+            s.close()
+
+    def test_the_migrated_offset_column_takes_only_a_real_offset(self):
+        path = self.file_at(4)
+        s = open_store(path, onedrive_roots=[])
+        try:
+            sql = s.con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'applies'").fetchone()[0]
+            self.assertIn("utc_offset", sql)
+            refuses_and_takes(self, s.con)
+        finally:
+            s.close()
 
     def test_a_second_open_changes_nothing(self):
         path = self.file_at(2)
@@ -423,6 +554,10 @@ class Source(unittest.TestCase):
         frozen = set(__import__("re").findall(r"'([a-z]+)'", store_module.VERSION_5_ITEM_EVENTS.split("place      TEXT")[1].split("IN (")[1].split(")")[0]))
         self.assertEqual(frozen, set(store_module.PLACES))
         self.assertTrue(set(changes.PLACES) <= set(store_module.PLACES))
+        routes = set(__import__("re").findall(r"'([a-z]+)'", store_module.VERSION_5_ITEM_EVENTS.split("route      TEXT")[1].split("IN (")[1].split(")")[0]))
+        self.assertEqual(routes, set(store_module.ROUTES), "the rebuilt table keeps every route, 'word' among them")
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS], [2, 3, 4, 5])
+        self.assertEqual((store_module.SCHEMA_VERSION, store_module.HISTORY_VERSION), (5, 5))
         for p in ("peek", "board", "eye", "draft", "email", "text", "cell", "report", "menu"):
             self.assertIn(p, changes.PLACES)
 
