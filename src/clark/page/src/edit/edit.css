@@ -41,3 +41,24 @@
 .mvm-confirm { margin: 12px 0 4px; }
 .mvm-problems p { margin: 4px 0; color: var(--status-red-text); }
 @media (max-width: 1100px) { .mvm-row { grid-template-columns: 1fr auto; } .mvm-track { grid-column: 1 / -1; } }
+
+/* The ask panel (#47a), Edit parts only: full height on the right, over the page. A stub look from the page's tokens (#102 lands the
+   real one); nothing below 13px. */
+.ask-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 45; display: flex; flex-direction: column; gap: 10px; max-width: 90%; padding: 16px 18px 14px 22px; background: var(--surface); color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); }
+.ask-panel:focus { outline: none; }
+.ask-grip { position: absolute; left: -4px; top: 0; bottom: 0; width: 9px; cursor: col-resize; touch-action: none; }
+.ask-grip:hover, .ask-grip:focus-visible { background: var(--brand-blue); opacity: .35; outline: none; }
+.ask-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ask-head h2 { margin: 0; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+.ask-status, .ask-note, .ask-off { margin: 0; font-size: var(--size-small); }
+.ask-off { font-size: var(--size-body); color: var(--text); }
+.ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.ask-turn { padding: 8px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.ask-turn.user { align-self: flex-end; max-width: 92%; }
+.ask-turn.problem { border-color: var(--status-amber); }
+.ask-who { font-size: 13px; color: var(--text-muted); }
+.ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask-form { display: flex; flex-direction: column; gap: 8px; }
+.ask-form textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
+.ask-form textarea:focus-visible, .ask-panel a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
