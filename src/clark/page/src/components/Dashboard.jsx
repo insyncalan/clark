@@ -6,6 +6,7 @@ import { data, mode, fromFile, dropAt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
 import { scrollTargets, entries } from "../logic/minimap.js";
+import { coverLine } from "../logic/cover.js";
 import { slots as slotsOf } from "../logic/placement.js";
 
 // A section set beside the next one shares its row with it (half width each); every other section takes the full row. The rows
@@ -57,8 +58,10 @@ export function Dashboard({ tools }) {
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
   return (
     <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
-      <p class="crumbs">{d.project.client_name || "Report"}</p>
-      <h1>{d.project.name}</h1>
+      <header class="cover" id="cover">
+        <h1>{d.project.name}</h1>
+        <p class="cover-line"><b class="cover-kind">Weekly report</b>{coverLine(d.project).map((t) => <span key={t}>{t}</span>)}</p>
+      </header>
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
       <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" ? " drop-end" : ""}`}>
         {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} />)}
