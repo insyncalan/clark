@@ -51,7 +51,7 @@ function AboutYou() {
     <fieldset class="styles about" data-about-you>
       <legend>About you</legend>
       {box("name", "Your name", "text", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.", name)}
-      {box("email", "Your email", "email", "Optional. Used only to tell which email addresses are your own. clark does not send email.", email)}
+      {box("email", "Your email", "email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.", email)}
     </fieldset>
   );
 }

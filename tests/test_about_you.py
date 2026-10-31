@@ -19,7 +19,7 @@ from test_server import chrome
 
 WIDTHS = (1400, 900)
 NAME_LINE = "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional."
-EMAIL_LINE = "Optional. Used only to tell which email addresses are your own. clark does not send email."
+EMAIL_LINE = "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
 
 
 class AboutYou(Base):
