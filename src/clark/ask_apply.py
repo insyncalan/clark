@@ -55,16 +55,8 @@ FIELDS = {
     "milestones": {"title": "name", "name": "name", "owner": "owner", "agreed_date": "baseline_date", "workstream": "workstream",
                    "forecast_date": "forecast_date", "achieved_date": "actual_date", "status": "status"},
 }
-ASK_FIELDS = {
-    "actions": {OP_NEW: ("description", "owner", "priority", "due_date", "workstream", "milestone"),
-                OP_CHANGE: ("description", "owner", "priority", "due_date", "status", "workstream", "milestone")},
-    "raid": {OP_NEW: ("description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone"),
-             OP_CHANGE: ("description", "owner", "due_date", "status", "workstream", "milestone")},
-    "decisions": {OP_NEW: ("decision", "made_by", "status", "date", "needed_by"),
-                  OP_CHANGE: ("decision", "made_by", "status", "date", "needed_by")},
-    "milestones": {OP_NEW: ("name", "owner", "baseline_date", "workstream"),
-                   OP_CHANGE: ("forecast_date", "actual_date", "status")},
-}
+ASK_FIELDS = {t: {OP_NEW: tuple(f for f in ops[changes.NEW] if f != "type"), OP_CHANGE: ops[changes.UPDATE]}
+              for t, ops in changes.ASK_FIELDS.items()}      # changes.ASK_FIELDS is the list; it is checked again there
 ID_KINDS = (("actions", r"-A-\d{3}"), ("decisions", r"-D-\d{3}"), ("milestones", r"-M-\d{3}"), ("raid", r"-\d{3}"))
 ANY_ITEM = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[ADM]-)?\d{3}")
 SOURCE_ID = re.compile(r"P[1-9]\d{0,2}")

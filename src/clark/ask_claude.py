@@ -11,6 +11,8 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
 - FAILS CLOSED ON VERSION AND FLAGS: before a run (and in status) `claude --version` must read as a version and `claude --help`
   must list every flag in `NEEDED_FLAGS`; otherwise nothing is sent and the status says to update the command.
 - ISOLATED RUN: `--safe-mode` (no CLAUDE.md, memory, skills, plugins, hooks, MCP servers or custom commands),
+  `--setting-sources ""` (no settings file is read: the home folder is kept for the sign-in, so without it the person's own
+  ~/.claude/settings.json would still apply, and a key helper named there could move a question to a paid key unseen),
   `--disable-slash-commands`, `--tools ""` (no tool at all), `--strict-mcp-config` (no MCP server), `--no-session-persistence`
   (nothing saved under ~/.claude), `--system-prompt` with the fixed rules (the default prompt, which carries the folder, the
   platform and the date, is replaced), a pinned `--output-format text` and a `--max-budget-usd` cap. Never `--bare` (it would
@@ -20,7 +22,7 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
   ANTHROPIC_*, CLAUDE_CODE_*, cloud keys, tokens or passwords can reach it, so a run can never move to a paid key by accident
   and never inherits a secret.
 - THE REQUEST ON STANDARD INPUT, never in the arguments (a long command line is visible to every local process).
-- AN EMPTY WORKING FOLDER of its own, outside clark's data folder, removed afterwards.
+- AN EMPTY WORKING FOLDER of its own, outside clark's data folder, removed afterwards; files it makes are private (umask 077).
 - LIMITS: one run at a time, a time limit, a cap on the bytes read back. Stop, the time limit and the cap end the WHOLE process
   group (the command starts helpers), then kill it after a short wait. The process handling itself is platform.run_stoppable
   (only platform.py starts a program).
@@ -36,7 +38,7 @@ from clark import ask, platform
 
 PROVIDER = "claude"
 PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude")
-NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config",
+NEEDED_FLAGS = ("--print", "--safe-mode", "--setting-sources", "--disable-slash-commands", "--tools", "--strict-mcp-config",
                 "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd", "--model")
 MODELS = ("opus", "sonnet", "haiku")               # #54: the model names the command takes; a chosen model is one of these only
 NEVER_FLAGS = ("--bare", "--add-dir", "--mcp-config", "--settings", "--dangerously-skip-permissions", "--resume", "--continue")
@@ -77,7 +79,7 @@ def arguments(path, model=None):
     """The command line for one run: the fixed flags, the chosen model (#54; one of MODELS, else the command's own default), the
     fixed rules as the system prompt, and nothing the person typed."""
     chosen = ["--model", model] if model in MODELS else []
-    return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
+    return [str(path), "--print", "--safe-mode", "--setting-sources", "", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--no-session-persistence", "--output-format", "text", "--max-budget-usd", MAX_BUDGET_USD, *chosen,
             "--system-prompt", ask.RULES]
 

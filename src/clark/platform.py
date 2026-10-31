@@ -516,8 +516,8 @@ def _end_group(proc):
 
 def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-"):
     """Run one program from an argument list (never a shell) as the leader of its own process group, in a new empty folder of its
-    own (removed afterwards), with exactly `env` as its environment, `data` on standard input, and read at most `max_out` bytes
-    of standard output within `limit` seconds. `stop` (a threading.Event) ends it early. Returns (status, out, code): status is
+    own (removed afterwards), with exactly `env` as its environment, umask 077 (what it makes is private to the person), `data`
+    on standard input, and read at most `max_out` bytes of standard output within `limit` seconds. `stop` (a threading.Event) ends it early. Returns (status, out, code): status is
     "ok" (exit code 0), "failed" (any other code, or it could not start), "slow", "too_much" or "stopped"; `out` is empty unless
     the program finished. Standard error is thrown away (it could hold what it was given). Whatever ends the run, the whole
     group is ended (anything the program started goes too). Used by ask clark's provider (#47c); never raises for the program's
@@ -527,7 +527,8 @@ def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-
     try:
         try:
             proc = subprocess.Popen(list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=work,
-                                    env=dict(env), close_fds=True, start_new_session=True, shell=False)
+                                    env=dict(env), close_fds=True, start_new_session=True, shell=False,
+                                    umask=0o077)
         except (OSError, ValueError, subprocess.SubprocessError):
             return "failed", b"", None
 
