@@ -134,7 +134,8 @@ class AgainstThePage(unittest.TestCase):
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
         # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...), 73 with the peek's Activity tab (#42: Help now names Activity and no longer All, Updates and Source); lower this only when a feature lands, never to hide a missing one
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now)
-        self.assertGreaterEqual(len(names), 72)
+        # 69 with both merged (the peek's Activity tab and Appearance name features the page now has)
+        self.assertGreaterEqual(len(names), 69)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
