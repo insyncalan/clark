@@ -7,6 +7,7 @@ itself; no cell holds a formula and the values, drop-downs and the import are no
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -18,6 +19,8 @@ from clark import excel
 from clark import excel_colours as colours
 from clark import look
 from test_excel import Demo, ON
+
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
 
 TODAY = date(2030, 6, 1)
 
@@ -377,8 +380,9 @@ class Formatting(unittest.TestCase):
         rows = self.everything()
         rows["actions"] = [action(i, priority=p, due_date="2030-01-01", status="Open")
                            for i, p in enumerate(("Urgent", "High", "Medium", "Low"), start=1)]
-        a, b = self.build(rows), self.build(rows)
-        self.assertEqual(a.read_bytes(), b.read_bytes())
+        with mock.patch.object(excel, "new_export_id", lambda: FIXED_ID):       # the id is random: held still, as the clock is
+            a, b = self.build(rows), self.build(rows)
+            self.assertEqual(a.read_bytes(), b.read_bytes())
 
     def test_values_and_drop_downs_are_the_same_as_without_colour(self):
         """Colour is the only difference: the same export with the colour table emptied has the same values and drop-downs."""

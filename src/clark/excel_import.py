@@ -952,8 +952,8 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
         rd.plan.unrecorded = not record.get("hash")
         rd.plan.unrecorded_ok = bool(allow_unrecorded)
         if rd.plan.unrecorded:
-            rd.plan.notes.append(f"There is no record of exporting {path.name} from this store for {project} (a workbook without clark's export id is recorded only while it is exactly what clark wrote), so clark can't say what you edited "
-                                 "or what was in the export: every difference from clark is staged and rows no longer in the "
+            rd.plan.notes.append(f"There is no record of exporting {path.name} from this store (a workbook with no export id is recorded only while it is exactly what clark wrote), so clark can't say what you edited "
+                                 "or what was in the export: every difference is staged and rows no longer in the "
                                  "workbook are offered for archiving (nothing is deleted). Check it is the right file, then confirm it to apply anything.")
         found, to_read, area = set(), [], 0
         for ws in wb.worksheets:
@@ -1088,7 +1088,7 @@ def apply_import(store, plan, by_user, state_path=None):
     if plan.already_imported:
         return ImportResult(False, message=f"{plan.file} was already imported as it is now, so nothing was changed.")
     if plan.unrecorded and not plan.unrecorded_ok:
-        return ImportResult(False, message=f"There is no record of exporting {plan.file} from this store for {plan.project} (a workbook without clark's export id is recorded only while it is exactly what clark wrote), so nothing was "
+        return ImportResult(False, message=f"There is no record of exporting {plan.file} from this store (a workbook with no export id is recorded only while it is exactly what clark wrote), so nothing was "
                             "applied. Check it is the right file, confirm it, and import again.")
     if plan.path and plan.file_hash is not None:
         try:
