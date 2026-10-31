@@ -118,6 +118,22 @@ class Formatting(unittest.TestCase):
             self.assertEqual(ws.freeze_panes, "C2", name)
             self.assertEqual([ws["A1"].value, ws["B1"].value], ["ID", title], name)
 
+    def test_every_data_sheet_is_in_the_looks_office_font_header_body_and_the_empty_rows(self):
+        """One font in the whole workbook: the Cover and History already were; the data sheets named none, so they showed Calibri."""
+        wb = load_workbook(self.build(self.everything()))
+        want = look.office_font()
+        for name, table, cols, _ in excel.SHEETS:
+            ws = wb[name]
+            self.assertGreater(ws.max_row, 1, name)
+            for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+                for c in row:
+                    if c.value is not None or c.row == 1:
+                        self.assertEqual(c.font.name, want, (name, c.coordinate))
+            for i in range(1, len(cols) + 1):
+                letter = ws.cell(row=1, column=i).column_letter
+                self.assertEqual(ws.column_dimensions[letter].font.name, want, (name, letter, "the rows below the data"))
+        self.assertEqual({c.font.name for c in wb["Lists"][1] if c.value}, {want}, "the hidden Lists sheet too")
+
     def test_the_filter_covers_the_header_and_the_data(self):
         rows = {"actions": [action(1), action(2), action(3)], "raid": []}
         wb = load_workbook(self.build(rows))
