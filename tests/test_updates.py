@@ -1,4 +1,4 @@
-"""Checking an update file and planning an install (#109, steps 1 and 2): src/clark/updates.py.
+"""Checking an update file and planning an install: src/clark/updates.py.
 
 Every refusal has a test pinned to its exact sentence. Builds fake downloads in temporary folders; reads only, no network.
 Run: python3 dev/run_tests.py test_updates
@@ -154,6 +154,19 @@ class NameTest(Base):
         path.write_bytes(b"x")
         self.refuses(path, "source", "That is the whole source code, not an update. On the releases page, download the file "
                                     "under Assets whose name ends in -mac.")
+
+    def test_the_ending_named_is_this_computers(self):
+        path = Path(self.tmp) / "clark-0.3.1.zip"
+        path.write_bytes(b"x")
+        with self.assertRaises(UpdateError) as said:
+            updates.read_release(path, "linux", "0.3.0", 2)
+        self.assertEqual("That is the whole source code, not an update. On the releases page, download the file "
+                         "under Assets whose name ends in -linux.", said.exception.message)
+        other = Path(self.tmp) / "update.zip"
+        other.write_bytes(b"x")
+        with self.assertRaises(UpdateError) as said:
+            updates.read_release(other, "windows", "0.3.0", 2)
+        self.assertTrue(said.exception.message.endswith("Its name looks like clark-1.2.3-windows."), said.exception.message)
 
     def test_a_renamed_source_zip_has_no_manifest(self):
         path = make_zip(self.tmp, skip_manifest=True, top="clark-0.3.1")
@@ -446,8 +459,8 @@ class VersionRuleTest(Base):
         self.assertEqual("0.3.1", self.read(make_zip(self.tmp, min_from="0.3.0"), installed="0.3.0").version)
 
     def test_a_change_to_the_data_layout_is_refused_for_now(self):
-        said = "This update needs a newer clark than the one you have, because it changes how your data is kept. " \
-               "It can't install itself. Download it again and install it by hand. Nothing was changed."
+        said = "This update changes how your data is kept, so it can't be installed from Settings yet. Nothing was changed. " \
+               "Keep using the version you have; a later update will install it for you."
         self.refuses(make_zip(self.tmp, schema=3), "layout", said)
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
@@ -695,14 +708,47 @@ class ReviewTest(Base):
         zips.mkdir()
         r = self.read(make_zip(zips, version="0.3.0"), reinstall=True)
         text = updates.review(r, updates.plan(r, app), "0.3.0")
-        self.assertEqual("1 file in the clark folder was changed by hand and will be replaced.", text["by_hand"])
+        self.assertEqual("1 file in the clark folder was changed by hand and will be replaced. A copy is kept in the backup.",
+                         text["by_hand"])
         self.assertTrue(text["reinstall"])
         (app / "src" / "clark" / "x.py").write_text("also edited", encoding="utf-8")
         text = updates.review(r, updates.plan(r, app), "0.3.0")
-        self.assertEqual("2 files in the clark folder were changed by hand and will be replaced.", text["by_hand"])
+        self.assertEqual("2 files in the clark folder were changed by hand and will be replaced. A copy is kept in the backup.",
+                         text["by_hand"])
 
     def test_date_text(self):
         self.assertEqual("05-01-2027", updates.date_text("2027-01-05"))
+
+
+class NotesAndNumbersTest(Base):
+    def test_hidden_and_control_characters_are_taken_out_of_the_notes(self):
+        notes = "Fixes a typo.\r\nAdds \u202ea thing\u202c.\x00\x1b[31m\u200b Tab\there.\n"
+        r = self.read(make_zip(self.tmp, notes=notes))
+        self.assertEqual("Fixes a typo.\nAdds a thing.[31m Tab\there.\n", r.notes)
+
+    def test_long_notes_are_cut(self):
+        r = self.read(make_zip(self.tmp, notes="a" * (updates.MAX_NOTES + 50)))
+        self.assertEqual(updates.MAX_NOTES, len(r.notes))
+
+    def test_no_notes_says_so_on_the_page(self):
+        r = self.read(make_zip(self.tmp, notes=" \n"))
+        app = install_to(Path(self.tmp) / "app", "0.3.0")
+        text = updates.review(r, updates.plan(r, app), "0.3.0")
+        self.assertEqual("No notes were written for this release.", text["notes_text"])
+        r2 = self.read(make_zip(Path(self.tmp) / "app", notes="Real notes.\n"))
+        self.assertEqual("Real notes.\n", updates.review(r2, updates.plan(r2, app), "0.3.0")["notes_text"])
+
+    def test_a_very_long_number_in_the_record_is_refused(self):
+        self.refuses(make_zip(self.tmp, manifest=lambda d: d.update(schema_version=int("9" * (updates.MAX_DIGITS + 1)))),
+                     "damaged")
+
+    def test_a_long_but_allowed_number_is_read(self):
+        self.assertEqual(int("9" * updates.MAX_DIGITS), updates.parse_int("9" * updates.MAX_DIGITS))
+
+    def test_an_installed_version_that_cant_be_told_has_its_own_sentence(self):
+        e = self.refuses(make_zip(self.tmp), "installed", installed="unknown")
+        self.assertEqual("The version you have can't be told, so it can't update itself. Download the latest release and "
+                         "replace the clark folder by hand. Nothing was changed.", e.message)
 
 
 class ChecksumTest(Base):
@@ -754,6 +800,21 @@ class InstalledRecordTest(Base):
                         call()
                     self.assertEqual("unsafe", said.exception.key)
                     self.assertEqual(updates.MESSAGES["unsafe"], said.exception.message)
+                shutil.rmtree(app)
+
+    def test_a_record_that_is_not_a_record_says_there_is_none(self):
+        zips = Path(self.tmp) / "zips"
+        zips.mkdir()
+        release = self.read(make_zip(zips))
+        for body in ("not json", "[]", json.dumps({"files": []}), json.dumps({"files": "src"}), json.dumps({"x": 1}),
+                     '{"files": {}, "size": ' + "9" * 2000 + "}"):
+            with self.subTest(body=body[:30]):
+                app = install_to(Path(self.tmp) / "app", "0.3.0")
+                (app / updates.INSTALLED_RECORD).write_text(body, encoding="utf-8")
+                for call in (lambda: updates.check_app_folder(app), lambda: updates.plan(release, app)):
+                    with self.assertRaises(UpdateError) as said:
+                        call()
+                    self.assertEqual("norecord", said.exception.key)
                 shutil.rmtree(app)
 
     def test_a_good_record_still_passes(self):

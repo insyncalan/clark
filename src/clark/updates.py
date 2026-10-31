@@ -1,4 +1,4 @@
-"""Check an update file and work out what installing it would change (#109; docs/handoff/design-109-update-from-settings.md).
+"""Check an update file and work out what installing it would change.
 
 Everything here only READS: it opens the update file and the app folder and writes nothing, so it can be run for a review
 at any time. Installing, backing up and undoing are other steps and live elsewhere.
@@ -57,12 +57,13 @@ FILE_ATTRIBUTE_REPARSE_POINT = 0x400               # a Windows junction or other
 SYSTEM_NAMES = {"mac": "Mac", "windows": "Windows", "linux": "Linux"}
 STAMP_LENGTH = len("20261029T120000Z")
 
+NO_NOTES = "No notes were written for this release."
 KEPT = "Your projects, settings and published reports are kept. A copy of your data is made first."
 
 MESSAGES = {
-    "name": "That isn't a clark update. Choose the update file from the clark releases page. Its name looks like clark-1.2.3-mac.",
+    "name": "That isn't a clark update. Choose the update file from the clark releases page. Its name looks like clark-1.2.3-{ours}.",
     "source": "That is the whole source code, not an update. On the releases page, download the file under Assets "
-              "whose name ends in -mac.",
+              "whose name ends in -{ours}.",
     "system": "This update is for {theirs}. Download the one for {ours} from the clark releases page.",
     "unreadable": "That file can't be read as an update. Choose the downloaded update file.",
     "damaged": "This update file is damaged or has been changed. Download it again.",
@@ -72,10 +73,12 @@ MESSAGES = {
     "older": "Version {theirs} is older than the one you have ({ours}). Choose Install again only if you want it anyway.",
     "same": "Version {theirs} is the one you have already. Choose Install again only if you want it anyway.",
     "min_from": "This update can only be installed over version {need} or newer. Install that version first, then this one.",
-    "layout": "This update needs a newer clark than the one you have, because it changes how your data is kept. "
-              "It can't install itself. Download it again and install it by hand. Nothing was changed.",
+    "layout": "This update changes how your data is kept, so it can't be installed from Settings yet. Nothing was changed. "
+              "Keep using the version you have; a later update will install it for you.",
+    "installed": "The version you have can't be told, so it can't update itself. Download the latest release and replace "
+                 "the clark folder by hand. Nothing was changed.",
     "git": "This copy of clark runs from its source code, so it can't update itself. Download the latest release instead.",
-    "norecord": "This copy of clark has no record of what it holds, so it can't update itself. "
+    "norecord": "This copy of clark has no record of what it holds, so it can't update itself. Nothing was changed. "
                 "Download the latest release and replace the clark folder by hand.",
     "link": "The clark folder has a shortcut inside it, so the update can't be installed safely. "
             "Download clark again into a new folder.",
@@ -91,7 +94,7 @@ class UpdateError(Exception):
 
     def __init__(self, key, detail="", **words):
         self.key = key
-        self.message = MESSAGES[key].format(**words) if words else MESSAGES[key]
+        self.message = MESSAGES[key].format(**words)
         self.detail = detail
         super().__init__(self.message)
 
@@ -99,6 +102,30 @@ class UpdateError(Exception):
 def names_for_log(names):
     names = list(names)
     return ", ".join(names[:MAX_DETAIL_NAMES]) + (f" and {len(names) - MAX_DETAIL_NAMES} more" if len(names) > MAX_DETAIL_NAMES else "")
+
+
+MAX_DIGITS = 1000               # a number in the release record longer than this is refused (it would be slow to read on 3.9)
+MAX_NOTES = 20000               # characters of release notes kept for the page
+# Characters that change how text is drawn or read without being seen: the bidirectional controls and the zero-width ones.
+HIDDEN = {0x200B, 0x200C, 0x200D, 0x200E, 0x200F, 0x2028, 0x2029, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2060,
+          0x2066, 0x2067, 0x2068, 0x2069, 0xFEFF}
+
+
+def parse_int(text):
+    """json's reader for whole numbers, refusing a very long one before it is turned into a number."""
+    if len(text) > MAX_DIGITS:
+        raise ValueError("number too long")
+    return int(text)
+
+
+def clean_notes(text):
+    """The release notes as the page may show them: control characters other than line breaks and tabs, and the hidden
+    characters above, taken out; at most MAX_NOTES characters."""
+    if not isinstance(text, str):
+        return ""
+    kept = "".join(c for c in text.replace("\r\n", "\n").replace("\r", "\n")
+                   if (c in "\n\t" or (ord(c) >= 32 and not 127 <= ord(c) < 160)) and ord(c) not in HIDDEN)
+    return kept[:MAX_NOTES]
 
 
 # --- versions ---------------------------------------------------------------------------------------------------------
@@ -124,8 +151,8 @@ def check_name(name, system, chosen=False):
     found = (CHOSEN_RE if chosen else NAME_RE).match(name)
     if not found:
         if SOURCE_RE.match(name):
-            raise UpdateError("source", f"the name {name} is GitHub's source download")
-        raise UpdateError("name", f"the name {name} does not fit")
+            raise UpdateError("source", f"the name {name} is GitHub's source download", ours=system)
+        raise UpdateError("name", f"the name {name} does not fit", ours=system)
     if found.group(4) != system:
         raise UpdateError("system", f"the update is for {found.group(4)}", theirs=SYSTEM_NAMES[found.group(4)],
                           ours=SYSTEM_NAMES.get(system, system))
@@ -205,7 +232,7 @@ class Release:
         self.version = manifest["version"]
         self.system = manifest["system"]
         self.released = manifest["released"]
-        self.notes = manifest.get("notes", "")
+        self.notes = clean_notes(manifest.get("notes", ""))
         self.schema_version = manifest["schema_version"]
         self.min_from = manifest["min_from"]
         self.files = manifest["files"]
@@ -213,27 +240,27 @@ class Release:
         self.zip_sha256 = ""            # the whole download's digest, for the person to compare with the releases page
 
 
-def _manifest_of(zf, infos):
+def _manifest_of(zf, infos, system):
     """The parsed clark-release.json and the top folder, or the source-zip refusal when there is none."""
     first = infos[0].filename.split("/")[0] if infos else ""
     entry = f"{first}/{MANIFEST}"
     found = [i for i in infos if i.filename == entry]
     if not found:
-        raise UpdateError("source", "no clark-release.json")
+        raise UpdateError("source", "no clark-release.json", ours=system)
     info = found[0]
     if info.file_size > MAX_MANIFEST_BYTES:
         raise UpdateError("damaged", "clark-release.json is too big")
     try:
         data = zf.read(info)
-        doc = json.loads(data.decode("utf-8"))
+        doc = json.loads(data.decode("utf-8"), parse_int=parse_int)
     except (ValueError, zipfile.BadZipFile, OSError, RuntimeError):
         raise UpdateError("damaged", "clark-release.json can't be read")
     return doc, first
 
 
-def _check_manifest_shape(doc):
+def _check_manifest_shape(doc, system):
     if not isinstance(doc, dict) or doc.get("product") != "clark":
-        raise UpdateError("name", "the manifest is not clark's")
+        raise UpdateError("name", "the manifest is not clark's", ours=system)
     for key, kind in (("version", str), ("system", str), ("released", str), ("notes", str), ("schema_version", int),
                       ("min_from", str), ("files", dict)):
         if not isinstance(doc.get(key), kind) or (kind is int and isinstance(doc.get(key), bool)):
@@ -348,8 +375,8 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
         raise UpdateError("damaged", "not a zip file")
     with zf:
         infos = zf.infolist()
-        doc, top = _manifest_of(zf, infos)
-        _check_manifest_shape(doc)
+        doc, top = _manifest_of(zf, infos, system)
+        _check_manifest_shape(doc, system)
         if doc["system"] != system:
             raise UpdateError("system", f"the manifest says {doc['system']}", theirs=SYSTEM_NAMES.get(doc["system"], doc["system"]),
                               ours=SYSTEM_NAMES.get(system, system))
@@ -404,7 +431,7 @@ def check_version(release, installed_version, installed_schema, reinstall=False)
     try:
         have = version_key(installed_version)
     except ValueError:
-        raise UpdateError("name", f"installed version {installed_version!r} is not a version")
+        raise UpdateError("installed", f"installed version {installed_version!r} is not a version")
     new = version_key(release.version)
     if new <= have and not reinstall:
         raise UpdateError("same" if new == have else "older", f"{release.version} against {installed_version}",
@@ -453,9 +480,7 @@ def check_app_folder(app_dir):
         raise UpdateError("git", ".git is in the app folder")
     if not (app / INSTALLED_RECORD).is_file():
         raise UpdateError("norecord", "no clark-release.json in the app folder")
-    record = installed_record(app)
-    if record:
-        check_record_names(record)
+    check_record_names(readable_record(app))
     _, links = walk_app(app)
     if links:
         raise UpdateError("link", "links in the app folder: " + names_for_log(links))
@@ -470,10 +495,18 @@ def check_app_folder(app_dir):
 def installed_record(app_dir):
     """The manifest of the installed release (its `files` are what the last install put there), or None."""
     try:
-        doc = json.loads((Path(app_dir) / INSTALLED_RECORD).read_text(encoding="utf-8"))
+        doc = json.loads((Path(app_dir) / INSTALLED_RECORD).read_text(encoding="utf-8"), parse_int=parse_int)
     except (OSError, ValueError):
         return None
     return doc if isinstance(doc, dict) and isinstance(doc.get("files"), dict) else None
+
+
+def readable_record(app_dir):
+    """The installed record, or the no-record refusal when it is there but isn't a record (not JSON, or no list of files)."""
+    record = installed_record(app_dir)
+    if record is None:
+        raise UpdateError("norecord", "the app folder's clark-release.json can't be read as a record")
+    return record
 
 
 def check_record_names(record):
@@ -505,10 +538,9 @@ def plan(release, app_dir):
     update and not recorded, so the person's own and never touched. by_hand: recorded files whose bytes differ from the
     record (they are replaced anyway and kept in the backup)."""
     app = Path(app_dir)
-    record = installed_record(app)
-    if record:
-        check_record_names(record)
-    recorded = record["files"] if record else {}
+    record = readable_record(app)
+    check_record_names(record)
+    recorded = record["files"]
     on_disk, _ = walk_app(app)
     present = set(on_disk)
     result = Plan()
@@ -541,11 +573,12 @@ def review(release, plan_, installed_version):
         "to": release.version,
         "heading": f"Version {installed_version} → {release.version}. Released {date_text(release.released)}.",
         "notes": release.notes,
+        "notes_text": release.notes if release.notes.strip() else NO_NOTES,
         "replaced": {"label": count_text("Replaced", plan_.replaced), "names": list(plan_.replaced)},
         "added": {"label": count_text("Added", plan_.added), "names": list(plan_.added)},
         "removed": {"label": count_text("Removed", plan_.removed), "names": list(plan_.removed)},
         "by_hand": (f"{len(plan_.by_hand)} file{' in the clark folder was' if len(plan_.by_hand) == 1 else 's in the clark folder were'}"
-                    " changed by hand and will be replaced.") if plan_.by_hand else None,
+                    " changed by hand and will be replaced. A copy is kept in the backup.") if plan_.by_hand else None,
         "checksum": release.zip_sha256,
         "checksum_text": f"Checksum of this file: {release.zip_sha256}. Compare it with the one on the releases page.",
         "kept": KEPT,

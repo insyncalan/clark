@@ -468,7 +468,7 @@ def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
 
 def run_python_check(python, code, args=(), timeout=120, run=None):
     """Run `code` with the Python program `python` in a fresh, isolated interpreter (-I -B), from an argument list. Returns
-    (exit status, what it wrote to stderr as text). The update helper's check that every part of a new version loads (#109)."""
+    (exit status, what it wrote to stderr as text). The update helper's check that every part of a new version loads."""
     done = (run or subprocess.run)([str(python), "-I", "-B", "-c", code, *[str(a) for a in args]], capture_output=True,
                                    timeout=timeout, check=False)
     return done.returncode, (done.stderr or b"").decode("utf-8", "replace")
