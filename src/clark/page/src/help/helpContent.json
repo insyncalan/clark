@@ -1467,7 +1467,7 @@
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says **Up to date**, or **Review 0.3.0** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check.",
+       "**Installed** is the version you have. **Update** says **Up to date**, or **Review X.Y.Z** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check.",
        "**Choose zip…** takes a release file you saved. It must be named clark-X.Y.Z.zip, from the release page: not the source code zip.",
        "**Review** shows the version change, the release notes (**Copy the notes**), how many files are replaced and added, and that your projects, settings and published reports are kept.",
        "Everything is backed up first, and if a step fails clark puts the old version back. A release is checked file by file against its list of checksums before anything changes.",
