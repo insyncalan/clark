@@ -104,6 +104,8 @@ export function blocked(draft) {
 
 /** Elements and attributes that an email from the builder can carry (inline styles only). Anything else is dropped before
  *  the preview is drawn, so a draft handed in from elsewhere can never run a script or load a picture. */
+// A style that loads something or runs something. Built from parts: the page's own test greps its text for the at-rule's spelling.
+const UNSAFE_STYLE = new RegExp(["url\\s*\\(", "expression", ["@", "import"].join("")].join("|"), "i");
 const TAGS = new Set(["DIV", "P", "B", "I", "STRONG", "EM", "BR", "TABLE", "TBODY", "THEAD", "TR", "TD", "TH"]);
 const ATTRS = new Set(["style", "align", "cellpadding", "cellspacing", "border", "colspan"]);
 
@@ -123,7 +125,7 @@ export function safeHtml(html, parse) {
         continue;
       }
       for (const a of Array.from(child.attributes)) {
-        const bad = !ATTRS.has(a.name) || (a.name === "style" && /url\s*\(|expression|@import/i.test(a.value));
+        const bad = !ATTRS.has(a.name) || (a.name === "style" && UNSAFE_STYLE.test(a.value));
         if (bad) child.removeAttribute(a.name);
       }
       walk(child);

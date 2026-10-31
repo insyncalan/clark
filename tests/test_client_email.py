@@ -206,7 +206,7 @@ class Published(InBrowser):
         cls.store.close()
         shutil.rmtree(cls.tmp, True)
 
-    def open(self, path=None, width=1400):
+    def visit(self, path=None, width=1400):
         self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
         self.cdp.call("Page.navigate", {"url": "about:blank"}, self.sid)          # a fresh page each time, not a change of address in the old one
         self.cdp.call("Page.navigate", {"url": Path(path or self.done["path"]).as_uri() + "#work&p=PUB"}, self.sid)
@@ -229,7 +229,7 @@ class Published(InBrowser):
         self.assertNotIn(TEAM_ADDRESS.split("@")[1], self.text)
 
     def test_the_dialog_drafts_to_the_contact_from_published_rows_only(self):
-        self.open()
+        self.visit()
         self.assertTrue(self.cdp.js("!!document.querySelector('.cde-open')", self.sid), "the Draft email button")
         self.click(".cde-open")
         self.assertTrue(self.cdp.js("!!document.querySelector('.cde-box .de')", self.sid), "the dialog opened")
@@ -243,7 +243,7 @@ class Published(InBrowser):
         self.assertTrue(self.cdp.js("[...document.querySelectorAll('.pk-foot .pk-btn')].some(b => /Copy as text/.test(b.textContent))", self.sid))
 
     def test_a_name_is_needed_and_then_the_email_is_ready_to_copy(self):
-        self.open()
+        self.visit()
         self.click(".cde-open")
         self.assertIn("name", self.cdp.js("document.querySelector('.de-problem').textContent", self.sid))
         self.cdp.js("(() => { const i = document.querySelector('.cde-from input'); i.value = 'Sam Lee'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", self.sid)
@@ -253,7 +253,7 @@ class Published(InBrowser):
         self.assertTrue(self.cdp.js("!![...document.querySelectorAll('.pk-foot a.pk-btn')].find(a => a.href.startsWith('mailto:dana%40client.example.org'))", self.sid), "Open in mail app")
 
     def test_no_kind_item_or_set_of_items_puts_a_hidden_row_an_internal_note_or_a_team_address_in_an_email(self):
-        self.open()
+        self.visit()
         self.click(".cde-open")
         ids = self.cdp.js("[...document.querySelectorAll('.pick input')].map(i => i.value)", self.sid)
         self.assertTrue(len(ids) >= 3, ids)
@@ -272,7 +272,7 @@ class Published(InBrowser):
         self.assertNotIn(TEAM_ADDRESS, self.cdp.js("document.documentElement.outerHTML", self.sid))
 
     def test_a_row_has_an_envelope_that_opens_the_dialog_on_that_item_alone(self):
-        self.open()
+        self.visit()
         first = self.cdp.js("document.querySelector('tr[data-id] .cde-row').closest('tr').dataset.id", self.sid)
         self.click("tr[data-id] .cde-row")
         self.assertEqual(self.cdp.js("[...document.querySelectorAll('.pick input:checked')].map(i => i.value)", self.sid), [first])
@@ -282,7 +282,7 @@ class Published(InBrowser):
         self.assertFalse(self.cdp.js("!!document.querySelector('.cde-box')", self.sid), "Escape closes it")
 
     def test_the_page_asks_for_nothing_outside_itself(self):
-        self.open()
+        self.visit()
         self.click(".cde-open")
         self.assertEqual(self.cdp.js("performance.getEntriesByType('resource').map(r => r.name).filter(n => !n.startsWith('data:') && !n.startsWith('file:')).length", self.sid), 0)
         self.assertEqual(self.cdp.js("typeof fetch === 'function' && !document.querySelector('form[action]')", self.sid), True)
@@ -295,12 +295,12 @@ class Published(InBrowser):
             text = Path(done["path"]).read_text(encoding="utf-8")
             self.assertNotIn('"contact"', text, label)
             self.assertNotIn(TEAM_ADDRESS, text, label)
-            self.open(done["path"])
+            self.visit(done["path"])
             self.assertFalse(self.cdp.js("!!document.querySelector('.cde-open, .cde-row')", self.sid), label)
 
     def test_it_fits_at_1400_and_900_in_light_and_dark(self):
         for width in (1400, 900):
-            self.open(width=width)
+            self.visit(width=width)
             self.click(".cde-open")
             for scheme in ("light", "dark"):
                 self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
