@@ -716,9 +716,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-today b { position: absolute; left: 4px; top: 20px; line-height: 16px; font-size: var(--size-small); font-weight: var(--weight-regular); color: var(--status-blue-text); background: var(--surface); padding: 0 4px; white-space: nowrap; }
 .mv-mk { all: unset; position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; display: grid; place-items: center; cursor: pointer; z-index: 3; border-radius: 50%; transition: transform var(--dur-state) var(--ease-out); }
 .mv-mk:hover, .mv-mk:focus-visible { transform: scale(1.18); } .mv-mk:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.mv-lab { all: unset; position: absolute; transform: translateX(-50%); text-align: center; font-size: var(--size-small); line-height: 1.35; cursor: pointer; white-space: nowrap; padding: 1px 4px; border-radius: 4px; }
+.mv-lab { all: unset; position: absolute; z-index: 3; transform: translateX(-50%); text-align: center; font-size: var(--size-small); line-height: 1.35; cursor: pointer; white-space: nowrap; padding: 1px 4px; border-radius: 4px; background: var(--grey-50); }   
 .mv-mk.plain, .mv-lab.plain, .cal-ms.plain, .msl-row.plain, .msl-row.plain .msl-cells { cursor: default; }   
-.mv-mk.plain:hover { transform: none; } .mv-lab.plain:hover { background: none; } .cal-ms.plain:hover { background: var(--grey-100); } .cal-ms.ghost.plain:hover { background: transparent; } .msl-row.plain:hover { background: none; }
+.mv-mk.plain:hover { transform: none; } .mv-lab.plain:hover { background: var(--grey-50); } .cal-ms.plain:hover { background: var(--grey-100); } .cal-ms.ghost.plain:hover { background: transparent; } .msl-row.plain:hover { background: none; }
 .mv-lab b { display: block; font-weight: var(--weight-medium); color: var(--text); } .mv-lab:hover { background: var(--grey-100); }
 .mv-lab.ok { color: var(--status-green-text); } .mv-lab.gl { color: var(--status-red-text); }
 .mv-conn { position: absolute; height: 0; border-top: 2px dashed var(--status-red); z-index: 1; }
