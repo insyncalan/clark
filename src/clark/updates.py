@@ -62,7 +62,7 @@ NAME_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux)\.zip\Z")
 CHOSEN_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux){COPY_SUFFIX}\.zip\Z")
 SOURCE_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}{COPY_SUFFIX}\.zip\Z")     # GitHub's "Source code (zip)"
 VERSION_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\Z")
-DEV_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\.dev[0-9]*\Z")
+DEV_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\.dev{NUM}?\Z")
 TOP_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}\Z")
 HIDDEN_CATEGORIES = ("Cc", "Cf", "Cs", "Co", "Cn")   # controls (C0, DEL, C1), bidi and zero-width marks, unassigned
 BAD_CHARS = set('<>"|?*:\\')
@@ -123,9 +123,17 @@ def names_for_log(names):
 
 # --- versions ---------------------------------------------------------------------------------------------------------
 
+def _short_parts(text):
+    """True when no part of a version text is longer than MAX_INT_DIGITS, checked before any pattern or number work, so a
+    version with a 5000-digit part is refused at once wherever it comes from (the file, the record, the running copy)."""
+    return isinstance(text, str) and len(text) <= 4 * (MAX_INT_DIGITS + 4) \
+        and all(len(part) <= MAX_INT_DIGITS for part in text.split("."))
+
+
 def version_key(text):
     """A version as numbers that compare: X.Y.Z, or X.Y.Z.devN for a source copy, which sorts below its own release."""
-    text = str(text)
+    if not _short_parts(text):
+        raise ValueError("version text too long or not text")
     if VERSION_RE.match(text):
         return tuple(int(n) for n in text.split(".")) + (1,)
     if DEV_RE.match(text):
@@ -134,7 +142,7 @@ def version_key(text):
 
 
 def is_release_version(text):
-    return isinstance(text, str) and bool(VERSION_RE.match(text))
+    return _short_parts(text) and bool(VERSION_RE.match(text))
 
 
 # --- the name ---------------------------------------------------------------------------------------------------------
@@ -488,7 +496,8 @@ def check_version(release, installed_version, installed_schema, reinstall=False)
     try:
         have = version_key(installed_version)
     except ValueError:
-        raise UpdateError("noversion", f"installed version {installed_version!r} is not a version")
+        shown = repr(installed_version[:40]) if isinstance(installed_version, str) else type(installed_version).__name__
+        raise UpdateError("noversion", f"installed version {shown} is not a version")
     try:
         new = version_key(release.version)
         need = version_key(release.min_from)
@@ -533,7 +542,8 @@ def walk_app(app_dir):
                     elif e.name != ".DS_Store" and not e.name.endswith(".pyc"):
                         files.append(rel)
         except OSError:
-            raise UpdateError("folder", f"a folder in the app folder can't be listed: {folder}")
+            raise UpdateError("folder", "a folder in the app folder can't be listed: "
+                                        + PurePosixPath(folder.relative_to(base)).as_posix())
     return sorted(files), sorted(links)
 
 
@@ -562,7 +572,7 @@ def check_app_folder(app_dir):
 def installed_record(app_dir):
     """The manifest of the installed release (its `files` are what the last install put there), or None."""
     try:
-        doc = json.loads((Path(app_dir) / INSTALLED_RECORD).read_text(encoding="utf-8"))
+        doc = json.loads((Path(app_dir) / INSTALLED_RECORD).read_text(encoding="utf-8"), parse_int=_refuse_long_int)
     except (OSError, ValueError):
         return None
     return doc if isinstance(doc, dict) and isinstance(doc.get("files"), dict) else None
@@ -576,17 +586,19 @@ def check_record_names(record):
         raise UpdateError("unsafe", "unsafe names in the installed record: " + names_for_log(bad))
 
 
-def _sha256_of(path):
+def _sha256_of(app, rel):
+    """The SHA-256 of one app file; a refusal names it by `rel`, never by its full place on the disk."""
+    path = Path(app) / rel
     h = hashlib.sha256()
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     try:
         with os.fdopen(os.open(path, flags), "rb") as f:
             if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):          # a pipe or device would wait for ever
-                raise UpdateError("folder", f"not a regular file: {path}")
+                raise UpdateError("folder", f"not a regular file: {rel}")
             for chunk in iter(lambda: f.read(CHUNK), b""):
                 h.update(chunk)
     except OSError:
-        raise UpdateError("folder", f"a file in the app folder can't be read: {path}")
+        raise UpdateError("folder", f"a file in the app folder can't be read: {rel}")
     return h.hexdigest()
 
 
@@ -615,11 +627,11 @@ def plan(release, app_dir):
     for rel, row in sorted(release.files.items()):
         if rel not in present:
             result.added.append(rel)
-        elif _sha256_of(app / rel) != row["sha256"]:
+        elif _sha256_of(app, rel) != row["sha256"]:
             result.replaced.append(rel)
     result.removed = sorted(r for r in recorded if r not in release.files and r in present)
     result.left = sorted(r for r in present if r not in release.files and r not in recorded and r != INSTALLED_RECORD)
-    result.by_hand = sorted(r for r, row in recorded.items() if r in present and _sha256_of(app / r) != row.get("sha256"))
+    result.by_hand = sorted(r for r, row in recorded.items() if r in present and _sha256_of(app, r) != row.get("sha256"))
     return result
 
 

@@ -1,6 +1,8 @@
 """Checking an update file and planning an install (#109, steps 1 and 2): src/clark/updates.py.
 
-Every refusal has a test pinned to its exact sentence. Builds fake downloads in temporary folders; reads only, no network.
+Every refusal has a test pinned to its exact sentence and, where an earlier rule could also refuse the same file, to its
+reason in the log line, so removing any one rule fails a test. Every hostile download is built from a pristine copy in a
+folder of its own. Builds fake downloads in temporary folders; reads only, no network.
 Run: python3 dev/run_tests.py test_updates
 """
 import hashlib
@@ -70,6 +72,14 @@ def make_zip(folder, version="0.3.1", files=None, manifest=None, system=SYSTEM, 
     return path
 
 
+def entry_copy(info):
+    """A new archive entry with the same name, date, maker, mode and compression as `info` (never `info` itself: writing an
+    entry again moves it in the old archive too, which older Pythons then read as overlapping)."""
+    j = zipfile.ZipInfo(info.filename, date_time=info.date_time)
+    j.create_system, j.external_attr, j.compress_type = info.create_system, info.external_attr, info.compress_type
+    return j
+
+
 def real_download(case, schema=2):
     """A download built by package.py itself from a tiny repo (so its manifest is the real one), version 0.3.1."""
     import subprocess
@@ -97,13 +107,23 @@ class Base(unittest.TestCase):
     def read(self, path, installed="0.3.0", schema=2, **kw):
         return updates.read_release(path, SYSTEM, installed, schema, **kw)
 
-    def refuses(self, path, key, sentence=None, **kw):
+    def refuses(self, path, key, sentence=None, detail=None, **kw):
+        """Refused with this kind and its sentence (the stored one when it has no blanks to fill), and, when `detail` is
+        given, for this reason: the log line must start with it, so a case refused by an earlier rule fails here."""
         with self.assertRaises(UpdateError) as said:
             self.read(path, **kw)
         self.assertEqual(key, said.exception.key, said.exception.detail)
+        if sentence is None and "{" not in updates.MESSAGES[key]:
+            sentence = updates.MESSAGES[key]
         if sentence is not None:
             self.assertEqual(sentence, said.exception.message)
+        if detail is not None:
+            self.assertTrue(said.exception.detail.startswith(detail), f"refused for another reason: {said.exception.detail}")
         return said.exception
+
+    def fresh(self):
+        """A new empty folder of its own, so no case ever reads another case's file."""
+        return tempfile.mkdtemp(dir=self.tmp)
 
 
 class GoodFileTest(Base):
@@ -161,25 +181,29 @@ class NameTest(Base):
 
     def test_wrong_system_by_name_and_by_manifest(self):
         path = make_zip(self.tmp, system="windows")
-        self.refuses(path, "system", "This update is for Windows. Download the one for Mac from the clark releases page.")
-        path = make_zip(self.tmp, name="clark-0.3.1-mac.zip", system="linux")
-        self.refuses(path, "system", "This update is for Linux. Download the one for Mac from the clark releases page.")
+        self.refuses(path, "system", "This update is for Windows. Download the one for Mac from the clark releases page.",
+                     detail="the update is for windows")
+        path = make_zip(self.fresh(), name="clark-0.3.1-mac.zip", system="linux")
+        self.refuses(path, "system", "This update is for Linux. Download the one for Mac from the clark releases page.",
+                     detail="the manifest says linux")
 
     def test_not_a_file_a_link_or_missing(self):
         real = make_zip(self.tmp)
         link = Path(self.tmp) / "clark-0.4.0-mac.zip"
         os.symlink(real, link)
-        self.refuses(link, "unreadable")
-        self.refuses(Path(self.tmp) / "clark-0.5.0-mac.zip", "unreadable")
+        self.refuses(link, "unreadable", detail="not a regular file")
+        self.refuses(Path(self.tmp) / "clark-0.5.0-mac.zip", "unreadable", detail="the file can't be found")
         folder = Path(self.tmp) / "clark-0.6.0-mac.zip"
         folder.mkdir()
-        self.refuses(folder, "unreadable")
+        self.refuses(folder, "unreadable", detail="not a regular file")
 
     def test_not_a_zip_and_too_big(self):
         path = Path(self.tmp) / "clark-0.3.1-mac.zip"
         path.write_bytes(b"this is not a zip")
         self.refuses(path, "damaged", "This update file is damaged or has been changed. Download it again.")
-        self.refuses(make_zip(self.tmp, version="0.3.2"), "damaged", max_zip=100)
+        from unittest import mock
+        with mock.patch.object(updates.os, "open", side_effect=AssertionError("opened")):     # refused before it is opened
+            self.refuses(make_zip(self.fresh(), version="0.3.2"), "damaged", max_zip=100, detail="file is ")
 
 
 class ManifestTest(Base):
@@ -197,12 +221,20 @@ class ManifestTest(Base):
                 self.refuses(make_zip(self.tmp, manifest=change), "damaged")
 
     def test_bad_rows(self):
-        for change in (lambda r: r["README.md"].update(sha256="abc"), lambda r: r["README.md"].update(size=-1),
-                       lambda r: r["README.md"].update(mode="600"), lambda r: r.update({"x": "y"})):
-            with self.subTest(change=change):
-                shutil.rmtree(self.tmp)
-                os.mkdir(self.tmp)
-                self.refuses(make_zip(self.tmp, rows=change), "damaged")
+        for label, change, rel in (("sha", lambda r: r["README.md"].update(sha256="abc"), "README.md"),
+                                   ("upper-case sha", lambda r: r["README.md"].update(sha256=r["README.md"]["sha256"].upper()), "README.md"),
+                                   ("negative size", lambda r: r["README.md"].update(size=-1), "README.md"),
+                                   ("size as text", lambda r: r["README.md"].update(size="22"), "README.md"),
+                                   ("size as true", lambda r: r["README.md"].update(size=True), "README.md"),
+                                   ("mode", lambda r: r["README.md"].update(mode="600"), "README.md"),
+                                   ("not a row", lambda r: r.update({"x": "y"}), "x")):
+            with self.subTest(label=label):
+                self.refuses(make_zip(self.fresh(), rows=change), "damaged", detail=f"manifest row for {rel!r} is malformed")
+
+    def test_a_manifest_over_its_cap(self):
+        from unittest import mock
+        with mock.patch.object(updates, "MAX_MANIFEST_BYTES", 100):
+            self.refuses(make_zip(self.tmp), "damaged", detail="clark-release.json is too big")
 
     def test_manifest_not_json(self):
         path = make_zip(self.tmp)
@@ -259,31 +291,46 @@ class MemberTest(Base):
         self.refuses(make_zip(self.tmp, rows=lambda r: r.pop("src/clark/x.py")), "incomplete")
 
     def test_unsafe_paths_one_by_one(self):
+        dots, windows, device = "empty, dot or dot-dot part", "character Windows can't hold", "Windows device name"
         bad = {
-            "dotdot": "src/../../evil.py", "dot": "src/./a.py", "empty part": "src//a.py", "backslash": "src\\a.py",
-            "drive": "C:/evil.py", "colon": "src/a:b.py", "trailing dot": "src/a.py.", "trailing space": "src/a.py ",
-            "reserved": "src/con.txt", "reserved com": "src/COM1", "reserved spaced": "src/nul .x", "reserved sup": "src/LPT\u00b2.txt",
-            "question mark": "src/a?.py", "star": "src/a*.py", "quote": 'src/a".py', "pipe": "src/a|.py", "lt": "src/a<.py",
-            "control": "src/a\x01.py", "delete": "src/a\x7f.py", "long part": "src/" + "a" * 256,
-            "not NFC": "src/clark/e" + "\u0301.py", "absolute": "/etc/passwd",
+            "dotdot": ("src/../../evil.py", dots), "dot": ("src/./a.py", dots), "empty part": ("src//a.py", dots),
+            "backslash": ("src\\a.py", "backslash"), "drive": ("C:/evil.py", "drive letter"), "colon": ("src/a:b.py", windows),
+            "trailing dot": ("src/a.py.", "trailing dot or space"), "trailing space": ("src/a.py ", "trailing dot or space"),
+            "reserved": ("src/con.txt", device), "reserved com": ("src/COM1", device), "reserved spaced": ("src/nul .x", device),
+            "reserved sup": ("src/LPT\u00b2.txt", device), "question mark": ("src/a?.py", windows), "star": ("src/a*.py", windows),
+            "quote": ('src/a".py', windows), "pipe": ("src/a|.py", windows), "lt": ("src/a<.py", windows),
+            "control": ("src/a\x01.py", "control or hidden character"), "DEL character": ("src/a\x7f.py", "control or hidden character"),
+            "long part": ("src/" + "a" * 256, "part longer than 255 characters"),
+            "not NFC": ("src/clark/e" + "\u0301.py", "name is not in Unicode normal form"),
+            "absolute inside the top folder": ("/etc/passwd", "absolute path"),
         }
-        for label, member in bad.items():
+        for label, (member, reason) in bad.items():
             with self.subTest(label=label):
-                shutil.rmtree(self.tmp)
-                os.mkdir(self.tmp)
-                top_member = member if member.startswith("/") else f"clark-0.3.1/{member}"
-                e = self.refuses(make_zip(self.tmp, extra={top_member: b"x"}), "unsafe")
+                e = self.refuses(make_zip(self.fresh(), extra={f"clark-0.3.1/{member}": b"x"}), "unsafe",
+                                 detail=f"{reason}: clark-0.3.1/{member}")
                 self.assertNotIn("zip", e.message.lower())
 
+    def test_the_top_folder_itself_as_a_file_is_an_empty_name(self):
+        self.refuses(make_zip(self.tmp, extra={"clark-0.3.1": b"x"}), "unsafe", detail="empty name: clark-0.3.1")
+
+    def test_an_absolute_member_is_outside_the_top_folder(self):
+        self.refuses(make_zip(self.tmp, extra={"/etc/passwd": b"x"}), "unsafe", detail="member outside the one top folder")
+
     def test_a_member_outside_the_one_top_folder(self):
-        self.refuses(make_zip(self.tmp, extra={"other/evil.py": b"x"}), "unsafe")
+        self.refuses(make_zip(self.tmp, extra={"other/evil.py": b"x"}), "unsafe",
+                     detail="member outside the one top folder: other/evil.py")
 
     def test_path_problem_directly(self):
         self.assertIsNone(updates.path_problem("src/clark/page/page.html"))
         self.assertIsNone(updates.path_problem("vendor/fonts/Inter 400.woff2"))
-        for bad in ("", "a/../b", "/a", "a\\b", "C:x", "a/b:c", "a./b", "a/CON.x/b", "a/\u0663\u0000"):
-            with self.subTest(bad=bad):
-                self.assertIsNotNone(updates.path_problem(bad))
+        for bad, reason in (("", "empty name"), ("a/../b", "empty, dot or dot-dot part"), ("a/./b", "empty, dot or dot-dot part"),
+                            ("a//b", "empty, dot or dot-dot part"), ("/a", "absolute path"), ("a\\b", "backslash"),
+                            ("C:x", "drive letter"), ("a/b:c", "character Windows can't hold"), ("a./b", "trailing dot or space"),
+                            ("a/CON.x/b", "Windows device name"), ("a/\u0663\u0000", "control or hidden character"),
+                            ("a/" + "b" * 256, "part longer than 255 characters"),
+                            ("e\u0301.py", "name is not in Unicode normal form")):
+            with self.subTest(bad=bad[:20]):
+                self.assertEqual(reason, updates.path_problem(bad))
 
     def test_case_and_accent_collisions(self):
         a = "src/clark/Café.py"
@@ -306,60 +353,63 @@ class MemberTest(Base):
         files["src/clark/thing/x.py"] = b"b"
         self.refuses(make_zip(self.tmp, files=files), "unsafe")
 
-    def test_link_member_encrypted_dir_duplicate_and_odd_modes(self):
-        self.refuses(make_zip(self.tmp, modes={"README.md": 0o120777}), "unsafe")
-        for label, modes in (("setuid", {"README.md": 0o104755}), ("group write", {"README.md": 0o100664}),
-                             ("device", {"README.md": 0o060644})):
+    def test_a_link_member_and_odd_modes(self):
+        self.refuses(make_zip(self.tmp, modes={"README.md": 0o120777}), "unsafe", detail="link member clark-0.3.1/README.md")
+        for label, mode in (("setuid", 0o104755), ("group write", 0o100664), ("device", 0o060644)):
             with self.subTest(label=label):
-                shutil.rmtree(self.tmp)
-                os.mkdir(self.tmp)
-                self.refuses(make_zip(self.tmp, modes=modes), "damaged")
+                self.refuses(make_zip(self.fresh(), modes={"README.md": mode}), "damaged",
+                             detail=f"mode {oct(mode)} for clark-0.3.1/README.md")
 
-    def test_dir_duplicate_encrypted_and_non_unix_members(self):
-        base = make_zip(self.tmp)
-
-        def rewrite(change):
-            out = Path(self.tmp) / "clark-0.3.1-mac.zip"
-            data = Path(self.tmp) / "src.zip"
-            shutil.copy(base, data)
-            with zipfile.ZipFile(data) as old, zipfile.ZipFile(out, "w") as new:
-                change(old, new)
-            os.remove(data)
-            return out
-
-        def with_dir(old, new):
-            for i in old.infolist():
-                new.writestr(i, old.read(i))
-            d = zipfile.ZipInfo("clark-0.3.1/src/", date_time=(2000, 1, 1, 0, 0, 0))
-            d.create_system = 3
-            d.external_attr = (0o040755 << 16)
-            new.writestr(d, b"")
-        self.refuses(rewrite(with_dir), "damaged")
-
-        def with_dup(old, new):
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for i in old.infolist():
-                    new.writestr(i, old.read(i))
-                first = old.infolist()[0]
-                new.writestr(first, old.read(first))
-        self.refuses(rewrite(with_dup), "damaged")
-
-        def with_windows_made(old, new):
-            import copy
-            for n, i in enumerate(old.infolist()):
-                j = copy.copy(i)                    # a fresh entry: older Pythons refuse a reused one as overlapping
-                j.create_system = 0 if n == 0 else 3
-                new.writestr(j, old.read(i))
-        self.refuses(rewrite(with_windows_made), "damaged")
-
-        def with_flag(old, new):
-            for n, i in enumerate(old.infolist()):
-                new.writestr(i, old.read(i))
-                if n == 0:
+    def rebuilt(self, change=None, add=(), encrypt=(), compression=None):
+        """A hostile copy of a good download: a pristine download is made in its own folder, every entry is copied into a
+        new archive in another folder of its own as a NEW entry (never a reused one, so no two entries share a place in
+        the file on any Python), `change(n, info)` may alter entry n's copy, `add` appends (info, bytes) pairs and the
+        entries numbered in `encrypt` are marked as encrypted. The pristine download is never written to."""
+        import warnings
+        pristine = make_zip(self.fresh())
+        out = Path(self.fresh()) / pristine.name
+        with zipfile.ZipFile(pristine) as old, zipfile.ZipFile(out, "w") as new, warnings.catch_warnings():
+            # only the one warning a repeated name gives when it is written on purpose; any other warning still shows
+            warnings.filterwarnings("ignore", message="Duplicate name", category=UserWarning)
+            entries = [(entry_copy(i), old.read(i)) for i in old.infolist()] + list(add)
+            for n, (info, data) in enumerate(entries):
+                if change:
+                    change(n, info)
+                if compression is not None:
+                    info.compress_type = compression
+                new.writestr(info, data)
+                if n in encrypt:
                     new.filelist[-1].flag_bits |= 0x1
-        self.refuses(rewrite(with_flag), "damaged")
+        return out
+
+    def test_the_rebuilt_copy_of_a_good_download_still_reads(self):
+        self.assertEqual("0.3.1", self.read(self.rebuilt()).version, "the helper alone breaks nothing")
+
+    def test_a_folder_entry_is_refused(self):
+        folder = zipfile.ZipInfo("clark-0.3.1/src/", date_time=(2000, 1, 1, 0, 0, 0))
+        folder.create_system, folder.external_attr = 3, 0o040755 << 16
+        self.refuses(self.rebuilt(add=[(folder, b"")]), "damaged", detail="folder entry clark-0.3.1/src/")
+
+    def test_a_repeated_name_is_refused(self):
+        with zipfile.ZipFile(make_zip(self.fresh())) as z:
+            first = z.infolist()[0]
+            body = z.read(first)
+        path = self.rebuilt(add=[(entry_copy(first), body)])
+        with zipfile.ZipFile(path) as z:            # a valid archive on every Python: two entries, two places in the file
+            offsets = [i.header_offset for i in z.infolist() if i.filename == first.filename]
+            self.assertEqual(2, len(offsets))
+            self.assertEqual(2, len(set(offsets)))
+            self.assertEqual(body, z.read(z.infolist()[-1]))
+        self.refuses(path, "damaged", detail=f"duplicate member names: {first.filename}")
+
+    def test_an_encrypted_member_is_refused(self):
+        self.refuses(self.rebuilt(encrypt={0}), "damaged", detail="encrypted member ")
+
+    def test_a_member_not_made_on_unix_is_refused(self):
+        def windows_made(n, info):
+            if n == 0:
+                info.create_system = 0
+        self.refuses(self.rebuilt(windows_made), "damaged", detail="not made on Unix: ")
 
     def test_duplicate_names_are_refused_by_our_own_check(self):
         """Newer Pythons also notice overlapping entries, older ones don't: the check must not depend on that."""
@@ -389,9 +439,7 @@ class MemberTest(Base):
 
         def lying(r):
             r["README.md"]["size"] = 2
-        shutil.rmtree(self.tmp)
-        os.mkdir(self.tmp)
-        self.refuses(make_zip(self.tmp, rows=lying), "damaged")
+        self.refuses(make_zip(self.fresh(), rows=lying), "damaged", detail="size of README.md differs from the manifest")
 
     def test_a_bad_hash_size_or_mode_is_damaged(self):
         def flip(files):
@@ -403,6 +451,18 @@ class MemberTest(Base):
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
         self.refuses(make_zip(self.tmp, rows=lambda r: r["README.md"].update(sha256="0" * 64)), "damaged")
+
+    def test_a_member_that_gives_more_than_it_declares_is_stopped(self):
+        import io
+
+        class Lying:
+            def open(self, info):
+                return io.BytesIO(b"x" * (info.file_size + 1))
+        info = zipfile.ZipInfo("clark-0.3.1/README.md")
+        info.file_size = 4
+        with self.assertRaises(UpdateError) as said:
+            updates._read_counted(Lying(), info)
+        self.assertEqual(("damaged", "clark-0.3.1/README.md is bigger than it says"), (said.exception.key, said.exception.detail))
 
     def test_reading_counts_against_the_declared_size(self):
         path = make_zip(self.tmp)
@@ -518,6 +578,7 @@ class AppFolderTest(Base):
         with self.assertRaises(UpdateError) as said:
             updates.check_app_folder(folder)
         self.assertEqual("norecord", said.exception.key)
+        self.assertEqual("no clark-release.json in the app folder", said.exception.detail)
 
     def test_a_link_inside(self):
         folder = self.folder()
@@ -738,6 +799,9 @@ class ChecksumTest(Base):
         with self.assertRaises(UpdateError) as said:
             updates.file_digest(path, size - 1)
         self.assertEqual("damaged", said.exception.key)
+        with self.assertRaises(UpdateError) as said:
+            updates.file_digest(Path(self.tmp) / "gone.zip", 1)
+        self.assertEqual(("unreadable", "the file can't be read"), (said.exception.key, said.exception.detail))
 
 
 class InstalledRecordTest(Base):
@@ -843,7 +907,37 @@ class ReadOnceTest(Base):
             return real_open(p, flags, *a)
         from unittest import mock
         with mock.patch.object(updates.os, "open", link_then_open):
-            self.refuses(path, "unreadable")
+            self.refuses(path, "unreadable", detail="the file can't be opened")
+
+    def test_a_file_that_grows_over_the_cap_after_the_look_is_refused(self):
+        path = make_zip(self.tmp)
+        size = path.stat().st_size
+        real_open = os.open
+
+        def grow_then_open(p, flags, *a):
+            with open(path, "ab") as f:                 # the same file, so it is not a swap
+                f.write(b"x")
+            return real_open(p, flags, *a)
+        from unittest import mock
+        with mock.patch.object(updates.os, "open", grow_then_open):
+            self.refuses(path, "damaged", max_zip=size, detail=f"file is {size + 1} bytes")
+
+    def test_a_file_that_grows_while_it_is_read_is_refused(self):
+        path = make_zip(self.tmp)
+        real_fstat = os.fstat
+
+        class Smaller:
+            def __init__(self, st): self.st = st
+            def __getattr__(self, n): return self.st.st_size - 1 if n == "st_size" else getattr(self.st, n)
+        from unittest import mock
+        with mock.patch.object(updates.os, "fstat", lambda fd: Smaller(real_fstat(fd))):
+            self.refuses(path, "damaged", detail="the file grew while it was being read")
+
+    def test_a_read_error_is_a_plain_refusal(self):
+        path = make_zip(self.tmp)
+        from unittest import mock
+        with mock.patch.object(updates.os, "fstat", side_effect=OSError("gone")):
+            self.refuses(path, "unreadable", detail="the file can't be read")
 
     def test_the_file_is_opened_by_name_once(self):
         path = make_zip(self.tmp)
@@ -961,6 +1055,21 @@ class HostileFileTest(Base):
             e = self.refuses(path, "damaged")
         self.assertIn("more members", e.detail)
 
+    def test_the_64_bit_member_count_is_over_any_limit(self):
+        end = b"PK\x05\x06" + b"\x00" * 6 + b"\xff\xff" + b"\x00" * 10
+        self.assertEqual(10 ** 9, updates.member_count(end))
+        self.assertEqual(7, updates.member_count(end.replace(b"\xff\xff", b"\x07\x00")))
+
+    def test_too_many_members_is_also_refused_by_the_structure_check(self):
+        infos = []
+        for n in range(updates.MAX_MEMBERS + 1):
+            i = zipfile.ZipInfo(f"clark-1.0.0/f{n}")
+            i.create_system, i.external_attr = 3, 0o100644 << 16
+            infos.append(i)
+        with self.assertRaises(UpdateError) as said:
+            updates._check_structure(infos, 10 ** 9)
+        self.assertEqual(f"{updates.MAX_MEMBERS + 1} members, over the limit", said.exception.detail)
+
     def test_a_real_zip_with_too_many_members_is_refused(self):
         path = make_zip(self.tmp, extra={f"clark-0.3.1/x/{n}": b"" for n in range(updates.MAX_MEMBERS + 1)})
         e = self.refuses(path, "damaged")
@@ -1018,7 +1127,7 @@ class HostileFileTest(Base):
         path.write_bytes(b"x")
         with mock.patch.object(updates.os, "open", side_effect=PermissionError("no")):
             with self.assertRaises(UpdateError) as said:
-                updates._sha256_of(path)
+                updates._sha256_of(self.tmp, "f.txt")
         self.assertEqual("folder", said.exception.key)
 
     def test_a_pipe_in_the_folder_is_refused_not_waited_for(self):
@@ -1027,8 +1136,86 @@ class HostileFileTest(Base):
         pipe = Path(self.tmp) / "pipe"
         os.mkfifo(pipe)
         with self.assertRaises(UpdateError) as said:
-            updates._sha256_of(pipe)
+            updates._sha256_of(self.tmp, "pipe")
         self.assertEqual("folder", said.exception.key)
+
+
+class LongVersionTextTest(Base):
+    """A version with a 5000-digit part is refused in plain words wherever it is read, never a traceback or a slow sum."""
+    HUGE = "1" + "0" * 5000
+
+    def test_in_the_files_version(self):
+        self.refuses(make_zip(self.tmp, manifest=lambda d: d.update(version=self.HUGE + ".0.0")), "damaged",
+                     detail="manifest version is not X.Y.Z")
+
+    def test_in_the_files_min_from(self):
+        self.refuses(make_zip(self.tmp, min_from="0.0." + self.HUGE), "damaged", detail="manifest version is not X.Y.Z")
+
+    def test_in_the_installed_version(self):
+        for installed in (self.HUGE + ".0.0", "0.3.0.dev" + self.HUGE, "0.3." + self.HUGE, 10 ** 5000):
+            with self.subTest(installed=type(installed).__name__ + str(len(repr(installed)) if isinstance(installed, str) else "")):
+                self.refuses(make_zip(self.fresh()), "noversion", installed=installed, detail="installed version ")
+
+    def test_in_the_name(self):
+        with self.assertRaises(UpdateError) as said:
+            updates.check_name(f"clark-{self.HUGE}.0.0-mac.zip", SYSTEM, chosen=True)
+        self.assertEqual("name", said.exception.key)
+
+    def test_in_the_installed_record(self):
+        release = self.read(make_zip(self.fresh()))
+        for digits in ("9" * 100, self.HUGE):
+            app = install_to(Path(self.fresh()) / "app", "0.3.0")
+            (app / updates.INSTALLED_RECORD).write_text(
+                '{"product": "clark", "version": "0.3.0", "files": {"README.md": {"size": ' + digits + "}}}", encoding="utf-8")
+            for call in (lambda: updates.check_app_folder(app), lambda: updates.plan(release, app)):
+                with self.subTest(digits=len(digits)), self.assertRaises(UpdateError) as said:
+                    call()
+                self.assertEqual("norecord", said.exception.key)
+                self.assertEqual(updates.MESSAGES["norecord"], said.exception.message)
+
+    def test_directly(self):
+        for text in (self.HUGE + ".0.0", "0.0." + self.HUGE, "0.0.0.dev" + self.HUGE, 10 ** 5000, None):
+            with self.subTest(text=text[:12] if isinstance(text, str) else type(text).__name__):
+                with self.assertRaises(ValueError):
+                    updates.version_key(text)
+                self.assertFalse(updates.is_release_version(text))
+        self.assertEqual((0, 1, 0, 0), updates.version_key("0.1.0.dev123456789"))
+
+
+@unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read anything")
+class UnreadableItemTest(Base):
+    """Something in the clark folder this account can't read: the plain sentence, and no full place on the disk anywhere."""
+
+    def setUp(self):
+        super().setUp()
+        self.app = install_to(Path(self.tmp) / "app", "0.3.0")
+
+    def locked(self, path):
+        os.chmod(path, 0)
+        self.addCleanup(os.chmod, path, 0o755)
+
+    def no_place_shown(self, e):
+        self.assertEqual(updates.MESSAGES["folder"], e.message)
+        for text in (e.message, e.detail, str(e)):
+            self.assertNotIn(str(self.tmp), text)
+            self.assertNotIn(os.path.realpath(self.tmp), text)
+
+    def test_a_file_that_cant_be_read(self):
+        release = self.read(make_zip(self.fresh()))
+        self.locked(self.app / "README.md")
+        with self.assertRaises(UpdateError) as said:
+            updates.plan(release, self.app)
+        self.assertEqual("folder", said.exception.key)
+        self.assertEqual("a file in the app folder can't be read: README.md", said.exception.detail)
+        self.no_place_shown(said.exception)
+
+    def test_a_folder_that_cant_be_listed(self):
+        self.locked(self.app / "vendor")
+        with self.assertRaises(UpdateError) as said:
+            updates.check_app_folder(self.app)
+        self.assertEqual("folder", said.exception.key)
+        self.assertEqual("a folder in the app folder can't be listed: vendor", said.exception.detail)
+        self.no_place_shown(said.exception)
 
 
 class WordsTest(unittest.TestCase):
