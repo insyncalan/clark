@@ -242,16 +242,21 @@ class Words(unittest.TestCase):
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
 
     def test_no_sentence_on_the_page_starts_with_the_product_name(self):
-        """A screen sentence does not start with the product name (the rule set in #170): every string in the page's code, at the
-        start of a string and after a full stop inside one."""
+        """A screen sentence does not start with the product name (the rule set in #170): every string in the page's code, and the
+        words of Help (the page's and the prototype's), at the start of a string and after a full stop inside one."""
         starts = re.compile(r"""(?:[`"'>]|[.!?]\s)\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
-        files = sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx"))
+        headings = ("clark version and updates",)                                   # a heading in Help's list of Settings entries, not a sentence
+        files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
+                 PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
         self.assertTrue(files)
         for f in files:
             for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
                 if line.lstrip().startswith("//"):
                     continue
-                self.assertIsNone(starts.search(line), f"{f.name}:{n}: a sentence starts with the product name")
+                for m in starts.finditer(line):
+                    if line[m.start():].lstrip("`\"'>.!? ").startswith(headings):
+                        continue
+                    self.fail(f"{f.name}:{n}: a sentence starts with the product name")
 
     def test_help_names_no_version_that_may_not_exist(self):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
