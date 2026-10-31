@@ -1,5 +1,5 @@
-// The At a glance controls (Edit only, #45), handed to the page as `tools.glance`: a tile's grip (drag, or Alt with the arrows), its
-// eye (hide it from the published report), a right-click menu for its outline colour, and Project health's pill menu and reason box.
+// The At a glance controls (Edit only, #45), handed to the page as `tools.glance`: a tile itself is dragged (or moved with Alt and the
+// arrows, with the tile focused; no separate grip, as in the prototype), its eye (hide it from the published report), a right-click menu for its outline colour, and Project health's pill menu and reason box.
 // Nothing here is in a published file.
 import { useRef, useState } from "preact/hooks";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
@@ -23,16 +23,15 @@ function target(order, key, x, y) {
   return { before: best.left ? best.key : order[i + 1] || null, mark: { key: best.key, side: best.left ? "left" : "right" } };
 }
 
+// The tile is dragged from anywhere on it except its own controls. A click that ends a drag is swallowed, so the tile does not also open its list.
 function startDrag(e, grip, key, order) {
-  if (e.button !== 0 || order.length < 2) return;
-  e.preventDefault();
+  if (e.button !== 0 || order.length < 2 || (e.target.closest && e.target.closest("[data-tile-eye], textarea, .pillbtn, .tilemenu"))) return;
   const sx = e.clientX, sy = e.clientY;
   let dragging = false, cancelled = false, aim = null;
-  try { grip.setPointerCapture(e.pointerId); } catch (x) { /* a pointer that cannot be captured still drags */ }
-  grip.focus();
   const move = (m) => {
     if (cancelled) return;
     if (!dragging && Math.hypot(m.clientX - sx, m.clientY - sy) < THRESHOLD) return;
+    if (!dragging) { try { grip.setPointerCapture(e.pointerId); } catch (x) { /* a pointer that cannot be captured still drags */ } }
     dragging = true;
     aim = target(order, key, m.clientX, m.clientY);
     dropTile.value = aim ? aim.mark : null;
@@ -44,6 +43,11 @@ function startDrag(e, grip, key, order) {
     grip.removeEventListener("pointerup", end);
     grip.removeEventListener("pointercancel", end);
     dropTile.value = null;
+    if (dragging) {
+      const swallow = (c) => { c.stopPropagation(); c.preventDefault(); };
+      document.addEventListener("click", swallow, true);
+      setTimeout(() => document.removeEventListener("click", swallow, true), 0);
+    }
     if (dragging && !cancelled && u.type === "pointerup" && aim) moveTile(key, aim.before, order, "report");
   };
   document.addEventListener("keydown", esc);
@@ -54,23 +58,19 @@ function startDrag(e, grip, key, order) {
 
 function Cell({ tile, order, children }) {
   const [menu, setMenu] = useState(false);
-  const grip = useRef(null), box = useRef(null);
+  const box = useRef(null);
   const title = TILE_TITLES[tile.key], drop = dropTile.value && dropTile.value.key === tile.key ? ` drop-${dropTile.value.side}` : "";
   const onKey = (e) => {
-    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    if (!e.altKey || e.ctrlKey || e.metaKey || e.target.closest("textarea")) return;
     const dir = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0;
     if (!dir) return;
     e.preventDefault();
     stepOne(tile.key, dir, order);
   };
   return (
-    <div class={`tcell${tile.key === "health" ? " health" : ""}${tile.hidden ? " is-hidden" : ""}${drop}`} data-tile={tile.key} ref={box}
+    <div class={`tcell${tile.key === "health" ? " health" : ""}${tile.hidden ? " is-hidden" : ""}${drop}`} data-tile={tile.key} ref={box} data-tile-drag aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
+      onKeyDown={onKey} onPointerDown={(e) => startDrag(e, box.current, tile.key, order)}
       onContextMenu={(e) => { e.preventDefault(); setMenu(true); }}>
-      <button type="button" class="tgrip" ref={grip} data-edit-only data-tile-grip aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
-        aria-label={`Move ${title}. Press Alt with the left or right arrow, or drag. Right-click for its outline colour.`}
-        onKeyDown={onKey} onPointerDown={(e) => startDrag(e, grip.current, tile.key, order)}>
-        <svg viewBox="0 0 12 18" width="10" height="14" aria-hidden="true" focusable="false"><g fill="currentColor"><circle cx="3" cy="3" r="1.5" /><circle cx="9" cy="3" r="1.5" /><circle cx="3" cy="9" r="1.5" /><circle cx="9" cy="9" r="1.5" /><circle cx="3" cy="15" r="1.5" /><circle cx="9" cy="15" r="1.5" /></g></svg>
-      </button>
       {tile.key === "health" ? null : (
         <button type="button" class="teye" data-edit-only data-tile-eye aria-pressed={tile.hidden ? "true" : "false"}
           aria-label={tile.hidden ? `Show ${title} in the published report` : `Hide ${title} from the published report`}
@@ -81,7 +81,7 @@ function Cell({ tile, order, children }) {
       {children}
       {tile.hidden ? <span class="tag hid thid">Hidden from the published report</span> : null}
       {menu ? (
-        <MenuPanel label={`Outline colour for ${title}`} cls="left tilemenu" anchor={grip.current} onClose={() => setMenu(false)}>
+        <MenuPanel label={`Outline colour for ${title}`} cls="left tilemenu" anchor={box.current} onClose={() => setMenu(false)}>
           <div class="lab" role="presentation">Outline colour</div>
           {OUTLINE_CHOICES.map(([value, name]) => (
             <button key={value || "auto"} type="button" role="menuitemradio" aria-checked={tile.outline === value ? "true" : "false"} tabIndex={-1} data-outline={value || "auto"}

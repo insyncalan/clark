@@ -132,14 +132,17 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .glance .fig.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
 .glance .fig.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 
-.tgrip, .teye { all: unset; box-sizing: border-box; position: absolute; top: 4px; z-index: 2; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
-.tgrip { right: 30px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tcell[data-tile-drag] { touch-action: none; user-select: none; -webkit-user-select: none; }
+.tcell[data-tile-drag] textarea { user-select: text; -webkit-user-select: text; }
+.teye { all: unset; box-sizing: border-box; position: absolute; top: 4px; z-index: 2; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
 .teye { right: 4px; }
 .teye .i { width: 16px; height: 16px; }
-.tgrip:hover, .teye:hover { background: var(--grey-100); color: var(--text); }
-.tgrip:focus-visible, .teye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: var(--grey-100); padding-bottom: 54px; }      
-.thid { position: absolute; left: 12px; bottom: 6px; z-index: 2; }
+.teye:hover { background: var(--grey-100); color: var(--text); }
+.teye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.tcell:has(.teye) .fig .k { padding-right: 26px; }   
+.tcell.is-hidden .fig { padding-bottom: 56px; }   
+.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: var(--grey-100); }   
+.thid { position: absolute; left: 12px; right: 12px; bottom: 8px; width: fit-content; z-index: 2; }
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
 .tilemenu { top: 30px; right: auto; left: 0; }
