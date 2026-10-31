@@ -857,7 +857,7 @@ class OnlyOneRouteWritesIntoTheClientFolder(Base):
 
     def test_every_route_is_listed_and_the_set_is_what_the_issue_expects(self):
         self.assertEqual(sorted(sv.POST_ROUTES), ["/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder",
-                                                  "/api/preview", "/api/profile", "/api/publish", "/api/undo"])     # #111: the two backup routes; #147: preview; #180: profile
+                                                  "/api/draft-email", "/api/draft-email/sent", "/api/preview", "/api/profile", "/api/publish", "/api/undo"])     # #111: the two backup routes; #147: preview; #180: profile
         self.assertEqual(sorted(sv.GET_ROUTES), ["/api/backups", "/api/data", "/api/export", "/api/movement", "/api/profile",
                                                  "/api/projects", "/api/publication", "/api/use-cases"])     # #147: export; #136: movement; #180: profile
 

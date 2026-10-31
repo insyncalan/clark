@@ -1,0 +1,274 @@
+"""#50 item 5: the "I sent it" record (Store.log_email_sent, Store.email_sent_for, schema version 4, provisional). Design:
+docs/handoff/design-50-sent.md. Fictional data only. Run: python3 dev/run_tests.py test_store_email_sent
+
+What is asserted: a version-2 file moves up keeping every row and matches a new database; one press is one row and its item rows in
+one transaction, and each refusal (the project, the mode, no or too many ids, an id that is not this project's work item, a bad or
+far-future day, nobody named, a step open) writes nothing; the tables cannot be updated or deleted; the newest come first; the
+chase counts for the tone come from the record; the email's own words are in no column.
+"""
+import hashlib
+import re
+import sqlite3
+import unittest
+from datetime import date, timedelta
+from pathlib import Path
+
+import _paths  # noqa: F401
+from _demo import DemoStore, USER
+from clark import draft_email as de
+from clark import history
+from clark import store as store_module
+from clark.store import Invalid, open_store
+
+TODAY = date(2026, 10, 28)
+
+
+def fingerprint(path):
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        counts = {t: con.execute(f'SELECT count(*) FROM "{t}"').fetchone()[0] for (t,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall()}
+    finally:
+        con.close()
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest(), counts
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.store = self.demo.store
+        self.a = self.demo.action(description="Share the plan")
+        self.b = self.demo.action(description="Book the room")
+        with self.store.step("dashboard", USER) as st:
+            st.create("projects", {"code": "XYZ", "name": "Other Programme", "health": "On track"})
+            self.other = st.create("actions", {"project": "XYZ", "description": "Elsewhere", "raised": "2026-10-01", "source": "demo"})
+            self.d = st.create("decisions", {"project": "ABC", "decision": "Which phase", "status": "Pending", "needed_by": "2030-01-05", "source": "demo"})
+            self.r = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier slips", "impact": "High",
+                                        "likelihood": "Medium", "raised": "2026-10-01", "source": "demo"})
+
+    def send(self, ids=None, mode="chase", day="2026-10-28", who="Sam Lee", code="ABC"):
+        return self.store.log_email_sent(code, [self.a, self.b] if ids is None else ids, mode, day, who, today=TODAY)
+
+    def refuses(self, words, **kw):
+        before = fingerprint(self.store.path)
+        with self.assertRaises(Invalid) as caught:
+            self.send(**kw)
+        self.assertIn(words, str(caught.exception))
+        self.assertFalse(str(caught.exception).lower().startswith("clark"))
+        self.assertEqual(fingerprint(self.store.path), before, "nothing was written")
+
+
+class Writing(Base):
+    def test_one_press_is_one_row_with_its_items_in_the_order_given_once_each(self):
+        seq = self.send(ids=[self.b, self.a, self.b, "  " + self.d])
+        (row,) = self.store.email_sent_for("ABC")
+        self.assertEqual((row["seq"], row["day"], row["mode"], row["by_user"], row["ids"]), (seq, "2026-10-28", "chase", "Sam Lee", sorted({self.a, self.b, self.d})))
+        self.assertRegex(row["at"], r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$")
+
+    def test_a_risk_a_decision_and_an_action_are_all_work_items(self):
+        self.send(ids=[self.a, self.r, self.d], mode="update_request")
+        self.assertEqual(len(self.store.email_sent_for("ABC")[0]["ids"]), 3)
+
+    def test_two_presses_are_two_rows_newest_first(self):
+        first = self.send(mode="chase")
+        second = self.send(mode="decision", ids=[self.d])
+        got = self.store.email_sent_for("ABC")
+        self.assertEqual([r["seq"] for r in got], [second, first])
+        self.assertEqual(self.store.email_sent_for("ABC", limit=1)[0]["seq"], second)
+        self.assertEqual(self.store.email_sent_for("XYZ"), [])
+
+    def test_no_step_and_no_change_log_and_no_undo(self):
+        steps = self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+        log = self.store.con.execute("SELECT count(*) FROM change_log").fetchone()[0]
+        self.send()
+        self.assertEqual((self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0],
+                          self.store.con.execute("SELECT count(*) FROM change_log").fetchone()[0]), (steps, log))
+
+    def test_the_day_may_be_one_day_ahead_and_not_more(self):
+        self.send(day=str(TODAY + timedelta(days=1)))
+        self.refuses("can't be in the future", day=str(TODAY + timedelta(days=2)))
+
+    def test_a_chase_stepped_three_times_makes_the_tone_firmer(self):
+        for n in range(3):
+            self.send(day=f"2026-10-2{n + 1}")
+        self.send(mode="update_request")
+        counts = de.chase_counts([dict(kind=de.SENT_KIND, ids=r["ids"], date=r["day"], mode=r["mode"]) for r in self.store.email_sent_for("ABC")])
+        self.assertEqual(counts[self.a]["n"], 3, "an update request does not count")
+        self.assertEqual(de.tone_for([self.a], counts), 2)
+        self.assertEqual(counts[self.a]["last"], "2026-10-23")
+
+
+class InTheHistory(Base):
+    def rows(self, kind="all", item=None):
+        con = sqlite3.connect(f"file:{self.store.path}?mode=ro", uri=True)
+        con.row_factory = sqlite3.Row
+        try:
+            return (history.rows_for_item(con, item, kind) if item else history.rows_for_project(con, "ABC", kind))
+        finally:
+            con.close()
+
+    def test_a_sent_record_is_a_row_in_all_and_in_neither_changes_nor_comments(self):
+        self.send(ids=[self.a, self.d], mode="chase", day="2026-10-27")
+        mine = [r for r in self.rows() if r["kind"] == "Email sent"]
+        (row,) = mine
+        self.assertEqual((row["who"], row["how"], row["field"], row["table"]), ("Sam Lee", "in the Draft email", "Email sent", "email_sent"))
+        self.assertEqual(row["to"], f"Emailed 27-10-2026 (chasing) about {self.a}, {self.d}")
+        self.assertEqual([i["id"] for i in row["items"]], sorted([self.a, self.d]))
+        self.assertFalse([r for r in self.rows("changes") if r["kind"] == "Email sent"])
+        self.assertFalse([r for r in self.rows("comments") if r["kind"] == "Email sent"])
+
+    def test_it_shows_on_each_item_it_asked_about_and_not_on_another(self):
+        self.send(ids=[self.a], mode="update_request")
+        self.assertEqual(len([r for r in self.rows(item=self.a) if r["kind"] == "Email sent"]), 1)
+        self.assertEqual([r for r in self.rows(item=self.b) if r["kind"] == "Email sent"], [])
+
+    def test_a_restart_keeps_it(self):
+        self.send()
+        path = self.store.path
+        self.store.close()
+        again = open_store(path, onedrive_roots=[])
+        self.addCleanup(again.close)
+        self.assertEqual(len(again.email_sent_for("ABC")), 1)
+        self.store = again
+        self.assertEqual(len([r for r in self.rows() if r["kind"] == "Email sent"]), 1)
+
+
+class Refusals(Base):
+    def test_each_refusal_writes_nothing_and_says_what_to_do(self):
+        self.refuses("who pressed it", who="  ")
+        self.refuses("who pressed it", who=None)
+        self.refuses("isn't one clark records", mode="reminder")
+        self.refuses("Tick at least one item", ids=[])
+        self.refuses("Tick at least one item", ids=["  ", ""])
+        self.refuses("Tick at least one item", ids="ABC-A-001")
+        self.refuses("Tick at least one item", ids=[1, 2])
+        self.refuses("At most 50 items", ids=[f"ABC-A-{n:03d}" for n in range(1, 52)])
+        self.refuses("not in this project", ids=[self.a, self.other])
+        self.refuses("not in this project", ids=["ABC-A-999"])
+        self.refuses("not in this project", ids=["ABC-M-001"])
+        self.refuses("must be a real date", day="2026-02-30")
+        self.refuses("must be a real date", day="20261028")
+        self.refuses("must be a real date", day="28-10-2026")
+        self.refuses("There is no project", code="QQQ")
+
+    def test_an_archived_project_is_refused(self):
+        with self.store.step("dashboard", USER) as st:
+            st.archive("projects", "ABC")
+        self.refuses("archived")
+
+    def test_a_step_that_is_open_is_not_broken_into(self):
+        with self.store.step("dashboard", USER):
+            with self.assertRaises(Invalid) as caught:
+                self.send()
+            self.assertIn("middle of a step", str(caught.exception))
+
+    def test_the_email_words_are_in_no_column(self):
+        con = sqlite3.connect(self.store.path)
+        try:
+            names = {r[1] for t in ("email_sent", "email_sent_items") for r in con.execute(f"PRAGMA table_info({t})")}
+        finally:
+            con.close()
+        self.assertEqual(names, {"seq", "project", "at", "day", "mode", "by_user", "item_id"})
+
+
+class Append(Base):
+    def test_neither_table_can_be_updated_or_deleted(self):
+        self.send()
+        con = sqlite3.connect(self.store.path)
+        try:
+            for sql in ("UPDATE email_sent SET mode = 'chase' WHERE seq = 1", "DELETE FROM email_sent WHERE seq = 1",
+                        "UPDATE email_sent_items SET item_id = 'X' WHERE seq = 1", "DELETE FROM email_sent_items WHERE seq = 1"):
+                with self.assertRaises(sqlite3.IntegrityError, msg=sql):
+                    con.execute(sql)
+            self.assertEqual(con.execute("SELECT count(*) FROM email_sent").fetchone()[0], 1)
+        finally:
+            con.close()
+
+    def test_neither_table_can_be_replaced_either(self):
+        """SQLite's REPLACE removes the old row without running a delete trigger: both spellings must be refused, and the record
+        must be exactly as it was."""
+        self.send()
+        con = sqlite3.connect(self.store.path)
+        try:
+            before = [con.execute(f"SELECT * FROM {t} ORDER BY 1, 2" if t == "email_sent_items" else f"SELECT * FROM {t}").fetchall()
+                      for t in ("email_sent", "email_sent_items")]
+            seq, item = before[1][0][0], before[1][0][1]
+            for sql in (f"INSERT OR REPLACE INTO email_sent (seq, project, day, mode, by_user) VALUES ({seq}, 'ABC', '2026-01-01', 'chase', 'x')",
+                        f"REPLACE INTO email_sent (seq, project, day, mode, by_user) VALUES ({seq}, 'ABC', '2026-01-01', 'chase', 'x')",
+                        f"INSERT OR REPLACE INTO email_sent_items (seq, item_id) VALUES ({seq}, '{item}')",
+                        f"REPLACE INTO email_sent_items (seq, item_id) VALUES ({seq}, '{item}')"):
+                with self.assertRaises(sqlite3.IntegrityError, msg=sql):
+                    con.execute(sql)
+            after = [con.execute(f"SELECT * FROM {t} ORDER BY 1, 2" if t == "email_sent_items" else f"SELECT * FROM {t}").fetchall()
+                     for t in ("email_sent", "email_sent_items")]
+            self.assertEqual(after, before)
+        finally:
+            con.close()
+
+    def test_a_fresh_insert_still_works_and_the_migrated_file_refuses_replace_too(self):
+        self.send()
+        self.send()
+        con = sqlite3.connect(self.store.path)
+        try:
+            self.assertEqual(con.execute("SELECT count(*) FROM email_sent").fetchone()[0], 2)
+            names = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'trigger'")}
+            self.assertTrue({"email_sent_no_replace", "email_sent_items_no_replace"} <= names)
+        finally:
+            con.close()
+
+
+class Migration(unittest.TestCase):
+    def test_a_version_2_file_moves_up_keeping_every_row_and_matches_a_new_database(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        demo.action(description="Share the plan")
+        path = demo.store.path
+        demo.store.close()
+        con = sqlite3.connect(path, isolation_level=None)
+        for t in ("email_sent_items", "email_sent"):
+            con.execute(f"DROP TABLE {t}")
+        con.execute("UPDATE meta SET v = '2' WHERE k = 'schema_version'")
+        before = {t: con.execute(f'SELECT * FROM "{t}" ORDER BY 1').fetchall() for (t,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall() if t != "meta"}
+        con.close()
+        s = open_store(path, onedrive_roots=[])
+        self.addCleanup(s.close)
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
+        for t, rows in before.items():
+            self.assertEqual([tuple(r) for r in s.con.execute(f'SELECT * FROM "{t}" ORDER BY 1')], rows, t)
+        self.assertEqual(s.con.execute("SELECT count(*) FROM email_sent").fetchone()[0], 0)
+        fresh = DemoStore()
+        self.addCleanup(fresh.close)
+
+        def shape(p):
+            c = sqlite3.connect(p)
+            try:
+                return sorted((n, re.sub(r"\s+|\"", "", re.sub(r"--[^\n]*", "", sql))) for n, sql in c.execute(
+                    "SELECT name, sql FROM sqlite_master WHERE name LIKE 'email_sent%' AND sql IS NOT NULL"))
+            finally:
+                c.close()
+        self.assertEqual(shape(path), shape(fresh.store.path))
+        self.assertTrue(shape(path))
+
+    def test_the_frozen_statements_match_what_schema_sql_creates_today(self):
+        mine = sqlite3.connect(":memory:")
+        theirs = sqlite3.connect(":memory:")
+        try:
+            mine.execute("CREATE TABLE projects (code TEXT PRIMARY KEY)")
+            for statement in store_module.VERSION_4_DDL:
+                mine.execute(statement)
+            theirs.execute("CREATE TABLE projects (code TEXT PRIMARY KEY)")
+            for statement in store_module._statements(store_module.SCHEMA.read_text(encoding="utf-8")):
+                if "email_sent" in statement:
+                    theirs.execute(statement)
+            q = "SELECT name, sql FROM sqlite_master WHERE name LIKE 'email_sent%' ORDER BY name"
+            clean = lambda rows: [(n, re.sub(r"\s+", "", re.sub(r"--[^\n]*", "", sql))) for n, sql in rows]
+            self.assertEqual(clean(mine.execute(q)), clean(theirs.execute(q)))
+        finally:
+            mine.close()
+            theirs.close()
+
+
+if __name__ == "__main__":
+    unittest.main()
