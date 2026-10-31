@@ -95,6 +95,13 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc li button:hover { color: var(--text); background: var(--grey-100); }
 .toc li button.on { color: var(--heading); font-weight: var(--weight-medium); }
 .toc li button:focus-visible { outline: 2px solid var(--focus); }
+.toc li button span { flex: 1; min-width: 0; }
+.toc li button em { font-style: normal; font-size: var(--size-small); color: var(--text-muted); margin-left: 8px; white-space: nowrap; }
+.toc li button em.hot { color: var(--status-amber-text); font-weight: var(--weight-medium); }
+.toc-lines i.hot:not(.on) { background: var(--status-amber); }
+.toc-top { all: unset; box-sizing: border-box; display: block; width: 100%; margin-top: 6px; padding: 7px 8px; border-top: 1px solid var(--grey-100); font-size: var(--size-small); color: var(--text-muted); cursor: pointer; }
+.toc-top:hover { color: var(--text); }
+.toc-top:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* The project-record picker (FR-16, #67): one panel, never wider than its place. */
 .picker { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(560px, 90vh); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
@@ -774,7 +781,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .setting { margin-top: 16px; }
 .set-head p { margin: 0; }
 .set-nav { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.set-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: 14px; line-height: 20px; cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
+.set-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
 .set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
