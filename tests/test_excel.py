@@ -17,7 +17,7 @@ import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
 from _demo import USER, DemoStore
 from openpyxl import load_workbook
 
-from clark import excel, history
+from clark import excel, history, look
 from clark import excel_import as xi
 from clark import page
 
@@ -491,12 +491,12 @@ class HistorySheetTests(unittest.TestCase):
         self.assertEqual(ws.max_row, 3)
         self.assertEqual(ws["A3"].value, history.EMPTY["all"])
 
-    def test_every_cell_is_arial_text(self):
+    def test_every_cell_is_the_looks_office_font_text(self):
         ws = self.sheet()
         for row in ws.iter_rows():
             for c in row:
                 if c.value is not None:
-                    self.assertEqual(c.font.name, "Arial", c.coordinate)
+                    self.assertEqual(c.font.name, look.office_font(), c.coordinate)
                     self.assertEqual(c.data_type, "s", c.coordinate)
 
     def test_formula_text_is_not_a_formula(self):
