@@ -44,12 +44,17 @@ USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)")
 
 # A picture or font is allowed only if it is well formed for its own extension and ENDS where its format says it ends, so a
 # picture cannot carry an archive or a program after its end. (A comment segment inside it is still read by the content scans.)
+PNG_TEXT_CHUNKS = (b"tEXt", b"zTXt", b"iTXt")     # a picture's own text: it may hold compressed bytes of any kind
+
+
 def _png_ok(d):
     i = 8
     if d[:8] != b"\x89PNG\r\n\x1a\n":
         return False
     while i + 12 <= len(d):
         size, kind = int.from_bytes(d[i:i + 4], "big"), d[i + 4:i + 8]
+        if kind in PNG_TEXT_CHUNKS:               # anything could be hidden in here, so a picture carrying one is refused
+            return False
         i += 12 + size
         if kind == b"IEND":
             return size == 0 and i == len(d)
@@ -109,12 +114,20 @@ def _gif_ok(d):
     return False
 
 
+MAX_PADDING = 3                                   # a format may round its length up; more than this is data, not padding
+
+
+def _ends_at(d, length):
+    """The file ends at `length`, give or take a few zero bytes of padding (which some writers add)."""
+    return length <= len(d) <= length + MAX_PADDING and not d[length:].strip(b"\0")
+
+
 def _webp_ok(d):
-    return d[:4] == b"RIFF" and d[8:12] == b"WEBP" and int.from_bytes(d[4:8], "little") + 8 == len(d)
+    return d[:4] == b"RIFF" and d[8:12] == b"WEBP" and _ends_at(d, int.from_bytes(d[4:8], "little") + 8)
 
 
 def _woff_ok(magic):
-    return lambda d: d[:4] == magic and len(d) >= 12 and int.from_bytes(d[8:12], "big") == len(d)
+    return lambda d: d[:4] == magic and len(d) >= 12 and _ends_at(d, int.from_bytes(d[8:12], "big"))
 
 
 def _ico_ok(d):
@@ -167,7 +180,9 @@ class Scan:
         for e in pp.list_tree(self.repo, self.head, self.env):
             sizes[e.path] = e.size
         self.entries = [pp.Entry(n, mode, sha, sizes.get(path, -1), path) for n, (mode, sha, path) in enumerate(changed, 1)]
-        regular = [e for e in self.entries if e.mode in pp.FILE_MODES]
+        # Only files within the size limit are read. One over it is already refused by the size check below, and reading it
+        # would pull its whole content into memory for nothing.
+        regular = [e for e in self.entries if e.mode in pp.FILE_MODES and 0 <= e.size <= pp.MAX_BYTES]
         data = dict(zip((e.path for e in regular), pp.read_blobs(self.repo, regular, self.env) if regular else []))
         self.blobs = [data.get(e.path, b"") for e in self.entries]
         self.tree = pp.list_tree(self.repo, self.head, self.env)

@@ -35,6 +35,12 @@ def png():
             + _chunk(b"IDAT", zlib.compress(b"\0\0")) + _chunk(b"IEND", b""))
 
 
+def png_with_text(kind=b"tEXt", payload=b"Comment\0hello"):
+    """A well-formed PNG that also carries one of the text chunks, where bytes of any kind can be hidden."""
+    return (b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+            + _chunk(kind, payload) + _chunk(b"IDAT", zlib.compress(b"\0\0")) + _chunk(b"IEND", b""))
+
+
 def jpeg():
     return (b"\xff\xd8" + b"\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
             + b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00" + b"\x12\xff\x00\x34\xff\xd0\x56" + b"\xff\xd9")
@@ -431,6 +437,53 @@ class Scan(unittest.TestCase):
         r.commit("add")
         self.refused(r, "is over 5 MB")
 
+    # --- #211: pictures that could carry other data, and padding that is normal ----------------------------------------
+
+    def test_a_picture_carrying_a_text_chunk_is_refused(self):
+        for kind, payload in ((b"tEXt", b"Comment\0hello"),
+                              (b"zTXt", b"Comment\0\0" + zlib.compress(b"PK\x03\x04 hidden")),
+                              (b"iTXt", b"Comment\0\0\0\0\0hello")):
+            with self.subTest(kind.decode()):
+                r = self.repo()
+                r.write("img/a.png", png_with_text(kind, payload), "wb")
+                r.commit("add")
+                self.refused(r, "not a well-formed one, or has data after its end")
+
+    def test_a_little_padding_at_the_end_of_a_font_or_webp_is_allowed_but_more_is_not(self):
+        for name, make in (("a.webp", webp), ("a.woff", woff), ("a.woff2", lambda: woff(b"wOF2"))):
+            for pad in range(0, 4):
+                with self.subTest("%s pad %d" % (name, pad)):
+                    r = self.repo()
+                    r.write("img/" + name, make() + b"\0" * pad, "wb")
+                    r.commit("add")
+                    rc, out = r.scan()
+                    self.assertEqual(rc, 0, out)
+            with self.subTest("%s pad 4" % name):
+                r = self.repo()
+                r.write("img/" + name, make() + b"\0" * 4, "wb")
+                r.commit("add")
+                self.refused(r, "not a well-formed one, or has data after its end")
+
+    def test_padding_that_is_not_zero_bytes_is_still_refused(self):
+        r = self.repo()
+        r.write("img/a.webp", webp() + b"PK\x03", "wb")
+        r.commit("add")
+        self.refused(r, "not a well-formed one, or has data after its end")
+
+    def test_a_file_over_the_limit_is_refused_without_being_read(self):
+        """#211(e): an over-size file must not be pulled into memory just to be refused."""
+        old, pp.MAX_BYTES = pp.MAX_BYTES, 1000
+        self.addCleanup(setattr, pp, "MAX_BYTES", old)
+        r = self.repo()
+        r.write("docs/big.txt", "a" * 4000)
+        r.commit("add")
+        scan = ci_scan.Scan(r.path, r.base, "HEAD", False)
+        scan.load()
+        big = [(e, d) for e, d in zip(scan.entries, scan.blobs) if e.path == "docs/big.txt"]
+        self.assertEqual(len(big), 1)
+        self.assertEqual(big[0][1], b"", "the over-size file was read into memory before being refused")
+        self.refused(r, "is over 5 MB")
+
     def test_a_scan_that_cannot_run_is_not_a_pass(self):
         r = self.repo()
         out = io.StringIO()
@@ -493,6 +546,12 @@ class Workflow(unittest.TestCase):
         self.assertIs(self.evaluate(expr, event="push"), False)
         self.assertIs(self.evaluate(expr, event="pull_request"), True)
         self.assertRegex(self.text, r"group: scan-\$\{\{ github\.event\.pull_request\.number \|\| github\.sha \}\}")
+
+    def test_the_python_version_is_pinned(self):
+        """#211(c): "3.x" would change the scan's own behaviour on the day a new Python ships."""
+        version = re.search(r'python-version: "([^"]+)"', self.text).group(1)
+        self.assertNotIn("x", version, "pin the version, do not track the newest")
+        self.assertRegex(version, r"^3\.\d+(\.\d+)?$")
 
     def test_the_header_says_what_the_scan_does_not_stop(self):
         head = self.raw.split("\nname: Scan", 1)[0]
