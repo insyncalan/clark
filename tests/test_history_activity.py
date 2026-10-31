@@ -82,6 +82,8 @@ class WordDiffBounds(unittest.TestCase):
         self.assertNotIn("diff_note", small)
 
     def test_a_request_has_a_total_budget(self):
+        """Counted, not timed: the budget is in words (history.DIFF_BUDGET) and the code has no clock to fake, so the
+        words handed to the matcher are counted. Raw speed stays guarded by the wall-clock tests above."""
         a = " ".join("w%d" % i for i in range(150))
         b = " ".join("x%d" % i for i in range(150))             # about 300 tokens a side: compared alone
         budget = [history.DIFF_BUDGET]

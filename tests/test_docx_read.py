@@ -612,21 +612,25 @@ class HostileXml(Refused):
         self.assertEqual(blocks(P("a" * 1_000_000, hidden=True) + P("seen")), [{"kind": "paragraph", "text": "seen"}])
 
     def test_a_giant_paragraph_is_refused_before_it_is_built(self):
-        # Counted, not timed: the work done is the characters the reader accepted into a paragraph and the ones offered to it.
+        """Counted, not timed. The work is the characters offered to the reader and the ones it accepted into a paragraph.
+        A counter is the right form here: the code has no clock to fake, its limit is in characters, and a count does not
+        flake on a slow runner. Raw speed stays guarded by the wall-clock siblings of this test."""
         size = 5_000_000
-        seen = {"offered": 0, "built": 0}
+        seen = {"offered": 0, "accepted": 0, "attempted": 0}
         real_add = docx_read._Body.add
 
         def counting_add(body, s):
             seen["offered"] += len(s)
+            seen["attempted"] = max(seen["attempted"], (body.para["len"] if body.para is not None else 0) + len(s))
             real_add(body, s)                          # raises once the paragraph is over the limit
             if body.para is not None:
-                seen["built"] = max(seen["built"], body.para["len"])
+                seen["accepted"] = max(seen["accepted"], body.para["len"])
 
         data = docx(P("".join(random.Random(7).choices(string.ascii_letters, k=size))))
         with mock.patch.object(docx_read._Body, "add", counting_add):
             self.refused(data, "200,000")
-        self.assertLessEqual(seen["built"], docx_read.MAX_PARAGRAPH)       # nothing was built past the limit
+        self.assertLessEqual(seen["accepted"], docx_read.MAX_PARAGRAPH)    # nothing was built past the limit
+        self.assertGreater(seen["attempted"], docx_read.MAX_PARAGRAPH)     # the refusal was the over-limit piece, so the limit was reached
         self.assertLess(seen["offered"], size)                              # and the rest of the text was never even read
 
 
