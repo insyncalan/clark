@@ -40,6 +40,13 @@ def rd(name, default=""):
         return default
 mode = rd("mode").strip()
 args = sys.argv[1:]
+if mode == "escape" and "--print" in args:        # a helper that leaves the group and holds standard input without reading it
+    import subprocess
+    p = subprocess.Popen([sys.executable, "-B", "-c", "import time; time.sleep(30)"], start_new_session=True,
+                         stdout=subprocess.DEVNULL)
+    with open(os.path.join(here, "escaped.pid"), "w", encoding="utf-8") as f:
+        f.write(str(p.pid))
+    sys.exit(0)
 data = sys.stdin.buffer.read()                    # waits for the end of standard input, as the real command does
 again = sys.stdin.buffer.read()
 with open(os.path.join(here, "calls.jsonl"), "a", encoding="utf-8") as f:
@@ -50,7 +57,7 @@ if args == ["--version"]:
 if args == ["--help"]:
     print(rd("help"))
     sys.exit(0)
-if args == ["auth", "status"]:
+if args == ["--setting-sources", "", "auth", "status"]:
     sys.stdout.write(rd("auth"))
     sys.exit(int(rd("authcode", "0") or "0"))
 tmp = os.environ.get("TMPDIR", "")
@@ -186,6 +193,17 @@ class Arguments(Fake):
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
             "--max-budget-usd", "1.00", "--system-prompt", ask.RULES])
 
+    def test_every_flag_the_run_uses_is_checked_in_the_help_except_the_documented_unlisted_one(self):
+        used = {a for a in ac.arguments("/x/claude")[1:] if a.startswith("--") and a != ask.RULES}
+        self.assertEqual(used, set(ac.NEEDED_FLAGS) | {"--max-turns"})
+        self.assertEqual(ac.UNLISTED_FLAGS, ("--max-turns",))
+        self.assertNotIn("--max-turns", ac.NEEDED_FLAGS, "a version whose --help leaves it out is still usable")
+
+    def test_the_sign_in_check_reads_no_settings_file(self):
+        self.assertEqual(ac.AUTH_ARGS, ("--setting-sources", "", "auth", "status"))
+        self.provider.status()
+        self.assertIn(["--setting-sources", "", "auth", "status"], [c["args"] for c in self.calls()])
+
     def test_the_run_is_started_with_the_isolating_flags_and_the_request_on_standard_input(self):
         req = self.request()
         self.assertEqual(self.provider.ask(req), ANSWER)
@@ -265,7 +283,7 @@ class Environment(Fake):
         with mock.patch.dict(os.environ, self.CANARIES):
             self.assertTrue(self.make(env=None).status()["connected"])
         calls = self.calls()
-        self.assertEqual([c["args"] for c in calls], [["--version"], ["--help"], ["auth", "status"]])
+        self.assertEqual([c["args"] for c in calls], [["--version"], ["--help"], ["--setting-sources", "", "auth", "status"]])
         for call in calls:
             self.assertFalse({k for k, v in self.CANARIES.items() if call["env"].get(k) == v}, call["args"])
 
@@ -378,6 +396,15 @@ class FoundAndChecked(Fake):
             self.assertEqual(provider.ask(self.request()), ask.Failure(ac.CANT_USE), flag)
             self.assertIsNone(self.seen(), f"nothing was sent without {flag}")
 
+    def test_a_flag_named_only_in_another_options_description_does_not_count(self):
+        help_text = "\n".join(f"  {f} <x>   something" for f in ac.NEEDED_FLAGS if f != "--safe-mode")
+        help_text += "\n  --troubleshoot   like --safe-mode, but louder"
+        self.put("help", help_text)
+        self.assertFalse(self.make().status()["connected"])
+        self.assertEqual(ac.listed_flags("  -p, --print   Print\n  --allowed-tools, --allowedTools <t...>  Tools: --tools\n"
+                                         "Use --safe-mode to troubleshoot\n  --max-budget-usd=<n>  cap"),
+                         {"-p", "--print", "--allowed-tools", "--allowedTools", "--max-budget-usd"})
+
     def test_a_flag_named_only_inside_a_longer_one_does_not_count(self):
         self.put("help", HELP.replace("--safe-mode ", "--safe-modes ").replace("--tools ", "--toolset "))
         self.assertEqual(self.provider.status()["connected"], False)
@@ -473,6 +500,32 @@ class NativeProgram(Fake):
         broken.symlink_to(self.d / "gone")
         self.assertEqual(ac.find_command((str(broken), str(good)), roots=(str(self.d),)), (None, ac.NOT_NATIVE))
 
+    def test_a_folder_further_up_that_others_can_change_is_refused_unless_it_is_sticky(self):
+        up = self.d / "up"
+        path = self.program(folder=up / "inner")
+        self.assertEqual(self.found(path), (path, None))
+        up.chmod(0o777)
+        self.addCleanup(up.chmod, 0o755)
+        self.assertEqual(self.found(path), (None, ac.NOT_NATIVE), "anyone could rename the folder and put another program there")
+        up.chmod(0o1777)
+        self.assertEqual(self.found(path), (path, None), "a sticky folder lets others add names, never move ours")
+        up.chmod(0o775)
+        self.assertEqual(self.found(path), (None, ac.NOT_NATIVE))
+
+    def test_a_folder_further_up_owned_by_someone_else_is_refused(self):
+        path = self.program(folder=self.d / "up2" / "inner")
+        real_stat = os.stat
+        other = self.d / "up2"
+
+        def stat_as_someone_else(p, *a, **k):
+            st = real_stat(p, *a, **k)
+            if str(p) == str(other):
+                return os.stat_result((st.st_mode, st.st_ino, st.st_dev, st.st_nlink, os.getuid() + 1, st.st_gid, st.st_size,
+                                       st.st_atime, st.st_mtime, st.st_ctime))
+            return st
+        with mock.patch.object(ac.os, "stat", side_effect=stat_as_someone_else):
+            self.assertEqual(self.found(path), (None, ac.NOT_NATIVE))
+
     def test_the_default_roots_are_the_home_folder_and_homebrews(self):
         roots = ac.roots_for()
         self.assertEqual(roots[0], str(Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()))
@@ -515,6 +568,20 @@ class SignIn(Fake):
             self.put("auth", text)
             self.assertEqual(self.provider.ask(self.request()), ask.Failure(ac.CANT_USE), text[:30])
         self.assertIsNone(self.seen())
+
+    def test_one_sign_in_check_for_each_question(self):
+        self.assertEqual(ask.ask_provider(self.provider, self.request(), codes=("ABC",)).answer, "The plan is on track.")
+        auth = [c for c in self.calls() if c["args"][-2:] == ["auth", "status"]]
+        self.assertEqual(len(auth), 1, "status() before the question and the question itself share one check")
+        self.assertEqual(self.provider.ask(self.request()), ANSWER)
+        auth = [c for c in self.calls() if c["args"][-2:] == ["auth", "status"]]
+        self.assertEqual(len(auth), 2, "a check is used once: the next question asks again")
+
+    def test_a_status_check_older_than_the_reuse_window_is_asked_again(self):
+        self.provider.status()
+        with mock.patch.object(ac, "LOGIN_REUSE", 0.0):
+            self.assertEqual(self.provider.ask(self.request()), ANSWER)
+        self.assertEqual(len([c for c in self.calls() if c["args"][-2:] == ["auth", "status"]]), 2)
 
     def test_the_sign_in_is_asked_before_every_question(self):
         self.assertEqual(self.provider.ask(self.request()), ANSWER)
@@ -623,6 +690,21 @@ class Replies(Fake):
 
 
 class Limits(Fake):
+    def test_a_helper_that_leaves_the_group_and_holds_standard_input_cannot_hold_the_run_up(self):
+        self.mode("escape")
+        provider = self.make(limit=2)
+        out = {}
+        t = threading.Thread(target=lambda: out.setdefault("got", provider.ask(ask.Request(text="x" * 3_000_000, question="q"))),
+                             daemon=True)
+        t.start()
+        t.join(20)
+        pid_file = self.bin / "escaped.pid"
+        if pid_file.exists():
+            pid = int(pid_file.read_text(encoding="utf-8"))
+            self.addCleanup(lambda: os.kill(pid, 9) if alive(pid) else None)
+        self.assertFalse(t.is_alive(), "the run came back although a helper still holds standard input")
+        self.assertIsInstance(out["got"], ask.Failure)
+
     def test_too_slow_is_stopped_with_its_whole_group(self):
         self.mode("slow")
         provider = self.make(limit=1.5)

@@ -11,11 +11,13 @@ fake cannot:
 
  A. Canaries, in a throw-away home folder (never the real ~/.claude): a hook for each event, an `apiKeyHelper`, a settings `env` entry
     (it points the command's temporary folder at a marker folder), a CLAUDE.md that tells the command to say a marker word, and an MCP
-    server in ~/.claude.json, each one leaving a marker if it ever runs. Run once WITHOUT the isolating flags (the control: the markers
-    must appear, or the canaries were never armed and the test says INCONCLUSIVE, never PASS; the settings `env` canary is a NOTE when
-    the control did not arm it, since the apiKeyHelper canary already shows whether the settings file is read), then with the
-    provider's flags: no marker, no marker word in the answer, no new file under the throw-away ~/.claude, and ~/.claude.json byte for
-    byte as it was. The throw-away home has a settings file with an `apiKeyHelper`, so the sign-in check there must refuse.
+    server in ~/.claude.json, each one leaving a marker if it ever runs. Run once WITHOUT the isolating flags (the control). Each
+    canary is then judged on its own: it PASSES only if the control armed that same canary AND the step being judged ran through; a
+    canary the control did not arm, or a step that did not run (a refused command, a run with no answer), is INCONCLUSIVE, never a
+    PASS (the settings `env` canary is a NOTE when the control did not arm it, since the apiKeyHelper canary already shows whether
+    the settings file is read). The steps judged: the provider's version, help and sign-in checks ("checks"), and the provider's
+    own run ("isolated": no marker, no marker word in the answer, no new file under the throw-away ~/.claude, ~/.claude.json byte for
+    byte as it was). The throw-away home has a settings file with an `apiKeyHelper`, so the sign-in check there must refuse.
  B. One real question through `ask_claude.ClaudeCommand` with the person's own sign-in and home: the native-program, version, flag
     and sign-in checks accept the command (so the login is a Claude sign-in, never an API key), it answers, and no file that names
     the run's own folder appears under the real ~/.claude (other new files are listed as a note: another Claude window may have
@@ -50,6 +52,7 @@ CONTROL_LIMIT = 45.0                          # the control only has to start (t
 SETTLE = 2.0                                  # seconds to wait after a run for a helper or server that starts late
 RUN_FOLDER = "clark-ask-"                     # the start of the name of every folder platform.run_stoppable makes for a run
 PASS, FAIL, INCONCLUSIVE, NOTE = "PASS", "FAIL", "INCONCLUSIVE", "NOTE"
+REFUSED = "the provider refused this command, so its own run never started and this shows nothing"
 
 
 def _script(path, marker):
@@ -114,14 +117,21 @@ def clear(marks):
             marker.unlink(missing_ok=True)
 
 
-def judge(add, label, marks, ran_now, ran_control, armed, why_ran):
+def judge(add, label, marks, ran_now, ran_control, step_ran, why_ran, why_not):
+    """One line per canary for one step. A canary that ran is a FAIL. Otherwise it PASSES only when the step ran through and the
+    control armed that same canary: a step that did not run, or a canary the control never armed, shows nothing (INCONCLUSIVE; a
+    NOTE for an optional canary)."""
     for name in sorted(marks):
         if name in ran_now:
             state, words = FAIL, why_ran
-        elif name in OPTIONAL and name not in ran_control:
-            state, words = NOTE, "not armed by the control (the command wrote no temporary file); the apiKeyHelper check covers the settings file"
+        elif not step_ran:
+            state, words = INCONCLUSIVE, why_not
+        elif name not in ran_control:
+            state = NOTE if name in OPTIONAL else INCONCLUSIVE
+            words = ("not armed by the control (the command wrote no temporary file); the apiKeyHelper check covers the settings file"
+                     if name in OPTIONAL else "not armed by the control, so its silence here shows nothing")
         else:
-            state, words = (PASS if armed else INCONCLUSIVE), "no marker"
+            state, words = PASS, "no marker"
         add(f"{label}: {name} did not run", state, words)
 
 
@@ -136,10 +146,10 @@ def smoke(command, real=True):
         marks = plant(home, marks_dir)
         env = ask_claude.child_env(home=str(home))
         status, said, ran = run_control(command, env, marks)
-        armed = bool([m for m in ran if m not in OPTIONAL])
-        add("control: the canaries run when nothing isolates the command", PASS if armed else INCONCLUSIVE,
-            f"markers seen: {', '.join(ran) if ran else 'none'}; the control run ended {status}" + ("" if armed else
-            " (the canaries were never armed, so the isolation checks below prove nothing: sign the command in under this user, or check the planting)"))
+        missing = [m for m in sorted(marks) if m not in ran and m not in OPTIONAL]
+        add("control: the canaries run when nothing isolates the command", PASS if not missing else INCONCLUSIVE,
+            f"markers seen: {', '.join(ran) if ran else 'none'}; the control run ended {status}" + ("" if not missing else
+            f"; not armed: {', '.join(missing)} (their checks below prove nothing: sign the command in under this user, or check the planting)"))
         clear(marks)
         # the baseline is taken AFTER the control, which runs without the flags and so writes what it likes: only the provider is judged
         before = tree(home / ".claude")
@@ -147,28 +157,38 @@ def smoke(command, real=True):
         provider = ask_claude.ClaudeCommand(places=(str(command),), env=env, limit=LIMIT)
         path, why = provider.command()
         refused = provider.login_problem(path) if path is not None else None
-        judge(add, "checks", marks, fired(marks), ran, armed, "THE CANARY RAN during the version, help or sign-in check")
+        judge(add, "checks", marks, fired(marks), ran, path is not None, "THE CANARY RAN during the version, help or sign-in check",
+              "the checks stopped before the sign-in check, so this shows nothing")
         add("the native-program, version and flag checks accept this command", PASS if path else FAIL, "accepted" if path else str(why))
+        started = answered = False
         if path is not None:
             add("the sign-in check refuses a home with no sign-in and an apiKeyHelper", PASS if refused else FAIL,
                 f"refused: {refused}" if refused else "THE CHECK ACCEPTED IT: a question could have used a key")
             clear(marks)
-            # the provider's own run, started although the throw-away home is not signed in, so the canaries get every chance to run
-            got = provider.answer(path, provider.envelope(ask.build_request(QUESTION, []).text))
-            judge(add, "isolated", marks, fired(marks), ran, armed, "THE CANARY RAN: the isolating flags did not stop it")
-            if isinstance(got, str):
+            # the provider's own run (its arguments, environment and folders), started although the sign-in check refused this home,
+            # so the canaries get every chance to run
+            data = provider.envelope(ask.build_request(QUESTION, []).text).encode("utf-8")
+            run_status, out, code = ask_claude.run(ask_claude.arguments(path), data, env, LIMIT, ask_claude.MAX_OUT)
+            got = ask_claude.read_answer(out) if run_status == "ok" else None
+            started, answered = code is not None, got is not None
+            judge(add, "isolated", marks, fired(marks), ran, answered, "THE CANARY RAN: the isolating flags did not stop it",
+                  f"the isolated run ended without an answer ({run_status}), so a canary that runs late may not have had its chance")
+            if answered:
                 add("isolated: the answer is not shaped by the CLAUDE.md canary", PASS if CANARY_WORD not in got else FAIL,
                     f"answered {got.strip()[:60]!r}")
             else:
-                add("isolated: the CLAUDE.md canary could not be tested", NOTE if armed else INCONCLUSIVE,
-                    "no answer under the throw-away home (the command is not signed in there, and the real ~/.claude is never touched), so "
-                    "whether the marker word would have shaped an answer is not shown; the hooks, helper and MCP checks above stand because the "
-                    "control armed them. --safe-mode is documented to switch CLAUDE.md off, and --system-prompt replaces the default prompt"
-                    if armed else "no answer")
+                add("isolated: the CLAUDE.md canary could not be tested", INCONCLUSIVE,
+                    f"no answer under the throw-away home ({run_status}), so whether the marker word would have shaped an answer is not shown")
+        else:
+            judge(add, "isolated", marks, [], ran, False, "", REFUSED)
+            add("isolated: the CLAUDE.md canary could not be tested", INCONCLUSIVE, REFUSED)
         new = sorted(set(tree(home / ".claude")) - set(before))
-        add("isolated: no new file under the throw-away ~/.claude", PASS if not new else FAIL, "none" if not new else "new: " + ", ".join(new))
         same = hashlib.sha256((home / ".claude.json").read_bytes()).hexdigest() == json_hash
-        add("isolated: ~/.claude.json is byte for byte as it was", PASS if same else FAIL, "unchanged" if same else "THE COMMAND REWROTE ~/.claude.json")
+        why_not = REFUSED if path is None else "the isolated run never started, so this shows nothing"
+        add("isolated: no new file under the throw-away ~/.claude", FAIL if new else (PASS if started else INCONCLUSIVE),
+            "new: " + ", ".join(new) if new else ("none" if started else why_not))
+        add("isolated: ~/.claude.json is byte for byte as it was", FAIL if not same else (PASS if started else INCONCLUSIVE),
+            "THE COMMAND REWROTE ~/.claude.json" if not same else ("unchanged" if started else why_not))
     if real:
         provider = ask_claude.ClaudeCommand(places=(str(command),))
         st = provider.status()
@@ -183,7 +203,9 @@ def smoke(command, real=True):
         time.sleep(SETTLE)
         new = sorted(set(tree(claude_dir)) - before)
         ours = [n for n in new if RUN_FOLDER in n]
-        add("real: no file for this run under ~/.claude", PASS if not ours else FAIL, "none" if not ours else "new: " + ", ".join(ours))
+        sent = st["connected"] and isinstance(got, str)
+        add("real: no file for this run under ~/.claude", FAIL if ours else (PASS if sent else INCONCLUSIVE),
+            "new: " + ", ".join(ours) if ours else ("none" if sent else "the question was not answered, so this shows nothing"))
         if new and not ours:
             add("real: other new files under ~/.claude", NOTE, f"{len(new)} (another Claude window may have written them; close it and run again to be sure)")
     else:

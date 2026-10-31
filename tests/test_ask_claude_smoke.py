@@ -51,7 +51,7 @@ if args == ["--version"]:
     print("2.1.0 (fake)"); sys.exit(0)
 if args == ["--help"]:
     print("\\n".join("  " + f for f in %r)); sys.exit(0)
-if args == ["auth", "status"]:
+if args == ["--setting-sources", "", "auth", "status"]:
     if mode == "checkfires":
         canaries(cfg_only=True)
     if mode == "lax":
@@ -140,18 +140,33 @@ class Smoke(unittest.TestCase):
         self.assertEqual(states["isolated: settings-env did not run"], smoke.NOTE, "an unarmed optional canary is a note")
         self.assertNotEqual(smoke.text_report("fake", report).splitlines()[-1], "RESULT: PASS")
 
-    def test_no_answer_under_the_throw_away_home_is_a_note_when_the_canaries_were_armed_and_inconclusive_when_not(self):
+    def test_an_isolated_run_with_no_answer_never_passes_a_canary_check(self):
         path = Path(self.tmp.name) / "claude-silent"
         path.write_text(FAKE.replace('if "json" in args:', 'if "json" in args:\n    sys.exit(1)\nif False:') % ("honours", list(ask_claude.NEEDED_FLAGS)), encoding="utf-8")
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
-        states = {n: s for n, s, _ in smoke.smoke(path, real=False)}
-        self.assertEqual(states["isolated: the CLAUDE.md canary could not be tested"], smoke.NOTE)
-        self.assertEqual(smoke.text_report("fake", smoke.smoke(path, real=False)).splitlines()[-1], "RESULT: PASS")
-        mute = Path(self.tmp.name) / "claude-mute"
-        mute.write_text(FAKE.replace('if "json" in args:', 'if "json" in args:\n    sys.exit(1)\nif False:') % ("quiet", list(ask_claude.NEEDED_FLAGS)), encoding="utf-8")
-        mute.chmod(mute.stat().st_mode | stat.S_IXUSR)
-        quiet = {n: s for n, s, _ in smoke.smoke(mute, real=False)}
-        self.assertEqual(quiet["isolated: the CLAUDE.md canary could not be tested"], smoke.INCONCLUSIVE)
+        report = smoke.smoke(path, real=False)
+        states = {n: s for n, s, _ in report}
+        self.assertEqual(states["checks: apiKeyHelper did not run"], smoke.PASS, "the checks ran through, so they are judged")
+        for name in CANARY_CHECKS:
+            self.assertEqual(states[f"isolated: {name} did not run"], smoke.INCONCLUSIVE, name)
+        self.assertEqual(states["isolated: the CLAUDE.md canary could not be tested"], smoke.INCONCLUSIVE)
+        self.assertEqual(states["isolated: no new file under the throw-away ~/.claude"], smoke.PASS, "the run started and ended")
+        self.assertNotEqual(smoke.text_report("fake", report).splitlines()[-1], "RESULT: PASS")
+
+    def test_each_canary_is_judged_against_its_own_arming(self):
+        path = Path(self.tmp.name) / "claude-partial"
+        path.write_text(FAKE.replace('    subprocess.run([mcp], stdout=subprocess.DEVNULL)',
+                                     '    if mode != "partial":\n        subprocess.run([mcp], stdout=subprocess.DEVNULL)')
+                        .replace('armed = mode in ("honours",', 'armed = mode in ("honours", "partial",') % ("partial", list(ask_claude.NEEDED_FLAGS)),
+                        encoding="utf-8")
+        path.chmod(path.stat().st_mode | stat.S_IXUSR)
+        report = smoke.smoke(path, real=False)
+        states = {n: s for n, s, _ in report}
+        self.assertEqual(states["control: the canaries run when nothing isolates the command"], smoke.INCONCLUSIVE)
+        self.assertEqual(states["isolated: mcp-server did not run"], smoke.INCONCLUSIVE, "never armed, so its silence shows nothing")
+        self.assertEqual(states["checks: mcp-server did not run"], smoke.INCONCLUSIVE)
+        self.assertEqual(states["isolated: apiKeyHelper did not run"], smoke.PASS)
+        self.assertNotEqual(smoke.text_report("fake", report).splitlines()[-1], "RESULT: PASS")
 
     def test_a_command_the_check_refuses_fails_the_check(self):
         path = Path(self.tmp.name) / "claude-old"
@@ -159,6 +174,22 @@ class Smoke(unittest.TestCase):
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
         states = {n: s for n, s, _ in smoke.smoke(path, real=False)}
         self.assertEqual(states["the native-program, version and flag checks accept this command"], smoke.FAIL)
+
+    def test_a_refused_command_never_passes_an_isolated_check(self):
+        for flag in ("--setting-sources", ask_claude.NEEDED_FLAGS[-1]):      # each missing flag is pinned in test_ask_claude
+            path = Path(self.tmp.name) / "claude-short"
+            path.write_text(FAKE % ("honours", [f for f in ask_claude.NEEDED_FLAGS if f != flag]), encoding="utf-8")
+            path.chmod(path.stat().st_mode | stat.S_IXUSR)
+            report = smoke.smoke(path, real=False)
+            states = {n: s for n, s, _ in report}
+            self.assertEqual(states["control: the canaries run when nothing isolates the command"], smoke.PASS, flag)
+            self.assertEqual(states["the native-program, version and flag checks accept this command"], smoke.FAIL, flag)
+            isolated = {n: s for n, s in states.items() if n.startswith("isolated: ")}
+            self.assertEqual(sorted(isolated), sorted([f"isolated: {c} did not run" for c in CANARY_CHECKS] + [
+                "isolated: the CLAUDE.md canary could not be tested", "isolated: no new file under the throw-away ~/.claude",
+                "isolated: ~/.claude.json is byte for byte as it was"]), flag)
+            self.assertEqual(set(isolated.values()), {smoke.INCONCLUSIVE}, flag)
+            self.assertNotEqual(smoke.text_report("fake", report).splitlines()[-1], "RESULT: PASS", flag)
 
     def test_the_canaries_are_planted_in_a_throw_away_home_and_markers_start_absent(self):
         with tempfile.TemporaryDirectory() as tmp:
