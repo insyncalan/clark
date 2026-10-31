@@ -271,7 +271,7 @@ class Modes(Base):
             # (The fallback for a page with no box is tested at the "not claimed" toast below.)
             p.until("!!document.querySelector('[role=dialog]')", "the button opens the Add a section box")
             self.assertEqual(p.js("window.posts.length"), 0, "opening sends nothing")
-            p.js("document.querySelector('[data-place]').click()")
+            p.js("document.querySelector('button[data-place]').click()")
             self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "Add section asks for a plain text section")
             sent = json.loads(p.js("window.posts[0]"))
             self.assertEqual(sent.get("values"), {"type": "text", "title": "New section"})
@@ -1150,8 +1150,8 @@ class Gutter(Base):
             p.edit()
             self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "006 and 007 are a pair")
             p.js("document.querySelector('[data-id=\"ABC-S-006\"] [data-add]').click()")      # the + of the pair's first half
-            p.until("!!document.querySelector('[data-place]') && !document.querySelector('[data-place]').disabled", "the box opened with Text chosen")
-            p.js("document.querySelector('[data-place]').click()")
+            p.until("!!document.querySelector('button[data-place]') && !document.querySelector('button[data-place]').disabled", "the box opened with Text chosen")
+            p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12", "a plain text section was added")
             new = [i for i in p.ids() if i not in IDS][0]
             ids = p.ids()
