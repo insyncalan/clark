@@ -78,6 +78,12 @@ def data_dir(home=None, on=None):
     return Path(home or Path.home()) / "Library" / "Application Support" / "clark"
 
 
+def downloads_dir(home=None, on=None):
+    """The Downloads folder, where a downloaded update is looked for: ~/Downloads on the Mac. Only read, never written."""
+    _only_mac("The Downloads folder", on)
+    return Path(home or Path.home()) / "Downloads"
+
+
 def log_dir(home=None, on=None):
     """Where clark writes its daily log: ~/Library/Logs/clark/ on the Mac (#110). Not created here."""
     _only_mac("The log folder", on)
@@ -237,6 +243,12 @@ FOLDER_SCRIPT = """on run argv
   end if
   return POSIX path of (choose folder with prompt (item 1 of argv))
 end run"""
+OPEN_SCRIPT = """on run argv
+  if (count of argv) > 1 then
+    return POSIX path of (choose file with prompt (item 1 of argv) of type {"zip", "public.zip-archive"} default location (POSIX file (item 2 of argv)))
+  end if
+  return POSIX path of (choose file with prompt (item 1 of argv) of type {"zip", "public.zip-archive"})
+end run"""
 SAVE_SCRIPT = """on run argv
   if (count of argv) > 2 then
     return POSIX path of (choose file name with prompt (item 1 of argv) default name (item 2 of argv) default location (POSIX file (item 3 of argv)))
@@ -249,6 +261,12 @@ def choose_folder(prompt, start=None, run=None, on=None):
     """The system's own folder dialog. The chosen folder, or None if the person cancelled."""
     _only_mac("The folder dialog", on)
     return _dialog(FOLDER_SCRIPT, [prompt] + ([str(start)] if start else []), run, "folder")
+
+
+def choose_file(prompt, start=None, run=None, on=None):
+    """The system's own Open dialog, for one .zip file. The chosen file, or None if the person cancelled."""
+    _only_mac("The Open dialog", on)
+    return _dialog(OPEN_SCRIPT, [prompt] + ([str(start)] if start else []), run, "Open")
 
 
 def choose_save_file(prompt, default_name, start=None, run=None, on=None):
