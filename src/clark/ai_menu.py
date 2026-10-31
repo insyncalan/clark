@@ -301,6 +301,25 @@ def _link_problem(text, original):
     return ""
 
 
+INTERNAL_WORDS = re.compile(r"(?i)\b(?:internal\w*|vip|confidential|restricted|sensitive|health|red|amber|rag)\b|do not share|"
+                            r"not for (?:the )?client")
+CLIENT_MESSAGE = "The suggestion added something a client should not see, so it was not shown. Try again."
+
+
+def _client_problem(text, original):
+    """For a client message: a plain message when the suggestion adds an item ID, internal wording or a name the text didn't have.
+    Blocking, as creaite's client check is (it drops the reply). The caller's store-aware checks come with the page wiring."""
+    ids_o = set(edit_ai.ID_RE.findall(edit_ai.normal(original)))
+    if set(edit_ai.ID_RE.findall(edit_ai.normal(text))) - ids_o:
+        return CLIENT_MESSAGE
+    words = lambda t: {m.group().lower() for m in INTERNAL_WORDS.finditer(edit_ai.normal(t))}      # noqa: E731
+    if words(text) - words(original):
+        return CLIENT_MESSAGE
+    if _caps(text) - _caps(original):
+        return CLIENT_MESSAGE
+    return ""
+
+
 def _fail(message, option=None):
     return {"ok": False, "text": "", "notes": [], "message": message, "option": option}
 
@@ -324,6 +343,13 @@ def check_reply(reply, original, option, place):
         held = {m.group().strip() for m in pattern.finditer(orig_norm)}
         if any(m.group().strip() not in held for m in pattern.finditer(text_norm)):
             return _fail("The suggestion had web code in it, so it was not used. Try again.", option)
+    if place == "client_message":
+        try:
+            problem = _client_problem(text, original)
+        except Exception:  # noqa: BLE001  a check that breaks fails closed
+            return _fail("The suggestion couldn't be checked for a client, so it was not shown.", option)
+        if problem:
+            return _fail(problem, option)
     problem = _link_problem(text, original)
     if problem:
         return _fail(problem, option)

@@ -611,5 +611,49 @@ class LinksAreCheckedToo(unittest.TestCase):
         self.assertTrue(self.check("Alpha: mail [Mia](mailto:mia@example.org) soon.", orig)["ok"])
 
 
+class ClientMessageIsCheckedAndBlocks(unittest.TestCase):
+    """#72 fix round M3: a client message's reply that adds an item, internal wording or a name is not shown (as creaite's
+    client check drops it)."""
+    ORIG = "We will send the plan by 03-11-2026 and confirm the date with you."
+
+    def check(self, rep, original=None, place="client_message"):
+        return am.check_reply(reply(rep), original or self.ORIG, "rewrite", place)
+
+    def test_the_four_leaks_are_not_shown(self):
+        for rep in ("We will send the plan by 03-11-2026. Internally the project is Red because the vendor slipped; Sam Patel is worried.",
+                    "We will send the plan by 03-11-2026. [internal only: budget overrun of 40%]",
+                    "We will send the plan by 03-11-2026, see ABC-R-017.",
+                    "We will send the plan by 03-11-2026 to our VIP contact.",
+                    "We will send the plan by 03-11-2026; the project health is amber.",
+                    "We will send the plan by 03-11-2026; Omar Reid will confirm."):
+            r = self.check(rep)
+            self.assertFalse(r["ok"], rep)
+            self.assertEqual(r["text"], "")
+            self.assertIn("client", r["message"])
+
+    def test_a_clean_rewrite_is_shown(self):
+        r = self.check("We will send you the plan by 03-11-2026 and confirm the date.")
+        self.assertTrue(r["ok"], r)
+
+    def test_wording_the_text_already_held_is_not_blamed_on_the_suggestion(self):
+        orig = "Our internal review ends on 03-11-2026; Mia Hale confirms ABC-A-004."
+        self.assertTrue(self.check("The internal review ends on 03-11-2026; Mia Hale confirms ABC-A-004.", orig)["ok"])
+
+    def test_the_same_reply_in_another_place_is_not_blocked_by_this_rule(self):
+        self.assertTrue(self.check("We will send the plan by 03-11-2026. Internally this is Red.", place="plain")["ok"])
+
+    def test_a_check_that_breaks_fails_closed(self):
+        real = am._client_problem
+        try:
+            def boom(*a):
+                raise RuntimeError("x")
+            am._client_problem = boom
+            r = self.check("We will send you the plan by 03-11-2026 and confirm the date.")
+        finally:
+            am._client_problem = real
+        self.assertFalse(r["ok"])
+        self.assertIn("couldn't be checked", r["message"])
+
+
 if __name__ == "__main__":
     unittest.main()
