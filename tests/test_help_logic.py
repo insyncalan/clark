@@ -28,7 +28,7 @@ SHOWN = """(() => {
   const H = HL, idx = H.buildIndex();
   return { content: H.content, places: H.placeIds(), tabs: Object.fromEntries(H.TABS.map((t) => [t.key, H.tabList(t.key)])),
     index: idx.map((e) => e.id), links: H.linksIn(), keys: H.keysList(false).length, jobs: H.jobs().length,
-    where: { held: H.placeOf("howto-publish-the-report", "reference"), kept: H.placeOf("ref-keys", "start"), heldRef: H.placeOf("ref-peek", "start"), startPart: H.placeOf("start-jobs", "reference") },
+    where: { held: H.placeOf("howto-write-the-weekly-report", "reference"), kept: H.placeOf("ref-keys", "start"), heldRef: H.placeOf("ref-peek", "start"), startPart: H.placeOf("start-jobs", "reference") },
     q: Object.fromEntries(["peek", "publish", "keys", "undo", "sneak", "ask clark"].map((q) => [q, H.search(idx, q).map((x) => x.id)])) };
 })()"""
 
@@ -288,13 +288,17 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        self.assertEqual(s["places"], ["howto-use-the-board", "ref-keys"])
+        sc = shown_content()
+        howto = ["howto-" + t["id"] for t in sc["howto"]["tasks"]]
+        ref = ["ref-" + t["id"] for t in sc["reference"]["sections"]]
+        self.assertEqual(s["places"], howto + ref)
         self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], ["howto-use-the-board"])
-        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], ["ref-keys"])
-        self.assertEqual(s["index"], ["howto-use-the-board", "ref-keys"])
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-keys"], ["work"]))
-        for q in ("peek", "publish", "sneak"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], howto)
+        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], ref)
+        self.assertEqual(s["index"], howto + ref)
+        self.assertEqual(s["jobs"], 0)
+        self.assertTrue(set(s["links"]["inside"]) <= set(howto + ref), "a link inside Help points at a held entry")
+        for q in ("peek", "sneak"):                                 # features the page does not have yet: held words find nothing
             self.assertEqual(s["q"][q], [], q)
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board"])
 

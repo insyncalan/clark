@@ -88,12 +88,12 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["publish-the-report", "find-work-items", "use-the-board", "arrange-the-report", "use-the-tiles", "read-the-milestones"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "at-a-glance", "layouts", "work-items", "status-words", "picker", "milestone-states", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Work items"])
-        self.assertEqual(s["reference"]["groups"], ["Keys and icons"])
+        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
@@ -132,12 +132,12 @@ class AgainstThePage(unittest.TestCase):
             self.assertIn(want, absent)
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
-        # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...); lower this only when a feature lands, never to hide a missing one
-        self.assertGreaterEqual(len(names), 76)
+        # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...); 73 after #82 released the entries whose parts are on the page (their reworded bold names, such as Show all and Automatic, are now on the page); lower this only when a feature lands, never to hide a missing one
+        self.assertGreaterEqual(len(names), 73)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
-        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]"])
+        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Enter]] or [[Space]]", "[[Alt+Left]] [[Alt+Right]]", "[[Enter]] or [[Space]]", "[[Home]] [[End]]"])
 
 
 class NeverDelete(unittest.TestCase):

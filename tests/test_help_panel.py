@@ -8,6 +8,7 @@ tabs, a result opens in place, a link inside Help and a link to a screen, window
 place), and that the published page has no Help. What waits for other items: the profile-menu entry (#64), Publish, Preview and
 ask clark links (drawn as plain words until those exist).
 """
+import json
 import re
 import unittest
 from pathlib import Path
@@ -61,14 +62,14 @@ class Panel(Base):
             self.assertTrue(p.js("!!document.querySelector('#hp-later')"))
             p.js("document.querySelector('#hpTab-howto').click()")
             p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the one task the page can do")
-            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), 1)
+            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), len(shown_content()["howto"]["tasks"]))
             self.assertEqual(p.js("!!document.querySelector('#hp-later')"), False)
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelectorAll('.hp-ref').length > 0", "Reference drew")
             self.assertEqual(p.js("document.querySelectorAll('.hp-ref').length"), len(shown_content()["reference"]["sections"]))
             self.assertEqual(p.js("document.querySelector('#hp-ref-keys .hp-keys tbody').children.length"), len(shown_content()["reference"]["keys"]))
             self.assertEqual(p.js("document.querySelector('#hp-ref-keys .hp-keys').textContent.indexOf('Sneak peek')"), -1)
-            self.assertEqual(p.js("document.querySelector('.hp-idx') && document.querySelectorAll('.hp-idx a').length"), 1)
+            self.assertEqual(p.js("document.querySelector('.hp-idx') && document.querySelectorAll('.hp-idx a').length"), len(shown_content()["reference"]["sections"]))
 
     def test_search_finds_what_is_shown_and_opens_in_place_and_not_what_is_held(self):
         from test_server import chrome
@@ -80,7 +81,7 @@ class Panel(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('#hpRes .hp-resg h3')].map(h => h.textContent)"), ["Reference"])
             p.js("document.querySelector('#hpRes a.hp-r').click()")
             p.until("!document.querySelector('#hpRes') && !!document.querySelector('.hp-found')", "the result opened in place and flashed")
-            for word in ("peek", "publish", "sneak"):
+            for word in ("peek", "sneak"):
                 p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
                 p.type(word)
                 p.until("!!document.querySelector('.hp-none')", f"a held word ({word}) finds nothing")
@@ -94,7 +95,8 @@ class Panel(Base):
             p.until("!!document.querySelector('.hp-idx a')", "the contents list")
             p.js("document.querySelector('.hp-idx a[data-hlink=ref-keys]').click()")
             p.until("!!document.querySelector('#hp-ref-keys.hp-found')", "a contents link opens its place and flashes it")
-            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-peek], [data-hlink=howto-use-the-board], [data-hgo]')"), None)
+            shown = ["howto-" + t["id"] for t in shown_content()["howto"]["tasks"]] + ["ref-" + t["id"] for t in shown_content()["reference"]["sections"]]
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-hlink]')].map(a => a.getAttribute('data-hlink')).filter(h => " + json.dumps(shown) + ".indexOf(h) < 0)"), [], "no link to a held place")
             self.assertTrue(p.js("location.hash.indexOf('#dashboard') === 0"), "the page left is the Dashboard")
 
     def test_focus_goes_back_to_what_had_it_when_help_closes(self):                     # MEDIUM
