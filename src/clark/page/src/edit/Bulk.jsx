@@ -183,7 +183,7 @@ export function installBulk() {
   // typed keeps the browser's own menu.
   document.addEventListener("contextmenu", (e) => {
     const el = focusedItem(e.target);
-    if (!el || view.value !== "work" || fromFile.value || (e.target.closest && e.target.closest("a, input, textarea, select, [contenteditable]"))) return;
+    if (!el || view.value !== "work" || fromFile.value || e.target.isContentEditable || (e.target.closest && e.target.closest("a, input, textarea, select"))) return;
     e.preventDefault();
     const id = el.dataset.id;
     if (!sel.has(id)) sel.click(id, {}, [id]);
