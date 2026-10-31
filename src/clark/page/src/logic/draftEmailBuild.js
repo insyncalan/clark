@@ -17,7 +17,8 @@ export const NO_SENDER = "Add your name in Settings › Profile so it signs the 
 export const NO_SENDER_HERE = "Add your name above so it signs the email.";     // on a published page, which has no Settings (opts.sender_words)
 export const NOTHING_TICKED = "No items are ticked. Tick at least one to draft the email.";
 export const NO_OPEN = "There are no open items to put in an email.";
-const COLOURS = { red: "#B3261E", amber: "#8A5A00", ink: "#1E1F1E", muted: "#5C5D60", head: "#F1F3F4", rule: "#D9D9E0", white: "#FFFFFF" };
+// The same colours as draft_email.COLOURS, which reads them from the look's light tokens; the parity test fails if they drift apart.
+const COLOURS = { red: "#A3301F", amber: "#8A5200", ink: "#0E2430", muted: "#475577", head: "#F3F6FC", rule: "#C4CEE3", white: "#FFFFFF" };
 const FONT = "font-family:Calibri,Arial,sans-serif;font-size:11pt;";
 const OPEN = "I'm pulling together where things stand on the items below.";
 const ASK = "Could you let me know where each one stands, and flag anything that's blocking you or that you need from me?";
