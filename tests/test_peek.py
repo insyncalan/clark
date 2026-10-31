@@ -522,6 +522,20 @@ class Browser(unittest.TestCase):
         self.assertIn("clarkPage", testpage.html())
 
 
+class OpenTime(unittest.TestCase):
+    def test_a_click_opens_the_peek_in_the_same_tick_with_no_delay_timer(self):
+        """The 150 ms open time (#42) without a stopwatch: the path from a click to the open peek holds no timer or frame wait."""
+        base = ROOT / "src/clark/page/src"
+        for name in ("edit/Board.jsx", "stores/report.js", "components/Peek.jsx", "stores/peekState.js"):
+            text = (base / name).read_text(encoding="utf-8")
+            for word in ("setTimeout", "setInterval", "requestAnimationFrame", "debounce"):
+                if name == "edit/Board.jsx":
+                    # the board has other timers; only the open handler is held to this
+                    start = text.index("openPeek(id, \"item\")")
+                    text = text[max(0, start - 400):start + 400]
+                self.assertNotIn(word, text, name)
+
+
 class WidthSource(unittest.TestCase):
     def test_no_peek_file_sizes_the_width_from_window_inner_width(self):
         """A classic scroll bar makes innerWidth wider than the page, so the peek is sized from the client width."""

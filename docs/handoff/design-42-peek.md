@@ -20,3 +20,9 @@ While selecting is on:
 4. With none selected, an open peek stays as it is. Selecting never opens a closed peek.
 
 The rule is one pure function, `peekFollowsSelection(count, peekOpen)` in `src/clark/page/src/peek/follow.js` (exported from `stores/peekState.js`). It answers `"close"`, `"follow"`, `"stay"` or `"none"`, and `tests/test_peek_activity.py` checks it for 0, 1 and 2 selected with the peek open and closed. #195 is not on this branch's base, so nothing calls it yet: whichever of the two branches lands second wires the selection count to it.
+
+## 4. The confirm for a marked reading (not built here)
+- **Built:** the reader confirms on its own list of status words (`CONFIRM_STATUS` in `sneak.py`). The tests mark a reading by using one of those words (for example "cancel it"); nothing marks a reading by where its words came from.
+- **Requirement, not built:** a change whose words came from outside text (a source file or a pasted passage) must show the confirm line and never apply on Enter alone, even when its fields are not on the confirm list. That needs a flag on the reading that the caller sets when the text was not typed by the person.
+- **Why it waits:** the plan puts that rule in #47, where such text arrives, on the same confirm hook. In the peek the words are always typed, so no reading can carry the flag yet. Building the flag here would invent behaviour the plan does not define.
+- **Open question for the owner:** is the source-file marking built in #47 as planned (the default), or does the peek take the flag now? If now, say which sources set it (a source file, a pasted passage, both).
