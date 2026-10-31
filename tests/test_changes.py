@@ -626,6 +626,32 @@ class AddBeside(Api):
         self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[target], 0)
         self.assertEqual([r for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"], [], "no flag is touched")
 
+    def test_a_failure_while_pairing_leaves_nothing_behind(self):
+        """The whole step is one transaction: when the flag cannot be written after the section is made, the section is not left."""
+        target = self.lone()
+        before = self.snapshot()
+        real = store_module.Step.update
+
+        def failing(step, kind, ref, changes_, *more, **kw):
+            if kind == KIND and "beside" in changes_:
+                raise store_module.Invalid("the flag could not be written")
+            return real(step, kind, ref, changes_, *more, **kw)
+
+        with mock.patch.object(store_module.Step, "update", failing):
+            status, body = self.change(self.req("new", values={"title": "Half"}, after=target, beside=1))
+        self.assertEqual((status, body["ok"]), (400, False))
+        self.assertEqual(self.snapshot(), before, "no section, no flag, no history step")
+
+    def test_the_last_section_with_a_stray_flag_can_still_be_paired(self):
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})          # a 1 on the last row: the page ignores it, it is on its own
+        got = self.ok("new", values={"title": "Beside the last"}, after=last, beside=1)
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual((flags[last], flags[got["ref"]]), (1, 0))
+        self.assertEqual(self.ids_now()[-1], got["ref"])
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertNotIn(got["ref"], self.ids_now())
+
     def test_no_other_kind_takes_beside(self):
         for kind in ("actions", "raid", "decisions", "milestones"):
             with self.subTest(kind=kind):
