@@ -17,6 +17,7 @@ from _paths import ROOT
 import _publish_fixture as fx  # noqa: E402
 from clark import page, publish  # noqa: E402
 from test_publish import EMPTY_BRANDING, block, chrome, opened, wait  # noqa: E402
+import test_server  # noqa: E402,F401  (this file drives Chrome through test_publish: it is in the browser tier)
 
 MARKERS = {
     "archived_uc": ("PUB-U-004", "ZQ-ARCHIVED-USECASE"),
