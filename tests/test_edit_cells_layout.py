@@ -27,13 +27,15 @@ MEASURE = r"""(() => {
   const out = [];
   for (const b of document.querySelectorAll('table.items .cell-pick')) {
     const v = b.querySelector('.cell-val') || b, field = b.dataset.cell.split(':').pop();
+    // how far anything inside the value reaches past the value's own box (a pill that runs on into the caret)
+    const spill = (node) => { const r = document.createRange(); r.selectNodeContents(node); const right = Math.max(0, ...[...node.querySelectorAll('*'), node].flatMap((e) => [...e.getClientRects()].map((x) => x.right))); const rr = [...r.getClientRects()].map((x) => x.right); return Math.round(Math.max(right, ...rr) - node.getBoundingClientRect().right); };
     const lines = (node) => { const r = document.createRange(); r.selectNodeContents(node); return new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size; };
     // a word is broken when a single word of the value spans two lines: measure each word on its own
     let broken = 0;
     const walker = document.createTreeWalker(v, NodeFilter.SHOW_TEXT); let n;
     while ((n = walker.nextNode())) { const re = /\S+/g; let m; while ((m = re.exec(n.textContent))) { const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length); if (new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1) broken++; } }
     out.push({ field, text: v.textContent.trim().slice(0, 30), pick: Math.round(b.getBoundingClientRect().height), val: Math.round(v.getBoundingClientRect().height),
-               lines: lines(v), broken, over: b.scrollWidth > b.clientWidth + 1 });
+               lines: lines(v), broken, over: b.scrollWidth > b.clientWidth + 1, spill: spill(v) });
   }
   const pills = [...document.querySelectorAll('table.items td.c-type .tag, table.items td.c-type .pill')].map((p) => ({ text: p.textContent.trim(), h: Math.round(p.getBoundingClientRect().height), broken: (() => { const r = document.createRange(); r.selectNodeContents(p); return new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1; })() }));
   return JSON.stringify({ cells: out, pills, sw: document.documentElement.scrollWidth, vw: innerWidth });
@@ -88,14 +90,17 @@ class Cells(unittest.TestCase):
                         label = f"{where}: {c['field']} '{c['text']}'"
                         self.assertEqual(c["broken"], 0, label + " has a word broken in the middle")
                         self.assertFalse(c["over"], label + " runs outside its box")
+                        self.assertLessEqual(c["spill"], 1, label + " runs past its value box into the caret")
                         self.assertLessEqual(c["pick"] - c["val"], 12, label + ": the caret has a line of its own (the box is taller than the value)")
                         if c["field"] in ("priority", "status"):
                             self.assertLessEqual(c["val"], 30, label + " is not on one line")
+                        if c["field"] == "due":
+                            self.assertLessEqual(c["val"], 48, label + " is taller than the date and its 'In n days' line")
                         if c["field"] == "owner":
                             self.assertLessEqual(c["val"], 56, label + " is taller than two lines of a name")
                     for p in got["pills"]:
                         self.assertFalse(p["broken"], f"{where}: the Type pill '{p['text']}' is broken across lines")
-                    self.assertEqual(got["sw"], got["vw"], where + ": the page does not scroll sideways")
+                    self.assertLessEqual(got["sw"], got["vw"], where + ": the page does not scroll sideways")   # not equal: a page with a scroll bar of its own (Linux) is a little narrower
 
 
 if __name__ == "__main__":
