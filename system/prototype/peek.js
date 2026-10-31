@@ -151,7 +151,7 @@
     const p = C.P(), late = x.type === 'A' && x.due && D.days(x.due) < 0 && C.isOpen(x);
     const st = x.type === 'R' || x.type === 'I' ? `${x.status} · ${{ R: 'Red', A: 'Amber', G: 'Green' }[C.ragOf(x)]}` : x.status;
     const msOpts = C.mssAll().filter(m => !m.archived || m.id === x.ms).map(m => `<option value="${m.id}"${x.ms === m.id ? ' selected' : ''}>${esc(C.msName(m.id))}</option>`).join('');   /* the link to an archived milestone is kept, and says so */
-    const ucOpts = D.S.usecases.filter(u => u.code === x.code).map(u => `<option value="${u.id}"${x.uc === u.id ? ' selected' : ''}>${esc(u.ref || u.id)}: ${esc(u.title.split('\n')[0])}</option>`).join('');
+    const ucOpts = D.S.usecases.filter(u => u.code === x.code && (!u.archived || u.id === x.uc)).map(u => `<option value="${u.id}"${x.uc === u.id ? ' selected' : ''}>${esc(u.ref || u.id)}: ${esc(u.title.split('\n')[0])}</option>`).join('');
     return `${topBar(`<button class="ib" id="pkEye" aria-label="Client-visible: ${x.client ? 'on' : 'off'}" aria-pressed="${x.client}" title="${x.client ? 'Shown to the client' : 'Not shown to the client'}">${C.icon(x.client ? 'eye' : 'eyeoff')}</button>
       <button class="ib" id="pkSneak" aria-label="Sneak peek: change this item in words">${C.icon('sparkle')}</button>${C.isOpen(x) ? `<button class="ib" id="pkMail" aria-label="Draft email (C)" title="Draft email (C)">${C.icon('mail')}</button>` : ''}<button class="ib" id="pkLink" aria-label="Copy link">${C.icon('link')}</button><button class="ib" id="pkMore" aria-label="More">${C.icon('more')}</button>`)}
     <div class="pk-scroll"><div class="pk-inner">
