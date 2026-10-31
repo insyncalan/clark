@@ -241,6 +241,13 @@ class Words(unittest.TestCase):
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
 
+    def test_help_names_no_version_that_may_not_exist(self):
+        """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
+        for path in (PAGE_SRC / "help" / "helpContent.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("**Review X.Y.Z**", text, path.name)
+            self.assertNotRegex(text, r"Review \d+\.\d+\.\d+", path.name)
+
     def test_every_publish_message_a_person_can_see_is_plain_words(self):
         """#43: the publish routes' messages hold no system text slot, no jargon and no request talk."""
         from clark import publish_flow, to_client
