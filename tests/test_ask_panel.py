@@ -181,7 +181,7 @@ class Panel(Base):
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
             p.until("document.querySelector('#ask-off') && document.querySelector('#ask-status').textContent === ''", "the off line")
-            self.assertEqual(p.js("document.querySelector('#ask-off').firstChild.textContent.trim()"), "ask clark is off. Turn it on in Settings.")
+            self.assertEqual(p.js("document.querySelector('#ask-off').firstChild.textContent.trim()"), "Asking is off. Turn it on in Settings.")
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.assertTrue(p.js("document.querySelector('#ask-send').disabled"))
             p.js("document.querySelector('.ask-form').requestSubmit()")
@@ -217,6 +217,20 @@ class Panel(Base):
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
             self.assertEqual(self.stub.count("ask"), 0)
+
+    def test_the_panel_says_where_a_question_goes_and_who_pays(self):
+        """#47a: the connect box says the passages go to Claude and are billed to the signed-in account; off, it says nothing of it."""
+        sent = ("Your question and the passages it needs go to Claude, which Anthropic runs, "
+                "and are billed to the Claude account signed in on this computer.")
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertEqual(p.js("document.querySelector('#ask-sent').textContent"), sent)
+            self.assertEqual(p.js("document.querySelector('#ask-log').getAttribute('role')"), "log", "answers are announced")
+        self.stub.enabled = False
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-off')", "the off line")
+            self.assertEqual(p.js("document.querySelector('#ask-sent')"), None)
 
     def test_the_quip_rotates_and_never_repeats(self):
         self.stub.hold.clear()
@@ -275,14 +289,15 @@ class Words(unittest.TestCase):
             if name.endswith("_LINE") and name not in ("CHECKING_LINE", "READY_LINE", "MODEL_LINE"):
                 self.assertRegex(plain or tpl, r"[.…]$", name)
         said = dict((n, p or t) for n, p, t in lines)
-        self.assertEqual(said["OFF_LINE"], "ask clark is off. Turn it on in Settings.")
+        self.assertEqual(said["OFF_LINE"], "Asking is off. Turn it on in Settings.")
+        self.assertIn("billed to the Claude account", said["SENT_LINE"], "the connect box says who pays (#47a)")
         for name in ("SIGNED_OUT_LINE", "NO_ANSWER_LINE", "NOT_REACHED_LINE", "EMPTY_LINE"):
             self.assertRegex(said[name], r"(Sign in|Wait|Check|Type|then)", f"{name} has a next step")
 
     def test_the_published_page_has_no_panel(self):
         from clark import page
         html = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for needle in ("ask-panel", "/api/ask", "ask clark is off", "Claude is not signed in"):
+        for needle in ("ask-panel", "/api/ask", "billed to the Claude account", "Claude is not signed in"):
             self.assertNotIn(needle, html)
         self.assertIn("ask-panel", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 
