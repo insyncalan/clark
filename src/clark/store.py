@@ -189,6 +189,17 @@ def local_offset():
     return f"{sign}{abs(minutes) // 60:02d}:{abs(minutes) % 60:02d}"
 
 
+OFFSET_RE = r"[+-](?:(?:0[0-9]|1[0-3]):(?:00|15|30|45)|14:00)"     # a real offset (mirrors applies.utc_offset's CHECK); UTC is '+00:00', never 'Z' or '-00:00'
+
+
+def checked_offset(text):
+    """`text` when it is a real offset from UTC ('+HH:MM' or '-HH:MM', at most 14 hours, in quarter hours), else None, which the
+    history shows as "Time zone not recorded": a machine that reports an odd offset never stops a step being written."""
+    if isinstance(text, str) and re.fullmatch(OFFSET_RE, text) and text != "-00:00":
+        return text
+    return None
+
+
 def now():
     """UTC to the millisecond, so steps within one second keep their order (clark: UTC, as datetime('now') in schema.sql)."""
     return clock().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -1723,7 +1734,9 @@ def migrate_to_history(con):
     when it is already done. Inside the caller's transaction; the runner writes the version."""
     if "utc_offset" not in [r[1] for r in con.execute("PRAGMA table_info(applies)")]:
         con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT CHECK (utc_offset IS NULL OR "
-                    "(length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]'))")
+                    "(length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]' AND substr(utc_offset, 2, 2) <= '14' "
+                    "AND substr(utc_offset, 5, 2) IN ('00','15','30','45') AND (substr(utc_offset, 2, 2) < '14' OR substr(utc_offset, 5, 2) = '00') "
+                    "AND utc_offset <> '-00:00'))")
     have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
     if have is not None and not all(w in have[0] for w in VERSION_5_NEW_WORDS):
         seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
@@ -2359,7 +2372,7 @@ class Step:
         """This step's applies row, made the first time something is logged."""
         if self._apply_id is None:
             cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device, utc_offset) VALUES (?, '[]', ?, ?, ?)",
-                                   (now(), self.by_user, self.store.device, local_offset()))
+                                   (now(), self.by_user, self.store.device, checked_offset(local_offset())))
             self._apply_id = cur.lastrowid
         return self._apply_id
 
