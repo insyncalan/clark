@@ -61,11 +61,11 @@ class State(unittest.TestCase):
         excel.prune_hash_records(self.state, "2026-10-28", keep_newest=0)
         self.assertEqual(len(self.sha("ABC")), 1, "the newest is always kept")
 
-    def test_two_records_made_at_the_same_moment_are_cut_the_same_way_every_time(self):
-        for n in range(12):
+    def test_two_records_made_in_the_same_second_are_cut_by_the_order_they_were_saved_in(self):
+        for n in (5, 3, 9, 0, 7, 1, 8, 2, 11, 4, 10, 6):
             excel.save_state(self.state, f"sha256:{n:02d}", record("ABC", "2026-10-27", str(n)))
         excel.prune_hash_records(self.state, "2026-10-28")
-        self.assertEqual(self.sha("ABC"), [f"sha256:{n:02d}" for n in range(2, 12)])
+        self.assertEqual(self.sha("ABC"), [f"sha256:{n:02d}" for n in sorted((9, 0, 7, 1, 8, 2, 11, 4, 10, 6))], "the first two saved are the ones that go")
 
     def test_nothing_is_written_when_nothing_is_cut(self):
         excel.save_state(self.state, "sha256:aa", record("ABC", "2026-10-27"))

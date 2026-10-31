@@ -290,9 +290,10 @@ def load_state(state_path, path):
 
 
 KEEP_NEWEST = 10          # the most bytes-keyed ("sha256:") records kept for one project (#181); the oldest go first
+KEEP_TOTAL = 30           # and the most the state file holds in all, newest first (#181)
 
 
-def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST):
+def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST, live=None, keep_total=KEEP_TOTAL):
     """Remove the bytes-keyed ("sha256:") records exported more than keep_days before `today`, so the state file does not grow for
     ever (each holds a copy of every row). Path-keyed records are left alone. #147. A record is aged by its export date only, on
     purpose: an import never writes to the bytes-keyed record (mark_imported writes under the workbook's path, which is kept),
@@ -300,7 +301,9 @@ def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST)
     by the bytes, with the export in it ("hash", "rows"), under that path, so dropping the bytes-keyed one loses nothing for a
     file that was imported. A file still byte for byte the export, kept unimported for over keep_days, then imports as
     unrecorded: every difference is staged for the person to check, and nothing is lost. #181: also, no project keeps more than
-    `keep_newest` of them (the newest by export time), so the age rule is not the only brake on the file's size."""
+    `keep_newest` of them (the newest by export time), at most `keep_total` stay in all, and, when `live` (a set of project codes) is
+    given, none of a project outside it (an archived or removed one keeps no snapshot at all). The age rule is not the only brake on
+    the file's size; an older export then imports as unrecorded, which stages every difference for checking (fails safe)."""
     state_path = Path(state_path)
     with STATE_LOCK:
         if not state_path.exists():
@@ -308,15 +311,24 @@ def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST)
         whole = json.loads(state_path.read_text(encoding="utf-8"))
         books, cutoff = whole.get("workbooks", {}), str(date.fromisoformat(str(today)[:10]) - timedelta(days=keep_days))
         old = [k for k, v in books.items() if k.startswith("sha256:") and str(v.get("exported_at") or "9")[:10] < cutoff]
-        # #181: and no more than `keep_newest` for any one project, the newest by export time (then by key, so it is the same every time):
-        # a hundred exports of a big project in one day must not make a state file of a hundred copies of every row.
+        # #181: none of a project that is not live; no more than `keep_newest` for any one project; no more than `keep_total` in all.
+        # Newest by export time, then by the order they were saved in (two exports in one second), so the same records go every time: a hundred exports in one day must not make a state
+        # file of a hundred copies of every row.
         left = {}
-        for k, v in books.items():
+        for at, (k, v) in enumerate(books.items()):                  # `at` is the order they were saved in: the tie-break for two in one second
             if k.startswith("sha256:") and k not in old:
-                left.setdefault(str(v.get("project") or ""), []).append((str(v.get("exported_at") or ""), k))
+                if live is not None and v.get("project") not in live:
+                    old.append(k)
+                else:
+                    left.setdefault(str(v.get("project") or ""), []).append((str(v.get("exported_at") or ""), at, k))
+        kept = []
         for mine in left.values():
             mine.sort(reverse=True)
-            old += [k for _, k in mine[max(keep_newest, 1):]]
+            kept += mine[:max(keep_newest, 1)]
+            old += [k for _, _, k in mine[max(keep_newest, 1):]]
+        if keep_total and len(kept) > max(keep_total, 1):
+            kept.sort(reverse=True)
+            old += [k for _, _, k in kept[max(keep_total, 1):]]
         if old:
             for k in old:
                 del books[k]

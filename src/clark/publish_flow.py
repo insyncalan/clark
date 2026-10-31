@@ -454,7 +454,8 @@ class Publisher:
                 data = Path(made).read_bytes()
                 record = excel.load_state(folder / "state.json", made)
                 excel.save_state(here / excel.STATE_FILE, excel.hash_key(record.get("hash") or excel.file_hash(made)), record)
-                excel.prune_hash_records(here / excel.STATE_FILE, self.today())       # records older than 30 days go
+                live = {r["code"] for r in store.read("projects") if not r.get("archived")}
+                excel.prune_hash_records(here / excel.STATE_FILE, self.today(), live=live)       # older than 30 days, over the cap, or an archived project's: gone (#181)
             except (excel.Refused, OSError, ValueError, platform.PlatformError):          # excel.TooBig is a Refused too
                 return 409, self.fail("export_failed")
             return 200, {"name": name, "data": data, "warnings": warnings}
