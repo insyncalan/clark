@@ -8,8 +8,14 @@ Git calls it as: python3 <this clone>/dev/tools/merge_page.py %O %A %B %P   (set
 
 Git has not written the merged sources into the work tree when it calls a driver, so the driver gets them itself: `git merge-tree`
 merges HEAD with the other side in memory, the result is unpacked into a temporary folder and that folder's own build_page.py
-makes the page. It exits 1 (git reports a conflict, %A is left as it was) when the sources conflict, when there is no merge in
-progress it can read (a single merged commit), or when the build fails; nothing is ever half-written to %A.
+makes the page. It exits 1 (git reports a conflict) when the sources conflict, when there is no merge in progress it can read
+(a single merged commit), when the build fails, or on any other error. On EVERY such failure it first writes conflict markers into
+%A (ours, then theirs), because git alone would leave "ours" staged with no markers and the other branch's page would be lost
+without a trace. A good build is written to %A in one piece; a failure never leaves a page that looks merged.
+
+Where it runs from: install_merge_driver.py copies this one file to <git common dir>/clark-merge/ (outside every work tree, so a
+branch without this file cannot break it) with a file SOURCE-COMMIT beside it, and the line "installed from commit ..." is
+printed to stderr every run, so a stale copy shows. It needs only the Python standard library.
 
 TRUST: the rebuild runs the MERGED branch's own dev/tools/build_page.py (and the esbuild.py and src/clark/*.py it imports), with
 your rights, during the merge and before you have read the change. A bad change to those files therefore spreads through the
@@ -29,9 +35,12 @@ from pathlib import Path
 
 def work_tree():
     """The work tree git is merging in: git runs a driver from its top folder, so this is also right in a linked work tree.
-    Falls back to the clone this file is in."""
-    r = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
-    return Path(r.stdout.strip()).resolve() if r.returncode == 0 and r.stdout.strip() else Path(__file__).resolve().parents[2]
+    Falls back to the current folder."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    except OSError:                                # no git on the path: main() reports it as a failure with markers
+        return Path.cwd().resolve()
+    return Path(r.stdout.strip()).resolve() if r.returncode == 0 and r.stdout.strip() else Path.cwd().resolve()
 
 
 ROOT = work_tree()
@@ -83,30 +92,64 @@ def rebuilt(tree, name, into):
     return (Path(into) / "src" / "clark" / "page" / name).read_bytes()
 
 
+def installed_from():
+    """The commit the installer copied this file from (SOURCE-COMMIT beside it), or a plain 'unknown'."""
+    try:
+        return (Path(__file__).resolve().parent / "SOURCE-COMMIT").read_text(encoding="utf-8").strip() or "unknown"
+    except OSError:
+        return "unknown (run in the source tree, not an installed copy)"
+
+
+def write_markers(mine, theirs_file, why):
+    """Leave conflict markers in %A so git and the person see a conflict; never raises."""
+    try:
+        ours = Path(mine).read_bytes()
+        theirs = Path(theirs_file).read_bytes()
+        Path(mine).write_bytes(b"<<<<<<< ours (merge_page.py: " + why.encode("utf-8", "replace") + b")\n" + ours.rstrip(b"\n")
+                               + b"\n=======\n" + theirs.rstrip(b"\n") + b"\n>>>>>>> theirs\n")
+    except Exception as exc:                       # even this must not hide the failure: the message below still says so
+        print(f"merge_page.py: could not write conflict markers: {exc}", file=sys.stderr)
+
+
+def merge(mine, theirs_file, path):
+    """Returns (exit code, reason); a non-zero code means the caller writes markers."""
+    theirs = other_side()
+    tree = merged_tree(theirs) if theirs else None
+    if tree is None:
+        return 1, "the sources conflict, or this is not a merge it can read: resolve them, then run python3 dev/tools/build_page.py"
+    with tempfile.TemporaryDirectory(prefix="clark-merge-page-") as tmp:
+        data = rebuilt(tree, Path(path).name, tmp)
+    if data is None:
+        return 1, "the rebuild failed: resolve this page by running python3 dev/tools/build_page.py after the merge"
+    Path(mine).write_bytes(data)
+    return 0, ""
+
+
 def main(argv):
+    if argv in (["--help"], ["-h"]):
+        print("usage: merge_page.py %O %A %B %P  (a git merge driver; set up by dev/tools/install_merge_driver.py)\n"
+              f"installed from commit {installed_from()}")
+        return 0
+    print(f"merge_page.py: installed from commit {installed_from()}", file=sys.stderr)
     if len(argv) != 4:
         print("usage: merge_page.py %O %A %B %P", file=sys.stderr)
         return 2
     _base, mine, theirs_file, path = argv
     if path not in PAGES:
         print(f"merge_page.py only merges {', '.join(PAGES)}", file=sys.stderr)
+        write_markers(mine, theirs_file, "not a page file")
         return 2
     if os.environ.get(INNER):                      # git called us from our own merge-tree: any answer will do, it is rebuilt
         shutil.copyfile(theirs_file, mine)
         return 0
-    theirs = other_side()
-    tree = merged_tree(theirs) if theirs else None
-    if tree is None:
-        print("merge_page.py: the sources conflict, or this is not a merge it can read: resolve them, then run "
-              "python3 dev/tools/build_page.py", file=sys.stderr)
-        return 1
-    with tempfile.TemporaryDirectory(prefix="clark-merge-page-") as tmp:
-        data = rebuilt(tree, Path(path).name, tmp)
-    if data is None:
-        print("merge_page.py: the rebuild failed: run python3 dev/tools/build_page.py after the merge", file=sys.stderr)
-        return 1
-    Path(mine).write_bytes(data)
-    return 0
+    try:
+        code, why = merge(mine, theirs_file, path)
+    except BaseException as exc:                   # any failure at all must show as a conflict, never as a silent loss
+        code, why = 1, f"unexpected error {type(exc).__name__}: {exc}"
+    if code != 0:
+        print(f"merge_page.py: {why}", file=sys.stderr)
+        write_markers(mine, theirs_file, why)
+    return code
 
 
 if __name__ == "__main__":

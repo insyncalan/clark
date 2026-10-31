@@ -15,9 +15,11 @@ PAGES = ("src/clark/page/page.html", "src/clark/page/page-view.html")
 LEFT_OUT = shutil.ignore_patterns(".git", "tests", "docs", "system", "__pycache__", "openpyxl", "et_xmlfile")
 
 
-def run(cwd, *cmd, check=True):
+def run(cwd, *cmd, check=True, path=None):
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    env.update(HOME=str(cwd), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
+    if path is not None:
+        env["PATH"] = path
+    env.update(PYTHONDONTWRITEBYTECODE="1", HOME=str(cwd), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
                GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
     r = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, encoding="utf-8")
     if check and r.returncode != 0:
@@ -77,6 +79,91 @@ class MergeDriverTests(unittest.TestCase):
         run(self.repo, "git", "checkout", "-q", "one")
         run(self.repo, sys.executable, "dev/tools/install_merge_driver.py")
         self.assertNotEqual(run(self.repo, "git", "merge", "--no-edit", "two", check=False).returncode, 0)
+        self.assert_markers()
+
+    def assert_markers(self):
+        """Every failure leaves conflict markers in both page files that git reports as unmerged; never a silently kept side."""
+        for p in PAGES:
+            text = (self.repo / p).read_text(encoding="utf-8")
+            self.assertIn("<<<<<<< ours", text, p)
+            self.assertIn("\n=======\n", text, p)
+            self.assertIn(">>>>>>> theirs", text, p)
+
+    def installed(self):
+        run(self.repo, sys.executable, "dev/tools/install_merge_driver.py")
+        return self.repo / ".git" / "clark-merge"
+
+    def test_the_installer_copies_the_driver_outside_the_work_tree_and_records_the_commit(self):
+        out = run(self.repo, sys.executable, "dev/tools/install_merge_driver.py")
+        folder = self.repo / ".git" / "clark-merge"
+        self.assertTrue((folder / "merge_page.py").is_file())
+        commit = run(self.repo, "git", "rev-parse", "HEAD").stdout.strip()
+        self.assertTrue((folder / "SOURCE-COMMIT").read_text(encoding="utf-8").startswith(commit))
+        self.assertIn(str(folder), run(self.repo, "git", "config", "merge.clark-page.driver").stdout)
+        self.assertIn("does not update with git pull", out.stdout)
+        shown = run(self.repo, sys.executable, str(folder / "merge_page.py"), "--help").stdout
+        self.assertIn(commit, shown)
+
+    def test_the_driver_prints_the_installed_commit_to_stderr(self):
+        folder = self.installed()
+        r = run(self.repo, sys.executable, str(folder / "merge_page.py"), "a", "b", "c", "README.md", check=False)
+        self.assertIn(run(self.repo, "git", "rev-parse", "HEAD").stdout.strip(), r.stderr)
+
+    def test_the_installer_refuses_when_the_copy_does_not_run(self):
+        broken = Path(self.tmp.name) / "bin"
+        broken.mkdir()
+        fake = broken / "python3"
+        fake.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        fake.chmod(0o755)
+        r = run(self.repo, sys.executable, "dev/tools/install_merge_driver.py", check=False, path=f"{broken}{os.pathsep}{os.environ['PATH']}")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("does not run", r.stderr)
+        self.assertNotEqual(run(self.repo, "git", "config", "--local", "--get", "merge.clark-page.driver", check=False).returncode, 0)
+
+    def test_the_driver_still_works_on_a_branch_without_the_script(self):
+        self.two_branches()
+        self.installed()
+        run(self.repo, "git", "checkout", "-q", "-b", "bare", "one")
+        run(self.repo, "git", "rm", "-q", "dev/tools/merge_page.py", "dev/tools/install_merge_driver.py")
+        run(self.repo, "git", "commit", "-q", "-m", "bare")
+        run(self.repo, "git", "merge", "--no-edit", "two")
+        self.assertEqual(run(self.repo, "git", "status", "--porcelain").stdout, "")
+
+    def test_a_missing_script_leaves_markers(self):
+        self.two_branches()
+        folder = self.installed()
+        (folder / "merge_page.py").unlink()
+        self.assertNotEqual(run(self.repo, "git", "merge", "--no-edit", "two", check=False).returncode, 0)
+        self.assert_markers()
+
+    def test_a_failed_build_leaves_markers(self):
+        self.branch("one", "Icon.jsx", '\nglobalThis.mergeProbeOne = "one";\n')
+        self.branch("two", "Menu.jsx", '\nglobalThis.mergeProbeTwo = "two";\n')
+        add_line(self.repo, "Menu.jsx", "\nthis is not valid ((( code\n")                 # committed without a rebuild
+        run(self.repo, "git", "commit", "-q", "-am", "broken source")
+        run(self.repo, "git", "checkout", "-q", "one")
+        self.installed()
+        self.assertNotEqual(run(self.repo, "git", "merge", "--no-edit", "two", check=False).returncode, 0)
+        self.assert_markers()
+
+    def drive_directly(self, **kw):
+        folder = self.installed()
+        ours, theirs = Path(self.tmp.name) / "ours.html", Path(self.tmp.name) / "theirs.html"
+        ours.write_text("OURS PAGE\n", encoding="utf-8")
+        theirs.write_text("THEIRS PAGE\n", encoding="utf-8")
+        r = run(self.repo, kw.pop("python", sys.executable), str(folder / "merge_page.py"), "base", str(ours), str(theirs), PAGES[0], check=False, **kw)
+        return r, ours.read_text(encoding="utf-8")
+
+    def test_unreadable_merge_state_leaves_markers(self):
+        r, text = self.drive_directly()                     # no merge in progress: no other side to read
+        self.assertEqual(r.returncode, 1)
+        self.assertTrue(text.startswith("<<<<<<< ours") and "OURS PAGE" in text and "THEIRS PAGE" in text and "=======" in text and text.rstrip().endswith(">>>>>>> theirs"), text)
+
+    def test_any_unexpected_error_leaves_markers(self):
+        r, text = self.drive_directly(path=os.devnull)     # git cannot be found: an exception inside the driver
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("<<<<<<< ours", text)
+        self.assertIn("THEIRS PAGE", text)
 
     def test_the_driver_refuses_another_path_and_the_installer_refuses_outside_a_work_tree(self):
         r = run(self.repo, sys.executable, "dev/tools/merge_page.py", "a", "b", "c", "README.md", check=False)
