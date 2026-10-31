@@ -114,24 +114,22 @@ export function besideState(sections, after, template) {
   return { ok: true, next: all[i + 1][0].title };
 }
 
-// The requests to make to add template `id` below section `after` (null: at the end), alone or beside the next section.
-// { ok: true, requests, words } or { ok: false, message }. A request's `id: "$new"` means the section the first one made.
-// Today a template other than the available ones is refused here, in words, before anything is sent.
+// The one request that adds template `id` below section `after` (null: at the end), alone or beside the next section (#149: one
+// change, one Undo). { ok: true, request, words } or { ok: false, message }. Beside names the section it sits beside, so clark
+// can refuse it when the report has changed since the page drew it; clark also clears a flag left on the last section when the
+// new one goes after it. Today a template other than the available ones is refused here, in words, before anything is sent.
 export function plan(sections, id, after, beside = false) {
   const t = find(id);
   if (!t) return { ok: false, message: MESSAGES.unknown };
   if (!available(t)) return { ok: false, message: MESSAGES.later };
   const a = anchor(sections, after);
   if (!a.ok) return a;
+  const request = { op: "new", values: { type: t.type, title: t.title }, after: a.id, place: "report" };
   if (beside) {
     const b = besideState(sections, after, t);
     if (!b.ok) return b;
+    const all = rows(sections);
+    request.beside = all[all.findIndex((r) => r.some((s) => s.id === a.id)) + 1][0].id;
   }
-  const requests = [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, place: "report" }];
-  const all = rows(sections), tail = all.length ? all[all.length - 1] : null;
-  const last = a.id === null ? (tail && tail[tail.length - 1]) : sections.find((s) => s.id === a.id);      // null is "at the end": below the final section
-  const lone = last && all.some((r) => r.length === 1 && r[0].id === last.id);
-  if (!beside && lone && last.beside) requests.push({ op: "update", id: last.id, changes: { beside: 0 }, place: "report" });   // a flag on the last section is ignored by the page; the new section after it would pair with it
-  if (beside) requests.push({ op: "update", id: "$new", changes: { beside: 1 }, place: "report" });
-  return { ok: true, requests, words: `${t.name} added${beside ? ", beside the next section" : ""}.`, template: t };
+  return { ok: true, request, words: `${t.name} added${beside ? ", beside the next section" : ""}.`, template: t };
 }

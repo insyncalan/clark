@@ -64,7 +64,8 @@ CHANGE_KINDS = {
     "report_hidden": {NEW: (), DELETE: (), PICK: ()},
 }
 KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
-                "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)}}
+                "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
+                "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may be made beside the next one, in its own step
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
 TILE_WORDS = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
@@ -385,20 +386,27 @@ def _check_flags(rows, ref, before, flags):
     for other, value in flags.items():
         if other != ref and not (value == 1 and other == above):
             now[other] = value
-    roles, i = {}, 0
-    while i < len(rest_ids):                                        # walk the pairs the way the page does: a 1 on a second half or a last row is ignored
-        if now[rest_ids[i]] == 1 and i + 1 < len(rest_ids):
-            roles[rest_ids[i]], roles[rest_ids[i + 1]] = "first", "second"
-            i += 2
-        else:
-            roles[rest_ids[i]] = "lone"
-            i += 1
+    roles = _roles(rest_ids, now)
     for other, value in flags.items():
         if value == 1 and other != ref:
             if other != above or roles.get(above) != "lone":
                 raise Refused(STALE)
     if flags.get(ref) == 1 and before is not None and roles.get(before) != "lone":
         raise Refused(STALE)                                        # it would sit beside a section that is no longer on its own
+
+
+def _roles(ids, flag):
+    """Each section's part in its row, "first", "second" or "lone", walking the pairs the way the page does: a 1 on a second half
+    or on the last row is ignored. `flag` is id -> beside."""
+    roles, i = {}, 0
+    while i < len(ids):
+        if flag[ids[i]] == 1 and i + 1 < len(ids):
+            roles[ids[i]], roles[ids[i + 1]] = "first", "second"
+            i += 2
+        else:
+            roles[ids[i]] = "lone"
+            i += 1
+    return roles
 
 
 def _flags_to_clear(rows, ref):
@@ -453,6 +461,9 @@ def _do_change(store, by_user, req):
             raise Refused(ONLY_TEXT)
         title = clark_store.section_title(values["title"]) if "title" in values else DEFAULT_TITLE
         after = _id_or_none(req.get("after"), STALE)
+        beside = _id_or_none(req.get("beside"), STALE)             # #149: the section the new one sits beside; None: a row of its own
+        if beside is not None and after is None:
+            raise Refused(INVALID_LAYOUT)                           # at the end there is nothing after it to sit beside
     elif op == UPDATE:
         changes = _checked_changes(_fields(req.get("changes"), kind, op, columns, "the changes"))
         if not changes:
@@ -469,7 +480,7 @@ def _do_change(store, by_user, req):
             rows = _sections(store, project)
         ids = [r["id"] for r in rows]
         if op == NEW:
-            ref = _add(st, project, rows, ids, title, after)
+            ref = _add(st, project, rows, ids, title, after, beside)
         else:
             _mine(ref, ids, NOT_MINE)
             if op == UPDATE:
@@ -1005,20 +1016,40 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
                  "project": {"health": now["health"], "health_reason": now["health_reason"]}}
 
 
-def _add(st, project, rows, ids, title, after):
+def _add(st, project, rows, ids, title, after, beside=None):
     """Make a text section just after section `after` (None: at the end); its id. When no whole number fits between its
-    neighbours, the rows are renumbered in the same step (clark.order)."""
+    neighbours, the rows are renumbered in the same step (clark.order).
+
+    #149: with `beside` (a section id) the new section is made as the first half of a pair with it, in this same step, so one
+    Undo takes away the section and the pairing together. `beside` must be the section just after `after` and on its own: the
+    check is a move's (_check_flags), as if the new section were made at the end and dropped into the half beside it. Else
+    Refused(STALE) before anything is written. Without `beside`, a flag left on the last section (the page ignores it) is
+    cleared in the same step when the new section goes after it, so the two do not become a pair."""
     if after is not None:
         _mine(after, ids, STALE)
+    following = ids[ids.index(after) + 1] if after is not None and ids.index(after) + 1 < len(ids) else None
+    if beside is not None:
+        _mine(beside, ids, STALE)
+        if beside != following:
+            raise Refused(STALE)                                    # not the section the new one lands next to: the page is out of date
+        _check_flags(rows + [{"id": "", "beside": 0}], "", beside, {"": 1})
+    above = after if after is not None else (ids[-1] if ids else None)
+    flag = {r["id"]: r["beside"] for r in rows}
+    stray = above is not None and following is None and flag[above] == 1 and _roles(ids, flag)[above] == "lone"
     end = order.end_slot(rows)
     new_place, renumber = end, {}
     if after is not None and ids.index(after) + 1 < len(ids):
         probe = rows + [{"id": "", "sort_order": end}]              # the new row, at the end, then moved up to its place
         renumber = order.section_slot(probe, "", ids[ids.index(after) + 1])
         new_place = renumber.pop("", end)
-    ref = st.create("report_sections", {"project": project, "type": "text", "title": title, "sort_order": new_place})
+    values = {"project": project, "type": "text", "title": title, "sort_order": new_place}
+    if beside is not None:
+        values["beside"] = 1
+    ref = st.create("report_sections", values)
     for other, place in renumber.items():
         st.update("report_sections", other, {"sort_order": place})
+    if stray:
+        st.update("report_sections", above, {"beside": 0})         # the same step: one Undo puts the flag back with the section gone
     return ref
 
 

@@ -9,6 +9,7 @@ import json
 import unittest
 
 import test_placement as tp
+from _demo import USER
 from _paths import ROOT, SRC
 from test_report_editor import Base, IDS
 from test_server import chrome, wait
@@ -191,36 +192,30 @@ class Logic(unittest.TestCase):
     def test_text_sends_the_new_request_the_store_takes_and_nothing_else(self):
         p = self.t(f"plan({lit(S)}, 'text', 'a', false)")
         self.assertTrue(p["ok"])
-        self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": "a", "place": "report"}])
+        self.assertEqual(p["request"], {"op": "new", "values": {"type": "text", "title": "New section"}, "after": "a", "place": "report"})
+        self.assertNotIn("requests", p, "one request, never a list (#149)")
         self.assertEqual(p["words"], "Text added.")
         end = self.t(f"plan({lit(S)}, 'text', null, false)")
-        self.assertEqual(end["requests"][0]["after"], None)
+        self.assertEqual(end["request"]["after"], None)
         pair = self.t(f"plan({lit(S)}, 'text', 'c', false)")
-        self.assertEqual(pair["requests"][0]["after"], "d", "below the pair's last section")
+        self.assertEqual(pair["request"]["after"], "d", "below the pair's last section")
 
-    def test_beside_is_a_new_then_a_flag_on_what_was_made(self):
+    def test_beside_is_one_new_request_that_names_the_section_it_sits_beside(self):
+        """#149: one request, so one change and one Undo; it names the next section, so clark can refuse a page that is out of date."""
         p = self.t(f"plan({lit(S)}, 'text', 'a', true)")
-        self.assertEqual([r["op"] for r in p["requests"]], ["new", "update"])
-        self.assertEqual(p["requests"][1], {"op": "update", "id": "$new", "changes": {"beside": 1}, "place": "report"})
+        self.assertEqual(p["request"], {"op": "new", "values": {"type": "text", "title": "New section"}, "after": "a", "beside": "b", "place": "report"})
         self.assertEqual(p["words"], "Text added, beside the next section.")
+        self.assertEqual(self.t(f"plan({lit(S)}, 'text', 'c', true)")["request"]["beside"], "e", "below a pair: beside the row after it")
         bad = self.t(f"plan({lit(S)}, 'text', 'b', true)")
         self.assertEqual((bad["ok"], bad["message"]), (False, "The next row already has two sections. Place it on its own row."))
 
-    def test_a_flag_left_on_the_last_section_is_cleared_so_the_new_one_does_not_pair_with_it(self):
+    def test_a_flag_left_on_the_last_section_is_left_to_clark_to_clear_in_the_same_step(self):
+        """#149: the page sends only the new section; clark clears a flag left on the last section in that one step (test_changes)."""
         stale = [sec("a", "Summary"), sec("z", "Last", beside=1)]
-        p = self.t(f"plan({lit(stale)}, 'text', 'z', false)")
-        self.assertEqual(p["requests"][1], {"op": "update", "id": "z", "changes": {"beside": 0}, "place": "report"})
-        self.assertEqual(len(self.t(f"plan({lit(S)}, 'text', 'e', false)")["requests"]), 1, "no flag, nothing to clear")
-
-    def test_at_the_end_a_flag_left_on_the_last_section_is_cleared_too(self):
-        """Adding at the end (after = null): a stale beside flag on the lone last section is cleared, so the new one does not pair with it."""
-        last = [sec("a", "Summary"), sec("b", "Decisions", type="decisions", beside=1)]
-        p = self.t(f"plan({lit(last)}, 'text', null, false)")
-        self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": None, "place": "report"},
-                                         {"op": "update", "id": "b", "changes": {"beside": 0}, "place": "report"}])
-        clean = [sec("a", "Summary"), sec("b", "Decisions", type="decisions")]
-        self.assertEqual(len(self.t(f"plan({lit(clean)}, 'text', null, false)")["requests"]), 1)
-        self.assertEqual(len(self.t("plan([], 'text', null, false)")["requests"]), 1, "an empty report")
+        for after in ("'z'", "null"):
+            p = self.t(f"plan({lit(stale)}, 'text', {after}, false)")
+            self.assertEqual(p["request"], {"op": "new", "values": {"type": "text", "title": "New section"}, "after": "z" if after == "'z'" else None, "place": "report"})
+        self.assertTrue(self.t("plan([], 'text', null, false)")["ok"], "an empty report")
 
     def test_the_event_name_is_written_once_in_the_page_code(self):
         """The add-section event name is written once, in addSection.js (the gutter); addDialog.js re-exports it."""
@@ -496,7 +491,7 @@ class Box(Base):
             self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "the pair is still a pair")
             self.assertEqual(self.beside_flags()[new], 0)
 
-    def test_place_it_beside_the_next_section_is_two_steps_and_the_rows_are_right(self):
+    def test_place_it_beside_the_next_section_is_one_request_and_one_undo_and_the_rows_are_right(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
@@ -507,13 +502,32 @@ class Box(Base):
             p.until("document.querySelectorAll('.sec').length === 12 && document.querySelectorAll('.sec.slot-left').length === 2", "added beside")
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual(p.ids()[4], new)
-            ops = [r[1]["op"] for r in self.sent]
-            self.assertEqual(ops, ["new", "update"])
-            self.assertEqual(self.sent[-1][1]["changes"], {"beside": 1})
-            self.assertEqual(self.sent[-1][1]["id"], new)
+            self.assertEqual(self.sent, [("change", {"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "text", "title": "New section"},
+                                                          "after": "ABC-S-004", "beside": "ABC-S-005", "place": "report"})], "one request (#149)")
             self.assertEqual(self.beside_flags()[new], 1)
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-right')"), True)
             self.assertEqual(p.toast(), "Text added, beside the next section.")
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11 && document.querySelectorAll('.sec.slot-left').length === 1", "one Undo took the section and the pairing away")
+            self.assertEqual(self.ids_in_store(), IDS)
+            self.assertEqual(self.beside_flags()["ABC-S-005"], 0)
+
+    def test_beside_a_section_that_was_paired_since_the_page_drew_it_is_refused_and_leaves_nothing(self):
+        """#149: another tab pairs Milestones with Summary after this page drew the report. Beside Summary is refused by clark in
+        the toast, and no section is left behind unpaired."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-004")
+            with self.store.step("dashboard", USER) as st:
+                st.update("report_sections", "ABC-S-004", {"beside": 1})
+            flags = self.beside_flags()
+            p.js("document.querySelector('input[name=where][value=beside]').click()")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
+            self.assertEqual([r[1]["op"] for r in self.sent], ["new"])
+            self.assertEqual(self.ids_in_store(), IDS, "nothing was added")
+            self.assertEqual(self.beside_flags(), flags)
 
     def test_beside_is_unavailable_with_the_reason_when_the_next_row_is_a_pair_or_there_is_none(self):
         with chrome() as cdp:

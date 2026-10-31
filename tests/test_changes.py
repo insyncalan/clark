@@ -562,6 +562,134 @@ class Steps(Api):
         self.assertEqual(self.s.read(KIND, ref="ABC-S-005")["body"], BODY, "the body itself is untouched")
 
 
+class AddBeside(Api):
+    """#149: a new section can be made beside the next one in the same request: one change, one history step, one Undo. The
+    starting rows are S-001 to S-011, with This week (S-006) beside Next week (S-007); Milestones (S-004) and Summary (S-005) are
+    each on their own."""
+
+    def flags(self):
+        return {r["id"]: r["beside"] for r in self.rows()}
+
+    def step_items(self, apply_id):
+        return {r[0] for r in self.s.con.execute("SELECT item_id FROM change_log WHERE apply_id = ?", (apply_id,))}
+
+    def backups(self):
+        folder = self.path.parent / "backups"
+        return sorted(p.name for p in folder.iterdir()) if folder.is_dir() else []
+
+    def test_add_below_is_one_step_and_pairs_nothing(self):
+        flags, steps = self.flags(), self.snapshot()[0]
+        body = self.ok("new", values={"title": "Plan"}, after="ABC-S-004", place="report")
+        self.assertEqual(self.snapshot()[0], steps + 1, "one step")
+        self.assertEqual(self.ids_now()[4], body["ref"])
+        self.assertEqual(self.flags(), {**flags, body["ref"]: 0}, "no flag set or cleared")
+
+    def test_add_beside_is_one_step_with_the_section_and_its_pair_and_one_undo_takes_both(self):
+        before, flags, steps = self.ids_now(), self.flags(), self.snapshot()[0]
+        body = self.ok("new", values={"title": "Plan"}, after="ABC-S-004", beside="ABC-S-005", place="report")
+        new = body["ref"]
+        self.assertEqual(self.snapshot()[0], steps + 1, "one applies row: one change, one history step")
+        self.assertEqual(self.ids_now()[3:6], ["ABC-S-004", new, "ABC-S-005"], "just before the section it sits beside")
+        self.assertEqual(self.flags(), {**flags, new: 1}, "the first half of a pair with Summary; no other flag moved")
+        self.assertEqual(self.step_items(body["apply_id"]), {new}, "the pairing is the new row's own flag, in the same step")
+        self.assertEqual({r["id"]: r["beside"] for r in body["sections"]}[new], 1, "the reply says it")
+        status, out = self.undone(body["apply_id"])
+        self.assertEqual((status, out["skipped"]), (200, []), out)
+        self.assertEqual((self.ids_now(), self.flags()), (before, flags), "one Undo took the section and the pairing away together")
+
+    def test_add_beside_renumbers_in_the_same_step_when_there_is_no_gap(self):
+        with self.s.step("dashboard", USER) as st:
+            st.update(KIND, "ABC-S-005", {"sort_order": self.s.read(KIND, ref="ABC-S-004")["sort_order"] + 1})
+        flags, steps = self.flags(), self.snapshot()[0]
+        body = self.ok("new", after="ABC-S-004", beside="ABC-S-005")
+        self.assertEqual(self.snapshot()[0], steps + 1)
+        self.assertGreater(len(self.step_items(body["apply_id"])), 1, "the others were renumbered in the same step")
+        self.assertEqual(self.ids_now()[4:6], [body["ref"], "ABC-S-005"])
+        self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
+        self.assertEqual(self.flags(), flags)
+
+    def test_beside_a_section_already_in_a_pair_is_refused_and_nothing_is_written(self):
+        self.refused(self.req("new", after="ABC-S-005", beside="ABC-S-006"), changes.STALE)     # the first half of This week | Next week
+        self.refused(self.req("new", after="ABC-S-006", beside="ABC-S-007"), changes.STALE)     # the second half: and it would split the pair
+        self.ok("update", id="ABC-S-004", changes={"beside": 1})                                # another tab pairs Milestones with Summary
+        self.refused(self.req("new", after="ABC-S-004", beside="ABC-S-005"), changes.STALE)
+
+    def test_a_hostile_or_stale_beside_is_refused_in_the_same_words_and_nothing_is_written(self):
+        with self.s.step("dashboard", USER) as st:
+            st.create("projects", {"code": "XYZ", "name": "Second Programme"})
+        gone = self.ok("new", values={"title": "Gone"}, after="ABC-S-004")["ref"]
+        self.ok("delete", id=gone)                                                              # deleted: a section is never archived
+        for ref in ("XYZ-S-005", "ABC-S-999", gone, "nonsense", "", "ABC-S-005'; DROP TABLE report_sections; --"):
+            with self.subTest(ref=ref):
+                self.refused(self.req("new", after="ABC-S-004", beside=ref), changes.STALE)    # another project's and a missing one alike
+        for ref in (5, 1, True, ["ABC-S-005"], {"id": "ABC-S-005"}):
+            with self.subTest(ref=ref):
+                self.refused(self.req("new", after="ABC-S-004", beside=ref), changes.STALE)
+        self.refused(self.req("new", after="ABC-S-004", beside="ABC-S-001"), changes.STALE)   # not the section just after: out of date
+        self.refused(self.req("new", after="ABC-S-004", beside="ABC-S-004"), changes.STALE)    # itself
+        self.refused(self.req("new", after=None, beside="ABC-S-011"), changes.INVALID_LAYOUT)  # at the end: nothing to sit beside
+        self.refused(self.req("new", beside="ABC-S-001"), changes.INVALID_LAYOUT)
+        self.refused(self.req("new", values={"beside": 1}, after="ABC-S-004"), "The field 'beside' can't be set here.")
+        self.refused(self.req("move", id="ABC-S-003", before=None, beside="ABC-S-005"), "That change doesn't take 'beside'.")
+        self.refused({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x"}, "beside": "ABC-S-005"},
+                     "That change doesn't take 'beside'.")
+        self.assertEqual(self.s.read(KIND, ref="XYZ-S-005")["beside"], 0, "another project's section is untouched")
+
+    def test_a_null_beside_is_a_row_of_its_own(self):
+        body = self.ok("new", after="ABC-S-004", beside=None)
+        self.assertEqual(self.flags()[body["ref"]], 0)
+
+    def test_a_flag_left_on_the_last_section_is_cleared_in_the_same_step_and_one_undo_puts_it_back(self):
+        last = self.ids_now()[-1]
+        for after in (None, last):
+            with self.subTest(after=after):
+                self.ok("update", id=last, changes={"beside": 1})                               # ignored by the page: there is nothing after it
+                flags, ids, steps = self.flags(), self.ids_now(), self.snapshot()[0]
+                body = self.ok("new", after=after)
+                self.assertEqual(self.snapshot()[0], steps + 1, "one step, not two")
+                self.assertEqual((self.flags()[last], self.flags()[body["ref"]]), (0, 0), "the new section does not pair with it")
+                self.assertEqual(self.step_items(body["apply_id"]), {body["ref"], last})
+                self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
+                self.assertEqual((self.flags(), self.ids_now()), (flags, ids), "one Undo: the section gone and the flag back")
+                self.ok("update", id=last, changes={"beside": 0})
+
+    def test_a_flag_on_the_second_half_of_a_final_pair_is_left_alone(self):
+        a = self.ok("new", values={"title": "First"})["ref"]
+        b = self.ok("new", values={"title": "Second"})["ref"]
+        self.ok("update", id=a, changes={"beside": 1})
+        self.ok("update", id=b, changes={"beside": 1})                                          # a stray flag on the second half
+        body = self.ok("new")
+        self.assertEqual(self.step_items(body["apply_id"]), {body["ref"]}, "nothing else is written")
+        self.assertEqual((self.flags()[a], self.flags()[b]), (1, 1))
+
+    def test_a_failure_part_way_through_the_step_leaves_nothing_behind(self):
+        """The section row is written, then the step fails: the whole step rolls back, with no applies row, no history row, no
+        section, no flag, and no safety copy left by the failed step."""
+        real_create, real_update = store_module.Step.create, store_module.Step.update
+
+        def create_then_fail(st, kind, values):
+            real_create(st, kind, values)
+            raise RuntimeError("the disk went away")
+
+        def update_then_fail(st, kind, ref, changes_, *a, **k):
+            real_update(st, kind, ref, changes_, *a, **k)
+            if changes_ == {"beside": 0}:
+                raise RuntimeError("the disk went away")
+
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})
+        cases = ((store_module.Step, "create", create_then_fail, self.req("new", after="ABC-S-004", beside="ABC-S-005")),
+                 (store_module.Step, "update", update_then_fail, self.req("new", after=None)))
+        for owner, name, fake, request in cases:
+            with self.subTest(name=name):
+                snap, flags, copies = self.snapshot(), self.flags(), self.backups()
+                with mock.patch.object(owner, name, fake), self.assertRaises(RuntimeError):
+                    self.change(request)
+                self.assertEqual(self.snapshot(), snap, "no applies row, no change_log row, no section")
+                self.assertEqual(self.flags(), flags)
+                self.assertEqual(self.backups(), copies, "no copy left by the failed step")
+
+
 class Undoing(Api):
     def test_undo_only_this_pages_steps(self):
         a = self.demo.action()

@@ -64,18 +64,14 @@ export function remove(id, place) {
   return next ? keep(done, next.id, "handle") : done;
 }
 
-// Add template `id` below section `after` (null: at the end), alone or beside the next section (logic/templates.js plan). The
-// requests go one after another; a request whose id is "$new" means the section the first one made. Resolves to the first
-// reply, or to null when nothing was added (a refusal in a note, or clark said no in the toast). The new section's title takes focus.
+// Add template `id` below section `after` (null: at the end), alone or beside the next section (logic/templates.js plan): one
+// request, so one Undo, and a refusal leaves nothing behind (#149). Resolves to the reply, or to null when nothing was added (a
+// refusal in a note, or clark said no in the toast). The new section's title takes focus.
 export async function addFromTemplate(id, after, beside) {
   const p = planTemplate(list(), id, after, beside);
   if (!p.ok) { note(p.message); return null; }
-  let first = null;
-  for (const req of p.requests) {
-    const r = await change(req.id === "$new" ? { ...req, id: first.ref } : req, p.words);
-    if (!r) return first;                                   // the toast says why; what was made stays made, with its own Undo
-    if (!first) first = r;
-  }
-  keep(Promise.resolve(first), "new", "title");
-  return first;
+  const r = await change(p.request, p.words);
+  if (!r) return null;                                      // the toast says why
+  keep(Promise.resolve(r), "new", "title");
+  return r;
 }
