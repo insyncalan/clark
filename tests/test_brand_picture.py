@@ -132,14 +132,16 @@ class Route(unittest.TestCase):
         for host in ("evil.example", "127.0.0.1.evil.example", "LOCALHOST", "", None, "127.0.0.1:0", "[::2]:80"):
             self.assertEqual(self.s.ask("GET", "/assets/cover.png", host=host)[0], 403, repr(host))
         for header in ({"Origin": "https://evil.example"}, {"Origin": "http://127.0.0.1.evil.example"},
-                       {"Origin": "null"}, {"Sec-Fetch-Site": "cross-site"}, {"Sec-Fetch-Site": "Cross-Site"}):
+                       {"Origin": "null"}, {"Sec-Fetch-Site": "cross-site"}, {"Sec-Fetch-Site": "Cross-Site"},
+                       {"Origin": f"http://localhost:{self.s.port}"}):      # an Origin must be this very Host (csp_local, #65)
             status, _, body = self.s.ask("GET", "/assets/cover.png", header)
             self.assertEqual((status, json.loads(body)["code"]), (403, "not_allowed"), header)
         for header in ({}, {"Sec-Fetch-Site": "same-origin"}, {"Sec-Fetch-Site": "none"},
-                       {"Origin": f"http://127.0.0.1:{self.s.port}"}, {"Origin": f"http://localhost:{self.s.port}"}):
+                       {"Origin": f"http://127.0.0.1:{self.s.port}"}):
             self.assertEqual(self.s.ask("GET", "/assets/cover.png", header)[0], 200, header)
         for host in (f"localhost:{self.s.port}", f"[::1]:{self.s.port}"):
             self.assertEqual(self.s.ask("GET", "/assets/cover.png", host=host)[0], 200, host)
+            self.assertEqual(self.s.ask("GET", "/assets/cover.png", {"Origin": f"http://{host}"}, host=host)[0], 200, host)
 
     def test_a_path_is_never_taken_from_the_request(self):
         """`../`, encoded variants, backslashes, a null byte, double slashes, absolute paths and other names: 404 each time,
@@ -218,6 +220,16 @@ class Route(unittest.TestCase):
         self.assertEqual(page.brand_picture("cover.png", self.brand.root), (PNG, "image/png"))
         src = (ROOT / "src" / "clark" / "server.py").read_text(encoding="utf-8")
         self.assertNotRegex(src, r"Path\(|os\.path|open\(", "the server touches no path: only page.brand_picture does")
+
+    def test_the_servers_allow_list_is_the_pages_and_the_launcher_hands_it_the_page_function(self):
+        """server.py imports no clark module (a test in test_server keeps that), so it holds its own copy of the names and is
+        given the picture function; both are pinned here."""
+        self.assertEqual(sorted(sv.BRAND_PICTURES), sorted(page.PICTURES))
+        main = (ROOT / "src" / "clark" / "__main__.py").read_text(encoding="utf-8")
+        self.assertIn("brand_picture=page.brand_picture", main)
+        httpd = sv.LocalServer((sv.HOST, 0), brand_picture=None)
+        self.addCleanup(httpd.server_close)
+        self.assertIsNone(httpd.brand_picture("cover.png"), "no picture function: nothing is found, so a plain 404")
 
     def test_the_brand_pictures_are_never_in_a_tracked_file(self):
         for f in (ROOT / "src" / "clark" / "page" / "page.html", ROOT / "src" / "clark" / "brand" / "tokens.css"):

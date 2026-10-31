@@ -44,8 +44,6 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlsplit
 
-from clark import page
-
 LOG = logging.getLogger("clark.server")
 HOST = "127.0.0.1"                    # the only address clark listens on, whatever any setting says
 DEFAULT_PORT = 8766
@@ -65,7 +63,7 @@ MESSAGES = {
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
-    "picture_not_found": "clark could not find your brand's picture. Put it in the assets folder next to your brand's tokens.css, "
+    "picture_not_found": "Your brand's picture could not be found. Put it in the assets folder next to your brand's tokens.css, "
                          "named cover.jpg, cover.png or cover.webp, then reload the page.",
     "bad_project_code": "Use a project code of 3 to 7 capital letters or digits.",
     "project_not_found": "There is no project with that code. Check the code in the address, or choose a project from the list.",     # = changes.NO_PROJECT (a test keeps the two equal)
@@ -302,12 +300,13 @@ def csp_report_route(handler):
 
 # ===== The brand's pictures (#98) =====
 BRAND_PREFIX = "/assets/"
+BRAND_PICTURES = ("cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
 
 
 def brand_picture_route(handler, name):
-    """GET /assets/<name>, for a name in page.PICTURES only (the dispatcher checks): the brand's picture. No token, since an
+    """GET /assets/<name>, for a name in BRAND_PICTURES only (the dispatcher checks): the brand's picture. No token, since an
     <img> or a CSS url() can't send one, so the same local checks as /csp-report (csp_local: Host, a local address, no other
-    site's Origin or Sec-Fetch-Site). The file comes from page.brand_picture, which never builds a path from a request."""
+    site's Origin or Sec-Fetch-Site). The file comes from the `brand_picture` seam (page.brand_picture, given by the launcher), which never builds a path from a request."""
     if not csp_local(handler):
         return handler.send(403, error_body("not_allowed"))
     if handler.requestline.split()[1:2] != [handler.path]:      # newer Pythons fold "//assets/x" into "/assets/x": not this route
@@ -734,7 +733,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.run_route(open_route, route)
         if route == PREVIEW_ROUTE:
             return self.run_route(preview_page_route)
-        if route.startswith(BRAND_PREFIX) and route[len(BRAND_PREFIX):] in page.PICTURES:
+        if route.startswith(BRAND_PREFIX) and route[len(BRAND_PREFIX):] in BRAND_PICTURES:
             return self.run_route(brand_picture_route, route[len(BRAND_PREFIX):])
         api = GET_ROUTES.get(route)
         if api or route.startswith("/api/"):
@@ -777,10 +776,9 @@ class LocalServer(ThreadingHTTPServer):
     the page's HTML (#35 supplies the bundle); `change(req)` and `undo(req)` (#65) answer POST /api/change and /api/undo
     with (status, body), each on a store of its own (None: those routes answer 503); `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163)."""
     daemon_threads = True
-    brand_picture = staticmethod(page.brand_picture)     # (bytes, type) of a brand picture by name, or None; a test replaces it
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -790,6 +788,7 @@ class LocalServer(ThreadingHTTPServer):
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
         self.movement = movement              # store.milestone_moves (#136): the owner-only Movement read; None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
+        self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
         super().__init__(server_address, handler)
 
@@ -822,13 +821,13 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None):
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
-                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety)
+                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
