@@ -21,11 +21,11 @@ from clark import page, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
-READ_FAILED = "clark could not read this project. Reload the page. If it happens again, restart clark."
-HIT_PROBLEM = "clark hit a problem reading this project. Reload the page. If it happens again, restart clark."
-NOT_ACCEPTED = "clark did not accept that request. Reload the page."
-STALE = "clark was restarted after you opened this page. Reload the page and try again."
-NOT_ANSWERING = "clark has stopped. It stops by itself after a while with nothing open. Start it again from clark.command."
+READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark."
+HIT_PROBLEM = "A problem came up reading this project. Reload the page. If it happens again, restart clark."
+NOT_ACCEPTED = "That request was not accepted. Reload the page."
+STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again."
+NOT_ANSWERING = "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command."
 WENT_WRONG = "Something went wrong"
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
@@ -139,7 +139,7 @@ class Words(unittest.TestCase):
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
         odd = "ValueError: bad JSON in /Users/someone/file.py"
-        cases = {500: HIT_PROBLEM, 400: "clark could not read that request. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
+        cases = {500: HIT_PROBLEM, 400: "That request could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
         for code, wanted in cases.items():
             def route(handler, code=code):
                 handler.send(code, {"ok": False, "message": odd})
@@ -239,10 +239,11 @@ class Words(unittest.TestCase):
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
 
-    def test_no_sentence_in_the_edit_screens_starts_with_the_product_name(self):
-        """A screen sentence does not start with the product name (the rule set in #170): the strings in the edit screens' code."""
-        starts = re.compile(r"""[`"'>]\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
-        files = sorted(PAGE_SRC.glob("edit/**/*.js")) + sorted(PAGE_SRC.glob("edit/**/*.jsx"))
+    def test_no_sentence_on_the_page_starts_with_the_product_name(self):
+        """A screen sentence does not start with the product name (the rule set in #170): every string in the page's code, at the
+        start of a string and after a full stop inside one."""
+        starts = re.compile(r"""(?:[`"'>]|[.!?]\s)\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
+        files = sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx"))
         self.assertTrue(files)
         for f in files:
             for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
