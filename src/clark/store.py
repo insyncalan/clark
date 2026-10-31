@@ -22,7 +22,7 @@ import sqlite3
 import unicodedata
 import uuid
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from clark import platform
@@ -31,7 +31,7 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 2          # 2 (#126): documents can be archived
+SCHEMA_VERSION = 5          # 5 (#123, PROVISIONAL: set it to the next free step when the steps 3 and 4 land) is applies.utc_offset and the wider places. 2 (#126): documents can be archived
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -116,7 +116,8 @@ CANCEL_CHANGES = {"actions": {"status": "Cancelled"}, "raid": {"status": "Cancel
 
 # clark: a step's route, as item_events records it (data-model.md), and the vias it is written with.
 ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate")
-PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board")      # + board (#126)
+PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board",      # + board (#126)
+          "eye", "draft", "email", "text", "ask")                                           # + #123: with the eye, a draft, a sent email, selected text, ask clark
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
@@ -174,6 +175,15 @@ class Unfinished(Invalid):
 def clock():
     """The current time, in UTC (a test replaces this to fix the time)."""
     return datetime.now(timezone.utc)
+
+
+def local_offset():
+    """The machine's offset from UTC at this moment as '+HH:MM' or '-HH:MM' (#123); a test replaces this one function. The step's
+    own clock is used, so a test that fixes the time gets the offset of that instant."""
+    off = clock().astimezone().utcoffset() or timedelta(0)
+    minutes = int(off.total_seconds() // 60)
+    sign = "+" if minutes >= 0 else "-"
+    return f"{sign}{abs(minutes) // 60:02d}:{abs(minutes) % 60:02d}"
 
 
 def now():
@@ -1572,7 +1582,53 @@ def migrate_to_2(con):
     _item_events_allow_board(con)
 
 
-MIGRATIONS = ((2, migrate_to_2),)     # version -> the step that brings a file TO that version; the next one (#115: 3) is added here
+# #123. PROVISIONAL NUMBER: this step is numbered 5 because two open pull requests each take step 3 and another local port takes
+# step 4. When those land, set HISTORY_VERSION to the next free step (the table row, SCHEMA_VERSION and the tests follow this one
+# constant) and delete the two placeholder rows below, which only keep the table gap-free until then (they change nothing: a file
+# migrated through them would skip the real steps 3 and 4, so never ship this branch before the renumber). Frozen: never reads schema.sql.
+HISTORY_VERSION = 5
+VERSION_5_ITEM_EVENTS = """CREATE TABLE item_events_v5 (
+  event_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         TEXT NOT NULL,
+  apply_id   INTEGER REFERENCES applies(apply_id),
+  item_id    TEXT NOT NULL,
+  change     INTEGER,
+  kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
+  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate')),
+  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board','eye','draft','email','text','ask')),
+  origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),
+  actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),
+  src_ref    TEXT CHECK (src_ref IS NULL OR (length(src_ref) <= 300 AND instr(src_ref, char(10)) = 0)),
+  undoes     INTEGER REFERENCES item_events(event_id)
+)"""
+
+
+def migrate_to_history(con):
+    """Schema version 2 or earlier to HISTORY_VERSION (#123): applies.utc_offset (NULL on every old row: the zone was not
+    recorded, and +00:00 would claim UTC), and item_events made again with the wider places, ids kept, sequence kept, both indexes
+    made again. Each part is skipped when it is already done. Inside the caller's transaction; the runner writes the version."""
+    if "utc_offset" not in [r[1] for r in con.execute("PRAGMA table_info(applies)")]:
+        con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT CHECK (utc_offset IS NULL OR "
+                    "(length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]'))")
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is not None and "'eye'" not in have[0]:
+        seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+        con.execute(VERSION_5_ITEM_EVENTS)
+        con.execute("INSERT INTO item_events_v5 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                    "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes FROM item_events")
+        con.execute("DROP TABLE item_events")
+        con.execute("ALTER TABLE item_events_v5 RENAME TO item_events")
+        if seq is not None:
+            con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+
+
+def _reserved_step(con):
+    """A placeholder for a step another change owns (see HISTORY_VERSION); it does nothing."""
+
+
+MIGRATIONS = ((2, migrate_to_2), (3, _reserved_step), (4, _reserved_step), (HISTORY_VERSION, migrate_to_history))     # version -> the step that brings a file TO that version; the next one is added here
 
 
 def migration_plan(version, table=None):
@@ -2184,8 +2240,8 @@ class Step:
     def apply_id(self):
         """This step's applies row, made the first time something is logged."""
         if self._apply_id is None:
-            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device) VALUES (?, '[]', ?, ?)",
-                                   (now(), self.by_user, self.store.device))
+            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device, utc_offset) VALUES (?, '[]', ?, ?, ?)",
+                                   (now(), self.by_user, self.store.device, local_offset()))
             self._apply_id = cur.lastrowid
         return self._apply_id
 
