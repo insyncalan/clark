@@ -5,6 +5,7 @@ import unittest
 
 import _paths  # noqa: F401
 from clark import draft_email as de
+from clark import look
 
 NOW = "2026-10-13 09:00"                     # a Tuesday
 TODAY = "2026-10-13"
@@ -431,7 +432,10 @@ class InlineStyles(unittest.TestCase):
                 self.assertIn("style=", attrs, name)
         self.assertIn('cellpadding="6"', h)
         self.assertIn("border-bottom:1px solid", h)
-        self.assertIn("font-family:Calibri,Arial,sans-serif;font-size:11pt;", h)
+        self.assertIn(f"font-family:{look.email_font_family()};font-size:11pt;", h)
+        self.assertEqual(look.email_font_family(), "Calibri,Arial,sans-serif", "Outlook's Word engine: Calibri, then Arial")
+        self.assertEqual(de.COLOURS["ink"], "#" + look.colour("text"), "the ink is the look's text colour")
+        self.assertIn(f"color:{de.COLOURS['ink']};", h)
         self.assertIn(f"background:{de.COLOURS['white']}", h)
 
     def test_text_is_escaped(self):
