@@ -33,7 +33,7 @@ function Card({ card, editing, selected, dragging, ask, menu, stop, onOpen, onMe
   return (
     <article class={`bcard k-${card.typeClass.slice(2)}${selected ? " sel" : ""}${dragging ? " drag" : ""}${card.open ? "" : " done"}`} data-id={card.id} data-kind={card.typeClass.slice(2)}>
       <div class="bc-main" role="button" tabIndex={stop ? 0 : -1} data-cursor={card.id} aria-label={label} onClick={() => onOpen(card.id)} onFocusIn={() => { cursor.value = card.id; }}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(card.id); } else cardKeys(e, card.id); }}>
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onOpen(card.id); } else cardKeys(e, card.id); }}>
         <div class="bc-top"><span class={`type ${card.typeClass}`}>{card.type}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
         <div class="bc-title">{card.title}</div>
         <div class="bc-foot">
