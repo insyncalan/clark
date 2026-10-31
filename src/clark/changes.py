@@ -1437,7 +1437,9 @@ def _do_undo_many(store, by_user, req):
     """#197: POST /api/undo with `steps` (the steps of the history rows chosen), `preview` and `confirm`. A preview is the same
     run rolled back: it lists each change that will be undone and each that will be left, with its reason. Without `preview` one
     new step undoes them all (newest first), and its Undo puts them all back. A step not of this project refuses the whole request;
-    a step of this project that can't be undone from here is left out and named."""
+    a step of this project that can't be undone from here is left out and named. The data can change between the preview and the
+    run, so the run's reply is complete on its own: what was undone and what was left, with the reasons, as the preview gives them;
+    the page shows that reply, not the preview it showed before."""
     for k in req:
         if k not in ("project", "steps", "preview", "confirm"):
             raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
@@ -1471,8 +1473,9 @@ def _do_undo_many(store, by_user, req):
         else:
             ours.append(s)
             continue
-        left += [{"step": s, "ref": r["key"], "field": r["field"], "why": why, "by_step": None}
-                 for r in rows if r["field"] not in UNDO_ALSO][:1]   # one line for the step: it is left whole
+        mine = [r for r in rows if _of_project(r["key"], project) and r["field"] not in UNDO_ALSO]
+        left += [{"step": s, "ref": r["key"], "field": None, "why": why, "by_step": None} for r in mine[:1]]
+        # one line for the step, left whole: named by a row of THIS project (never another's), with no field
     done = {"step_id": None, "reversed": [], "skipped": []}
     if ours:
         try:

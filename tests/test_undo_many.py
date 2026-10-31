@@ -5,6 +5,7 @@ undone by one Undo. Hostile requests are refused with nothing written.
 Run: python3 dev/run_tests.py test_undo_many
 Each test makes a real store in a temporary folder with fictional data.
 """
+import json
 import sqlite3
 import unittest
 from unittest import mock
@@ -275,6 +276,24 @@ class Request(Base):
         self.assertEqual(status, 200, back)
         self.assertEqual([self.action(r)["owner"] for r in (self.a, x)], ["Sam Example", "Sam Example"])
         self.assertEqual(self.action(self.a)["priority"], "High")
+
+    def test_a_step_left_out_whole_is_named_by_this_projects_row_and_never_anothers(self):
+        with self.s.step("dashboard", USER) as st:
+            st.create("projects", {"code": "DEF", "name": "Third Programme", "health": "On track"})
+        with self.s.step("excel", USER) as st:                          # another project's row first, then this one's
+            st.create("actions", {"project": "DEF", "description": "Theirs", "raised": "2026-10-01", "source": "demo"})
+            mine = st.create("actions", {"project": "ABC", "description": "Ours", "raised": "2026-10-01", "source": "demo"})
+        mixed = self.demo.last_step()
+        b = self.edit(self.a, owner="Sam Example")
+        for preview in (True, False):
+            with self.subTest(preview=preview):
+                status, body = self.many([mixed, b], preview=preview)
+                self.assertEqual(status, 200, body)
+                self.assertEqual(body["skipped"], [{"step": mixed, "ref": mine, "field": "", "why": changes.NOT_FROM_HERE}])
+                text = json.dumps(body)
+                for other in ("DEF", "XYZ", '"field": "id"'):
+                    self.assertNotIn(other, text, "nothing of another project, and no stored field name")
+                self.assertEqual([e["step"] for e in body["undo"]], [b])
 
     def test_duplicates_count_once(self):
         b = self.edit(self.a, owner="Sam Example")

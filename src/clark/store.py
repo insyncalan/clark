@@ -150,7 +150,9 @@ OP_MADE = "insert"                    # the log's word for a row a step made; th
 SEED_VIA = "seed"                     # clark (#65): the via of the default sections a step makes (_seed_sections); an Undo never removes them
 PENDING_VIA = "revert:pending"        # an undo's rows until it knows which rows it put back
 BATCH_UNDO = "Undo several"           # #197: the src_ref of a step that undid several steps at once (Store.undo_many)
-MAX_UNDO_MANY = 100                   # #197: the most steps one batch undo takes (the page asks a second time above 25; /api/undo bodies stay within 1 KB)
+MAX_UNDO_MANY = 100                   # #197: the most steps one batch undo takes (the page asks a second time above 25)
+# /api/undo's body is held to 1 KB by server.py: 100 step numbers of up to 7 digits fit; 8-digit numbers over about 100 steps do not
+# (the server refuses the body as too big, in plain words). Raising either limit means raising both.
 REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "links", "item_labels", "labels",
                   "report_sections")
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
@@ -1368,11 +1370,7 @@ def revert_group(con, apply_id, table, key, rows_, step):
         for x in rows_:
             if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
                 before[x["field"]] = x["old_value"]
-        for f, v in _typed(con, table, before).items():
-            if v is None:
-                back.pop(f, None)
-            else:
-                back[f] = v
+        back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
         check_row(con, table, dict(back), set(back))
         _insert_sql(con, table, back)
         for f, v in back.items():
