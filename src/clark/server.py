@@ -23,6 +23,8 @@ Routes:
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
 - GET  /api/profile      the name and email typed in Settings › Personal (#180), from the data folder's settings.json; without the seam, not found
 - POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
+- POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
+- POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
 
 Run: python3 -m clark.server   (CLARK_PORT sets the port; the default is 8766, beside creaite's 8765)
@@ -74,8 +76,10 @@ MESSAGES = {
 # bad_request and any 500 or more server_error.
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
+WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
-                     "/api/profile": 2 * 1024}     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -561,6 +565,17 @@ def safety_route(method):
     return route
 
 
+def word_import_route(handler, req):
+    """POST /api/word-import (#48). Checked like change_route before this runs: the token, the Host, no other site's Origin, JSON
+    only, a Content-Length and the route's own size limit."""
+    return seam_route(handler, handler.server.word_import, req)
+
+
+def word_export_route(handler, req):
+    """POST /api/word-export (#48). Checked like change_route before this runs."""
+    return seam_route(handler, handler.server.word_export, req)
+
+
 def profile_route(method):
     """GET and POST /api/profile (#180): hand the request to the server's `profile` (profile_settings.Profile), which answers (status,
     body). Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the 2 KiB limit)."""
@@ -579,7 +594,8 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
-               "/api/profile": profile_route("save")}     # later items: /api/import
+               "/api/profile": profile_route("save"),
+               "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -756,16 +772,17 @@ class LocalServer(ThreadingHTTPServer):
     server_bind calls socket.getfqdn(host), which can stall for 30 s on some Macs.) `data_for(code)` is the store's read
     of one project (None when there is none); `projects()` lists them as rows with a code and a name; `page_html()` gives
     the page's HTML (#35 supplies the bundle); `change(req)` and `undo(req)` (#65) answer POST /api/change and /api/undo
-    with (status, body), each on a store of its own (None: those routes answer 503); `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163)."""
+    with (status, body), each on a store of its own (None: those routes answer 503); `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163); `word_import(req)` and `word_export(req)` (#48) answer POST /api/word-import and /api/word-export the same way as `change` and `undo`."""
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, profile=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, profile=None, word_import=None, word_export=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
         self.change, self.undo = change, undo
+        self.word_import, self.word_export = word_import, word_export
         self.page_html = page_html or placeholder_html
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
         self.movement = movement              # store.milestone_moves (#136): the owner-only Movement read; None: no such route
@@ -803,13 +820,14 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, profile=None):
+          publisher=None, movement=None, use_cases=None, safety=None, profile=None, word_import=None, word_export=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
-                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, profile=profile)
+                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, profile=profile,
+                            word_import=word_import, word_export=word_export)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
