@@ -1,0 +1,1910 @@
+{
+ "tabs": [
+  [
+   "start",
+   "Start here"
+  ],
+  [
+   "howto",
+   "How do I…"
+  ],
+  [
+   "reference",
+   "Reference"
+  ]
+ ],
+ "start": {
+  "hero": {
+   "label": "First day with clark",
+   "title": "Keep the record. Shape the report. Publish it.",
+   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change saves on its own, and every change can be undone."
+  },
+  "loop": [
+   {
+    "n": "In",
+    "t": "Bring it in",
+    "ic": "ul",
+    "d": "Import from Excel: actions, risks and issues, decisions, milestones and use cases. Or add them by hand with the **+** buttons."
+   },
+   {
+    "n": "Update",
+    "t": "Keep it current",
+    "ic": "pencil",
+    "d": "On Work items and Milestones, open anything in the peek and change it where it is."
+   },
+   {
+    "n": "Edit",
+    "t": "Shape the report",
+    "ic": "doc",
+    "d": "On the Dashboard, press **Edit**. Write the current state, set the health and choose what the client sees."
+   },
+   {
+    "n": "Check",
+    "t": "Check it",
+    "ic": "chat",
+    "d": "Use ask clark to **Check this report**. It points out what looks wrong, such as an overdue action left off the page."
+   },
+   {
+    "n": "You",
+    "t": "Publish",
+    "ic": "ext",
+    "gate": "Your call",
+    "d": "Publish from the profile circle. Local is always saved; the client folder only when you tick **To client**."
+   }
+  ],
+  "first": [
+   {
+    "t": "Say who you are",
+    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+   },
+   {
+    "t": "Pick a project",
+    "d": "The project name in the top bar switches projects. **New project…** in the same menu adds one."
+   },
+   {
+    "t": "Bring in the work",
+    "d": "On [Work items](go:work), press the import icon. **Get the template** gives you a workbook with the right columns."
+   },
+   {
+    "t": "Say where reports go",
+    "d": "In [Settings › Publishing](go:settings), set a local folder and, if the client has one, their SharePoint folder."
+   },
+   {
+    "t": "Look before you publish",
+    "d": "**Preview the page in a new tab**, in the profile circle menu, shows exactly what the client will see. Nothing is saved."
+   }
+  ],
+  "jobs": [
+   [
+    "write-the-weekly-report",
+    "Write this week’s report",
+    "Current state, summary and health, in place.",
+    "dashboard+edit"
+   ],
+   [
+    "add-a-work-item",
+    "Add a work item",
+    "An action, risk, issue or decision.",
+    "work"
+   ],
+   [
+    "find-work-items",
+    "Find any work item",
+    "Type, Open or Closed, filters and search.",
+    "work"
+   ],
+   [
+    "use-the-board",
+    "Move work on the board",
+    "Drag a card to change it, with Undo.",
+    "work"
+   ],
+   [
+    "change-an-item-in-the-peek",
+    "Change an item",
+    "Everything about it, in the peek.",
+    "work"
+   ],
+   [
+    "choose-what-the-client-sees",
+    "Choose what the client sees",
+    "The eye, and Add from your project record.",
+    "dashboard+edit"
+   ],
+   [
+    "update-a-milestone",
+    "Update a milestone",
+    "State, dates, progress and client wording.",
+    "milestones"
+   ],
+   [
+    "handle-a-slipped-milestone",
+    "Deal with a slipped milestone",
+    "Hold, rebaseline, recover or escalate.",
+    "milestones"
+   ],
+   [
+    "import-and-export",
+    "Import or export Excel",
+    "One workbook in, one workbook out.",
+    "work"
+   ],
+   [
+    "check-the-report",
+    "Check the report",
+    "ask clark finds what looks wrong.",
+    "ask"
+   ],
+   [
+    "publish-the-report",
+    "Publish the report",
+    "Local, to the client, and Word.",
+    "publish"
+   ],
+   [
+    "undo-a-mistake",
+    "Undo a mistake",
+    "Every change has a way back.",
+    "dashboard"
+   ]
+  ],
+  "where": [
+   [
+    "Dashboard",
+    "The weekly report itself. **View** shows it as the client will read it; **Edit** changes it in place.",
+    "dashboard"
+   ],
+   [
+    "Work items",
+    "Every action, risk, issue and decision, as a table or a board, with filters and search.",
+    "work"
+   ],
+   [
+    "Milestones",
+    "**Plan** shows every milestone on a timeline or calendar; **Movement** shows slippage, for you and the team only.",
+    "milestones"
+   ],
+   [
+    "ask clark",
+    "Checks the report and answers questions about the project. Opens from the top bar, or with [[/]].",
+    "ask"
+   ],
+   [
+    "The profile circle",
+    "Publish, Preview, Export to Excel, Settings and Dark mode. At the top right.",
+    ""
+   ],
+   [
+    "Settings",
+    "Your profile and look, projects, source folders, publishing, data, the clark version and updates, and diagnostics.",
+    "settings"
+   ]
+  ],
+  "rules": [
+   [
+    "Every change saves on its own",
+    "There is no Save button. A change is kept as you make it, and the message at the foot of the page offers **Undo**."
+   ],
+   [
+    "Only what you show is published",
+    "Items, sections, tiles and documents you leave out are dropped from the published file, not hidden inside it."
+   ],
+   [
+    "Nothing is sent without you",
+    "Publishing saves files. The client folder is used only when you tick **To client**. Nothing is ever emailed."
+   ],
+   [
+    "ask clark reads; you decide",
+    "It works from this project’s data and the source folders you list, never mail, Teams or calendars. What it changes can be undone."
+   ]
+  ],
+  "text": {
+   "loop_title": "The loop",
+   "loop_intro": "Every week follows the same five steps. Only the last one sends anything anywhere, and only when you say so.",
+   "loop_return": "Next week starts the loop again from the same record. The history keeps every change, so nothing is lost between weeks.",
+   "first_title": "Your first ten minutes",
+   "jobs_title": "Twelve jobs",
+   "jobs_intro": "Pick a job. Its title opens the steps; the arrow takes you to the screen.",
+   "where_title": "Where things are",
+   "keyline": "[[/]] ask clark · [[/]] [[/]] Sneak peek, with an item open · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[Alt+/]] AI on selected text · [[?]] Help",
+   "keyline_link": "All the keys",
+   "rules_title": "Four rules",
+   "foot": "Dates are shown DD-MM-YYYY.",
+   "foot_link": "How do I…: step by step for every job"
+  }
+ },
+ "howto": {
+  "groups": [
+   "Every week",
+   "Work items",
+   "The report",
+   "Milestones",
+   "Writing",
+   "Settings and safety"
+  ],
+  "tasks": [
+   {
+    "id": "write-the-weekly-report",
+    "g": "Every week",
+    "t": "Write this week’s report",
+    "w": "Dashboard › Edit",
+    "go": "dashboard+edit",
+    "s": [
+     "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
+     "Set **Week ending** to the Friday the report covers. The cover shows it as “Week ending Friday 30 October 2026”.",
+     "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] cancels.",
+     "Write **Summary**, **This week** and **Next week** the same way. In an empty section, type [[/]] and choose **Draft with AI** for a first draft from the project.",
+     "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
+     "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
+     "Press **View** to read the report as the client will."
+    ]
+   },
+   {
+    "id": "set-the-health",
+    "g": "Every week",
+    "t": "Set the project health",
+    "w": "Dashboard › Edit › Project health",
+    "go": "dashboard+edit",
+    "s": [
+     "In Edit, press the health pill on the **Project health** tile and choose **On track**, **At risk** or **Off track**.",
+     "Write why in the box beside it, in a line or two. It saves when you leave the box, or with [[Mod+Enter]]; [[Esc]] puts the old reason back.",
+     "The tile’s outline takes the health’s colour."
+    ],
+    "n": "The check in ask clark warns you when the health says On track but a milestone has slipped, or when the reason is missing."
+   },
+   {
+    "id": "check-the-report",
+    "g": "Every week",
+    "t": "Check the report with ask clark",
+    "w": "Top bar › ask clark · [[/]] · [[Mod+J]]",
+    "go": "ask",
+    "s": [
+     "Open **ask clark** from the top bar, or press [[/]] when you aren’t typing in a box. It opens down the right-hand side.",
+     "Press **Check this report**. It lists what to look at: an overdue action left off the page, a health that doesn’t match the milestones, a missing reason, items on the page with no latest update, a use case On track with overdue work, an empty Summary, and no supporting documents from this week.",
+     "Some notes come with a button that fixes them at once, such as **Show them** or **Set it to At risk**. Each fix has **Undo**.",
+     "Ask anything else in your own words, or press a suggestion: **What’s overdue?**, **Which risks are red?**, **Next milestone?**, **Summarise this week** (with **Use it as the Summary**) and **Use cases**. Item IDs in an answer open the item.",
+     "**+** at the top starts a new chat. [[Esc]] or a click outside closes the panel. Drag its left edge to make it wider; a double-click puts it back."
+    ],
+    "say": [
+     "Check this report",
+     "draft an update for PDF-A-012",
+     "who has the most actions?"
+    ]
+   },
+   {
+    "id": "publish-the-report",
+    "g": "Every week",
+    "t": "Publish the report",
+    "w": "Profile circle › Publish…",
+    "go": "publish",
+    "s": [
+     "Press your profile circle at the top right and choose **Publish…**. It opens the Dashboard first.",
+     "**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.",
+     "Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
+     "Tick **Also a Word document** for a Word copy beside the web page.",
+     "Press **Publish locally** (or **Publish and send to the client**). The line at the top of the Dashboard then says when it was published, and whether to the client or locally.",
+     "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
+    ],
+    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”."
+   },
+   {
+    "id": "add-a-work-item",
+    "g": "Work items",
+    "t": "Add a work item",
+    "w": "Work items · Dashboard › Edit · any editor",
+    "go": "work",
+    "s": [
+     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type switch: **Add action**, **Add decision**, and on All or Risks and issues a menu of Action, Risk, Issue and Decision.",
+     "The new item opens in the peek with its title selected: type over it. It is client-visible to start with, due in a week (a decision is dated today).",
+     "In the report’s Edit mode, the last row of each list adds one: type “Owner: what it is”, for example “Jo Ellis: send the test plan”, and press [[Enter]]. A use case’s next steps add an action the same way.",
+     "Selected text in any editor can become an item too: **Make into** in the AI menu ([Improve wording with AI](#howto-improve-wording-with-ai))."
+    ]
+   },
+   {
+    "id": "find-work-items",
+    "g": "Work items",
+    "t": "Find and filter work items",
+    "w": "Work items",
+    "go": "work",
+    "s": [
+     "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
+     "The second picks **Open**, **Closed** or **All**, each with its count.",
+     "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
+     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too.",
+     "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
+     "Your choices are kept for next time. A tile on the Dashboard, or **See all work items** on a use case, opens Work items already filtered to what it counts."
+    ]
+   },
+   {
+    "id": "use-the-board",
+    "g": "Work items",
+    "t": "Group work and use the board",
+    "w": "Work items › Group by · Table and Board",
+    "go": "work",
+    "s": [
+     "**Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The two icons beside the search switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
+     "**Swimlanes** adds rows across the board: None, Workstream or Type.",
+     "In Edit, drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
+     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes. In View the board shows the cards but does not move them.",
+     "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
+     "Every move has **Undo** in the message. Click a card, or press [[Enter]] on it, to open it."
+    ],
+    "n": "A move that doesn’t fit says so: an action can’t be Made, and nothing changes its type by moving."
+   },
+   {
+    "id": "change-an-item-in-the-peek",
+    "g": "Work items",
+    "t": "Change an item in the peek",
+    "w": "Any work item: a row, a card or its ID",
+    "go": "work",
+    "s": [
+     "Click a row, a card or an ID. The item opens in the **peek** at the right, and the page stays where it was.",
+     "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
+     "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
+     "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
+     "**Latest update**: click to write it. **Draft** writes one from the item’s own facts.",
+     "**Details** holds the description, type, workstream, milestone, use case and client wording. It stays open or closed as you last left it.",
+     "At the foot, **All**, **Activity**, **Updates** and **Source** show the item’s history and where it came from.",
+     "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. The up and down arrows at the top step through the list."
+    ],
+    "n": "Drag the peek’s left edge to make it wider (a double-click puts it back), or press the corners icon to take it across the whole screen. Your width is kept."
+   },
+   {
+    "id": "change-an-item-in-words",
+    "g": "Work items",
+    "t": "Change an item in words (Sneak peek)",
+    "w": "An open peek › the sparkle, or [[/]] [[/]]",
+    "go": "work",
+    "s": [
+     "With an item or milestone open in the peek, press [[/]] twice quickly (when you aren’t typing in a box), press the sparkle at the top, or press “Change this item in words” at the foot.",
+     "Type the change, for example “move to Friday, owner Jo, high priority”.",
+     "The words clark read are marked above the box, and a card shows each field before and after.",
+     "Press [[Enter]] (or [[Shift+Enter]]), or **Make the change**, to save it. **Not now** or [[Esc]] closes it. The fields that changed flash for a moment, and the message has **Undo**.",
+     "In an empty box, [[Up]] brings back your last instruction."
+    ],
+    "n": "If a name could be two people, it says so and asks for the full name. See [Sneak peek](#ref-sneak-peek) for every phrase it understands."
+   },
+   {
+    "id": "choose-what-the-client-sees",
+    "g": "Work items",
+    "t": "Choose what the client sees",
+    "w": "Work items · the peek · Dashboard › Edit",
+    "go": "dashboard+edit",
+    "s": [
+     "On Work items, the eye in each row’s last column turns client-visible on or off. In the peek, it is the eye at the top.",
+     "On the Dashboard in Edit, the eye beside a row takes it off the page. The row greys while **Undo** is offered, then leaves.",
+     "**+ Add from your project record** under a list brings items back. A picker opens: search, choose a kind, tick what you want (or **Select all shown**) and press **Add**.",
+     "Milestones, use cases, supporting documents and tiles have their own eye and their own **Add back**. A whole section is left out from its options: **Leave out of the published page**.",
+     "An item’s **Client wording** (in the peek’s Details) is used on the page in place of its title. A milestone has the same, under **Client view**."
+    ],
+    "n": "The report’s lists show only client-visible items. Everything else is left out of the published file altogether."
+   },
+   {
+    "id": "import-and-export",
+    "g": "Work items",
+    "t": "Import or export Excel",
+    "w": "Work items toolbar · Settings › Data · profile circle",
+    "go": "work",
+    "s": [
+     "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks and issues, Decisions, Milestones and Use cases, named after today and the project.",
+     "The Use case summary has its own export icon (in View), for the use cases alone.",
+     "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
+     "Press **Choose a file** (Excel or CSV). **Check the import** shows how many rows are new, updated or skipped, and the first few. Press **Import** to save them.",
+     "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
+    ],
+    "n": "The whole import is one step: one **Undo** takes it all back."
+   },
+   {
+    "id": "arrange-the-report",
+    "g": "The report",
+    "t": "Arrange the report’s sections",
+    "w": "Dashboard › Edit",
+    "go": "dashboard+edit",
+    "s": [
+     "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a **grip** and, under it, a **+**. They are faint until you point at the section or tab to them.",
+     "Drag the grip to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
+     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include**) and, for a text section, **Delete section**. A section that is left out shows an eye-off mark under its **+**.",
+     "To rearrange the page, pick up a section by its grip and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a phone a pair stacks.",
+     "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
+     "A section left out stays in Edit, greyed, and disappears in View and on the published page."
+    ]
+   },
+   {
+    "id": "add-a-section-from-a-template",
+    "g": "The report",
+    "t": "Add a section from a template",
+    "w": "Dashboard › Edit › the + under a section’s grip",
+    "go": "dashboard+edit",
+    "s": [
+     "On the **Dashboard**, press **Edit**. Press the **+** under the grip of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
+     "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
+     "Under **Place it**, choose **On its own row** or, when the next section is on a row of its own and the template can be half width, **Beside** that section.",
+     "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
+     "Every template other than **Text** is empty when you add it, with each of its parts labelled. Filling the parts in comes in a later release; until then an empty template is left out of the published page.",
+     "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
+    ]
+   },
+   {
+    "id": "use-the-tiles",
+    "g": "The report",
+    "t": "Use the At a glance tiles",
+    "w": "Dashboard › At a glance",
+    "go": "dashboard",
+    "s": [
+     "Next to **Project health** are the counts: **Overdue actions**, **High risks and issues** and **Decisions needed** (hidden to start with).",
+     "Click a count, or press [[Enter]] on it, to open Work items filtered to exactly what it counts.",
+     "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
+     "Right-click a tile in Edit for **Tile colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
+    ],
+    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or a risk is red, amber when something waits, and green otherwise."
+   },
+   {
+    "id": "keep-the-use-cases",
+    "g": "The report",
+    "t": "Keep the use case summary",
+    "w": "Dashboard › Use case summary",
+    "go": "dashboard",
+    "s": [
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all work items** opens Work items filtered to that use case.",
+     "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
+     "In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.",
+     "**Archive use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Show archived** finds it, and **Restore** or **Undo** brings it back."
+    ]
+   },
+   {
+    "id": "add-supporting-documents",
+    "g": "The report",
+    "t": "Add supporting documents",
+    "w": "Dashboard › Edit › Supporting documents",
+    "go": "dashboard+edit",
+    "s": [
+     "In Edit, press **+ Add a document link** at the foot of the report.",
+     "Give it a title, a kind (Minutes, Actions list, Report, Slides, Plan or Other), the link and a date, then press **Add**.",
+     "**⋯** on a document edits or removes it. The eye takes it off the page; **+ Add back a document** brings it back.",
+     "In View, and on the published page, the title and the arrow open the document in a new tab."
+    ]
+   },
+   {
+    "id": "change-the-layout-and-look",
+    "g": "The report",
+    "t": "Change the look",
+    "w": "Settings › Personal",
+    "go": "settings",
+    "s": [
+     "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
+     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Dark mode** in the profile circle menu sets Light or Dark outright."
+    ]
+   },
+   {
+    "id": "update-a-milestone",
+    "g": "Milestones",
+    "t": "Add or update a milestone",
+    "w": "Milestones · Dashboard › Milestones",
+    "go": "milestones",
+    "s": [
+     "On **Milestones**, press **+** (**Add milestone**). A new one, 30 days out, opens in the peek with its name selected: type over it.",
+     "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
+     "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked. The line under it says why the milestone has that state.",
+     "**Dates**: the **Agreed** date is the baseline; change the **Forecast** date as things move. When they differ, **Rebaseline…** makes the forecast the new agreed date and keeps the original.",
+     "**Progress** is set by hand with the slider or the number. Add a **Description**, the **Owner** and the **Workstream**.",
+     "**Client view**: **Visible to client**, and the **Client wording** used on the page in place of the name.",
+     "**Linked work items** lists the items tied to it. Link one from the item’s peek, under Details, Milestone."
+    ]
+   },
+   {
+    "id": "read-the-milestones",
+    "g": "Milestones",
+    "t": "Read the timeline and calendar",
+    "w": "Milestones › Plan · Dashboard › Milestones",
+    "go": "milestones",
+    "s": [
+     "The **Timeline** scrolls sideways. The arrows move along it and **Today** comes back. Drag its bottom edge to zoom in or out; **Reset** puts it back.",
+     "A slipped milestone keeps its mark on the agreed date, with a dashed ring where it is now expected and a dashed line between them.",
+     "The two icons at the top right switch between **Timeline** and **Calendar**. Your choice is kept.",
+     "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
+     "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
+     "**Show milestone details** lists them with their date, state and progress. The first five show; **Show all** shows the rest."
+    ],
+    "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”."
+   },
+   {
+    "id": "handle-a-slipped-milestone",
+    "g": "Milestones",
+    "t": "Deal with a slipped milestone",
+    "w": "Milestones › Movement",
+    "go": "milestones",
+    "s": [
+     "On **Milestones**, press **Movement**. It is for you and the team: it is never published.",
+     "The first line says how many open milestones are behind, and which is furthest behind.",
+     "Each row has a track: a diamond for the original date (when it was rebaselined), a bar for the agreed date, the forecast mark, a red line for the distance past agreed, and today. At the right, the days late and whether it was rebaselined.",
+     "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
+     "Then decide: **Hold** (notes that the agreed date stays), **Rebaseline** (the agreed date moves to the expected date; the original is kept), **Add a recovery action** or **Escalate to steering**. The last two add a linked action or decision and open it.",
+     "Write an **Internal note**. It saves when you leave the box and is never published."
+    ]
+   },
+   {
+    "id": "format-text",
+    "g": "Writing",
+    "t": "Write and format text",
+    "w": "Any longer text you click",
+    "go": "dashboard+edit",
+    "s": [
+     "Click the text. An editor opens where it is, with a bar of headings, bold, italic, strikethrough, lists, a checklist, indent and outdent, a quote, a divider, Link, Unlink, Clear, undo and redo, and **✦ AI**.",
+     "Highlight some words and a small bar floats above them, with the same formatting and the AI menu.",
+     "Type [[/]] at the start of a line or after a space for the command menu: Text, Heading 1 to 3, lists, a checklist, a quote, a divider and the AI options. Type to narrow it; [[Up]] and [[Down]] move, [[Enter]] inserts, [[Esc]] closes.",
+     "Click away, or press [[Mod+Enter]], to keep the text. [[Esc]] cancels the edit."
+    ],
+    "n": "Titles, headings and table cells are plain text: [[Enter]] keeps the change and [[Esc]] puts it back."
+   },
+   {
+    "id": "improve-wording-with-ai",
+    "g": "Writing",
+    "t": "Improve wording with AI",
+    "w": "Any editor › select text › AI",
+    "go": "dashboard+edit",
+    "s": [
+     "Select some words. The floating bar has an AI part: **Format notes** (when you select two or more lines of a report section), **Improve**, **Structure**, **Make into** and **Ask…**.",
+     "Or press **✦ AI** on the editor’s bar, or [[Alt+/]], for every option at once, on the selection or on the whole text. Where the field allows it, **Draft from the project** is first.",
+     "**Improve**: Rewrite clearly, Shorter, Longer, Make it executive and Polish. **Structure**: Add headings and bold, Pull out the tasks and Summarise at the top. **Make into**: a new action, risk or decision from the text. **Ask…**: say what you want in your own words.",
+     "The answer is a suggestion: your text is unchanged until you press **Accept** ([[Mod+Enter]]). **Show changes** marks what goes and what comes, word by word. **Try again** asks again; **Discard** ([[Esc]]) drops it.",
+     "After you accept, the editor’s undo ([[Mod+Z]]) takes it back."
+    ],
+    "n": "Item fields and client wording offer Improve and Ask; report sections offer Structure and Format notes as well."
+   },
+   {
+    "id": "set-up-a-project",
+    "g": "Settings and safety",
+    "t": "Set up a project",
+    "w": "Settings › Projects · the project switcher",
+    "go": "settings",
+    "s": [
+     "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
+     "A new project opens on Work items, ready for an import.",
+     "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
+     "Under the projects, set this project’s **Source folders for ask clark** and its **Publishing** folders.",
+     "The project name in the top bar switches projects, shows each one’s open items, and has **New project…** and **Project settings**."
+    ]
+   },
+   {
+    "id": "set-your-profile",
+    "g": "Settings and safety",
+    "t": "Set your profile",
+    "w": "Settings › Profile",
+    "go": "settings#profile",
+    "s": [
+     "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
+     "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
+     "Your full name goes on every change you make, in each item’s history. Your initials fill the circle at the top right."
+    ]
+   },
+   {
+    "id": "undo-a-mistake",
+    "g": "Settings and safety",
+    "t": "Undo a mistake",
+    "w": "The message at the foot of the page · the peek’s history",
+    "go": "dashboard",
+    "s": [
+     "Every change shows a message at the foot of the page with **Undo**, for about six seconds.",
+     "A step of several changes undoes as one: an import, **Add from your project record**, an archive with everything in it, a board move across a lane and a column.",
+     "The peek’s **All**, **Activity**, **Updates** and **Source** show each change: who, what it was, what it became, and when. A milestone’s moves are also in **Movement › What changed**.",
+     "In an editor, the undo button or [[Mod+Z]] steps back through your typing. [[Esc]] cancels the whole edit."
+    ]
+   },
+   {
+    "id": "update-clark",
+    "g": "Settings and safety",
+    "t": "Update clark",
+    "w": "Settings › clark version and updates",
+    "go": "settings#update",
+    "s": [
+     "Open [Settings](go:settings#update) and find **clark version and updates**. **Installed** is the version you have now.",
+     "Download the new release, clark-X.Y.Z.zip, from the release page. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** and pick the file. Not the source code zip.",
+     "Read the review: the version change, the release notes, the files replaced and added. Your projects, settings and published reports are kept, and everything is backed up first.",
+     "Press **Install clark X.Y.Z**. When it is done, restart clark to finish.",
+     "To go back, press **Undo update** in the **Last update** row, then **Confirm undo** within five seconds. More in [Updating clark](#ref-updating-clark)."
+    ]
+   }
+  ]
+ },
+ "reference": {
+  "groups": [
+   "Screens",
+   "Working with items",
+   "Milestones",
+   "Writing and AI",
+   "Publishing",
+   "Settings and data",
+   "Keys and icons"
+  ],
+  "sections": [
+   {
+    "id": "top-bar",
+    "g": "Screens",
+    "t": "The top bar",
+    "b": [
+     [
+      "ul",
+      [
+       "**The logo** (or clark’s icon and name): back to the Dashboard.",
+       "**The project name**: switch projects. Each shows its count of open items; **New project…** and **Project settings** are at the foot.",
+       "**Dashboard**, **Work items** and **Milestones**: the three screens.",
+       "**ask clark**: opens the assistant down the right. The [[/]] beside it is its key.",
+       "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "profile-circle",
+    "g": "Screens",
+    "t": "The profile circle",
+    "b": [
+     [
+      "p",
+      "At the top right. Its menu has your name and email at the top, then:"
+     ],
+     [
+      "ul",
+      [
+       "**Publish…**: the Publish box, on the Dashboard. See [Publishing](#ref-publishing).",
+       "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
+       "**Export to Excel**: the whole project as one workbook.",
+       "**Settings**.",
+       "**Dark mode**: ticked when it is on."
+      ]
+     ],
+     [
+      "p",
+      "Publish, Preview and Export appear only when a project is open."
+     ]
+    ]
+   },
+   {
+    "id": "dashboard",
+    "g": "Screens",
+    "t": "Dashboard",
+    "w": "The report, in View or Edit",
+    "b": [
+     [
+      "ul",
+      [
+       "**View** and **Edit**: View shows the report as the client will read it. Edit changes it in place; each change saves on its own.",
+       "**Week ending**: the date on the cover, and in the published file’s name.",
+       "The line beside it: while you edit, that each change saves on its own; otherwise “Published” on its date, to the client (or locally), or “Draft · not published yet”.",
+       "The cover: the project, then “WEEKLY REPORT · Week ending …” and who it is for."
+      ]
+     ],
+     [
+      "p",
+      "A single click on a work item row, outside its fields, opens it in the peek. In Edit, every part of the row changes in place."
+     ],
+     [
+      "p",
+      "At the right edge, **On this page** is a quiet line for each section; the current one is longer and darker, and a warm one needs a look. Point at it, or tab to it, for the list with counts (late, red, slipped, flagged, pending) and **Back to top**."
+     ]
+    ]
+   },
+   {
+    "id": "sections",
+    "g": "Screens",
+    "t": "Report sections",
+    "b": [
+     [
+      "tbl",
+      [
+       "Section",
+       "What it shows"
+      ],
+      [
+       [
+        "Current state",
+        "Where the project stands, in your words."
+       ],
+       [
+        "At a glance",
+        "Project health with its reason, and the count tiles. See [At a glance](#ref-at-a-glance)."
+       ],
+       [
+        "Use case summary",
+        "A strip of counts, then a row per use case that opens in place."
+       ],
+       [
+        "Milestones",
+        "The timeline or calendar, the legend and the details list."
+       ],
+       [
+        "Summary, This week, Next week",
+        "Text sections. This week and Next week sit side by side to start with; any section can sit beside another."
+       ],
+       [
+        "Risks and issues",
+        "Open risks and issues on the page: colour, title, owner, review date, priority and response."
+       ],
+       [
+        "Open actions",
+        "Open actions on the page, with the due date and how late or soon."
+       ],
+       [
+        "Decisions",
+        "Pending decisions, and any dated in the last 14 days."
+       ],
+       [
+        "Supporting documents",
+        "Links to the week’s papers."
+       ]
+      ]
+     ],
+     [
+      "p",
+      "Add more sections from the **+** under any section’s grip, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit."
+     ]
+    ]
+   },
+   {
+    "id": "section-templates",
+    "g": "Screens",
+    "t": "Section templates",
+    "w": "Dashboard › Edit › Add a section",
+    "b": [
+     [
+      "p",
+      "Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the next section (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
+     ],
+     [
+      "p",
+      "**Text** is the exception: it adds an ordinary text section. Each template works at the widths shown."
+     ],
+     [
+      "tbl",
+      [
+       "Template",
+       "What it is for",
+       "Fits"
+      ],
+      [
+       [
+        "Text",
+        "Words under a heading, written in clark’s one editor.",
+        "Full or half"
+       ],
+       [
+        "Text and image",
+        "A story with a picture: a site visit, a design, a screenshot of the new system.",
+        "Full or half"
+       ],
+       [
+        "Headline band",
+        "Open the report with a message: a milestone reached, a go-live, a change of phase.",
+        "Full"
+       ],
+       [
+        "Key figures, four",
+        "Three or four numbers with labels and a change since last week.",
+        "Full or half"
+       ],
+       [
+        "Key figures, three",
+        "The same, for three numbers. Each card is wider, so a short note fits under the change.",
+        "Full or half"
+       ],
+       [
+        "Image gallery",
+        "Two to six pictures in a grid, each with a caption.",
+        "Full"
+       ],
+       [
+        "Table",
+        "Anything with rows: a budget line, a cut-over plan, a training schedule.",
+        "Full"
+       ],
+       [
+        "Link preview",
+        "A web page shown as a card: a dashboard, a news item, a recording.",
+        "Full"
+       ],
+       [
+        "RAID cards, three",
+        "The risks, actions, issues or decisions you want the reader to see, as cards.",
+        "Full"
+       ],
+       [
+        "RAID cards, four",
+        "Four shorter cards: good for “this week’s actions” or “decisions needed”.",
+        "Full"
+       ],
+       [
+        "Work items list",
+        "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.",
+        "Full or half"
+       ],
+       [
+        "Documents and links",
+        "The papers that go with this week’s report.",
+        "Full or half"
+       ],
+       [
+        "Callout",
+        "One thing the reader must see.",
+        "Half or full"
+       ],
+       [
+        "Image with caption",
+        "One picture beside text.",
+        "Half or full"
+       ],
+       [
+        "Quote",
+        "A voice from the business.",
+        "Half or full"
+       ],
+       [
+        "Contacts",
+        "Who to ask.",
+        "Half or full"
+       ],
+       [
+        "Checklist",
+        "Next steps or readiness, ticked off.",
+        "Half or full"
+       ],
+       [
+        "Key dates",
+        "What’s coming, from the milestones.",
+        "Half or full"
+       ],
+       [
+        "One document",
+        "A single file to read.",
+        "Half or full"
+       ]
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "at-a-glance",
+    "g": "Screens",
+    "t": "At a glance",
+    "b": [
+     [
+      "tbl",
+      [
+       "Tile",
+       "Counts",
+       "Automatic colour"
+      ],
+      [
+       [
+        "Project health",
+        "On track, At risk or Off track, with the reason",
+        "The health"
+       ],
+       [
+        "Overdue actions",
+        "Open actions past their due date, “of n open actions”",
+        "Red when any; green when none"
+       ],
+       [
+        "High risks and issues",
+        "Open risks and issues of Urgent or High priority",
+        "Red when any is red; amber when some are open; green when none"
+       ],
+       [
+        "Decisions needed",
+        "Pending decisions, with the oldest date",
+        "Amber when any; green when none"
+       ]
+      ]
+     ],
+     [
+      "p",
+      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Tile colour**."
+     ]
+    ]
+   },
+   {
+    "id": "layouts",
+    "g": "Screens",
+    "t": "Section styles",
+    "b": [
+     [
+      "p",
+      "The report is the cover, then the sections in cards, with the contents at the right edge."
+     ],
+     [
+      "tbl",
+      [
+       "Dashboard sections (yours)",
+       "What it does"
+      ],
+      [
+       [
+        "Slim gaps (standard)",
+        "Each section is its own card, with a slim gap that shows the page picture."
+       ],
+       [
+        "Roomy gaps",
+        "The same, with more space between the sections."
+       ],
+       [
+        "Grey headers",
+        "Slim gaps, and each section title in a grey band."
+       ],
+       [
+        "One card",
+        "All the sections in one long card."
+       ]
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "work-items",
+    "g": "Screens",
+    "t": "Work items",
+    "b": [
+     [
+      "p",
+      "From the top: the import and export icons and **+**; the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; the search; then **Filter by**."
+     ],
+     [
+      "tbl",
+      [
+       "Table column",
+       "Shows"
+      ],
+      [
+       [
+        "Item",
+        "The type badge, the title, a Client tag, then the ID, use case and milestone"
+       ],
+       [
+        "Owner",
+        "Initials and name"
+       ],
+       [
+        "Due",
+        "The date, and Today, Tomorrow, “3 days late” or “In 5 days”"
+       ],
+       [
+        "Priority",
+        "Urgent, High, Medium or Low"
+       ],
+       [
+        "Status",
+        "The state in words and colour: see [Status words](#ref-status-words)"
+       ],
+       [
+        "The eye",
+        "Client-visible on or off"
+       ]
+      ]
+     ],
+     [
+      "tbl",
+      [
+       "Filter",
+       "Values"
+      ],
+      [
+       [
+        "Workstream",
+        "The project’s workstreams"
+       ],
+       [
+        "Status",
+        "Every status of every type"
+       ],
+       [
+        "Due",
+        "Overdue, Due in 7 days, No date, Later"
+       ],
+       [
+        "Owner",
+        "Everyone with an item, and none"
+       ],
+       [
+        "Priority",
+        "Urgent, High, Medium, Low"
+       ],
+       [
+        "Use case",
+        "Each use case, and none"
+       ],
+       [
+        "Milestone",
+        "Each milestone, and none"
+       ],
+       [
+        "Client",
+        "Shown to the client, Internal only"
+       ]
+      ]
+     ],
+     [
+      "p",
+      "Every filter can be **is** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
+     ]
+    ]
+   },
+   {
+    "id": "milestones-page",
+    "g": "Screens",
+    "t": "Milestones: Plan and Movement",
+    "b": [
+     [
+      "p",
+      "The line under the heading names the last milestone, its agreed date and any later expected date, and how many are achieved and to come."
+     ],
+     [
+      "ul",
+      [
+       "**Plan**: every milestone, internal ones too, on the timeline or calendar, with the legend and the details list.",
+       "**Movement**: the open milestones against their original, agreed and forecast dates, with the days late, what changed and what to do. Never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
+      ]
+     ],
+     [
+      "p",
+      "On the Dashboard, the Milestones section shows only the milestones visible to the client. In Edit, the eye in the details takes one off the page, and **+ Add a milestone from your project record** brings it back."
+     ]
+    ]
+   },
+   {
+    "id": "ask-clark",
+    "g": "Screens",
+    "t": "ask clark",
+    "w": "Top bar · [[/]] · [[Mod+J]]",
+    "b": [
+     [
+      "p",
+      "Its purpose is to help you make the report as accurate as it can be. It works from this project’s data and the source folders listed in Settings. It never reads mail, Teams or calendars."
+     ],
+     [
+      "ul",
+      [
+       "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What’s overdue?**, **Which risks are red?**, **Next milestone?**, **Summarise this week**, **Use cases**.",
+       "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, an office quip shows in place of the suggestions, and they come back with the answer.",
+       "An answer’s IDs open the item; a milestone’s name opens the milestone. A button in an answer makes a change, with **Undo**.",
+       "**+** starts a new chat; **×**, [[Esc]] or a click outside closes it.",
+       "Drag its left edge to make it wider; a double-click puts it back."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "peek",
+    "g": "Working with items",
+    "t": "The peek",
+    "b": [
+     [
+      "p",
+      "A work item opens in the peek, over the page from the right. Everything in it saves as you change it, with **Undo**."
+     ],
+     [
+      "ul",
+      [
+       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, the sparkle (Sneak peek), Copy link and **⋯** (Duplicate, Archive).",
+       "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
+       "**A warning**, when an action is overdue or due on a weekend, with fixes.",
+       "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
+       "**Latest update**, with **Draft**; then when it was last updated.",
+       "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
+       "**History**: All, Activity, Updates and Source.",
+       "**The foot**: “Change this item in words”, and “Each change saves on its own, with Undo”."
+      ]
+     ],
+     [
+      "p",
+      "With the peek open, a click on another work item or milestone moves the peek to it. A click anywhere else, or [[Esc]], closes it. Drag the left edge to resize it; a double-click puts it back."
+     ]
+    ]
+   },
+   {
+    "id": "status-words",
+    "g": "Working with items",
+    "t": "Types, statuses and colours",
+    "b": [
+     [
+      "tbl",
+      [
+       "Type",
+       "Statuses",
+       "What the pill says"
+      ],
+      [
+       [
+        "Action",
+        "Open, Delayed, Closed, Cancelled",
+        "Overdue (red) past its due date; Delayed or Due soon (amber, within 7 days); Open (blue); Closed or Cancelled (grey)"
+       ],
+       [
+        "Risk, Issue",
+        "Open, Closed, Cancelled",
+        "Its colour from its priority: Urgent or High red, Medium amber, Low green"
+       ],
+       [
+        "Decision",
+        "Pending, Made, Withdrawn",
+        "Pending (blue), Made (green), Withdrawn (grey)"
+       ]
+      ]
+     ],
+     [
+      "p",
+      "Choosing Red, Amber or Green on a risk or issue sets its priority. Priorities are Urgent, High, Medium and Low."
+     ],
+     [
+      "p",
+      "Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey)."
+     ]
+    ]
+   },
+   {
+    "id": "sneak-peek",
+    "g": "Working with items",
+    "t": "Sneak peek",
+    "w": "An open peek › the sparkle or [[/]] [[/]]",
+    "b": [
+     [
+      "tbl",
+      [
+       "You type",
+       "It changes"
+      ],
+      [
+       [
+        "due Friday · move to next week · by 12-12-2026 · on in 3 days",
+        "The due date (today, tomorrow, next week, in n days or weeks, a weekday, next Monday, DD-MM-YYYY)"
+       ],
+       [
+        "owner Jo · assign to Sam Rivers · give it to Priya",
+        "The owner (a second word counts when it has a capital)"
+       ],
+       [
+        "done · closed · reopen · delayed · cancelled",
+        "An action’s, risk’s or issue’s status"
+       ],
+       [
+        "made · agreed · withdrawn · pending",
+        "A decision’s status"
+       ],
+       [
+        "urgent · high priority · medium · low",
+        "The priority"
+       ],
+       [
+        "red · amber · green",
+        "A risk’s or issue’s colour"
+       ],
+       [
+        "show to client · hide from client",
+        "Client-visible"
+       ],
+       [
+        "use case 3.1",
+        "The use case"
+       ],
+       [
+        "rename to …",
+        "The title"
+       ],
+       [
+        "update: …",
+        "The latest update"
+       ]
+      ]
+     ],
+     [
+      "tbl",
+      [
+       "For a milestone",
+       "It changes"
+      ],
+      [
+       [
+        "forecast 12-12-2026 · move to next Friday",
+        "The forecast date"
+       ],
+       [
+        "achieved · done",
+        "Achieved today, progress 100%"
+       ],
+       [
+        "at risk · on track",
+        "The state"
+       ],
+       [
+        "progress 40%",
+        "The progress"
+       ],
+       [
+        "owner …, show to client, rename to …",
+        "As for an item"
+       ]
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "picker",
+    "g": "Working with items",
+    "t": "Add from your project record",
+    "b": [
+     [
+      "p",
+      "A box that lists what is not on the page yet: work items, milestones, use cases or documents. Type to search by name, ID, owner or use case; a switch narrows it by kind; tick what you want, or **Select all shown**. [[Enter]] in the search ticks the only match, and [[Down]] goes to the list. **Add** puts them on the page in one step, with one **Undo**."
+     ]
+    ]
+   },
+   {
+    "id": "milestone-states",
+    "g": "Milestones",
+    "t": "Milestone states and marks",
+    "b": [
+     [
+      "marks"
+     ],
+     [
+      "p",
+      "A state follows the dates unless you set it by hand. Achieved wins; then Forecast and At risk (set by hand); then Overdue once the agreed date has passed; then Slipped when the forecast is later than agreed; otherwise On track."
+     ],
+     [
+      "p",
+      "Slip is counted in days from the agreed date to the expected date: the later of the forecast and, once the agreed date has passed, today."
+     ]
+    ]
+   },
+   {
+    "id": "milestone-peek",
+    "g": "Milestones",
+    "t": "The milestone peek",
+    "b": [
+     [
+      "ul",
+      [
+       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye, the sparkle (Sneak peek) and **⋯** (Archive milestone).",
+       "**The chips**: the state, the agreed date, the forecast and the progress.",
+       "**State**: the six states as buttons, and why it has the one it has.",
+       "**Dates**: Agreed (the baseline) with **Rebaseline…** and the original date; Forecast, with how many days later than agreed. An achieved milestone shows its achieved date.",
+       "**Progress**: a slider and a number, set by hand.",
+       "**Description**: scope and needs, then Owner and Workstream.",
+       "**Client view**: Visible to client, and Client wording.",
+       "**Linked work items**, then the history."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "timeline-calendar",
+    "g": "Milestones",
+    "t": "Timeline, calendar and details",
+    "b": [
+     [
+      "ul",
+      [
+       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**.",
+       "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
+       "**Legend**: point at it or tab to it.",
+       "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**. **Hide milestone details** folds it away."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "editor",
+    "g": "Writing and AI",
+    "t": "The editor",
+    "b": [
+     [
+      "p",
+      "One editor everywhere: Current state, the text sections, a use case’s Where it stands, an item’s latest update, description and client wording, and a milestone’s description and client wording. Click the text and it opens in place."
+     ],
+     [
+      "tbl",
+      [
+       "Part",
+       "What it has"
+      ],
+      [
+       [
+        "The bar",
+        "H1, H2, H3 · Bold, Italic, Strikethrough · Bulleted list, Numbered list, Checklist, Outdent, Indent, Quote, Divider · Link, Unlink, Clear · Undo, Redo · ✦ AI"
+       ],
+       [
+        "The floating bar (select text)",
+        "Bold, Italic, Strikethrough · Heading, Small heading · Bulleted list, Numbered list, Quote · Link, Clear · the AI part"
+       ],
+       [
+        "The / menu",
+        "Text, Heading 1, 2 and 3, Bulleted list, Numbered list, Checklist, Quote, Divider, Draft with AI, Rewrite clearly, Shorter, Make it executive, Polish, Ask AI…"
+       ],
+       [
+        "The line under it",
+        "“⌘↵ or click away saves · Esc cancels · / for commands and AI · highlight text to format it, Alt+/ for AI on it”"
+       ]
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "ai-menu",
+    "g": "Writing and AI",
+    "t": "The AI menu",
+    "b": [
+     [
+      "ai"
+     ],
+     [
+      "tbl",
+      [
+       "Where",
+       "What it offers"
+      ],
+      [
+       [
+        "Current state, text sections, Where it stands",
+        "Draft from the project (where there is one), Format notes, Improve (with Longer), Structure, Make into, Ask"
+       ],
+       [
+        "An item’s latest update, description; a milestone’s description",
+        "Improve: Rewrite clearly, Shorter, Make it executive, Polish; Make into; Ask"
+       ],
+       [
+        "Client wording",
+        "The same as an item’s fields"
+       ]
+      ]
+     ],
+     [
+      "p",
+      "The suggestion card: the new text, **Show changes** (word by word), **Try again**, **Discard** ([[Esc]]) and **Accept** ([[Mod+Enter]]). Nothing changes until you accept. **Make into** adds a new item at once, with **Undo** in the message."
+     ]
+    ]
+   },
+   {
+    "id": "publishing",
+    "g": "Publishing",
+    "t": "Publishing",
+    "w": "Profile circle › Publish…",
+    "b": [
+     [
+      "ul",
+      [
+       "**Local**: always. Saved through your browser’s own save window, which opens where you last saved for the project (or your downloads, where the browser has no save window).",
+       "**To client**: only when ticked, to the client folder in Settings › Publishing.",
+       "**Also a Word document**: a Word copy beside the web page."
+      ]
+     ],
+     [
+      "p",
+      "The web page holds only what the report shows in View. Anything left out is dropped before the file is made. The Word document has the cover, the health and the sections as tables."
+     ],
+     [
+      "p",
+      "Each publish is noted on the project, and the Dashboard says when it was last published. **Preview the page in a new tab** shows the page without saving it."
+     ]
+    ]
+   },
+   {
+    "id": "client-page",
+    "g": "Publishing",
+    "t": "The published client page",
+    "b": [
+     [
+      "ul",
+      [
+       "**The cover**: the project, the week ending and who it is for.",
+       "**Three tabs**: Dashboard, Work items and Milestones.",
+       "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
+       "**Work items**: actions, risks and issues, and decisions shown to the client, with a search box.",
+       "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
+       "A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.",
+       "A tile opens the Work items tab. A use case row opens its detail."
+      ]
+     ],
+     [
+      "p",
+      "The footer says when it was published. The page carries clark’s icon in its tab and needs no other files."
+     ]
+    ]
+   },
+   {
+    "id": "settings",
+    "g": "Settings and data",
+    "t": "Settings",
+    "b": [
+     [
+      "tbl",
+      [
+       "Card",
+       "What it holds"
+      ],
+      [
+       [
+        "Profile",
+        "Name, Alias, Email, Phone number and Organisation. On this computer only."
+       ],
+       [
+        "Personal",
+        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card) and Appearance (Light, Dark or System)."
+       ],
+       [
+        "Projects",
+        "Every project with its code, client, workstreams and item count; Open, Edit and Archive; **+** adds one."
+       ],
+       [
+        "Source folders for ask clark",
+        "The folders ask clark may read for this project. It only reads them."
+       ],
+       [
+        "Publishing",
+        "The local folder, and the client’s SharePoint folder."
+       ],
+       [
+        "Data",
+        "Export to Excel, and Import from Excel."
+       ],
+       [
+        "clark version and updates",
+        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+       ],
+       [
+        "Diagnostics",
+        "The log level (Normal or Debug), the log folder, **Copy diagnostics** and recent errors. See [Diagnostics and logs](#ref-diagnostics)."
+       ]
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "updating-clark",
+    "g": "Settings and data",
+    "t": "Updating clark",
+    "w": "Settings › clark version and updates",
+    "b": [
+     [
+      "ul",
+      [
+       "**Installed** is the version you have. **Update** says **Up to date**, or **Review 0.3.0** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check.",
+       "**Choose zip…** takes a release file you saved. It must be named clark-X.Y.Z.zip, from the release page: not the source code zip.",
+       "**Review** shows the version change, the release notes (**Copy the notes**), how many files are replaced and added, and that your projects, settings and published reports are kept.",
+       "Everything is backed up first, and if a step fails clark puts the old version back. A release is checked file by file against its list of checksums before anything changes.",
+       "**Undo update** goes back to the version before: press it, then **Confirm undo** within five seconds."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "diagnostics",
+    "g": "Settings and data",
+    "t": "Diagnostics and logs",
+    "w": "Settings › Diagnostics",
+    "b": [
+     [
+      "ul",
+      [
+       "**Log level**: **Normal** keeps a line for what clark did and for every error. **Debug** adds detail for fixing a problem. Switch back to Normal when you are done; Settings reminds you after a week.",
+       "Logs hold only counts, IDs and times, never your report text, names, emails or keys. clark keeps one file a day (5 MB at most) for 7 days; **Open the folder** shows it.",
+       "**Copy diagnostics** puts a plain-text report on the clipboard: the version, browser, system, log level, counts, safe settings and the last 20 log lines. It never holds a name, email, project name or report text, so it can go in a chat.",
+       "**Errors in the last 7 days** lists what went wrong, or says None."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "excel",
+    "g": "Settings and data",
+    "t": "Excel in and out",
+    "b": [
+     [
+      "tbl",
+      [
+       "Sheet",
+       "Columns"
+      ],
+      [
+       [
+        "Actions, Risks and issues, Decisions",
+        "ID, Type, Workstream, Title, Owner, Due, Status, Priority, Rating, Use case, Milestone, Client-visible, Client wording, Description, Latest update"
+       ],
+       [
+        "Milestones",
+        "ID, Milestone, Workstream, Original, Agreed, Forecast, Achieved, State, Progress, Owner, Client-visible, Description"
+       ],
+       [
+        "Use cases",
+        "ID, Shown as, Use case, Status, Headline, Where it stands, Client-visible, Open work items"
+       ]
+      ]
+     ],
+     [
+      "p",
+      "On import, columns can be in any order and only the title or name is needed. Client-visible reads Yes or No. Dates can be DD-MM-YYYY."
+     ]
+    ]
+   },
+   {
+    "id": "saving",
+    "g": "Settings and data",
+    "t": "Saving, history and undo",
+    "b": [
+     [
+      "ul",
+      [
+       "There is no Save button. Each change is written when you make it: a pick from a menu, [[Enter]] in a field, leaving a box, or closing an editor.",
+       "Each change records who made it (your full name from Settings › Profile, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
+       "**Undo** in the message reverses exactly that step. Several changes made together undo together."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "dates-and-ids",
+    "g": "Settings and data",
+    "t": "Dates and IDs",
+    "b": [
+     [
+      "ul",
+      [
+       "Dates are shown day, month, year: DD-MM-YYYY.",
+       "The week ends on a Friday.",
+       "IDs: actions CODE-A-001, decisions CODE-D-001, risks and issues CODE-001 (one series), milestones CODE-M-001. CODE is the project’s short code.",
+       "Use cases keep the ID you give them, such as 3.1."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "using-help",
+    "g": "Settings and data",
+    "t": "Using Help",
+    "b": [
+     [
+      "ul",
+      [
+       "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
+       "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
+       "A link with an arrow takes you to the screen it names.",
+       "[[?]] opens Help from any page; in Help, [[/]] goes to the search box."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "keys",
+    "g": "Keys and icons",
+    "t": "Keyboard shortcuts",
+    "b": [
+     [
+      "keys"
+     ]
+    ]
+   },
+   {
+    "id": "icons",
+    "g": "Keys and icons",
+    "t": "Icons and marks",
+    "b": [
+     [
+      "icons"
+     ],
+     [
+      "types"
+     ]
+    ]
+   }
+  ],
+  "keys": [
+   [
+    "[[?]]",
+    "Help, from any page (when you aren’t typing in a box)"
+   ],
+   [
+    "[[/]]",
+    "ask clark (when you aren’t typing in a box). In Help, it goes to the search box instead"
+   ],
+   [
+    "[[Mod+J]]",
+    "Open or close ask clark"
+   ],
+   [
+    "[[/]] [[/]]",
+    "With a peek open: Sneak peek, change it in words. A single [[/]] opens ask clark after a moment"
+   ],
+   [
+    "[[Esc]]",
+    "Close the top thing: a menu, the command menu, Sneak peek, ask clark, the peek. In an editor or a field, cancel and put the old text back"
+   ],
+   [
+    "[[Enter]]",
+    "In a title, a heading or a cell: keep the change. On a row, a card, a tile or a milestone: open it. In Sneak peek: make the change"
+   ],
+   [
+    "[[Shift+Enter]]",
+    "In Sneak peek: make the change too. In ask clark: a new line"
+   ],
+   [
+    "[[Mod+Enter]]",
+    "In an editor: keep the text and close it. On an AI suggestion: accept it. In the health reason: keep it"
+   ],
+   [
+    "[[Alt+/]]",
+    "In an editor: the AI menu, for the selected text or all of it"
+   ],
+   [
+    "[[/]] in an editor",
+    "The command menu, at the start of a line or after a space. [[Up]], [[Down]], [[Enter]] and [[Esc]] work in it"
+   ],
+   [
+    "[[Up]]",
+    "In an empty Sneak peek box: your last instruction"
+   ],
+   [
+    "[[Up]] [[Down]] [[Enter]]",
+    "In any menu: move and choose. [[Esc]] closes it"
+   ],
+   [
+    "[[V]]",
+    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box"
+   ],
+   [
+    "[[E]]",
+    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box"
+   ],
+   [
+    "[[Alt+Up]] [[Alt+Down]]",
+    "Dashboard in Edit, on a section’s grip: move the section"
+   ],
+   [
+    "[[Enter]] or [[Space]]",
+    "Dashboard in Edit, on a section’s grip: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them"
+   ],
+   [
+    "[[Alt+Left]] [[Alt+Right]]",
+    "Dashboard in Edit, on a tile: move the tile"
+   ],
+   [
+    "[[Enter]] or [[Space]]",
+    "On a use case row: open or close its detail"
+   ],
+   [
+    "[[Home]] [[End]]",
+    "In Help’s tabs, with [[Left]] and [[Right]]: move between the tabs"
+   ],
+   [
+    "[[Mod+Z]]",
+    "In an editor: undo your typing, or an accepted AI suggestion"
+   ],
+   [
+    "Double-click",
+    "On the left edge of the peek or ask clark: back to the usual width"
+   ]
+  ],
+  "icons": [
+   [
+    "plus",
+    "Add",
+    "Add an item, a milestone, a use case or a project. Point at it to see what it adds",
+    "Work items, Milestones, the report in Edit, Settings"
+   ],
+   [
+    "dl",
+    "Export to Excel",
+    "One workbook of the project, or of the use cases",
+    "Work items, the Use case summary, Settings, the profile circle"
+   ],
+   [
+    "ul",
+    "Import from Excel",
+    "Read a workbook and check it before it is saved. Also Publish…, in the profile circle",
+    "Work items, Settings, the profile circle"
+   ],
+   [
+    "rows",
+    "Table",
+    "Work items as a table, in groups",
+    "Work items"
+   ],
+   [
+    "board",
+    "Board",
+    "Work items as cards in columns",
+    "Work items"
+   ],
+   [
+    "eye",
+    "Shown to the client",
+    "Select to hide it from the client. Crossed out: internal only",
+    "Work items, the peek, the report in Edit"
+   ],
+   [
+    "tline",
+    "Timeline",
+    "Milestones on a line that scrolls sideways",
+    "Milestones, the Dashboard"
+   ],
+   [
+    "cal",
+    "Calendar",
+    "Milestones by week, month or quarter. Also any date",
+    "Milestones, the Dashboard, the peek"
+   ],
+   [
+    "info",
+    "Legend",
+    "What each milestone mark means",
+    "Under the milestones"
+   ],
+   [
+    "sparkle",
+    "Sneak peek, Draft",
+    "Change an item in words; draft the latest update",
+    "The peek"
+   ],
+   [
+    "close",
+    "Close",
+    "Close the peek",
+    "The peek"
+   ],
+   [
+    "expand",
+    "Across the whole screen",
+    "Widen the peek; the inward corners put it back",
+    "The peek"
+   ],
+   [
+    "up",
+    "Previous and next",
+    "Step through the list in the peek",
+    "The peek"
+   ],
+   [
+    "link",
+    "Copy link",
+    "Copy a link to the open item",
+    "The peek"
+   ],
+   [
+    "more",
+    "More",
+    "Duplicate or Archive; on a card, Move to…; on a document, Edit or Remove",
+    "The peek, board cards, documents"
+   ],
+   [
+    "drag",
+    "Grip",
+    "Drag to move a section, click for its menu, or Alt and the arrows",
+    "The report in Edit"
+   ],
+   [
+    "chev",
+    "Collapse",
+    "Collapse or open a group, or open a pick list",
+    "Work items, Milestones, the report in Edit"
+   ],
+   [
+    "pencil",
+    "Edit",
+    "Switch the Dashboard to Edit",
+    "Dashboard"
+   ],
+   [
+    "half",
+    "Status",
+    "An item’s status, in its colour",
+    "The peek"
+   ],
+   [
+    "bars",
+    "Priority",
+    "An item’s priority, in its colour",
+    "The peek"
+   ],
+   [
+    "flash",
+    "Warning",
+    "Overdue, or due on a weekend, with a fix",
+    "The peek"
+   ],
+   [
+    "clock",
+    "Last updated",
+    "When the item last changed",
+    "The peek"
+   ],
+   [
+    "doc",
+    "Document",
+    "A supporting document; a history entry",
+    "The report, the peek"
+   ],
+   [
+    "ext",
+    "Open in a new tab",
+    "Open a document; preview the page",
+    "The report, the profile circle"
+   ],
+   [
+    "folder",
+    "Source folder",
+    "A folder ask clark may read",
+    "Settings"
+   ],
+   [
+    "trash",
+    "Remove, Archive",
+    "Remove a folder or a document, or archive an item",
+    "Settings, menus"
+   ],
+   [
+    "gear",
+    "Settings",
+    "Settings",
+    "The profile circle, the project switcher"
+   ],
+   [
+    "moon",
+    "Dark mode",
+    "Switch the dark look on or off",
+    "The profile circle"
+   ],
+   [
+    "chat",
+    "ask clark",
+    "Open ask clark",
+    "The top bar"
+   ],
+   [
+    "search",
+    "Search",
+    "Find work items, or anything in Help",
+    "Work items, pickers, Help"
+   ],
+   [
+    "eyeoff",
+    "Internal only",
+    "Not shown to the client. Select to show it",
+    "Work items, the peek, milestones"
+   ]
+  ],
+  "milestone_states": [
+   [
+    "Achieved",
+    "Done, on the date it was achieved."
+   ],
+   [
+    "On track",
+    "Expected on its agreed date."
+   ],
+   [
+    "At risk",
+    "Marked at risk by hand."
+   ],
+   [
+    "Slipped",
+    "Now expected after its agreed date. On the published page: Expected later."
+   ],
+   [
+    "Overdue",
+    "Its agreed date has passed and it isn’t achieved. On the published page: Late."
+   ],
+   [
+    "Forecast",
+    "A date not yet agreed."
+   ]
+  ],
+  "milestone_extra": [
+   [
+    "Expected",
+    "Where a slipped milestone is now expected; a dashed line joins it to its agreed date."
+   ],
+   [
+    "Today",
+    "The line on the timeline; the marked day on the calendar."
+   ]
+  ]
+ }
+}

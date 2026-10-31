@@ -1,0 +1,43 @@
+/* Milestones Movement (#136), the owner's block: tokens only, so dark mode follows; rows never scroll sideways. */
+.mvm { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--grey-200); }
+.mvm-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.mvm-top h2 { margin: 0; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+.mvm-sentence { margin: 12px 0 2px; font-size: var(--size-body); color: var(--text); }
+.mvm-worst { margin: 0 0 12px; color: var(--status-red-text); }
+.mvm-rows { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 16px; }
+.mvm-row { display: grid; grid-template-columns: minmax(120px, 1.3fr) auto minmax(150px, 1.2fr) minmax(120px, 1.5fr) minmax(130px, 1fr) auto; align-items: center; gap: 6px 14px; width: 100%; min-height: 44px; padding: 8px 12px; text-align: left; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 14px; cursor: pointer; }
+.mvm-row:hover { border-color: var(--grey-500); }
+.mvm-row.on { border-color: var(--brand-blue); background: var(--brand-blue-tint); }
+.mvm-row:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.mvm-name { font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.mvm-dates, .mvm-var, .mvm-moved { font-size: 13px; overflow-wrap: anywhere; }
+.mvm-track { position: relative; display: block; height: 18px; min-width: 100px; }
+.mvm-track i { position: absolute; top: 50%; display: block; }
+.mvm-line { left: 0; right: 0; height: 2px; margin-top: -1px; background: var(--grey-300); }
+.mvm-late { height: 4px; margin-top: -2px; background: var(--status-red); border-radius: 2px; }
+.mvm-agreed { width: 4px; height: 14px; margin: -7px 0 0 -2px; background: var(--brand-navy); border-radius: 2px; }
+.mvm-orig { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: var(--grey-500); transform: rotate(45deg); }
+.mvm-fc { width: 10px; height: 10px; margin: -5px 0 0 -5px; border: 2px solid var(--status-blue); border-radius: 50%; background: var(--surface); box-sizing: border-box; }
+.mvm-today { width: 1px; height: 18px; margin-top: -9px; background: var(--text-muted); }
+.mvm-card { padding: 16px 18px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.mvm-card h3 { margin: 0 0 8px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.mvm-card h4, .mvm-form h4 { margin: 16px 0 6px; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.mvm-chips { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; padding: 0; list-style: none; }
+.mvm-list { margin: 0; padding: 0; list-style: none; }
+.mvm-en { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--grey-200); }
+.mvm-en.undone .mv-en-text { color: var(--text-muted); text-decoration: line-through; }
+.mvm-en.undone { opacity: .75; }
+.mv-en-by, .mv-en-dec { font-size: 13px; }
+.mv-en-why { flex-basis: 100%; font-size: 14px; color: var(--text-muted); }
+.mvm-help { margin: 0 0 8px; }
+.mvm-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; }
+.mvm-actions .btn { min-height: 32px; }
+.mvm-actions button:disabled { opacity: .55; cursor: default; }
+.mvm-form { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); }
+.mvm-f { display: grid; gap: 2px; margin: 8px 0; }
+.mvm-f span { font-size: var(--size-small); color: var(--text-muted); }
+.mvm-f input { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.mvm-f input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mvm-confirm { margin: 12px 0 4px; }
+.mvm-problems p { margin: 4px 0; color: var(--status-red-text); }
+@media (max-width: 1100px) { .mvm-row { grid-template-columns: 1fr auto; } .mvm-track { grid-column: 1 / -1; } }

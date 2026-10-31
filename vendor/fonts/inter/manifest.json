@@ -1,0 +1,73 @@
+{
+ "files": {
+  "Inter-Bold.woff2": "28c33b76d784de9107495735c3cf22d48bb6d9c4343373a975c8ff922346a1c7",
+  "Inter-ExtraBold.woff2": "57bf631fb944d566285d30585a8fd21f4a13bbe0239bdabdf9cc8cca3abb1f73",
+  "Inter-Medium.woff2": "8af318d7e4092103427da4d73f4f942c42a8bbbbd873ac45bc5ae19afda8e13f",
+  "Inter-Regular.woff2": "656406a405dd93770eca292aa851393b86d2ddfccfdf95a2d8c09460790422df",
+  "Inter-SemiBold.woff2": "fbe8ecb2d7e428dda8966a31176665e8349d48368764d3f135ea7610d3a1c53a",
+  "OFL.txt": "40dfe0003dcd0bbde5a51ef5df205076e0e2921bd3ba190dae4ef783d74f919b"
+ },
+ "fonts": [
+  {
+   "family": "Inter",
+   "file": "Inter-Bold.woff2",
+   "style": "normal",
+   "subset": "latin",
+   "unicode_range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+   "weight": "700"
+  },
+  {
+   "family": "Inter",
+   "file": "Inter-ExtraBold.woff2",
+   "style": "normal",
+   "subset": "latin",
+   "unicode_range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+   "weight": "800"
+  },
+  {
+   "family": "Inter",
+   "file": "Inter-Medium.woff2",
+   "style": "normal",
+   "subset": "latin",
+   "unicode_range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+   "weight": "500"
+  },
+  {
+   "family": "Inter",
+   "file": "Inter-Regular.woff2",
+   "style": "normal",
+   "subset": "latin",
+   "unicode_range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+   "weight": "400"
+  },
+  {
+   "family": "Inter",
+   "file": "Inter-SemiBold.woff2",
+   "style": "normal",
+   "subset": "latin",
+   "unicode_range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+   "weight": "600"
+  }
+ ],
+ "package": {
+  "family": "Inter",
+  "fetched": "2026-10-30",
+  "from_creaite": false,
+  "licence": "OFL-1.1",
+  "licence_file": "OFL.txt",
+  "file_source": "https://fonts.google.com/specimen/Inter",
+  "source": "https://fonts.google.com/specimen/Inter",
+  "licence_source": "https://fonts.google.com/specimen/Inter/license",
+  "upstream": "https://github.com/rsms/inter",
+  "version": "Google Fonts, 30-10-2026",
+  "note": "not from creaite; a public open-source typeface (SIL Open Font License 1.1) from Google Fonts: the TrueType files converted to woff2 and cut to the Latin range, otherwise unchanged",
+  "notes": "Static weights, one file each; Latin only, so characters outside it use Arial.",
+  "weights_used": [
+   400,
+   500,
+   600,
+   700,
+   800
+  ]
+ }
+}

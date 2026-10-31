@@ -1,0 +1,102 @@
+# Design: #66 One rich editor, the cleaner on the page and the wiring
+
+Written by a teammate, 28-10-2026, as the build spec for the part of #66 that does not need #65, and the plan for the rest. Nothing of the editor is built. Size of this part: S. Review: Full (it is a copy of a security control).
+**Sources:** #66 and its readiness check (the Done-when), a teammate's handover, the reviews of #66a (80,078 inputs through Chrome's DOM; a teammate: 19,481), `src/clark/sanitise.py` (PR #43), `tests/test_sanitise.py`, `vendor/tiptap/manifest.json`, `dev/tiptap/editor.js`, `publish.py` and `excel_import.py` on main, and #65 (PR #41, not merged) for `changes.py`.
+
+## 1. What is on main, and what #66 still needs
+- **On main:** `sanitise.py` (`clean_html`, `plain_text`, `SanitiseError`; its own tokeniser; 200,000 characters in or out is refused; nesting past 50 loses its tags) and its 48 tests. The vendored Tiptap 3.31.3 (`vendor/tiptap/tiptap.module.js`, 511 KB, hashes in its manifest).
+- **Nothing calls the sanitiser.** `publish.py` has its own smaller `clean_html` (#39); `excel_import.clean_rich` is a no-op seam waiting for #66a; `changes.py` is in #65. There is no `plain_to_html()` (a teammate's LOW 1: plain text such as `a<b review` loses its tail if it reaches the cleaner unescaped).
+- **This branch builds (no #65 needed):** the page's `cleanHtml`, the two tables it shares with Python, the test that compares them, and the readiness check's clean-HTML cases on the page side.
+- **Still to build after #65 merges:** the editor and its tests (section 6), the store call, the change route's call, the publish build's call, `plain_to_html()`.
+
+## 2. How the sanitiser is wired
+Python `sanitise.clean_html` is the **authority**: the server cleans on every save, and the published file only ever carries cleaned HTML. The page's `cleanHtml` is a **mirror**: it lets the editor show what will be stored, and it is a second pass over saved text before it is drawn. The page never decides what is kept.
+
+| Where | Which | Why |
+|---|---|---|
+| The store's write of `projects.current_state`, `use_cases.standing` and a text section's `body` (every route, import and AI reply come through it) | Python | Decides what is stored. One guarded line in `store.py` (#31's copy; the owner approves it) |
+| The change route (`changes.py`, #65): a rich field in `values` or `changes` | Python, before the step is made | A `SanitiseError` is a plain-words refusal (too long), nothing written. The reply carries the cleaned text of a rich field it wrote, so the page shows what is stored (Q2) |
+| Excel import (`excel_import.clean_rich`), team change files, AI replies | Python, after `plain_to_html()` where the source is plain text | The seam already exists; it calls the sanitiser and nowhere else |
+| The published build (`publish.py`) | Python: its own `clean_html` is replaced by `sanitise.clean_html` (an unsafe link becomes text, not an empty `<a rel>`; #39's test changes with it) | The published file is opened by clients with no server CSP, so nothing else may reach it. A hostile string planted in the database must be absent |
+| Editor output on save | `cleanHtml`, then sent | The editor shows the stored result; a `SanitiseError` stops the save and the message is shown, the editor stays open |
+| Text read from the database, before it is drawn | `cleanHtml` | Belt and braces: cleaning clean text changes nothing (idempotent), and a row written past the store is still cleaned. Never `innerHTML` on saved text without it |
+
+The published view-only page (`page-view.html`) does not carry `cleanHtml`: its data was cleaned by Python when the file was built, and the entity table is most of the weight (section 3).
+
+**If they disagree, Python wins.** What is stored is what Python returned; the page replaces its copy with it (Q2). The two must not be able to disagree, so `tests/test_clean_html_parity.py` runs the same inputs through both and fails on any difference in the output, the error message or `plainText` (section 4). A change to `sanitise.py` that is not made in `cleanHtml.js` fails that test; so does the reverse.
+
+## 3. The JS design: a port, not a filter
+`src/clark/page/src/logic/cleanHtml.js` is a step-for-step port of `sanitise.py`: the tokeniser (comments, CDATA, `<!-->`, `<![if]>`, `<?php ?>`, bogus comments, raw-text elements), the allow-list and the removed-with-content list, the tree repair (a `p` ends at the next block, an `li` at the next `li`, an `a` inside an `a`), the line break written where a removed block tag would join words, `</br>`, `<svg/>`, the depth limit, the link rules (`http`, `https`, `mailto`, `#`; hidden characters refused; the tidy-up a browser does first; `rel="noopener noreferrer"` forced, `target` and everything else dropped), the legacy-entity rule in attribute values (`&region=eu` stays), the length rule. Plain JS, no JSX, no library, no DOM.
+
+**Why not a `DOMParser` filter** (parse, walk, delete what is not allowed, serialise):
+- The two copies must give the **same string** on the same input. A browser's parser is a different parser (its own tree repair, foreign content, depth limit, Unicode), it changes with Chrome, and `innerHTML` writes its own escaping (quotes, `&nbsp;`, attribute order). Byte-for-byte equality with Python could not be tested, let alone kept.
+- That is the reason a teammate wrote Python's own tokeniser instead of `html.parser` (slow, and different on each Python); the same reasoning holds one level up.
+- A port has no DOM, so it runs in a plain test page, in a Worker and in the Python test. Output is built from scratch from the allow-list, as in Python, so a mutation-XSS case cannot be re-read by a browser (a teammate's 80,078 cases showed none for Python's output; the port has the same output).
+
+**Files**
+- `logic/cleanHtml.js`: `cleanHtml(html)`, `plainText(html)`, `href(value)`, `SanitiseError`, `MAX_CHARS`. `plainText` is not in the Done-when. It is in because it is the editor's "is this field empty" and "how long is what a person sees" (the module's own stated use), it costs ten lines on the same tokeniser, and the parity test covers it. Nothing imports it yet, so the bundler drops it until something does.
+- `logic/sanitiseTables.js`, **generated** by `dev/tools/sanitise_tables.py` (`--check` in the parity test): the HTML5 character references (`html.entities.html5`, 2,125 names and the 106 legacy ones) and the code points an address may not hold, as 42 ranges, taken from `sanitise.bad_in_address`. 53 KB of source, about 45 KB minified once the page uses it. This is the "same fixed numeric lists" rule: JavaScript's own Unicode and entity tables are never used.
+- **Errors:** Python raises `SanitiseError`; `cleanHtml` **throws** a `SanitiseError` with the same message, word for word. It does not return a marker object: a returned object would be stored or drawn by a caller that forgot to look. The test turns a throw into `{error: message}` on both sides and compares.
+- **Not wired in.** Nothing imports `cleanHtml.js`, so `page.html` does not change (`build_page.py --check` is clean). The parity test bundles it alone with the pinned esbuild. There is no rule that every logic file is bundled.
+
+## 4. The comparison test
+`tests/test_clean_html_parity.py`, with `tests/_clean_html.py` (the bundle and the Chrome page, through `test_server.chrome()` as `test_router.py` does). It fails, never skips, without Chrome. Python's answers (output, `plain_text`, or the error message) are computed inside the test and written into a script file with the inputs; Chrome runs `cleanHtml` and `plainText` over every input and compares **byte for byte**, and the test shows the first differences.
+- **Corpus** (default 581,424 inputs after duplicates are dropped; about 40 s on both Pythons): (i) every string literal in `tests/test_sanitise.py`, its address lists written as links, and its three seeded fuzzes (10,717); (ii) hand-written hostile cases: a teammate's 78 and 365 of ours, aimed at the places the two languages could part (4,998 more by tag, attribute and scheme); (iii) seeded random token soup: a teammate's generator and seed (66), 20,000 by default, and our own soup of odd characters and references, 5,000; (iv) one input per code point, in an address, beside words and in `type=`, 540,984. The limits are a separate list (31 cases: 200,000 and 200,001 characters, `&` runs that grow, astral characters that are 2 units each, deep nesting).
+- **A teammate's corpus:** her files are in a scratch folder of another session (`.../94b6ab6e-.../scratchpad/s66/`: `gen2.py`, `data66.json`); they are not in the repository and a test cannot depend on them. The test carries her generator and her 78 cases (credited), and `CLARK_PARITY_RANDOM=80000` gives her corpus **input for input** (checked: all 80,078 of her inputs are in it, and her saved outputs equal Python's today). Run once at that size and on her file directly: 0 differences. Asked in section 7 whether she wants it kept that way.
+- **Extra checks:** a Python result cleaned again in the page is unchanged; `None` and `undefined` give `""`; a non-string is refused with Python's wording; the generated tables are current on each Python (3.9 and 3.15 give the same file, so the "one answer on every Python" rule is checked, not assumed).
+- **Known differences** are named in `KNOWN_DIFFERENCES` with a reason and checked to still differ. It is empty: none was found on the corpus.
+- Her second check, parsing each output in Chrome's DOM (reparse equals output, nothing outside the allow-list), is a different test (it tests Chrome's reading, not the port). Worth keeping once #70's harness is the place for it; not done here.
+
+## 5. Where JavaScript and Python differ, and how each is handled
+| Point | Handling |
+|---|---|
+| Strings are UTF-16; Python counts code points | Lengths (200,000, 8,000) are counted in code points; the 200,000 test uses 100,001 emoji (accepted) and 200,001 (refused, "200,001 characters"). `{1,32}` in a reference name and the control-character class use the `u` flag, so an astral character is one, and only a lone surrogate is removed (never half of a pair) |
+| A Python `str` can hold a surrogate pair as two code points; JavaScript reads that as one character | Cannot arise from the database (UTF-8). The corpus never holds one (a helper separates them); lone surrogates are in it |
+| `re.I` in Python is Unicode-aware: `i` also matches U+0130 and U+0131, `s` U+017F, `k` U+212A (all 0x80 and up checked on 3.9 and 3.15) | The scheme, `mailto` and raw-text end patterns spell those out. JavaScript's `iu` is narrower (it misses the dotless i), so `maılto:` would otherwise differ |
+| Unicode categories for an address (Cc, Cf, Cs, Co, Zl, Zp, Zs) | Not asked of the browser. The table is generated from `bad_in_address` and is the same on 3.9 (Unicode 13) and 3.15 (Unicode 17): the module already makes it so |
+| `str.strip()` removes `isspace()` characters; `trim()` removes U+FEFF and not U+001C to U+001F or U+0085 | A written-out `isPySpace`; U+FEFF is in the corpus |
+| `.` in Python excludes only a newline; in JavaScript it excludes four line ends | `[^\n]` |
+| `html.unescape`, its numeric-reference rules and the 2,231-name table | Ported with Python's own table and rules (not the browser's); `&#x85;` is an ellipsis, `&#x1c;` is removed, a number over U+10FFFF is U+FFFD |
+| A regex that trims a long run of spaces is quadratic in JavaScript | A loop (a long run of spaces in an address is fast) |
+| `lower()` and `toLowerCase()` | Both full Unicode; names are only compared with ASCII lists, and the only non-ASCII characters that lower to ASCII (the Kelvin sign) do so in both. No difference found |
+| An error for a non-string names Python's type | JavaScript's value is mapped to the same word (`int`, `float`, `bool`, `list`, `dict`); cosmetic, the page never sends one |
+
+## 6. After #65 merges: the rest of the Done-when
+1. **Call sites** (section 2): the store line (guarded), `changes.py`, `excel_import.clean_rich`, `publish.py`, and `plain_to_html()` with a test that `<`, `&` and `a<b review` survive import. Test: `test_rich_html_sanitise.py` gains the store and route cases (done here for the page and Python alone).
+2. **Published:** a hostile string planted straight in the database (past the editor) is absent from the published file (shares #39's check, `publish-plant.json`).
+3. **One editor:** `tests/test_one_editor_gate.py` opens every rich field in Edit and finds only `clarkEditor()` instances (`.ProseMirror` with a handle), plus a source check for any other `new Editor`, `createEditor` or `contenteditable` outside `core/editor.js`. New work (creaite's file does not count instances).
+4. **CSP:** `injectCSS: false` and a test that counts `<style>` elements before and after a mount (no change) and that a mount under #33's real policy gives no blocked report. `createEditor` passes extra options to Tiptap's `Editor`, so it can be set without changing the vendored file.
+5. **Behaviour, one browser test per key:** toolbar, bubble on selection, `/` menu; Cmd+Enter or click away saves, Esc cancels, one Cmd+Z undoes one edit. No AI (#72; the hook stays null).
+6. **Layout** at 1400 and 900 px: toolbar on one line or folded into menus; bubble and `/` menu inside the window; no horizontal scroll (measured).
+7. **The editor writes what the cleaner returns**, so an untouched field is byte for byte: Link writes only `rel="noopener noreferrer"`; the task list is written as `<ul><li><input type="checkbox" checked><p>..</p></li></ul>`; no underline, code, code block or `data-raw`. Tested with real Tiptap output from the vendored build, through `cleanHtml`, not hand-written HTML.
+
+**Vendor files for the editor.** Tiptap 3.31.3 **is already vendored** (`vendor/tiptap/tiptap.module.js`, hashes in `manifest.json`, built by `dev/tools/tiptap.py` from `dev/tiptap/`) but it is **not in the page build's pinned inputs**: `build_page.py` maps only `vendor/preact/manifest.json`'s modules, so there is no `tiptap` alias yet (one line in the build and its manifest, with a test). It is creaite's build with Markdown: it exports `createEditor(element, {features, html, extensions, ...options})`, `Extension`, `Mark`, `Node`, the ProseMirror pieces and `closeHistory`. `clarkEditor()` can call `createEditor(el, {features: "current", html, extensions: (list) => list without HtmlBlock, HtmlBlockFromMarked, HtmlInline, Literal, Markdown and Image, injectCSS: false})`. What the vendored file does not export is `Link`, `TaskList` and `Underline` themselves, only the list of instances, whose `configure()` is available; Link here is creaite's `LinkForm` (it keeps Markdown link forms). A spike on the demo text decides whether that is enough or the editor needs its own entry in `dev/tiptap/` and a re-vendor (Q3).
+
+## 7. Decisions on the open questions (the Head, 28-10-2026)
+1. **A teammate's corpus: yes.** The test keeps a credited copy of her 78 cases and her generator, so her 80,078-input corpus can be rebuilt without her scratch folder.
+2. **The route reply: yes.** After a rich-field save the change route returns the cleaned text of the field it wrote, so the page shows what the store kept. It is decided together with #65's reply shape, and is part of this wiring plan (not added to #65 now).
+3. **The editor build:** run the spike first. If `Link`, `TaskList` and `Underline` are needed, write them inside `clarkEditor()` over `Extension`, `Mark` and `Node`. No re-vendoring: it needs the internet and changes the guarded hashes, which is the owner's call.
+4. **`plain_to_html()`:** lives in `sanitise.py`, added with its first call site, not before (one function, tested with `<`, `&` and `a<b review`).
+5. **The published view-only page does not carry `cleanHtml`:** the file is cleaned at build, and it saves about 45 KB.
+
+## 8. Build plan for the editor (second pass; #65 is merged, the guarded `changes.py` rich-field diff is another branch)
+Per Done-when item of #66 and the rich-field part of #67. "Seam" means the one named place that changes when the guarded diff lands.
+
+| Done-when | Already built where | To build here | Blocked on |
+|---|---|---|---|
+| One editor, only `clarkEditor()` | Vendored Tiptap 3.31.3 (`vendor/tiptap`), `createEditor` | `src/clark/page/src/core/editor.js` (`clarkEditor(el, {profile, html, onSave, onCancel})`), the `tiptap` alias in `build_page.py`, `tests/test_one_editor_gate.py` (every rich field in Edit holds only `clarkEditor()` instances; source check for any other `new Editor`, `createEditor`, `contenteditable` outside `core/editor.js`; `Title.jsx`'s plain-text title is not a rich field) | nothing |
+| Clean HTML, same as the server | `logic/cleanHtml.js` and its parity test (PR #53) | The editor reads and writes through `cleanHtml`; a paste is cleaned before it enters; the writer emits the cleaner's shape (Link `rel` only, checklist `ul/li/input/p`, no underline, code, code block, `data-raw`). Test with real Tiptap output | nothing |
+| Untouched field byte for byte | | `RichText` saves only when the cleaned output differs from the cleaned stored text (the value is never re-written by opening and leaving) | nothing |
+| Published: planted hostile string absent | `publish.clean_html` | Out of this branch (needs `publish.py`/store call) | guarded store/publish diff |
+| CSP: `injectCSS: false` | | Option passed in `clarkEditor`; test counts `<style>` before and after a mount | #33's real policy (checked if the harness has it, otherwise the count test only) |
+| Behaviour: toolbar, bubble, `/` menu; Cmd+Enter saves, click away saves, Esc cancels, one Cmd+Z undoes one edit | | `components/EditorBar.jsx`, `SlashMenu.jsx`, link popover, key handling in `RichText.jsx`; one browser test per key | nothing |
+| Undo through the existing change kinds | `stores/changes.js` (`change`, `undo`) | `edit/richSave.js`: `saveRich(field, id, html)` calls `change()` and so gets the step and the Undo toast | the write kind itself |
+| Rich fields write to the store (`current_state`, `use_cases.standing`, text section `body`) | none of the three is in `CHANGE_KINDS` | Seam: `edit/richSave.js` `RICH_WRITES` (empty). A field is given an editor in Edit only when listed there; until the guarded `changes.py` diff lands the page keeps its quiet line. One line each to switch on | guarded `changes.py` diff (team-a-67-changes) |
+| Layout at 1400 and 900 px, light and dark | | Toolbar folds into a menu when narrow; bubble and `/` menu kept inside the window; measured | nothing |
+| No AI | | `ai` hook left null | #72 |
+
+### Built in the second pass (status against the table above)
+- **Built:** `core/editor.js` (`clarkEditor`, rich and plain profiles), `core/richHtml.js` (the document written in the cleaner's shape, no `getHTML()`), `edit/RichText.jsx` (toolbar, bubble, `/` menu, link box, Cmd/Ctrl+Enter, Esc, click away), `edit/RichField.jsx` (drawn through `cleanHtml`, click to edit), `edit/richSave.js` (the seam), the `tiptap` alias in `build_page.py`.
+- **Tests:** `tests/test_rich_editor.py` (26 browser tests, one per piece and key, 1400 and 900 px, light and dark) and `tests/test_one_editor_gate.py` (source check, built-page check, and a page check on a copy of the source with the seam switched on).
+- **Still behind the seam (guarded `changes.py` diff):** the three write kinds (`report_sections.body`, `use_cases.standing`, the project headline). One line each in `RICH_WRITES`; until then the page keeps its quiet line and no rich field has an editor. Also still to do: the store call, `publish.py`'s call, `plain_to_html()`, and the Section title and Draft email preview, which keep their own plain fields (named exceptions in the gate). They stay because the section title is a one-line plain-text field whose tests belong to #65 (moving it onto the plain profile is a low-priority follow-up), and the Draft email preview stays a plain editable box because its styled HTML and table are what Outlook pastes, as in creaite.
+- **Build changes the editor forced:** the vendored module holds `<!--` and the HTML character-reference table (entries that spell a team member's name) and sets `href`/`src` as text, so `build_page.py` escapes the first and spells out the second, and `test_page.py` and `test_icons.py` were adjusted (vendor/tiptap allowed; the address check reads markup and styles, not script text).

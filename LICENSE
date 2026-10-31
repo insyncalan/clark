@@ -1,0 +1,26 @@
+clark: licence
+
+Copyright (c) 2026 the clark project. All rights reserved.
+
+This software is called "clark" and is provided in source form so that people can read it. It is not open-source software.
+
+What you may do
+1. Read the source code.
+2. Download, install and run clark, as downloaded from this repository or its releases, on computers that you or your employer own, to prepare and publish reports. This includes reports you make for your employer or your clients.
+3. Keep the files that clark makes for you (your work items, milestones and reports). They are yours.
+
+What you may not do, without written permission from the copyright holder
+1. Copy, modify, translate or build on the source code or any part of it.
+2. Distribute, publish, sell, rent or pass on the right to use clark or any part of it, or a modified version of it.
+3. Use the code, or anything built from it, in another product or service.
+4. Remove or change this notice, or the notices of the third-party components listed in the file NOTICE.md.
+
+Third-party components. clark includes components that belong to other people and are licensed to you under their own terms (see the file NOTICE.md). Those terms apply to those components and are not changed by this licence.
+
+If you break these terms, your permission to use clark ends.
+
+No warranty. clark is provided "as it is", with no promise of any kind that it works, is correct, or is fit for any purpose. The people who made it are not liable for any loss or damage from using it, to the fullest extent the law allows.
+
+Contributions. The project does not accept code from outside contributors. If you send any, you give the copyright holder the right to use it without payment or credit, and no promise is made to use it.
+
+Permission. To ask for permission to do something this licence does not allow, write to alan@januscollab.com, or by post to: the clark project, 3101 Park Blvd, Palo Alto, CA 94306, USA. Email is quicker.

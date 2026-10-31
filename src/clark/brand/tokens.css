@@ -1,0 +1,60 @@
+/* clark's committed look: colour, type, shape and motion tokens (light, then dark). Values only. A person's own look is a tokens.css in
+   system/branding/ with the same names, layered over this one. Fonts: Inter and Montserrat (SIL Open Font License), vendored. */
+:root { --white: #fff; --border: var(--grey-300); --radius-sm: 4px; --ease-out: cubic-bezier(.25, 1, .5, 1); --ease-enter: cubic-bezier(.16, 1, .3, 1); --ease-exit: cubic-bezier(.7, 0, .84, 0); --ease-toggle: cubic-bezier(.65, 0, .35, 1); --dur-instant: 120ms; --dur-state: 220ms; --dur-layout: 380ms; --dur-enter: 700ms; --image-cover: none; --image-fade: linear-gradient(90deg, transparent 0%, #000 45%); --topbar: 56px; --black: #000; --surface-muted: var(--grey-50); --size-body: 15px; --size-caption: 12px; --size-small: 13px; --size-h3: 16px; --size-h2: 20px; --size-h1: 26px; --size-display: 34px; --leading: 1.5; --weight-regular: 400; --tracking-caps: .06em; --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px; --max-width: 1280px; --stagger: 60ms; --surface: #fff; --flash: #FFF5D6; --profile-bg: var(--brand-charcoal); --profile-fg: var(--white); --profile-ring: var(--grey-500); --profile-size: 32px;
+ 
+ --logo-icon: inline-block;      /* display of the clark icon beside the word; a person's own look sets none */ --radius-pill: 999px; --art-home: none; --art-home-height: 0px;   /* --art-home: a still picture for the home banner; empty here, filled only by a person's own look */
+  --pill-bg: linear-gradient(90deg, #8FF2EF, #38E0EE); --pill-color: #38E0EE; --pill-fg: #04222A; --pill-glow: 0 0 30px rgba(56, 224, 238, .35); --pill-glow-hover: 0 0 44px rgba(56, 224, 238, .55);
+  --bar-end: color-mix(in srgb, var(--brand-navy), var(--brand-cyan) 12%); --accent-line: linear-gradient(90deg, #8FF2EF, #38E0EE);
+  --font-head: Montserrat, Inter, Arial, sans-serif; --font-label: Inter, Arial, sans-serif;
+  --brand-navy: #062F3A; --brand-ink: #0E2430; --brand-cyan: #38E0EE; --brand-charcoal: #3B4A5C;
+  --brand-blue: #5B47D8; --brand-blue-strong: #4A37C2; --brand-blue-tint: #ECE9FF;
+  --grey-50: #F3F6FC; --grey-100: #E6EBF6; --grey-200: #D9E0EF; --grey-300: #C4CEE3; --grey-500: #8592AD; --grey-700: #475577;
+  --heading: #062F3A; --text: #0E2430; --text-muted: #475577; --link: #4A37C2; --focus: #5B47D8; --text-on-brand: #FFFFFF; --bg: #F3F6FC;
+  --status-blue: #5B47D8; --status-blue-text: #4A37C2;
+  --data-1: #5B47D8; --data-2: #0B8FA3; --data-3: #E59A1F; --data-4: #1B6FD6; --data-5: #D9534A; --data-6: #8592AD;
+  --font: Inter, Arial, "Helvetica Neue", sans-serif; --weight-light: 400; --weight-medium: 600; --weight-semibold: 700;
+  --radius: 8px; --radius-lg: 14px;
+  --shadow: 0 1px 2px rgba(6, 47, 58, .08), 0 4px 14px rgba(91, 71, 216, .10);
+
+  --status-green: #008675; --status-amber: #E8A013; --status-red: #C0392B; --status-grey: #8A9BA0;
+  --status-green-tint: #D9F1EC; --status-amber-tint: #FCEFCF; --status-red-tint: #F6E0DD;
+  --status-green-text: #006B5E; --status-amber-text: #8A5200; --status-red-text: #A3301F;
+  /* how clear a section's control is at rest (#101): faint in light, clearer in dark, where .3 is close to invisible */
+  --sh-rest: .3;
+}
+/* dark mode: the same tokens, redrawn for a dark page; the top bar and the report cover stay dark. The values are written twice because CSS cannot
+   share them: once for data-theme=dark (chosen) and once for data-theme=auto (follow the computer). tests/test_page.py keeps the two copies equal. */
+:root[data-theme=dark] {
+  --brand-blue: #8F7BFF; --brand-blue-strong: #B7A9FF; --brand-blue-tint: #2A2563;
+  --link: #B7A9FF; --focus: #8F7BFF; --status-blue: #8F7BFF; --status-blue-text: #B7A9FF; --text-on-brand: #04222A;
+  --data-1: #A99BFF; --data-2: #38E0EE; --data-3: #F0B84A; --data-4: #5BB4F0; --data-5: #F08A7C; --data-6: #7AA3AE;
+
+  color-scheme: dark;
+  --surface: #0E2D38; --grey-50: #08232D; --grey-100: #123846; --grey-200: #1A4454; --grey-300: #2B5868; --grey-500: #7AA3AE; --grey-700: #A9CBD4;
+  --brand-ink: #E8FAFC; --heading: #E8FAFC; --text: #E8FAFC; --text-muted: #A9CBD4; --border: #2B5868; --bg: #08232D;
+  --brand-navy: #04202A; --white: #ffffff;
+  --status-green: #2FB38F; --status-amber: #F2AC24; --status-red: #E2685A; --status-grey: #7AA3AE;
+  --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
+  --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
+  --flash: #4A3F1A;
+  --sh-rest: .75;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme=auto] {
+    --brand-blue: #8F7BFF; --brand-blue-strong: #B7A9FF; --brand-blue-tint: #2A2563;
+    --link: #B7A9FF; --focus: #8F7BFF; --status-blue: #8F7BFF; --status-blue-text: #B7A9FF; --text-on-brand: #04222A;
+    --data-1: #A99BFF; --data-2: #38E0EE; --data-3: #F0B84A; --data-4: #5BB4F0; --data-5: #F08A7C; --data-6: #7AA3AE;
+
+    color-scheme: dark;
+    --surface: #0E2D38; --grey-50: #08232D; --grey-100: #123846; --grey-200: #1A4454; --grey-300: #2B5868; --grey-500: #7AA3AE; --grey-700: #A9CBD4;
+    --brand-ink: #E8FAFC; --heading: #E8FAFC; --text: #E8FAFC; --text-muted: #A9CBD4; --border: #2B5868; --bg: #08232D;
+    --brand-navy: #04202A; --white: #ffffff;
+    --status-green: #2FB38F; --status-amber: #F2AC24; --status-red: #E2685A; --status-grey: #7AA3AE;
+    --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
+    --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
+    --flash: #4A3F1A;
+    --sh-rest: .75;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
+  }
+}

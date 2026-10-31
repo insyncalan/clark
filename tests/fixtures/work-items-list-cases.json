@@ -1,0 +1,941 @@
+{
+ "_about": "Fixtures for #36 (Work items list, read only). Spec: docs/handoff/design-36-work-items-list.md. Dates in the rows are stored YYYY-MM-DD; expected dates are DD-MM-YYYY. 'today' is fixed; a case may carry its own. Fictional data only.",
+ "today": "2026-10-28",
+ "due_and_pill": [
+  {
+   "name": "action open, due today",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-10-28"
+   },
+   "expect": {
+    "due": {
+     "date": "28-10-2026",
+     "words": "Today",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Due soon",
+     "class": "a"
+    }
+   }
+  },
+  {
+   "name": "action open, due tomorrow",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-10-29"
+   },
+   "expect": {
+    "due": {
+     "date": "29-10-2026",
+     "words": "Tomorrow",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Due soon",
+     "class": "a"
+    }
+   }
+  },
+  {
+   "name": "action open, in 2 days (first plural)",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-10-30"
+   },
+   "expect": {
+    "due": {
+     "date": "30-10-2026",
+     "words": "In 2 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Due soon",
+     "class": "a"
+    }
+   }
+  },
+  {
+   "name": "action open, in 7 days (last 'Due soon')",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-11-04"
+   },
+   "expect": {
+    "due": {
+     "date": "04-11-2026",
+     "words": "In 7 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Due soon",
+     "class": "a"
+    }
+   }
+  },
+  {
+   "name": "action open, in 8 days (plain 'Open')",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-11-05"
+   },
+   "expect": {
+    "due": {
+     "date": "05-11-2026",
+     "words": "In 8 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Open",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "action open, yesterday",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-10-27"
+   },
+   "expect": {
+    "due": {
+     "date": "27-10-2026",
+     "words": "Yesterday",
+     "tone": "late"
+    },
+    "pill": {
+     "text": "Overdue",
+     "class": "r"
+    }
+   }
+  },
+  {
+   "name": "action open, 2 days late (first plural)",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-10-26"
+   },
+   "expect": {
+    "due": {
+     "date": "26-10-2026",
+     "words": "2 days late",
+     "tone": "late"
+    },
+    "pill": {
+     "text": "Overdue",
+     "class": "r"
+    }
+   }
+  },
+  {
+   "name": "action open, 7 days late",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-10-21"
+   },
+   "expect": {
+    "due": {
+     "date": "21-10-2026",
+     "words": "7 days late",
+     "tone": "late"
+    },
+    "pill": {
+     "text": "Overdue",
+     "class": "r"
+    }
+   }
+  },
+  {
+   "name": "action open, 30 days ahead (a month)",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-11-27"
+   },
+   "expect": {
+    "due": {
+     "date": "27-11-2026",
+     "words": "In 30 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Open",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "action open, 400 days ahead",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2027-12-02"
+   },
+   "expect": {
+    "due": {
+     "date": "02-12-2027",
+     "words": "In 400 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Open",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "action open, no date",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": null
+   },
+   "expect": {
+    "due": {
+     "date": "—",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Open",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "action delayed, overdue (overdue wins)",
+   "row": {
+    "kind": "action",
+    "status": "Delayed",
+    "due_date": "2026-10-08"
+   },
+   "expect": {
+    "due": {
+     "date": "08-10-2026",
+     "words": "20 days late",
+     "tone": "late"
+    },
+    "pill": {
+     "text": "Overdue",
+     "class": "r"
+    }
+   }
+  },
+  {
+   "name": "action delayed, 10 days ahead",
+   "row": {
+    "kind": "action",
+    "status": "Delayed",
+    "due_date": "2026-11-07"
+   },
+   "expect": {
+    "due": {
+     "date": "07-11-2026",
+     "words": "In 10 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Delayed",
+     "class": "a"
+    }
+   }
+  },
+  {
+   "name": "action closed, due long past: no words",
+   "row": {
+    "kind": "action",
+    "status": "Closed",
+    "due_date": "2026-10-10",
+    "closed": "2026-10-16"
+   },
+   "expect": {
+    "due": {
+     "date": "10-10-2026",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Closed",
+     "class": "n"
+    }
+   }
+  },
+  {
+   "name": "action closed, due in future: no words",
+   "row": {
+    "kind": "action",
+    "status": "Closed",
+    "due_date": "2026-11-30",
+    "closed": "2026-10-27"
+   },
+   "expect": {
+    "due": {
+     "date": "30-11-2026",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Closed",
+     "class": "n"
+    }
+   }
+  },
+  {
+   "name": "action cancelled, no date",
+   "row": {
+    "kind": "action",
+    "status": "Cancelled",
+    "due_date": null
+   },
+   "expect": {
+    "due": {
+     "date": "—",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Cancelled",
+     "class": "n"
+    }
+   }
+  },
+  {
+   "name": "month boundary (28 Oct to 1 Nov)",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-11-01"
+   },
+   "expect": {
+    "due": {
+     "date": "01-11-2026",
+     "words": "In 4 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Due soon",
+     "class": "a"
+    }
+   }
+  },
+  {
+   "name": "year boundary (to 1 Jan 2027)",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2027-01-01"
+   },
+   "expect": {
+    "due": {
+     "date": "01-01-2027",
+     "words": "In 65 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Open",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "clocks go back on 25 Oct 2026: whole days still",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-10-26"
+   },
+   "expect": {
+    "due": {
+     "date": "26-10-2026",
+     "words": "In 6 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Due soon",
+     "class": "a"
+    }
+   },
+   "today": "2026-10-20"
+  },
+  {
+   "name": "clocks go forward on 29 Mar 2026: whole days still",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-03-27"
+   },
+   "expect": {
+    "due": {
+     "date": "27-03-2026",
+     "words": "3 days late",
+     "tone": "late"
+    },
+    "pill": {
+     "text": "Overdue",
+     "class": "r"
+    }
+   },
+   "today": "2026-03-30"
+  },
+  {
+   "name": "leap day: 28 Feb to 1 Mar 2028",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2028-03-01"
+   },
+   "expect": {
+    "due": {
+     "date": "01-03-2028",
+     "words": "In 2 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Due soon",
+     "class": "a"
+    }
+   },
+   "today": "2028-02-28"
+  },
+  {
+   "name": "a date that is not a real day is shown as stored, no words",
+   "row": {
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-02-30"
+   },
+   "expect": {
+    "due": {
+     "date": "30-02-2026",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Open",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "risk open, High, in 14 days",
+   "row": {
+    "kind": "risk",
+    "status": "Open",
+    "due_date": "2026-11-11",
+    "priority": "High"
+   },
+   "expect": {
+    "due": {
+     "date": "11-11-2026",
+     "words": "In 14 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Red",
+     "class": "r"
+    }
+   }
+  },
+  {
+   "name": "risk open, Medium, no date",
+   "row": {
+    "kind": "risk",
+    "status": "Open",
+    "due_date": null,
+    "priority": "Medium"
+   },
+   "expect": {
+    "due": {
+     "date": "—",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Amber",
+     "class": "a"
+    }
+   }
+  },
+  {
+   "name": "risk open, Low",
+   "row": {
+    "kind": "risk",
+    "status": "Open",
+    "due_date": "2026-11-20",
+    "priority": "Low"
+   },
+   "expect": {
+    "due": {
+     "date": "20-11-2026",
+     "words": "In 23 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Green",
+     "class": "g"
+    }
+   }
+  },
+  {
+   "name": "risk open, priority not worked out",
+   "row": {
+    "kind": "risk",
+    "status": "Open",
+    "due_date": "2026-11-20",
+    "priority": null
+   },
+   "expect": {
+    "due": {
+     "date": "20-11-2026",
+     "words": "In 23 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Not rated",
+     "class": "n"
+    }
+   }
+  },
+  {
+   "name": "issue open, Urgent, 3 days late",
+   "row": {
+    "kind": "issue",
+    "status": "Open",
+    "due_date": "2026-10-25",
+    "priority": "Urgent"
+   },
+   "expect": {
+    "due": {
+     "date": "25-10-2026",
+     "words": "3 days late",
+     "tone": "late"
+    },
+    "pill": {
+     "text": "Red",
+     "class": "r"
+    }
+   }
+  },
+  {
+   "name": "risk closed: no words, grey",
+   "row": {
+    "kind": "risk",
+    "status": "Closed",
+    "due_date": "2026-10-14",
+    "priority": "Low",
+    "closed": "2026-10-14"
+   },
+   "expect": {
+    "due": {
+     "date": "14-10-2026",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Closed",
+     "class": "n"
+    }
+   }
+  },
+  {
+   "name": "issue cancelled",
+   "row": {
+    "kind": "issue",
+    "status": "Cancelled",
+    "due_date": null,
+    "priority": "Low",
+    "closed": "2026-10-04"
+   },
+   "expect": {
+    "due": {
+     "date": "—",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Cancelled",
+     "class": "n"
+    }
+   }
+  },
+  {
+   "name": "assumption open, no priority",
+   "row": {
+    "kind": "assumption",
+    "status": "Open",
+    "due_date": null,
+    "priority": null
+   },
+   "expect": {
+    "due": {
+     "date": "—",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Open",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "dependency open, High, in 25 days",
+   "row": {
+    "kind": "dependency",
+    "status": "Open",
+    "due_date": "2026-11-22",
+    "priority": "High"
+   },
+   "expect": {
+    "due": {
+     "date": "22-11-2026",
+     "words": "In 25 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Open",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "decision pending, needed in 9 days",
+   "row": {
+    "kind": "decision",
+    "status": "Pending",
+    "needed_by": "2026-11-06"
+   },
+   "expect": {
+    "due": {
+     "date": "06-11-2026",
+     "words": "In 9 days",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Pending",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "decision pending, needed 2 days ago",
+   "row": {
+    "kind": "decision",
+    "status": "Pending",
+    "needed_by": "2026-10-26"
+   },
+   "expect": {
+    "due": {
+     "date": "26-10-2026",
+     "words": "2 days late",
+     "tone": "late"
+    },
+    "pill": {
+     "text": "Pending",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "decision pending, no date needed",
+   "row": {
+    "kind": "decision",
+    "status": "Pending"
+   },
+   "expect": {
+    "due": {
+     "date": "—",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Pending",
+     "class": "b"
+    }
+   }
+  },
+  {
+   "name": "decision made: its date, no words",
+   "row": {
+    "kind": "decision",
+    "status": "Made",
+    "date": "2026-10-20"
+   },
+   "expect": {
+    "due": {
+     "date": "20-10-2026",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Made",
+     "class": "g"
+    }
+   }
+  },
+  {
+   "name": "decision made, with an old needed_by: shows the date made",
+   "row": {
+    "kind": "decision",
+    "status": "Made",
+    "date": "2026-10-25",
+    "needed_by": "2026-10-10"
+   },
+   "expect": {
+    "due": {
+     "date": "25-10-2026",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Made",
+     "class": "g"
+    }
+   }
+  },
+  {
+   "name": "decision withdrawn, no date",
+   "row": {
+    "kind": "decision",
+    "status": "Withdrawn"
+   },
+   "expect": {
+    "due": {
+     "date": "—",
+     "words": "",
+     "tone": ""
+    },
+    "pill": {
+     "text": "Withdrawn",
+     "class": "n"
+    }
+   }
+  }
+ ],
+ "priority_colour": [
+  {
+   "priority": "Urgent",
+   "colour": "red",
+   "word": "Red",
+   "class": "r"
+  },
+  {
+   "priority": "High",
+   "colour": "red",
+   "word": "Red",
+   "class": "r"
+  },
+  {
+   "priority": "Medium",
+   "colour": "amber",
+   "word": "Amber",
+   "class": "a"
+  },
+  {
+   "priority": "Low",
+   "colour": "green",
+   "word": "Green",
+   "class": "g"
+  },
+  {
+   "priority": null,
+   "colour": null,
+   "word": "Not rated",
+   "class": "n"
+  }
+ ],
+ "owner": [
+  {
+   "owner": "Ada Quillfeather",
+   "expect": {
+    "text": "Ada Quillfeather",
+    "initials": "AQ"
+   }
+  },
+  {
+   "owner": "Cressida Pennywhistle",
+   "expect": {
+    "text": "Cressida Pennywhistle",
+    "initials": "CP"
+   }
+  },
+  {
+   "owner": "Ada Beth Quillfeather",
+   "expect": {
+    "text": "Ada Beth Quillfeather",
+    "initials": "AB"
+   }
+  },
+  {
+   "owner": "Madonna",
+   "expect": {
+    "text": "Madonna",
+    "initials": "M"
+   }
+  },
+  {
+   "owner": "  Fenwick   Oddsock ",
+   "expect": {
+    "text": "Fenwick Oddsock",
+    "initials": "FO"
+   }
+  },
+  {
+   "owner": "TBC",
+   "expect": {
+    "text": "TBC",
+    "initials": ""
+   }
+  },
+  {
+   "owner": null,
+   "expect": {
+    "text": "—",
+    "initials": ""
+   }
+  },
+  {
+   "owner": "",
+   "expect": {
+    "text": "—",
+    "initials": ""
+   }
+  }
+ ],
+ "sort": {
+  "rows": [
+   {
+    "id": "TUL-A-003",
+    "kind": "action",
+    "status": "Closed",
+    "due_date": "2026-10-01"
+   },
+   {
+    "id": "TUL-A-001",
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-11-10"
+   },
+   {
+    "id": "TUL-001",
+    "kind": "risk",
+    "status": "Open",
+    "due_date": null
+   },
+   {
+    "id": "TUL-D-002",
+    "kind": "decision",
+    "status": "Pending",
+    "needed_by": "2026-11-01"
+   },
+   {
+    "id": "TUL-A-002",
+    "kind": "action",
+    "status": "Delayed",
+    "due_date": "2026-10-20"
+   },
+   {
+    "id": "TUL-D-001",
+    "kind": "decision",
+    "status": "Made",
+    "date": "2026-09-01"
+   },
+   {
+    "id": "TUL-A-004",
+    "kind": "action",
+    "status": "Open",
+    "due_date": "2026-11-10"
+   },
+   {
+    "id": "TUL-002",
+    "kind": "issue",
+    "status": "Cancelled",
+    "due_date": null
+   },
+   {
+    "id": "TUL-D-003",
+    "kind": "decision",
+    "status": "Withdrawn"
+   }
+  ],
+  "expected_order": [
+   "TUL-A-002",
+   "TUL-D-002",
+   "TUL-A-001",
+   "TUL-A-004",
+   "TUL-001",
+   "TUL-D-001",
+   "TUL-A-003",
+   "TUL-002",
+   "TUL-D-003"
+  ]
+ },
+ "count_line": [
+  {
+   "total": 1,
+   "open": 1,
+   "expect": {
+    "total": 1,
+    "open": 1,
+    "noun": "work item"
+   }
+  },
+  {
+   "total": 1,
+   "open": 0,
+   "expect": {
+    "total": 1,
+    "open": 0,
+    "noun": "work item"
+   }
+  },
+  {
+   "total": 2,
+   "open": 1,
+   "expect": {
+    "total": 2,
+    "open": 1,
+    "noun": "work items"
+   }
+  },
+  {
+   "total": 0,
+   "open": 0,
+   "expect": {
+    "total": 0,
+    "open": 0,
+    "noun": "work items"
+   }
+  }
+ ],
+ "use_case_label": {
+  "data": {
+   "actions": [
+    {
+     "id": "A",
+     "description": "a",
+     "use_case": "u1"
+    }
+   ],
+   "raid": [],
+   "decisions": [],
+   "use_cases": [
+    {
+     "id": "u1",
+     "ref": "ABC-1"
+    }
+   ],
+   "milestones": []
+  },
+  "expect": "Use case ABC-1"
+ }
+}

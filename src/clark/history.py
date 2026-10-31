@@ -1,0 +1,540 @@
+"""One row's history, newest first, with undo links (#31). Cut down from creaite's item_history.py at v2.6.9 (db5adb2): only
+change_log joined to item_events; no proposals, chases or mentions. Reads only."""
+import difflib
+import json
+import re
+from datetime import datetime, timedelta, timezone
+
+from clark import timefmt
+from clark.publish import RICH
+from clark.sanitise import SanitiseError, plain_text
+from clark.store import FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
+
+JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
+
+
+def touches(r, item_id):
+    """True when a change_log row is about the item: its own row, or a link or label row with the item at one end."""
+    if r["tbl"] not in JOINED:
+        return True
+    parts = str(r["item_id"]).split("|")
+    return item_id in (parts[:2] if r["tbl"] == "links" else parts[:1])
+
+
+def history(con, item_id):
+    """[event, ...] for `item_id`, newest first. Each event: event_id, at, step, by_user, table, field, before, after, op,
+    route, place, origin, actor, undoes (the event it reverses), undone_by (the event that reversed it) and in_force (False once
+    an undo still in force has reversed it, or its own step was undone)."""
+    rows = con.execute(
+        "SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
+        "a.by_user, a.undone_at, e.event_id, e.at, e.route, e.place, e.origin, e.actor, e.src_ref, e.undoes "
+        "FROM change_log c JOIN item_events e ON e.change = c.rowid LEFT JOIN applies a ON a.apply_id = c.apply_id "
+        "WHERE c.field != 'updated_at' AND (c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?) ORDER BY e.event_id",
+        (item_id, item_id + "|%", "%|" + item_id + "|%")).fetchall()
+    rows = [r for r in rows if touches(r, item_id)]
+    reverted = reverted_rowids(con)
+    undone_by = {r["undoes"]: r["event_id"] for r in rows if r["undoes"] is not None}
+    events = []
+    for r in rows:
+        events.append({
+            "event_id": r["event_id"], "at": r["at"], "step": r["apply_id"], "by_user": r["by_user"], "table": r["tbl"],
+            "ref": r["item_id"], "field": r["field"], "before": r["old_value"], "after": r["new_value"], "op": r["op"],
+            "route": r["route"], "place": r["place"], "origin": r["origin"], "actor": r["actor"], "src_ref": r["src_ref"],
+            "undoes": r["undoes"],
+            "is_undo": str(r["via"]).startswith(REVERT_VIA), "undone_by": undone_by.get(r["event_id"]),
+            "in_force": not r["undone_at"] and r["rowid"] not in reverted,
+        })
+    events.reverse()
+    return events
+
+
+def original_date(con, item_id, current=None):
+    """A milestone's Original date: the first agreed date in change_log that is in force (its step not undone, and not put back
+    by an undo still in force), else `current`. creaite's milestone_original, plus the reverted rows (Head ruling on #31)."""
+    reverted = reverted_rowids(con)
+    for r in con.execute("SELECT c.rowid AS rowid, c.new_value FROM change_log c LEFT JOIN applies a ON a.apply_id = c.apply_id "
+                         "WHERE c.tbl = 'milestones' AND c.item_id = ? AND c.field = 'baseline_date' "
+                         "AND c.new_value IS NOT NULL AND a.undone_at IS NULL AND c.via NOT LIKE 'revert:%' ORDER BY c.rowid",
+                         (item_id,)):
+        if r["rowid"] not in reverted:
+            return r["new_value"]
+    return current
+
+
+# ===== The display rows (#123): one function the peek's Activity tab and the Excel History sheet both call =====
+
+FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Profile."
+NO_ZONE = "Time zone not recorded (shown as UTC)"
+ROW_LIMIT = 20000                      # the newest rows the Excel History sheet holds, per project (answered 29-10-2026)
+CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 changes."
+FILTERS = {"all": "All", "changes": "Changes", "comments": "Comments and updates"}      # key -> the words on the tab
+EMPTY = {"all": "No history yet.", "changes": "No changes yet.", "comments": "No comments or updates yet."}
+OTHER = "Other"                        # a place or route the list below does not know: shown plainly, never as its code
+KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment")
+UNDO_KINDS = ("Undone", "Undo undone")
+PAGE_FIELD, LEFT_OUT, PUT_BACK = "Published page", "Left out of the published page", "Put back on the published page"
+PUT_BACK_PREFIX = "put back: "          # an Undo that made a removed label or link again
+
+# The eleven "how and where" phrases, written exactly so (design note section 3).
+HOW_PEEK, HOW_TABLE, HOW_BOARD, HOW_REPORT, HOW_EYE = "In the peek", "In the table", "On the board", "In the report", "With the eye"
+HOW_EXCEL, HOW_ASK, HOW_DRAFT = "By Excel import", "By ask clark", "From a draft email"
+HOW_EMAIL, HOW_TEXT, HOW_UNDO = "By a sent email", "From selected text", "Undo"
+HOW_PLACES = {"peek": HOW_PEEK, "cell": HOW_TABLE, "bulk": HOW_TABLE, "menu": HOW_TABLE, "board": HOW_BOARD, "report": HOW_REPORT,
+              "eye": HOW_EYE, "draft": HOW_DRAFT, "email": HOW_EMAIL, "text": HOW_TEXT}
+EXCEL_PREFIX = "Excel import:"
+FILE_NAME_LIMIT = 60
+
+# Plain names for fields. A column listed here under a table wins; otherwise the same column under COMMON.
+COMMON = {
+    "name": "Name", "description": "Description", "status": "Status", "owner": "Owner", "priority": "Priority",
+    "due_date": "Due date", "raised": "Raised on", "closed": "Closed on", "workstream": "Workstream", "milestone": "Milestone",
+    "use_case": "Use case", "client_visible": "Shown to the client", "client_message": "Message to the client",
+    "archived": "Archived", "source": "Source", "project": "Project", "sort_order": "Order", "latest_update": "Latest update",
+    "state": "State", "state_reason": "Reason for the state", "state_set": "State set on", "baseline_date": "Agreed date",
+    "forecast_date": "Forecast date", "actual_date": "Actual date", "percent_complete": "Percent complete",
+    "internal_note": "Internal note", "movement": "Movement", "lead": "Lead", "keywords": "Keywords", "aliases": "Other names",
+    "created": "Created on", "type": "Type", "response_action": "Response action", "impact": "Impact", "likelihood": "Likelihood",
+    "made_by": "Made by", "date": "Date", "needed_by": "Needed by", "reasoning": "Reasoning", "options": "Options",
+    "revisit": "Revisit on", "replaces": "Replaces", "decision": "Decision", "title": "Title", "ref": "Reference",
+    "headline": "Headline", "standing": "Where it stands", "labels": "Labels", "label_reason": "Reason for the label",
+    "label_suggested": "Label suggested", "label": "Label", "added_by": "Added by", "added_at": "Added on", "reason": "Reason",
+    "suggested": "Suggested", "health": "Health", "week_ending": "Week ending", "summary": "Summary", "key_changes": "Key changes",
+    "from_item": "From item", "to_item": "To item", "kind": "Kind", "item_id": "Item", "body": "Text", "beside": "Beside",
+    "hidden": "Hidden", "tile": "Tile", "outline": "Outline", "colour": "Colour", "note": "Note", "behaviour": "Behaviour",
+    "default_choice": "Default choice", "builtin": "Built in", "url": "Link address", "path": "Folder", "spec": "View",
+    "id": "ID", "code": "Code",
+}
+FIELD_NAMES = {
+    "projects": {"name": "Project name", "phase": "Phase", "sponsor": "Sponsor", "health": "Health", "health_reason": "Reason for the health",
+                 "active": "Active", "client_name": "Client", "current_state": "Where things stand", "week_ending": "Week ending",
+                 "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
+    "milestones": {"name": "Name", "status": "Status"},
+    "actions": {"description": "Action"},
+    "raid": {"description": "Description", "type": "Type"},
+    "decisions": {"status": "Status"},
+    "use_cases": {"title": "Title"},
+    "links": {"kind": "Link type"},
+    "item_labels": {"item_id": "Item", "label": "Label"},
+    "updates": {"health": "Health", "summary": "Summary", "key_changes": "Key changes"},
+}
+REMOVED_NAME = "Removed"
+THING = {"links": "Link", "item_labels": "Label", "labels": "Label", "report_sections": "Section", "glance_tiles": "Tile",
+         "report_hidden": "Hidden item", "saved_views": "Saved view", "documents": "Document", "source_folders": "Folder",
+         "projects": "Project", "milestones": "Milestone", "workstreams": "Workstream", "actions": "Action", "raid": "RAID item",
+         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update"}      # what a Created or Removed row is about
+
+
+def field_name(table, field):
+    """The plain name of `field` in `table`. A field no table above knows is spaced out and capitalised, never shown as written."""
+    name = FIELD_NAMES.get(table, {}).get(field) or COMMON.get(field)
+    if name:
+        return name
+    return str(field).replace("_", " ").strip().capitalize() or OTHER
+
+
+# Where an item's title lives, and the whole of each read (fixed text, no table name is ever put into SQL).
+TITLE_COLUMN = {"projects": "name", "milestones": "name", "workstreams": "name", "actions": "description", "raid": "description",
+                "decisions": "decision", "use_cases": "title"}
+TITLE_SQL = {
+    "projects": "SELECT name FROM projects WHERE code = ?", "milestones": "SELECT name FROM milestones WHERE id = ?",
+    "workstreams": "SELECT name FROM workstreams WHERE id = ?", "actions": "SELECT description FROM actions WHERE id = ?",
+    "raid": "SELECT description FROM raid WHERE id = ?", "decisions": "SELECT decision FROM decisions WHERE id = ?",
+    "use_cases": "SELECT title FROM use_cases WHERE id = ?"}
+TITLE_LIMIT = 120
+
+
+def how_text(route, place, src_ref):
+    """One of the eleven phrases for how and where a change was made. Anything else is OTHER, never the stored code."""
+    if route == "undo":
+        return HOW_UNDO
+    if route == "excel":
+        name = re.sub(r"\s+", " ", str(src_ref or "")).strip()
+        if name[:len(EXCEL_PREFIX)].lower() == EXCEL_PREFIX.lower():
+            name = name[len(EXCEL_PREFIX):].strip()
+        name = re.split(r"[\\/]", name)[-1].strip()[:FILE_NAME_LIMIT]
+        return f"{HOW_EXCEL} ({name})" if name else HOW_EXCEL
+    if route == "assistant":
+        return HOW_ASK
+    return HOW_PLACES.get(place, OTHER)
+
+
+def offset_of(text):
+    """A timezone for a stored '+HH:MM' / '-HH:MM', or None when it is NULL or not that shape."""
+    m = re.fullmatch(r"([+-])(\d\d):(\d\d)", str(text or ""))
+    if not m or int(m.group(2)) > 23 or int(m.group(3)) > 59:
+        return None
+    delta = timedelta(hours=int(m.group(2)), minutes=int(m.group(3)))
+    return timezone(delta if m.group(1) == "+" else -delta)
+
+
+def when_text(at, utc_offset):
+    """(DD-MM-YYYY HH:MM in the offset it was made at, the words saying the zone was not recorded or ''). A NULL offset shows UTC."""
+    tz = offset_of(utc_offset)
+    try:
+        dt = timefmt.parse(at).astimezone(tz or timezone.utc)
+    except (ValueError, OverflowError, OSError):
+        return str(at), ("" if tz else NO_ZONE)
+    return dt.strftime("%d-%m-%Y %H:%M"), ("" if tz else NO_ZONE)
+
+
+def plain_value(field, value):
+    """A stored value as a person reads it: an on/off column's 1 and 0 as Yes and No (archived has its own words), a logged
+    time (YYYY-MM-DD HH:MM:SS.fff, UTC) as DD-MM-YYYY HH:MM. Anything else is returned as it is."""
+    if field in FLAG_COLUMNS and str(value) in ("0", "1"):
+        return "Yes" if str(value) == "1" else "No"
+    if isinstance(value, str) and re.fullmatch(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d(\.\d+)?", value):
+        return when_text(value, None)[0]
+    return value
+
+
+def rich_plain(text):
+    """The words of a rich field's HTML (publish.RICH: current_state, standing), for the rows and the sheet: tags and entities
+    are gone, paragraphs become lines. One the cleaner refuses (too long) falls back to a plain tag strip. Never used for a
+    plain-text field: that is shown as typed, so a '<' or '>' in it stays."""
+    try:
+        return plain_text(text)
+    except SanitiseError:
+        return _plain(text)
+
+
+def shown_value(table, field, value):
+    """plain_value, and for a rich field (publish.RICH) the words without the markup."""
+    if isinstance(value, str) and field in RICH.get(table, ()):
+        return rich_plain(value)
+    return plain_value(field, value)
+
+
+def _unpack(old, table=""):
+    """A removed row's JSON as 'Field: value, Field: value' in plain names; text that is not that JSON is returned as it is."""
+    try:
+        data = json.loads(old)
+    except (TypeError, ValueError):
+        return old
+    if not isinstance(data, dict):
+        return old
+    return ", ".join(f"{field_name('', k)}: {'' if v is None else shown_value(table, k, v)}" for k, v in data.items() if k != "updated_at")
+
+
+class _Titles:
+    def __init__(self, con):
+        self.con, self.seen = con, {}
+
+    def of(self, item_id):
+        if item_id in self.seen:
+            return self.seen[item_id]
+        title = ""
+        for table, sql in TITLE_SQL.items():
+            r = self.con.execute(sql, (item_id,)).fetchone()
+            if r:
+                title = r[0]
+                break
+        if not title:       # an item that has gone (a create undone): the last name the log saw for it
+            for table, col in TITLE_COLUMN.items():
+                r = self.con.execute("SELECT new_value FROM change_log WHERE tbl = ? AND item_id = ? AND field = ? "
+                                     "AND new_value IS NOT NULL ORDER BY rowid DESC LIMIT 1", (table, item_id, col)).fetchone()
+                if r:
+                    title = r[0]
+                    break
+        title = re.sub(r"\s+", " ", str(title or "")).strip()
+        if len(title) > TITLE_LIMIT:
+            title = title[:TITLE_LIMIT - 1] + "\u2026"
+        self.seen[item_id] = title
+        return title
+
+
+def _ends(tbl, item_id):
+    """The item IDs a change_log key is about: both ends of a link, the item of a label, else the key (a project's own code too)."""
+    parts = str(item_id).split("|")
+    if tbl == "links":
+        return parts[:2]
+    if tbl in ("item_labels", "report_hidden", "documents", "glance_tiles", "saved_views", "report_sections"):
+        return parts[:1] if tbl != "report_hidden" else parts[1:2]
+    if tbl == "updates":
+        return parts[1:2]
+    return parts[:1]
+
+
+def _in_project(tbl, item_id, code):
+    for end in _ends(tbl, item_id):
+        if end == code or end.startswith(code + "-"):
+            return True
+    return False
+
+
+def _has_column(con, table, column):
+    return any(r[1] == column for r in con.execute("PRAGMA table_info(" + table + ")"))
+
+
+SELECT_PART = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, c.at AS logged, "
+               "a.by_user, e.event_id, e.route, e.place, e.src_ref, e.undoes, ")
+FROM_PART = (" FROM change_log c JOIN item_events e ON e.change = c.rowid LEFT JOIN applies a ON a.apply_id = c.apply_id "
+             "WHERE c.field != 'updated_at' AND (")
+TAIL_PART = ") ORDER BY e.event_id DESC"
+
+
+def _change_rows(con, where, params):
+    """change_log rows (newest first) for a WHERE on c; applies.utc_offset is read when the column exists and is NULL otherwise."""
+    offset = "a.utc_offset AS utc_offset" if _has_column(con, "applies", "utc_offset") else "NULL AS utc_offset"
+    return con.execute(SELECT_PART + offset + FROM_PART + where + TAIL_PART, params).fetchall()
+
+
+def _undo_events(con):
+    """The event IDs that were themselves an Undo's put-back (their change's via starts with revert:), so an Undo of one reads
+    as 'Undo undone' and not 'Undone' again."""
+    return {r[0] for r in con.execute("SELECT e.event_id FROM item_events e JOIN change_log c ON c.rowid = e.change "
+                                      "WHERE c.via LIKE ?", (REVERT_VIA + "%",))}
+
+
+def _display(con, rows, keep):
+    """Display rows from change_log rows: the rows of one step and item that made it (a Created item, or a label or link an Undo
+    put back) are folded into one line."""
+    titles = _Titles(con)
+    undos = _undo_events(con)
+    out, folded = [], {}
+    for r in rows:
+        ends = _ends(r["tbl"], r["item_id"])
+        if r["via"] == SEED_VIA or not keep(r, ends):      # a new project's starting sections are not a person's change
+            continue
+        undo = r["route"] == "undo" or r["undoes"] is not None
+        again = undo and r["undoes"] in undos              # this Undo reverses an earlier Undo
+        undo_kind = "Undo undone" if again else "Undone"
+        field_key, before, after = r["field"], r["old_value"], r["new_value"]
+        field = field_name(r["tbl"], field_key)
+        hidden = r["tbl"] == "report_hidden"
+        fold = None
+        if field_key == REMOVED:
+            if hidden:
+                kind, before, after, field = (undo_kind if undo else "Changed"), "", PUT_BACK, PAGE_FIELD
+            else:
+                kind = (undo_kind if again else "Creation undone") if r["undoes"] is not None else "Removed"
+                before, after, field = _unpack(before, r["tbl"]), "", THING.get(r["tbl"], OTHER)
+        elif field_key == "archived" and after in ("1", "0"):
+            restored = after == "0"
+            kind = undo_kind if undo else ("Restored" if restored else "Archived")
+            field = ("Restored" if restored else "Archived") if undo else field
+            before = after = ""
+        elif r["op"] == OP_MADE:
+            fold, kind = (r["apply_id"], r["tbl"], r["item_id"]), (undo_kind if undo else "Created")
+            if hidden and not undo:
+                kind = "Changed"
+        elif undo:
+            kind, before, after = undo_kind, shown_value(r["tbl"], field_key, before), shown_value(r["tbl"], field_key, after)
+        else:
+            kind, before, after = "Changed", shown_value(r["tbl"], field_key, before), shown_value(r["tbl"], field_key, after)
+        if fold in folded:
+            folded[fold]["_values"][field_key] = after
+            continue
+        when, note = when_text(r["logged"], r["utc_offset"])
+        items = [{"id": e, "title": titles.of(e)} for e in ends if e]
+        row = {"when": when, "zone_note": note, "when_text": when + (" - " + note if note else ""), "who": r["by_user"] or "",
+               "how": how_text(r["route"], r["place"], r["src_ref"]),
+               "item_id": items[0]["id"] if items else "", "title": items[0]["title"] if items else "", "items": items,
+               "item": "; ".join((i["id"] + " " + i["title"]).strip() for i in items),
+               "field": field, "from": "" if before is None else before, "to": "" if after is None else after, "kind": kind,
+               "table": r["tbl"], "event_id": r["event_id"], "step": r["apply_id"], "_at": r["logged"], "_seq": r["event_id"]}
+        if fold:
+            row["_values"] = {field_key: after}
+            row["_back"] = undo
+            folded[fold] = row
+        out.append(row)
+    for row in folded.values():
+        vals = row.pop("_values")
+        back = row.pop("_back")
+        row["field"] = THING.get(row["table"], OTHER)
+        col = TITLE_COLUMN.get(row["table"])
+        if row["table"] == "report_hidden":
+            row["field"], row["to"] = PAGE_FIELD, LEFT_OUT
+        elif row["table"] == "links":
+            a, b = (row["items"] + [{"id": ""}])[:2]
+            row["to"] = f"{a['id']} {vals.get('kind') or 'blocks'} {b['id']}".strip()
+        elif row["table"] == "item_labels":
+            row["to"] = vals.get("label") or ""
+        elif col:
+            row["to"] = vals.get(col) or row["title"]
+        else:
+            row["to"] = vals.get("title") or vals.get("name") or vals.get("tile") or ""
+        if row["table"] == "updates":
+            row["to"] = vals.get("summary") or row["to"]
+        if back and row["table"] != "report_hidden":
+            row["to"] = PUT_BACK_PREFIX + row["to"]
+    return out
+
+
+def _comment_rows(con, where, params, titles):
+    out = []
+    for c in con.execute("SELECT id, item_id, author, at, text FROM comments WHERE " + where + " ORDER BY id DESC", params):
+        when, note = when_text(c["at"], None)
+        items = [{"id": c["item_id"], "title": titles.of(c["item_id"])}]
+        out.append({"when": when, "zone_note": note, "when_text": when + " - " + note, "who": c["author"], "how": "",
+                    "item_id": c["item_id"], "title": items[0]["title"], "items": items,
+                    "item": (c["item_id"] + " " + items[0]["title"]).strip(), "field": "Comment", "from": "", "to": c["text"],
+                    "kind": "Comment", "table": "comments", "event_id": None, "step": None, "_at": c["at"], "_seq": c["id"]})
+    return out
+
+
+def _when_key(stamp):
+    """A stored time for sorting; one that cannot be read sorts as the oldest, so a single odd comment time cannot break a view."""
+    try:
+        return timefmt.parse(stamp)
+    except ValueError:
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _finish(rows, kind, limit):
+    """Filter, put newest first, cut to `limit`; return (rows, how many were cut)."""
+    if kind not in FILTERS:
+        raise ValueError(f"kind must be one of {sorted(FILTERS)}")
+    if kind == "comments":
+        rows = [r for r in rows if r["table"] in ("updates", "comments")]
+    elif kind == "changes":
+        rows = [r for r in rows if r["table"] not in ("updates", "comments")]
+    rows.sort(key=lambda r: (_when_key(r["_at"]), r["table"] != "comments", r["_seq"]), reverse=True)
+    cut = 0
+    if limit is not None and len(rows) > limit:
+        rows, cut = rows[:limit], len(rows) - limit
+    for r in rows:
+        r.pop("_at"), r.pop("_seq")
+    return rows, cut
+
+
+def rows_for_project(con, code, kind="all", limit=None):
+    """The display rows for project `code`, newest first. Read-only. `kind`: "all", "changes" or "comments" (the tab's
+    Comments and updates: weekly updates plus the comments table). Each row: when, zone_note ('' or NO_ZONE), when_text (both),
+    who, how (one of the eleven phrases, or OTHER), item_id, title, items ([{id, title}], both ends of a link), item, field,
+    from, to, kind (one of KINDS), table, event_id, step. `limit` keeps the newest that many."""
+    like = (code, code + "-%", code + "|%", "%|" + code + "-%", "%|" + code)
+    where = "c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ?"
+    rows = _display(con, _change_rows(con, where, like), lambda r, ends: _in_project(r["tbl"], r["item_id"], code))
+    rows += _comment_rows(con, "project = ?", (code,), _Titles(con))
+    return _finish(rows, kind, limit)[0]
+
+
+def rows_for_item(con, item_id, kind="all", limit=None):
+    """The same display rows for one item (a link or label shows on the item at either end)."""
+    where = "c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ?"
+    rows = _display(con, _change_rows(con, where, (item_id, item_id + "|%", "%|" + item_id + "|%", "%|" + item_id)),
+                    lambda r, ends: item_id in ends)
+    rows += _comment_rows(con, "item_id = ?", (item_id,), _Titles(con))
+    return _finish(rows, kind, limit)[0]
+
+
+def view_for_project(con, code, kind="all", limit=None):
+    """What a screen shows: {"rows", "footnote", "empty" (the words when there are no rows, else ''), "closing" (the last line
+    when `limit` cut older rows, else '')}. The Excel History sheet calls this with limit=ROW_LIMIT."""
+    rows = rows_for_project(con, code, kind)
+    cut = limit is not None and len(rows) > limit
+    rows = rows[:limit] if cut else rows
+    return {"rows": rows, "footnote": FOOTNOTE, "empty": "" if rows else EMPTY[kind], "closing": CLOSING_LINE if cut else ""}
+
+
+# ===== What the Activity tab asks for (#123): the same rows, with a word diff for text that changed =====
+
+TAG_RE = re.compile(r"<[^>]*>")
+WORD_RE = re.compile(r"\s+|[^\s]+")
+DIFF_FROM_WORDS = 3                    # a text of at least this many words (either side) is shown as a word diff
+DIFF_LIMIT = 20000                     # characters a diff reads from each side; a longer text is shown whole, never cut half way
+DIFF_MAX_TOKENS = 400                  # words and spaces compared on each side after the unchanged start and end are set aside (a few ms to 50 ms)
+DIFF_BUDGET = 4000                     # words and spaces compared in all, for one request; rows after that are shown whole
+NOT_COMPARED = "Too long to compare word by word: the old text is shown struck through and the new text added, whole."
+
+
+def _plain(text):
+    """Rich text as plain words for the diff: tags dropped, a few entities read, white space made single. The page draws every
+    piece as text (never as markup), so nothing here needs to be safe to inject."""
+    text = TAG_RE.sub(" ", text or "")
+    for a, b in (("&nbsp;", " "), ("&lt;", "<"), ("&gt;", ">"), ("&quot;", '"'), ("&#39;", "'"), ("&amp;", "&")):   # &amp; last: "&amp;lt;" is the text "&lt;"
+        text = text.replace(a, b)
+    return re.sub(r"\s+", " ", text).strip()        # the diff compares words, so a tag, a line break and a space all read as one space
+
+
+def _pieces(a, b, budget=None):
+    """(pieces, compared word by word) for two token lists that differ. The unchanged start and end are set aside first (a straight
+    walk), so an edit in a long text costs only the changed stretch. A stretch over DIFF_MAX_TOKENS on a side, or over what is
+    left of `budget` (a one-item list: tokens still to spend this request), is not compared: it is one removed piece and one
+    added piece, whole. The work is bounded: at most DIFF_MAX_TOKENS squared steps a row."""
+    lo = 0
+    while lo < len(a) and lo < len(b) and a[lo] == b[lo]:
+        lo += 1
+    hi = 0
+    while hi < len(a) - lo and hi < len(b) - lo and a[-1 - hi] == b[-1 - hi]:
+        hi += 1
+    head, tail = a[:lo], a[len(a) - hi:]
+    ma, mb = a[lo:len(a) - hi], b[lo:len(b) - hi]
+    out = []
+
+    def put(op, words):
+        text = "".join(words)
+        if not text:
+            return
+        if out and out[-1]["op"] == op:
+            out[-1]["text"] += text
+        else:
+            out.append({"op": op, "text": text})
+
+    cost = max(len(ma), len(mb))
+    exact = cost <= DIFF_MAX_TOKENS and (budget is None or cost <= budget[0])
+    put("same", head)
+    if not exact:
+        put("removed", ma)
+        put("added", mb)
+    else:
+        if budget is not None:
+            budget[0] -= cost
+        for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, ma, mb, autojunk=False).get_opcodes():
+            if tag == "equal":
+                put("same", ma[i1:i2])
+            else:
+                put("removed", ma[i1:i2])
+                put("added", mb[j1:j2])
+    put("same", tail)
+    return out, exact
+
+
+def word_diff(before, after, budget=None, rich=True):
+    """Two texts as a list of pieces, in reading order: {"op": "same" | "removed" | "added", "text": ...}. Whole words and the
+    single spaces between them; neighbouring pieces of one kind are joined. Empty when the texts read the same. A changed stretch
+    too long to compare (see _pieces) comes as one removed and one added piece. `rich` (the default) reads the texts as HTML;
+    `rich=False` compares them exactly as typed (a plain-text field, where '<' and '&lt;' are the person's own words)."""
+    if rich:
+        before, after = _plain(before), _plain(after)
+    a, b = WORD_RE.findall(before or ""), WORD_RE.findall(after or "")
+    return [] if a == b else _pieces(a, b, budget)[0]
+
+
+def _with_diff(row, budget=None):
+    """A row as the tab gets it: a change to a text of three words or more also carries `diff`; every other row carries none.
+    `diff_note` is set (and says so plainly) when the texts were not compared word by word: too long, or this request's budget
+    spent. A text over DIFF_LIMIT carries no diff, only the note."""
+    before, after = row.get("from") or "", row.get("to") or ""
+    if row["kind"] not in ("Changed", *UNDO_KINDS) or not before or not after:
+        return dict(row, diff=None)
+    if len(before) > DIFF_LIMIT or len(after) > DIFF_LIMIT:
+        return dict(row, diff=None, diff_note=NOT_COMPARED)
+    a, b = WORD_RE.findall(before), WORD_RE.findall(after)       # the rows already hold plain words for a rich field (_display)
+    if max(len(before.split()), len(after.split())) < DIFF_FROM_WORDS:
+        return dict(row, diff=None)
+    if a == b:
+        return dict(row, diff=[])
+    pieces, exact = _pieces(a, b, budget)
+    return dict(row, diff=pieces) if exact else dict(row, diff=pieces, diff_note=NOT_COMPARED)
+
+
+def activity_for_project(con, code, kind="all", limit=ROW_LIMIT):
+    """What the Activity tab shows for a project, as plain data for the page: the view_for_project result with each row's `diff`,
+    the filter words (`filters`: [{key, label}], in the order shown) and the filter chosen. Read only."""
+    view = view_for_project(con, code, kind, limit)
+    budget = [DIFF_BUDGET]
+    view["rows"] = [_with_diff(r, budget) for r in view["rows"]]
+    view["filters"] = [{"key": k, "label": v} for k, v in FILTERS.items()]
+    view["kind"] = kind
+    return view
+
+
+def activity_for_item(con, item_id, kind="all", limit=ROW_LIMIT):
+    """The same for one item (the peek's Activity tab): no footnote counting beyond the rows, and the closing line only when cut."""
+    rows = rows_for_item(con, item_id, kind)
+    cut = limit is not None and len(rows) > limit
+    rows = rows[:limit] if cut else rows
+    budget = [DIFF_BUDGET]
+    return {"rows": [_with_diff(r, budget) for r in rows], "footnote": FOOTNOTE, "empty": "" if rows else EMPTY[kind],
+            "closing": CLOSING_LINE if cut else "", "filters": [{"key": k, "label": v} for k, v in FILTERS.items()], "kind": kind}
