@@ -688,6 +688,24 @@ class FormatContract(unittest.TestCase):
         self.assertEqual(ed.html, "<p>Some words here today.</p>")
         self.assertEqual(ed.steps, 1)
 
+    def test_accept_passes_the_html_through_the_page_cleaner(self):
+        seen = []
+        real = am.sanitise.clean_html
+        am.sanitise.clean_html = lambda t: (seen.append(t), real(t))[1]
+        try:
+            class Rich(FakeEditor):
+                def replace_html(self, a, b, html):
+                    self.replace(a, b, "x")
+            ed = Rich("Some text here today.")
+            s = am.AiSession()
+            c = s.begin("rewrite", ed.text, "notes", 0, len(ed.text))
+            s.deliver(c, reply("Some words here today."))
+            del seen[:]
+            s.accept(ed)
+        finally:
+            am.sanitise.clean_html = real
+        self.assertEqual(seen, ["<p>Some words here today.</p>"])
+
     def test_html_that_slips_into_the_text_is_cleaned_again_on_accept(self):
         # even if a card's text were tampered with after the check, the html that reaches the editor is built from the page cleaner
         class Rich(FakeEditor):
