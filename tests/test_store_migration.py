@@ -51,8 +51,8 @@ def tables(path):
 class NewDatabase(unittest.TestCase):
     def test_a_new_database_is_version_2_with_the_column_and_is_not_migrated(self):
         with mock.patch.object(store_module, "migrate") as migrate, DemoStore() as s:
-            self.assertEqual(store_module.SCHEMA_VERSION, 2)
-            self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "2")
+            self.assertEqual(store_module.SCHEMA_VERSION, store_module.HISTORY_VERSION)    # #123's step (its number is provisional)
+            self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
             self.assertIn("archived", store_module.columns(s.con, "documents"))
             migrate.assert_not_called()
 
@@ -66,7 +66,7 @@ class Migrating(unittest.TestCase):
         path = make_v1(self.dir)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "2")
+            self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
             doc = s.con.execute("SELECT * FROM documents").fetchone()
             self.assertEqual((doc["title"], doc["archived"]), ("Plan", 0))
             self.assertEqual(s.read("projects", ref="ABC")["name"], "Example Programme")
@@ -90,7 +90,7 @@ class Migrating(unittest.TestCase):
         self.assertFalse(set(NEW_TABLES) & tables(path))
         open_store(path, onedrive_roots=[]).close()
         self.assertTrue(set(NEW_TABLES) <= tables(path))
-        self.assertEqual(version(path), "2")
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
     def test_two_connections_on_one_version_1_file_migrate_once(self):
         path = make_v1(self.dir)
@@ -102,7 +102,7 @@ class Migrating(unittest.TestCase):
                 migrate(second)          # it believed the file was version 1; after the lock it finds 2
             again.assert_not_called()
             self.assertEqual(list(second.iterdump()), first_dump)
-            self.assertEqual(second.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "2")
+            self.assertEqual(second.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
             self.assertEqual(second.execute("SELECT archived FROM documents").fetchone()[0], 0)
         finally:
             first.close()
@@ -121,7 +121,7 @@ class Migrating(unittest.TestCase):
         con.close()
         self.assertEqual(version(path), "1")
         open_store(path, onedrive_roots=[]).close()           # and it still opens afterwards
-        self.assertEqual(version(path), "2")
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
     def test_a_half_applied_copy_is_safe(self):
         path = make_v1(self.dir)
@@ -129,12 +129,12 @@ class Migrating(unittest.TestCase):
         con.execute("ALTER TABLE documents ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1))")
         con.close()
         open_store(path, onedrive_roots=[]).close()
-        self.assertEqual(version(path), "2")
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
     def test_a_newer_database_is_still_refused(self):
         path = make_v1(self.dir)
         con = sqlite3.connect(str(path), isolation_level=None)
-        con.execute("UPDATE meta SET v = '3' WHERE k = 'schema_version'")
+        con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(store_module.SCHEMA_VERSION + 1),))
         con.close()
         with self.assertRaises(Invalid) as e:
             open_store(path, onedrive_roots=[])
@@ -265,7 +265,7 @@ class UndoRowsAndSize(unittest.TestCase):
         con.close()
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "2")
+            self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
             self.assertEqual([tuple(r) for r in s.con.execute("SELECT * FROM item_events ORDER BY event_id")], [tuple(r) for r in before])
             self.assertEqual(s.con.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
@@ -294,7 +294,7 @@ class UndoRowsAndSize(unittest.TestCase):
         began = time.monotonic()
         open_store(path, onedrive_roots=[]).close()
         self.assertLess(time.monotonic() - began, 5)
-        self.assertEqual(version(path), "2")
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
 
 class OrderedMigrations(unittest.TestCase):
@@ -329,9 +329,10 @@ class OrderedMigrations(unittest.TestCase):
         ran = []
         con = connect(path)
         try:
-            with mock.patch.object(store_module, "SCHEMA_VERSION", 3):
-                migrate(con, table=((2, lambda c: ran.append(2)), (3, lambda c: ran.append(3))))
-            self.assertEqual(ran, [3])
+            top = store_module.SCHEMA_VERSION + 1
+            with mock.patch.object(store_module, "SCHEMA_VERSION", top):
+                migrate(con, table=tuple((n, (lambda c, n=n: ran.append(n))) for n in range(2, top + 1)))
+            self.assertEqual(ran, [top])
         finally:
             con.close()
 
@@ -398,7 +399,7 @@ class OldDanglingRows(unittest.TestCase):
         con.close()
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "2")
+            self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
             self.assertEqual(s.con.execute("SELECT count(*) FROM item_events").fetchone()[0], 1)
             self.assertEqual(s.con.execute("PRAGMA foreign_keys").fetchone()[0], 1)
         finally:
@@ -489,7 +490,7 @@ class SafetyCopy(unittest.TestCase):
         open_store(path, onedrive_roots=[]).con.close()
         (copy,) = self.copies()
         self.assertEqual(version(copy), "1")
-        self.assertEqual(version(path), "2")
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
     def test_a_new_database_takes_no_copy(self):
         open_store(self.dir / "clark.db", onedrive_roots=[]).con.close()
@@ -537,7 +538,7 @@ class SafetyCopy(unittest.TestCase):
         first.con.close()
         second.con.close()
         self.assertEqual(len(self.copies()), 1)
-        self.assertEqual(version(path), "2")
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
 
 class FailedMigrationWords(unittest.TestCase):
