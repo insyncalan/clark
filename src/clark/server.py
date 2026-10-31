@@ -21,6 +21,8 @@ Routes:
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
+- POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
+- POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
 
 Run: python3 -m clark.server   (CLARK_PORT sets the port; the default is 8766, beside creaite's 8765)
@@ -73,7 +75,8 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
-                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024}     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                     "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024}     # #65: a change or an undo is small; over is the 400 "too big"
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -592,7 +595,8 @@ def ask_route(method):
     """POST /api/ask, GET /api/ask/status and POST /api/ask/stop (#47): a question about the open project, whether asking can
     answer, and Stop. The server's `ask` (ask_service.AskService) answers (status, body): it reads the switch from the store before
     anything is sent, so nothing leaves while asking is off; without one there is nothing to ask: not found. The token, the Host,
-    the Origin, JSON only and the length are checked before this runs; no model code is in this module."""
+    the Origin, JSON only and the length are checked before this runs; no model code is in this module. #47e: POST
+    /api/ask/change/dry and /apply hand the dry run and Apply of a suggested change to the same service, which never asks a model."""
     def route(handler, *req):
         service = getattr(handler.server, "ask", None)
         if service is None:
@@ -610,7 +614,8 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publi
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
                "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
-               "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop")}     # later items: /api/import
+               "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
+               "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply")}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
