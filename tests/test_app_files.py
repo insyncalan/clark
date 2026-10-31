@@ -14,6 +14,7 @@ from pathlib import Path
 from _paths import ROOT, SRC
 
 from clark import appfiles as af
+from clark import look
 from clark import server as sv
 
 TOKENS = (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
@@ -235,6 +236,12 @@ class OfflinePageColours(unittest.TestCase):
                 self.assertEqual(block[var].upper(), token_in(mode, tok), f"{mode} {var} should be {tok}")
         self.assertEqual(self.light["--accent"].upper(), token_in("light", "--brand-blue"))
         self.assertEqual(self.light["--accent-ink"].upper(), token_in("light", "--text-on-brand"))
+
+    def test_the_font_is_the_pages_own_list_and_no_font_is_named_in_the_file(self):
+        self.assertIn(f"font:15px/1.5 {look.family_list('--font')}}}", self.page)
+        self.assertIn(f"font:500 13px {look.family_list('--font')};", self.page)
+        source = (SRC / "clark" / "app" / "offline.html").read_text(encoding="utf-8")
+        self.assertNotRegex(source, r"Arial|Helvetica|Calibri|Inter\b")
 
     def test_the_dark_button_keeps_the_light_blue_not_the_dark_brand_blue(self):
         self.assertNotIn("--accent", self.dark, "the dark block must not override the button fill")

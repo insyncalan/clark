@@ -1594,9 +1594,9 @@ def _item_events_allow_word(con):
                 "FROM item_events ORDER BY event_id")
     con.execute("DROP TABLE item_events")
     con.execute("ALTER TABLE item_events_3 RENAME TO item_events")
-    if seq is not None:
-        con.execute("DELETE FROM sqlite_sequence WHERE name = 'item_events'")
-        con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('item_events', ?)", (seq[0],))
+    if seq is not None:             # the renamed table keeps the counter's place: make sure it is the old one, never lower
+        con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+        con.execute("INSERT INTO sqlite_sequence (name, seq) SELECT 'item_events', ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'item_events')", (seq[0],))
     con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
     con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
 
