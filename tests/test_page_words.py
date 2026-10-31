@@ -170,6 +170,9 @@ class Words(unittest.TestCase):
                                   "No client folder yet.", "Choose folder",
                                   "Personal",    # #45: Settings › Personal, the section styles
                                   "These are for you, on this computer. This changes the page you edit. The published page uses Slim gaps for now.",
+                                  "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179
+                                  "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
+                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Section style", "Slim gaps", "Sections close together, divided by a thin line.",
                                   "Roomy gaps", "More space between sections.", "Grey headers", "Each section's title sits on a grey band.",
                                   "One card", "All the sections inside a single card.",
