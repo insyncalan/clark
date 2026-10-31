@@ -50,7 +50,7 @@
 .ask-grip:hover, .ask-grip:focus-visible { background: var(--brand-blue); opacity: .35; outline: none; }
 .ask-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ask-head h2 { margin: 0; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
-.ask-status, .ask-note, .ask-off { margin: 0; font-size: var(--size-small); }
+.ask-status, .ask-note, .ask-off, .ask-sent { margin: 0; font-size: var(--size-small); }
 .ask-off { font-size: var(--size-body); color: var(--text); }
 .ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
 .ask-turn { padding: 8px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }

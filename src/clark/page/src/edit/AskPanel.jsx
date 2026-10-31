@@ -110,13 +110,14 @@ export function AskPanel() {
       <p class="ask-status muted" id="ask-status" role="status" aria-live="polite">
         {state === "checking" ? W.CHECKING_LINE : state === "off" ? null : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
       </p>
+      {state === "ready" || state === "signed-out" ? <p class="ask-sent muted" id="ask-sent">{W.SENT_LINE}</p> : null}
       {state === "off" || state === "checking" ? (
         <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
       {state === "signed-out" ? (
         <p class="ask-off" id="ask-signed-out">{W.SIGNED_OUT_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
-      <div class="ask-log" id="ask-log" ref={log}>
+      <div class="ask-log" id="ask-log" role="log" aria-live="polite" ref={log}>
         {list.map((t, i) => (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
