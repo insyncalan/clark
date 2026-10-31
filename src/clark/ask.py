@@ -12,6 +12,7 @@ counted (`edit_ai.hidden_count`); `edit_ai.normal` is used to DETECT only, never
 import json
 import math
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from clark import edit_ai
@@ -64,14 +65,16 @@ class Request:
     question: str
     passages: tuple = ()          # ((id, label), ...)
     hidden: dict = field(default_factory=dict)
+    dropped_turns: int = 0        # how many of the oldest earlier turns were left out to fit MAX_REQUEST (the panel may say so)
 
     @property
     def passage_ids(self):
         return tuple(p[0] for p in self.passages)
 
 
-_SECRET_WORD = re.compile(r"\b(?:password|passwd|pwd|passcode|pass phrase|passphrase|secret|api[ _-]?key|access[ _-]?key|token)\b"
+_SECRET_WORD = re.compile(r"\b(password|passwd|pwd|passcode|pass phrase|passphrase|secret|api[ _-]?key|access[ _-]?key|token)\b"
                           r"\s*(?:is|=|:)\s*['\"]?(\S{4,})", re.I)
+_PASSWORD_WORDS = ("password", "passwd", "pwd", "passcode", "pass phrase", "passphrase")
 _SECRET_SHAPES = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY"),
     re.compile(r"\b(?:sk|pk|rk)-[A-Za-z0-9_-]{16,}"),
@@ -90,24 +93,51 @@ def looks_like_secret(text):
     letter doesn't hide one. A guess: it errs towards refusing."""
     t = edit_ai.normal(text)
     for m in _SECRET_WORD.finditer(t):
-        value = m.group(1).strip(".,;)'\"")
+        value = m.group(2).strip(".,;)'\"")
+        if value.isdigit() and len(value) < 8 and m.group(1).lower() not in _PASSWORD_WORDS:
+            continue                                    # "token: 2026 plan": a short number after a key word is ordinary text
         if any(not c.isalpha() for c in value):
             return True
     if any(shape.search(t) for shape in _SECRET_SHAPES):
         return True
     for run in re.findall(r"[A-Za-z0-9+/_=-]{32,}", t):
-        if re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run):
+        if re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run) and not _words_joined(run):
             return True
     return False
 
 
+def _words_joined(run):
+    """Whether a long run is only words (and numbers) joined by - _ or /, like a document name or a web address path: every part is
+    all letters, all digits, or (at most two of them) a short code such as Q3 or v2. A random key has mostly mixed parts."""
+    if "+" in run or "=" in run:
+        return False
+    parts = [p for p in re.split(r"[-_/]+", run) if p]
+    if len(parts) < 3:
+        return False
+    mixed = 0
+    for p in parts:
+        if p.isalpha() or p.isdigit():
+            if len(p) > 24:
+                return False
+        elif len(p) <= 4:
+            mixed += 1
+        else:
+            return False
+    return mixed <= 2
+
+
+_BAD_LABEL_CATEGORIES = frozenset(("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"))
+
+
 def _label_ok(label):
-    """A label is a name inside a folder: no leading slash or drive, no home mark, no parent step, no backslash, no control."""
+    """A label is a name inside a folder: no leading slash or drive, no home mark, no parent step, no backslash, no control, format or line-separator character (so a label can't start a new line or forge a heading)."""
     if not isinstance(label, str) or not label.strip() or len(label) > MAX_LABEL:
         return False
-    if label.startswith(("/", "~", "\\")) or re.match(r"^[A-Za-z]:", label) or "\\" in label or "\n" in label or "\r" in label:
+    if label.startswith(("/", "~", "\\")) or re.match(r"^[A-Za-z]:", label) or "\\" in label:
         return False
-    return ".." not in label.split("/") and "\x00" not in label
+    if any(unicodedata.category(c) in _BAD_LABEL_CATEGORIES for c in label):
+        return False             # control, format (hidden and bidi marks), line and paragraph separators, unpaired, private use
+    return ".." not in label.split("/")
 
 
 def _fence(texts):
@@ -152,7 +182,20 @@ def build_request(question, passages, earlier=()):
     if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:
         raise AskRefused(TOO_MUCH)
 
-    fence = _fence([question] + [t for _r, t in turns] + [t for _l, t in chosen])
+    dropped = 0
+    while True:                     # a long chat gives up its oldest turns first, so a narrow question isn't refused for them
+        body, ids, hidden = _assemble(question, turns[dropped:], chosen)
+        if len(body) <= MAX_REQUEST:
+            break
+        if dropped >= len(turns):
+            raise AskRefused(TOO_MUCH)
+        dropped += 1
+    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped)
+
+
+def _assemble(question, turns, chosen):
+    """The request text, the (id, label) pairs and the hidden counts, for these turns and passages."""
+    fence = _fence([question] + [t for _r, t in turns] + [t for _l, t in chosen] + [l for l, _t in chosen])
     parts = [RULES, "", "QUESTION", fence, question, fence]
     if turns:
         parts += ["", "EARLIER IN THIS CHAT"]
@@ -165,10 +208,7 @@ def build_request(question, passages, earlier=()):
         ids.append((pid, label))
         hidden[pid] = edit_ai.hidden_count(text)
         parts += [f"{pid} from {label}", fence, text, fence]
-    body = "\n".join(parts)
-    if len(body) > MAX_REQUEST:
-        raise AskRefused(TOO_MUCH)
-    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden)
+    return "\n".join(parts), ids, hidden
 
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -186,6 +226,7 @@ MAX_CHANGE_FIELDS = 12
 MAX_FIELD_NAME = 40
 MAX_FIELD_VALUE = 1000         # the field limit: one text value in a change
 MAX_REPLY = 60000
+MAX_FLAGS = 25              # most flags of one kind that are kept; the rest become one "and N more" line
 MAX_CHECKED_LINE = 2000     # a longer line is not checked for a quoted title or an owner; the id and cite checks still cover it
 
 UNREADABLE = ("The answer came back in a form that couldn't be checked, so it is shown as text and nothing is offered to change. Ask again, or check it against the report yourself.")
@@ -195,7 +236,7 @@ NOT_SENT = "The answer named a source that was not sent. Ignore that part."
 @dataclass(frozen=True)
 class Flag:
     """One problem the claims check found. `kind` is one of: unknown_id, wrong_title, wrong_owner, unsent_passage, change_left_out,
-    unreadable, disguised. `ref` is the ID or passage ID concerned; `expected` is what the data says (a title or owner), else ""."""
+    unreadable, disguised, more. `ref` is the ID or passage ID concerned; `expected` is what the data says (a title or owner), else ""."""
     kind: str
     ref: str
     message: str
@@ -337,6 +378,20 @@ def check_claims(text, sent, codes, exists, facts=None):
     return flags
 
 
+def _cap(flags):
+    """At most MAX_FLAGS of each kind, in order, then one `more` flag saying how many were left out."""
+    count, kept, left = {}, [], 0
+    for f in flags:
+        count[f.kind] = count.get(f.kind, 0) + 1
+        if count[f.kind] <= MAX_FLAGS:
+            kept.append(f)
+        else:
+            left += 1
+    if left:
+        kept.append(Flag("more", "", f"and {left} more like these."))
+    return tuple(kept)
+
+
 def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     """Read one reply. Returns a `Reply`. A reply that doesn't follow the form (empty, over MAX_REPLY, a CITE line that isn't passage
     IDs, a CHANGE line that isn't one flat JSON object within the limits, more than MAX_CHANGES, or a marker disguised with hidden
@@ -366,15 +421,15 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     if ok:
         left = []
         for change in changes:
-            ids = _ids_in(codes, exists, " ".join(str(v) for v in change.values() if isinstance(v, str)))
+            ids = _ids_in(codes, exists, " ".join(list(change) + [v for v in change.values() if isinstance(v, str)]))
             bad = sorted(r for r in ids if not _known(exists, r))
             if bad:
                 flags.append(Flag("change_left_out", bad[0], f"A change the answer suggested named {bad[0]}, which isn't in this project, so it was left out."))
             else:
                 left.append(change)
-        return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, tuple(flags))
+        return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, _cap(flags))
     kind = "disguised" if disguised else "unreadable"
-    return Reply(text.strip(), (), (), False, tuple([Flag(kind, "", UNREADABLE)] + flags))
+    return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags))
 
 
 # ---------------------------------------------------------------------------------------------------------------------------
