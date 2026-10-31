@@ -27,6 +27,9 @@ Routes:
 - POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
 - POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
 - POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
+- POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (log_routes.py)
+- GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text
+- POST /api/logging      set Normal or Debug; POST /api/logging/open-folder shows the log folder
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
 
 Run: python3 -m clark.server   (CLARK_PORT sets the port; the default is 8766, beside creaite's 8765)
@@ -83,7 +86,8 @@ BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
-                     "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
+                     "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
+                     "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024}      # the log routes are small
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -622,14 +626,31 @@ def profile_route(method):
     return route
 
 
+def logs_route(method):
+    """A route that hands its request to the server's `logs` (log_routes.Logs), which answers (status, body). Without one there is
+    nothing to ask: not found. What may be logged and what a report holds are decided in log.py and diagnostics.py, not here."""
+    def route(handler, *req):
+        logs = handler.server.logs
+        if logs is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = getattr(logs, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
+PAGE_ERROR_ROUTE = "/api/page-error"
+
+
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
-              "/api/movement": movement_route, "/api/profile": profile_route("get")}
+              "/api/movement": movement_route, "/api/profile": profile_route("get"), "/api/diagnostics": logs_route("diagnostics")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
                "/api/profile": profile_route("save"),
-               "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
+               "/api/word-import": word_import_route, "/api/word-export": word_export_route,
+               PAGE_ERROR_ROUTE: logs_route("page_error"), "/api/logging": logs_route("set_level"),
+               "/api/logging/open-folder": logs_route("open_folder")}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -643,7 +664,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         """Quiet: one log line per API call; safe when the request line didn't parse. (creaite log_message)"""
         path = getattr(self, "path", "") or ""
-        if path.startswith("/api/") and path.split("?")[0] != HERE_ROUTE:       # the page's heartbeat is not logged
+        if path.startswith("/api/") and path.split("?")[0] not in (HERE_ROUTE, PAGE_ERROR_ROUTE):   # the heartbeat is not logged; a page error's own capped line is its record
             LOG.info("%s %s", ascii(getattr(self, "command", "") or "")[1:-1], ascii(path.split("?")[0])[1:-1])   # escaped: no raw bytes
 
     def send_error(self, code, message=None, explain=None):
@@ -812,7 +833,7 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None, logs=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -826,6 +847,7 @@ class LocalServer(ThreadingHTTPServer):
         self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
+        self.logs = logs                      # log_routes.Logs: the log routes; None: those routes answer not found
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -857,14 +879,14 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None, logs=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile,
-                            word_import=word_import, word_export=word_export)
+                            word_import=word_import, word_export=word_export, logs=logs)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

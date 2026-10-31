@@ -781,6 +781,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .setting { margin-top: 16px; }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.setting h3 { margin: 16px 0 6px; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
+.setting .small { font-size: var(--size-small); margin: 6px 0 0; }
+.setting .note { margin: 8px 0 0; color: var(--status-amber-text); }
+.setting ul.plain { margin: 0; padding: 0 0 0 18px; overflow-wrap: anywhere; }
 .folder-now { overflow-wrap: anywhere; }
 .backup-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
 .backup-list .acts { display: flex; gap: 8px; margin-left: auto; }

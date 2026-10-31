@@ -46,7 +46,7 @@ MESSAGE_LIMIT = 120
 FULL_NOTICE = "log full for today, later entries are not kept"
 FILE = re.compile(r"clark-(\d{4}-\d{2}-\d{2})\.log$")
 ENTRY = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (DEBUG|INFO|WARN|ERROR)\s+(\S+)\s*(.*)$")
-CONTROL = re.compile(r"[\x00-\x1f\x7f  ]+")
+CONTROL = re.compile(r"[\x00-\x1f\x7f\x85  ]+")
 AREA_OK = re.compile(r"[^A-Za-z0-9_.-]+")
 ITEM_ID = re.compile(r"[A-Z][A-Z0-9]{1,6}-[A-Z]{1,2}-\d{1,6}\Z")      # ABC-A-003 (a project code, a kind letter, a number)
 KEY_OK = re.compile(r"[a-z][a-z0-9_]{0,24}\Z")
@@ -81,15 +81,27 @@ def home_to_tilde(text, home=None):
     return text
 
 
-def scrub(text, limit=MESSAGE_LIMIT, home=None):
+def cut_first(text, most):
+    """`text` cut to at most `most` characters before it is scrubbed, so a very long text never makes the patterns slow. A word
+    the cut goes through is dropped whole (only the words before it are kept), so no half of an address or a name is left."""
+    if len(text) <= most:
+        return text
+    head = text[:most]
+    space = max(head.rfind(" "), head.rfind("\t"), head.rfind("\n"))
+    return (head[:space] + " " if space > 0 else "") + GONE
+
+
+def scrub(text, limit=MESSAGE_LIMIT, home=None, keep=None):
     """One safe line from a message: home folder to `~`, web addresses, email addresses, quoted text, other paths and long
-    tokens replaced, control characters (newlines too) spaces, and a long text cut."""
-    t = str(text)
+    tokens replaced, control characters (newlines too) spaces, and a long text cut. A path that is exactly one of the routes in
+    `keep` (the ones clark itself serves) stays, so a request line still says which route it was."""
+    t = cut_first(str(text), limit * 4)
     t = home_to_tilde(t, home)
     t = WEB.sub(GONE, t)
     t = ADDRESS.sub(GONE, t)
     t = QUOTED.sub(GONE, t)
-    t = PATH_LIKE.sub(lambda m: "~/" + GONE if m.group(0).startswith(("~/", "~\\")) else GONE, t)
+    t = PATH_LIKE.sub(lambda m: m.group(0) if keep and m.group(0) in keep
+                      else "~/" + GONE if m.group(0).startswith(("~/", "~\\")) else GONE, t)
     t = TOKEN.sub(GONE, t)
     t = CONTROL.sub(" ", t).strip()
     return t if len(t) <= limit else t[:limit - 1] + GONE
@@ -98,7 +110,7 @@ def scrub(text, limit=MESSAGE_LIMIT, home=None):
 def scrub_line(line, limit=300, home=None):
     """A log line read back for a report: the home folder to `~`, any other home-folder path, web and email addresses
     removed. Routes and the line's own shape are kept."""
-    t = home_to_tilde(str(line), home)
+    t = home_to_tilde(cut_first(str(line), 2000), home)
     t = HOME_LIKE.sub(GONE, WEB.sub(GONE, ADDRESS.sub(GONE, t)))
     t = CONTROL.sub(" ", t).rstrip()
     return t if len(t) <= limit else t[:limit - 1] + GONE
@@ -112,6 +124,10 @@ PAGE_WORDS = frozenset("""a an and are as at be but by cannot can could not read
     token end input json parse expected missing failed fetch network request load loading error errors type reference
     syntax range maximum call stack size exceeded script resource blocked policy access denied aborted timeout timed out
     out undefined variable assignment constant typeerror referenceerror syntaxerror rangeerror""".split())
+
+
+# The only names a page error may carry for its kind: the browsers' own fault classes. Any other name is written as Error.
+PAGE_KINDS = frozenset("Error TypeError ReferenceError SyntaxError RangeError EvalError URIError".split())
 
 
 def page_words(message, limit=100):
@@ -269,7 +285,7 @@ class Log:
                     if FULL_NOTICE not in self._last_bytes(path):
                         self._append(path, f"{now:%Y-%m-%d %H:%M:%S} {LABELS[30]} {'log':<12} {FULL_NOTICE}\n")
                     return
-                head = f"{now:%Y-%m-%d %H:%M:%S} {LABELS[level]} {area_of(area):<12} {scrub(message, home=self.home)}"
+                head = f"{now:%Y-%m-%d %H:%M:%S} {LABELS[level]} {area_of(area):<12} {scrub(message, home=self.home, keep=self.routes)}"
                 tail = details(pairs, self.routes)
                 lines = [head + ("  " + tail if tail else "")] + ["    " + x for x in extra]
                 self._append(path, "\n".join(lines) + "\n")
@@ -278,7 +294,7 @@ class Log:
 
     @staticmethod
     def _append(path, text):
-        fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
+        fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
         try:
             os.write(fd, text.encode("utf-8"))         # one write per entry, so two writers never mix a line
         finally:
@@ -327,7 +343,7 @@ class Log:
                 if len(self._page) >= PAGE_ERRORS_PER_MINUTE:
                     return False
                 self._page.append(t)
-            name = str(kind) if NAME_OK.match(str(kind)) else "Error"
+            name = str(kind) if str(kind) in PAGE_KINDS else "Error"
             self._emit(40, "page", f"{name}: {page_words(message)}")
             return True
         except Exception:
@@ -382,7 +398,7 @@ class Log:
             for p in reversed(self.files()):
                 if date.fromisoformat(FILE.match(p.name).group(1)) > today:
                     continue
-                out = p.read_text(encoding="utf-8", errors="replace").splitlines() + out
+                out = p.read_text(encoding="utf-8", errors="replace").rstrip("\n").split("\n") + out      # only a newline ends a line
                 if len(out) >= n:
                     break
         except Exception:

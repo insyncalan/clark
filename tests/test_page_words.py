@@ -180,7 +180,14 @@ class Words(unittest.TestCase):
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again"])
+                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Logs and diagnostics",      # this server has no log, so the controls say they could not read it
+                                  "The log is a short record of what clark does, to help find faults. It never records report text, names, "
+                                  "email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. "
+                                  "Nothing is sent anywhere.",
+                                  "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
+                                  "Open the folder", "Copy diagnostics",
+                                  "The log settings could not be read. Reload the page and try again."])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)

@@ -1,4 +1,4 @@
-"""#110 (BRD FR-8b): the daily log and Copy diagnostics (src/clark/log.py, src/clark/diagnostics.py).
+"""The daily log and Copy diagnostics (src/clark/log.py, src/clark/diagnostics.py).
 
 Run: python3 dev/run_tests.py test_log
 Every test uses a temporary folder and a fixed clock; nothing reads or writes the real log folder. The planted-marker tests
@@ -608,11 +608,72 @@ class CountNames(Base):
         self.assertNotIn("secretname", report)
 
 
-class PathsNotBuiltYet(Base):
-    """One test per path where a person's content enters clark. None of them calls the log yet (peek, ask clark and Word
-    import are not built, and the page-error route, the Settings controls and `install` are not wired in), so each waits.
-    When the path exists, remove the skip: plant the markers where the person's text goes, run the path at both levels
-    and check no marker reaches a file."""
+class LongAndOddText(Base):
+    """A text far longer than clark writes, a line break other than a newline, and the file's permissions."""
+
+    def test_a_very_long_line_read_back_is_scrubbed_quickly(self):
+        import time
+        self.log.info("server", "started")
+        (path,) = self.log.files()
+        with open(path, "a", encoding="utf-8") as f:                 # a damaged or hand-edited file
+            f.write("2026-10-28 14:32:05 INFO  server " + "zqlong.mark@corp.example " * 40000 + "\n")
+        began = time.monotonic()
+        report = diagnostics.build(self.log, "0.4.0", now=NOW)
+        self.assertLess(time.monotonic() - began, 2.0)
+        self.assertNotIn("zqlong", report)
+
+    def test_a_word_the_cut_goes_through_is_dropped_whole(self):
+        text = "https://a.example/x " * 24 + "zqcutname.example@corp.test"
+        self.assertGreater(len(text), clog.MESSAGE_LIMIT * 4)
+        self.assertNotIn("zqcut", clog.scrub(text))
+        self.assertNotIn("zqcut", clog.scrub_line("w " * 999 + "zqcutname.example@corp.test"))
+
+    def test_a_next_line_character_cannot_make_a_second_entry(self):
+        self.log.info("server", "one\x85ERROR forged entry\u2028two")
+        self.assertEqual(len(self.log.tail(10)), 1)
+        self.assertEqual(len(self.lines()), 1)
+
+    @unittest.skipIf(os.name != "posix", "file permissions are a POSIX idea")
+    def test_the_file_can_be_read_only_by_its_owner(self):
+        self.log.info("server", "started")
+        (path,) = self.log.files()
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode) & 0o077, 0)
+
+
+class PathsWherePeopleWrite(Base):
+    """One test per path where a person's content enters clark, through the real server with clark's loggers routed into the
+    log: plant the markers where the person's text goes, run the path at both levels and check no marker reaches a file. Each
+    test also checks the path really ran (a 200), so a refusal cannot pass for a clean log. Ask clark has no route yet, so its
+    test waits: when the route exists, remove the skip and run it the same way."""
+
+    def setUp(self):
+        super().setUp()
+        handler = clog.install(self.log, "clark")
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+
+    def serve(self, **seams):
+        httpd = sv.LocalServer((sv.HOST, 0), data_for=lambda code: None, page_html=None, projects=lambda: [], **seams)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        conn_port = httpd.server_port
+
+        def post(path, req):
+            body = json.dumps(req).encode()
+            conn = http.client.HTTPConnection(sv.HOST, conn_port, timeout=30)
+            try:
+                conn.putrequest("POST", path, skip_host=True, skip_accept_encoding=True)
+                for k, v in {"Host": f"127.0.0.1:{conn_port}", sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json",
+                             "Content-Length": str(len(body))}.items():
+                    conn.putheader(k, v)
+                conn.endheaders(body)
+                r = conn.getresponse()
+                return r.status, json.loads(r.read() or b"null")
+            finally:
+                conn.close()
+        return post
 
     def check(self, run):
         for level in ("normal", "debug"):
@@ -621,18 +682,43 @@ class PathsNotBuiltYet(Base):
         text = self.text().lower()
         for marker in MARKERS:
             self.assertNotIn(marker.lower(), text, marker)
+        self.assertIn("post /api/", text, "the real server did log the request")
 
-    @unittest.skip("peek is not built yet: add the markers to a peeked item's title and note, open the peek, and run this")
-    def test_peek_logs_no_content(self):
-        self.check(lambda: None)
+    def test_an_item_title_and_note_saved_from_the_page_log_no_content(self):
+        """The change route, the way the page (the table's cells today, the peek later) saves an item's text."""
+        m = MARKERS
+        ref = self.demo.action(description="Draft the plan")
+        post = self.serve(change=changes.make_change(self.demo.store.path, [], USER))
 
-    @unittest.skip("ask clark is not built yet: plant the markers in a question and in the answer, ask, and run this")
+        def run():
+            status, got = post("/api/change", {"project": "ABC", "kind": "actions", "op": "update", "id": ref, "place": "cell",
+                                               "changes": {"description": f"Send {m[1]} to {m[0]}", "latest_update": f"{m[2]} {HOME}/{m[5]}"}})
+            self.assertEqual(status, 200, got)
+        self.check(run)
+
+    @unittest.skip("ask clark has no route yet: plant the markers in a question and in the answer, ask, and run this")
     def test_ask_clark_logs_no_content(self):
         self.check(lambda: None)
 
-    @unittest.skip("Word import is not built yet: plant the markers in a document's text and file name, import it, and run this")
     def test_word_import_logs_no_content(self):
-        self.check(lambda: None)
+        """The Word import route, with the markers in the file name and in the document's text and table."""
+        import base64
+        from clark import word_route
+        from test_docx_read import P, TBL, TR, docx
+        m = MARKERS
+        word_route.PLANS.clear()
+        self.addCleanup(word_route.PLANS.clear)
+        post = self.serve(word_import=word_route.make_word_import(self.demo.store.path, [], USER))
+        body = (P("Actions", style="Heading1") + TBL(TR("Action", "Owner", "Due"), TR(f"Send {m[1]} {m[2]}", m[0], "30-11-2026"))
+                + P("Risks", style="Heading1") + P(f"{m[3]} may slip"))
+        data = base64.b64encode(docx(body)).decode("ascii")
+
+        def run():
+            status, got = post("/api/word-import", {"op": "check", "project": "ABC", "name": f"{HOME}/{m[5]}.docx", "data": data})
+            self.assertEqual(status, 200, got)
+            status, got = post("/api/word-import", {"op": "apply", "project": "ABC", "plan": got["plan"], "accept": "all"})
+            self.assertEqual(status, 200, got)
+        self.check(run)
 
 
 if __name__ == "__main__":
