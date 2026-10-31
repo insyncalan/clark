@@ -23,9 +23,10 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
   (no settings file is read: the smoke test found that `--safe-mode` alone still ran the person's `apiKeyHelper`, a script that
   supplies an API key), `--disable-slash-commands`, `--tools ""` (no tool at all), `--strict-mcp-config` (no MCP server),
   `--no-session-persistence` (nothing saved under ~/.claude), `--system-prompt` with the fixed rules (the default prompt, which
-  carries the folder, the platform and the date, is replaced), `--max-turns 1`, a pinned `--output-format json` (one result
-  object, read strictly) and a `--max-budget-usd` cap. Never `--bare` (it would allow an API key only and never the sign-in),
-  never `--add-dir`, never a model, never a file argument.
+  carries the folder, the platform and the date, is replaced), `--max-turns 1`, a pinned `--output-format json`
+  (one result object, read strictly) and a `--max-budget-usd` cap. Never `--bare` (it would allow an API key only and never the sign-in),
+  never `--add-dir`, never a model, never a file argument. `--max-turns` is documented for print mode but some versions leave it
+  out of `--help`, so it is in `UNLISTED_FLAGS`: sent, not looked for (with no tools there is one answer either way).
 - SCRUBBED ENVIRONMENT (`child_env`): an allow-list built from nothing: HOME, USER and LOGNAME from the system's own record of
   this user (never from clark's environment), a fixed system PATH and a plain language, plus the pinned switches in `PINNED_ENV`.
   Nothing clark was started with is passed on: no ANTHROPIC_*, CLAUDE_*, cloud keys, tokens, proxies, NODE_OPTIONS or DYLD_*.
@@ -46,6 +47,7 @@ import pwd
 import re
 import stat
 import threading
+import time
 from pathlib import Path
 
 from clark import ask, platform
@@ -54,7 +56,8 @@ PROVIDER = "claude"
 PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude")
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
-                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd", "--max-turns")
+                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
+UNLISTED_FLAGS = ("--max-turns",)                 # documented for print mode, missing from some versions' --help: sent, not checked
 NEVER_FLAGS = ("--bare", "--add-dir", "--mcp-config", "--settings", "--dangerously-skip-permissions", "--resume", "--continue",
                "--model", "--verbose", "--append-system-prompt", "--plugin-dir", "--agents")
 SAFE_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
@@ -66,6 +69,8 @@ PINNED_ENV = {"DISABLE_TELEMETRY": "1", "DISABLE_AUTOUPDATER": "1", "CLAUDE_CODE
 TMP_NAMES = ("TMPDIR", "CLAUDE_CODE_TMPDIR")        # set by platform.run_stoppable to a new private folder for each run
 SIGNED_IN = "claude.ai"                             # the only `authMethod` a question may use: the person's Claude plan
 KEY_LOGINS = ("api_key", "api_key_helper")
+AUTH_ARGS = ("--setting-sources", "", "auth", "status")   # the sign-in check reads no settings file (no apiKeyHelper, env or hooks)
+LOGIN_REUSE = 2.0                                   # seconds a status() sign-in check stands for the question that follows it
 MAX_BUDGET_USD = "1.00"                             # the command's own cap on one question's spend (counts against the plan)
 TIME_LIMIT = 120.0                                  # seconds for one answer
 CHECK_LIMIT = 15.0                                  # seconds for --version, --help or auth status
@@ -73,6 +78,8 @@ MAX_OUT = 4 * ask.MAX_REPLY + 65536                 # bytes read back: the reply
 MAX_HELP = 512 * 1024
 MAX_AUTH = 64 * 1024
 VERSION = re.compile(rb"^\s*v?(\d+)\.(\d+)\.(\d+)\b")
+_FLAG = r"-{1,2}[A-Za-z][A-Za-z0-9-]*"
+OPTION_LINE = re.compile(r"^[ \t]*(" + _FLAG + r"(?:[ \t]*,[ \t]*" + _FLAG + r")*)(?=[ \t<\[=]|$)")   # "  -p, --print <x>  text"
 MACH_O = (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\xfe\xed\xfa\xce", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca")
 PROXY_NAMES = ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy", "NODE_EXTRA_CA_CERTS",
                "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_TLS_REJECT_UNAUTHORIZED")
@@ -148,9 +155,25 @@ def _inside(path, roots):
     return any(path == Path(r) or Path(r) in path.parents for r in roots)
 
 
+def _ancestor_problem(folder):
+    """True when a folder above `folder` (up to /) could let someone else swap the path: owned by anyone but this user or the
+    system, or writable by others without the sticky bit (a sticky folder such as /tmp lets others add names, never move ours)."""
+    for up in folder.parents:
+        try:
+            st = os.stat(str(up))
+        except OSError:
+            return True
+        if st.st_uid not in (0, os.getuid()):
+            return True
+        if st.st_mode & (stat.S_IWGRP | stat.S_IWOTH) and not st.st_mode & stat.S_ISVTX:
+            return True
+    return False
+
+
 def native_problem(real, roots):
-    """None when `real` (a resolved absolute path) is a Mac program this user owns that nobody else can change, inside `roots`;
-    otherwise True. Reads the first four bytes only."""
+    """None when `real` (a resolved absolute path) is a Mac program this user owns that nobody else can change, inside `roots`,
+    in a folder nobody else can write to, below folders nobody else can use to swap the path; otherwise True. Reads the first
+    four bytes only."""
     try:
         st = os.stat(str(real), follow_symlinks=False)
         folder = os.stat(str(real.parent))
@@ -160,7 +183,7 @@ def native_problem(real, roots):
         return True
     if st.st_mode & (stat.S_IWGRP | stat.S_IWOTH) or folder.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
         return True
-    if not _inside(real, roots):
+    if not _inside(real, roots) or _ancestor_problem(real.parent):
         return True
     try:
         fd = os.open(str(real), os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0))
@@ -188,6 +211,17 @@ def find_command(places=PLACES, roots=None):
             return None, NOT_NATIVE
         return real, None
     return None, NOT_INSTALLED
+
+
+def listed_flags(text):
+    """The option names `--help` lists: only the names at the start of an option's own line count, never a name that appears in
+    another option's description."""
+    names = set()
+    for line in text.splitlines():
+        m = OPTION_LINE.match(line)
+        if m:
+            names.update(re.findall(_FLAG, m.group(1)))
+    return names
 
 
 def hints(environ=None):
@@ -234,6 +268,7 @@ class ClaudeCommand(ask.Provider):
         self.lock = threading.Lock()           # one run at a time
         self.stop_event = threading.Event()
         self.checked = {}                      # (path, size, mtime, inode, device) -> the version and flag check, once per file
+        self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
     # ----- the checks -----
     def command(self):
@@ -259,12 +294,11 @@ class ClaudeCommand(ask.Provider):
         status, out, _code = run([str(path), "--help"], b"", self.env, self.check_limit, MAX_HELP)
         if status != "ok":
             return False
-        text = out.decode("utf-8", "replace")
-        return all(re.search(r"(?<![\w-])" + re.escape(flag) + r"(?![\w-])", text) for flag in NEEDED_FLAGS)
+        return set(NEEDED_FLAGS) <= listed_flags(out.decode("utf-8", "replace"))
 
     def login_problem(self, path):
         """None when the command reports a Claude sign-in; otherwise the plain reason nothing is sent. Asked before every question."""
-        status, out, code = run([str(path), "auth", "status"], b"", self.env, self.check_limit, MAX_AUTH)
+        status, out, code = run([str(path), *AUTH_ARGS], b"", self.env, self.check_limit, MAX_AUTH)
         if status not in ("ok", "failed") or code is None:
             return CANT_USE
         try:
@@ -280,16 +314,21 @@ class ClaudeCommand(ask.Provider):
             return NOT_SIGNED_IN
         return None if method == SIGNED_IN else OTHER_LOGIN
 
-    def usable(self):
-        """(path, None) when a question may be sent now, else (None, plain reason)."""
+    def usable(self, reuse=False):
+        """(path, None) when a question may be sent now, else (None, plain reason). With `reuse`, a sign-in check that status()
+        passed for this same file less than LOGIN_REUSE seconds ago stands (once), so a question costs one check, not two."""
         path, why = self.command()
         if path is None:
             return None, why
+        passed, self.passed = self.passed, None
+        if reuse and passed is not None and passed[0] == path and time.monotonic() - passed[1] < LOGIN_REUSE:
+            return path, None
         why = self.login_problem(path)
         return (path, None) if why is None else (None, why)
 
     def status(self):
         path, why = self.usable()
+        self.passed = (path, time.monotonic()) if path is not None else None
         words = " ".join([READY if path is not None else why] + hints())
         return {"connected": path is not None, "why": words}
 
@@ -313,7 +352,7 @@ class ClaudeCommand(ask.Provider):
             return ask.Failure(BUSY)
         try:
             self.stop_event.clear()
-            path, why = self.usable()
+            path, why = self.usable(reuse=True)
             if path is None:
                 return ask.Failure(why)
             return self.answer(path, self.envelope(request.text))
