@@ -26,7 +26,7 @@
   const sheet = (rows, widths) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = widths.map(w => ({ wch: w })); return ws; };
 
   C.exportExcel = (o = {}) => {
-    if (!need()) return; const p = C.P(), wb = XLSX.utils.book_new(), its = C.items(), ucs = D.S.usecases.filter(u => u.code === p.code);
+    if (!need()) return; const p = C.P(), wb = XLSX.utils.book_new(), its = C.items(), ucs = D.S.usecases.filter(u => u.code === p.code && !u.archived);
     if (o.only === 'usecases') XLSX.utils.book_append_sheet(wb, sheet([UCOLS, ...ucs.map(urow)], [8, 14, 44, 12, 44, 70, 12, 24]), 'Use cases');
     else {
       [['Actions', x => x.type === 'A'], ['Risks and issues', x => x.type === 'R' || x.type === 'I'], ['Decisions', x => x.type === 'D']].forEach(([n, f]) => XLSX.utils.book_append_sheet(wb, sheet([ICOLS, ...its.filter(f).map(irow)], [12, 10, 18, 46, 18, 12, 12, 10, 8, 10, 22, 12, 30, 40, 40]), n));
@@ -132,7 +132,7 @@
     return walk(sheet.cssRules);
   }
   function pubData() {
-    const p = C.P(), r = p.report, its = C.items().filter(x => x.client), ms = C.mss().filter(m => m.client), ucs = D.S.usecases.filter(u => u.code === p.code && u.client);
+    const p = C.P(), r = p.report, its = C.items().filter(x => x.client), ms = C.mss().filter(m => m.client), ucs = D.S.usecases.filter(u => u.code === p.code && u.client && !u.archived);
     return { p, r, its, ms, ucs, secs: C.pubOrder(r.sections).filter(s => C.onPub(s, p)), docs: (p.docs || []).filter(d => !d.hidden && !d.archived), glance: r.glance.filter(f => !f.hidden) };
   }
   /* the use case summary as the editor shows it in View mode, every row closed; a row's links open the item's detail */

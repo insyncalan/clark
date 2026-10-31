@@ -2072,8 +2072,8 @@
     C.go('dashboard'); await sleep(100);
   });
 
-  /* ── #162: the Use Cases page (the accepted mockup), at 1400 and 900 px, light and dark ── */
-  await step('Use Cases page (#162)', async () => {
+  /* ── #157: the Use cases page (the chosen mockup): the list, one use case on its own page, at 1400 and 900 px, light and dark ── */
+  await step('Use cases page (#157)', async () => {
     const DB = window.ClarkDB, rect = e => (typeof e === 'string' ? $(e) : e).getBoundingClientRect(), shown = e => !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0;
     const waitFor = async (f, ms = 6000) => { const t0 = Date.now(); while (!f() && Date.now() - t0 < ms) await sleep(60); return !!f(); };
     const atW = async (w, f) => { document.title = 'SELFTEST-W:' + w; if (!await waitFor(() => window.__w === w)) { out.push('SKIP ' + w + ' px checks: the runner gave no such window'); return false; } await sleep(250);
@@ -2084,161 +2084,268 @@
     const Lm = c => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); };
     const ratio = el => { const b = bgAt(el), f = lay(rgb(getComputedStyle(el).color), b), x = Lm(f), y = Lm(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
     const noSide = () => document.documentElement.scrollWidth <= innerWidth + 1;
-    const rows = () => $$('.ucp-row[data-ucp]'), row = k => $(`.ucp-row[data-ucp="${k}"]`), uc = k => S().usecases.find(u => u.key === k), pdf = () => S().usecases.filter(u => u.code === 'PDF');
-    const grp = u => { const m = /^\s*(\d+)/.exec(u.id); return m ? String(+m[1]) : 'Other'; };
-    const open = async k => { if (!row(k).classList.contains('open')) { click(row(k).querySelector('[data-ucp-tog]')); await waitFor(() => !!$(`.ucp-d.open[data-ucpd="${k}"] .ucp-in`)); } };
-    /* the eye: waits until the use case and its row have both switched */
-    const eye = async k => { const was = !!uc(k).client; click(row(k).querySelector('[data-ucp-eye]')); await waitFor(() => !!uc(k).client !== was && row(k)?.querySelector('.ucp-eye').getAttribute('aria-pressed') === String(!was)); };
-    const toUc = async () => { click($('.tab[data-view=usecases]')); await waitFor(() => C.UI.view === 'usecases' && !!$('#ucpList')); };
+    const rows = () => $$('.ucx-row[data-ucx]'), row = k => $(`.ucx-row[data-ucx="${k}"]`), uc = k => S().usecases.find(u => u.key === k), pdf = () => S().usecases.filter(u => u.code === 'PDF'), liveUcs = () => pdf().filter(u => !u.archived);
+    const itemsOf = u => S().items.filter(x => x.code === 'PDF' && x.uc === u.id && !x.archived);
+    /* the eye on a row: waits until the use case and its row have both switched */
+    const eye = async k => { const was = !!uc(k).client; click(row(k).querySelector('[data-ucx-eye]')); await waitFor(() => !!uc(k).client !== was && row(k)?.querySelector('.ucx-eye').getAttribute('aria-pressed') === String(!was)); };
+    const toList = async () => { click($('.tab[data-view=usecases]')); await waitFor(() => C.UI.view === 'usecases' && !C.UI.uc && !!$('#ucxList')); };
+    const toUc = async k => { if (!$('#ucxList')) await toList(); click(row(k).querySelector('[data-ucx-go]')); await waitFor(() => C.UI.uc === uc(k).id && !!$('.ucx-dgrid')); };
+    const hist = k => S().history.filter(h => h.kind === 'uc' && h.id === uc(k).id).length;
     const theme0 = C.themePref();
     click($('#resetDemo')); for (let i = 0; i < 40 && S().history.length; i++) { await DB.flush(); await sleep(50); }
-    C.store.set('ucPage', {}); C.store.set('ucPageOpen', ''); C.theme('light'); C.go('dashboard'); await sleep(150); if ($('[data-mode=view]')) { click($('[data-mode=view]')); await sleep(80); }
+    C.store.set('ucPage', {}); C.theme('light'); C.go('dashboard'); await sleep(150); if ($('[data-mode=view]')) { click($('[data-mode=view]')); await sleep(80); }
 
-    /* 1. navigation: its own tab and address, Back and Forward */
-    { const tabs = $$('.tab').map(t => t.textContent.trim()); ok('UC1 a Use Cases tab (capital C) sits beside Milestones', tabs.indexOf('Use Cases') === tabs.indexOf('Milestones') + 1, tabs.join(' | ')); }
-    await toUc(); ok('UC1 the tab opens the Use Cases page with its own address', C.UI.view === 'usecases' && /^#usecases&p=PDF$/.test(location.hash) && $('.head h1').textContent === 'Use Cases' && $('.tab[data-view=usecases]').getAttribute('aria-selected') === 'true', location.hash);
-    history.back(); await waitFor(() => C.UI.view === 'dashboard'); ok('UC1 Back returns to the page before', C.UI.view === 'dashboard'); history.forward(); await waitFor(() => C.UI.view === 'usecases' && !!$('.ucp-row[data-ucp]')); ok('UC1 Forward opens the Use Cases page again', C.UI.view === 'usecases' && !!$('.ucp-row[data-ucp]'));
+    /* 1. navigation: its own item and address, Back and Forward */
+    { const tabs = $$('.tab').map(t => t.textContent.trim()); ok('UC1 a Use cases item sits in the navigation beside Milestones', tabs.indexOf('Use cases') === tabs.indexOf('Milestones') + 1, tabs.join(' | ')); }
+    await toList(); ok('UC1 the item opens the Use cases page with its own address', C.UI.view === 'usecases' && /^#usecases&p=PDF$/.test(location.hash) && $('.head h1').textContent === 'Use cases' && $('.tab[data-view=usecases]').getAttribute('aria-selected') === 'true', location.hash);
+    history.back(); await waitFor(() => C.UI.view === 'dashboard'); ok('UC1 Back returns to the page before', C.UI.view === 'dashboard'); history.forward(); await waitFor(() => C.UI.view === 'usecases' && !!$('.ucx-row[data-ucx]')); ok('UC1 Forward opens the Use cases page again', C.UI.view === 'usecases' && !!$('.ucx-row[data-ucx]'));
 
-    /* 2. every use case, its row left to right, the eye on the right in words, muted when off, the strip and the meter */
-    ok('UC2 the page lists every use case of the project, on the dashboard or not', rows().length === pdf().length && pdf().length === 8 && pdf().some(u => !u.client) && pdf().every(u => !!row(u.key)), rows().length);
-    { const r = row('PDF/1.1'), kids = [...r.children], xs = kids.map(e => rect(e).left), u = uc('PDF/1.1'), its = S().items.filter(x => x.code === 'PDF' && x.uc === '1.1'), op = its.filter(C.isOpen).length;
-      ok('UC2 a row, left to right: reference, name, where it stands, status word, work items, the eye, the caret', ['ucp-ref', 'ucp-name', 'ucp-head', 'ucp-st', 'ucp-wi', 'ucp-eye', 'ucp-car'].every((c, i) => kids[i].classList.contains(c)) && xs.every((x, i) => !i || x > xs[i - 1]), xs.map(Math.round).join());
-      ok('UC2 the row says its reference, name, headline and status in words', kids[0].textContent.trim() === '1.1' && kids[1].textContent === u.title && kids[2].textContent === u.headline && kids[3].textContent.trim() === u.status);
-      ok('UC2 the work items: how many, and how many are open', kids[4].textContent.trim() === `${its.length} work items · ${op} open`, kids[4].textContent);
-      ok('UC2 the eye is the right-most control, with the caret after it', rect(kids[5]).right <= rect(kids[6]).left && kids.slice(0, 5).every(k => rect(k).right <= rect(kids[5]).left + .5)); }
-    ok('UC2 the ones on the dashboard say "On the dashboard", the others "Not on the dashboard", in words', pdf().every(u => row(u.key).querySelector('.ucp-eye .w').textContent === (u.client ? 'On the dashboard' : 'Not on the dashboard') && row(u.key).querySelector('.ucp-eye').getAttribute('aria-pressed') === String(!!u.client)));
-    { const on = row('PDF/1.1').querySelector('.ucp-name'), off = row('PDF/2.2').querySelector('.ucp-name'); ok('UC2 the ones not on the dashboard read muted', row('PDF/2.2').classList.contains('off') && getComputedStyle(off).color !== getComputedStyle(on).color && getComputedStyle(off).color === getComputedStyle($('.head p')).color); }
-    { const st = $('.ucp-card .ucp-strip'), n = s => pdf().filter(u => u.status === s).length;
-      ok('UC2 a summary strip: the count, a count per status, how many are on the dashboard, and the meter', !!st && st.querySelector('.uc-total b').textContent === '8' && $$('.ucp-strip .uc-count').every(c => +c.querySelector('b').textContent === n(c.querySelector('.ucw').textContent)) && /6 on the dashboard/.test(st.querySelector('.ucp-on').textContent) && $$('.ucp-strip .uc-meter i').length >= 3); }
-    ok('UC2 the eye switches the dashboard: Not on becomes On, one step with Undo', await (async () => { await eye('PDF/2.2'); const a = uc('PDF/2.2').client === true && row('PDF/2.2').querySelector('.ucp-eye .w').textContent === 'On the dashboard' && !row('PDF/2.2').classList.contains('off') && !$('#toastUndo').hidden; await undo(); return a && uc('PDF/2.2').client === false && row('PDF/2.2').classList.contains('off'); })());
+    /* 2. every use case of the project, selected or not: the columns of a row, the eye in words */
+    ok('UC2 the page lists every use case of the project, on the dashboard or not', rows().length === liveUcs().length && liveUcs().length === 8 && liveUcs().some(u => !u.client) && liveUcs().some(u => u.client) && liveUcs().every(u => !!row(u.key)), rows().length);
+    { const r = row('PDF/1.1'), kids = [...r.children], xs = kids.map(e => rect(e).left), u = uc('PDF/1.1'), its = itemsOf(u), op = its.filter(C.isOpen).length, ms = new Set(its.map(x => x.ms).filter(Boolean));
+      ok('UC2 a row, left to right: reference, name, where it stands, status, work items, milestones, the eye', ['ucx-ref', 'ucx-name', 'ucx-head', 'ucx-st', 'ucx-wi', 'ucx-ms', 'ucx-eye'].every((c, i) => kids[i].classList.contains(c)) && xs.every((x, i) => !i || x > xs[i - 1]), xs.map(Math.round).join());
+      ok('UC2 the row says its reference, name, where it stands and status in words', kids[0].textContent.trim() === 'UC 1.1' && kids[1].querySelector('.ucx-go').textContent === u.title && kids[2].textContent === u.headline && kids[3].textContent.trim() === u.status);
+      ok('UC2 the work items: how many are linked, and how many are open', kids[4].textContent.replace(/\s+/g, ' ').trim() === `${its.length} linked${op} open` && op > 0, kids[4].textContent);
+      ok('UC2 the milestones it links to are named', ms.size >= 1 && [...ms].every(id => kids[5].textContent.includes(S().milestones.find(m => m.id === id).name)), kids[5].textContent);
+      ok('UC2 the eye is the right-most part of the row', kids.slice(0, 6).every(k => rect(k).right <= rect(kids[6]).left + 8)); }
+    { const refs = rows().map(r => r.querySelector('.ucx-ref').textContent); ok('UC2 a use case with two references shows both', refs.includes('UC 1.3 and 1.4') && refs.includes('UC 1.6 and 1.7'), refs.join(' | ')); }
+    ok('UC2 the ones on the dashboard say "On the dashboard", the others "Not on the dashboard", in words beside the eye', liveUcs().every(u => row(u.key).querySelector('.ucx-eye .w').textContent === (u.client ? 'On the dashboard' : 'Not on the dashboard') && row(u.key).querySelector('.ucx-eye').getAttribute('aria-pressed') === String(!!u.client) && row(u.key).querySelector('.ucx-eye svg')));
+    ok('UC2 the status is a word with a dot, never colour alone', rows().every(r => { const w = r.querySelector('.ucx-st .ucw'); return !!w && ['On track', 'Flag', 'High risk'].includes(w.textContent.trim()) && getComputedStyle(w, '::before').content !== 'none'; }));
+    ok('UC2 the count line says how many are shown, of how many, and how many are on the dashboard', $('#ucxCount').textContent === `Showing 8 of 8 · ${liveUcs().filter(u => u.client).length} on the dashboard`, $('#ucxCount').textContent);
+    ok('UC2 the list page has Export to Excel, Add a use case and no Delete', !!$('#ucxExp') && !!$('#ucxAdd') && $('#ucxAdd').textContent.trim() === 'Add a use case' && !$$('#main button, #main a').some(b => /\b(Delete|Remove)\b/i.test(b.textContent + ' ' + (b.getAttribute('aria-label') || ''))));
 
-    /* 3. the detail in place under the row */
-    await open('PDF/1.1');
-    { const d = row('PDF/1.1').nextElementSibling; ok('UC3 the detail opens in place, under its row, with the caret turned', d.classList.contains('ucp-d') && d.classList.contains('open') && rect(d).top >= rect(row('PDF/1.1')).bottom - .5 && row('PDF/1.1').querySelector('[data-ucp-tog]').getAttribute('aria-expanded') === 'true');
-      ok('UC3 the detail: where it stands, next steps, linked milestones and history', ['Where it stands', 'Next steps', 'Linked milestones', 'History'].every(t => [...d.querySelectorAll('.ucd-lab')].some(l => l.textContent.startsWith(t))));
-      const steps = [...d.querySelectorAll('[data-ucp-step-row]')], open1 = S().items.filter(x => x.code === 'PDF' && x.uc === '1.1' && x.type === 'A' && C.isOpen(x) && !x.archived);
-      ok('UC3 next steps are its open actions only, as main counts them: an open risk of the use case is a work item, not a next step', item('PDF-003').uc === '1.1' && item('PDF-003').type === 'R' && C.isOpen(item('PDF-003')) && !d.querySelector('[data-ucp-step-row="PDF-003"]') && steps.length === open1.length && [...d.querySelectorAll('.ucd-lab')].some(l => l.textContent === 'Next steps · ' + open1.length), [...d.querySelectorAll('.ucd-lab')].map(l => l.textContent).join(' | '));
-      ok('UC3 each next step: owner, title, ID and a due date as DD-MM-YYYY', steps.length === open1.length && steps.every(li => { const x = item(li.dataset.ucpStepRow); return li.querySelector('[data-f=owner]').textContent === (x.owner || 'No owner') && li.querySelector('[data-f=title]').textContent === x.title && li.querySelector('[data-ucp-open]').textContent === x.id && li.querySelector('[data-ucp-due]').textContent === 'due ' + DB.fd(x.due) && /^due \d\d-\d\d-\d{4}$/.test(li.querySelector('[data-ucp-due]').textContent); }));
-      const ms = [...d.querySelectorAll('.ucp-ms li')]; ok('UC3 the linked milestones say their status in words', ms.length >= 1 && ms.every(li => ['Achieved', 'On track', 'At risk', 'Slipped', 'Overdue', 'Forecast'].includes(li.querySelector('.mst').textContent.trim())), ms.map(li => li.textContent).join(' | '));
-      ok('UC3 the history says there is nothing yet', /No changes recorded yet/.test(d.textContent)); }
-    /* linked milestones are only those its open next steps point at (main's rule): a closed action's milestone and an open risk's milestone are not */
-    { const DB = window.ClarkDB, msIds = () => [...row('PDF/1.1').nextElementSibling.querySelectorAll('[data-ucp-ms]')].map(b => b.dataset.ucpMs), before = msIds();
-      const u1 = DB.change('item', item('PDF-003'), { ms: 'PDF-M-001' }, DB.who('by hand')), u2 = DB.change('item', item('PDF-A-012'), { status: 'Closed' }, DB.who('by hand')); C.refresh(); await sleep(80); await open('PDF/1.1');
-      const after = msIds(), none = row('PDF/1.1').nextElementSibling.querySelector('.ucp-none')?.textContent || '';
-      ok('UC3 linked milestones come only from its open next steps: not from a closed action, nor from an open risk', JSON.stringify(before) === JSON.stringify(['PDF-M-003']) && !after.length && none === 'No milestones: none of its next steps is linked to one.', before.join() + ' / ' + after.join() + ' / ' + none);
-      u2(); u1(); C.refresh(); await sleep(80); await open('PDF/1.1'); ok('UC3 and back again', JSON.stringify(msIds()) === JSON.stringify(['PDF-M-003']) && item('PDF-A-012').status === 'Open' && !item('PDF-003').ms); }
-    click($('[data-ucp-std="PDF/1.1"]')); await sleep(150); await typeIn($('[data-ucp-std="PDF/1.1"] .ProseMirror'), ' Plus one line.'); document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); await sleep(150);
-    ok('UC3 where it stands edits in place in the one editor, one step with Undo', uc('PDF/1.1').standing.includes('Plus one line.') && !$('#toastUndo').hidden); await undo(); ok('UC3 and Undo puts it back', !uc('PDF/1.1').standing.includes('Plus one line.'));
-    await open('PDF/1.1'); { const i = $('[data-ucp-add="PDF/1.1"]'); i.value = 'Sam Rivers: book the loader walk-through'; key(i, 'Enter'); await sleep(150); const x = S().items.at(-1);
-      ok('UC3 a next step is added as "Owner: what it is", linked to the use case, due in a week', x.uc === '1.1' && x.owner === 'Sam Rivers' && x.title === 'book the loader walk-through' && x.due === DB.addDays(DB.TODAY, 7) && !!$(`[data-ucp-step-row="${x.id}"]`));
-      await undo(); ok('UC3 and Undo takes it away again', !S().items.some(y => y.id === x.id)); }
-    await open('PDF/1.1'); click($('[data-ucp-link="PDF/1.1"]')); await sleep(100); { const q = $('#pkQ'); q.value = 'testers'; q.dispatchEvent(new Event('input')); await sleep(40); click($('#pkList input')); $('#pkF').requestSubmit(); await sleep(120); }
-    ok('UC3 an existing work item is linked from the detail', item('PDF-A-019').uc === '1.1' && !!$('[data-ucp-step-row="PDF-A-019"]')); await undo(); ok('UC3 and the link undoes', item('PDF-A-019').uc === '');
-    await open('PDF/1.1'); click($('[data-ucp-due="PDF-A-015"]')); await sleep(80); { const was = item('PDF-A-015').due, b = $$('.cp [data-cpq]').find(x => x.dataset.cpq && x.dataset.cpq !== was); click(b); await sleep(120); ok('UC3 a due date changes from the date picker, one step with Undo', item('PDF-A-015').due === b.dataset.cpq); await undo(); ok('UC3 and comes back', item('PDF-A-015').due === was); }
-    await open('PDF/1.1'); click($('[data-ucp-status="PDF/1.1"]')); await sleep(60); await menuPick('On track'); await open('PDF/1.1');
-    { const h = $('.ucp-d.open .ucp-hist li'); ok('UC3 the history says what changed, who, how and when', !!h && /Status: Flag → On track/.test(h.textContent) && h.textContent.includes(DB.who('on the Use Cases page')) && /\d\d-\d\d-\d{4} \d\d:\d\d/.test(h.textContent), h && h.textContent); }
-    await undo();
-    { await open('PDF/1.1'); const n = S().items.filter(x => x.code === 'PDF' && x.uc === '1.1').length, b = $('[data-ucp-work="1.1"]');
-      ok('UC3 "See all N work items for use case x ›" counts them', b.textContent === `See all ${n} work items for use case 1.1 ›`, b.textContent);
-      click(b); await sleep(200); const tr = $$('tr[data-id]');
-      ok('UC3 and opens Work items filtered to that use case', C.UI.view === 'work' && tr.length > 0 && tr.every(r => item(r.dataset.id).uc === '1.1') && $$('.fchip').some(c => c.dataset.tok === 'usecase:1.1' && /^Use case is /.test(c.title)), $$('.fchip').map(c => c.dataset.tok + ' = ' + c.title).join(' | ')); click($('#clearAll')); await sleep(60); await toUc(); }
-
-    /* WCAG 2.5.3: a control with words on it is named starting with those words (the eye, the status, a step's ID and due date) */
-    await open('PDF/1.1'); { const bad = $$('#main button[aria-label], #main a[aria-label]').filter(e => { const t = e.textContent.replace(/\s+/g, ' ').trim(); return t && !e.getAttribute('aria-label').toLowerCase().startsWith(t.toLowerCase()); }).map(e => e.textContent.trim() + ' / ' + e.getAttribute('aria-label'));
-      ok('UC3 every named control\'s name starts with the words it shows', !bad.length && !!$('.ucp-d.open [data-ucp-due]') && $$('[data-ucp-eye], [data-ucp-status]').length >= 16, bad.slice(0, 3).join(' | ')); }
-
-    /* 4. edit only: name, headline and status in place, each one step with Undo; no Add, no Archive, no Delete */
-    await open('PDF/1.2');
-    { const el = $('[data-ucp-name="PDF/1.2"]'); el.focus(); el.textContent = 'Assisted invoice checks'; el.dispatchEvent(new Event('blur')); await sleep(80); ok('UC4 the name edits in place, and the toast says "Use case", never "UC"', uc('PDF/1.2').title === 'Assisted invoice checks' && $('#toastMsg').textContent === 'Use case 1.2 saved', $('#toastMsg').textContent);
-      { const said = $$('#main [aria-label], #main [title]').flatMap(e => [e.getAttribute('aria-label'), e.getAttribute('title')]).filter(t => t && /\bUC\b/.test(t)); ok('UC4 no label on the page says "UC"', !said.length, said.slice(0, 3).join(' | ')); } await undo(); ok('UC4 one Undo puts the name back', uc('PDF/1.2').title === 'Assisted invoice matching'); }
-    await open('PDF/1.2'); { const el = $('[data-ucp-head="PDF/1.2"]'); el.focus(); el.textContent = 'Dates confirmed in writing'; el.dispatchEvent(new Event('blur')); await sleep(80); ok('UC4 the headline edits in place, and the row shows it', uc('PDF/1.2').headline === 'Dates confirmed in writing' && row('PDF/1.2').querySelector('.ucp-head').textContent === 'Dates confirmed in writing'); await undo(); ok('UC4 one Undo puts the headline back', uc('PDF/1.2').headline.startsWith('Specification signed')); }
-    const h12 = S().history.filter(h => h.kind === 'uc' && h.id === '1.2').length; click($('[data-ucp-status="PDF/1.2"]')); await sleep(60); const menuSt = $$('.menu [data-i]').map(o => o.textContent.trim()); ok('UC4 the status is a drop-down of the schema\'s three status words', JSON.stringify(menuSt) === JSON.stringify(['On track', 'Flag', 'High risk']), menuSt.join()); await menuPick('High risk');
-    ok('UC4 a status change is one step, with the word in the row', uc('PDF/1.2').status === 'High risk' && row('PDF/1.2').querySelector('.ucp-st').textContent.trim() === 'High risk' && S().history.filter(h => h.kind === 'uc' && h.id === '1.2').length === h12 + 1); await undo(); ok('UC4 and Undo puts it back', uc('PDF/1.2').status === 'On track');
-    { const words = $$('#main button, #main a').map(b => (b.textContent + ' ' + (b.getAttribute('aria-label') || '')).trim());
-      ok('UC4 there is no Add, Archive, Restore or Delete control on the page', !$('#main .addb') && !words.some(w => /\b(Add use case|New use case|Archive|Restore|Delete|Remove)\b/i.test(w)), words.filter(w => /Add|Archive|Delete/i.test(w)).join(' | ')); }
-
-    /* 5. the Group pill, the Status pill, On or not, search, Sort; remembered per project; Export to Excel */
-    { const g = $('#ucpG'); ok('UC5 the pills start as "Group", "Status" and "Sort: Use case"', g.textContent.trim() === 'Group' && $('#ucpS').textContent.trim() === 'Status' && $('#ucpSort').textContent.trim() === 'Sort: Use case');
-      click(g); await sleep(80); const labs = $$('.ucp-pop label').map(l => l.textContent.trim());
-      ok('UC5 the Group drop-down shows just "Group 1", "Group 2", "Group 3": no lists, no counts', JSON.stringify(labs) === JSON.stringify(['Group 1', 'Group 2', 'Group 3']), labs.join(' | '));
-      const tick = v => { const c = $$('.ucp-pop input').find(i => i.value === v); c.checked = true; c.dispatchEvent(new Event('change')); };
-      tick('1'); await sleep(80); ok('UC5 choosing Group 1 shows every 1.x use case, and the pill reads "Group: 1"', rows().length === pdf().filter(u => grp(u) === '1').length && rows().every(r => grp(uc(r.dataset.ucp)) === '1') && $('#ucpG').textContent.trim() === 'Group: 1' && !!$('.ucp-pop'));
-      tick('2'); await sleep(80); ok('UC5 several can be ticked: "Group: 1, 2"', rows().length === pdf().filter(u => ['1', '2'].includes(grp(u))).length && $('#ucpG').textContent.trim() === 'Group: 1, 2' && /Showing 7 of 8/.test($('.ucp-count').textContent));
-      C.closePop(); await sleep(40); }
-    click($('#ucpS')); await sleep(80); { const popSt = $$('.ucp-pop input').map(i => i.value + ' ' + i.closest('label').textContent.trim()), strip = $('.ucp-strip').textContent;
-      ok('UC4 "Done" is nowhere among the offered statuses: not in the status menu, the Status filter or the strip', menuSt.length === 3 && popSt.length === 3 && ![...menuSt, ...popSt].some(t => /\bDone\b/i.test(t)) && !/\bDone\b/.test(strip), [...menuSt, ...popSt].join(' | ')); }
-    { const c = $$('.ucp-pop input').find(i => i.value === 'Flag'); c.checked = true; c.dispatchEvent(new Event('change')); await sleep(80); C.closePop(); }
-    ok('UC5 the Status pill narrows it too, and says so', rows().length > 0 && rows().every(r => uc(r.dataset.ucp).status === 'Flag' && ['1', '2'].includes(grp(uc(r.dataset.ucp)))) && $('#ucpS').textContent.trim() === 'Status: Flag');
-    click($('[data-ucp-on=off]')); await sleep(60); ok('UC5 Not on the dashboard', rows().length === 1 && rows()[0].dataset.ucp === 'PDF/2.2');
-    click($('.tab[data-view=milestones]')); await sleep(120); await toUc(); ok('UC5 the filters are remembered when you come back', rows().length === 1 && $('#ucpG').textContent.trim() === 'Group: 1, 2' && $('[data-ucp-on=off]').getAttribute('aria-pressed') === 'true');
-    click($('#projBtn')); await sleep(40); await menuPick('Customer Portal Refresh'); await sleep(80); await toUc(); ok('UC5 each project keeps its own: another project starts unfiltered', C.UI.code === 'CPR' && $('#ucpG').textContent.trim() === 'Group' && !$('.ucp-count'));
-    click($('#projBtn')); await sleep(40); await menuPick('Data Platform Pilot'); await sleep(80); await toUc(); ok('UC5 and this project still has its filters', rows().length === 1 && $('#ucpS').textContent.trim() === 'Status: Flag');
-    click($('.ucp-count [data-ucp-clear]')); await sleep(60); ok('UC5 Clear all shows every use case again', rows().length === 8 && $('#ucpG').textContent.trim() === 'Group');
-    click($('[data-ucp-on=on]')); await sleep(60); ok('UC5 On the dashboard', rows().length === pdf().filter(u => u.client).length && rows().every(r => uc(r.dataset.ucp).client)); click($('[data-ucp-on=all]')); await sleep(60);
-    { const q = $('#ucpQ'); q.value = 'invoice'; q.dispatchEvent(new Event('input')); await sleep(60); ok('UC5 search finds a use case by its words', rows().length === 1 && rows()[0].dataset.ucp === 'PDF/1.2'); q.value = ''; q.dispatchEvent(new Event('input')); await sleep(60); }
-    const ids = () => rows().map(r => uc(r.dataset.ucp).id);
-    ok('UC5 the default sort is by use case number', JSON.stringify(ids()) === JSON.stringify(['1.1', '1.2', '1.3', '1.5', '1.6', '2.1', '2.2', '3.2']), ids().join());
-    click($('#ucpSort')); await sleep(60); { const o = $$('.menu [data-i]').map(e => e.textContent.trim()); ok('UC5 Sort offers Use case, Status, Open work items and Name', JSON.stringify(o) === JSON.stringify(['Use case', 'Status', 'Open work items', 'Name']), o.join()); }
-    await menuPick('Status'); { const W = ['High risk', 'Flag', 'On track'], st = rows().map(r => W.indexOf(uc(r.dataset.ucp).status)); ok('UC5 Sort: Status puts the worst first', st.every((v, i) => !i || v >= st[i - 1]) && $('#ucpSort').textContent.trim() === 'Sort: Status'); }
-    click($('#ucpSort')); await sleep(60); await menuPick('Open work items'); { const n = rows().map(r => S().items.filter(x => x.code === 'PDF' && x.uc === uc(r.dataset.ucp).id && C.isOpen(x)).length); ok('UC5 Sort: Open work items, the most first', n.every((v, i) => !i || v <= n[i - 1]) && n[0] > 0, n.join()); }
-    click($('#ucpSort')); await sleep(60); await menuPick('Name'); { const nm = rows().map(r => r.querySelector('.ucp-name').textContent); ok('UC5 Sort: Name, A to Z', nm.every((v, i) => !i || nm[i - 1].localeCompare(v) <= 0)); }
-    C.go('dashboard'); await sleep(100); await toUc(); ok('UC5 the sort is remembered too', $('#ucpSort').textContent.trim() === 'Sort: Name'); click($('#ucpSort')); await sleep(60); await menuPick('Use case');
-    { writes = []; const un = spyX(); click($('#ucpExp')); un(); const w = writes[0], sh = w && w.wb.Sheets['Use cases'], aoa = sh ? XLSX.utils.sheet_to_json(sh, { header: 1 }) : [];
-      ok('UC5 Export to Excel saves the use cases sheet, every use case', !!w && JSON.stringify(w.sheets) === '["Use cases"]' && aoa.length === 9 && aoa.slice(1).map(r => r[0]).sort().join() === pdf().map(u => u.id).sort().join(), w && w.sheets.join()); }
-
-    /* 6. the dashboard: the selected ones, and the line to this page */
+    /* 3. the eye is the dashboard's own switch */
+    ok('UC3 the eye on the page puts a use case on the dashboard: one step with Undo, and the row says so', await (async () => { await eye('PDF/2.2'); const a = uc('PDF/2.2').client === true && row('PDF/2.2').querySelector('.ucx-eye .w').textContent === 'On the dashboard' && !row('PDF/2.2').classList.contains('off') && !$('#toastUndo').hidden && /^Use case 2\.2 is on the dashboard$/.test($('#toastMsg').textContent); if (!a) return false;
+      C.go('dashboard'); await waitFor(() => !!$('#sec-usecases .ucr[data-uc="PDF/2.2"]')); const b = !!$('#sec-usecases .ucr[data-uc="PDF/2.2"]'); await toList(); await undo(); return b && uc('PDF/2.2').client === false && row('PDF/2.2').classList.contains('off'); })());
     C.go('dashboard'); await waitFor(() => !!$('#sec-usecases .uc-more'));
-    ok('UC6 the dashboard still shows only the use cases that are on', $$('#sec-usecases .ucr').length === pdf().filter(u => u.client).length && !$('#sec-usecases .ucr[data-uc="PDF/2.2"]'));
-    ok('UC6 a line under them: "2 more use cases are not on the dashboard. See all 8 on the Use Cases page ›"', $('#sec-usecases .uc-more').textContent.trim() === '2 more use cases are not on the dashboard. See all 8 on the Use Cases page ›', $('#sec-usecases .uc-more')?.textContent);
-    click($('[data-uc-page]')); await sleep(200); ok('UC6 the link opens the Use Cases page', C.UI.view === 'usecases');
-    await eye('PDF/2.2'); C.go('dashboard'); await waitFor(() => !!$('#sec-usecases .ucr[data-uc="PDF/2.2"]'));
-    ok('UC6 the eye here is the dashboard\'s switch: the use case shows there, and the line counts one fewer', !!$('#sec-usecases .ucr[data-uc="PDF/2.2"]') && $('#sec-usecases .uc-more').textContent.startsWith('1 more use case is not on the dashboard.'));
-    await toUc(); await eye('PDF/2.2');
+    ok('UC3 the dashboard still shows only the use cases that are on', $$('#sec-usecases .ucr').length === liveUcs().filter(u => u.client).length && !$('#sec-usecases .ucr[data-uc="PDF/2.2"]'));
+    ok('UC3 and a line under them: "2 more on the Use cases page ›"', $('#sec-usecases .uc-more').textContent.trim() === '2 more on the Use cases page ›', $('#sec-usecases .uc-more')?.textContent);
+    { click($('[data-mode=edit]')); await sleep(80); click($('[data-uc-eye="PDF/1.1"]')); await sleep(60); await waitFor(() => uc('PDF/1.1').client === false); click($('[data-mode=view]')); await sleep(80); await waitFor(() => !$('.leaving')); }
+    ok('UC3 the dashboard\'s own eye is the same switch: the line counts one more', uc('PDF/1.1').client === false && $('#sec-usecases .uc-more').textContent.trim() === '3 more on the Use cases page ›', $('#sec-usecases .uc-more')?.textContent);
+    click($('[data-uc-page]')); await waitFor(() => C.UI.view === 'usecases' && !!$('#ucxList')); ok('UC3 the link opens the Use cases page, and there the use case taken off the dashboard says so', C.UI.view === 'usecases' && row('PDF/1.1').querySelector('.ucx-eye .w').textContent === 'Not on the dashboard');
+    await eye('PDF/1.1'); ok('UC3 and the eye on the page puts it back', uc('PDF/1.1').client === true && row('PDF/1.1').querySelector('.ucx-eye').getAttribute('aria-pressed') === 'true');
 
-    /* 7. the published page: a Use Cases tab with only the ones that are on, view only; the others are absent from the file */
+    /* 4. one use case on its own page, with its own address; Back and Forward */
+    await toUc('PDF/1.2');
+    ok('UC4 a use case opens on a page of its own, with its own address', C.UI.uc === '1.2' && /^#usecases&p=PDF&uc=1\.2$/.test(location.hash) && !$('#ucxList') && $('.head h1').textContent === 'UC 1.2 · Assisted invoice matching', location.hash + ' ' + $('.head h1').textContent);
+    ok('UC4 the way back reads "Use cases › UC 1.2"', $('.ucx-crumb').textContent.replace(/\s+/g, ' ').trim() === 'Use cases › UC 1.2' && $('.ucx-crumb [data-ucx-back]').textContent === 'Use cases');
+    ok('UC4 the page: where it stands, work items, details, milestones and history', ['Where it stands', 'Work items', 'Details', 'Milestones', 'History'].every(t => $$('.ucx-h').some(h => h.textContent.startsWith(t))));
+    history.back(); await waitFor(() => !C.UI.uc && !!$('#ucxList')); ok('UC4 Back returns to the list', !C.UI.uc && !!$('#ucxList') && $(`[data-ucx-go="PDF/1.2"]`) === document.activeElement);
+    history.forward(); await waitFor(() => C.UI.uc === '1.2' && !!$('.ucx-dgrid')); ok('UC4 Forward opens the use case again', C.UI.uc === '1.2' && !!$('.ucx-dgrid'));
+    click($('[data-ucx-back]')); await waitFor(() => !C.UI.uc && !!$('#ucxList')); ok('UC4 the Use cases link in the way back also returns to the list', !C.UI.uc && /^#usecases&p=PDF$/.test(location.hash));
+    location.hash = '#usecases&p=PDF&uc=1.3'; await waitFor(() => C.UI.uc === '1.3' && !!$('.ucx-dgrid')); ok('UC4 an address opens that use case (a bookmark or a reload)', C.UI.uc === '1.3' && $('.head h1').textContent.startsWith('UC 1.3 and 1.4 · '), $('.head h1')?.textContent);
+    location.hash = '#usecases&p=PDF&uc=9.9'; await waitFor(() => !C.UI.uc && !!$('#ucxList')); await sleep(60); ok('UC4 an address for a use case that is not there shows the list', !C.UI.uc && !!$('#ucxList') && /^#usecases&p=PDF$/.test(location.hash), location.hash);
+
+    /* 5. the detail: where it stands in the one editor, work items that open the peek, milestones, owner, history */
+    await toUc('PDF/1.1');
+    { const u = uc('PDF/1.1'), its = itemsOf(u), lis = $$('.ucx-li'), ms = [...new Set(its.map(x => x.ms).filter(Boolean))];
+      ok('UC5 every linked work item is listed (open and closed), each with its ID, title, state and due date or priority', lis.length === its.length && its.some(x => !C.isOpen(x)) === lis.some(l => /Closed|Made/.test(l.textContent)) && its.every(x => { const l = $(`.ucx-li[data-open="${x.id}"]`); return !!l && l.textContent.includes(x.title) && l.querySelector('.pill') && (x.type !== 'A' || !x.due || l.textContent.includes('Due ' + DB.fd(x.due))); }), lis.length + ' of ' + its.length);
+      ok('UC5 the work items head says how many, and links to Work items', $('[data-ucx-work]').textContent === `Open all ${its.length} in Work items`);
+      ok('UC5 the milestones are the ones its work items point at, each with its state in words and its date as DD-MM-YYYY', $$('.ucx-ms-l li').length === ms.length && ms.length >= 1 && $$('.ucx-ms-l li').every(li => ['Achieved', 'On track', 'At risk', 'Slipped', 'Overdue', 'Forecast'].includes(li.querySelector('.mst').textContent.trim()) && /\d\d-\d\d-\d{4}$/.test(li.querySelector('.muted').textContent)), $$('.ucx-ms-l li').map(l => l.textContent).join(' | '));
+      ok('UC5 the details: owner, group, dashboard and last change in words', /Owner/.test($('.ucx-kv').textContent) && $('.ucx-kv dd:nth-of-type(2)').textContent === 'Group 1' && $('.ucx-kv').textContent.includes('On the dashboard') && /Last change\d\d-\d\d-\d{4}$/.test($('.ucx-kv').textContent), $('.ucx-kv').textContent);
+      await toUc('PDF/1.5'); ok('UC5 a use case nobody has changed says so in its history and its details', $$('.ucx-none').some(e => /No changes recorded yet/.test(e.textContent)) && $('.ucx-kv').textContent.includes('No changes yet')); await toUc('PDF/1.1'); }
+    { const li = $('.ucx-li[data-open="PDF-A-012"]'); click(li); await waitFor(() => C.UI.peek === 'PDF-A-012'); ok('UC5 a work item opens the peek beside the page, and the address says so', C.UI.peek === 'PDF-A-012' && /&uc=1\.1&item=PDF-A-012$/.test(location.hash) && !!$('.ucx-dgrid'), location.hash);
+      history.back(); await waitFor(() => !C.UI.peek); ok('UC5 Back closes the peek and stays on the use case', !C.UI.peek && C.UI.uc === '1.1' && !!$('.ucx-dgrid')); }
+    { click($('[data-ucx-ms]')); await waitFor(() => !!C.UI.peek && /PDF-M/.test(C.UI.peek)); ok('UC5 a milestone opens the peek too', /PDF-M/.test(C.UI.peek)); C.closePeek(); await sleep(150); }
+    click($('[data-ucx-std]')); await sleep(150); await typeIn($('[data-ucx-std] .ProseMirror'), ' Plus one line.'); document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); await sleep(150);
+    ok('UC5 where it stands edits in place in the one editor, one step with Undo', uc('PDF/1.1').standing.includes('Plus one line.') && !$('#toastUndo').hidden && /Use case 1\.1 saved/.test($('#toastMsg').textContent)); await undo(); ok('UC5 and Undo puts it back', !uc('PDF/1.1').standing.includes('Plus one line.'));
+    { const i = $('[data-ucx-add]'); i.value = 'Sam Rivers: book the loader walk-through'; key(i, 'Enter'); await sleep(150); const x = S().items.at(-1);
+      ok('UC5 a next step is added as "Owner: what it is", linked to the use case, due in a week', x.uc === '1.1' && x.owner === 'Sam Rivers' && x.title === 'book the loader walk-through' && x.due === DB.addDays(DB.TODAY, 7) && !!$(`.ucx-li[data-open="${x.id}"]`));
+      await undo(); ok('UC5 and Undo takes it away again', !S().items.some(y => y.id === x.id)); }
+    click($('[data-ucx-link]')); await sleep(100); { const q = $('#pkQ'); q.value = 'testers'; q.dispatchEvent(new Event('input')); await sleep(40); click($('#pkList input')); $('#pkF').requestSubmit(); await sleep(120); }
+    ok('UC5 an existing work item is linked from the page', item('PDF-A-019').uc === '1.1' && !!$('.ucx-li[data-open="PDF-A-019"]')); await undo(); ok('UC5 and the link undoes', item('PDF-A-019').uc === '');
+    { const el = $('[data-ucx-name]'); el.focus(); el.textContent = 'Assisted invoice checks'; el.dispatchEvent(new Event('blur')); await sleep(80); ok('UC5 the name edits in place, and the toast says "Use case", never "UC"', uc('PDF/1.1').title.startsWith('Automated') === false && uc('PDF/1.1').title === 'Assisted invoice checks' && $('#toastMsg').textContent === 'Use case 1.1 saved', $('#toastMsg').textContent); await undo(); ok('UC5 one Undo puts the name back', uc('PDF/1.1').title === 'Automated loading of order data'); }
+    { const el = $('[data-ucx-head]'); el.focus(); el.textContent = 'Dates confirmed in writing'; el.dispatchEvent(new Event('blur')); await sleep(80); ok('UC5 the one line edits in place, one step with Undo', uc('PDF/1.1').headline === 'Dates confirmed in writing'); await undo(); ok('UC5 and Undo puts it back', uc('PDF/1.1').headline.startsWith('Scope and access gaps')); }
+    { const el = $('[data-ucx-owner]'); el.focus(); el.textContent = 'Ada Quillfeather'; el.dispatchEvent(new Event('blur')); await sleep(80); ok('UC5 the owner is written in place, and shown in the details', uc('PDF/1.1').owner === 'Ada Quillfeather' && $('.ucx-kv').textContent.includes('Ada Quillfeather')); await undo(); ok('UC5 and Undo puts it back to no owner', !uc('PDF/1.1').owner); }
+    { const h0 = hist('PDF/1.1'); click($('#ucxStatus')); await sleep(60); const m = $$('.menu [data-i]').map(o => o.textContent.trim()); ok('UC5 Change status offers the three status words', JSON.stringify(m) === JSON.stringify(['On track', 'Flag', 'High risk']), m.join());
+      await menuPick('High risk'); ok('UC5 a status change is one step: the page, the history and the word follow', uc('PDF/1.1').status === 'High risk' && hist('PDF/1.1') === h0 + 1 && $('.ucx-sub .ucw').textContent.trim() === 'High risk');
+      { const h = $('.ucx-hist li'); ok('UC5 the history says who, what, how and when', !!h && h.textContent.includes(DB.who('').replace(/, $/, '')) && /changed the status from Flag to High risk/.test(h.textContent) && h.textContent.includes('on the Use cases page') && /\d\d-\d\d-\d{4} \d\d:\d\d/.test(h.textContent), h && h.textContent); }
+      ok('UC5 and the last change is shown in the details', $('.ucx-kv').textContent.includes(DB.fd(DB.TODAY)) || /\d\d-\d\d-\d{4}/.test($('.ucx-kv').textContent));
+      await undo(); ok('UC5 and Undo puts the status back', uc('PDF/1.1').status === 'Flag'); }
+    { ok('UC5 the page says the use case is on the dashboard, in words', $('.ucx-eye-s').textContent.trim() === 'On the dashboard' && $('#ucxToggle').textContent.trim() === 'Take off the dashboard');
+      click($('#ucxToggle')); await waitFor(() => uc('PDF/1.1').client === false); ok('UC5 "Take off the dashboard" is the same switch as the eye, one step with Undo', uc('PDF/1.1').client === false && $('.ucx-eye-s').textContent.trim() === 'Not on the dashboard' && $('#ucxToggle').textContent.trim() === 'Put on the dashboard' && !$('#toastUndo').hidden);
+      await undo(); ok('UC5 and Undo puts it back on', uc('PDF/1.1').client === true && $('.ucx-eye-s').textContent.trim() === 'On the dashboard'); }
+    { const b = $('[data-ucx-work]'); click(b); await sleep(200); const tr = $$('tr[data-id]');
+      ok('UC5 "Open all N in Work items" opens Work items filtered to that use case', C.UI.view === 'work' && tr.length > 0 && tr.every(r => item(r.dataset.id).uc === '1.1') && $$('.fchip').some(c => c.dataset.tok === 'usecase:1.1'), $$('.fchip').map(c => c.dataset.tok).join(' | ')); click($('#clearAll')); await sleep(60); }
+    { await toUc('PDF/1.1'); const bad = $$('#main button[aria-label], #main a[aria-label]').filter(e => { const t = e.textContent.replace(/\s+/g, ' ').trim(); return t && !e.getAttribute('aria-label').toLowerCase().startsWith(t.toLowerCase()); }).map(e => e.textContent.trim() + ' / ' + e.getAttribute('aria-label'));
+      const said = $$('#main [aria-label], #main [title]').flatMap(e => [e.getAttribute('aria-label'), e.getAttribute('title')]).filter(t => t && /\bUC\b/.test(t));
+      ok('UC5 every named control\'s name starts with the words it shows, and no hidden label says "UC"', !bad.length && !said.length, bad.concat(said).slice(0, 3).join(' | ')); }
+
+    /* 6. working the list: search, status, On the dashboard or not, sort, counts; remembered per project */
+    await toList();
+    { const s = $('#ucxS'); ok('UC6 the pills start as "Status" and "Sort: Reference"', s.textContent.trim() === 'Status' && $('#ucxSort').textContent.trim() === 'Sort: Reference');
+      click(s); await sleep(80); const labs = $$('.ucx-pop label').map(l => l.textContent.trim());
+      ok('UC6 the Status drop-down offers the three status words and nothing else', JSON.stringify(labs) === JSON.stringify(['On track', 'Flag', 'High risk']), labs.join(' | '));
+      const c = $$('.ucx-pop input').find(i => i.value === 'Flag'); c.checked = true; c.dispatchEvent(new Event('change')); await sleep(80); C.closePop();
+      ok('UC6 choosing Flag narrows the list, says so on the pill and in the count', rows().length === liveUcs().filter(u => u.status === 'Flag').length && rows().length > 0 && rows().every(r => uc(r.dataset.ucx).status === 'Flag') && $('#ucxS').textContent.trim() === 'Status: Flag' && $('#ucxCount').textContent.startsWith(`Showing ${rows().length} of 8`), $('#ucxCount').textContent); }
+    click($('[data-ucx-on=off]')); await sleep(60); ok('UC6 Not on the dashboard narrows it further', rows().length === 1 && rows()[0].dataset.ucx === 'PDF/2.2' && $('[data-ucx-on=off]').getAttribute('aria-pressed') === 'true');
+    click($('.tab[data-view=milestones]')); await sleep(120); await toList(); ok('UC6 the filters are remembered when you come back', rows().length === 1 && $('#ucxS').textContent.trim() === 'Status: Flag' && $('[data-ucx-on=off]').getAttribute('aria-pressed') === 'true');
+    click($('#projBtn')); await sleep(40); await menuPick('Customer Portal Refresh'); await sleep(80); await toList(); ok('UC6 each project keeps its own: another project starts unfiltered', C.UI.code === 'CPR' && $('#ucxS').textContent.trim() === 'Status' && $('[data-ucx-on=all]').getAttribute('aria-pressed') === 'true');
+    click($('#projBtn')); await sleep(40); await menuPick('Data Platform Pilot'); await sleep(80); await toList(); ok('UC6 and this project still has its filters', rows().length === 1 && $('#ucxS').textContent.trim() === 'Status: Flag');
+    { click($('[data-ucx-on=all]')); await sleep(60); const c = $('#ucxS'); click(c); await sleep(80); click($('.ucx-pop [data-ucx-none]')); await sleep(60); C.closePop(); ok('UC6 Clear in the Status drop-down shows every status again', rows().length === 8 && $('#ucxS').textContent.trim() === 'Status'); }
+    click($('[data-ucx-on=on]')); await sleep(60); ok('UC6 On the dashboard', rows().length === liveUcs().filter(u => u.client).length && rows().every(r => uc(r.dataset.ucx).client) && /Showing 6 of 8/.test($('#ucxCount').textContent)); click($('[data-ucx-on=all]')); await sleep(60);
+    ok('UC6 the three choices carry their counts', $$('[data-ucx-on] em').map(e => e.textContent).join() === '8,6,2');
+    { const q = $('#ucxQ'); q.value = 'invoice'; q.dispatchEvent(new Event('input')); await sleep(60); ok('UC6 search finds a use case by its words', rows().length === 1 && rows()[0].dataset.ucx === 'PDF/1.2' && /Showing 1 of 8/.test($('#ucxCount').textContent));
+      q.value = 'UC 2.2'; q.dispatchEvent(new Event('input')); await sleep(60); ok('UC6 and by its reference', rows().length === 1 && rows()[0].dataset.ucx === 'PDF/2.2');
+      q.value = 'zzzz'; q.dispatchEvent(new Event('input')); await sleep(60); ok('UC6 a search with no match says so, and offers to clear the filters', rows().length === 0 && /No use cases match “zzzz”/.test($('#ucxList').textContent) && !!$('[data-ucx-clear]'));
+      click($('[data-ucx-clear]')); await sleep(60); ok('UC6 Clear the filters shows every use case again', rows().length === 8 && $('#ucxQ').value === ''); }
+    const ids = () => rows().map(r => uc(r.dataset.ucx).id);
+    ok('UC6 the default sort is by reference', JSON.stringify(ids()) === JSON.stringify(['1.1', '1.2', '1.3', '1.5', '1.6', '2.1', '2.2', '3.2']), ids().join());
+    click($('#ucxSort')); await sleep(60); { const o = $$('.menu [data-i]').map(e => e.textContent.trim()); ok('UC6 Sort offers Reference, Status and Open work items', JSON.stringify(o) === JSON.stringify(['Reference', 'Status', 'Open work items']), o.join()); }
+    await menuPick('Status'); { const W = ['High risk', 'Flag', 'On track'], st = rows().map(r => W.indexOf(uc(r.dataset.ucx).status)); ok('UC6 Sort: Status puts the worst first', st.every((v, i) => !i || v >= st[i - 1]) && $('#ucxSort').textContent.trim() === 'Sort: Status'); }
+    click($('#ucxSort')); await sleep(60); await menuPick('Open work items'); { const n = rows().map(r => itemsOf(uc(r.dataset.ucx)).filter(C.isOpen).length); ok('UC6 Sort: Open work items, the most first', n.every((v, i) => !i || v <= n[i - 1]) && n[0] > 0, n.join()); }
+    C.go('dashboard'); await sleep(100); await toList(); ok('UC6 the sort is remembered too', $('#ucxSort').textContent.trim() === 'Sort: Open work items'); click($('#ucxSort')); await sleep(60); await menuPick('Reference');
+    { writes = []; const un = spyX(); click($('#ucxExp')); un(); const w = writes[0], sh = w && w.wb.Sheets['Use cases'], aoa = sh ? XLSX.utils.sheet_to_json(sh, { header: 1 }) : [];
+      ok('UC6 Export to Excel saves the use cases sheet only, every use case', !!w && JSON.stringify(w.sheets) === '["Use cases"]' && aoa.length === 9 && aoa.slice(1).map(r => r[0]).sort().join() === liveUcs().map(u => u.id).sort().join(), w && w.sheets.join()); }
+
+    /* 7. Add a use case */
+    { const n0 = pdf().length; click($('#ucxAdd')); await sleep(80); ok('UC7 Add a use case asks for a reference, a name, a status and whether it is on the dashboard', $('#dlg').open && !!$('#ucxI') && !!$('#ucxT') && !!$('#ucxSt') && !!$('#ucxD') && !$('#ucxD').checked);
+      $('#ucxI').value = '1.1'; $('#ucxT').value = 'Clash'; $('#ucxF').requestSubmit(); await sleep(60); ok('UC7 a reference already used is refused, nothing is added', pdf().length === n0 && $('#dlg').open);
+      $('#ucxI').value = '3.3'; $('#ucxT').value = 'Weekly stock count'; $('#ucxSt').value = 'Flag'; $('#ucxF').requestSubmit(); await waitFor(() => C.UI.uc === '3.3' && !!$('.ucx-dgrid'));
+      const u = uc('PDF/3.3'); ok('UC7 it is added, not on the dashboard, and opens on its page', !!u && u.title === 'Weekly stock count' && u.status === 'Flag' && u.client === false && C.UI.uc === '3.3' && $('.head h1').textContent === 'UC 3.3 · Weekly stock count' && /^Use case 3\.3 added$/.test($('#toastMsg').textContent) && S().history.some(h => h.kind === 'uc' && h.id === '3.3' && h.field === '+'), location.hash);
+      await undo(); await waitFor(() => !!$('#ucxList')); ok('UC7 Undo takes it away again and shows the list', pdf().length === n0 && !uc('PDF/3.3') && !C.UI.uc && rows().length === 8); }
+
+    /* 8. Archive and Restore, never Delete */
+    await toUc('PDF/2.2');
+    { const arch = $('[data-ucx-archive]'), items = $('.ucx-items').closest('.card');
+      ok('UC8 Archive sits at the foot of the page, below the work items, and there is no Delete', !!arch && rect(arch).top > rect(items).bottom - 1 && /nothing is deleted/.test(arch.parentElement.textContent) && !$$('#main button, #main a').some(b => /\b(Delete|Remove)\b/i.test(b.textContent + ' ' + (b.getAttribute('aria-label') || ''))));
+      const n0 = S().usecases.length; click(arch); await waitFor(() => uc('PDF/2.2').archived);
+      ok('UC8 Archive is one step with Undo, a history line, and the record is kept', uc('PDF/2.2').archived === true && S().usecases.length === n0 && !$('#toastUndo').hidden && /^Use case 2\.2 archived\./.test($('#toastMsg').textContent) && S().history.some(h => h.kind === 'uc' && h.id === '2.2' && h.field === '*' && h.text === 'Archived'));
+      ok('UC8 an archived use case opens read-only: it says Archived, with one clear Restore and nothing to change', !!$('#ucxRestore') && /Archived/.test($('.ucx-sub').textContent) && !$('#main [contenteditable], #ucxStatus, #ucxToggle, [data-ucx-archive], [data-ucx-add], [data-ucx-link]') && !$('#main .inl'), $('.ucx-sub').textContent);
+      ok('UC8 and its history says it was archived', /archived it/.test($('.ucx-hist').textContent));
+      await undo(); ok('UC8 Undo brings it back', !uc('PDF/2.2').archived && !!$('#ucxStatus')); click($('[data-ucx-archive]')); await waitFor(() => uc('PDF/2.2').archived); }
+    await toList();
+    ok('UC8 an archived use case is out of the list and the counts, and the page says how many are hidden', rows().length === 7 && !row('PDF/2.2') && $('#ucxCount').textContent === 'Showing 7 of 7 · 6 on the dashboard' && $('.ucx-foot').textContent.trim() === '1 archived use case is hidden. Show archived', $('.ucx-foot')?.textContent + ' | ' + $('#ucxCount').textContent);
+    { writes = []; const un = spyX(); click($('#ucxExp')); un(); const aoa = XLSX.utils.sheet_to_json(writes[0].wb.Sheets['Use cases'], { header: 1 }); ok('UC8 and out of the Excel file', aoa.length === 8 && !aoa.slice(1).some(r => r[0] === '2.2')); }
+    C.go('dashboard'); await waitFor(() => !!$('#sec-usecases .uc-more')); ok('UC8 and out of the dashboard\'s line: "1 more on the Use cases page ›"', $('#sec-usecases .uc-more').textContent.trim() === '1 more on the Use cases page ›', $('#sec-usecases .uc-more')?.textContent);
+    { click($('#meBtn')); await sleep(40); const html = await C.webPage(); C.closePop(); ok('UC8 and out of the published page', !html.includes(uc('PDF/2.2').title) && !html.includes(uc('PDF/2.2').headline)); }
+    { C.openItem('PDF-A-012'); await waitFor(() => !!$('#peek option[value="1.1"]')); ok('UC8 an archived use case is not offered in a work item\'s use case list', !!$('#peek option[value="1.1"]') && !$('#peek option[value="2.2"]')); C.closePeek(); await sleep(150); }
+    await toList(); click($('[data-ucx-arch]')); await sleep(80);
+    ok('UC8 Show archived lists it under the list, muted, with the word Archived and a Restore', !!$('#ucxArch') && $$('#ucxArch li').length === 1 && /UC 2\.2/.test($('#ucxArch li').textContent) && /Archived/.test($('#ucxArch .tag').textContent) && !!$('[data-ucx-restore="PDF/2.2"]') && rows().length === 7 && $('[data-ucx-arch]').textContent === 'Hide archived');
+    click($('[data-ucx-go="PDF/2.2"]')); await waitFor(() => C.UI.uc === '2.2' && !!$('#ucxRestore')); ok('UC8 an archived one opens read-only from there', !!$('#ucxRestore') && !$('#main [contenteditable]'));
+    click($('#ucxRestore')); await waitFor(() => !uc('PDF/2.2').archived); ok('UC8 Restore puts it back, one step with Undo', !uc('PDF/2.2').archived && !!$('#ucxStatus') && !$('#toastUndo').hidden && /^Use case 2\.2 restored\./.test($('#toastMsg').textContent) && S().history.some(h => h.kind === 'uc' && h.id === '2.2' && h.text === 'Restored'));
+    await toList(); ok('UC8 it is back in the list and the counts, and the Show archived line is gone', rows().length === 8 && !!row('PDF/2.2') && !$('.ucx-foot') && $('#ucxCount').textContent === 'Showing 8 of 8 · 6 on the dashboard', $('#ucxCount').textContent);
+
+    /* 9. the published page: a Use Cases tab with only the ones that are on, view only; the others are absent from the file */
     await eye('PDF/1.2');
     /* a milestone hidden from the client, reached only through a hidden work item of a use case that is on (2.1 through PDF-A-016) */
     const unMs = DB.change('ms', S().milestones.find(m => m.id === 'PDF-M-004'), { client: false }, DB.who('in the test'));
     { const html = await C.webPage(), off = pdf().filter(u => !u.client), on = pdf().filter(u => u.client); unMs();
-      ok('UC7 the published page has a Use Cases tab', /<button data-v="usecases">Use Cases<\/button>/.test(html) && /id="v-usecases"/.test(html));
+      ok('UC9 the published page has a Use Cases tab', /<button data-v="usecases">Use Cases<\/button>/.test(html) && /id="v-usecases"/.test(html));
       const leak = off.flatMap(u => [u.title, u.headline, C.plain(u.standing)]).filter(t => t && html.includes(t));
-      ok('UC7 the use cases that are off are absent from the file: no name, headline or standing', off.length === 3 && !leak.length, leak.join(' | '));
+      ok('UC9 the use cases that are off are absent from the file: no name, headline or standing', off.length === 3 && !leak.length, leak.join(' | '));
       const ucIds = new Set(pdf().map(u => u.id)), hidSteps = S().items.filter(x => x.code === 'PDF' && ucIds.has(x.uc) && !x.client), hidMs = S().milestones.filter(m => m.code === 'PDF' && (!m.client || m.id === 'PDF-M-004'));
       const leak2 = hidSteps.map(x => x.title).concat(hidMs.map(m => m.name)).filter(t => t && html.includes(t));
-      ok('UC7 the work items and milestones hidden from the client are absent from the file: no step title, no milestone name', hidSteps.length >= 3 && hidMs.some(m => m.id === 'PDF-M-004') && !leak2.length, leak2.join(' | '));
-      ok('UC7 and the file never mentions what is off', !/not on the dashboard|Use Cases page/i.test(html));
+      ok('UC9 the work items and milestones hidden from the client are absent from the file: no step title, no milestone name', hidSteps.length >= 3 && hidMs.some(m => m.id === 'PDF-M-004') && !leak2.length, leak2.join(' | '));
+      ok('UC9 and the file never mentions what is off', !/not on the dashboard|Use cases page|more on the/i.test(html));
       const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;left:0;top:0;width:1300px;height:900px;visibility:hidden'; fr.srcdoc = html; document.body.appendChild(fr);
       for (let i = 0; i < 100 && !(fr.contentDocument && fr.contentDocument.readyState === 'complete' && fr.contentDocument.querySelector('#panel')); i++) await sleep(50); await sleep(100);
       const fd = fr.contentDocument, f$ = s => fd.querySelector(s), v = f$('#v-usecases');
-      f$('[data-v=usecases]').click(); ok('UC7 the tab shows the use cases that are on the dashboard, in number order', v.classList.contains('on') && [...v.querySelectorAll('.ucp-row .uc-tag')].map(t => t.textContent).join() === on.slice().sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })).map(u => (u.ref || u.id).split(/,| and /).map(x => x.trim()).join(' + ')).join());
-      ok('UC7 view only: no eye, no history, no editing, no status menu', !v.querySelector('[contenteditable], [data-ucp-eye], .ucp-eye, .ucp-hist, [data-ucp-status], input, .add-in') && !/History/.test(v.textContent));
-      { const rs = [...v.querySelectorAll('.ucp-row')]; ok('UC7 each row is a real button with nothing to select inside it; the links are in its detail', rs.length === on.length && rs.every(r => r.tagName === 'BUTTON' && r.type === 'button' && !r.querySelector('a, button, input, [tabindex]') && r.nextElementSibling.id === r.getAttribute('aria-controls')) && !!v.querySelector('.ucp-d [data-item]'), rs.map(r => r.tagName).join()); }
+      f$('[data-v=usecases]').click(); ok('UC9 the tab shows the use cases that are on the dashboard, in number order', v.classList.contains('on') && [...v.querySelectorAll('.ucp-row .uc-tag')].map(t => t.textContent).join() === on.slice().sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })).map(u => (u.ref || u.id).split(/,| and /).map(x => x.trim()).join(' + ')).join());
+      ok('UC9 view only: no eye, no history, no editing, no status menu', !v.querySelector('[contenteditable], [data-ucx-eye], .ucx-eye, .ucx-hist, [data-ucx-status], input, .add-in') && !/History/.test(v.textContent));
+      { const rs = [...v.querySelectorAll('.ucp-row')]; ok('UC9 each row is a real button with nothing to select inside it; the links are in its detail', rs.length === on.length && rs.every(r => r.tagName === 'BUTTON' && r.type === 'button' && !r.querySelector('a, button, input, [tabindex]') && r.nextElementSibling.id === r.getAttribute('aria-controls')) && !!v.querySelector('.ucp-d [data-item]'), rs.map(r => r.tagName).join()); }
       const r1 = [...v.querySelectorAll('.ucp-row')].find(r => r.querySelector('.uc-tag').textContent === '1.1'); r1.click(); const d = r1.nextElementSibling;
-      ok('UC7 a row opens where it stands, the next steps shown to the client and the milestones shown to the client', r1.classList.contains('open') && d.classList.contains('open') && d.textContent.includes('The loader built in discovery') && d.textContent.includes('PDF-A-012') && !d.textContent.includes('PDF-A-023') && !!d.querySelector('.ucp-ms .mst'));
-      ok('UC7 the published next steps are open actions only: the open risk shown to the client is not one', item('PDF-003').client === true && !d.querySelector('[data-item="PDF-003"]') && [...d.querySelectorAll('.ucp-steps [data-item]')].every(a => item(a.dataset.item).type === 'A'), [...d.querySelectorAll('.ucp-steps [data-item]')].map(a => a.dataset.item).join());
-      const hid = S().items.filter(x => x.code === 'PDF' && x.uc === '1.1' && !x.client).map(x => x.id); ok('UC7 a next step not shown to the client is not in the file', hid.length > 0 && hid.every(id => !html.includes(id)), hid.join());
-      d.querySelector('[data-item]').click(); ok('UC7 a next step opens its view-only detail', f$('#panel').classList.contains('on') && /View only/.test(f$('#panel').textContent)); f$('#panel button').click();
-      ok('UC7 the Use Cases tab takes the editor\'s look', fr.contentWindow.getComputedStyle(r1).display === 'grid' && fr.contentWindow.getComputedStyle(fd.querySelector('.ucp-d:not(.open)')).display === 'none');
+      ok('UC9 a row opens where it stands, the next steps shown to the client and the milestones shown to the client', r1.classList.contains('open') && d.classList.contains('open') && d.textContent.includes('The loader built in discovery') && d.textContent.includes('PDF-A-012') && !d.textContent.includes('PDF-A-023') && !!d.querySelector('.ucp-ms .mst'));
+      ok('UC9 the published next steps are open actions only: the open risk shown to the client is not one', item('PDF-003').client === true && !d.querySelector('[data-item="PDF-003"]') && [...d.querySelectorAll('.ucp-steps [data-item]')].every(a => item(a.dataset.item).type === 'A'), [...d.querySelectorAll('.ucp-steps [data-item]')].map(a => a.dataset.item).join());
+      const hid = S().items.filter(x => x.code === 'PDF' && x.uc === '1.1' && !x.client).map(x => x.id); ok('UC9 a next step not shown to the client is not in the file', hid.length > 0 && hid.every(id => !html.includes(id)), hid.join());
+      d.querySelector('[data-item]').click(); ok('UC9 a next step opens its view-only detail', f$('#panel').classList.contains('on') && /View only/.test(f$('#panel').textContent)); f$('#panel button').click();
+      ok('UC9 the Use Cases tab takes the editor\'s look', fr.contentWindow.getComputedStyle(r1).display === 'grid' && fr.contentWindow.getComputedStyle(fd.querySelector('.ucp-d:not(.open)')).display === 'none');
       fr.remove(); }
-    await eye('PDF/1.2'); ok('UC7 the eye puts it back on', uc('PDF/1.2').client === true);
+    await toList(); await eye('PDF/1.2'); ok('UC9 the eye puts it back on', uc('PDF/1.2').client === true);
 
-    /* 8. 1400 and 900 px, light and dark: nothing runs off the side, the parts of a row never meet, the words are readable */
+    /* 10. 1400 and 900 px, light and dark: nothing runs off the side, the parts of a row never meet, the words are readable */
     const meet = els => { const bad = []; for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) { const a = rect(els[i]), b = rect(els[j]); if (a.width && b.width && a.left < b.right - .5 && b.left < a.right - .5 && a.top < b.bottom - .5 && b.top < a.bottom - .5) bad.push(els[i].className + '/' + els[j].className); } return bad; };
     for (const th of ['light', 'dark']) for (const w of [1400, 900]) await atW(w, async () => {
-      C.theme(th); C.go('usecases'); await sleep(250); await open('PDF/1.1'); await sleep(150);
-      const card = rect('.ucp-card'), bad = rows().flatMap(r => meet([...r.children]).map(x => r.dataset.ucp + ' ' + x)), out = rows().filter(r => rect(r.querySelector('.ucp-eye')).right > card.right || rect(r.querySelector('.ucp-car')).right > card.right);
-      ok(`UC8 at ${w} px in ${th}: no sideways scroll, and every row fits the card with its parts apart`, noSide() && !bad.length && !out.length && rows().length === 8, bad.concat(out.map(r => r.dataset.ucp)).slice(0, 4).join(' | ') || document.documentElement.scrollWidth);
-      ok(`UC8 at ${w} px in ${th}: the eye's words, the status words and the muted rows are readable (4.5:1)`, rows().every(r => ratio(r.querySelector('.ucp-eye .w')) >= 4.5 && ratio(r.querySelector('.ucp-st .ucw')) >= 4.5 && ratio(r.querySelector('.ucp-name')) >= 4.5), rows().map(r => [r.dataset.ucp, ratio(r.querySelector('.ucp-eye .w')).toFixed(1), ratio(r.querySelector('.ucp-name')).toFixed(1)].join(' ')).join(' | '));
-      ok(`UC8 at ${w} px in ${th}: the detail and the pills fit`, rect('.ucp-d.open').right <= card.right + .5 && $$('.ucp-bar > *').every(e => rect(e).right <= innerWidth) && (th === 'light' || getComputedStyle($('.ucp-card')).backgroundColor === 'rgb(23, 33, 44)'));
+      C.theme(th); C.go('usecases'); await sleep(250);
+      const wide = w >= 1100, W = rect('.ucx-list').width, bad = rows().flatMap(r => meet([...r.children].filter(shown)).map(x => r.dataset.ucx + ' ' + x)), out2 = rows().filter(r => rect(r.querySelector('.ucx-eye')).right > innerWidth);
+      ok(`UC10 at ${w} px in ${th}: the list has no sideways scroll, every row fits and its parts are apart`, noSide() && !bad.length && !out2.length && rows().length === 8, bad.concat(out2.map(r => r.dataset.ucx)).slice(0, 4).join(' | ') || document.documentElement.scrollWidth);
+      ok(`UC10 at ${w} px in ${th}: ${wide ? 'every column shows' : 'where it stands and the milestones drop out of the list; the one line stays under the name'}`, wide ? rows().every(r => shown(r.querySelector('.ucx-head')) && shown(r.querySelector('.ucx-ms')) && !shown(r.querySelector('.ucx-name small'))) : rows().every(r => !shown(r.querySelector('.ucx-head')) && !shown(r.querySelector('.ucx-ms')) && shown(r.querySelector('.ucx-name small')) && shown(r.querySelector('.ucx-wi')) && shown(r.querySelector('.ucx-st'))) && ($$('.ucx-hd > *').filter(shown).length === (wide ? 7 : 5)), $$('.ucx-hd > *').filter(shown).length);
+      ok(`UC10 at ${w} px in ${th}: "On the dashboard" is in words beside the eye on every row`, rows().every(r => shown(r.querySelector('.ucx-eye .w')) && /^(Not on|On) the dashboard$/.test(r.querySelector('.ucx-eye .w').textContent)));
+      ok(`UC10 at ${w} px in ${th}: the words are readable (4.5:1)`, rows().every(r => ratio(r.querySelector('.ucx-eye .w')) >= 4.5 && ratio(r.querySelector('.ucx-st .ucw')) >= 4.5 && ratio(r.querySelector('.ucx-go')) >= 4.5 && ratio(r.querySelector('.ucx-ref')) >= 4.5 && (!wide || ratio(r.querySelector('.ucx-head')) >= 4.5)) && ratio($('#ucxCount')) >= 4.5 && ratio($('.ucx-hd > span')) >= 4.5, rows().map(r => [r.dataset.ucx, ratio(r.querySelector('.ucx-eye .w')).toFixed(1), ratio(r.querySelector('.ucx-ref')).toFixed(1)].join(' ')).join(' | '));
+      ok(`UC10 at ${w} px in ${th}: the bar fits, with the count on the right`, $$('.ucx-bar > *').every(e => rect(e).right <= innerWidth && rect(e).left >= 0) && rect('#ucxCount').right > rect('#ucxSort').right);
       { const tiny = $$('#main button, #main a[href], #main input, #main [contenteditable], #main [role=button]').filter(e => shown(e) && (rect(e).width < 23.5 || rect(e).height < 23.5)).map(e => (e.getAttribute('aria-label') || e.textContent.trim()).slice(0, 24) + ' ' + Math.round(rect(e).width) + 'x' + Math.round(rect(e).height));
         const small = $$('#main *').filter(e => shown(e) && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && parseFloat(getComputedStyle(e).fontSize) < 11.99).map(e => e.className);
-        ok(`UC8 at ${w} px in ${th}: every control is at least 24 px and no text is under 12 px`, !tiny.length && !small.length, tiny.concat(small).slice(0, 6).join(' | ')); }
-      ok(`UC8 at ${w} px in ${th}: the strip and the meter show`, shown($('.ucp-strip .uc-meter')) && shown($('.ucp-strip .ucp-on')));
+        ok(`UC10 at ${w} px in ${th}: every control is at least 24 px and no text is under 12 px (list)`, !tiny.length && !small.length, tiny.concat(small).slice(0, 6).join(' | ')); }
+      click(row('PDF/1.2').querySelector('[data-ucx-go]')); await waitFor(() => C.UI.uc === '1.2' && !!$('.ucx-dgrid')); await sleep(150);
+      { const g = getComputedStyle($('.ucx-dgrid')).gridTemplateColumns.split(' ').length, cards = $$('.ucx-dgrid .card'), badc = cards.filter(c => rect(c).right > innerWidth || rect(c).width < 200).length;
+        ok(`UC10 at ${w} px in ${th}: the use case page has no sideways scroll, ${wide ? 'two columns' : 'one column'}, and Archive is at the foot of the main column`, noSide() && g === (wide ? 2 : 1) && !badc && rect('[data-ucx-archive]').top > rect($('.ucx-items').closest('.card')).bottom - 1, g + ' columns, scroll ' + document.documentElement.scrollWidth);
+        ok(`UC10 at ${w} px in ${th}: the work items, the status and the history are readable (4.5:1)`, $$('.ucx-li').every(l => ratio(l.querySelector('.id')) >= 4.5 && ratio(l.querySelector('.own')) >= 4.5 && ratio(l.querySelector('.t')) >= 4.5) && ratio($('.ucx-hm')) >= 4.5 && ratio($('.ucx-hint')) >= 4.5 && ratio($('.ucx-kv dt')) >= 4.5 && ratio($('.ucx-sub .ucw')) >= 4.5 && ratio($('.ucx-eye-s')) >= 4.5);
+        const tiny = $$('#main button, #main a[href], #main input, #main [contenteditable], #main [role=button]').filter(e => shown(e) && (rect(e).width < 23.5 || rect(e).height < 23.5)).map(e => (e.getAttribute('aria-label') || e.textContent.trim()).slice(0, 24) + ' ' + Math.round(rect(e).width) + 'x' + Math.round(rect(e).height));
+        ok(`UC10 at ${w} px in ${th}: on the use case page every control is at least 24 px`, !tiny.length, tiny.slice(0, 6).join(' | ')); }
     });
-    C.theme(theme0); C.store.set('ucPageOpen', '');
+    C.theme(theme0); C.go('dashboard'); await sleep(100);
 
-    /* 9. Help has an entry */
-    C.help.open(); await sleep(150); click($('#hpTabs [data-htab=howto]')); await sleep(120); ok('UC9 Help has an entry for the Use Cases page', /Work through every use case/.test($('#hpPane').textContent) && /There is no Add or Archive on this page/.test($('#hpPane').textContent));
+    /* 12. the keyboard: the list is one tab stop with the arrow keys, a row says itself in plain words; light and dark, 1400 and 900 px */
+    const kd = (el, k, o = {}) => { const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...o }); el.dispatchEvent(e); return e; };
+    const goOf = k => row(k).querySelector('.ucx-go'), eyeOf = k => row(k).querySelector('.ucx-eye'), keys = () => rows().map(r => r.dataset.ucx);
+    const tabStops = () => $$('.ucx-list button').filter(b => b.tabIndex >= 0);
+    const oneStopOn = k => tabStops().length === 1 && tabStops()[0] === goOf(k) && $$('.ucx-list [tabindex="0"]').length === 1;
+    const sayOf = u => { const n = itemsOf(u).length, o = itemsOf(u).filter(C.isOpen).length; return `UC ${u.ref || u.id}, ${u.title.split('\n').join(' · ')}, ${u.status}, ${n ? `${o} of ${n} work item${n === 1 ? '' : 's'} open` : 'No work items'}, ${u.client ? 'On the dashboard' : 'Not on the dashboard'}`; };
+    for (const th of ['light', 'dark']) for (const w of [1400, 900]) await atW(w, async () => {
+      const at = `at ${w} px in ${th}`;
+      C.theme(th); C.go('usecases'); await sleep(250);
+      const ks = keys(), first = ks[0], last = ks.at(-1), second = ks[1], third = ks[2];
+      /* when the remembered row is not in the list, the first row is the stop */
+      { const q = $('#ucxQ'); goOf(last).focus(); q.value = uc(first).title.split('\n')[0]; q.dispatchEvent(new Event('input', { bubbles: true })); await sleep(60);
+        ok(`UC12 ${at}: the list is one tab stop, and it is the first row when the remembered one is not shown`, rows().length > 0 && rows()[0].dataset.ucx === first && !rows().some(r => r.dataset.ucx === last) && oneStopOn(first), tabStops().length + ' stops');
+        q.value = ''; q.dispatchEvent(new Event('input', { bubbles: true })); await sleep(60); }
+      ok(`UC12 ${at}: exactly one name button has tabindex 0, the other names and every eye have -1`, $$('.ucx-list [tabindex="0"]').length === 1 && $$('.ucx-list .ucx-go[tabindex="0"]').length === 1 && $$('.ucx-eye').every(e => e.getAttribute('tabindex') === '-1') && tabStops().length === 1, $$('.ucx-list [tabindex="0"]').length + ' at 0');
+      goOf(first).focus(); await sleep(30);
+      ok(`UC12 ${at}: focus on a row makes that row the one stop`, oneStopOn(first));
+      { const e = kd(document.activeElement, 'ArrowDown'); ok(`UC12 ${at}: ArrowDown moves to the next row, keeps one tab stop on it and does not scroll the page`, document.activeElement === goOf(second) && oneStopOn(second) && e.defaultPrevented); }
+      kd(document.activeElement, 'ArrowDown'); ok(`UC12 ${at}: ArrowDown again moves one more (nothing skipped)`, document.activeElement === goOf(third) && oneStopOn(third));
+      { const e = kd(document.activeElement, 'ArrowUp'); ok(`UC12 ${at}: ArrowUp moves to the row above`, document.activeElement === goOf(second) && oneStopOn(second) && e.defaultPrevented); }
+      kd(document.activeElement, 'End'); ok(`UC12 ${at}: End goes to the last row`, document.activeElement === goOf(last) && oneStopOn(last));
+      { const e = kd(document.activeElement, 'ArrowDown'); ok(`UC12 ${at}: ArrowDown on the last row stays there and still does not scroll the page`, document.activeElement === goOf(last) && e.defaultPrevented); }
+      kd(document.activeElement, 'Home'); ok(`UC12 ${at}: Home goes to the first row`, document.activeElement === goOf(first) && oneStopOn(first));
+      { const e = kd(document.activeElement, 'ArrowUp'); ok(`UC12 ${at}: ArrowUp on the first row stays there`, document.activeElement === goOf(first) && e.defaultPrevented); }
+      /* the tab stop is remembered when focus leaves and comes back */
+      kd(document.activeElement, 'ArrowDown'); $('#ucxQ').focus(); await sleep(30);
+      ok(`UC12 ${at}: with focus out of the list, the stop is still the row it left`, oneStopOn(second)); goOf(second).focus(); await sleep(20);
+      /* Right and Left between the name and the eye */
+      { const e = kd(document.activeElement, 'ArrowRight'); ok(`UC12 ${at}: Right moves from the name to the eye, and the row stays the stop`, document.activeElement === eyeOf(second) && oneStopOn(second) && e.defaultPrevented); }
+      { const e = kd(document.activeElement, 'ArrowRight'); ok(`UC12 ${at}: Right on the eye stays there and does not scroll the page`, document.activeElement === eyeOf(second) && e.defaultPrevented); }
+      kd(document.activeElement, 'ArrowDown'); ok(`UC12 ${at}: Down on an eye goes to the next row's eye`, document.activeElement === eyeOf(third) && oneStopOn(third));
+      kd(document.activeElement, 'ArrowUp'); kd(document.activeElement, 'ArrowLeft'); ok(`UC12 ${at}: Left moves back to the name`, document.activeElement === goOf(second) && oneStopOn(second));
+      { const e = kd(document.activeElement, 'ArrowLeft'); ok(`UC12 ${at}: Left on the name stays there and does not scroll the page`, document.activeElement === goOf(second) && e.defaultPrevented); }
+      /* a key with a modifier is the browser's, not the list's */
+      { const e = kd(document.activeElement, 'ArrowDown', { altKey: true }); ok(`UC12 ${at}: Alt with an arrow is left to the browser`, document.activeElement === goOf(second) && !e.defaultPrevented); }
+      /* typing: the search box and the filter controls keep their own keys */
+      { const q = $('#ucxQ'); q.focus(); const es = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'ArrowLeft', 'ArrowRight'].map(k => kd(q, k));
+        ok(`UC12 ${at}: arrows, Home and End do nothing to the list while typing in the search box`, document.activeElement === q && es.every(e => !e.defaultPrevented) && oneStopOn(second)); }
+      { const pill = $('#ucxS'); pill.focus(); const es = ['ArrowDown', 'ArrowUp', 'Home', 'End'].map(k => kd(pill, k));
+        ok(`UC12 ${at}: and the same on a filter button`, document.activeElement === pill && es.every(e => !e.defaultPrevented) && oneStopOn(second)); }
+      /* a row said in plain words */
+      ok(`UC12 ${at}: every row's name button says the row (reference, name, status, work items open, dashboard) and keeps its visible words`, rows().every(r => { const b = r.querySelector('.ucx-go'), u = uc(r.dataset.ucx); return b.getAttribute('aria-label') === sayOf(u) && b.getAttribute('aria-label').includes(b.textContent.trim()); }), goOf(first).getAttribute('aria-label') + ' / ' + sayOf(uc(first)));
+      ok(`UC12 ${at}: the label reads like the example`, /^UC 1\.2, .+, (On track|Flag|High risk), \d+ of \d+ work items? open, (On|Not on) the dashboard$/.test(goOf('PDF/1.2').getAttribute('aria-label')), goOf('PDF/1.2').getAttribute('aria-label'));
+      ok(`UC12 ${at}: the header row stays visual only, and the label carries what it says`, $('.ucx-hd').getAttribute('aria-hidden') === 'true' && /^UC /.test(goOf(first).getAttribute('aria-label')) && /work item/.test(goOf(first).getAttribute('aria-label')) && /dashboard/.test(goOf(first).getAttribute('aria-label')));
+      /* the focus ring is two pixels */
+      { goOf(first).focus(); const cs = getComputedStyle(goOf(first)), ring = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) === 2; eyeOf(first).focus(); const ce = getComputedStyle(eyeOf(first));
+        ok(`UC12 ${at}: the focus ring shows, 2 px, on the name and on the eye`, ring && ce.outlineStyle !== 'none' && parseFloat(ce.outlineWidth) === 2, `${cs.outlineStyle} ${cs.outlineWidth} / ${ce.outlineStyle} ${ce.outlineWidth}`); }
+      /* Enter opens the detail, Esc returns to the same row */
+      goOf(third).focus(); { const e = kd(document.activeElement, 'Enter'); await waitFor(() => C.UI.uc === uc(third).id && !!$('.ucx-dgrid'));
+        ok(`UC12 ${at}: Enter on the name opens the use case on its own page`, C.UI.uc === uc(third).id && !$('#ucxList') && e.defaultPrevented); }
+      kd(document.activeElement, 'Escape'); await waitFor(() => !C.UI.uc && !!$('#ucxList') && document.activeElement === goOf(third));
+      ok(`UC12 ${at}: Esc on the page returns to the list with the focus on the row it came from`, !C.UI.uc && document.activeElement === goOf(third) && oneStopOn(third));
+      /* Esc inside an edit field only undoes the edit; Esc with a menu open only closes the menu */
+      goOf(third).focus(); kd(document.activeElement, 'Enter'); await waitFor(() => C.UI.uc === uc(third).id && !!$('.ucx-dgrid'));
+      { const nm = $('[data-ucx-name]'), t0 = nm.textContent, h0 = hist(third); nm.focus(); nm.textContent = t0 + ' typed'; kd(nm, 'Escape'); await sleep(80);
+        ok(`UC12 ${at}: Esc in an edit field puts the words back and stays on the page`, !!C.UI.uc && uc(third).title.split('\n')[0] === t0 && hist(third) === h0 && ($('[data-ucx-name]') || {}).textContent === t0); }
+      click($('#ucxStatus')); await sleep(60); { const menu = C.popOpen(); kd(document.activeElement && document.activeElement !== document.body ? document.activeElement : document.body, 'Escape'); await sleep(60);
+        ok(`UC12 ${at}: Esc with a menu open closes the menu and stays on the page`, menu && !C.popOpen() && !!C.UI.uc); }
+      kd(document.body, 'Escape'); await waitFor(() => !C.UI.uc && !!$('#ucxList'));
+      ok(`UC12 ${at}: and then Esc returns to the list`, !C.UI.uc && !!$('#ucxList') && document.activeElement === goOf(third));
+      /* Space or Enter on the eye switches the dashboard, and the focus stays on the eye */
+      { const k = second, was = !!uc(k).client; eyeOf(k).focus(); const e = kd(document.activeElement, ' '); await waitFor(() => !!uc(k).client !== was && row(k)?.querySelector('.ucx-eye .w').textContent === (was ? 'Not on the dashboard' : 'On the dashboard'));
+        ok(`UC12 ${at}: Space on the eye switches "On the dashboard" and the focus stays on that eye`, !!uc(k).client !== was && row(k).querySelector('.ucx-eye .w').textContent === (was ? 'Not on the dashboard' : 'On the dashboard') && document.activeElement === eyeOf(k) && e.defaultPrevented && oneStopOn(k));
+        ok(`UC12 ${at}: the row's label follows the switch`, goOf(k).getAttribute('aria-label').endsWith(was ? ', Not on the dashboard' : ', On the dashboard'), goOf(k).getAttribute('aria-label'));
+        if (th === 'light' && w === 1400) { C.go('dashboard'); await waitFor(() => !!$('#sec-usecases .uc-more')); const on = !!$(`#sec-usecases .ucr[data-uc="${k}"]`); ok('UC12 the dashboard follows the switch made from the keyboard', on === !was); await toList(); }
+        kd(eyeOf(k), 'Enter'); await waitFor(() => !!uc(k).client === was);
+        ok(`UC12 ${at}: Enter on the eye switches it back`, !!uc(k).client === was && document.activeElement === eyeOf(k)); }
+    });
+    C.theme(theme0); C.go('dashboard'); await sleep(100);
+    /* 11. Help has an entry */
+    C.help.open(); await sleep(150); click($('#hpTabs [data-htab=howto]')); await sleep(120); ok('UC11 Help has an entry for the Use cases page, with Archive and Add', /Work through every use case/.test($('#hpPane').textContent) && /Archive this use case/.test($('#hpPane').textContent) && /Add a use case/.test($('#hpPane').textContent));
     C.go('dashboard'); await sleep(100);
   });
 

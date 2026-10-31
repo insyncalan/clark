@@ -18,7 +18,7 @@
     .replace(/\[([^\]]+)\]\((#|go:)([^)]+)\)/g, (_, t, kind, to) => kind === '#' ? `<a href="#" class="hp-a" data-hlink="${to}">${t}</a>` : `<a href="#" class="hp-a hp-goa" data-hgo="${to}">${t}</a>`);
 
   /* where a "go:" link takes you: a screen, a place on it, or an action */
-  const GO_LABEL = { dashboard: 'Open the Dashboard', 'dashboard+edit': 'Open the Dashboard in Edit', work: 'Open Work items', milestones: 'Open Milestones', usecases: 'Open Use Cases', settings: 'Open Settings', publish: 'Open the Publish box', preview: 'Preview the page', ask: 'Open ask clark' };
+  const GO_LABEL = { dashboard: 'Open the Dashboard', 'dashboard+edit': 'Open the Dashboard in Edit', work: 'Open Work items', milestones: 'Open Milestones', usecases: 'Open Use cases', settings: 'Open Settings', publish: 'Open the Publish box', preview: 'Preview the page', ask: 'Open ask clark' };
   const goLabel = to => GO_LABEL[to] || (to.startsWith('settings#') ? 'Open Settings' : 'Open it');
   function goTo(to) {
     const [v, anchor] = to.split('#');
@@ -68,7 +68,7 @@
     ['Dashboard', 'The weekly report itself. **View** shows it as the client will read it; **Edit** changes it in place.', 'dashboard'],
     ['Work items', 'Every action, risk, issue and decision, as a table or a board, with filters and search.', 'work'],
     ['Milestones', '**Plan** shows every milestone on a timeline or calendar; **Movement** shows slippage, for you and the team only.', 'milestones'],
-    ['Use Cases', 'Every use case of the project, on the dashboard or not, with where it stands, next steps, milestones and history.', 'usecases'],
+    ['Use cases', 'Every use case of the project, on the dashboard or not. Open one for where it stands, its work items, milestones and history.', 'usecases'],
     ['ask clark', 'Checks the report and answers questions about the project. Opens from the top bar, or with [[/]].', 'ask'],
     ['The profile circle', 'Publish, Preview, Export to Excel, Settings and Dark mode. At the top right.', ''],
     ['Settings', 'Your profile and look, projects, Asking (ask clark on or off, and the folders it may read), publishing, data, the clark version and updates, and diagnostics.', 'settings'],
@@ -226,13 +226,15 @@
       'In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag** or **High risk**.',
       'In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.',
       '**Delete use case** asks first. Its work items stay and lose the link.' ] },
-    { id: 'work-the-use-cases', g: 'The report', t: 'Work through every use case', w: 'Use Cases', go: 'usecases', s: [
-      'Open **Use Cases** in the top bar. It lists every use case of the project, with a strip of counts and a meter at the top. Each row shows the reference, the name, where it stands, the status word, the work items (how many, and how many are open) and, on the right, the eye.',
-      'The eye says **On the dashboard** or **Not on the dashboard**. It is the same switch as the one on the Dashboard: a use case that is on shows in the Use case summary and on the published page. One that is off stays on this page, muted.',
-      'Select a row, or its arrow, to open the detail under it: the name and headline (click to change them), **Where it stands**, the next steps with their owner, ID and due date, the linked milestones and the history of changes.',
-      'Click the status word to choose **On track**, **Flag** or **High risk**. Add a next step as “Owner: what it is”, or **+ Link an existing work item**. Every change is one step with **Undo**.',
-      'Narrow the list with the **Group** pill (tick Group 1, 2 or more: Group 1 shows every 1.x), the **Status** pill, **All**, **On the dashboard** or **Not on the dashboard**, and the search box. **Sort** orders by use case number, status, open work items or name. Your choices are kept for each project.',
-      'There is no Add or Archive on this page: new use cases come from the project record, or from an Excel import with a Use cases sheet. The export icon saves the use cases to Excel.' ] },
+    { id: 'work-the-use-cases', g: 'The report', t: 'Work through every use case', w: 'Use cases', go: 'usecases', s: [
+      'Open **Use cases** in the top bar, beside Milestones. It lists every use case of the project. Each row shows the reference, the name, where it stands, the status word, the work items (how many are linked, and how many are open), the linked milestones and, on the right, the eye.',
+      'The eye says **On the dashboard** or **Not on the dashboard**. It is the same switch as the one on the Dashboard: a use case that is on shows in the Use case summary and on the published page. One that is off stays on this page, muted. The Dashboard says how many more are here.',
+      'Select a row to open that use case on its own page. **Use cases** at the top, or the Back button of your browser, brings you back to the list.',
+      'With the keyboard, [[Tab]] reaches the list once. [[Up]] and [[Down]] move from row to row, [[Home]] and [[End]] go to the first and last, [[Right]] moves to the eye and [[Left]] back to the name. [[Enter]] opens a use case, and [[Space]] or [[Enter]] on the eye switches it. [[Esc]] on a use case goes back to the row you came from.',
+      'On a use case: click **Where it stands** (and the one line above it) to write it in the editor, press **Change status** to choose **On track**, **Flag** or **High risk**, and open any work item to see it beside the page. **Take off the dashboard** and **Put on the dashboard** do what the eye does. The linked milestones, the owner and the history of changes (who, how and when) are there too. Every change is one step with **Undo**.',
+      'Narrow the list with the search box, the **Status** pill, and **All**, **On the dashboard** or **Not on the dashboard**. **Sort** orders by reference, status or open work items. The count above the list says how many are shown. Your choices are kept for each project.',
+      '**Add a use case** asks for a reference, a name and a status. **Export to Excel** saves the use cases sheet.',
+      '**Archive this use case** is at the foot of a use case. It takes it out of the lists, the counts, the Dashboard and the published page; nothing is deleted. **Show archived** under the list shows the archived ones, and **Restore** brings one back.' ] },
     { id: 'add-supporting-documents', g: 'The report', t: 'Add supporting documents', w: 'Dashboard › Edit › Supporting documents', go: 'dashboard+edit', s: [
       'In Edit, press **+ Add a document link** at the foot of the report.',
       'Give it a title, a kind (Minutes, Actions list, Report, Slides, Plan or Other), the link and a date, then press **Add**.',
