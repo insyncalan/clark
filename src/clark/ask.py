@@ -39,9 +39,13 @@ RULES = """You answer questions about one project's report. Follow these rules e
 2. You have no tools and no files. Do not ask to read anything else. If the passages do not hold the answer, say so plainly.
 3. Write the answer as plain text, short and direct, in British English.
 4. After the answer, add one line for each passage you used, in this exact form: CITE: P1 P3
-5. To suggest a change to the project, add one line in this exact form, with one JSON object on the line and nothing after it: CHANGE: {"field": "value"}
-6. Name a work item only by an ID that appears in the passages. Never invent an ID, a title or an owner.
-7. Do not repeat any password, key or private address you may find."""
+5. A change you suggest is only a suggestion: nothing is saved until the person looks at it and presses Apply. Suggest at most 5 changes. Never suggest archiving, restoring or deleting anything.
+6. To suggest a change, add one line for it in this exact form, with one JSON object on the line and nothing after it: CHANGE: {"field": "value"}
+7. To change an item, use: CHANGE: {"op": "change", "id": "ABC-A-001", "current_title": "its title now", "current_owner": "its owner now", "source": "P2", "status": "Closed"}. Copy current_title and current_owner exactly as the passages show them now; if they do not match the saved item, the change is refused.
+8. To add an item, use: CHANGE: {"op": "new", "kind": "action", "title": "the title", "owner": "the owner", "source": "P2"}. The kind is one of action, risk, issue, assumption, dependency, decision or milestone.
+9. The fields you may set: title, owner, priority, due, status, workstream and milestone for an action; title, owner, due, status, workstream and milestone for a risk, issue, assumption or dependency, and impact and likelihood for a new one; title, made_by, status, date and needed_by for a decision; for a milestone, forecast_date, achieved_date and status (a new one takes title, owner, agreed_date and workstream). Dates are YYYY-MM-DD. "source" names the passage the change came from. Use no other field.
+10. Name a work item only by an ID that appears in the passages. Never invent an ID, a title or an owner.
+11. Do not repeat any password, key or private address you may find."""
 
 ROLES = ("user", "assistant")
 
