@@ -17,7 +17,7 @@ from unittest import mock
 
 from _paths import ROOT   # noqa: F401
 
-from clark import word_template
+from clark import platform, word_template
 from clark.docx_read import WordRefused
 from clark.word_template import NotFilled, fill, fill_to_file
 
@@ -160,16 +160,23 @@ class Stops(unittest.TestCase):
             self.assertEqual(sorted(os.listdir(d)), ["out.docx", "t.docx"])
 
     def test_a_disk_that_cannot_hard_link_still_gets_the_file_and_still_never_replaces_one(self):
-        no_link = OSError(errno.EPERM, "no hard links here")           # a cloud-synced or network folder
+        asked = []
+
+        def no_link(src, dst):                                           # a cloud-synced or network folder: no hard links
+            asked.append(dst)
+            raise OSError(errno.EPERM, "no hard links here")
+        real = platform.move_unless_exists           # the helper takes link= as a parameter bound at import, so patch the helper itself
         with tempfile.TemporaryDirectory() as d:
             src, dst = os.path.join(d, "t.docx"), os.path.join(d, "out.docx")
             with open(src, "wb") as f:
                 f.write(make(P("{{A}}")))
-            with mock.patch("os.link", side_effect=no_link):
+            with mock.patch.object(platform, "move_unless_exists", lambda a, b, **kw: real(a, b, link=no_link, **kw)):
                 fill_to_file(src, dst, {"A": "x"})
+                self.assertEqual(len(asked), 1, "the link was tried and refused, so the fallback ran")
                 self.assertIn(">x<", main_of(open(dst, "rb").read()))
                 with self.assertRaises(NotFilled):
                     fill_to_file(src, dst, {"A": "y"})
+                self.assertEqual(len(asked), 2)
             self.assertIn(">x<", main_of(open(dst, "rb").read()))
             self.assertEqual(sorted(os.listdir(d)), ["out.docx", "t.docx"])
 
