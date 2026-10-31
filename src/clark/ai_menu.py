@@ -445,15 +445,18 @@ class AiSession:
             option, text, place, instruction = check_request(option, text, place, instruction)
         except Refused as e:
             self.card = Card(self._n, option, instruction, place, str(text or ""), start, end, "failed", str(e))
+            self.card.key = confidential_key
             return self.card
         state = "ready" if provider_state == "ready" else provider_state
         if state != "ready":
             self.card = Card(self._n, option, instruction, place, text, start, end, "failed", why_off(state, provider))
+            self.card.key = confidential_key          # kept on every card, so Try again still asks the question
         elif confidential_key is not None and confidential_key not in self._asked:
             self.card = Card(self._n, option, instruction, place, text, start, end, "ask", confidential_question(provider))
             self.card.key = confidential_key
         else:
             self.card = Card(self._n, option, instruction, place, text, start, end, "running")
+            self.card.key = confidential_key
         return self.card
 
     def send_anyway(self, card):
@@ -510,7 +513,7 @@ class AiSession:
         """The same option on the same text again (the one shown counts as rejected). If the text has changed, the card goes and
         nothing is asked; the message says to select it again."""
         c = self.card
-        if not c or c.status == "running":
+        if not c or c.status in ("running", "ask"):          # a card waiting for the yes can't be skipped past
             return None
         if editor.text_between(c.start, c.end) != c.original:
             self._drop()
@@ -518,7 +521,7 @@ class AiSession:
             self.notice = "The text has changed since you asked; select it again."
             return None
         option, text, place, start, end, instruction = c.option, c.original, c.place, c.start, c.end, c.instruction
-        return self.begin(option, text, place, start, end, instruction, provider_state, provider)
+        return self.begin(option, text, place, start, end, instruction, provider_state, provider, confidential_key=c.key)
 
     def _drop(self):
         if self.card and self.card.status == "ready":

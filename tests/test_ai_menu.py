@@ -514,5 +514,36 @@ class PlainWords(unittest.TestCase):
         self.assertIn("go to Claude", am.sends_notice())
 
 
+class RetryKeepsTheQuestion(unittest.TestCase):
+    """#72 fix round H1: Try again can't skip the confidential question."""
+
+    def test_retry_of_a_card_waiting_for_a_yes_does_nothing(self):
+        ed = FakeEditor("Some secret text here.")
+        s = am.AiSession()
+        c = s.begin("rewrite", ed.text, "plain", 0, len(ed.text), confidential_key="k")
+        self.assertEqual(c.status, "ask")
+        self.assertIsNone(s.retry(ed))
+        self.assertEqual(s.card.status, "ask")
+
+    def test_retry_after_a_failure_still_asks_once(self):
+        ed = FakeEditor("Some secret text here.")
+        s = am.AiSession()
+        c = s.begin("rewrite", ed.text, "plain", 0, len(ed.text), provider_state="off", confidential_key="k")
+        self.assertEqual(c.status, "failed")
+        again = s.retry(ed, "ready")
+        self.assertEqual(again.status, "ask")
+        s.send_anyway(again)
+        self.assertEqual(again.status, "running")
+        s.deliver(again, reply("Some secret words here."))
+        again2 = s.retry(ed, "ready")
+        self.assertEqual(again2.status, "running")           # a yes already given is remembered
+
+    def test_every_card_keeps_its_key(self):
+        s = am.AiSession()
+        for state in ("ready", "off"):
+            self.assertEqual(s.begin("rewrite", "Some text.", "plain", 0, 5, provider_state=state, confidential_key="k").key, "k")
+        self.assertEqual(s.begin("rewrite", "", "plain", 0, 0, confidential_key="k").key, "k")
+
+
 if __name__ == "__main__":
     unittest.main()
