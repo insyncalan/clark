@@ -5,7 +5,7 @@ import { view, data, mode, fromFile } from "../stores/report.js";
 import { undoLast } from "../stores/changes.js";
 
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
-const OWN = "[contenteditable],[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],dialog";
+const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],dialog";
 const OPEN = "dialog[open],[role=dialog],[role=alertdialog],[role=menu],[role=listbox]";
 const PAGES = ["dashboard", "work", "milestones"];
 
