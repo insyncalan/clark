@@ -15,7 +15,7 @@ import { workSelection as sel } from "../stores/selection.js";
 import { itemRows, contextFor, announce } from "../stores/work.js";
 import { todayIso } from "../workItems.js";
 import { people } from "./itemEdit.js";
-import { singleKeysOn } from "./singleKeys.js";
+import { singleKeys } from "../stores/keyPrefs.js";
 import { Pop, roam } from "./cells/Pop.jsx";
 import { MenuPick } from "./cells/MenuPick.jsx";
 import { OwnerPick } from "./cells/OwnerPick.jsx";
@@ -201,7 +201,7 @@ export function installBulk() {
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat || !e.key || e.key.length !== 1) return;
-    if (!/^[ospct]$/i.test(e.key) || !singleKeysOn() || !editing()) return;
+    if (!/^[ospct]$/i.test(e.key) || !singleKeys.value || !editing()) return;
     if (!row && !inPeek) return;                                  // only the table, the board or the peek
     if (busy(t) || document.querySelector(OVERLAY)) return;
     const ids = inPeek ? [item.value] : targetIds(row.dataset.id);
