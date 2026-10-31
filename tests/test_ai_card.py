@@ -41,7 +41,8 @@ class Card(unittest.TestCase):
         h = self.h
         h.ev("window.unmount()")
         h.ev("for (const k of Object.keys(window.opts)) delete window.opts[k]; window.client.calls.length = 0; "
-             "window.applied.length = 0; window.exits.length = 0; window.returned.length = 0")
+             "window.applied.length = 0; window.exits.length = 0; window.returned.length = 0; window.useEditor = false; "
+             "document.getElementById('ed').innerHTML = ''")
         h.resize(1400)
         h.theme("light")
         h.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, h.sid)
@@ -74,6 +75,7 @@ class Card(unittest.TestCase):
 
     def test_ready(self):
         self.ready()
+        self.assertTrue(self.h.until(f"document.querySelector('.aic-say').textContent.trim() === {READY!r}"))
         self.assertEqual(self.h.say(), READY)
         self.assertEqual(self.buttons(), ["Accept", "Discard", "Try again", "Show changes"])
         self.assertIn("The supplier confirmed", self.h.ev("document.querySelector('.aic-text').textContent"))
@@ -133,6 +135,36 @@ class Card(unittest.TestCase):
         self.assertNotRegex(html, r"script|onerror|<img")
         self.assertEqual(self.h.ev("window.exits"), ["accept"])
         self.assertEqual(self.h.active(), "stand")
+
+    def editor_text(self):
+        return self.h.ev("document.querySelector('#ed .ProseMirror').textContent")
+
+    def test_with_the_real_editor_nothing_changes_before_accept_and_one_undo_puts_it_back(self):
+        h = self.h
+        h.ev("window.mountEditor('<p>" + TEXT + "</p>')")
+        self.assertTrue(h.until("!!document.querySelector('#ed .ProseMirror')"))
+        self.ready()
+        self.assertEqual(self.editor_text(), TEXT)                    # the suggestion is shown, the text is not changed
+        h.ev("[...document.querySelectorAll('.aic button')].find(b=>b.textContent==='Accept').click()")
+        self.assertTrue(h.until("document.querySelector('#ed .ProseMirror').textContent !== " + repr(TEXT)))
+        self.assertEqual(self.editor_text(), "The supplier confirmed the delivery for.")
+        self.assertTrue(h.ev("document.activeElement === document.querySelector('#ed .ProseMirror')"), "focus returns to the editor")
+        h.key("z", h.mod, "KeyZ", 90)                                 # Cmd+Z / Ctrl+Z: one step puts the whole text back
+        self.assertTrue(h.until("document.querySelector('#ed .ProseMirror').textContent === " + repr(TEXT)))
+
+    def test_with_the_real_editor_discard_and_esc_leave_the_text_and_focus_the_editor(self):
+        h = self.h
+        for how in ("discard", "esc"):
+            with self.subTest(how=how):
+                h.ev("window.unmount(); window.mountEditor('<p>" + TEXT + "</p>')")
+                self.ready()
+                if how == "discard":
+                    h.ev("[...document.querySelectorAll('.aic button')].find(b=>b.textContent==='Discard').click()")
+                else:
+                    h.key("Escape", 0, "Escape", 27)
+                self.assertTrue(h.until("!document.querySelector('.aic')"))
+                self.assertEqual(self.editor_text(), TEXT)
+                self.assertTrue(h.ev("document.activeElement === document.querySelector('#ed .ProseMirror')"))
 
     def test_accept_by_keyboard(self):
         self.ready()
