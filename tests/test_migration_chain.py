@@ -82,6 +82,24 @@ class TheChain(Base):
         self.assertEqual(rows(path, "projects"), before["projects"])
         self.assertEqual([r[:6] for r in rows(path, "documents")], [r[:6] for r in before["documents"]])
 
+    def test_a_brought_up_file_has_the_same_tables_columns_indexes_and_keys_as_a_new_one(self):
+        def shape(path):
+            con = sqlite3.connect(str(path))
+            try:
+                out = {"indexes": sorted(r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL"))}
+                for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").fetchall():
+                    out[t] = (sorted(tuple(r[1:6]) for r in con.execute(f"PRAGMA table_info({t})")),
+                              sorted(tuple(r[2:5]) for r in con.execute(f"PRAGMA foreign_key_list({t})")))
+                return out
+            finally:
+                con.close()
+        old, new = self.dir / "old", self.dir / "new"
+        old.mkdir()
+        new.mkdir()
+        open_store(make_v1(old), onedrive_roots=[]).close()
+        open_store(new / "clark.db", onedrive_roots=[]).close()
+        self.assertEqual(shape(old / "clark.db"), shape(new / "clark.db"))
+
     def test_every_start_runs_only_the_steps_after_it_in_order(self):
         for start in range(1, 5):
             with self.subTest(start=start):
