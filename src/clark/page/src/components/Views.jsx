@@ -10,8 +10,10 @@ function Empty({ title, children, action }) {
 
 export function Milestones({ tools }) {
   const More = tools && tools.MilestoneMore;      // the owner's extra block under the Plan view (#136): Edit only, so a published page has none
+  const Add = tools && tools.MilestoneAdd;        // Add milestone (+), C-M3: Edit only, its own element at the header's right
   return (
     <section class="frame milestones" id="milestones">
+      {Add ? <Add /> : null}
       <h1>Milestones</h1>
       <MsBlock place="page" />
       {More ? <More /> : null}

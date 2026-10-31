@@ -88,6 +88,10 @@ export const sendCellChange = (project, table, id, changes, place) =>
 // A board move (#68): `req` is {kind: actions | raid | decisions, op, id, changes, place} as logic/board.js moveFor builds it.
 export const sendItemChange = (project, req) => postItem("/api/change", { ...req, project });
 
+// A new milestone from the Milestones page's Add (+) (C-M3): the one writer's `new` op for milestones (clark/changes.py). {ok: true, reply}
+// (reply.item.id is the new milestone's id, reply.apply_id its one Undo) or {ok: false, message}.
+export const sendNewMilestone = (project, values) => postItem("/api/change", { project, kind: "milestones", op: "new", values, place: "cell" });
+
 // One change to a milestone from the Movement block (#136), in the Movement place (clark/changes.py). {ok: true, reply} or
 // {ok: false, message, known}: `known` is true when the message is clark's own fixed refusal (shown as it is).
 export async function sendMilestoneChange(project, req) {

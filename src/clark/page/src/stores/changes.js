@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendItemChange, sendCellChange, sendMilestoneChange } from "../api.js";
+import { sendChange, sendUndo, sendItemChange, sendCellChange, sendMilestoneChange, sendNewMilestone } from "../api.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
 export const toast = signal(null);
@@ -169,6 +169,19 @@ export function changeCell(table, id, changes, done) {
     if (step) { itemSteps.set(step, done.back || ""); say("done", done.text, step, code); }
     else if (done.always) say("done", done.text, null, code);                   // a decision that is made: it changed, and has no Undo
     return r.reply;
+  });
+}
+
+// Add one milestone from the Milestones page (C-M3): one step with one Undo. The page is read again (the new row is the one clark
+// saved). Resolves to the new milestone's id, or to null when it failed (the toast says why and nothing was made).
+export function addMilestone(values, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendNewMilestone(code, values);
+    if (!r.ok) { say("problem", r.message); return null; }
+    await reread(code);
+    if (r.reply.apply_id) { itemSteps.set(r.reply.apply_id, ""); say("done", done, r.reply.apply_id, code); }
+    return r.reply.item.id;
   });
 }
 
