@@ -254,6 +254,20 @@ class Words(unittest.TestCase):
             self.assertNotIn("{reason}", publish_flow.MESSAGES[key], key)
             self.assertNotIn("(", publish_flow.MESSAGES[key], key)
 
+    def test_every_client_contact_sentence_is_plain_words_with_a_next_step(self):
+        """#51: what the Publish screen's client contact says: the refusals, the replies and the field's own line."""
+        from clark import draft_email, publish_flow
+        said = list(draft_email.CONTACT_WORDS.values()) + [publish_flow.MESSAGES[k] for k in publish_flow.MESSAGES if k.startswith("contact_") and k != "contact_refused"]
+        src = (PAGE_SRC / "edit" / "ClientContact.jsx").read_text(encoding="utf-8")
+        said += re.findall(r'NO_CONTACT = "([^"]+)"', src)
+        self.assertGreater(len(said), 10)
+        for text in said:
+            self.assertIsNone(NEVER.search(text), text)
+            self.assertFalse(text.lower().startswith("clark"), text)
+            self.assertRegex(text, r"[.]$", text)
+        for text in draft_email.CONTACT_WORDS.values():
+            self.assertTrue(text.endswith("then save."), f"says the next step: {text}")
+
     def test_a_publish_error_about_the_brand_or_the_page_is_a_fixed_sentence(self):
         """#43 (Head): PublishError text with internal names (tokens.css, @import, build_page.py, a server token) never reaches
         a person; each real error is raised by publish and read through made_words."""
