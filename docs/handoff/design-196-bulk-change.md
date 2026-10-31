@@ -55,4 +55,4 @@ that `_call` adds to the reply without replacing `ok`, `message` or `code`.
 
 ## Never deletes
 
-Archiving and deleting are not bulk fields. A bulk Archive is a later proposal (Alan: "we never delete, we archive").
+Archiving and deleting are not bulk fields. A bulk Archive is a later proposal (the standing rule: "we never delete, we archive").
