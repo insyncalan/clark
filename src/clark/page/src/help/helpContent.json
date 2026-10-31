@@ -474,7 +474,8 @@
     "go": "settings",
     "s": [
      "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
-     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Dark mode** in the profile circle menu sets Light or Dark outright."
+     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Dark mode** in the profile circle menu sets Light or Dark outright.",
+     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ]
    },
    {
@@ -1602,7 +1603,7 @@
    ],
    [
     "[[/]]",
-    "ask clark (when you aren’t typing in a box). In Help, it goes to the search box instead"
+    "ask clark (when you aren’t typing in a box). In Help, it goes to the search box instead. Like the letter keys, it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Mod+J]]",
@@ -1646,11 +1647,11 @@
    ],
    [
     "[[V]]",
-    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box"
+    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[E]]",
-    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box"
+    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
