@@ -55,7 +55,11 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,separator,presentation,menuitemradio,menuitemradio,menuitemradio,separator,menuitem,menuitem")
+                             "menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem,menuitem")
+            self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
+                             "presentation,menuitemradio,menuitemradio,menuitemradio", "the group holds its label and the three radios")
+            self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
+                             "Appearance", "the group is named Appearance, so a screen reader says it before each radio")
 
     def test_C_the_last_published_note_is_reachable_when_narrow(self):
         for w in (390, 900):
