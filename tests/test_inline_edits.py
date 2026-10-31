@@ -460,6 +460,7 @@ class Live(unittest.TestCase):
                     self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "priority"), "High")
                     self.assertTrue(cdp.js("!!document.querySelector(\"[data-cell='TUL-010:priority']\")", sid), "an issue's too")
                     self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").tabIndex", sid), -1, "the table stays one tab stop")
+                    self.assertTrue(cdp.js(f"document.querySelector(\"{cell}\").getAttribute('aria-label').endsWith('Change its impact or likelihood')", sid), "the cell says what it opens")
                     # by click: two headed groups, each with its value now ticked; focus starts on the impact
                     before = self.steps()
                     click(cdp, sid, cell)
@@ -468,7 +469,7 @@ class Live(unittest.TestCase):
                                      [["Impact", ["High", "Medium", "Low"]], ["Likelihood", ["High", "Medium", "Low"]]])
                     self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [aria-checked=true]')].map(b => b.dataset.value)", sid), ["impact:High", "likelihood:Medium"])
                     self.assertEqual(self.focused(cdp, sid), "impact:High", "focus starts on the value it has")
-                    self.assertGreaterEqual(cdp.js(contrast + "('[data-pop] .mi-h')", sid), 3.0, "the headings can be read")
+                    self.assertGreaterEqual(cdp.js(contrast + "('[data-pop] .mi-h')", sid), 4.5, "the headings can be read")
                     self.assertGreaterEqual(cdp.js(contrast + "('[data-pop] [role=menuitemradio]')", sid), 4.5, "the choices can be read")
                     box = cdp.js("(() => { const r = document.querySelector('[data-pop]').getBoundingClientRect(); return [r.left >= 0, r.right <= innerWidth, r.top >= 0, r.bottom <= innerHeight]; })()", sid)
                     self.assertEqual(box, [True] * 4, "the picker is whole on screen")

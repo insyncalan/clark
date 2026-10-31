@@ -58,7 +58,7 @@ export function Cell({ row, field, said, children }) {
   return (
     <>
       <button type="button" class="cell-pick" ref={button} tabIndex={-1} data-edit-only data-cell={k} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
-        aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change`}
+        aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change${field === "priority" && row.kind !== "action" ? " its impact or likelihood" : ""}`}
         onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}>{children}</button>
       {open ? <Picker row={row} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onClose={close} /> : null}
     </>
