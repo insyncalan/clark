@@ -7,8 +7,9 @@ say). While it is off the provider is never asked, so "nothing is sent while ask
 stale tab or anything else that can reach the route.
 
 WHAT IS SENT. The question, the chat's earlier turns as the page holds them (they are kept nowhere else), and passages built only
-from what the published file would carry (ask_data.py, through publish.select). Folder passages (the saved source folders, read
-through reach.py) and PDFs are later commits of #47d.
+from what the published file would carry (ask_data.py, through publish.select), and passages from the project's own saved
+folders (ask_passages.py, every file opened again through reach.read_bytes; PDF is not supported yet and is counted). The
+folders are read for the open project only. The reply carries how many files were left out for safety.
 
 READ ONLY. The database is only ever opened read-only here (`connect(path, readonly=True)`), so nothing in this module can write
 it, even by mistake: a source test in tests/test_ask_route.py fails if an ask module opens it any other way.
@@ -21,7 +22,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from clark import ask, ask_data, platform, publish
+from clark import ask, ask_data, ask_passages, platform, publish
 from clark.store import Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -36,14 +37,17 @@ MESSAGES = {
     "stopping": "Stopping.",
 }
 FIELDS = {"project", "question", "earlier"}
+PROJECT_SHARE = 25000      # characters of the budget the project's own data may take; the folders get the rest
 
 
 class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
 
-    def __init__(self, db_path, provider, onedrive_roots=None):
+    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None):
         self.db_path = Path(db_path)
+        self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
+        self.home = home
         self.provider = provider
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.lock = threading.Lock()                 # the store is opened by one question at a time
@@ -118,13 +122,17 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, question)
+                    data = ask_data.project_data(store, code, question, PROJECT_SHARE)
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
+                folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
             finally:
                 store.close()
+        used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
+        found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
+                                         ask.MAX_PASSAGES - len(data.passages))
         try:
-            request = ask.build_request(question, data.passages, earlier)
+            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -135,11 +143,12 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message}
         notes = [n for n in (ask.dropped_note(request.dropped_turns),
-                             left_out_note(data.left_out)) if n]
+                             left_out_note(data.left_out + found.left_out), *folder_notes(found)) if n]
         return 200, {"ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label} for pid, label in request.passages if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
-                     "changes": [dict(c) for c in reply.changes], "notes": notes}
+                     "changes": [dict(c) for c in reply.changes], "notes": notes,
+                     "left_out_for_safety": found.safety}
 
 
 def left_out_note(count):
@@ -147,3 +156,17 @@ def left_out_note(count):
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
+
+
+def folder_notes(found):
+    """Plain lines about the saved folders: what was left out for safety, and the types not read."""
+    out = []
+    if found.safety:
+        out.append(f"{found.safety} {'file was' if found.safety == 1 else 'files were'} left out for safety.")
+    if found.pdf:
+        out.append(f"{found.pdf} PDF {'file was' if found.pdf == 1 else 'files were'} not read: PDF is not supported yet.")
+    if found.other:
+        out.append(f"{found.other} {'file was' if found.other == 1 else 'files were'} not read because of its type.")
+    if found.stopped:
+        out.append("Not every file in your folders was looked at.")
+    return out
