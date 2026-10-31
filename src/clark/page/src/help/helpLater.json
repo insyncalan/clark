@@ -52,7 +52,8 @@
   "excel": "Import and Export",
   "saving": "history and ask clark",
   "dates-and-ids": "use cases and work item IDs",
-  "icons": "the icon set (its legend names the peek and Sneak peek icons)"
+  "icons": "the icon set (its legend names the peek and Sneak peek icons)",
+  "picker": "the Add from your project record box (not on the page yet)"
  },
  "keys": [
   {

@@ -68,6 +68,10 @@ def strings(o):
                 yield from strings(v)
 
 
+def SHOWN_BY_ID(items, i):
+    return next(x for x in items if x["id"] == i)
+
+
 def shown_texts():
     s = SHOWN
     out = list(strings(s["start"]) if s["start"]["parts"] else [])
@@ -89,7 +93,7 @@ class Held(unittest.TestCase):
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["publish-the-report", "find-work-items", "use-the-board", "arrange-the-report", "use-the-tiles", "read-the-milestones"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "at-a-glance", "layouts", "work-items", "status-words", "picker", "milestone-states", "using-help", "keys"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "at-a-glance", "layouts", "work-items", "status-words", "milestone-states", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
@@ -134,7 +138,25 @@ class AgainstThePage(unittest.TestCase):
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
         # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...); 73 after #82 released the entries whose parts are on the page (their reworded bold names, such as Show all and Automatic, are now on the page); lower this only when a feature lands, never to hide a missing one
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now); 69 once main's Help wording (PR 19 Appearance, PR 51 use cases) and #82's rewording both sit on the page: the count fell as bold names were reworded, so lower this only when a feature lands
+        # 69 re-measured after the reader's fixes (cut search, eye column, cover and the unmounted picker; the held picker is not in this whole-source count): unchanged, because the words cut were not bold names; the proofs above, not this count, now guard those parts
         self.assertGreaterEqual(len(names), 69)
+
+    def test_a_bold_name_elsewhere_is_not_proof_a_part_is_on_the_page(self):
+        """The bold-name check only finds a name somewhere in the page code. These check that the part itself is there (mounted,
+        or a column of the real table), and each fails if the words come back before the part does."""
+        text = "\n".join(shown_texts())
+        if "Add from your project record" in text:
+            self.assertRegex(self.CODE, r'from "[^"]*\bPicker\.jsx"', "the picker is mounted nowhere: hold its entry")
+        if re.search(r"\bcover\b", text):
+            self.assertRegex(self.CODE, r'class="cover|id="cover"', "the page has no cover: cut the word")
+        work = SHOWN_BY_ID(SHOWN["reference"]["sections"], "work-items")
+        howto = [t for t in SHOWN["howto"]["tasks"] if t["id"] in ("find-work-items", "use-the-board")]
+        if re.search(r"\bsearch\b", " ".join(list(strings(work)) + list(strings(howto))), re.I):
+            self.assertRegex((PAGE_SRC / "components" / "WorkItems.jsx").read_text(encoding="utf-8"), r'type="search"', "Work items has no search box: cut the word")
+        table = next(b for b in work["b"] if b[0] == "tbl" and b[1][0] == "Table column")
+        heads = {"prio": "priority"}
+        real = {heads.get(h, h) for h in re.findall(r'<th class="c-(\w+)"', (PAGE_SRC / "components" / "WorkItems.jsx").read_text(encoding="utf-8"))}
+        self.assertEqual([r[0] for r in table[2] if r[0].lower() not in real], [], "a shown table column is not a column of the page")
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

@@ -278,9 +278,9 @@
     "w": "Profile circle › Publish…",
     "go": "publish",
     "s": [
-     "Press your profile circle at the top right and choose **Publish…**. It opens the Dashboard first.",
+     "Press your profile circle at the top right and choose **Publish…**.",
      "**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.",
-     "Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
+     "Tick **To client** to send it to the client folder set in Settings › Client folder as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
      "Press **Publish locally** (or **Publish and send to the client**). The line at the top of the Dashboard then says when it was published, and whether to the client or locally.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
@@ -308,10 +308,9 @@
     "s": [
      "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
      "The second picks **Open**, **Closed** or **All**, each with its count.",
-     "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
-     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too.",
-     "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
-     "Your choices are kept for next time. A tile on the Dashboard, or **See all** on a use case, opens Work items already filtered to what it counts."
+     "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client. Each opens a list with a count beside every value: tick the ones you want, choose **is any of** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
+     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type included.",
+     "A tile on the Dashboard, or **See all** on a use case, opens Work items already filtered to what it counts. The filters are kept in the page’s address, so a link or a reload keeps them."
     ]
    },
    {
@@ -322,7 +321,7 @@
     "go": "work",
     "s": [
      "**Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the search switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
+     "The two icons beside **Group by** switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
      "**Swimlanes** adds rows across the board: None, Workstream or Type.",
      "In Edit, drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes. In View the board shows the cards but does not move them.",
@@ -403,8 +402,8 @@
     "s": [
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a **grip** and, under it, a **+**. They are faint until you point at the section or tab to them.",
      "Drag the grip to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section, **Delete section**. A section that is left out shows an eye-off mark under its **+**.",
-     "To rearrange the page, pick up a section by its grip and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a phone a pair stacks.",
+     "The menu has **Add a template below…** (for now it adds a plain text section), then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section, **Delete section**. A section that is left out shows an eye-off mark under its **+**.",
+     "To rearrange the page, pick up a section by its grip and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. Each drop is one step you can undo, and on a phone a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
     ]
@@ -497,7 +496,7 @@
     "id": "read-the-milestones",
     "g": "Milestones",
     "t": "Read the timeline and calendar",
-    "w": "Milestones › Plan · Dashboard › Milestones",
+    "w": "Milestones · Dashboard › Milestones",
     "go": "milestones",
     "s": [
      "The **Timeline** scrolls sideways. The arrows move along it and **Today** comes back. Drag its bottom edge to zoom in or out; **Reset** puts it back.",
@@ -738,7 +737,7 @@
      ],
      [
       "p",
-      "Add more sections from the **+** under any section’s grip, or its menu’s **Add a template below…**. Rename any heading in Edit."
+      "Add more sections from the **+** under any section’s grip, or its menu’s **Add a template below…**. For now it adds a plain text section. Rename any heading in Edit."
      ]
     ]
    },
@@ -911,7 +910,7 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections in cards, with the contents at the right edge."
+      "The report is the sections in cards, with the contents at the right edge. You choose a style in Settings › Personal › Section style; it changes the page you edit, and the published page uses Slim gaps."
      ],
      [
       "tbl",
@@ -947,7 +946,7 @@
     "b": [
      [
       "p",
-      "From the top: the import and export icons and **+**; the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; the search; then **Filter by**."
+      "From the top: the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; then **Filter by**."
      ],
      [
       "tbl",
@@ -958,7 +957,7 @@
       [
        [
         "Item",
-        "The type badge, the title, a Client tag, then the ID, use case and milestone"
+        "The type badge, the title (with a “Shown to client” tag under the title when the client sees it), then the ID, use case and milestone"
        ],
        [
         "Owner",
@@ -975,10 +974,6 @@
        [
         "Status",
         "The state in words and colour: see [Status words](#ref-status-words)"
-       ],
-       [
-        "The eye",
-        "Client-visible on or off"
        ]
       ]
      ],
@@ -1025,7 +1020,7 @@
      ],
      [
       "p",
-      "Every filter can be **is** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
+      "Every filter can be **is any of** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ]
     ]
    },
@@ -1133,11 +1128,7 @@
      ],
      [
       "p",
-      "Choosing Red, Amber or Green on a risk or issue sets its priority. Priorities are Urgent, High, Medium and Low."
-     ],
-     [
-      "p",
-      "Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey)."
+      "Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red)."
      ]
     ]
    },
@@ -1248,7 +1239,7 @@
      ],
      [
       "p",
-      "A state follows the dates unless you set it by hand. Achieved wins; then Forecast and At risk (set by hand); then Overdue once the agreed date has passed; then Slipped when the forecast is later than agreed; otherwise On track."
+      "A state follows the dates unless the project team has marked one. Achieved wins; then a marked state (At risk or Forecast); then Overdue once the agreed date has passed; then Slipped when the forecast is later than agreed; otherwise On track."
      ],
      [
       "p",
