@@ -141,5 +141,23 @@ class RailList(Browser):
                     self.assertTrue(wait(lambda: f"ms={first}" in cdp.js("location.hash", sid)), "Space opens it too")
 
 
+class RowTextOneLine(Browser):
+    """C-M10: 'Expected a date · N days later' is one line in a Milestones row, at 1400 and 900 px, in light and dark."""
+
+    def test_the_expected_date_and_days_later_sit_on_one_line(self):
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    sid = self.visit(cdp, width, dark)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-date small.late')", sid)), "a slipped row drew")
+                    got = cdp.js("[...document.querySelectorAll('.msl-date small.late')].map(s => [s.textContent,"
+                                 " Math.round(s.getBoundingClientRect().height), parseFloat(getComputedStyle(s).lineHeight), s.scrollWidth <= s.clientWidth])", sid)
+                    self.assertTrue(got, "the demo has a slipped milestone")
+                    for text, height, line, fits in got:
+                        self.assertRegex(text, r"^Expected .+ · \d+ days? later$")
+                        self.assertLess(height, line * 1.5, f"{text!r} is one line, not two")
+                        self.assertTrue(fits, f"{text!r} is not cut off")
+
+
 if __name__ == "__main__":
     unittest.main()

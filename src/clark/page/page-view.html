@@ -735,13 +735,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }
 .msl { list-style: none; margin: 14px 0 0; padding: 0 0 0 4px; }
 .msl-row { position: relative; border-left: 2px solid var(--grey-200); border-radius: 0 4px 4px 0; }
-.msl-cells { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; gap: 16px; align-items: center; padding: 10px 8px 10px 22px; cursor: pointer; border-radius: 0 4px 4px 0; }
+.msl-cells { display: grid; grid-template-columns: minmax(150px, 250px) minmax(160px, 1fr) 150px 130px; gap: 16px; align-items: center; padding: 10px 8px 10px 22px; cursor: pointer; border-radius: 0 4px 4px 0; }
 .msl-row:hover { background: var(--grey-50); } .msl-cells:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .msl-row.out { opacity: .6; }
 .msl-row .node { position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--grey-500); }
 .node.c-green { border-color: var(--status-green); } .node.c-amber { border-color: var(--status-amber); } .node.c-red { border-color: var(--status-red); } .node.c-blue { border-color: var(--status-blue); }
 .node.fill.c-green { background: var(--status-green); }
-.msl-date b { display: block; font-weight: var(--weight-medium); } .msl-date small { display: block; font-size: var(--size-small); color: var(--text-muted); } .msl-date small.late { color: var(--status-red-text); }
+.msl-date b { display: block; font-weight: var(--weight-medium); } .msl-date small { display: block; white-space: nowrap; font-size: var(--size-small); color: var(--text-muted); } .msl-date small.late { color: var(--status-red-text); }
 .msl-name { font-weight: var(--weight-medium); }
 .mst { display: inline-flex; align-items: center; gap: 6px; font-size: var(--size-small); font-weight: var(--weight-medium); } .mst .ms-i { width: 16px; height: 16px; flex: none; }
 .mst.c-green { color: var(--status-green-text); } .mst.c-amber { color: var(--status-amber-text); } .mst.c-red { color: var(--status-red-text); } .mst.c-blue { color: var(--status-blue-text); } .mst.c-grey { color: var(--text-muted); }
