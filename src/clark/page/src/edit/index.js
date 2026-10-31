@@ -19,7 +19,8 @@ import { Safety } from "./Safety.jsx";
 import { Diagnostics } from "./Diagnostics.jsx";
 import { installPageErrors } from "./pageErrors.js";
 import { HelpLayer } from "../help/Help.jsx";
+import { AddDialog } from "./AddDialog.jsx";
 import { installKeys, openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
-export const EDIT = { glance: GLANCE, Personal, RichField, richOn, Gutter, Add, Title, Toggle, Toast, Cell, Publish, ProfileMenu, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, MilestoneMore: Movement, Board, LayoutSwitch, HelpLayer, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };
+export const EDIT = { glance: GLANCE, Personal, RichField, richOn, Gutter, Add, Title, Toggle, Toast, Cell, Publish, ProfileMenu, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, MilestoneMore: Movement, Board, LayoutSwitch, HelpLayer, AddDialog, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };
