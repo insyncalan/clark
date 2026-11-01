@@ -272,6 +272,20 @@ class Page(Base):
             self.assertEqual(p.toast(), "Describe each line. Nothing was changed.")
             self.assertTrue(p.js(self.present(ref, "[data-line-form]")), "the form stays open")
 
+    def test_a_too_big_refusal_from_the_change_route_reaches_the_person_in_plain_words(self):
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.failure = lambda req: (400, {"ok": False, "code": "too_large", "message": "That is too big to save. Shorten a line or remove some lines, then try again."})
+            self.click(p, ref, "[data-group='0'] [data-add-line]")
+            p.until(self.present(ref, "[data-line-form]"), "the form")
+            self.fill(p, ref, text="Fine")
+            self.click(p, ref, "[data-save]")
+            p.until("!!document.querySelector('.toast-text') && /too big to save/i.test(document.querySelector('.toast-text').textContent)", "the plain sentence")
+            self.assertEqual(p.toast(), "That is too big to save, and nothing was changed. Shorten a line or remove some lines, then try again.")
+            self.assertTrue(p.js(self.present(ref, "[data-line-form]")), "the form stays open")
+
     def test_escape_cancels_with_nothing_sent(self):
         ref = self.make(BODY)
         with chrome() as cdp:
@@ -339,6 +353,19 @@ class Source(unittest.TestCase):
             self.assertIn(json.dumps(words, ensure_ascii=False) + ":", known, words)
         for tail in re.findall(r'"[^"]*": ("[^"]*")', known.split("#189")[1]):
             self.assertRegex(tail, r"[Nn]othing was changed|nothing was changed")
+
+    def test_the_change_routes_too_big_sentence_has_its_words_on_the_page(self):
+        from clark import server
+        text = (PAGE / "src" / "stores" / "report.js").read_text(encoding="utf-8")
+        self.assertIn(json.dumps(server.MESSAGES["change_too_large"]) + ":", text)
+
+    def test_the_tracker_has_a_help_entry_in_the_pages_own_words(self):
+        help_ = json.loads((PAGE / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        task = next(t for t in help_["howto"]["tasks"] if t["id"] == "show-progress")
+        text = " ".join(task["s"])
+        for label in ("Add a group", "Add a line", "Status", "Weight", "Planned", "Achieved", "Health", "Rename", "Remove group", "Undo"):
+            self.assertIn("**" + label, text, label)
+        self.assertFalse(re.match(r"\s*(\*\*)?clark\b", text, re.I))
 
     def test_the_tracker_styles_use_tokens_only(self):
         for path in (PAGE / "shell.css", PAGE / "src" / "edit" / "edit.css"):
