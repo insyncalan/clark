@@ -82,7 +82,8 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
-ROUTE_BODY_LIMITS = {"/api/change": 72 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+CHANGE_BODY_LIMIT = 2 * 64 * 1024 + 4 * 1024   # #96: twice the largest section content (64 KB; the body is a string inside the request, so each quote and backslash is escaped twice) plus 4 KB; a test ties it to the registry
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
