@@ -14,11 +14,15 @@ A copy inside .git does NOT update with git pull or a branch change: after merge
 The entry that uses the driver is in .gitattributes. If the driver cannot finish it writes conflict markers into the page, so a
 failed merge is always visible.
 
-READ THIS FIRST: the driver builds the page from the merged sources by running the MERGED branch's own dev/tools/build_page.py
-(with the esbuild.py and src/clark/*.py it imports, and the pinned esbuild program in dev/.cache), with your rights, during the
-merge and before you have read the change. So the driver refuses, with conflict markers and a plain sentence, whenever the merge
-changes dev/tools or a src/clark Python file relative to your HEAD; then you read the change and run python3 dev/tools/build_page.py.
-Before merging a branch you do not know, check: git diff HEAD...<branch> -- dev/tools src/clark
+READ THIS FIRST: the driver rebuilds the page from the merged sources during the merge, before you have read the change, so
+it trusts only an ALLOW-LIST. It runs nothing but the build's own code (dev/tools/build_page.py, dev/tools/esbuild.py,
+src/clark/__init__.py, src/clark/page/__init__.py), and only when those are exactly your HEAD's. Every path the merge changes under
+src/, dev/tools/, dev/.cache/ or vendor/ must be page data: the page sources in src/clark/page/src/, src/clark/page/*.css and the
+two built pages, as plain files and never a code file. Anything else there (a .py, a force-added .pyc, a compiled module, a
+vendored file, a link) and the driver refuses: conflict markers and a plain sentence naming the path; then you read the change and
+run python3 dev/tools/build_page.py. Only the allowed files are unpacked, the build runs as python3 -I -B with a scrubbed
+environment, and the pinned esbuild is copied from dev/.cache, never linked, so the build cannot write to the real dev/.cache.
+Before merging a branch you do not know, check: git diff HEAD...<branch> -- src dev vendor
 Undo: python3 dev/tools/install_merge_driver.py --uninstall, or by hand:
   git config --unset merge.clark-page.driver ; git config --unset merge.clark-page.name ; rm -r <git-common-dir>/clark-merge
 The driver runs once per commit for a rebase or cherry-pick, and once for a squash merge.
@@ -94,8 +98,9 @@ def main():
             return 1
     print(f"Merge driver '{NAME}' set up for {ROOT}: copy at {copy}, from commit {commit}.\n"
           "A copy in .git does not update with git pull: run this command again after merge_page.py changes.\n"
-          "Note: the rebuild runs the merged branch's own dev/tools/build_page.py and the esbuild in dev/.cache, so the driver refuses (with markers) when a merge changes dev/tools or src/clark Python files; "
-          "before merging a branch you do not know, run: git diff HEAD...BRANCH -- dev/tools src/clark\n"
+          "Note: the driver runs only the build's own code, and only when it is exactly your HEAD's; it refuses (with markers) when a "
+          "merge changes anything under src/, dev/tools/, dev/.cache/ or vendor/ that is not page data (src/clark/page/src/, "
+          "src/clark/page/*.css, the two built pages). Before merging a branch you do not know, run: git diff HEAD...BRANCH -- src dev vendor\n"
           "To remove the driver: python3 dev/tools/install_merge_driver.py --uninstall")
     return 0
 

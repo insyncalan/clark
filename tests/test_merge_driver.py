@@ -248,39 +248,138 @@ class MergeDriverTests(unittest.TestCase):
         self.installed()
         self.assertEqual(run(self.repo, "git", "merge", "--no-edit", "two", check=False).returncode, 0)
 
-    def test_unpack_refuses_a_path_that_leaves_the_folder_and_any_link(self):
+    def driver_module(self):
         import importlib.util
-        import io
-        import tarfile
         spec = importlib.util.spec_from_file_location("merge_page_under_test", ROOT / "dev" / "tools" / "merge_page.py")
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        for kind in ("escape", "symlink", "hardlink"):
-            buf = io.BytesIO()
-            with tarfile.open(fileobj=buf, mode="w") as tar:
-                m = tarfile.TarInfo({"escape": "../x", "symlink": "link", "hardlink": "hard"}[kind])
-                if kind == "escape":
-                    m.size = 1
-                    tar.addfile(m, io.BytesIO(b"x"))
-                else:
-                    m.type = tarfile.SYMTYPE if kind == "symlink" else tarfile.LNKTYPE
-                    m.linkname = "/etc/passwd" if kind == "symlink" else "target"
-                    tar.addfile(m)
-            into = Path(self.tmp.name) / ("out-" + kind)
-            into.mkdir()
-            with self.assertRaises(ValueError):
-                mod.unpack(buf.getvalue(), str(into))
-            self.assertEqual(list(into.iterdir()), [])
-            self.assertFalse((into.parent / "x").exists())
-        good = io.BytesIO()
-        with tarfile.open(fileobj=good, mode="w") as tar:
-            m = tarfile.TarInfo("a/b.txt")
-            m.size = 2
-            tar.addfile(m, io.BytesIO(b"ok"))
-        into = Path(self.tmp.name) / "out-good"
-        into.mkdir()
-        mod.unpack(good.getvalue(), str(into))
-        self.assertEqual((into / "a" / "b.txt").read_bytes(), b"ok")
+        return mod
+
+    def test_only_page_data_is_allowed_to_change(self):
+        mod = self.driver_module()
+        for ok in ("src/clark/page/src/components/Icon.jsx", "src/clark/page/src/help/helpContent.json", "src/clark/page/shell.css",
+                   *PAGES):
+            self.assertTrue(mod.page_data(ok), ok)
+        for bad in ("src/clark/__pycache__/__init__.cpython-39.pyc", "src/clark/page/src/x.py", "src/clark/page/__init__.py",
+                    "src/clark/page/src/__pycache__/a.jsx", "src/clark/page/assets/x.css", "src/clark/x.css", "src/Clark/page/shell.css",
+                    "src/clark/page/__init__.abi3.so", "src/x.pth", "vendor/fonts/inter/manifest.json", "dev/tools/esbuild.py"):
+            self.assertFalse(mod.page_data(bad), bad)
+
+    def test_the_build_code_set_names_every_file_the_build_imports(self):
+        """BUILD_CODE must hold every repository file the build imports: a new import from outside it fails here."""
+        import ast
+        import importlib.util
+        import sysconfig
+        mod = self.driver_module()
+        ours = {"esbuild": "dev/tools/esbuild.py", "clark": "src/clark/__init__.py", "clark.page": "src/clark/page/__init__.py"}
+        stdlib = os.path.realpath(sysconfig.get_paths()["stdlib"])
+        for name in mod.BUILD_CODE:
+            for node in ast.walk(ast.parse((ROOT / name).read_text(encoding="utf-8"))):
+                names = [a.name for a in node.names] if isinstance(node, ast.Import) else (
+                    [node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
+                for n in names:
+                    if n in ours:
+                        self.assertIn(ours[n], mod.BUILD_CODE, n)
+                        continue
+                    spec = importlib.util.find_spec(n.split(".")[0])
+                    origin = getattr(spec, "origin", None) or ""
+                    self.assertTrue(origin in ("built-in", "frozen") or os.path.realpath(origin).startswith(stdlib),
+                                    f"{name} imports {n}, which is neither the standard library nor in BUILD_CODE")
+
+    def hostile_merge(self, plant, why=None):
+        """Branch "evil" changes a page source (so the page conflicts) and plants something; merging it into "one" must refuse:
+        markers in both pages, the probe file the planted code would make does not exist, and stderr names the reason."""
+        self.branch("one", "Icon.jsx", '\nglobalThis.mergeProbeOne = "one";\n')
+        run(self.repo, "git", "checkout", "-q", "-b", "evil", "main")
+        add_line(self.repo, "Menu.jsx", '\nglobalThis.mergeProbeTwo = "two";\n')
+        run(self.repo, sys.executable, "dev/tools/build_page.py")
+        probe = Path(self.tmp.name) / "hostile-code-ran"
+        plant(probe)
+        run(self.repo, "git", "add", "-A", "-f", "src", "dev/tools")
+        run(self.repo, "git", "commit", "-q", "-am", "evil")
+        self.assertFalse(probe.exists(), "the test planted code that ran too early")
+        run(self.repo, "git", "checkout", "-q", "one")
+        self.installed()
+        r = run(self.repo, "git", "merge", "--no-edit", "evil", check=False)
+        self.assertNotEqual(r.returncode, 0)
+        self.assert_markers()
+        self.assertFalse(probe.exists(), "code from the merged branch ran during the merge")
+        self.assertIn("will not run code from the branch being merged" if why is None else why, r.stderr + r.stdout)
+        return r
+
+    @staticmethod
+    def payload(probe):
+        return f"open({str(probe)!r}, 'w').close()\n"
+
+    def prepend(self, rel, probe):
+        f = self.repo / rel
+        f.write_text(self.payload(probe) + f.read_text(encoding="utf-8"), encoding="utf-8")
+
+    def test_a_force_added_bytecode_file_is_refused(self):
+        def plant(probe):
+            source = Path(self.tmp.name) / "evil_init.py"
+            source.write_text(self.payload(probe), encoding="utf-8")
+            # compiled by the python3 the driver runs with, unchecked, so without the fix the import would load it
+            run(self.repo, "python3", "-c", "import py_compile, sys, importlib.util as u; py_compile.compile(sys.argv[1], "
+                "cfile='src/clark/__pycache__/__init__.' + sys.implementation.cache_tag + '.pyc', "
+                "invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH)", str(source))
+        r = self.hostile_merge(plant)
+        self.assertIn("src/clark/__pycache__/__init__.", r.stderr)
+
+    def test_a_compiled_module_under_src_is_refused(self):
+        def plant(probe):
+            (self.repo / "src" / "clark" / "page" / "__init__.abi3.so").write_bytes(b"\x7fELF not really")
+        r = self.hostile_merge(plant)
+        self.assertIn("src/clark/page/__init__.abi3.so", r.stderr)
+
+    def test_a_new_python_file_under_src_clark_is_refused(self):
+        r = self.hostile_merge(lambda probe: (self.repo / "src" / "clark" / "extra_hook.py").write_text(self.payload(probe), encoding="utf-8"))
+        self.assertIn("src/clark/extra_hook.py", r.stderr)
+
+    def test_a_changed_esbuild_py_is_refused(self):
+        self.hostile_merge(lambda probe: self.prepend("dev/tools/esbuild.py", probe))
+
+    def test_a_changed_page_package_is_refused(self):
+        self.hostile_merge(lambda probe: self.prepend("src/clark/page/__init__.py", probe))
+
+    def test_a_changed_vendored_font_manifest_is_refused(self):
+        def plant(probe):
+            f = self.repo / "vendor" / "fonts" / "inter" / "manifest.json"
+            f.write_text(f.read_text(encoding="utf-8").replace("{", "{\"x\": 1, ", 1), encoding="utf-8")
+        self.hostile_merge(plant)
+
+    def test_a_symlink_member_is_refused(self):
+        def plant(probe):
+            os.symlink(str(probe), str(self.repo / SRC / "Link.jsx"))
+        self.hostile_merge(plant, why="something other than a plain file")
+
+    def test_a_link_already_on_both_sides_is_never_unpacked(self):
+        os.symlink("clark-icon.svg", str(self.repo / "src" / "clark" / "page" / "assets" / "alias.svg"))
+        run(self.repo, "git", "add", "-A")
+        run(self.repo, "git", "commit", "-q", "-m", "a link in the base")
+        self.two_branches()
+        self.installed()
+        r = run(self.repo, "git", "merge", "--no-edit", "two", check=False)
+        self.assertNotEqual(r.returncode, 0)
+        self.assert_markers()
+        self.assertIn("unsafe entry (src/clark/page/assets/alias.svg)", r.stderr)
+
+    def test_a_write_through_the_cache_path_never_reaches_the_real_cache(self):
+        """HEAD's own build (trusted, so it runs) writes into dev/.cache; the write lands in the temporary copy only."""
+        tools = self.repo / "dev" / "tools" / "build_page.py"
+        tools.write_text(tools.read_text(encoding="utf-8").replace(
+            'if __name__ == "__main__":', '(HERE.parent / ".cache" / "esbuild" / "written-by-build").write_text("x")\n\n\nif __name__ == "__main__":'),
+            encoding="utf-8")
+        run(self.repo, "git", "commit", "-q", "-am", "a build that writes into its cache")
+        self.two_branches()
+        real = self.repo / "dev" / ".cache" / "esbuild"
+        before = {p: p.read_bytes() for p in real.rglob("*") if p.is_file() and p.name != "written-by-build"}
+        (real / "written-by-build").unlink()                     # the branch builds above wrote it in the clone itself
+        self.installed()
+        run(self.repo, "git", "merge", "--no-edit", "two")
+        self.assertFalse((real / "written-by-build").exists(), "the merge build wrote into the clone's real dev/.cache")
+        self.assertEqual({p: p.read_bytes() for p in real.rglob("*") if p.is_file()}, before)
+        self.assertFalse((self.repo / "dev" / ".cache").is_symlink())
 
     def test_uninstall_removes_both_settings_and_the_copy(self):
         folder = self.installed()
