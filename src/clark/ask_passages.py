@@ -137,7 +137,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
         except (docx_read.WordRefused, ValueError, UnicodeError):
             safety += 1                                   # a Word file refused as unsafe or damaged, or text that isn't text
             continue
-        if secret_screen.looks_like_secret("\n".join(lines)):      # #215: the whole file, before any of it is a passage
+        if secret_screen.name_looks_like_secret(label) or secret_screen.looks_like_secret("\n".join(lines)):      # #215, #257: its name and the whole file
             safety += 1
             secret_labels.append(label)
             continue
