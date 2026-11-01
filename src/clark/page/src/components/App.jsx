@@ -8,8 +8,9 @@ import { Dashboard } from "./Dashboard.jsx";
 import { Peek } from "./Peek.jsx";
 import { UseCasesTab } from "./UseCasesTab.jsx";
 import { WorkItems } from "./WorkItems.jsx";
+import { ClientReport } from "./ClientReport.jsx";
 
-const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, settings: Settings };
+const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, settings: Settings };
 
 // The printed page (#438): every tab the file has, one after another, each under its own name, with the day it was published at the head.
 // Only a published file draws it, and only while the browser is printing (stores/print.js).
