@@ -384,6 +384,34 @@ class Dates(unittest.TestCase):
         self.assertEqual(de.weekday_date(None), "")
         self.assertEqual(de.shown(12345), "12345")
 
+    def test_dates_do_not_depend_on_the_computers_locale(self):
+        # #254: no locale-aware call in the date code, and the same words under every locale this computer has.
+        import inspect
+        import locale
+        import re as _re
+        from clark import draft_email_feed as feed
+        for mod in (de, feed):
+            code = inspect.getsource(mod)
+            self.assertNotRegex(code, r"locale|toLocale|setlocale|%[AaBbcxX]", mod.__name__)
+        self.assertEqual(de.WEEKDAYS[3], "Thursday")        # weekday names come from a fixed table, not strftime
+        seen = []
+        saved = locale.setlocale(locale.LC_ALL)
+        try:
+            for name in ("C", "de_DE.UTF-8", "fr_FR.UTF-8", "ja_JP.UTF-8", "en_US.UTF-8"):
+                try:
+                    locale.setlocale(locale.LC_ALL, name)
+                except locale.Error:
+                    continue
+                seen.append((name, de.shown("2026-10-29"), de.weekday_date("2026-10-29"), de.shown("29/10/2026"), de.shown("10-29-2026")))
+        finally:
+            locale.setlocale(locale.LC_ALL, saved)
+        self.assertTrue(seen)
+        for row in seen:
+            self.assertEqual(row[1:], ("29-10-2026", "Thursday 29-10-2026", "29/10/2026", "10-29-2026"), row[0])
+        self.assertTrue(feed._day("2026-10-29"))
+        for bad in ("29/10/2026", "29-10-2026", "10/29/2026", "2026/10/29", "29.10.2026", "Oct 29 2026"):
+            self.assertFalse(feed._day(bad), bad)
+
     def test_overdue_and_due_soon_in_words_and_colour(self):
         d = de.due_info("2026-10-09", TODAY)
         self.assertEqual((d["date"], d["words"], d["level"]), ("09-10-2026", "4 days overdue", "over"))
