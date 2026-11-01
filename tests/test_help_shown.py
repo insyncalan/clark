@@ -88,12 +88,12 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Work items"])
-        self.assertEqual(s["reference"]["groups"], ["Keys and icons"])
+        self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
@@ -134,8 +134,8 @@ class AgainstThePage(unittest.TestCase):
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
         # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...), 73 with the peek's Activity tab (#42: Help now names Activity and no longer All, Updates and Source); lower this only when a feature lands, never to hide a missing one
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now)
-        # 69 with both merged (the peek's Activity tab and Appearance name features the page now has)
-        self.assertGreaterEqual(len(names), 69)
+        # 66 with the section templates (#96) and the peek's Activity tab and Appearance name features as well (measured on the merged tree)
+        self.assertGreaterEqual(len(names), 66)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

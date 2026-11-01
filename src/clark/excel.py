@@ -26,13 +26,16 @@ INTERNAL ONLY: the Milestones sheet carries each milestone's Internal note, and 
 too. Never send this workbook to a client. It says so in the file itself (the document description, and a note on Milestones A1).
 
 Text is neutralised on the way out (escape_text) and restored on the way in (from_cell), so a value such as =HYPERLINK(...)
-is only ever text and is never run. The file is byte-for-byte the same for the same rows and the same day (see `moment`).
+is only ever text and is never run. The file is byte-for-byte the same for the same rows, the same day (see `moment`) and the
+same export id (see `new_export_id`): each export carries a fresh random id, so two exports differ only by it.
 """
 import hashlib
 import io
 import json
 import re
 import threading
+import uuid
+import warnings as warnings_lib
 import zipfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -40,10 +43,11 @@ from pathlib import Path
 from openpyxl import Workbook, load_workbook
 from openpyxl.comments import Comment
 from openpyxl.formatting.rule import FormulaRule, Rule
+from openpyxl.packaging.custom import CustomPropertyList, StringProperty
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.styles.differential import DifferentialStyle
 from openpyxl.utils import get_column_letter
-from openpyxl.xml.functions import tostring
+from openpyxl.xml.functions import fromstring, tostring
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from clark import excel_colours as colours
@@ -260,45 +264,120 @@ def file_hash(path):
 def hash_key(digest):
     """A workbook's entry in the state file when it is known by its bytes, not where it is (#147: the menu's export is
     downloaded by the browser, so clark never learns the path). Found only for a byte-identical file: a re-save or an edit
-    changes the bytes and the record is lost, until an export id inside the workbook (#169) replaces this."""
+    changes the bytes. Kept as the fallback for a workbook exported before export ids, or one whose id was dropped."""
     return "sha256:" + digest
 
 
+EXPORT_ID_NAME = "clark_export_id"     # the custom workbook property (docProps/custom.xml) that holds the export id; never a cell
+EXPORT_ID_OK = re.compile(r"[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}")    # a random UUID (version 4) as 32 hex digits, nothing else
+CUSTOM_PART = "docProps/custom.xml"    # the zip member that holds a workbook's custom properties
+MAX_CUSTOM_BYTES = 64 * 1024           # a bigger custom-properties part is not read for an id
+KEYED = ("sha256:", "id:")             # the state-file keys that are not paths
+
+
+def new_export_id():
+    """A fresh export id: a random UUID (version 4) as 32 hex digits. Random on purpose: it says nothing about the rows, the
+    project or the person, and can't be worked out from them. The one place an id is made; tests replace it (excel.new_export_id
+    = ...) when they need the same bytes twice."""
+    return uuid.uuid4().hex
+
+
+def id_key(project, token):
+    """An export's entry in the state file when it is found by the id inside the workbook. Keyed by the project too, so an id
+    copied into a workbook imported into another project looks up a key that project never wrote: it is no record there."""
+    return f"id:{project}:{token}"
+
+
+def export_id_of(path):
+    """The export id inside the workbook at `path`, or None: no such file, no id, two of them, or a value that is not a random
+    UUID as 32 hex digits (a long, odd or marked-up value, a NUL or a number is ignored, never looked up). Reads only the small
+    custom-properties part of the zip, never the sheets."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            info = z.getinfo(CUSTOM_PART)
+            if info.file_size > MAX_CUSTOM_BYTES:
+                return None
+            data = z.read(info)
+        with warnings_lib.catch_warnings():
+            warnings_lib.simplefilter("ignore")
+            props = [p for p in CustomPropertyList.from_tree(fromstring(data)) if p.name == EXPORT_ID_NAME]
+    except Exception:                       # not a zip, no such part, bad XML: no id
+        return None
+    value = props[0].value if len(props) == 1 else None
+    return value if isinstance(value, str) and EXPORT_ID_OK.fullmatch(value) else None
+
+
 def _key(path):
-    """The workbook's entry in the state file: its full path, or a hash_key() as it is. A path matches only that file; a
-    hash_key() matches only its exact bytes (see hash_key: lost on a re-save or an edit, until #169)."""
-    if isinstance(path, str) and path.startswith("sha256:"):
+    """The workbook's entry in the state file: its full path, or an id_key() or hash_key() as it is. A path matches only that
+    file; a hash_key() only its exact bytes; an id_key() the export id inside the workbook, which an edit or a re-save keeps."""
+    if isinstance(path, str) and path.startswith(KEYED):
         return path
     return str(Path(path).resolve())
 
 
-def load_state(state_path, path):
-    """The last export's record for this workbook: its file hash, imported_hash and rows (creaite excel_sync.load_state).
-    clark: one state file holds a record per workbook. Found by the path, else by the file's SHA-256 (hash_key). What that means:
-    the menu's export is recorded only by its bytes, so the downloaded file is found from any folder while it is exactly what
-    clark wrote. Once it is re-saved or edited, this returns {}, or, after an import of it was confirmed, the record that
-    import left under its path (mark_imported), which has no export in it ("hash", "rows"). Either way the import treats the
-    workbook as unrecorded, until an export id in the workbook (#169). The record names the project it was exported from
-    ("project"); the caller checks it (excel_import.read_workbook)."""
+def _books(state_path):
+    """{key: record} from the state file, or {} when there is none. Raises ValueError for text that is not JSON; a file of
+    another shape gives {}, and an entry that is not a record is left out."""
     state_path = Path(state_path)
     if not state_path.exists():
         return {}
-    books = json.loads(state_path.read_text(encoding="utf-8")).get("workbooks", {})
-    found = books.get(_key(path))
-    if found is None and not str(path).startswith("sha256:"):
-        # #147: no record for this path; an export that was downloaded is recorded by its bytes, so look for these
+    whole = json.loads(state_path.read_text(encoding="utf-8"))
+    books = whole.get("workbooks") if isinstance(whole, dict) else None
+    return {k: v for k, v in books.items() if isinstance(v, dict)} if isinstance(books, dict) else {}
+
+
+def _find(books, path, project=None):
+    """(key, record) of this workbook's export record, or (None, {}). Tried in turn: the export id inside the file under this
+    `project` (with no project, as the import always gives, under whichever project wrote it), the file's path, then its
+    SHA-256. A record that names another project than `project` is passed over."""
+    if isinstance(path, str) and path.startswith(KEYED):
+        tries = [path]
+    else:
+        token = export_id_of(path)
+        if token and project:
+            tries = [id_key(project, token)]
+        elif token:                           # no project to look under (not an import): the one record with this id, if one
+            tries = [k for k in books if k.startswith("id:") and k.endswith(":" + token)][:1]
+        else:
+            tries = []
+        tries.append(_key(path))
         digest = file_hash(path)
-        found = books.get(hash_key(digest)) if digest else None
-    return found if found is not None else {}
+        if digest:
+            tries.append(hash_key(digest))
+    for k in tries:
+        rec = books.get(k)
+        if rec is not None and (project is None or rec.get("project") in (None, project)):
+            return k, rec
+    return None, {}
 
 
-KEEP_NEWEST = 10          # the most bytes-keyed ("sha256:") records kept for one project (#181); the oldest go first
+def find_state(state_path, path, project=None):
+    """(key, record) as load_state finds it; the key is where mark_imported writes back (None when nothing was found)."""
+    return _find(_books(state_path), path, project)
+
+
+def load_state(state_path, path, project=None):
+    """The last export's record for this workbook: its file hash, imported_hash and rows (creaite excel_sync.load_state).
+    clark: one state file holds a record per workbook. Found by the export id inside the workbook, for the `project`
+    being imported, so the record is found from any folder, and after the file was edited or saved again; else by the path;
+    else by the file's SHA-256 (hash_key), which finds a workbook with no id (an older export) only while it is exactly what
+    clark wrote. A workbook whose id was dropped (another program rewrote it without its properties) is no longer what clark
+    wrote either, so it is found by neither and the import treats it as unrecorded (it fails safe). The record names the
+    project it was exported from ("project"); one of another project is passed over, and the caller checks it again
+    (excel_import.read_workbook)."""
+    return find_state(state_path, path, project)[1]
+
+
+KEEP_NEWEST = 10          # the most bytes- or id-keyed ("sha256:", "id:") records kept for one project (#181); the oldest go first
 KEEP_TOTAL = 30           # and the most the state file holds in all, newest first, plus each project's newest (never cut), so more than 30 live projects keep more than 30 (#181)
 
 
 def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST, live=None, keep_total=KEEP_TOTAL, keep=None):
-    """Remove the bytes-keyed ("sha256:") records exported more than keep_days before `today`, so the state file does not grow for
-    ever (each holds a copy of every row). Path-keyed records are left alone. #147. A record is aged by its export date only, on
+    """Remove the bytes-keyed ("sha256:") and id-keyed ("id:") records exported more than keep_days before `today`, so the
+    state file does not grow for ever (each holds a copy of every row). The two kinds are counted together under each cap below.
+    Path-keyed records are left alone. #147. An id-keyed record also carries what its imports did (imported_hash, created):
+    mark_imported writes those back to it, and a short copy of them under the workbook's path, which is kept, so pruning it never
+    lets a row an import made be made again. A record is aged by its export date only, on
     purpose: an import never writes to the bytes-keyed record (mark_imported writes under the workbook's path, which is kept),
     so the export date is the only date it has. Nor does an import need it afterwards: mark_imported copies the record it found
     by the bytes, with the export in it ("hash", "rows"), under that path, so dropping the bytes-keyed one loses nothing for a
@@ -316,13 +395,13 @@ def prune_hash_records(state_path, today, keep_days=30, keep_newest=KEEP_NEWEST,
         whole = json.loads(state_path.read_text(encoding="utf-8"))
         books, cutoff = whole.get("workbooks", {}), str(date.fromisoformat(str(today)[:10]) - timedelta(days=keep_days))
         now = str(today)[:10]
-        old = [k for k, v in books.items() if k.startswith("sha256:") and str(v.get("exported_at") or "9")[:10] < cutoff]
+        old = [k for k, v in books.items() if k.startswith(KEYED) and str(v.get("exported_at") or "9")[:10] < cutoff]
         # #181: none of a project that is not live; no more than `keep_newest` for any one project; no more than `keep_total` in all.
         # Newest by export time, then by the order they were saved in (two exports in one second), so the same records go every time: a hundred exports in one day must not make a state
         # file of a hundred copies of every row.
         left = {}
         for at, (k, v) in enumerate(books.items()):                  # `at` is the order they were saved in: the tie-break for two in one second
-            if k.startswith("sha256:") and k not in old:
+            if k.startswith(KEYED) and k not in old:
                 if live is not None and v.get("project") not in live:
                     old.append(k)
                 else:
@@ -382,44 +461,64 @@ def add_created(record, created):
 def created_for(state_path, path, project):
     """[{"fp", "id"}] the imports made that a read of `path` must not make again: this workbook's own record first, then those of
     other workbooks of the same project in the state file (a copy of a workbook, or the same one saved elsewhere, has no record of
-    its own). clark addition (#38)."""
-    state_path = Path(state_path)
-    if not state_path.exists():
-        return []
-    books = json.loads(state_path.read_text(encoding="utf-8")).get("workbooks", {})
-    own = books.get(_key(path), {})
-    out = list(own.get("created") or [])
-    for k, rec in books.items():
-        if k != _key(path) and rec.get("project") == project:
-            out += rec.get("created") or []
+    its own). clark addition (#38). An import of a workbook found by its export id is recorded twice (under the id and, shortly,
+    under the path: mark_imported), so a row made once is listed once."""
+    books = _books(state_path)
+    own_key, own = _find(books, path, project)
+    own_key = own_key or _key(path)
+    out, seen = [], set()
+    for rec in [own] + [r for k, r in books.items() if k != own_key and r.get("project") == project]:
+        for c in rec.get("created") or []:
+            if not isinstance(c, dict):
+                continue
+            mark = (c.get("fp"), c.get("id"), c.get("step"), c.get("db_id"), c.get("at"))
+            if mark not in seen:
+                seen.add(mark)
+                out.append(c)
     return out
+
+
+def _write_back(state_path, path, project, change):
+    """Apply `change` (a function that edits a record in place) to this workbook's record and save it, as one step under
+    STATE_LOCK. A record found by the export id is changed where it is, and the same change is made to a short record under the
+    workbook's path too (what was imported and made, never the export's rows), which pruning never removes; any other record is
+    saved under the path, as before export ids (so one found by its bytes is copied there)."""
+    with STATE_LOCK:                              # the record read and written back as one step
+        key, record = find_state(state_path, path, project)
+        if project:
+            record.setdefault("project", project)
+        change(record)
+        if key and key.startswith("id:"):
+            save_state(state_path, key, record)
+            short = {k: v for k, v in _books(state_path).get(_key(path), {}).items()}
+            short.setdefault("project", record.get("project"))
+            change(short)
+            save_state(state_path, path, short)
+        else:
+            save_state(state_path, path, record)
 
 
 def mark_imported(path, state_path, created=None, project=None, step=None):
     """Record the workbook as it is now as imported, so the next export may overwrite it (what creaite's cmd_import does to
     the state at its end). For the import (#38). clark: `created` is the fingerprints of the rows this import made
     (record_created), written in the same save; `project` is kept if the record has none; `step` is the stamp of the step
-    that applied the import ({"step", "db_id", "at"}), so "already imported" holds only while that step is in force."""
-    with STATE_LOCK:                              # the record read and written back as one step
-        record = load_state(state_path, path)
+    that applied the import ({"step", "db_id", "at"}), so "already imported" holds only while that step is in force. Written
+    back to the record the import found (_write_back): by the export id, so the next import of the same workbook finds it."""
+    digest = file_hash(path)
+
+    def change(record):
         if step:
             record["imported_step"] = step
-        if project:
-            record.setdefault("project", project)
-        record["imported_hash"] = file_hash(path)
+        record["imported_hash"] = digest
         add_created(record, created)
-        save_state(state_path, path, record)
+    _write_back(state_path, path, project, change)
 
 
 def record_created(path, state_path, created, project=None):
     """Record only the fingerprints of the rows an import created, without marking the file as imported (for a workbook saved
     again after it was read: its new rows must still not be made twice). clark addition (#38)."""
     if created:
-        with STATE_LOCK:                          # the record read and written back as one step
-            record = load_state(state_path, path)
-            if project:
-                record.setdefault("project", project)
-            save_state(state_path, path, add_created(record, created))
+        _write_back(state_path, path, project, lambda record: add_created(record, created))
 
 
 def lock_file(path):
@@ -805,6 +904,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             head.alignment = Alignment(wrap_text=True, vertical="center")
             ws.column_dimensions[col].width = column_width(table, field)
             ws.column_dimensions[col].font = BODY_FONT        # the empty rows below the data, which a person fills in
+            for c in ws[f"{col}2:{col}{n_rows}"]:
+                c[0].font = BODY_FONT           # the data and the spare rows, so typed entries match (#85)
             for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
                 c[0].alignment = Alignment(wrap_text=wraps(table, field), vertical="top")
             if field in DATES:
@@ -869,9 +970,29 @@ def fixed_zip(data, replace=None, add=None):
     return out.getvalue()
 
 
-def export(path, project, rows_by_table, state_path, on=None, cover=None, branding=None, warnings=None, history=None):
+def latest_export(state_path, project):
+    """(export id, file hash) of `project`'s newest export recorded by its id, or None; for export(reuse=...)."""
+    try:
+        books = _books(state_path)
+    except (OSError, ValueError):
+        return None
+    mine = [(str(r.get("exported_at") or ""), k, r) for k, r in books.items()
+            if k.startswith(f"id:{project}:") and r.get("project") == project]
+    if not mine:
+        return None
+    _, k, r = max(mine)
+    token = k[len(f"id:{project}:"):]
+    return (token, r.get("hash")) if EXPORT_ID_OK.fullmatch(token) and r.get("hash") else None
+
+
+def export(path, project, rows_by_table, state_path, on=None, cover=None, branding=None, warnings=None, history=None, reuse=None):
     """Write the workbook at `path` for `project` from {table: [row, ...]} and record what was written in `state_path`
     (creaite excel_sync.cmd_export). Returns {table: rows written}.
+
+    Each workbook carries a fresh export id. `reuse` (latest_export's (id, hash)) lets an export that comes out byte for
+    byte the same as that one keep its id, so the same rows exported again the same day are the same file and the same record
+    (so the record file does not grow by a click); any other export gets a fresh id, so two different files never share one.
+    Without `reuse`, the record already kept for `path` (if any) is offered.
 
     Raises Refused, and leaves the file as it is, while the workbook is open in Excel or has edits not yet imported. clark: the
     workbook is saved with platform.write_file (a temporary file, then a safe replace with retry)."""
@@ -887,6 +1008,17 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
     buf = io.BytesIO()
     logo = excel_picture.load(branding, warnings) if cover else None     # #133: the local brand logo, if there is one and it is safe
     wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history)
+    if reuse is None:                      # the same unchanged workbook exported again to its own path keeps its id
+        try:
+            mine = _books(state_path).get(_key(path)) or {}
+        except (OSError, ValueError):
+            mine = {}
+        reuse = (mine.get("export_id"), mine.get("hash")) if mine.get("hash") else None
+    reuse = reuse if isinstance(reuse, tuple) and len(reuse) == 2 and EXPORT_ID_OK.fullmatch(str(reuse[0])) else None
+    token = reuse[0] if reuse else new_export_id()
+    # The export id, so an import finds this record after an edit or a re-save. A workbook property only (custom.xml),
+    # never a cell or the Cover; it is random, so it holds nothing of the project's rows or of the person.
+    wb.custom_doc_props.append(StringProperty(name=EXPORT_ID_NAME, value=token))
     wb.save(buf)
     # openpyxl sets "modified" to the real time as it saves, so core.xml is written again with the export's own stamp.
     wb.properties.modified = wb.properties.created
@@ -905,6 +1037,13 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
             if warnings is not None:
                 warnings.append(text)
     data = fixed_zip(buf.getvalue(), replace, add)
+    if reuse and hashlib.sha256(data).hexdigest() != reuse[1]:
+        # not the same file as the export whose id was offered: it gets a fresh id of its own (the same part, written the same way)
+        token = new_export_id()
+        wb.custom_doc_props = CustomPropertyList()
+        wb.custom_doc_props.append(StringProperty(name=EXPORT_ID_NAME, value=token))
+        replace[CUSTOM_PART] = tostring(wb.custom_doc_props.to_tree())
+        data = fixed_zip(buf.getvalue(), replace, add)
     platform.write_file(path, data)
     snapshot = {t: {r["id"]: {k: v for k, v in r.items() if k not in DERIVED} for r in rows_by_table.get(t, [])}
                 for t in TABLES}
@@ -916,7 +1055,7 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
         snapshot_rows = snapshot
     save_state(state_path, path, {"exported_at": moment(on).strftime("%Y-%m-%d %H:%M:%S"),
                                   "hash": hashlib.sha256(data).hexdigest(), "imported_hash": None, "project": project,
-                                  "rows": snapshot_rows})
+                                  "export_id": token, "rows": snapshot_rows})
     return {t: len(snapshot[t]) for t in TABLES}
 
 
@@ -926,7 +1065,7 @@ def export_name(project):
 
 
 def export_project(store, project, path=None, state_path=None, on=None, exported_by=None, owner=None, owner_email=None,
-                   branding=None, warnings=None):
+                   branding=None, warnings=None, reuse=None):
     """Export one project from the store (#31): each table's rows with Store.read(kind, project), archived rows left out (as
     creaite's hide_archived), labels from item_labels and each milestone's Original date from its history. `path` defaults
     to export_name() beside clark.db; the record goes in STATE_FILE beside clark.db. Returns the path written."""
@@ -951,7 +1090,7 @@ def export_project(store, project, path=None, state_path=None, on=None, exported
     cover = excel_cover.from_store(store, project, exported_text(on), exported_by, owner, owner_email, INTERNAL_NOTE,
                                    day(on).isoformat())
     view = history.view_for_project(store.con, project, "all", history.ROW_LIMIT)       # the one source the Activity tab shares
-    export(path, project, rows, state_path, on, cover, branding, warnings, history=view)
+    export(path, project, rows, state_path, on, cover, branding, warnings, history=view, reuse=reuse)
     return path
 
 
