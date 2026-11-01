@@ -207,7 +207,7 @@
     ok('published page: its scripts still parse (no stray backtick or ${ in the template)', [...html.matchAll(/<script>([^]*?)<\/script>/g)].length >= 1 && [...html.matchAll(/<script>([^]*?)<\/script>/g)].every(m => { try { new Function(m[1]); return true; } catch (e) { return false; } }));
     { const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;left:0;top:0;width:1300px;height:900px;visibility:hidden'; fr.srcdoc = html; document.body.appendChild(fr);
       for (let i = 0; i < 100 && !(fr.contentDocument && fr.contentDocument.readyState === 'complete' && fr.contentDocument.querySelector('#panel')); i++) await sleep(50); await sleep(100);
-      const fd = fr.contentDocument, fr$ = x => fd.querySelector(x), bx = x => fr$(x).getBoundingClientRect(), pn = fd.querySelectorAll('.pair');
+      const fd = fr.contentDocument, fr$ = x => fd.querySelector(x), bx = x => fr$(x).getBoundingClientRect(), pn = fd.querySelectorAll('#v-dashboard .pair');
       ok('published page: both pairs are drawn as two equal columns, level', pn.length === 2 && [...pn].every(pp => { const [a, b] = [...pp.children].map(c => c.getBoundingClientRect()); return Math.abs(a.width - b.width) <= 1 && Math.round(a.top) === Math.round(b.top) && b.left > a.right && a.width * 2 < pp.getBoundingClientRect().width; }), `${pn.length}`);
       ok('published page: the cards in a pair keep the card look', fr.contentWindow.getComputedStyle(fr$('#sec-thisweek')).borderTopWidth === '1px' && Math.round(bx('#sec-thisweek').top) === Math.round(bx('#sec-nextweek').top));
       fr.style.width = '600px'; await sleep(120); { const a = bx('#sec-thisweek'), b = bx('#sec-nextweek'); ok('published page: at 600 px a pair stacks', b.top >= a.bottom - 1 && Math.abs(a.width - b.width) <= 1, `${Math.round(a.width)}`); }
@@ -254,10 +254,10 @@
     /* the + opens the box */
     await open('summary'); const d = $('#dlg');
     ok('the + opens the Add a section box, with a search box, a close button and the footer links', d.open && d.querySelector('h2').textContent === 'Add a section' && $('#atdQ').placeholder === 'Search templates' && !!d.querySelector('.atd-h [data-close]') && /About section templates/.test(d.querySelector('.atd-f').textContent) && !!d.querySelector('#atdGo') && document.activeElement === $('#atdQ'));
-    ok('kinds with counts, as drawn', JSON.stringify($$('#atdK [data-k]').map(b => b.textContent)) === JSON.stringify(['All20', 'Text and pictures6', 'Figures2', 'Work items4', 'Files and links3', 'People and dates3', 'Notes2']) && /Recently used/.test($('#atdK').textContent));
+    ok('kinds with counts, as drawn', JSON.stringify($$('#atdK [data-k]').map(b => b.textContent)) === JSON.stringify(['All21', 'Text and pictures6', 'Figures3', 'Work items4', 'Files and links3', 'People and dates3', 'Notes2']) && /Recently used/.test($('#atdK').textContent));
     ok('Work items list is a template, full or half, under Work items (#96)', (t => !!t && t.kind === 'raid' && t.fit.join() === 'Full,Half')(C.templates.find(t => t.id === 'wi-list')) && names().includes('Work items list'));
-    ok('20 template cards, each with a sketch, a name and Full or Half chips', names().length === 20 && $$('.atd-c').every(c => c.querySelector('.sk') && c.querySelectorAll('.fit em').length >= 1) && JSON.stringify(names()) === JSON.stringify(C.templates.map(t => t.name)) && names().includes('Key figures, four') && names().includes('One document'));
-    click($('[data-k=figures]')); await sleep(30); ok('a kind filters the cards', names().length === 2 && names().every(n => /Key figures/.test(n))); click($('[data-k=raid]')); await sleep(30); ok('Work items: the two RAID cards and the list', names().join() === 'RAID cards, three,RAID cards, four,Work items list,Needs from you'); click($('[data-k=all]')); await sleep(30);
+    ok('21 template cards, each with a sketch, a name and Full or Half chips', names().length === 21 && $$('.atd-c').every(c => c.querySelector('.sk') && c.querySelectorAll('.fit em').length >= 1) && JSON.stringify(names()) === JSON.stringify(C.templates.map(t => t.name)) && names().includes('Key figures, four') && names().includes('One document'));
+    click($('[data-k=figures]')); await sleep(30); ok('a kind filters the cards', names().length === 3 && names().every(n => /Key figures|Progress tracker/.test(n))); click($('[data-k=raid]')); await sleep(30); ok('Work items: the two RAID cards and the list', names().join() === 'RAID cards, three,RAID cards, four,Work items list,Needs from you'); click($('[data-k=all]')); await sleep(30);
     input($('#atdQ'), 'quote'); await sleep(30); ok('the search filters as you type', names().join() === 'Quote' && selT() === 'quote'); input($('#atdQ'), 'zzzz'); await sleep(30); ok('and says so when nothing matches, with Add section off', !names().length && /No template matches/.test($('#atdG').textContent) && $('#atdGo').disabled); input($('#atdQ'), ''); await sleep(30);
     ok('the preview shows the chosen template: name, sketch, description, Holds, Place it, Help link', selT() === 'text' && $('#atdP h3').textContent === 'Text' && !!$('#atdP .sk') && $$('#atdP .atd-els span').map(s => s.textContent).join() === 'Heading,Text' && /On its own row/.test($('#atdP').textContent) && /See every template explained in Help/.test($('#atdP').textContent));
     key($('#atdQ'), 'ArrowDown'); ok('Down moves a row through the cards (three across)', selT() === 'figures-4', selT()); key($('#atdQ'), 'ArrowUp'); ok('Up moves back', selT() === 'text');
@@ -294,7 +294,7 @@
     /* recently used, and the Help links */
     await open('raid'); ok('Recently used lists what was added, and picking it selects that template', /Key figures, four/.test($('#atdK').textContent) && (click($('#atdK [data-r=figures-4]')), selT() === 'figures-4'));
     click($('#atdP [data-help]')); await sleep(140); ok('the preview\'s Help link closes the box and opens Help › Section templates', !$('#dlg').open && C.UI.view === 'help' && !!$('#hp-ref-section-templates') && $('#hpPane').dataset.tab === 'reference');
-    ok('Help lists every template with its description and fit', $$('#hp-ref-section-templates tbody tr').length === 20 && C.templates.every(t => { const row = $$('#hp-ref-section-templates tbody tr').find(r => r.cells[0].textContent === t.name); return row && row.cells[1].textContent === t.d && (row.cells[2].textContent.toLowerCase().includes('half')) === t.fit.includes('Half'); }));
+    ok('Help lists every template with its description and fit', $$('#hp-ref-section-templates tbody tr').length === 21 && C.templates.every(t => { const row = $$('#hp-ref-section-templates tbody tr').find(r => r.cells[0].textContent === t.name); return row && row.cells[1].textContent === t.d && (row.cells[2].textContent.toLowerCase().includes('half')) === t.fit.includes('Half'); }));
     C.help.open('howto-add-a-section-from-a-template'); await sleep(140); ok('Help has the task "Add a section from a template"', !!$('#hp-howto-add-a-section-from-a-template'));
     C.help.open('howto-use-the-tiles'); await sleep(140); ok('#140 Help says a coloured tile also says its status in words, and no colour means no word', /A coloured tile also says its status in words beside its number: On track, At risk or Off track .*Watch or High on High risks and issues.*Tile colour: Off track/.test(($('#hp-howto-use-the-tiles') || {}).textContent || '') && /No colour means no word/.test($('#hp-howto-use-the-tiles').textContent));
     C.help.open('ref-keys'); await sleep(140); ok('Help\'s keys table lists V and E', $$('#hp-ref-keys tbody tr').some(r => /V.*E/.test(r.cells[0].textContent) && /View mode and Edit mode/.test(r.cells[1].textContent)));
@@ -357,7 +357,7 @@
     const q = $('#pkQ'); q.value = 'training plan'; q.dispatchEvent(new Event('input')); await sleep(40); ok('picker search filters', $$('#pkList li').length === 1 && $('#pkList').textContent.includes('PDF-A-021'));
     click($('#pkList input')); ok('picker counts the selection', $('#pkCount').textContent === '1 selected' && !$('#pkGo').disabled);
     $('#pkF').requestSubmit(); await sleep(80); ok('picker adds it back', item('PDF-A-021').client === true);
-    click($('[data-addfrom=raid]')); await sleep(80); click($('#dlg [data-t=I]')); await sleep(40); ok('picker type filter', $$('#pkList li').length > 0 && $$('#pkList li').every(li => S().items.some(y => y.type === 'I' && li.textContent.includes(y.id))));
+    click($('[data-addfrom=raid]')); await sleep(80); click($('#dlg [data-t=R]')); await sleep(40); ok('picker type filter', $$('#pkList li').length > 0 && $$('#pkList li').every(li => S().items.some(y => y.type === 'R' && li.textContent.includes(y.id))));
     click($('#pkAll')); ok('select all shown', $$('#pkList input:checked').length === $$('#pkList li').length); click($('#dlg [data-close]')); await sleep(40);
     click($('[data-open="PDF-003"]')); await sleep(80); ok('the ID opens the peek', $('#peek').classList.contains('on') && $('#peek .pk-meta').textContent.includes('PDF-003')); key(document.body, 'Escape'); await sleep(40);
     click($('[data-doc-add]')); await sleep(60); $('#dT').value = 'Steering slides'; $('#dU').value = 'https://example.com/s'; $('#dF').requestSubmit(); await sleep(80); ok('document link added', P().docs.some(d => d.title === 'Steering slides'));
@@ -383,7 +383,7 @@
     ok('publish asks where: Local always, To client off', $('#pubLocal').checked && $('#pubLocal').disabled && !$('#pubClient').checked && $('#pubClient').disabled);
     $('#pubF').requestSubmit(); await sleep(1200); const html = C.lastPublished || '';
     ok('publish makes a web page', blobs === b0 + 1 && /<!doctype html>/.test(html));
-    ok('client page: Dashboard, Work items, Milestones and Use Cases only', (html.match(/<button data-v="/g) || []).length === 4 && /data-v="dashboard"/.test(html) && /data-v="work"/.test(html) && /data-v="milestones"/.test(html) && /<button data-v="usecases">Use Cases<\/button>/.test(html));
+    ok('client page: Dashboard, Work items, Milestones, Use Cases and Client report only', (html.match(/<button data-v="/g) || []).length === 5 && /<button data-v="report">Client report<\/button>/.test(html) && /data-v="dashboard"/.test(html) && /data-v="work"/.test(html) && /data-v="milestones"/.test(html) && /<button data-v="usecases">Use Cases<\/button>/.test(html));
     ok('clark\'s icon: the editor\'s favicon, and inside the published file', /clark-icon\.svg$/.test($('link[rel=icon]').href) && /<link rel="icon" href="data:image\/svg\+xml,/.test(html));
     ok('client page: the milestone timeline and list', html.includes('class="mv-strip') && html.includes('class="msl"'));
     ok('client page: creaite\'s client words for milestones', html.includes('Expected later') && />\s*Late\s*</.test(html.replace(/<svg[\s\S]*?<\/svg>/g, '')) && !/>\s*Slipped\s*</.test(html.replace(/<svg[\s\S]*?<\/svg>/g, '')));
@@ -1187,7 +1187,7 @@
     /* #121 the section */
     ['PDF-D-008', 'PDF-A-018'].forEach(id => window.ClarkDB.change('item', item(id), { client: true }));   /* the list follows the eye (FR-82), so show both to the client first */
     C.go('dashboard'); await sleep(80); click($('[data-mode=edit]')); await sleep(60);
-    ok('needs: the template is live, Full or Half, under Work items, and there are 20', C.templates.length === 20 && (t => !!t && t.live === true && t.kind === 'raid' && t.fit.join() === 'Full,Half')(C.templates.find(t => t.id === 'needs')));
+    ok('needs: the template is live, Full or Half, under Work items, and there are 21', C.templates.length === 21 && (t => !!t && t.live === true && t.kind === 'raid' && t.fit.join() === 'Full,Half')(C.templates.find(t => t.id === 'needs')));
     click($('[data-addbelow=summary]')); await sleep(120); click($('.atd-c[data-t=needs]')); await sleep(30); click($('#atdGo')); await sleep(160);
     const nx = P().report.sections.find(x => x.type === 'needs');
     ok('needs: added from the box as a section of its own type, titled Needs from you', !!nx && nx.title === 'Needs from you' && !!$('[data-sec="' + nx.id + '"]'));
@@ -1469,7 +1469,7 @@
       ok('#10 the first templates show without scrolling (the first card ends inside the window)', g.length >= 4 && rect(g[0]).bottom <= innerHeight && rect(g[1]).bottom <= innerHeight && rect(g[2]).bottom <= innerHeight, Math.round(rect(g[0]).bottom) + ' of ' + innerHeight);
       ok('#10 "Recently used" waits (not shown in the chip row), and the search is a single line', !vis($('#atdRL')) && rect('.atd-h h2').height < 30);
       ok('#10 the footer link is one short word and the dialog fits the window', vis($('.atd-short')) && !vis($('.atd-long')) && rect($('.atd-f .link')).height < 34 && rect(d).left >= 0 && rect(d).right <= innerWidth && document.documentElement.scrollWidth <= innerWidth);
-      click(chips[3]); await sleep(80); ok('#10 a chip still filters the templates', chips[3].getAttribute('aria-pressed') === 'true' && $$('.atd-c').length < 20);
+      click(chips[3]); await sleep(80); ok('#10 a chip still filters the templates', chips[3].getAttribute('aria-pressed') === 'true' && $$('.atd-c').length < 21);
       d.close(); await sleep(60); });
     await toView();
 
@@ -1620,7 +1620,7 @@
         let base = [255, 255, 255, 1]; if (!ls.length || ls[ls.length - 1][3] < .99) base = rgb(w.getComputedStyle(w.document.body).backgroundColor); for (let i = ls.length - 1; i >= 0; i--) base = lay(ls[i], base); return base; };
       const ratioIn = (w, el) => { const bg = bgIn(w, el); return ratio(lay(rgb(w.getComputedStyle(el).color), bg), bg); };
       /* each tile drawn: its colour from its class, the word it must carry, and where that word is (its own word, or the health pill when that says it) */
-      const audit = (root, w) => [...root.querySelectorAll('.glance .fig')].map(t => { const rag = (t.className.match(/\brag-([GARN]?)\b/) || [])[1] || '', k = t.dataset.fig;
+      const audit = (root, w) => [...root.querySelectorAll('.glance:not(.tr-tiles) .fig')].map(t => { const rag = (t.className.match(/\brag-([GARN]?)\b/) || [])[1] || '', k = t.dataset.fig;
         const sw = t.querySelector('.sw'), pill = k === 'health' ? t.querySelector('.hpill') : null, el = sw || (pill && pill.textContent.trim() === C.tileWord(k, rag) ? pill : null);
         return { k, rag, want: rag && rag !== 'N' ? (sw && k === 'health' ? LABEL : '') + C.tileWord(k, rag) : '', el, word: el ? el.textContent.trim() : '', sw: !!sw, ratio: el ? ratioIn(w, el) : 0, px: el ? parseFloat(w.getComputedStyle(el).fontSize) : 0,
           seen: !!el && w.getComputedStyle(el).display !== 'none' && w.getComputedStyle(el).visibility !== 'hidden' && el.getBoundingClientRect().width > 0, label: t.getAttribute('aria-label') || '' }; });
@@ -2387,6 +2387,111 @@
   });
 
   /* ═══ ask clark's look (#102): the Wash panel, the pills in one row, the working line in their place; light and dark, at 1400, 900 and 390 ═══ */
+  await step('Progress tracker and Client report (#189, #192, #275, #433, #451)', async () => {
+    const pubDoc = async () => new DOMParser().parseFromString(await C.webPage({ n: 97 }), 'text/html');
+    const waitFor = async (f, ms = 6000) => { const t0 = Date.now(); while (!f() && Date.now() - t0 < ms) await sleep(60); return !!f(); };
+    const atW = async (w, f) => { document.title = 'SELFTEST-W:' + w; if (!await waitFor(() => window.__w === w)) { out.push('SKIP ' + w + ' px checks: the runner gave no such window'); return false; } await sleep(250);
+      try { await f(); } finally { document.title = 'SELFTEST-W-END'; await waitFor(() => !window.__w); await sleep(200); } return true; };
+    const chg = async (el, v) => { el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(90); };
+    const tsec = () => P().report.sections.find(x => x.type === 'tracker'), box = () => $('#sec-tracker'), T = x => (x || {}).textContent || '';
+    const ln = (gid, text) => tsec().tr.groups.find(g => g.id === gid).lines.find(l => l.text === text), fld = (gid, text, f) => $(`[data-tr-f="${gid}|${ln(gid, text).id}|${f}"]`);
+    const toView = async () => { C.UI.editing = false; C.go('dashboard'); await sleep(100); C.render(); await sleep(60); };
+    C.setProject('PDF'); await toView();
+    /* #189 and #451: the template is offered from Add a section, in Full and Half */
+    ok('#451 the Progress tracker is offered from Add a section, under Figures, Full and Half, live', (t => !!t && t.live === true && t.kind === 'figures' && t.fit.join() === 'Full,Half')(C.templates.find(t => t.id === 'progress-tracker')));
+    /* #451: the three Overall tiles, the bar with its label and scale, the Achieved bar and the down chip */
+    ok('#451 the tracker is on the dashboard in View with three Overall tiles', !!box() && box().querySelectorAll('.tr-tiles .fig').length === 3);
+    ok('#451 Actual says "of the whole project" and Planned says "by <date>"', /Actual\s*49%\s*of the whole project/.test(T(box().querySelector('[data-fig=actual]'))) && /Planned\s*50%\s*by \d\d-\d\d-\d{4}/.test(T(box().querySelector('[data-fig=planned]'))));
+    { const o = C.trCalc(tsec().tr).overall; ok('#189 the overall figures are the sums of the group totals, checked against the demo data', o.actual === 49 && o.planned === 50 && o.behind === 1 && C.trCalc(tsec().tr).weight === 100); }
+    ok('#451 the bar is filled to Actual, with a Planned 50% label at the marker and a 0% to 100% scale', box().querySelector('.tr-bar .fill').style.width === '49%' && box().querySelector('.tr-bar .mk').style.left === '50%' && T(box().querySelector('.tr-bar .mkl')) === 'Planned 50%' && T(box().querySelector('.tr-scale')).replace(/\s/g, '') === '0%100%' && /Actual 49 percent against 50 percent planned/.test(box().querySelector('.tr-bar').getAttribute('aria-label')));
+    ok('#189 a plain line says how many points behind plan', T(box().querySelector('.tr-gap')) === '1 point behind plan');
+    { const g = box().querySelectorAll('.pg-t'); ok('#189 each group has its total, with weight and the points behind plan', g.length === 3 && T(g[0]) === 'Total 20% achieved · 20% planned · 20% weight' && T(g[1]) === 'Total 11% achieved · 12% planned · 30% weight · 1 point behind plan'); }
+    { const row = [...box().querySelectorAll('.pl-row')].find(r => /Product data domain/.test(r.textContent)), ch = row && row.querySelector('.behind'); ok('#451 a line behind plan shows the down chip and, in words, how many points', !!ch && ch.querySelector('[aria-hidden]').textContent === '▼1' && T(ch.querySelector('.sr')) === '1 point behind plan' && row.querySelector('.pbar i').style.width === '66.7%' && /4%/.test(T(row.querySelector('.pl-ach'))));
+      ok('#189 a line that is not behind has no chip, and the status is one of the four words', box().querySelectorAll('.behind').length === 1 && [...box().querySelectorAll('.pl-row .ucw')].every(e => ['Planned', 'In progress', 'Completed', 'Late'].includes(e.textContent))); }
+    ok('#189 View is read only: no field, no button, no weights note, no author words', !box().querySelector('input,select,textarea,button,[contenteditable]') && !/Weights add up|Add a line|Describe the line|Group name/.test(T(box())));
+    ok('#189 the Full table has the columns Description, End, Status, Weight, Planned, Achieved', ['Description', 'End', 'Status', 'Weight', 'Planned', 'Achieved'].every(w => T(box().querySelector('.pl-hd')).includes(w)) && getComputedStyle(box().querySelector('.pl-row .tr-end')).display !== 'none');
+    /* the published dashboard carries it, view only */
+    { const d = await pubDoc(), s = d.querySelector('#sec-tracker'); ok('#189 the published page shows the tracker view-only, with nothing from Edit', !!s && s.querySelectorAll('.pl-row').length === 11 && !s.querySelector('input,select,textarea,button') && !/Weights add up|Add a line|Describe the line/.test(T(s)) && T(s).includes('Planned 50%')); }
+    /* 900 px: dates drop out of the Full table and the figures stay in view */
+    await atW(900, async () => { const b = box(), row = b.querySelector('.pl-row');
+      ok('#189 at 900 px the date columns are not drawn and the percentages stay in view', getComputedStyle(row.querySelector('.tr-end')).display === 'none' && [...row.querySelectorAll('.pl-n, .pl-ach')].every(e => e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().right <= b.getBoundingClientRect().right + 1) && b.scrollWidth <= b.clientWidth + 1); });
+    C.theme('dark'); await sleep(300); ok('#451 dark mode: the tiles and the bar turn dark and nothing overflows', getComputedStyle(box().querySelector('.tr-bar')).backgroundColor !== 'rgb(224, 226, 229)' && getComputedStyle(box().querySelector('.fig.kpi')).backgroundColor !== 'rgb(243, 245, 248)' && box().scrollWidth <= box().clientWidth + 1); C.theme('light'); await sleep(250);
+    /* Edit: type everything in place; refuse what is not a percentage; one step with Undo */
+    click($('[data-mode=edit]')); await sleep(120);
+    ok('#189 Edit shows a box for every value, a status list, and Add a line, Add a group', !!fld('g2', 'Product data domain', 'weight') && fld('g2', 'Product data domain', 'status').tagName === 'SELECT' && [...fld('g2', 'Product data domain', 'status').options].map(o => o.text).join() === 'Planned,In progress,Completed,Late' && !!$('[data-tr-act="addline:g1"]') && !!$('[data-tr-act=addgroup]'));
+    { const was = ln('g2', 'Product data domain').achieved; await chg(fld('g2', 'Product data domain', 'achieved'), '150');
+      ok('#189 150% is refused with a plain message, nothing is saved', /^A percentage must be a number from 0 to 100\.$/.test(T($('[data-tr-err]'))) && !$('[data-tr-err]').hidden && ln('g2', 'Product data domain').achieved === was && fld('g2', 'Product data domain', 'achieved').getAttribute('aria-invalid') === 'true');
+      await chg(fld('g2', 'Product data domain', 'achieved'), 'abc'); ok('#189 so is a word', /0 to 100/.test(T($('[data-tr-err]'))) && ln('g2', 'Product data domain').achieved === was);
+      await chg(fld('g2', 'User testing', 'weight'), '90'); ok('#189 weight, planned or achieved over 100% in all is refused', /add up to 100% at most/.test(T($('[data-tr-err]'))) && ln('g2', 'User testing').weight === 12);
+      await chg(fld('g2', 'Product data domain', 'achieved'), '5'); ok('#189 a good value saves as one step: the totals and the chip follow', ln('g2', 'Product data domain').achieved === 5 && $('[data-tr-err]').hidden && C.trCalc(tsec().tr).overall.actual === 50 && !$$('#sec-tracker .behind').length);
+      await undo(); ok('#189 Undo puts the figure back', ln('g2', 'Product data domain').achieved === was && C.trCalc(tsec().tr).overall.actual === 49); }
+    { await chg(fld('g1', 'Mobilise the project team', 'end'), '31-02-2026'); ok('#189 an unreal date is refused in words', /real day written DD-MM-YYYY/.test(T($('[data-tr-err]'))));
+      await chg(fld('g1', 'Mobilise the project team', 'end'), '15-11-2026'); ok('#189 a real date is kept', ln('g1', 'Mobilise the project team').end === '2026-11-15'); await undo();
+      click($('[data-tr-col=start]')); await sleep(100); ok('#189 Show these columns: Start switches on, as a box in every line', tsec().tr.cols.start === true && !!fld('g1', 'Connect the first two data sources', 'start') && !!$('[data-tr-col=start]').checked); await undo(); }
+    { const n0 = tsec().tr.groups[0].lines.length; click($('[data-tr-act="addline:g1"]')); await sleep(120);
+      ok('#189 Add a line adds one, and the keyboard lands in its description', tsec().tr.groups[0].lines.length === n0 + 1 && /\|text$/.test(document.activeElement.dataset.trF || ''));
+      { const d = await pubDoc(); ok('#189 a line with no description is not published', d.querySelectorAll('#sec-tracker .pl-row').length === 11); }
+      const blank = tsec().tr.groups[0].lines.at(-1); await chg($(`[data-tr-f="g1|${blank.id}|text"]`), '<img src=x onerror=1>'); await chg($(`[data-tr-f="g1|${blank.id}|weight"]`), '0');
+      ok('#275 text a person typed is drawn as text, never as markup, in the editor and in the published page', !box().querySelector('img') && box().innerHTML.includes('&lt;img src=x onerror=1&gt;')); { click($('[data-mode=view]')); await sleep(100);
+        const d = await pubDoc(); ok('#275 and in the published file', d.querySelectorAll('#sec-tracker .pl-row').length === 12 && !d.querySelector('#sec-tracker img') && /<img src=x/.test(T(d.querySelector('#sec-tracker')))); click($('[data-mode=edit]')); await sleep(100); }
+      click($(`[data-tr-act="rmline:g1:${blank.id}"]`)); await sleep(120); ok('#189 a line can be removed', tsec().tr.groups[0].lines.length === n0); }
+    { click($('[data-tr-act=addgroup]')); await sleep(120); ok('#189 Add a group adds an empty group that says No lines yet', tsec().tr.groups.length === 4 && /No lines yet/.test(T($$('#sec-tracker .tr-g').at(-1)))); { const d = await pubDoc(); ok('#189 a group with no lines is left out of the published page', d.querySelectorAll('#sec-tracker .tr-g').length === 3); }
+      const gid = tsec().tr.groups.at(-1).id; click($(`[data-tr-act="rmgroup:${gid}"]`)); await sleep(120); ok('#189 a group can be removed', tsec().tr.groups.length === 3); }
+    { click($(`[data-tr-act="gdown:g1"]`)); await sleep(100); ok('#189 a group moves down one place', tsec().tr.groups[1].id === 'g1'); await undo(); ok('#189 and Undo moves it back', tsec().tr.groups[0].id === 'g1'); }
+    { await chg($('[data-tr-f="~|note"]'), 'x'.repeat(101)); ok('#189 a note over 100 characters is refused', /100 characters at most/.test(T($('[data-tr-err]')))); await chg($('[data-tr-f="~|health"]'), 'R'); ok('#189 the health pill and its line are the tracker’s own words', tsec().tr.health === 'R' && !!$('#sec-tracker .hpill.R')); await undo(); }
+    { const wn = () => !!$('.tr-wnote'); const w0 = wn(); await chg(fld('g3', 'Handover and support', 'weight'), '2'); ok('#189 weights that do not reach 100% get a quiet line in Edit, and only in Edit', !w0 && wn() && /Weights add up to 90%/.test(T($('.tr-wnote')))); click($('[data-mode=view]')); await sleep(100);
+      ok('#451 the weights note is absent from View and from the published page', !/Weights add up/.test(T(box())) && !/Weights add up/.test(await C.webPage({ n: 97 }))); click($('[data-mode=edit]')); await sleep(100); await undo(); }
+    ok('#275 the section says that everything in a visible tracker is published', /Everything in a visible tracker is published/.test(T($('#sec-tracker .note'))));
+    /* Half: the bar and a short list, no dates */
+    click($('[data-opts=tracker]')); await sleep(40); await menuPick('Place beside the next section'); await sleep(120);
+    ok('#189 Half: placed beside another section it shows the figures, the bar and a short list with no dates', !!$('.pair #sec-tracker .tr-half') || !!box().querySelector('.tr-half'));
+    click($('[data-mode=view]')); await sleep(100);
+    ok('#189 Half in View: description, status, planned and achieved; no date, no Weight column', !!box().querySelector('.tr-half .tr-bar') && box().querySelectorAll('.tr-hrow').length === 11 && !box().querySelector('.pl-end,.pl-hd') && /Planned 9%/.test(T(box().querySelectorAll('.tr-hrow')[1])));
+    { const d = await pubDoc(); ok('#189 and the published page draws the same Half', !!d.querySelector('.pair #sec-tracker .tr-half') && !d.querySelector('#sec-tracker .pl-end')); }
+    click($('[data-mode=edit]')); await sleep(100); click($('[data-opts=tracker]')); await sleep(40); await menuPick('Full width'); await sleep(120); click($('[data-mode=view]')); await sleep(100);
+    ok('#189 Full width puts the full table back', !box().querySelector('.tr-half') && !!box().querySelector('.pl-hd'));
+    /* an added tracker: from the box, empty, left out of the published page until it has something; only the bar is kept */
+    C.setProject('CPR'); await toView(); click($('[data-mode=edit]')); await sleep(120); click($('[data-addbelow=summary]')); await sleep(120); click($('.atd-c[data-t=progress-tracker]')); await sleep(30); click($('#atdGo')); await sleep(180);
+    { const s = tsec(); ok('#451 added from Add a section: a section of its own type, titled Progress tracker, with one empty group', !!s && s.title === 'Progress tracker' && s.tr.groups.length === 1 && s.tr.groups[0].lines.length === 0 && !!$('#sec-' + s.id) && /No lines yet/.test(T($('#sec-' + s.id))), JSON.stringify([s && s.title, s && s.tr && s.tr.groups.length, !!$('#sec-' + (s && s.id)), T($('#sec-' + (s && s.id))).slice(0, 80)]));
+      ok('#189 an empty tracker is left out of the published page', C.onPub(s, C.P()) === false && !(await pubDoc()).querySelector('#sec-' + s.id));
+      await chg($('[data-tr-f="~|oa"]'), '40'); await chg($('[data-tr-f="~|op"]'), '50');
+      ok('#275 only overall figures: the bar is kept and published (the decision on caveat 3)', C.onPub(tsec(), C.P()) === true && !!(await pubDoc()).querySelector('#sec-' + s.id + ' .tr-bar') && !(await pubDoc()).querySelector('#sec-' + s.id + ' .pl-row'));
+      click($('[data-addbelow=summary]')); await sleep(10); }
+    { const d = $('#dlg'); if (d.open) d.close(); }
+    /* #192 and #433: the Client Requested Report View, on CPR first (overall figures only), then on PDF */
+    click($('[data-mode=view]')); await sleep(100); click($('.tab[data-view=report]')); await sleep(120);
+    ok('#192 CPR with only overall figures: the page shows Overall progress and leaves out Progress by plan', !!$('#sec-cr-progress') && !$('#sec-cr-plans') && !/Progress by plan/.test(T($('.sheet'))));
+    { const s = tsec(); click($('.tab[data-view=dashboard]')); await sleep(100); click($('[data-mode=edit]')); await sleep(100); click($(`[data-opts=${s.id}]`)); await sleep(40); await menuPick('Delete section'); await sleep(120); }
+    click($('[data-mode=view]')); await sleep(100); click($('.tab[data-view=report]')); await sleep(120);
+    ok('#192 a project with nothing for the page shows it empty and says so, and it is not published', !!$('.cr-empty') && !C.crHas(C.P()) && !(await pubDoc()).querySelector('[data-v=report],#v-report'));
+    C.setProject('PDF'); C.go('report'); await sleep(150);
+    ok('#192 the Client report tab opens the page, with its own address', C.UI.view === 'report' && /^#report/.test(location.hash) && $('.tab[data-view=report]').getAttribute('aria-selected') === 'true' && T($('.tab[data-view=report]')) === 'Client report');
+    ok('#433 the dark cover band has the title and the week line: WEEKLY PROGRESS SNAPSHOT, Status as at, for the client', T($('.cover h1')) === 'Data Platform Pilot' && /^WEEKLY PROGRESS SNAPSHOT · Status as at (Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day \d{1,2} \w+ \d{4} · for Demo client$/.test(T($('.cover .wk')).trim()) && getComputedStyle($('.cover')).backgroundColor === 'rgb(20, 35, 58)' && (!(window.BRAND || {}).mark || !!$('.cover .mark')));
+    ok('#192 the sections come in the fixed order: Overall progress, Progress by plan, Highlights and Planned for next week as a pair, Risks, delays and items to watch', $$('.sheet [data-sec^=cr-]').map(e => e.dataset.sec).join() === 'cr-progress,cr-plans,cr-highlights,cr-nextweek,cr-raid' && !!$('.pair #sec-cr-highlights') && !!$('.pair #sec-cr-nextweek') && $$('.sheet h2.st').map(h => T(h)).join('|') === 'Overall progress|Progress by plan|Highlights|Planned for next week|Risks, delays and items to watch');
+    ok('#192 Overall progress: the project health with its reason, Actual and Planned, and the bar', $$('#sec-cr-progress .fig').length === 3 && /At risk/.test(T($('#sec-cr-progress .health-fig'))) && /test environment is late/.test(T($('#sec-cr-progress .hreason'))) && /49%/.test(T($('#sec-cr-progress [data-fig=actual]'))) && T($('#sec-cr-progress .mkl')) === 'Planned 50%');
+    ok('#433 Progress by plan: three plan groups of weighted lines, # Description End Status Weight Planned Achieved, with the group totals', $$('#sec-cr-plans .pg').length === 3 && $$('#sec-cr-plans .pl-row').length === 11 && ['Description', 'End', 'Status', 'Weight', 'Planned', 'Achieved'].every(w => T($('#sec-cr-plans .pl-hd')).includes(w)) && /Total 20% achieved · 20% planned · 20% weight/.test(T($('#sec-cr-plans'))) && /Training and handover/.test(T($('#sec-cr-plans'))));
+    ok('#192 Highlights and Planned for next week carry the dashboard’s This week and Next week text', /14 design specifications signed off/.test(T($('#sec-cr-highlights'))) && /Close the 2 outstanding design specifications/.test(T($('#sec-cr-nextweek'))));
+    { const rows = $$('#sec-cr-raid .wl-row'); ok('#192 Risks: the word Delay, Risk or Monitor, Delays first, only what the client can see', rows.map(r => r.dataset.word).join() === 'Delay,Risk,Monitor' && rows.map(r => r.dataset.crRisk).join() === 'PDF-002,PDF-003,PDF-005' && rows.map(r => T(r.querySelector('.pill'))).join() === 'Delay,Risk,Monitor');
+      ok('#433 each risk has the owner, the date it should be back on track (or a review date), Escalate: Yes or No', rows.every(r => /Escalate: No/.test(T(r.querySelector('.wl-meta'))) && !!r.querySelector('.av')) && /Back on track by \d\d-\d\d-\d{4}/.test(T(rows[0])) && /Review \d\d-\d\d-\d{4}/.test(T(rows[2])));
+      ok('#433 each risk ends with a line saying what is being done', /A fix for large files is in test/.test(T(rows[0].querySelector('.wl-resp'))) && /Supplier escalation booked/.test(T(rows[1].querySelector('.wl-resp'))) && /Quality checks run each week/.test(T(rows[2].querySelector('.wl-resp')))); }
+    ok('#192 nothing from Edit on the page: no field, no placeholder, no author words', !$('.sheet input,.sheet textarea,.sheet select,.sheet [contenteditable]') && !/Weights add up|Describe the line|Nothing is being tracked|Not set/.test(T($('.sheet'))));
+    /* the published tab */
+    { const d = await pubDoc(), v = d.querySelector('#v-report'), tabs = [...d.querySelectorAll('.tabsbar [data-v]')].map(b => b.textContent.trim());
+      ok('#433 a client report goes into the published file, as a Client report tab after Use Cases', !!v && tabs.join() === 'Dashboard,Work items,Milestones,Use Cases,Client report');
+      ok('#433 the tab has the dark cover band with the logo area, title and week line', !!v.querySelector('.cr-band h2') && T(v.querySelector('.cr-band h2')) === 'Data Platform Pilot' && /WEEKLY PROGRESS SNAPSHOT · Status as at/.test(T(v.querySelector('.cr-band .wk'))));
+      ok('#192 the published tab holds the same five sections and nothing from Edit', ['cr-progress', 'cr-plans', 'cr-highlights', 'cr-nextweek', 'cr-raid'].every(id => !!v.querySelector('#sec-' + id)) && !v.querySelector('input,select,textarea,button,[contenteditable]') && !/Weights add up|Add a line|Describe the line|Edit the progress tracker/.test(T(v)) && v.querySelectorAll('.pl-row').length === 11 && v.querySelectorAll('.wl-row').length === 3);
+      ok('#192 it prints as part of the PDF: its own page in the print rules', /#v-report\{break-before:page\}/.test(await C.webPage({ n: 97 }))); }
+    /* #192 / #433 at 900 px, light and dark: nothing overflows */
+    for (const th of ['light', 'dark']) { C.theme(th); await sleep(250);
+      await atW(900, async () => { C.go('report'); await sleep(200); const s = $('.sheet'); ok(`#433 the page at 900 px, ${th}: no horizontal overflow, the figures stay in view`, s.scrollWidth <= s.clientWidth + 1 && [...$$('#sec-cr-plans .pl-row')].every(r => r.querySelector('.pl-ach').getBoundingClientRect().right <= s.getBoundingClientRect().right + 1) && getComputedStyle($('#sec-cr-plans .pl-row .tr-end')).display === 'none'); }); }
+    C.theme('light'); await sleep(200);
+    ok('#433 the page at 1400 px shows the End column', getComputedStyle($('#sec-cr-plans .pl-row .tr-end')).display !== 'none');
+    /* Help */
+    C.help.open('ref-progress-tracker'); await sleep(120); ok('#275 Help explains the tracker, the caveat that everything in it is published, and what is left out', /Everything in a visible tracker is published/.test(T($('#hp-ref-progress-tracker'))) && /no way to hide one line/.test(T($('#hp-ref-progress-tracker'))) && /only overall figures is kept/.test(T($('#hp-ref-progress-tracker'))));
+    C.help.open('ref-client-report'); await sleep(120); ok('#192 Help explains the Client report: its order, the words Delay, Risk and Monitor, and that the delivery plan template is on hold', /Delay/.test(T($('#hp-ref-client-report'))) && /Monitor/.test(T($('#hp-ref-client-report'))) && /on hold/.test(T($('#hp-ref-client-report'))));
+    C.go('dashboard'); await sleep(100);
+  });
+
   await step("ask clark's look (#102)", async () => {
     const rect = e => (typeof e === 'string' ? $(e) : e).getBoundingClientRect(), cs = (e, p, pseudo) => getComputedStyle(typeof e === 'string' ? $(e) : e, pseudo)[p];
     const waitFor = async (f, ms = 6000) => { const t0 = Date.now(); while (!f() && Date.now() - t0 < ms) await sleep(30); return !!f(); };
@@ -2534,6 +2639,7 @@
         const a = $('.doc-arch'); if (a) { a.open = true; await sleep(60); a.scrollIntoView({ block: 'center' }); await sleep(60); } return a || document.body; },
         async () => { if (arch.d && $(`[data-doc-back="${arch.d}"]`)) { $('.doc-arch').open = true; click($(`[data-doc-back="${arch.d}"]`)); await sleep(150); } if ($('[data-mode=view]')) { click($('[data-mode=view]')); await sleep(150); } scrollTo(0, 0); await sleep(150); }],
       ...($('.tab[data-view=usecases]') ? [['Use cases', async () => { C.go('usecases'); await sleep(250); return document.body; }]] : []),
+      ['Client report', async () => { C.go('report'); await sleep(250); return document.body; }],
       ['Settings', async () => { C.go('settings'); await sleep(250); return document.body; }],
       ...[['start', 'Getting started'], ['howto', 'How to'], ['reference', 'Reference']].map(([k, t], i) => [`Help, ${t}`, async () => { if (!i) { C.go('help'); await sleep(200); } click($(`#hpTabs [data-htab=${k}]`)); await sleep(120); scrollTo(0, 0); return document.body; }])];
     /* the Preview page, made the way the profile menu's Preview makes it, and opened at the same width in a frame: each of its tabs */
@@ -2542,7 +2648,7 @@
       const f = document.createElement('iframe'); f.style.cssText = `position:fixed;left:0;top:0;width:${w}px;height:844px;border:0;opacity:0;pointer-events:none`; f.srcdoc = html; document.body.appendChild(f);
       try { await waitFor(() => f.contentDocument && f.contentDocument.readyState === 'complete' && f.contentDocument.querySelector('#panel'), 5000); await sleep(150);
         const d = f.contentDocument, tabs = [...d.querySelectorAll('.tabsbar [data-v]')];
-        const want = ['Dashboard', 'Work items', 'Milestones', ...($('.tab[data-view=usecases]') ? ['Use cases'] : [])], got = tabs.map(b => b.textContent.trim());
+        const want = ['Dashboard', 'Work items', 'Milestones', ...($('.tab[data-view=usecases]') ? ['Use cases'] : []), ...(C.crHas(P()) ? ['Client report'] : [])], got = tabs.map(b => b.textContent.trim());
         ok(at(w, th, 'the Preview page') + `: it opens with its ${want.length} tabs, ${want.join(', ')}`, got.length === want.length && got.map(t => t.toLowerCase()).sort().join('|') === want.map(t => t.toLowerCase()).sort().join('|'), got.join(', '));   // the words, not their capitals: the Use Cases tab's own spelling is #162's
         for (const b of tabs) { b.click(); await sleep(200); report(at(w, th, `the Preview page, ${b.textContent.trim()}`), measure(d.body, f.contentWindow)); } }
       finally { f.remove(); } };
