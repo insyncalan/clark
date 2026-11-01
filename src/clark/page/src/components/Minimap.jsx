@@ -2,8 +2,14 @@
 // Esc or leaving closes it, a click calls onJump(id). It tracks the scroll to show the current section. The caller puts
 // id={entry.anchor} (entries() in logic/minimap.js) on each section. The entries are buttons, not #links, so the address
 // (and the router that reads it) is never touched; onJump scrolls the page, or with no onJump the section's anchor is scrolled to.
+// At 900 px and narrower (the narrow contents button) the lines give way to an "On this page" button at the bottom right: the same button, the
+// same list, but only a click, Enter, Space or an arrow key opens it (hover and plain focus do not), a click again, Esc, a click
+// outside, a jump or the focus leaving closes it. The look is in shell.css under the same width.
 import { useState, useRef, useEffect } from "preact/hooks";
 import { entries, activeEntry, onKey } from "../logic/minimap.js";
+
+const NARROW = "(max-width: 900px)";
+const narrow = () => typeof matchMedia === "function" && matchMedia(NARROW).matches;
 
 // Where each section's top is, from the page.
 function measure(list) {
@@ -54,14 +60,23 @@ export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0, co
     setOpen(true);
     focusAt(next.index);
   };
+  // At the narrow width a click outside the open list shuts it (a button may take no focus on a click, so focusout alone can miss it).
+  useEffect(() => {
+    if (!open) return undefined;
+    const outside = (e) => { if (narrow() && root.current && !root.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [open]);
   const leave = (e) => { if (!root.current.contains(e.relatedTarget)) setOpen(false); };
 
   if (!list.length) return null;
   return (
     <nav class={`toc${open ? " open" : ""}`} aria-label="On this page" ref={root} onKeyDown={keys}
-      onMouseEnter={() => setOpen(true)} onMouseLeave={() => { if (!root.current.contains(document.activeElement)) setOpen(false); }}
-      onFocusIn={() => { if (quiet.current) quiet.current = false; else setOpen(true); }} onFocusOut={leave}>
-      <button type="button" class="toc-lines" ref={button} aria-expanded={open ? "true" : "false"} aria-controls="toc-card" aria-label="Contents" onClick={() => setOpen(true)}>
+      onMouseEnter={() => { if (!narrow()) setOpen(true); }} onMouseLeave={() => { if (!root.current.contains(document.activeElement)) setOpen(false); }}
+      onFocusIn={() => { if (quiet.current) quiet.current = false; else if (!narrow()) setOpen(true); }} onFocusOut={leave}>
+      <button type="button" class="toc-lines" ref={button} aria-expanded={open ? "true" : "false"} aria-controls="toc-card" aria-label="On this page" onClick={() => setOpen(narrow() ? !open : true)}>
+        <svg class="toc-ico" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" /></svg>
+        <span class="toc-lbl" aria-hidden="true">On this page</span>
         {list.map((e) => <i key={e.id} data-tl={e.id} class={`${e.id === current ? "on" : ""}${counts[e.id] && counts[e.id].hot ? " hot" : ""}`.trim()}></i>)}
       </button>
       <div class="toc-card" id="toc-card" inert={!open}>   {/* inert at once when closed: Tab cannot enter it before the fade ends */}
