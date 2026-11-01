@@ -157,6 +157,23 @@ class Undo(Base):
         sam = [p for p in body["people"] if p["id"] == a][0]
         self.assertEqual((sam["archived"], sam["email"]), (0, "sam@x.example"))
 
+    def test_a_people_step_made_through_another_route_is_refused_and_changes_nothing(self):
+        """The undo is for the dashboard's own people steps: a step another route made (here a Word import's) is refused with a 400, and the list is as it was."""
+        s = clark_open(self.path)
+        with s.step("word", USER) as st:
+            st.add_person(name="Sam Reed", source="test")
+            step = st.peek_apply_id()
+        before = s.people(archived=None)
+        s.close()
+        self.assertEqual([p["name"] for p in before], ["Sam Reed"])
+        status, body = self.post({"apply_id": step}, "/api/people/undo")
+        self.assertEqual((status, body["ok"]), (400, False))
+        self.assertTrue(body["message"])
+        after = clark_open(self.path)
+        self.addCleanup(after.close)
+        self.assertEqual(after.people(archived=None), before, "nothing was changed")
+        self.assertEqual(after.con.execute("SELECT count(*) FROM applies WHERE undone_at IS NOT NULL").fetchone()[0], 0)
+
     def test_only_a_people_step_is_undone_here(self):
         s = clark_open(self.path)
         with s.step("dashboard", USER) as st:
