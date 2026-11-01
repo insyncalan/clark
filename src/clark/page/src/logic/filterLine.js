@@ -14,7 +14,7 @@
 // Also here: saved views per project (lists, add, rename, archive, and whether the line differs from the saved one) and the
 // session memory of the line per project. Views are archived, never deleted.
 import { dayNumber, dueField, isOpen } from "../workItems.js";
-import { initial, FIELDS as STATE_FIELDS, NONE, dueBucket, hasReviewDates } from "../filters.js";
+import { initial, FIELDS as STATE_FIELDS, NONE, dueBucket, hasReviewDates, isPublished } from "../filters.js";
 
 // ── The words a person reads ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -78,6 +78,7 @@ function quietRow(row, today) {
 function isValues(row, ctx) {
   const out = [isOpen(row) ? "open" : "closed"];
   if (dueBucket(row, ctx.today) === "overdue") out.push("overdue");
+  if (isPublished()) return out;       // the published file answers only the words in CLIENT_IS: no freshness, review, client or archive word
   if (isOpen(row)) {
     if (quietRow(row, ctx.today)) out.push("quiet");
     // A missing date counts only for an action or a decision (a risk or an issue often has none); a missing owner counts for every type.
@@ -92,7 +93,7 @@ function isValues(row, ctx) {
 export const LINE_FIELDS = {
   type: { name: "Type", state: "type", of: (r) => [r.kind] },
   status: { name: "Status", state: "status", of: (r) => [r.status || NONE] },
-  owner: { name: "Owner", state: "owner", none: true, of: (r, c) => { const o = text(r.owner); return o ? [o, ...(c.me && low(o) === low(c.me) ? ["me"] : [])] : [NONE]; } },
+  owner: { name: "Owner", state: "owner", none: true, of: (r, c) => { const o = text(r.owner); return o ? [o, ...(c.me && !isPublished() && low(o) === low(c.me) ? ["me"] : [])] : [NONE]; } },
   priority: { name: "Priority", state: "priority", none: true, of: (r) => [r.priority || NONE] },
   due: { name: "Due", state: "due", none: true, of: dueValues },
   workstream: { name: "Workstream", state: "workstream", none: true, of: (r) => [r.workstream || NONE] },
@@ -103,6 +104,17 @@ export const LINE_FIELDS = {
 };
 export const NAMES = Object.keys(LINE_FIELDS);
 export const NONE_OK = NAMES.filter((k) => LINE_FIELDS[k].none);
+
+// The published (client) file: the ONE list of what its line may use. `CLIENT_FIELDS` are the line's fields a client may type, offer and
+// remember (everything the file's own rows can answer: no Client field, which is an eye the client's page does not have); `CLIENT_IS` are the only
+// `is:` words (no freshness, review, needed-from-client or archived word, and no `owner:me`: there is no signed-in name in the file). While the page
+// is switched to the published file (filters.js setPublished, the same switch the filter bar uses) every part of the line reads through `live`, so a
+// word outside this list is "no such filter", never applied, never offered, never kept. The editor never switches it on.
+export const CLIENT_FIELDS = ["type", "status", "owner", "priority", "due", "workstream", "usecase", "milestone", "is"];
+export const CLIENT_IS = ["open", "closed", "overdue"];
+const live = (k) => !isPublished() || CLIENT_FIELDS.includes(k);
+const names = () => NAMES.filter(live);
+const noneOk = () => NONE_OK.filter(live);
 const ALIAS = { ws: "workstream", uc: "usecase", "use-case": "usecase", usecases: "usecase", ms: "milestone", prio: "priority", state: "status" };
 // What a person types for a value that is stored in another word.
 const TYPED = {
@@ -145,8 +157,8 @@ export function offers(field, rows, ctx = {}) {
     case "priority": return [...PRIORITIES.map((p) => [p, p]), ...(noneRow((r) => r.priority) ? [[NONE, "No priority"]] : [])];
     case "due": return DUE_WORDS.map(([w, l]) => [stored("due", w), l]);
     case "client": return CLIENT_WORDS.map(([w, l]) => [stored("client", w), l]);
-    case "is": return IS_WORDS.filter(([v]) => isOn(v, ctx, rows));
-    case "owner": return [["me", ctx.me ? `Me (${ctx.me})` : "Me (set your name in Settings)"], ...dyn((r) => text(r.owner)).map((o) => [o, o]), ...(noneRow((r) => text(r.owner)) ? [[NONE, "No owner"]] : [])];
+    case "is": return isPublished() ? IS_WORDS.filter(([v]) => CLIENT_IS.includes(v)) : IS_WORDS.filter(([v]) => isOn(v, ctx, rows));
+    case "owner": return [...(isPublished() ? [] : [["me", ctx.me ? `Me (${ctx.me})` : "Me (set your name in Settings)"]]), ...dyn((r) => text(r.owner)).map((o) => [o, o]), ...(noneRow((r) => text(r.owner)) ? [[NONE, "No owner"]] : [])];
     case "workstream": return [...inOrder(projectWorkstreams(ctx), dyn((r) => r.workstream)).map((o) => [o, o]), ...(noneRow((r) => r.workstream) ? [[NONE, "No workstream"]] : [])];
     case "usecase": return [...dyn((r) => r.uc).map((o) => [o, o]), ...(noneRow((r) => r.uc) ? [[NONE, "No use case"]] : [])];
     case "milestone": return [...inOrder(projectMilestones(ctx), dyn((r) => r.milestone)).map((o) => [o, o]), ...(noneRow((r) => r.milestone) ? [[NONE, "No milestone"]] : [])];
@@ -195,7 +207,8 @@ function splitValues(s) {
   return out.map((v) => v.trim()).filter(Boolean);
 }
 const isFieldWord = (w) => /^-?[A-Za-z][\w-]*:/.test(w);
-const fieldOf = (name) => { const k = low(name); return own(LINE_FIELDS, k) ? k : own(ALIAS, k) || null; };
+const fieldAny = (name) => { const k = low(name); return own(LINE_FIELDS, k) ? k : own(ALIAS, k) || null; };
+const fieldOf = (name) => { const k = fieldAny(name); return k && live(k) ? k : null; };
 
 function distance(a, b) {
   const m = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
@@ -205,8 +218,8 @@ function distance(a, b) {
 }
 function nearest(name) {
   const n = low(name);
-  const best = [...NAMES, ...Object.keys(ALIAS)].map((k) => [k, distance(n, k)]).sort((a, b) => a[1] - b[1])[0];
-  return best && best[1] <= 2 ? fieldOf(best[0]) : (n.length >= 2 && NAMES.find((k) => k.startsWith(n))) || null;
+  const best = [...names(), ...Object.keys(ALIAS).filter((a) => live(ALIAS[a]))].map((k) => [k, distance(n, k)]).sort((a, b) => a[1] - b[1])[0];
+  return best && best[1] <= 2 ? fieldOf(best[0]) : (n.length >= 2 && names().find((k) => k.startsWith(n))) || null;
 }
 
 /** The sentence for a value that is not one of the choices. */
@@ -234,16 +247,16 @@ function readWord(w, rows, ctx, memo) {
   const name = body.slice(0, i), rest = body.slice(i + 1);
   if (low(name) === "no") {
     const bare = rest.replace(/"/g, "");
-    if (!bare) return { err: `Say which field: no:owner finds items with no owner. It works with ${list(NONE_OK)}.` };
+    if (!bare) return { err: `Say which field: no:owner finds items with no owner. It works with ${list(noneOk())}.` };
     const k = fieldOf(bare);
-    if (!k) return { err: `There is no “${bare}” field. no: works with ${list(NONE_OK)}.` };
-    if (!LINE_FIELDS[k].none) return { err: `Every item has a ${LINE_FIELDS[k].name.toLowerCase()}, so no:${k} would find nothing. no: works with ${list(NONE_OK)}.` };
+    if (!k) return { err: `There is no “${bare}” field. no: works with ${list(noneOk())}.` };
+    if (!LINE_FIELDS[k].none) return { err: `Every item has a ${LINE_FIELDS[k].name.toLowerCase()}, so no:${k} would find nothing. no: works with ${list(noneOk())}.` };
     return { chip: { field: k, values: [none(k)], not } };
   }
   const k = fieldOf(name);
   if (!k) {
     const n = nearest(name);
-    return { err: `There is no “${name}” filter.${n ? ` Did you mean ${n}?` : ""} You can filter by ${list(NAMES.map((x) => `${x}:`))}, or type plain words to search titles.`, near: n };
+    return { err: `There is no “${name}” filter.${n ? ` Did you mean ${n}?` : ""} You can filter by ${list(names().map((x) => `${x}:`))}, or type plain words to search titles.`, near: n };
   }
   const typed = splitValues(rest);
   if (!typed.length) {
@@ -251,7 +264,7 @@ function readWord(w, rows, ctx, memo) {
     return { err: `Say what ${LINE_FIELDS[k].name.toLowerCase()} to find, for example ${k}:${quote(first ? word(k, first[0]) : "value")}.`, field: k, partial: true };
   }
   const known = (memo || memoOf(rows, ctx)).known(k);
-  if (k === "is") {
+  if (k === "is" && !isPublished()) {
     const off = typed.find((t) => (low(t) === "quiet" || own(NOT_YET, low(t))) && !isOn(low(t), ctx, rows));
     if (off) return { err: `${low(off) === "quiet" ? QUIET_OFF : own(NOT_YET, low(off))} is not available on this page yet.`, field: k };
   }
@@ -370,14 +383,14 @@ export function suggest(wordTyped, rows, ctx) {
   if (!body.includes(":")) {
     const n = low(body);
     if (w && !/^[a-z-]*$/i.test(w)) return [];
-    const fs = NAMES.filter((k) => k.startsWith(n)).map((k) => ({ kind: "field", ins: `${not ? "-" : ""}${k}:`, label: `${not ? "-" : ""}${k}:`, note: not ? `${LINE_FIELDS[k].name} is not…` : LINE_FIELDS[k].name }));
+    const fs = names().filter((k) => k.startsWith(n)).map((k) => ({ kind: "field", ins: `${not ? "-" : ""}${k}:`, label: `${not ? "-" : ""}${k}:`, note: not ? `${LINE_FIELDS[k].name} is not…` : LINE_FIELDS[k].name }));
     const nos = !not && n && "no:".startsWith(n) ? [{ kind: "field", ins: "no:", label: "no:", note: "Has no owner, date…" }] : [];
     return [...fs, ...nos];
   }
   const i = body.indexOf(":"), name = body.slice(0, i), rest = body.slice(i + 1);
   const lead = rest.lastIndexOf(",") + 1, done = rest.slice(0, lead), part = low(rest.slice(lead).replace(/"/g, ""));
   if (low(name) === "no") {
-    return NONE_OK.filter((k) => k.startsWith(part)).map((k) => ({ kind: "value", ins: `${not ? "-" : ""}no:${k}`, label: k, note: `No ${LINE_FIELDS[k].name.toLowerCase()}`, n: count(k, none(k)) }));
+    return noneOk().filter((k) => k.startsWith(part)).map((k) => ({ kind: "value", ins: `${not ? "-" : ""}no:${k}`, label: k, note: `No ${LINE_FIELDS[k].name.toLowerCase()}`, n: count(k, none(k)) }));
   }
   const k = fieldOf(name);
   if (!k) return [];
@@ -398,7 +411,23 @@ export const HINTS = [
   { text: "is:incomplete", gloss: GLOSS.incomplete },
 ];
 /** The hint chips to show: HINTS, with is:quiet added once the page turns the `is:` data on (ctx.isReady). */
-export const hints = (ctx) => (ctx && (ctx.isReady || ctx.quietReady) ? [...HINTS.slice(0, 5), { text: "is:quiet", gloss: GLOSS.quiet }, ...HINTS.slice(5)] : HINTS.slice());
+export const hints = (ctx) => (isPublished() ? HINTS.filter((h) => lineIsClientSafe(h.text)) : ctx && (ctx.isReady || ctx.quietReady) ? [...HINTS.slice(0, 5), { text: "is:quiet", gloss: GLOSS.quiet }, ...HINTS.slice(5)] : HINTS.slice());
+
+/** True when every field word of the line is one the published file's line may use (CLIENT_FIELDS; `is:` only CLIENT_IS; no `owner:me`) and
+ *  is a field at all. Needs no rows. Used to drop a remembered line or saved view that names anything else. */
+export function lineIsClientSafe(line) {
+  for (const w of words(line)) {
+    if (!isFieldWord(w)) continue;
+    const body = w.startsWith("-") ? w.slice(1) : w, i = body.indexOf(":"), name = body.slice(0, i), rest = body.slice(i + 1);
+    const k = fieldAny(low(name) === "no" ? rest.replace(/"/g, "") : name);
+    if (!k || !CLIENT_FIELDS.includes(k)) return false;
+    if (low(name) === "no") continue;
+    const vals = splitValues(rest).map(low);
+    if (k === "is" && !vals.every((v) => CLIENT_IS.includes(v))) return false;
+    if (k === "owner" && vals.includes("me")) return false;
+  }
+  return true;
+}
 
 // ── The line and the older filter state ──────────────────────────────────────────────────────────────────────────────────
 
@@ -422,7 +451,7 @@ export function fromStateNote(state) {
     if (s.mode === "open") t.push("is:open"); else if (s.mode === "closed") t.push("is:closed");
     else if (s.mode !== "all" && s.mode !== undefined) drop(`the ${String(s.mode).slice(0, 40)} switch`);
     // `is` holds extra `is:` words, each its own condition: the Freshness tile is { mode: "open", is: ["quiet"] } (stale is read as quiet, gap as incomplete).
-    for (const w of Array.isArray(s.is) ? s.is : []) { const v = own(OLD_IS, w) || w; if (typeof v === "string" && own(IS_ALL, v)) t.push(`is:${v}`); else drop(`the ${String(w).slice(0, 40)} filter`); }
+    for (const w of Array.isArray(s.is) ? s.is : []) { const v = own(OLD_IS, w) || w; if (typeof v === "string" && own(IS_ALL, v) && (!isPublished() || CLIENT_IS.includes(v))) t.push(`is:${v}`); else drop(`the ${String(w).slice(0, 40)} filter`); }
     if (s.type === "action" || s.type === "decision") t.push(`type:${s.type}`);
     else if (s.type === "risk") t.push(`type:${RAID_KINDS.join(",")}`);
     else if (s.type !== "all" && s.type !== undefined) drop(`the ${String(s.type).slice(0, 40)} type`);
@@ -431,6 +460,7 @@ export function fromStateNote(state) {
       const raw = f[k];
       if (raw === undefined || (Array.isArray(raw) && !raw.length)) continue;
       if (!Array.isArray(raw)) { drop(`the ${k} filter`); continue; }
+      if (isPublished() && !live(k === "reviewed" ? "freshness" : k === "use_case" ? "usecase" : k)) { drop(`the ${k} filter`); continue; }   // not a client-safe field: left out, said
       const not = !!nots[k];
       if (k === "reviewed") {      // Freshness: the two plain values become the line's two words
         const vals = raw.filter((v) => typeof v === "string" && own(FRESH_WORDS, v));
@@ -564,7 +594,7 @@ function writeAll(storage, key, all) { try { storage.setItem(key, JSON.stringify
 export function lineGet(storage, project) {
   if (!storage) return BASE;
   const v = readAll(storage, LINE_KEY)[project];
-  return typeof v === "string" && v.length <= 600 ? v : BASE;
+  return typeof v === "string" && v.length <= 600 && (!isPublished() || lineIsClientSafe(v)) ? v : BASE;
 }
 export function linePut(storage, project, line) {
   if (!storage) return false;
@@ -576,7 +606,8 @@ const sane = (v) => v && typeof v.id === "string" && typeof v.name === "string" 
 /** A project's saved views: its own, or the ones every project starts with. */
 export function viewsGet(storage, project) {
   const mine = storage ? readAll(storage, VIEWS_KEY)[project] : null;
-  return Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS.map((v) => ({ ...v }));
+  const got = Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS.map((v) => ({ ...v }));
+  return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
 }
 export function viewsPut(storage, project, views) {
   if (!storage) return false;
