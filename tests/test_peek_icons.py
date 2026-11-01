@@ -87,9 +87,9 @@ class ToneRules(unittest.TestCase):
         act = lambda due, status="Open": {"kind": "action", "status": status, "due_date": due}
         cases = [(act("2026-10-27"), "r"), (act("2026-10-28"), "a"), (act("2026-11-04"), "a"), (act("2026-11-05"), "b"),
                  (act(None), "n"), (act("not a day"), "n"), (act("2026-10-01", "Closed"), "b"), (act("2026-10-01", "Cancelled"), "b"),
-                 ({"kind": "risk", "status": "Open", "due_date": "2026-10-20"}, "r"),
+                 ({"kind": "risk", "status": "Open", "due_date": "2026-10-20"}, "a"),         # only a late action is red
                  ({"kind": "decision", "status": "Pending", "needed_by": "2026-10-30"}, "a"),
-                 ({"kind": "decision", "status": "Pending", "needed_by": "2026-10-01"}, "r"),
+                 ({"kind": "decision", "status": "Pending", "needed_by": "2026-10-01"}, "a"),
                  ({"kind": "decision", "status": "Made", "date": "2026-10-01"}, "b")]
         out = self.run_js(f"const C = {json.dumps([c for c, _ in cases])}; console.log(JSON.stringify(C.map((r) => I.dateTone(r, {json.dumps(today)}))))")
         self.assertEqual(out, [want for _, want in cases])
@@ -222,7 +222,7 @@ def expected_date_tone(kind, status, iso, today="2026-10-28"):
     if status in ("Closed", "Cancelled", "Made", "Withdrawn"):
         return "b"
     n = days(iso, today)
-    return "r" if n < 0 else "a" if n <= 7 else "b"
+    return ("r" if kind == "action" else "a") if n < 0 else "a" if n <= 7 else "b"
 
 
 class IconsBrowser(unittest.TestCase):
@@ -277,7 +277,7 @@ class IconsBrowser(unittest.TestCase):
         if want["due"] == "r":
             self.assertRegex(rows["due"]["under"], r"late", f"{iid}: a red date says it is late")
         if want["due"] == "a":
-            self.assertRegex(rows["due"]["under"], r"Today|Tomorrow|In \d+ days?", f"{iid}: an amber date says how soon")
+            self.assertRegex(rows["due"]["under"], r"late|Today|Tomorrow|In \d+ days?", f"{iid}: an amber date says how soon, or that it is late")
         for row in rows.values():
             for text in (row["words"], row["under"]):
                 self.assertNotRegex(text, JARGON, f"{iid}: {text!r}")
@@ -314,7 +314,7 @@ class IconsBrowser(unittest.TestCase):
 
     def test_the_colour_changes_with_the_theme_and_the_icon_is_not_the_only_thing_that_changes(self):
         """Dark is a real second look (the same icon takes a different colour), and each row keeps its own shape and its words."""
-        late = next(i for i in self.items() if i[1] != "decision" and i[2] not in ("Closed", "Cancelled") and i[4] and days(i[4], "2026-10-28") < 0)
+        late = next(i for i in self.items() if i[1] == "action" and i[2] not in ("Closed", "Cancelled") and i[4] and days(i[4], "2026-10-28") < 0)
         with chrome() as cdp:
             s, sid = self.load_page(cdp, 1400)
             cdp.js("document.documentElement.dataset.theme = 'light'", sid)
@@ -340,7 +340,7 @@ class PlainWords(unittest.TestCase):
         text = (SRC / "iconColours.js").read_text(encoding="utf-8")
         code = code_of(text)
         strings = set(re.findall(r'"([^"]*)"', code)) - {"./workItems.js"}
-        allowed = set(TONES) | {"Urgent", "High", "Medium", "Low"}
+        allowed = set(TONES) | {"Urgent", "High", "Medium", "Low", "action"}      # "action" is the row kind the date rule compares with, never shown
         for s in strings:
             self.assertTrue(s in allowed, f"{s!r} would be a word nobody planned")
 
