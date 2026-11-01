@@ -38,10 +38,20 @@ function AboutYou() {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
     const r = await setProfile(sent.name, sent.email);
-    // what clark kept (it may be tidied, such as spaces cut off the ends) goes back in a box only if the box still holds what was sent:
-    // a box changed since is left as it is
-    if (r.ok) setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
-    setSaid(r.ok ? { name: "", email: "" } : { name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
+    // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
+    // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
+    // also shown only while the box still holds the text that was refused (text typed since has not been sent yet).
+    if (!r.newest) return;
+    if (r.ok) {
+      // what clark kept (it may be tidied, such as spaces cut off the ends) goes back in a box only if the box still holds what was sent:
+      // a box changed since is left as it is
+      setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
+      setSaid({ name: "", email: "" });
+      return;
+    }
+    const mine = field === "name" ? name : email;
+    if ((mine.current ? mine.current.value : typed[field]) !== sent[field]) return;
+    setSaid({ name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
   };
   const box = (field, label, type, line, ref) => (
     <div class="fld">

@@ -10,6 +10,7 @@ a refusal says why in its words, ends "Nothing was saved.", writes nothing and l
 Chrome is required: these tests fail, never skip, without it.
 """
 import json
+import time
 import unittest
 
 from _paths import SRC
@@ -58,11 +59,13 @@ class AboutYou(Base):
             p.until("!!document.querySelector('#profile-menu .who-link')", "the page has taken the save")
         self.close_menu(p)
 
-    def slow_saves(self, p, ms=1500):
+    def slow_saves(self, p, ms=1500, delays=None):
         """Hold back clark's answer to each save by `ms` in the page itself (the save is written at once; the page hears of it late), as on a
-        busy computer. window.__answered counts the answers the page has been handed."""
-        p.js("(() => { window.__answered = 0; const f = window.fetch; window.fetch = (u, o) => (String(u).includes('/api/profile') && o && o.method === 'POST') "
-             f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ window.__answered++; ok(r); }}, {ms}))) : f(u, o); }})()")
+        busy computer. `delays` instead gives the hold for each save in the order they are sent (a later one can be answered first).
+        window.__answered counts the answers the page has been handed."""
+        p.js("(() => { window.__answered = 0; window.__sentn = 0; const d = " + json.dumps(delays) + "; const f = window.fetch; "
+             "window.fetch = (u, o) => (String(u).includes('/api/profile') && o && o.method === 'POST') "
+             f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ window.__answered++; ok(r); }}, d ? d[Math.min(window.__sentn++, d.length - 1)] : {ms}))) : f(u, o); }})()")
 
     def top(self, p):
         return p.js("(() => { const w = document.querySelector('#profile-menu .who'); if (w) return {name: w.querySelector('b').textContent, "
@@ -197,6 +200,48 @@ class AboutYou(Base):
             self.type_into(p, "name", "Sam Lee and more")      # now leave it: the longer name is saved, and shown
             self.handled(p, "Sam Lee and more")
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee and more")
+
+    def test_C_an_older_good_answer_arriving_late_does_not_clear_a_newer_refusal(self):
+        """A slow good save is sent first, a refused one second; the refusal is answered first and shows; the older good answer then arrives.
+        It must not clear the refusal: the box still holds the refused text, so the message is what tells the person it is not saved."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Old Name")
+            self.handled(p, "Old Name")
+            self.slow_saves(p, delays=[2500, 300])
+            self.type_into(p, "name", "Sam Lee")                     # sent first, answered last
+            self.type_into(p, "name", "N" * 61)                      # sent second, refused, answered first
+            bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
+            p.until("window.__answered >= 1", "the refusal was answered")
+            p.until(f"{bad} !== ''", "the refusal shows")
+            p.until("window.__answered >= 2", "the older good save was answered too")
+            self.handled(p, "Sam Lee")                               # the page has taken the good answer
+            time.sleep(0.3)
+            self.assertEqual(p.js(bad), "Your name is too long. Use 60 characters or fewer. Nothing was saved.", "the refusal is still shown")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "what was typed is still in the box")
+            self.assertEqual(p.js("document.querySelector('#about-name').getAttribute('aria-invalid')"), "true")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "the store holds the name that was saved, not the refused one")
+
+    def test_C_an_older_refusal_arriving_late_does_not_show_over_a_newer_good_save(self):
+        """A slow refused save is sent first, a good one second; the good one is answered first; the older refusal then arrives. It must not
+        show over the good text: that text is saved."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, delays=[2500, 300])
+            self.type_into(p, "name", "N" * 61)                      # sent first, refused, answered last
+            self.type_into(p, "name", "Sam Lee")                     # sent second, answered first
+            p.until("window.__answered >= 1", "the good save was answered")
+            self.handled(p, "Sam Lee")
+            p.until("window.__answered >= 2", "the older refused save was answered too")
+            time.sleep(0.3)
+            bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
+            self.assertEqual(p.js(bad), "", "no refusal over the saved text")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee")
+            self.assertEqual(p.js("document.querySelector('#about-name').getAttribute('aria-invalid')"), None)
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
+            self.handled(p, "Sam Lee")
 
 
 class Source(unittest.TestCase):
