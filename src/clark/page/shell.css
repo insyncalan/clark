@@ -173,6 +173,19 @@ table.items tr.done .t { color: var(--text-muted); }
 .pill.b::before { background: var(--status-blue); }
 .pill.n { background: var(--grey-100); color: var(--grey-700); }
 .pill.n::before { background: var(--status-grey); }
+/* The health pill: a filled block, in the report and in the menu that changes it (the prototype's look). Text on the fill is at least 4.5:1 in light
+   and dark: white on the darker green (the plain green is 4.4998:1 with white, a hair short), white on red, and the dark navy on amber. */
+.hpill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: var(--radius-sm); font-size: var(--size-small); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; white-space: nowrap; }
+.hpill::before { display: none; }
+.hpill.g { background: var(--status-green-text); color: var(--text-on-brand); }
+.hpill.a { background: var(--status-amber); color: var(--brand-navy); }
+.hpill.r { background: var(--status-red); color: var(--text-on-brand); }
+.hpill.n { background: var(--grey-100); color: var(--grey-700); }
+button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `font: inherit` would otherwise reset it */
+.ddmenu [role="menuitemradio"].hp { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 10px; }
+.ddmenu [role="menuitemradio"].hp:hover, .ddmenu [role="menuitemradio"].hp:focus-visible { background: var(--brand-blue-tint); }
+.ddmenu [role="menuitemradio"].hp:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.ddmenu .hck { width: 16px; height: 16px; stroke-width: 2.4; color: var(--text); }
 .tag { display: inline-flex; font-size: 13px; padding: 1px 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .tag.cl { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .type { display: inline-block; padding: 1px 8px; border-radius: var(--radius); font-size: 13px; font-weight: 400; background: var(--grey-100); color: var(--grey-700); }
