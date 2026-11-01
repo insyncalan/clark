@@ -2,12 +2,18 @@
 # the team repo). Actions › Tests › Run workflow; "files" names test files (space-separated,
 # e.g. "test_layout test_milestones") or is left empty for the whole suite; "macos" adds the macOS job.
 #
-# ===== the matrix =====
-# Ubuntu 24.04: the newest Python on every file (the browser tests included), and Python 3.9 (the oldest clark supports) on
-# the files that never start Chrome (`--quick`: the quick tier, read from the files by dev/tools/run_support.py). So a browser
-# test runs once per commit, and the oldest Python is still tested on all the rest. macOS (the newest Python, every file) runs
-# on release branches (release-X.Y.Z, and the Head's v0.1-release style line: v*-release*) and when started by hand with macos=true, and is REQUIRED there: clark is Mac first
-# (unlike creaite, where it is optional). A macOS runner that fails to start is re-run once before anyone calls it a failure.
+# ===== what runs when =====
+# Ubuntu 24.04, two jobs. Python "3.x" (the newest): on a pull request, the quick tier plus the browser files the change reaches
+# (`dev/run_tests.py --push origin/<base>`); the FULL suite (every file, the browser tests included) on a push to main, on a
+# release branch (release-X.Y.Z, and the Head's v*-release* line, read from the pull request's head branch) and when started by
+# hand. Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome, read from the
+# files by dev/tools/run_support.py) on every run. macOS (the newest Python, every file) runs on release branches and when
+# started by hand with macos=true, and is REQUIRED there: clark is Mac first (unlike creaite, where it is optional). A macOS
+# runner that fails to start is re-run once before anyone calls it a failure.
+#
+# The gate: "Tests passed" is the one result to require. A gate row can be absent because a job with `needs` has no check run
+# until its needs finish (so it is missing while a needed job still runs). A stale red gate appeared when concurrency cancelled a
+# run while `if: always()` kept the gate running; `if: ${{ !cancelled() }}` posts nothing for a cancelled run.
 #
 # Safety: `pull_request`, never `pull_request_target` (a fork's code never runs with this repository's token or secrets);
 # read-only permissions; no secrets in any job; one run per branch or pull request at a time (a newer run cancels the older);
@@ -48,16 +54,17 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      # The newest Python ("3.x": whichever is newest when the job runs) on every file; 3.9 on the quick tier. The split is the
-      # same on every job because it depends only on the file names and dev/tools/shard_times.txt. The "Tests passed" job
-      # below is green only if every shard is.
+      # The newest Python ("3.x": whichever is newest when the job runs; scope "auto": --push on a pull request, everything
+      # otherwise) and 3.9 on the quick tier. The "Tests passed" job below is green only if every shard is.
       matrix:
         include:
-          - {python: "3.x", scope: "", shard: 1, shards: 1}
+          - {python: "3.x", scope: "auto", shard: 1, shards: 1}
           - {python: "3.9", scope: "--quick", shard: 1, shards: 1}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          # A pull request needs the whole history so the base branch is there for --push to diff against.
+          fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
           persist-credentials: false
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -82,20 +89,29 @@ jobs:
           SHARD: ${{ matrix.shard }}
           SHARDS: ${{ matrix.shards }}
           SCOPE: ${{ matrix.scope }}
-        run: python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          # Branch and base names are untrusted text: they reach this shell only through env, never interpolated into it.
+          if [ "$SCOPE" = "auto" ]; then
+            SCOPE=""
+            if [ "$EVENT" = "pull_request" ]; then
+              SCOPE="--push origin/$BASE"
+              case "$HEAD_REF" in
+                release-*|v*-release*) SCOPE="" ;;
+              esac
+            fi
+          fi
+          python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   macos:
     # macOS (the newest Python, every file) on release branches (release-*, v*-release*) and when a hand-started run sets macos=true:
     # gh workflow run Tests --ref <branch> -f macos=true. Required when it runs: "Tests passed" waits for it.
     if: (startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')
-    name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}
+    name: macos-latest · Python 3.x · shard 1/1      # static: a skipped job's name is never resolved from a matrix
     runs-on: macos-latest
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {shard: 1, shards: 1}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -120,17 +136,17 @@ jobs:
         env:
           FILES: ${{ github.event.inputs.files }}
           JOBS: 3
-          SHARD: ${{ matrix.shard }}
-          SHARDS: ${{ matrix.shards }}
+          SHARD: 1
+          SHARDS: 1
         run: python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   passed:
     # The one result to wait for (and to require): green only if every required job is. Every Linux shard must pass; the macOS
     # job must pass when this run wants it (a release branch, or macos=true) and must have been skipped when it doesn't. A
-    # skipped or cancelled required job counts as a failure here.
+    # skipped or cancelled required job counts as a failure here (a cancelled run posts no gate at all, see the header).
     name: Tests passed
     needs: [tests, macos]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
       - env:
