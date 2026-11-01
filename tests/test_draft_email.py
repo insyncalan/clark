@@ -412,6 +412,16 @@ class Dates(unittest.TestCase):
         for bad in ("29/10/2026", "29-10-2026", "10/29/2026", "2026/10/29", "29.10.2026", "Oct 29 2026"):
             self.assertFalse(feed._day(bad), bad)
 
+    def test_the_sent_record_takes_only_a_stored_day(self):
+        # #254: the sent record's day is YYYY-MM-DD only, on every Python (fromisoformat reads more forms on 3.11).
+        self.assertEqual(de.sent_entry(["ABC-A-001"], "chase", "2026-10-29")["date"], "2026-10-29")
+        for bad in ("20261029", "2026-W44-3", "29-10-2026", "29/10/2026", "2026-10-29T10:00", "2026-02-30", "", None):
+            with self.subTest(day=bad):
+                with self.assertRaises(ValueError) as caught:
+                    de.sent_entry(["ABC-A-001"], "chase", bad)
+                self.assertEqual(str(caught.exception), "The day the email was sent must be a real date.")
+
+
     def test_overdue_and_due_soon_in_words_and_colour(self):
         d = de.due_info("2026-10-09", TODAY)
         self.assertEqual((d["date"], d["words"], d["level"]), ("09-10-2026", "4 days overdue", "over"))
@@ -524,7 +534,8 @@ class Outside(unittest.TestCase):
         sens = item("ABC-A-012", "Sensitive matter", "2026-10-20", sensitive=True)
         d = build(items=[LATE, held, hidden, sens], email=OUTSIDE)
         self.assertEqual(d["ids"], ["ABC-A-001"])
-        self.assertEqual(build(items=[sens], email=INSIDE)["ids"], ["ABC-A-012"])           # kept for an own address
+        self.assertEqual(build(items=[sens], email=INSIDE)["ids"], [])                      # Sensitive: barred for an own address too
+        self.assertNotIn("Sensitive matter", build(items=[LATE, sens], email=INSIDE)["text"])
         ok, left = de.offered([LATE, held, hidden, sens], OUTSIDE, OWN)
         self.assertEqual(([i["id"] for i in ok], left), (["ABC-A-001"], 3))
 
