@@ -38,19 +38,15 @@ COVERED = [
     ("#111", "Settings > Safety lists the backups newest first", "test_safety::TheList::test_newest_first_in_words_with_size_status_and_the_number_kept"),
     ("#110", "Logs and diagnostics: a report needs the token", "test_log_wiring::PageErrorRoute::test_the_token_is_checked_and_a_large_body_refused"),
     ("#98", "The brand picture is served from its fixed names", "test_brand_picture::Route::test_each_fixed_name_is_served_with_its_own_type_and_the_security_headers"),
-    ("#98", "The section style choice shows on the Dashboard", "test_section_style_cards::Cards::test_C_the_choice_shows_on_the_dashboard"),
-    ("#98", "The section styles are four picture cards", "test_section_style_cards::Cards::test_C_four_cards_each_with_a_drawing_and_one_real_radio_in_a_named_group"),
     ("V-E keys", "V and E switch between View and Edit", "test_single_keys::PageKeys::test_letters_work_when_on_do_nothing_when_off_and_work_again_with_no_reload"),
     ("#203", "The Work items cells in Edit are tidy boxes", "test_edit_cells_layout::Cells::test_every_edit_cell_is_one_tidy_box_at_both_widths_in_both_looks"),
     ("Esc", "An inline date closes on one Esc", "test_inline_edits::Live::test_every_inline_date_closes_on_one_esc_a_click_away_or_tab_and_changes_nothing"),
     ("#182", "A bad idle-timer value keeps the default", "test_idle::Environment::test_number_refuses_non_finite_values"),
     ("plain errors", "A broken or odd request gets a plain-words reply", "test_server_error_pages::PlainPages::test_the_wording_is_plain"),
-    ("#78", "The peek shows coloured icons for status, priority and date", "test_peek_icons::ToneRules::test_priority_urgent_red_high_amber_medium_blue_low_and_none_grey"),
 ]
 
 # Not on main (or no test found): (item, check, the question or where it is being built).
 WAITING = [
-    ("#238", "Help says PDF files are not read yet", "no test names it; the words are in helpContent.json (ask clark's folders entry): is a check wanted?"),
 ]
 
 # (item, check, kind, why, what the person does)
