@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import appfiles, backup, changes, idle, log as clog, log_routes, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, store as clark_store, use_cases_read, word_route
+from clark import appfiles, backup, changes, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, store as clark_store, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -372,10 +372,11 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      err=err,
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
                      profile=who,
+                     milestones=milestone_feed.make_feed(store.data_for),
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store)),
-                    safety=safety.Safety(store.path, roots), logs=logs,
-                    brand_picture=page.brand_picture,
+                     safety=safety.Safety(store.path, roots), logs=logs,
+                     brand_picture=page.brand_picture,
                      **handlers)
         LOG.info("stopped with code %d", done)
         if done == 0:

@@ -14,9 +14,11 @@ function Figure({ t, file }) {
   const inner = (
     <>
       <span class="k"><i class="ragdot" aria-hidden="true"></i>{t.label}</span>
-      <span class="v num">{t.value}</span>
+      <span class="vrow">
+        <span class="v num">{t.value}</span>
+        {t.word ? <span class="tw" aria-hidden="true">{t.word}</span> : null}   {/* beside the figure; the word is in the tile's own label below, so it is not read twice */}
+      </span>
       <span class="dd">{t.detail}</span>
-      {t.word ? <span class="tw">{t.word}</span> : null}
     </>
   );
   const aria = `${t.label}: ${t.value}${t.detail ? ", " + t.detail : ""}${t.word ? ". " + t.word : ""}`;
@@ -29,12 +31,11 @@ function Health({ t, tools, editing }) {
   const G = editing ? tools.glance : null;
   return (
     <div class={`fig health-fig rag-${t.rag}`} data-fig="health">
-      <span class="k"><i class="ragdot" aria-hidden="true"></i>Project health</span>
+      <span class="k"><i class="ragdot" aria-hidden="true"></i>Project health{t.word ? <span class="tw">{t.word}</span> : null}</span>   {/* the word sits in the label row at the right; here it is read, as it says what it is */}
       <div class="hrow">
-        {G ? <G.HealthPill health={data.value.project.health} reason={t.reason} /> : <span class={`pill ${t.pill || "n"}`}>{t.value}</span>}
+        {G ? <G.HealthPill health={data.value.project.health} reason={t.reason} /> : <span class={`pill hpill ${t.pill || "n"}`}>{t.value}</span>}
         {G ? <G.Reason health={data.value.project.health} reason={t.reason} /> : t.reason ? <span class="hreason">{t.reason}</span> : null}
       </div>
-      {t.word ? <span class="tw">{t.word}</span> : null}
     </div>
   );
 }
