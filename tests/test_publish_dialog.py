@@ -46,12 +46,16 @@ class Pg:
         self.until("!!document.querySelector('#profile-menu [data-kind=publish]')", "the menu opened")
         self.js("document.querySelector('#profile-menu [data-kind=publish]').click()")
         self.until("!!document.querySelector('#publish-dialog[open]')", "the dialog opened")
+        self.js("window.clarkPage.publishCloseMs(600000)")       # the finished dialog stays while a test reads it (#437); one test lets it close
 
     def dialog_text(self):
         return self.js("document.querySelector('#publish-dialog').innerText")
 
     def go(self):
         self.js("document.querySelector('[data-go]').click()")
+
+    def toast(self):
+        return self.js("(document.querySelector('.toasts .toast-text') || {}).innerText || ''")
 
     def message(self):
         return self.js("(document.querySelector('#pub-msg') || {}).innerText || ''")
@@ -98,10 +102,45 @@ class Dialog(Base):
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.until("document.querySelector('[data-go]').innerText === 'Publish and send to the client'", "the button changed")
-            self.assertIn("The client will see this page.", p.dialog_text())
+            self.assertIn("The client will see this page. Only what is shown in View mode is included.", p.dialog_text())
             p.js("document.querySelector('#pub-client').click()")
             p.until("document.querySelector('[data-go]').innerText === 'Publish locally'", "and back")
             self.assertNotIn("The client will see this page.", p.dialog_text())
+
+    def test_C_the_line_says_the_next_number_and_the_last_publication(self):
+        """#437 row 26: "this will be Publication N · last published <date>, to the client or locally", as the prototype says it."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            p.until("/this will be Publication 1/.test(document.querySelector('#pub-line').innerText)", "the next number")
+            self.assertNotIn("last published", p.js("document.querySelector('#pub-line').innerText"), "nothing was published yet")
+            p.go()
+            p.until("!!document.querySelector('[data-go][data-done]')", "published")
+            p.js("document.querySelector('[data-go]').click()")
+            p.until("!document.querySelector('#publish-dialog')", "closed")
+            p.open_publish()
+            p.until("/this will be Publication 2/.test(document.querySelector('#pub-line').innerText)", "the number moved on")
+            self.assertRegex(p.js("document.querySelector('#pub-line').innerText"),
+                             r" · this will be Publication 2 · last published \d\d-\d\d-\d{4}, locally$")
+            for w in WIDTHS:
+                p.width(w)
+                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"no sideways scroll at {w}")
+
+    def test_C_it_finishes_with_a_tick_closes_by_itself_and_leaves_a_toast(self):
+        """#437 rows 27 and 57: a tick and "Published (Publication N)" on the button, the dialog closes, a toast says what was done.
+        The prototype's Undo is not built: a publication is no step (history.py)."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            p.js("window.clarkPage.publishCloseMs(400)")
+            p.go()
+            p.until("!!document.querySelector('[data-go][data-done]')", "the finished button")
+            self.assertEqual(p.js("document.querySelector('[data-go]').innerText.trim()"), "Published (Publication 1)")
+            p.until("!document.querySelector('#publish-dialog')", "the dialog closed by itself")
+            self.assertEqual(p.focused(), "publish")
+            self.assertRegex(p.toast(), r"^Published \(Publication 1\)\. Saved locally as ")
+            self.assertEqual(p.js("document.querySelectorAll('.toasts .toast [data-undo]').length"), 0, "no Undo: nothing to take back")
+            p.until("!!document.querySelector('#pub-note')", "the bar says when")
 
     def test_C_keyboard(self):
         with chrome() as cdp:
@@ -121,7 +160,7 @@ class Dialog(Base):
             p.open_publish()
             self.assertFalse(p.js("document.querySelector('#pub-client').checked"), "reopened: unticked, never remembered")
             p.key("Enter", code="Enter", vk=13)         # Enter on the tick submits: Local only
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "Enter published")
+            p.until("!!document.querySelector('[data-go][data-done]')", "Enter published")
             self.assertEqual(len(self.rig.rows()), 1)
 
     def test_C_reopen_is_unticked_after_a_client_publish(self):
@@ -130,7 +169,7 @@ class Dialog(Base):
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("!!document.querySelector('[data-go][data-done]')", "published")
             p.js("document.querySelector('[data-go]').click()")
             p.until("!document.querySelector('#publish-dialog')", "closed")
             self.assertEqual(p.focused(), "publish")
@@ -145,8 +184,8 @@ class Dialog(Base):
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
-            self.assertEqual(p.message(), DONE_NEW)
+            p.until("!!document.querySelector('[data-go][data-done]')", "published")
+            self.assertEqual(p.toast(), DONE_NEW)
             self.assertEqual((self.rig.client / WANTED).read_bytes(), (self.rig.local / "chosen.html").read_bytes())
             p.until("!!document.querySelector('#pub-note')", "the bar says when")
             self.assertRegex(p.js("document.querySelector('#pub-note').textContent"), r"^Published \d\d-\d\d-\d{4} to the client$")
@@ -164,19 +203,19 @@ class Dialog(Base):
             self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-spin]')).animationName"), "pub-spin")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.until("getComputedStyle(document.querySelector('[data-spin]')).animationName === 'none'", "the ring stays still for reduced motion")
-            self.assertEqual(p.js("document.querySelector('#pub-msg [data-tick]')"), None, "no tick yet")
+            self.assertEqual(p.js("document.querySelector('[data-go] [data-tick]')"), None, "no tick yet")
             p.js("window.__release()")
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("!!document.querySelector('[data-go][data-done]')", "published")
             self.assertEqual(p.js("document.querySelector('#pub-msg [data-spin]')"), None, "the spinner is gone")
-            self.assertTrue(p.js("!!document.querySelector('#pub-msg .success [data-tick] svg')"), "a tick beside the line")
-            self.assertRegex(p.message(), r"^Published \(Publication \d+\)\. Saved locally as ")
+            self.assertTrue(p.js("!!document.querySelector('[data-go][data-done] [data-tick] svg')"), "a tick on the button")
+            self.assertRegex(p.toast(), r"^Published \(Publication \d+\)\. Saved locally as ")
 
     def test_C_a_local_publish_says_locally_and_the_client_folder_is_left_alone(self):
         with chrome() as cdp:
             p = self.page(cdp)
             p.open_publish()
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("!!document.querySelector('[data-go][data-done]')", "published")
             self.assertEqual(self.rig.listing(self.rig.client), [])
             p.until("!!document.querySelector('#pub-note')", "the bar says when")
             self.assertRegex(p.js("document.querySelector('#pub-note').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
@@ -228,8 +267,8 @@ class Dialog(Base):
             p.go()
             p.until("!!document.querySelector('input[name=clash]')", "asked again")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
-            self.assertIn("PUB-report-2026-10-23 (2).html", p.message())
+            p.until("!!document.querySelector('[data-go][data-done]')", "published")
+            self.assertIn("PUB-report-2026-10-23 (2).html", p.toast())
             self.assertEqual(self.rig.listing(self.rig.client), sorted([WANTED, "PUB-report-2026-10-23 (2).html"]))
 
     def test_C_a_failure_is_in_plain_words_in_an_alert(self):

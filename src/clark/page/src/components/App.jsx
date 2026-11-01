@@ -1,6 +1,6 @@
 // The page: the top bar and the open view. `tools` is what Edit adds (edit/index.js); the published page passes none.
 import { view, status, tabs, fromFile, publication, asAt } from "../stores/report.js";
-import { plainDate } from "../logic/picker.js";
+import { footerLine } from "../logic/publishWords.js";
 import { TopBar } from "./TopBar.jsx";
 import { Milestones, Settings, Gate } from "./Views.jsx";
 import { Dashboard } from "./Dashboard.jsx";
@@ -23,7 +23,7 @@ export function App({ tools }) {
     <>
       <TopBar tools={tools} />
       <main id="main">{Layer ? <Layer>{body}</Layer> : body}</main>
-      {publication.value ? <footer class="pubfoot num" id="publication-footer">Publication {publication.value}{asAt.value ? ` · ${plainDate(asAt.value)}` : ""}</footer> : null}
+      {publication.value ? <footer class="pubfoot num" id="publication-footer">{footerLine(publication.value, asAt.value)}</footer> : null}
       {Ask ? <Ask /> : null}
       {status.value === "ready" ? <Peek tools={tools} /> : null}
       {Toast ? <Toast /> : null}

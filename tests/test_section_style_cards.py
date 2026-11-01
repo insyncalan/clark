@@ -276,7 +276,7 @@ class Cards(Base):
                 self.rig.save_to = self.rig.local / f"{pick}.html"
                 p.open_publish()
                 p.go()
-                p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+                p.until("!!document.querySelector('[data-go][data-done]')", "published")
                 text = (self.rig.local / f"{pick}.html").read_text(encoding="utf-8")
                 got = json.loads(re.search(r'id="clark-data">(.*?)</script>', text, re.S).group(1))
                 self.assertEqual(got["style"], pick)

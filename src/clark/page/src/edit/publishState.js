@@ -4,10 +4,14 @@
 import { signal } from "@preact/signals";
 import { data, project } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
+import { say } from "../stores/changes.js";
 
 export const NO_FOLDER = "No client folder yet. Set it in Settings.";
 export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
+export const next = signal(0);           // the number the next publication will have (#437), or 0 until the server has said
+export const closeAfter = { ms: 1200 };  // how long the finished dialog stays before it closes itself; the test build changes it (testhook.js)
+let closing = 0;                         // counts finished dialogs, so a timer from an earlier one never closes a later dialog
 
 export const savedFolder = () => {
   const d = data.value;
@@ -15,17 +19,19 @@ export const savedFolder = () => {
 };
 export const folderName = (path) => (path ? String(path).replace(/[\\/]+$/, "").split(/[\\/]/).pop() || String(path) : "");
 
-const fresh = (saved) => ({ saved, ticked: false, phase: "choose", clash: null, choice: "number", newName: "", confirmed: false, message: null });
+const fresh = (saved) => ({ saved, ticked: false, phase: "choose", clash: null, choice: "number", newName: "", confirmed: false, message: null, number: 0 });
 const set = (patch) => { if (dialog.value) dialog.value = { ...dialog.value, ...patch }; };
 
 export async function refreshLatest() {
   const code = project.value;
-  if (!code) { latest.value = null; return; }
+  if (!code) { latest.value = null; next.value = 0; return; }
   const r = await latestRequest(code);
-  latest.value = r.status === 200 && r.body && r.body.ok === true && r.body.latest ? r.body.latest : null;
+  const ok = r.status === 200 && r.body && r.body.ok === true;
+  latest.value = ok && r.body.latest ? r.body.latest : null;
+  next.value = ok && Number.isInteger(r.body.next) && r.body.next >= 1 ? r.body.next : 0;
 }
 
-export function open() { dialog.value = fresh(savedFolder()); }
+export function open() { dialog.value = fresh(savedFolder()); refreshLatest(); }       // asks again: a Word copy may have taken the number
 
 export function close() {
   const el = document.getElementById("publish-dialog");
@@ -75,7 +81,16 @@ export async function go() {
     return;
   }
   const said = words(r, "publish");
-  if (r.status === 200 && b && b.ok === true) { set({ phase: "done", clash: null, message: { kind: "success", text: said } }); refreshLatest(); return; }
+  if (r.status === 200 && b && b.ok === true) {
+    // #437: the button shows a tick and "Published (Publication N)", the words go to the toast, and the dialog closes by itself.
+    // A publication is no step, so the toast has no Undo (history.py: the files are already where they were put).
+    set({ phase: "done", clash: null, message: null, number: Number.isInteger(b.publication) ? b.publication : 0 });
+    say("done", said);
+    refreshLatest();
+    const mine = ++closing;
+    setTimeout(() => { const now = dialog.value; if (mine === closing && now && now.phase === "done") close(); }, closeAfter.ms);
+    return;
+  }
   const cancelled = r.status === 200 && b && (b.code === "cancelled" || b.code === "cancel");
   set({ phase: "error", clash: null, message: { kind: cancelled ? "info" : "error", text: said } });
   if (b && b.local_saved === true) refreshLatest();       // Local was saved and logged although the copy was not

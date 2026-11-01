@@ -517,7 +517,8 @@ class Publisher:
 
     # ----- the report bar -----
     def latest(self, code):
-        """The latest publication of the project, for the report bar: {"at", "to_client"} or {} (no paths, no hash)."""
+        """The latest publication of the project, for the report bar: {"at", "to_client"} or None (no paths, no hash), and (#437) the
+        number the next one will have, for the Publish dialog's line."""
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
         store = self.store()
@@ -525,6 +526,7 @@ class Publisher:
             if store.read("projects", ref=code) is None:
                 return 404, self.fail("project_not_found")
             last = store.latest_publication(code)
+            following = store.next_publication(code)
         finally:
             store.close()
-        return 200, {"ok": True, "latest": {"at": last["at"][:10], "to_client": last["to_client"]} if last else None}
+        return 200, {"ok": True, "latest": {"at": last["at"][:10], "to_client": last["to_client"]} if last else None, "next": following}
