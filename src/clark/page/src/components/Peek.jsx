@@ -163,12 +163,14 @@ export function Peek({ tools }) {
   // Esc closes the words box first, then the peek; two slashes outside a field open the words box (Edit only). Up and Down on one of the
   // peek's own buttons step to the item before or after (#246); every other arrow is left to whatever it was aimed at (#289).
   const stepBy = (dir) => {
-    const ms = p.kind === "milestone", ids = ms ? milestoneIds() : itemIds(), here = placeIn(ids, p.id);
-    if (here.at < 0) { say(`${p.id} is not in the list now`); return; }
+    const q = peek.value;                                 // the peek now, not the one this handler was made for: a second key can come before the redraw
+    if (!q) return;
+    const ms = q.kind === "milestone", ids = ms ? milestoneIds() : itemIds(), here = placeIn(ids, q.id);
+    if (here.at < 0) { say(`${q.id} is not in the list now`); return; }
     const to = ids[here.at + dir];
-    if (!to) { say(`${p.id}, ${here.at + 1} of ${ids.length}, the ${dir < 0 ? "first" : "last"} one`); return; }
+    if (!to) { say(`${q.id}, ${here.at + 1} of ${ids.length}, the ${dir < 0 ? "first" : "last"} one`); return; }
     stepped.current = true;
-    openPeek(to, p.kind);
+    openPeek(to, q.kind);
     say(`${to}, ${here.at + dir + 1} of ${ids.length}`);
   };
   useEffect(() => {
