@@ -996,7 +996,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld small { color: var(--text-muted); font-size: var(--size-small); }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-small); }
 .fld-bad:empty { display: none; }
-/* Settings › People (#454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
+/* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
 .pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
 .pp-h h2 { margin: 0; flex: 1; }
 .pp-intro { font-size: var(--size-small); margin: 0 0 12px; }

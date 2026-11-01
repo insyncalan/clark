@@ -114,7 +114,18 @@ def change_body_limit(body_max=SECTION_BODY_MAX):
 
 
 CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378: 132 KB today; moves with the three above, never with a bare number
-PEOPLE_BODY_LIMIT = 256 * 1024         # #454: one paste of the People card, at most people.ROW_LIMIT (500) rows of four short cells; an add or an edit is a few hundred bytes
+# #454: the People card's paste, worked out the way the change limit is, never a bare number. This server imports nothing from clark, so the
+# four caps are copied here and tests/test_server.py keeps them equal to people.py (ROW_LIMIT, NAME_MAX, EMAIL_MAX, CELL_MAX). The bound is
+# the worst the page can send: every character of every cell a six-byte JSON escape (\u00XX, which JSON.stringify gives a control character;
+# a lone surrogate half is the same six bytes, and the page counts a letter outside the basic plane as two halves, so six bytes a counted
+# character holds for it too). Plain text is one to three bytes a character, so nothing a person types comes near it.
+PEOPLE_ROW_MAX = 500                   # people.ROW_LIMIT: rows in one paste
+PEOPLE_NAME_MAX, PEOPLE_EMAIL_MAX = 120, 254
+PEOPLE_CELL_MAX = 100                  # people.CELL_MAX: organisation, and role
+JSON_ESCAPE_BYTES = 6                  # the most one character takes in a JSON string
+PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colons and comma: 51 bytes compact, 59 when spaced
+PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
+PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,

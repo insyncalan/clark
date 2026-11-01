@@ -5,7 +5,7 @@
 import { token } from "../stores/report.js";
 
 const FAILED = "That could not be saved just now, and nothing was changed. Wait a moment and try again. If it keeps happening, restart clark.";
-const NO_ANSWER = "clark did not answer, and nothing was changed. Check that clark is still running, then try again.";
+const NO_ANSWER = "Nothing was changed, because clark did not answer. Check that clark is still running, then try again.";
 const READ_FAILED = "The people list could not be read. Reload the page. If it happens again, restart clark.";
 
 async function call(method, path, body) {

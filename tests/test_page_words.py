@@ -187,6 +187,9 @@ class Words(unittest.TestCase):
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
+                                  "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
+                                  "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",
                                   "Asking",             # #47: the switch and its folders, below the client folder
                                   "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off

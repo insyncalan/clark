@@ -1953,6 +1953,11 @@ def _paste_people(st, rows):
     if len(rows) > people_rules.ROW_LIMIT:
         raise Refused(PASTE_MANY)
     added = updated = 0
+    by_id, live, gone = {}, {}, {}                                  # the name and alias index, built ONCE: key -> ids (live, archived)
+    for p in st.store.people(archived=None):
+        by_id[p["id"]] = p
+        for key in people_rules.keys_of(p):
+            (gone if p.get("archived") else live).setdefault(key, []).append(p["id"])
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("name"), str) or any(k not in PASTE_FIELDS for k in row):
             raise Refused(PASTE_BAD_ROW)
@@ -1962,23 +1967,35 @@ def _paste_people(st, rows):
             raise Refused("A row has no name. Give each person a name. Nothing was changed.")
         shown = name if len(name) <= 40 else name[:40] + "…"
         try:
-            have = st.store.people(archived=None)
-            found = people_rules.resolve(name, have)
-            if found["status"] == "many":
+            key = people_rules.name_key(name)
+            if key in people_rules.NO_PERSON:                        # the placeholder rule the owner fields use: TBC is no one
+                raise Refused(f"{shown} isn't a name. Give the person's real name, or leave the row out. Nothing was changed.")
+            ids = live.get(key, [])                                  # exactly people.resolve's order: live first, then archived
+            if len(ids) > 1:
                 raise Refused(f"More than one person is called {shown}. Change the name to say which one, then paste again. Nothing was changed.")
+            if not ids and key in gone:
+                raise Refused(f"{shown} is on the list but has been archived. Restore them from the People card instead of pasting them again. Nothing was changed.")
             email, bad = people_rules.clean_email(given.get("email"))
             if bad:
                 raise Refused(f"{shown}: {bad} Nothing was changed.")
             details = {"email": email or None, "organisation": " ".join((given.get("organisation") or "").split()) or None,
                        "role": " ".join((given.get("role") or "").split()) or None}
-            if found["status"] == "one":
-                now = next(p for p in have if p["id"] == found["id"])
+            for field in ("organisation", "role"):
+                if details[field] and len(details[field]) > people_rules.CELL_MAX:
+                    raise Refused(f"{shown}: the {field} is too long (at most {people_rules.CELL_MAX} characters). Shorten it and try again. Nothing was changed.")
+            if ids:
+                now = by_id[ids[0]]
                 changes = {k: v for k, v in details.items() if v and v != now.get(k)}
                 if changes:
-                    st.edit_person(found["id"], changes)
+                    st.edit_person(ids[0], changes)
+                    now.update(changes)
                     updated += 1
             else:
-                st.add_person(source=PEOPLE_SOURCE, name=name, needs_details=0 if email else 1, **{k: v for k, v in details.items() if v})
+                new = st.add_person(source=PEOPLE_SOURCE, name=name, needs_details=0 if email else 1, **{k: v for k, v in details.items() if v})
+                person = {"id": new, "name": name, "aliases": None, "archived": 0, **details}
+                by_id[new] = person
+                for k in people_rules.keys_of(person):
+                    live.setdefault(k, []).append(new)
                 added += 1
         except Invalid as e:                                    # a store rule (one email per person ...), said with the person's name
             raise Refused(f"{shown}: {e} Nothing was changed.") from None

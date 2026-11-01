@@ -2,8 +2,10 @@
 through the same writer and checks as an add or an edit, names the person in a refusal and writes nothing then, and a person's
 email, organisation and role reach no published page. Fictional names.
 Run: python3 dev/run_tests.py test_people_paste_route"""
+import http.client
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -132,9 +134,171 @@ class Paste(Base):
         self.assertEqual((status, body["added"]), (200, people_rules.ROW_LIMIT), body.get("message"))
         self.assertEqual(self.post({"apply_id": body["apply_id"]}, "/api/people/undo")[1]["people"], [])
 
+    def test_an_over_limit_body_is_refused_before_it_is_read(self):
+        limit = sv.ROUTE_BODY_LIMITS["/api/people"]
+        self.assertEqual(limit, sv.PEOPLE_BODY_LIMIT)
+        before, steps = self.srv.call("GET", "/api/people")[1]["people"], self.steps()
+        for size in (limit + 1, 4 * limit):
+            conn = http.client.HTTPConnection(sv.HOST, self.srv.port, timeout=10)
+            try:
+                conn.putrequest("POST", "/api/people", skip_host=True, skip_accept_encoding=True)
+                conn.putheader("Host", f"127.0.0.1:{self.srv.port}")
+                conn.putheader(sv.TOKEN_HEADER, sv.TOKEN)
+                conn.putheader("Content-Type", "application/json")
+                conn.putheader("Content-Length", str(size))
+                conn.endheaders(b"{}")                  # two bytes sent, the rest never: a server that tried to read it would wait
+                r = conn.getresponse()
+                self.assertEqual((r.status, json.loads(r.read())["code"]), (400, "too_large"), size)
+            finally:
+                conn.close()
+        self.assertEqual(self.srv.call("GET", "/api/people")[1]["people"], before)
+        self.assertEqual(self.steps(), steps)
+
+    def test_the_worst_case_500_row_paste_fits_the_limit(self):
+        """Every cell at its cap and every character a six-byte escape: the biggest body the page can send. It is read whole (not
+        too_large) and is refused only for what is in it (a control character is no email)."""
+        row = {"name": "\u0001" * 120, "email": "\u0001" * 254, "organisation": "\u0001" * 100, "role": "\u0001" * 100}
+        raw = json.dumps({"op": "paste", "rows": [row] * people_rules.ROW_LIMIT}, separators=(",", ":")).encode()
+        self.assertEqual(raw.count(b"\\u0001"), 574 * 500)
+        self.assertLessEqual(len(raw), sv.PEOPLE_BODY_LIMIT)
+        self.assertGreater(len(raw), 1_700_000)                                  # this really is the worst case, not a small body
+        status, body = self.srv.call("POST", "/api/people", raw)
+        self.assertEqual(status, 400)
+        self.assertNotEqual(body["code"], "too_large")
+        self.assertIn("Nothing was changed", body["message"])
+
+    def test_organisation_and_role_are_capped_at_100_on_the_server_too(self):
+        for field in ("organisation", "role"):
+            status, body = self.paste(SAM, {"name": "Li Wen", field: "x" * 101})
+            self.assertEqual(status, 400, field)
+            self.assertIn(f"Li Wen: the {field} is too long (at most 100 characters)", body["message"])
+            self.assertTrue(body["message"].endswith("Nothing was changed."))
+        self.assertEqual(self.paste(SAM, {"name": "Li Wen", "organisation": "x" * 100, "role": "y" * 100})[0], 200)
+        self.assertEqual(self.paste({"name": "Li Wen", "organisation": ("x " * 60)})[0], 400)         # counted after the spaces are squashed
+        self.assertEqual(self.paste({"name": "Li Wen", "role": "   " + "y" * 100 + "   "})[0], 200)
+
+    def test_a_name_that_matches_only_an_archived_person_is_not_added_again(self):
+        pid = self.add("Sam Rivers", email="sam@example.com")["id"]
+        self.post({"op": "archive", "id": pid})
+        self.add("Kay Moss", aliases="Kay M")
+        before, steps = self.srv.call("GET", "/api/people")[1]["people"], self.steps()
+        status, body = self.paste(ZED, {"name": "sam  rivers", "role": "Lead"})
+        self.assertEqual(status, 400)
+        self.assertIn("sam rivers is on the list but has been archived. Restore them from the People card", body["message"])
+        self.assertTrue(body["message"].endswith("Nothing was changed."))
+        self.assertEqual(self.srv.call("GET", "/api/people")[1]["people"], before)
+        self.assertEqual(self.steps(), steps)
+        self.post({"op": "restore", "id": pid})                                  # once restored, the same row updates them
+        body = self.paste({"name": "Sam Rivers", "role": "Lead"})[1]
+        self.assertEqual((body["added"], body["updated"]), (0, 1))
+        self.post({"op": "archive", "id": pid})
+        self.add("Sam Rivers", email="new@example.com")                          # a live person of that name wins over the archived one
+        self.assertEqual(self.paste({"name": "Sam Rivers", "role": "Boss"})[1]["updated"], 1)
+
+    def test_a_name_of_tbc_is_refused_as_a_row_in_any_case(self):
+        before, steps = self.srv.call("GET", "/api/people")[1]["people"], self.steps()
+        for name in ("tbc", "TBC", "Tbc", "  tBc  "):
+            status, body = self.paste(SAM, {"name": name, "email": "tbc@example.com"})
+            self.assertEqual(status, 400, name)
+            self.assertIn("isn't a name", body["message"])
+            self.assertTrue(body["message"].endswith("Nothing was changed."))
+        self.assertEqual(self.paste(SAM, {"name": "Tbc Smith"})[0], 200)       # only the whole placeholder, not a name that starts with it
+        self.assertEqual(self.srv.call("GET", "/api/people")[1]["people"][0]["name"], "Sam Rivers")
+        self.assertEqual(before, [])
+        self.assertEqual(self.steps(), steps + 1)
+
     def test_the_other_ops_still_refuse_rows_and_a_paste_takes_no_other_field(self):
         self.assertEqual(self.post({"op": "add", "name": "A", "rows": []})[0], 400)
         self.assertEqual(self.post({"op": "paste", "name": "A", "rows": [{"name": "A"}]})[0], 400)
+
+
+class Scale(Base):
+    """The paste builds the name and alias index once, not once a row: a big list and a full paste stay quick, and the answers are
+    the per-row resolver's (people.resolve over the list as it stands after each row)."""
+    paste, steps = Paste.paste, Paste.steps
+    BIG = 700                       # people.ID_LIMIT is 999: this many on the list, and the paste adds a third of 500 more
+
+    def fill(self, count):
+        s = clark_open(self.path)
+        try:
+            with s.step("dashboard", USER) as st:
+                for n in range(count):
+                    st.add_person(source="People list", name=f"Big Person {n:04d}", email=f"big{n}@example.com", aliases=f"BP{n:04d}")
+        finally:
+            s.close()
+
+    def reference(self, listed, rows):
+        """The old behaviour, in memory: for each row people.resolve over the whole list as it stands, then add or fill in."""
+        people = [dict(p) for p in listed]
+        added = updated = 0
+        for row in rows:
+            name = " ".join(row["name"].split())
+            found = people_rules.resolve(name, people)
+            details = {k: " ".join((row.get(k) or "").split()) or None for k in ("email", "organisation", "role")}
+            details["email"] = (details["email"] or "").lower() or None
+            if found["status"] == "one":
+                now = next(p for p in people if p["id"] == found["id"])
+                changes = {k: v for k, v in details.items() if v and v != now.get(k)}
+                if changes:
+                    now.update(changes)
+                    updated += 1
+            else:
+                people.append({"id": f"new{len(people)}", "name": name, "aliases": None, "archived": 0, **{k: v for k, v in details.items() if v}})
+                added += 1
+        return added, updated, sorted((p["name"], p.get("email"), p.get("organisation"), p.get("role")) for p in people)
+
+    def test_a_500_row_paste_against_a_large_list_stays_fast_and_reads_the_list_once(self):
+        self.fill(self.BIG)
+        rows = []
+        for n in range(people_rules.ROW_LIMIT):
+            if n % 3 == 0:
+                rows.append({"name": f"big person {n * 5 % self.BIG:04d}", "role": f"Role {n}"})          # a name on the list
+            elif n % 3 == 1:
+                rows.append({"name": f"BP{n * 5 % self.BIG:04d}", "organisation": f"Org {n}"})            # an alias on the list
+            else:
+                rows.append({"name": f"Fresh Person {n:03d}", "email": f"fresh{n}@example.com"})          # new
+        calls = {"people": 0, "keys": 0}
+        real_people, real_key = clark_open(self.path).__class__.people, people_rules.name_key
+
+        def people(store, archived=False):
+            calls["people"] += 1
+            return real_people(store, archived)
+
+        def key(text):
+            calls["keys"] += 1
+            return real_key(text)
+        from unittest import mock
+        with mock.patch("clark.store.Store.people", people), mock.patch.object(people_rules, "name_key", key):
+            t0 = time.perf_counter()
+            status, body = self.paste(*rows)
+            took = time.perf_counter() - t0
+        self.assertEqual(status, 200, body)
+        self.assertEqual((body["added"], body["updated"]), (sum(n % 3 == 2 for n in range(500)), sum(n % 3 != 2 for n in range(500))))
+        # The list is read at most twice (the index, then the reply), and a name is keyed once per person and row, not once per person per row.
+        self.assertLessEqual(calls["people"], 2)
+        self.assertLess(calls["keys"], 2 * (self.BIG * 2 + 4 * len(rows)))
+        self.assertLess(took, 20, f"a 500-row paste against {self.BIG} people took {took:.1f}s")
+
+    def test_the_answers_are_the_per_row_resolvers_on_a_mixed_paste(self):
+        for n, extra in enumerate(({"aliases": "Sam Rivers"}, {}, {"aliases": "Jo P;J Park"})):
+            self.add(("Samuel Rivers", "Kay Moss", "Jo Park")[n], email=f"p{n}@example.com", **extra)
+        gone = self.add("Old Hand", email="old@example.com")["id"]
+        self.post({"op": "archive", "id": gone})
+        rows = [{"name": "Sam Rivers", "role": "Lead"}, {"name": "S\u0430m Rivers", "organisation": "Look-alike letter"},       # Cyrillic a: the same person
+                {"name": "KAY  MOSS", "email": "Kay@Example.com"}, {"name": "j park", "role": "Analyst"},
+                {"name": "New One", "email": "NEW@example.com", "organisation": "  Client  "}, {"name": "new one", "role": "Sponsor"},
+                {"name": "Another", "organisation": "Supplier"}, {"name": "Samuel Rivers", "role": "Lead"}]
+        s = clark_open(self.path)
+        try:
+            listed = s.people(archived=None)
+        finally:
+            s.close()
+        want_added, want_updated, want_people = self.reference(listed, rows)
+        status, body = self.paste(*rows)
+        self.assertEqual(status, 200, body)
+        self.assertEqual((body["added"], body["updated"]), (want_added, want_updated))
+        self.assertEqual(sorted((p["name"], p.get("email"), p.get("organisation"), p.get("role")) for p in body["people"]), want_people)
+        self.assertEqual((want_added, want_updated), (2, 5))
 
 
 class Private(unittest.TestCase):

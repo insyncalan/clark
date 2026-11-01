@@ -24,7 +24,7 @@ from unittest import mock
 import _routes as routes_expected
 from _paths import ROOT, SRC
 
-from clark import appfiles, idle, page, server as sv
+from clark import appfiles, idle, page, people as people_rules, server as sv
 from run_support import chrome_command, chrome_path, remove_profile, start_chrome, stop_chrome
 
 PROJECTS = [{"code": "DEMO", "name": "Demo programme", "client_name": "Not for the page", "week_ending": "2026-10-30"},
@@ -326,9 +326,22 @@ class Saving(ServerTest):
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
-                                                "/api/people": 256 * 1024, "/api/people/undo": 1024})     # #96: a project and a section only; #454: /api/people takes a paste of up to 500 rows
+                                                "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024})     # #96: a project and a section only; #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
+
+    def test_the_people_body_limit_is_worked_out_from_the_field_caps_not_a_bare_number(self):
+        """#454: the paste's limit is the 500-row cap times the worst row (every character a six-byte JSON escape), plus the request's
+        envelope. The server copies the caps (it imports nothing from clark); they must stay equal to people.py's."""
+        self.assertEqual((sv.PEOPLE_ROW_MAX, sv.PEOPLE_NAME_MAX, sv.PEOPLE_EMAIL_MAX, sv.PEOPLE_CELL_MAX),
+                         (people_rules.ROW_LIMIT, people_rules.NAME_MAX, people_rules.EMAIL_MAX, people_rules.CELL_MAX))
+        worst_row = (120 + 254 + 100 + 100) * 6 + 64
+        self.assertEqual(sv.PEOPLE_ROW_BYTES, worst_row)
+        self.assertEqual(sv.PEOPLE_BODY_LIMIT, 500 * worst_row + sv.REQUEST_ENVELOPE)
+        self.assertEqual(sv.PEOPLE_BODY_LIMIT, 1758096)
+        self.assertLess(sv.PEOPLE_BODY_LIMIT, sv.BODY_LIMIT)
+        row = json.dumps({"name": "", "email": "", "organisation": "", "role": ""}) + ", "
+        self.assertLessEqual(len(row), sv.PEOPLE_ROW_ENVELOPE)                       # the envelope covers a spaced writer too
 
     def test_no_seam_is_503(self):
         for route in ("/api/change", "/api/undo"):
