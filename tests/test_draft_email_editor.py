@@ -348,6 +348,38 @@ class Component(InBrowser):
         self.settle()
         self.assertEqual(self.text(".de-note"), "That could not be saved to the history, so nothing was marked as sent. Try again.")
 
+    def test_i_sent_it_waits_while_it_is_saving_so_a_fast_double_click_records_once(self):
+        click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it')"
+        self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
+        self.js("T.reply = new Promise((resolve) => { T.finish = resolve; })")
+        self.js(f"(function() {{ const b = {click}; b.click(); b.click(); }})()")      # two presses before any redraw
+        self.settle()
+        self.assertEqual(len(self.val("T.sent")), 1, "one record, not two")
+        self.assertTrue(self.val(f"{click}.disabled"), "the button waits while the save is in flight")
+        self.js(f"{click}.click()")
+        self.assertEqual(len(self.val("T.sent")), 1, "still one while it waits")
+        self.js("T.finish({ok: true})")
+        self.settle()
+        self.assertFalse(self.val(f"{click}.disabled"), "pressable again once it has answered")
+        self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
+
+    def test_i_sent_it_is_pressable_again_after_a_refusal_or_a_fault(self):
+        click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it')"
+        self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
+        self.js("T.reply = {ok: false, message: 'Not saved.'}")
+        self.js(f"{click}.click()")
+        self.settle()
+        self.assertFalse(self.val(f"{click}.disabled"))
+        self.js("T.reply = Promise.reject(new Error('Gone.'))")
+        self.js(f"{click}.click()")
+        self.settle()
+        self.assertEqual(self.text(".de-note"), "Gone.")
+        self.assertFalse(self.val(f"{click}.disabled"))
+        self.js("T.reply = {ok: true}")
+        self.js(f"{click}.click()")
+        self.settle()
+        self.assertEqual(len(self.val("T.sent")), 3, "each press after an answer is a new record")
+
     def test_no_address_says_what_to_do_not_a_dash(self):
         self.mount(state(), draft(picked=["ABC-A-001"], email=""))
         self.assertIn("No address yet. Add one in your mail app.", self.text(".de-meta"))
