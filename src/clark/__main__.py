@@ -267,17 +267,24 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
             print(backup.RESTORE_HELP, file=out, flush=True)
             return 0
         database = folder / DB_NAME
+        locked = folder.is_dir()
+        if locked:
+            platform.hold_data_lock(folder)       # a clark open on this folder refuses the restore, before the database is touched
         held = None
-        if database.exists() and database.stat().st_size > 0:        # never open an empty file: that would build a new database in it
-            try:
-                held = clark_store.open_store(database, onedrive_roots=onedrive_roots)
-            except clark_store.Invalid:
-                held = None                   # too damaged to open: that is when a restore is needed, and it is moved aside whole
         try:
-            done = backup.restore_path(database, args.name, folder / "backups", onedrive_roots, held)
+            if database.exists() and database.stat().st_size > 0:    # never open an empty file: that would build a new database in it
+                try:
+                    held = clark_store.open_store(database, onedrive_roots=onedrive_roots)
+                except clark_store.Invalid:
+                    held = None               # too damaged to open: that is when a restore is needed, and it is moved aside whole
+            try:
+                done = backup.restore_path(database, args.name, folder / "backups", onedrive_roots, held)
+            finally:
+                if held is not None:
+                    held.close()
         finally:
-            if held is not None:
-                held.close()
+            if locked:
+                platform.release_data_lock(folder)
         if not done["replaced"]:
             where = ""
         elif done["backed_up"]:
