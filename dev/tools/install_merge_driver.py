@@ -62,11 +62,16 @@ def main():
               "your git settings are unchanged. Fix python3 on your PATH, then run this again.", file=sys.stderr)
         return 1
     # If python3 cannot even start the copy (it was deleted, say), git would leave "ours" with no markers: the small shell wrapper
-    # adds them whenever the copy exits non-zero without having written its own.
+    # adds them whenever the copy exits non-zero without having written its own. If it cannot write them either it says so on
+    # stderr and keeps the non-zero exit, so git reports a conflict and the page is never taken as merged without a word.
     script = (f'python3 {shlex.quote(str(copy))} "$@"; rc=$?; '
               'if [ $rc -ne 0 ] && ! head -n 1 "$2" | grep -q "^<<<<<<< "; then '
-              '{ printf "<<<<<<< ours (merge driver could not run)\\n"; cat "$2"; printf "\\n=======\\n"; cat "$3"; '
-              'printf "\\n>>>>>>> theirs\\n"; } > "$2.tmp" && mv "$2.tmp" "$2"; fi; exit $rc')
+              't=$(mktemp "${TMPDIR:-/tmp}/clark-merge.XXXXXX") && '
+              '{ printf "<<<<<<< ours (merge driver could not run)\\n"; awk 1 "$2"; printf "=======\\n"; awk 1 "$3"; '
+              'printf ">>>>>>> theirs\\n"; } > "$t" && cat "$t" > "$2" && rm -f "$t" || '
+              '{ echo "The merge driver could not write conflict markers into $4, so the file may hold only our side. '
+              'Rebuild it with python3 dev/tools/build_page.py after the merge, then check it." >&2; '
+              '[ $rc -ne 0 ] || rc=1; }; fi; exit $rc')
     driver = f"sh -c {shlex.quote(script)} sh %O %A %B %P"
     for key, value in ((f"merge.{NAME}.name", "Rebuild the built page files"), (f"merge.{NAME}.driver", driver)):
         if git("config", "--local", key, value).returncode != 0:

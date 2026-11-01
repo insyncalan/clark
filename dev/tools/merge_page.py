@@ -100,6 +100,22 @@ def installed_from():
         return "unknown (run in the source tree, not an installed copy)"
 
 
+def older_than_branch():
+    """True only when the copy was installed from a commit that is NOT an ancestor of (or equal to) this clone's HEAD. When git
+    cannot tell (no stamp, an unknown commit, no git), False: this note never matters enough to say something unsure."""
+    try:
+        words = (Path(__file__).resolve().parent / "SOURCE-COMMIT").read_text(encoding="utf-8").split()
+        stamped = words[0] if words else ""
+        if len(stamped) < 7 or any(c not in "0123456789abcdef" for c in stamped):
+            return False
+        head = git("rev-parse", "HEAD")
+        if head.returncode != 0 or head.stdout.decode().strip() == stamped:
+            return False
+        return git("merge-base", "--is-ancestor", stamped, "HEAD").returncode == 1
+    except Exception:
+        return False
+
+
 def write_markers(mine, theirs_file, why):
     """Leave conflict markers in %A so git and the person see a conflict; never raises."""
     try:
@@ -134,6 +150,8 @@ def main(argv):
     if len(argv) != 4:
         print("usage: merge_page.py %O %A %B %P", file=sys.stderr)
         return 2
+    if older_than_branch():
+        print("This copy of the merge driver is older than the branch you are on. Run the installer again.", file=sys.stderr)
     _base, mine, theirs_file, path = argv
     if path not in PAGES:
         print(f"merge_page.py only merges {', '.join(PAGES)}", file=sys.stderr)

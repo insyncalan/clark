@@ -15,8 +15,9 @@ PAGES = ("src/clark/page/page.html", "src/clark/page/page-view.html")
 LEFT_OUT = shutil.ignore_patterns(".git", "tests", "docs", "system", "__pycache__", "openpyxl", "et_xmlfile")
 
 
-def run(cwd, *cmd, check=True, path=None):
+def run(cwd, *cmd, check=True, path=None, extra_env=None):
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(extra_env or {})
     if path is not None:
         env["PATH"] = path
     env.update(PYTHONDONTWRITEBYTECODE="1", HOME=str(cwd), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
@@ -135,6 +136,57 @@ class MergeDriverTests(unittest.TestCase):
         (folder / "merge_page.py").unlink()
         self.assertNotEqual(run(self.repo, "git", "merge", "--no-edit", "two", check=False).returncode, 0)
         self.assert_markers()
+
+    def test_the_wrappers_markers_have_exactly_the_layout_git_expects(self):
+        self.two_branches()
+        folder = self.installed()
+        (folder / "merge_page.py").unlink()
+        run(self.repo, "git", "merge", "--no-edit", "two", check=False)
+        for p in PAGES:
+            theirs = run(self.repo, "git", "show", f"two:{p}").stdout
+            ours = run(self.repo, "git", "show", f"one:{p}").stdout
+            text = (self.repo / p).read_text(encoding="utf-8")
+            self.assertEqual(text, "<<<<<<< ours (merge driver could not run)\n" + ours.rstrip("\n") + "\n=======\n"
+                             + theirs.rstrip("\n") + "\n>>>>>>> theirs\n", p)
+
+    def test_the_python_markers_have_the_same_layout(self):
+        r, text = self.drive_directly()
+        self.assertEqual(r.returncode, 1)
+        lines = text.split("\n")
+        self.assertTrue(lines[0].startswith("<<<<<<< ours"), text)
+        self.assertEqual(lines[1:], ["OURS PAGE", "=======", "THEIRS PAGE", ">>>>>>> theirs", ""])
+
+    def test_an_unwritable_temp_folder_fails_loudly_and_never_keeps_ours_silently(self):
+        self.two_branches()
+        folder = self.installed()
+        (folder / "merge_page.py").unlink()
+        locked = Path(self.tmp.name) / "locked"
+        locked.mkdir()
+        locked.chmod(0o500)
+        self.addCleanup(locked.chmod, 0o700)
+        r = run(self.repo, "git", "merge", "--no-edit", "two", check=False, extra_env={"TMPDIR": str(locked)})
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("could not write conflict markers", r.stdout + r.stderr)
+        self.assertIn("src/clark/page/page.html", run(self.repo, "git", "diff", "--name-only", "--diff-filter=U").stdout)
+
+    def stamp_and_drive(self, commit):
+        folder = self.installed()
+        (folder / "SOURCE-COMMIT").write_text(commit + "\n", encoding="utf-8")
+        return run(self.repo, sys.executable, str(folder / "merge_page.py"), "a", "b", "c", "README.md", check=False).stderr
+
+    OLDER = "This copy of the merge driver is older than the branch you are on. Run the installer again."
+
+    def test_a_copy_from_a_commit_that_is_not_behind_the_branch_says_so(self):
+        self.two_branches()                                  # on "one"
+        side = run(self.repo, "git", "rev-parse", "two").stdout.strip()
+        self.assertIn(self.OLDER, self.stamp_and_drive(side))
+
+    def test_a_copy_from_an_ancestor_or_the_same_commit_or_an_unknown_one_says_nothing(self):
+        self.two_branches()
+        base = run(self.repo, "git", "rev-parse", "main").stdout.strip()
+        head = run(self.repo, "git", "rev-parse", "HEAD").stdout.strip()
+        for stamp in (base, head, head + " (merge_page.py has uncommitted changes)", "0" * 40, "unknown"):
+            self.assertNotIn(self.OLDER, self.stamp_and_drive(stamp), stamp)
 
     def test_a_failed_build_leaves_markers(self):
         self.branch("one", "Icon.jsx", '\nglobalThis.mergeProbeOne = "one";\n')
