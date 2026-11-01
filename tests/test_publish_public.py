@@ -2320,6 +2320,47 @@ class TheGuardInThePublish(Base):
                 self.assertFalse(has_listed(out.split("Checks:")[1]))
 
 
+GROWTH_LIMIT = 3.5      # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8. Above 3.5 means the work is growing faster than linear (a square fails; linear measures 1.8 to 2.2).
+GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
+
+
+def growth_ratio(work, n, tries=3):
+    """Time work(n) and work(2 * n) in CPU time (time.process_time, so a busy machine does not count against it), best of
+    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR))."""
+    import time
+
+    def best(size):
+        found = None
+        for _ in range(tries):
+            start = time.process_time()
+            work(size)
+            spent = time.process_time() - start
+            found = spent if found is None else min(found, spent)
+        return found
+    small, big = best(n), best(2 * n)
+    return small, big, big / max(small, GROWTH_FLOOR)
+
+
+class TheGrowthCheckTellsLinearFromCubic(unittest.TestCase):
+    """The helper above is only worth trusting if it passes a linear cost and fails a cubic one (known pure-Python costs)."""
+    def test_linear_work_passes_and_cubic_work_fails_the_limit(self):
+        def linear(n):
+            total = 0
+            for i in range(n * 400000):
+                total += i
+            return total
+
+        def cubic(n):
+            total = 0
+            for i in range(n):
+                for j in range(n):
+                    for k in range(n):
+                        total += 1
+            return total
+        self.assertLessEqual(growth_ratio(linear, 3)[2], GROWTH_LIMIT)
+        self.assertGreater(growth_ratio(cubic, 160)[2], GROWTH_LIMIT)
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -2407,8 +2448,18 @@ class TheScrubHasALimit(Base):
             self.assertFalse(has_listed(out))
         self.assertEqual(self.heads(), [])
 
+    # The old check was a wall-clock limit (quick(), seconds=4 for a run of 900000 '<'); a loaded runner took 4.07 s. It is now the growth
+    # from n to 2n in CPU time, which is what a regex blow-up changes. ANGLE_OLD_LIMIT is kept as documentation and is no longer asserted.
+    ANGLE_OLD_LIMIT = 4
+
     def test_a_run_of_angle_brackets_is_quick_in_the_scrub_and_the_guard(self):
-        self.quick("docs/x.md", b"<" * 900000)
+        def work(n):
+            data = b"<" * n
+            pp.scrub("docs/x.md", data)
+            pp.guard_kinds("docs/x.md", data)
+        small, big, ratio = growth_ratio(work, 200000)
+        print("angle brackets: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (small, big, ratio))
+        self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
 
     def test_a_run_of_square_brackets_is_quick(self):
         self.quick("docs/x.md", b"[" * 900000)
