@@ -6,7 +6,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
-import { dialog, latest, pdfInfo, NO_FOLDER, folderName, open, close, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialog, latest, NO_FOLDER, folderName, open, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 export const lastLine = (l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
@@ -70,13 +70,14 @@ function Dialog() {
               <span><b>Local</b><small>Always. You choose the folder and name in the save window.</small></span></label>
             <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="pub-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tick(e.currentTarget.checked)} />
               <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
-            <label class={`pubopt${pdfInfo.value.ok ? "" : " off"}`}><input type="checkbox" id="pub-pdf" checked={s.pdf && pdfInfo.value.ok} disabled={!pdfInfo.value.ok || working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
-              <span><b>PDF</b><small>{pdfInfo.value.ok ? "A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too." : pdfInfo.value.note}</small></span></label>
+            <label class="pubopt"><input type="checkbox" id="pub-pdf" checked={s.pdf} disabled={working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
+              <span><b>Also a PDF</b><small>The page as it prints: its tabs one after another, no controls.</small>
+                {s.pdf ? <small id="pub-pdf-note">Your browser’s print box opens; choose Save as PDF.</small> : null}</span></label>
           </div>
         )}
-        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.pdf && pdfInfo.value.ok ? "The client will see this page and the PDF." : "The client will see this page."}</p> : null}
+        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
-          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />{s.pdf && pdfInfo.value.ok ? "Making the PDF…" : "Publishing…"}</p>
+          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />Publishing…</p>
             : s.message ? <p class={s.message.kind}>{s.message.kind === "success" ? <span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span> : null}{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">

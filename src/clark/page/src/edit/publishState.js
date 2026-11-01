@@ -3,12 +3,17 @@
 // saved. A taken name in the client folder is asked about before anything is written. Nothing here names a folder or a file.
 import { signal } from "@preact/signals";
 import { data, project } from "../stores/report.js";
-import { publishRequest, latestRequest, words } from "./publishApi.js";
+import { publishRequest, previewRequest, latestRequest, words } from "./publishApi.js";
+import { openInNewTab } from "../router.js";
+import { printUrl } from "../logic/printView.js";
 
 export const NO_FOLDER = "No client folder yet. Set it in Settings.";
 export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
-export const pdfInfo = signal({ ok: false, note: "" });      // whether Chrome is on this computer, and the one line saying why not
+
+// What the PDF tick adds to the answer (#438): the browser's own print box opens on the published page in a new tab, and the person chooses Save as PDF there.
+export const PRINT_OPENED = "Your browser’s print box opens in a new tab; choose Save as PDF.";
+export const PRINT_NOT_OPENED = "The PDF did not open. Allow pop-ups for this page, then choose Preview the page in a new tab in the profile menu and print it.";
 
 export const savedFolder = () => {
   const d = data.value;
@@ -16,7 +21,7 @@ export const savedFolder = () => {
 };
 export const folderName = (path) => (path ? String(path).replace(/[\\/]+$/, "").split(/[\\/]/).pop() || String(path) : "");
 
-const fresh = (saved) => ({ saved, ticked: false, pdf: false, prev: null, phase: "choose", clash: null, choice: "number", newName: "", confirmed: false, message: null });
+const fresh = (saved) => ({ saved, ticked: false, pdf: false, phase: "choose", clash: null, choice: "number", newName: "", confirmed: false, message: null });
 const set = (patch) => { if (dialog.value) dialog.value = { ...dialog.value, ...patch }; };
 
 export async function refreshLatest() {
@@ -24,8 +29,6 @@ export async function refreshLatest() {
   if (!code) { latest.value = null; return; }
   const r = await latestRequest(code);
   latest.value = r.status === 200 && r.body && r.body.ok === true && r.body.latest ? r.body.latest : null;
-  const p = r.status === 200 && r.body && r.body.ok === true ? r.body.pdf : null;
-  pdfInfo.value = p && typeof p.ok === "boolean" ? { ok: p.ok, note: typeof p.note === "string" ? p.note : "" } : { ok: false, note: "" };
 }
 
 export function open() { dialog.value = fresh(savedFolder()); }
@@ -42,9 +45,9 @@ export function tick(on) {
   const s = dialog.value;
   if (s && s.saved && ["choose", "error", "done"].includes(s.phase)) set({ ticked: !!on });
 }
-export function tickPdf(on) {      // the PDF tick: never remembered either, and only when Chrome is there
+export function tickPdf(on) {      // the PDF tick: never remembered either; it needs nothing on the computer but a browser
   const s = dialog.value;
-  if (s && pdfInfo.value.ok && ["choose", "error", "done"].includes(s.phase)) set({ pdf: !!on });
+  if (s && ["choose", "error", "done"].includes(s.phase)) set({ pdf: !!on });
 }
 export const pick = (choice) => { if (dialog.value && dialog.value.phase === "clash") set({ choice, confirmed: false }); };
 export const rename = (text) => set({ newName: String(text) });
@@ -54,13 +57,11 @@ export const confirmOverwrite = (on) => { const s = dialog.value; if (s && s.pha
 export const ready = (s) => s.phase !== "clash" || (s.choice === "rename" ? s.newName.trim() !== "" : s.choice !== "overwrite" || s.confirmed);
 
 export function request(s, code) {
-  const body = { ...(s.prev || {}), project: code, to_client: !!(s.ticked && s.saved) };
-  if (s.pdf && pdfInfo.value.ok) body.pdf = true; else delete body.pdf;
-  if (s.clash) {      // a taken PDF name is answered in its own keys, so the answer about the report is kept beside it
-    const k = s.clash.pdf ? "pdf_" : "";
-    body[k + "on_clash"] = s.choice;
-    if (s.choice === "rename") body[k + "new_name"] = s.newName.trim();
-    if (s.choice === "overwrite" && s.confirmed) body[k + "confirmed"] = true;
+  const body = { project: code, to_client: !!(s.ticked && s.saved) };
+  if (s.clash) {
+    body.on_clash = s.choice;
+    if (s.choice === "rename") body.new_name = s.newName.trim();
+    if (s.choice === "overwrite" && s.confirmed) body.confirmed = true;
   }
   return body;
 }
@@ -77,14 +78,27 @@ export async function go() {
   if (s.phase === "done") return close();
   const body = request(s, project.value);
   set({ phase: "working", message: null });
-  const r = await publishRequest(body);
+  let r = null, printed = false;
+  if (s.pdf) {      // the new tab is opened now, while the click still counts, and pointed at the page when it is published
+    printed = await openInNewTab(async () => {
+      r = await publishRequest(body);
+      if (!(r.status === 200 && r.body && r.body.ok === true)) return null;
+      const p = await previewRequest(project.value);
+      return p.status === 200 && p.body && typeof p.body.url === "string" ? printUrl(p.body.url) : null;
+    });
+  } else r = await publishRequest(body);
   const b = r.body;
   if (r.status === 200 && b && b.ok === false && b.clash === true) {
-    set({ phase: "clash", clash: { name: b.name, numbered: b.numbered, canOverwrite: b.can_overwrite !== false, note: b.note, pdf: b.pdf === true, title: words(r, "publish") }, prev: body, choice: "number", confirmed: false, newName: "", message: null });
+    set({ phase: "clash", clash: { name: b.name, numbered: b.numbered, canOverwrite: b.can_overwrite !== false, note: b.note, title: words(r, "publish") }, choice: "number", confirmed: false, newName: "", message: null });
     return;
   }
   const said = words(r, "publish");
-  if (r.status === 200 && b && b.ok === true) { set({ phase: "done", clash: null, message: { kind: b.pdf_saved === false ? "info" : "success", text: said } }); refreshLatest(); return; }
+  if (r.status === 200 && b && b.ok === true) {
+    const text = s.pdf ? `${said} ${printed ? PRINT_OPENED : PRINT_NOT_OPENED}` : said;
+    set({ phase: "done", clash: null, message: { kind: s.pdf && !printed ? "info" : "success", text } });
+    refreshLatest();
+    return;
+  }
   const cancelled = r.status === 200 && b && (b.code === "cancelled" || b.code === "cancel");
   set({ phase: "error", clash: null, message: { kind: cancelled ? "info" : "error", text: said } });
   if (b && b.local_saved === true) refreshLatest();       // Local was saved and logged although the copy was not
