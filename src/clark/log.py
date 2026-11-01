@@ -49,7 +49,7 @@ FULL_NOTICE = "log full for today, only warnings and errors are kept from now on
 LAST_NOTICE = "log full for today, later entries are not kept"
 FILE = re.compile(r"clark-(\d{4}-\d{2}-\d{2})\.log$")
 ENTRY = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (DEBUG|INFO|WARN|ERROR)\s+(\S+)\s*(.*)$")
-CONTROL = re.compile(r"[\x00-\x1f\x7f  ]+")
+CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]+")
 AREA_OK = re.compile(r"[^A-Za-z0-9_.-]+")
 ITEM_ID = re.compile(r"[A-Z][A-Z0-9]{1,6}-[A-Z]{1,2}-\d{1,6}\Z")      # ABC-A-003 (a project code, a kind letter, a number)
 KEY_OK = re.compile(r"[a-z][a-z0-9_]{0,24}\Z")
@@ -294,7 +294,7 @@ class Log:
 
     @staticmethod
     def _append(path, text):
-        fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
+        fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
         try:
             os.write(fd, text.encode("utf-8"))         # one write per entry, so two writers never mix a line
         finally:
@@ -390,6 +390,12 @@ class Log:
 
     # Reading
 
+    @staticmethod
+    def _lines(p):
+        """A file's lines, split on newlines only (a stray separator such as U+0085 never splits an entry)."""
+        text = p.read_text(encoding="utf-8", errors="replace")
+        return (text[:-1] if text.endswith("\n") else text).split("\n") if text else []
+
     def tail(self, n=200):
         """The last n lines across the files up to today (a file dated after today is left out), oldest first."""
         out = []
@@ -398,19 +404,31 @@ class Log:
             for p in reversed(self.files()):
                 if date.fromisoformat(FILE.match(p.name).group(1)) > today:
                     continue
-                out = p.read_text(encoding="utf-8", errors="replace").splitlines() + out
+                out = self._lines(p) + out
                 if len(out) >= n:
                     break
         except Exception:
             pass
         return out[-n:]
 
+    def _since(self, first):
+        """Every line of the files dated `first` to today, oldest first (nothing older is read)."""
+        out = []
+        try:
+            today = self.clock().date()
+            for p in self.files():
+                if first <= date.fromisoformat(FILE.match(p.name).group(1)) <= today:
+                    out += self._lines(p)
+        except Exception:
+            pass
+        return out
+
     def errors(self, days=KEEP_DAYS):
         """[{count, area, message, last}] for the errors in the last `days` days, grouped by area and message (numbers
         ignored), most recent first."""
         since = self.clock() - timedelta(days=days)
         seen = {}
-        for line in self.tail(100000):
+        for line in self._since(since.date()):
             m = ENTRY.match(line)
             if not m or m.group(2) != "ERROR":
                 continue

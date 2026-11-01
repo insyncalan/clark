@@ -275,6 +275,26 @@ class Keeping(Base):
         self.assertIn("real fault", report)
         self.assertEqual([g["message"] for g in self.log.errors()], ["real fault"])
 
+    def test_errors_reads_only_the_files_inside_the_window(self):
+        self.make("clark-2026-10-20.log", "2026-10-20 10:00:00 ERROR server       old fault\n")
+        self.make("clark-2026-10-27.log", "2026-10-27 10:00:00 ERROR server       recent fault\n")
+        read = []
+        original = clog.Log._lines
+        with mock.patch.object(clog.Log, "_lines", staticmethod(lambda p: read.append(p.name) or original(p))):
+            found = self.log.errors(days=3)
+        self.assertEqual([g["message"] for g in found], ["recent fault"])
+        self.assertEqual(read, ["clark-2026-10-27.log"])
+
+    def test_a_next_line_character_is_cleaned_and_never_splits_an_entry(self):
+        self.assertNotIn("\x85", clog.scrub("a\x85b"))
+        self.make("clark-2026-10-27.log", "2026-10-27 10:00:00 ERROR server       one\x85two\n")
+        self.assertEqual(len(self.log.tail(5)), 1)
+
+    def test_a_new_log_file_is_private_to_the_user(self):
+        self.log.info("server", "hello")
+        for p in self.log.files():
+            self.assertEqual(stat.S_IMODE(p.stat().st_mode) & 0o077, 0)
+
     def test_tail_is_the_last_n_lines_across_files(self):
         self.make("clark-2026-10-27.log", "".join(f"2026-10-27 10:00:00 INFO  a            line {n}\n" for n in range(5)))
         for n in range(5):
