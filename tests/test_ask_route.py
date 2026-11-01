@@ -13,6 +13,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -38,6 +39,17 @@ class Running:
         self.httpd.server_close()
 
     def api(self, method, path, body=None, token=None, extra=None, ctype="application/json"):
+        """One request. macOS can reset a connection the server refused early (an oversized body) or not yet accepted:
+        retry that, a few times with short sleeps, then fail with the real error."""
+        for attempt in range(4):
+            try:
+                return self._once(method, path, body, token, extra, ctype)
+            except (ConnectionResetError, ConnectionRefusedError, http.client.RemoteDisconnected):
+                if attempt == 3:
+                    raise
+                time.sleep(0.1 * (attempt + 1))
+
+    def _once(self, method, path, body, token, extra, ctype):
         conn = http.client.HTTPConnection(sv.HOST, self.port, timeout=20)
         try:
             conn.putrequest(method, path, skip_host=True, skip_accept_encoding=True)
@@ -254,6 +266,17 @@ class Refusals(Base):
         planted = "my " + "pass" + "word" + ": " + "Hunt" + "er2-Zq-99"      # built at run time, so the publish tool's scan has nothing to find
         status, got = self.question(planted)
         self.assertEqual((status, got["code"]), (400, "refused"))
+        self.assertEqual(self.provider.sent, [])
+
+    def test_a_key_in_the_question_or_an_earlier_turn_is_never_sent(self):
+        # #253: built at run time, so the publish tool's scan has nothing to find.
+        key = "sk-" + "ant-api03-" + "a1B2c3D4e5F6g7H8i9J0" + "-xyz"
+        status, got = self.question("Use this " + key + " to log in")
+        self.assertEqual((status, got["code"]), (400, "refused"))
+        self.assertEqual(got["message"], ask.SECRET)
+        status, got = self.question("And now?", earlier=[{"role": "user", "text": "my " + "pass" + "word is " + "Hunt" + "er2-Zq-99"}])
+        self.assertEqual((status, got["code"]), (400, "refused"))
+        self.assertEqual(got["message"], ask.SECRET_EARLIER)
         self.assertEqual(self.provider.sent, [])
 
     def test_an_archived_project_is_refused(self):
