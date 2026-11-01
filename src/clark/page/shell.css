@@ -1210,7 +1210,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 /* #96 G7 Files and links templates (Documents and links, One document, Link preview): view parts. Tokens only, so dark mode follows. */
 .tpl-dl { list-style: none; margin: var(--space-2) 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .tpl-dl-i, .tpl-od-file { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
-.tpl-badge { flex: none; min-width: 3.5em; padding: 2px var(--space-2); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--text); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-align: center; text-transform: uppercase; }
+.tpl-badge { flex: none; min-width: 3.5em; padding: 2px var(--space-2); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--text); font-size: var(--size-small); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-align: center; text-transform: uppercase; }
 .tpl-main { display: flex; flex-direction: column; min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .tpl-name { color: var(--text); font-weight: var(--weight-medium); }
 a.tpl-name, .tpl-lc-title a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }

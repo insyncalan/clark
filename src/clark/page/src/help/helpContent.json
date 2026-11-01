@@ -421,7 +421,7 @@
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
      "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
-     "The new section opens ready to fill in, in place. A template with nothing in it yet stays out of the published page.",
+     "The new section opens ready to fill in, in place. A template with nothing in it yet is left out of what the client sees.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
     ]
    },
@@ -770,7 +770,7 @@
      ],
      [
       "p",
-      "Each template works at the widths shown. A template with nothing in it yet stays out of the published page."
+      "Each template works at the widths shown. A template with nothing in it yet is left out of what the client sees."
      ],
      [
       "tbl",
