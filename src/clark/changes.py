@@ -1902,6 +1902,158 @@ def make_undo(path, onedrive_roots=None, by_user=None):
     return undo
 
 
+# ── The people list (#115) ────────────────────────────────────────────────────
+# Portfolio level: no project in the request. One route for the six person writers, one for their Undo, one read. A person's
+# fields are checked by the store (people rules); this checks only the shape of the request, then one step, one Undo.
+PERSON_FIELDS = ("name", "email", "organisation", "role", "label", "aliases", "kind", "needs_details")
+PEOPLE_SHAPES = {"add": PERSON_FIELDS, "edit": ("id", "changes"), "rename": ("id", "name"), "merge": ("from", "into"),
+                 "archive": ("id",), "restore": ("id",)}
+PEOPLE_SOURCE = "People list"
+BAD_PERSON = "That isn't a person clark knows. Reload the page and try again."
+NO_PEOPLE_UNDO = "That step can't be undone from here."
+PERSON_ID = re.compile(r"P-\d{3}")
+
+
+def _person_value(key, value):
+    if key == "needs_details":
+        return value if isinstance(value, bool) or value in (0, 1) and type(value) is int else _refuse_person()
+    if value is None:
+        return value
+    if not isinstance(value, str) or len(value) > 2000:
+        _refuse_person()
+    return value
+
+
+def _refuse_person():
+    raise Refused("One of the person's details isn't text clark can use. Check it and try again.")
+
+
+def _person_ref(value):
+    if not isinstance(value, str) or not PERSON_ID.fullmatch(value):
+        raise Refused(BAD_PERSON, 400, "bad_person")
+    return value
+
+
+def _do_people(store, by_user, req):
+    """POST /api/people: {"op": add | edit | rename | merge | archive | restore, ...}. One step; answers the new apply_id (the Undo's
+    handle), the person's id where there is one, how many work items a rename or merge carried, and the list as it now is."""
+    if not isinstance(req, dict):
+        raise Refused(NOT_JSON_OBJECT)
+    op = req.get("op")
+    if not isinstance(op, str) or op not in PEOPLE_SHAPES:
+        raise Refused(BAD_OP)
+    allowed = ("op",) + PEOPLE_SHAPES[op]
+    for k in req:
+        if k not in allowed:
+            raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
+    ref, count = None, 0
+    with store.step("dashboard", by_user) as st:
+        if op == "add":
+            fields = {k: _person_value(k, v) for k, v in req.items() if k != "op"}
+            ref = st.add_person(source=PEOPLE_SOURCE, **fields)
+        elif op == "edit":
+            ref = _person_ref(req.get("id"))
+            ch = req.get("changes")
+            if not isinstance(ch, dict) or not ch or any(k not in PERSON_FIELDS for k in ch):
+                raise Refused(BAD_PERSON, 400, "bad_person")
+            st.edit_person(ref, {k: _person_value(k, v) for k, v in ch.items()})
+        elif op == "rename":
+            ref = _person_ref(req.get("id"))
+            count = st.rename_person(ref, _person_value("name", req.get("name")))
+        elif op == "merge":
+            ref = _person_ref(req.get("into"))
+            count = st.merge_people(_person_ref(req.get("from")), ref)
+        elif op == "archive":
+            ref = _person_ref(req.get("id"))
+            st.archive_person(ref)
+        else:
+            ref = _person_ref(req.get("id"))
+            st.restore_person(ref)
+        apply_id = st.peek_apply_id()
+    return 200, {"ok": True, "apply_id": apply_id, "id": ref, "items": count, "people": store.people(archived=None)}
+
+
+def _do_people_undo(store, by_user, req):
+    """POST /api/people/undo: {"apply_id": n}. Only a step that changed the people list; a work item's own step is the board's Undo."""
+    if not isinstance(req, dict) or set(req) != {"apply_id"}:
+        raise Refused(NO_PEOPLE_UNDO)
+    step = req["apply_id"]
+    if type(step) is not int or not 1 <= step < 2 ** 63:
+        raise Refused(NO_PEOPLE_UNDO)
+    rows = store.step_rows(step)
+    if not rows or not any(r["table"] == "people" for r in rows) or any(r["via"] != "dashboard" for r in rows):
+        raise Refused(NO_PEOPLE_UNDO)
+    try:
+        plan = store.undo_many([step], by_user, dry=True)       # the very same run, always rolled back: nothing is written yet
+        if any(x["why"] in ("already undone", "is an undo") for x in plan["skipped"]):
+            raise Refused(UNDONE, 409, "undone")
+        if plan["skipped"]:                                    # all or nothing: one row that can't go back refuses the whole undo
+            raise Refused(_people_undo_reason(store, rows, plan["skipped"]))
+        done = store.undo(step, by_user)
+        if done["skipped"]:                                    # not reachable under the lock; never leave a half-undo if it were
+            raise Refused(_people_undo_reason(store, rows, done["skipped"]))
+    except Invalid as e:
+        text = str(e)
+        if "undone already" in text or "undid an undo" in text:
+            raise Refused(UNDONE, 409, "undone") from None
+        if text.startswith("clark's data is in use"):
+            raise Refused(IN_USE, 503, "busy") from None
+        raise Refused(NO_PEOPLE_UNDO) from None
+    restored = _people_undo_counts(rows)
+    return 200, {"ok": True, "people": store.people(archived=None), "restored": restored, "message": _people_undo_words(restored)}
+
+
+def _people_undo_reason(store, rows, skipped):
+    """Plain words for an Undo that would leave something behind: what to do first. Names the person who now holds an email the
+    step freed, when that is the cause; otherwise says how many changes can't go back."""
+    other = store.live_holder_of_freed_email([r["key"] for r in rows if r["table"] == "people" and r["field"] == "email"])
+    if other:
+        return (f"This can't be undone: an email address it would put back is now used by {other}. "
+                f"Change or archive {other} first, then undo again. Nothing has been changed.")
+    n = len(skipped)
+    return (f"This can't be undone: {n} change{'s' if n != 1 else ''} can no longer be put back, because the data has changed since. "
+            "Undo the later change first, then undo again. Nothing has been changed.")
+
+
+def _people_undo_counts(rows):
+    people = {r["key"] for r in rows if r["table"] == "people"}
+    emails = {r["key"] for r in rows if r["table"] == "people" and r["field"] == "email"}
+    items = {(r["table"], r["key"]) for r in rows if r["table"] != "people"}
+    return {"people": len(people), "emails": len(emails), "items": len(items)}
+
+
+def _people_undo_words(c):
+    p = f"{c['people']} {'person' if c['people'] == 1 else 'people'}"
+    e = f", {c['emails']} email address{'' if c['emails'] == 1 else 'es'}" if c["emails"] else ""
+    i = f" and {c['items']} item{'' if c['items'] == 1 else 's'}" if c["items"] else ""
+    return f"Undone: put back {p}{e}{i}."
+
+
+def _do_people_list(store, by_user, req):
+    return 200, {"ok": True, "people": store.people(archived=None)}
+
+
+def make_people(path, onedrive_roots=None, by_user=None):
+    """The `people` seam for POST /api/people, for the database at `path` (see make_change)."""
+    def people(req):
+        return _call(path, onedrive_roots, by_user, _do_people, req)
+    return people
+
+
+def make_people_undo(path, onedrive_roots=None, by_user=None):
+    """The `people_undo` seam for POST /api/people/undo."""
+    def people_undo(req):
+        return _call(path, onedrive_roots, by_user, _do_people_undo, req)
+    return people_undo
+
+
+def make_people_list(path, onedrive_roots=None, by_user=None):
+    """The `people_list` seam for GET /api/people: everyone on the list, archived too, as the store has them."""
+    def people_list():
+        return _call(path, onedrive_roots, by_user, _do_people_list, {})
+    return people_list
+
+
 # ── ask clark's changes (#47e part 1) ─────────────────────────────────────────
 # ask clark's own modules never open the database for writing (tests/test_ask_route.py). A change they have checked comes here, to
 # make_ask_change, and goes through the SAME path as a hand edit (_do_change: the allow-list, the plain-text rule, the store's own
