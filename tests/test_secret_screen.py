@@ -285,6 +285,42 @@ class Screen(unittest.TestCase):
             with self.subTest(name):
                 self.assertFalse(secret_screen.name_looks_like_secret("saved/" + name))
 
+    def test_the_listed_ordinary_names_are_accepted(self):
+        for name in ("secret_santa2025.xlsx", "secret_santa", "Secretary="):
+            with self.subTest(name):
+                self.assertFalse(secret_screen.name_looks_like_secret("saved/" + name))
+
+    def test_real_looking_passwords_in_names_and_text_are_still_refused(self):
+        for name in ("pass" + "word-Sunshine2026.txt", "pwd_Winter2024.docx", "token-AbCd2024EfGh.txt", "pass" + "word-ab2019cd",
+                     "secret_santa_key=Hunter2xyz9", "Secretary=Hunter2xyz9", "secretly_key=Hunter2xyz9", "SecretaryKey=Hunter2xyz9",
+                     "secret_santa2025_Hunter2xyz9.txt", "notes-secret_santa2025.xlsx", "secret_santa2025x.xlsx", "secret_santaHunter2xyz9.txt", "secret-Hunter2xyz9.txt", "token_Hunter2xyz9.md",
+                     "pin-Hunter2026x9.txt", "password.Hunter2xyz9.txt", "Kenn" + "wort_Hunter2xyz9.docx",
+                     "notes-pass" + "word-" + PW.replace("-", "") + ".txt", "api_key_rotation2026.md", "pin_board2026.docx"):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.name_looks_like_secret("saved/" + name))
+        for text in ("SECRET" + "_KEY=" + "ab12cd34ef56gh7", "client_" + "secret: " + PW, "secret" + "Key=Hunter2xyz9",
+                     "my_secret_value=Hunter2xyz9", "secrets: Hunter2xyz9", "Secret: Hunter2xyz9", "api_key_rotation=" + PW * 2,
+                     "pass" + "word: Sunshine2026", "Pass" + "word=Summer2025", "Secretary=Jane2026x", "secret_santa: round2025"):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+
+    def test_hidden_character_and_double_encoded_passwords_are_caught(self):
+        for name, text in (("zero-width space, encoded", "pass%E2%80%8Bword%3D" + PW),
+                           ("encoded twice", "pass" + "word%253D" + PW), ("encoded twice, plus form", "pass" + "word%253D" + PW.replace("-", "%252D"))):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.looks_like_secret("q=" + text))
+
+    def test_other_languages_act_like_english_on_a_word_after_the_key_word(self):
+        for text in ("pass" + "word: see below", "Sen" + "ha: ver abaixo", "Has" + "ło: patrz niżej"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+        for text in ("pass" + "word: (see below)", "Sen" + "ha: (ver abaixo)"):
+            with self.subTest(text):
+                self.assertEqual(secret_screen.looks_like_secret(text), True)
+
+    def test_the_other_spelling_of_the_spanish_word_is_caught(self):
+        self.assertTrue(secret_screen.looks_like_secret("contra" + "senna: " + PW))
+
     def test_forms_not_screened_on_purpose_stay_clean(self):
         for text in ("The token: 2026 plan covers three workstreams.", "Mot de " + "passe oublié ? Cliquez ici.",
                      "100% done, 50%25 left", "token: ab12cd34 ef56gh78", "secret: ab12cd"):
