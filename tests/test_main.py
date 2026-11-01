@@ -421,8 +421,8 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "app_settings", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "port", "profile", "projects", "publisher", "safety", "sneak", "undo", "updater", "use_cases",
-                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; the updater
+        self.assertEqual(sorted(call), ["activity", "app_settings", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "people", "people_list", "people_undo", "port", "profile", "projects", "publisher", "safety", "section_image", "sneak", "undo", "updater", "use_cases",
+                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route
         self.assertTrue(callable(call["updater"].status) and callable(call["updater"].install))
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
         self.assertTrue(callable(call["word_import"]) and callable(call["word_export"]))

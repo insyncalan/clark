@@ -256,6 +256,13 @@ SAVE_SCRIPT = """on run argv
   return POSIX path of (choose file name with prompt (item 1 of argv) default name (item 2 of argv))
 end run"""
 
+OPEN_SCRIPT = """on run argv
+  if (count of argv) > 1 then
+    return POSIX path of (choose file with prompt (item 1 of argv) default location (POSIX file (item 2 of argv)))
+  end if
+  return POSIX path of (choose file with prompt (item 1 of argv))
+end run"""
+
 
 def choose_folder(prompt, start=None, run=None, on=None):
     """The system's own folder dialog. The chosen folder, or None if the person cancelled."""
@@ -273,6 +280,13 @@ def choose_save_file(prompt, default_name, start=None, run=None, on=None):
     """The system's own Save dialog, suggesting `default_name` (made safe). The chosen file, or None if cancelled."""
     _only_mac("The Save dialog", on)
     return _dialog(SAVE_SCRIPT, [prompt, safe_name(default_name)] + ([str(start)] if start else []), run, "Save")
+
+
+def choose_open_file(prompt, start=None, run=None, on=None):
+    """The system's own Open dialog, for one existing file (#96: a file for a section template). The chosen file, or None if the
+    person cancelled. clark only learns the path; nothing is read here."""
+    _only_mac("The Open dialog", on)
+    return _dialog(OPEN_SCRIPT, [prompt] + ([str(start)] if start else []), run, "file")
 
 
 def _dialog(script, args, run, which):

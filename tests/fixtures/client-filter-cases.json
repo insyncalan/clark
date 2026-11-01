@@ -1,0 +1,5966 @@
+{
+ "about": "Cases for client_filters (#69). The page (filters.js and clientView.js) must give the same answer for each: rows_of(published, today) then apply_state(rows, state, today). Use case and Milestone filters use the page's keys: the milestone's name and 'Use case <ref>'. Search matches every word, in any order. Fictional data.",
+ "today": "2026-10-28",
+ "published": {
+  "actions": [
+   {
+    "id": "ABC-A-001",
+    "description": "Action 1",
+    "owner": "Ana",
+    "workstream": "Delivery",
+    "priority": "Medium",
+    "due_date": "2026-10-20",
+    "status": "Open",
+    "latest_update": "",
+    "client_message": "",
+    "milestone": null,
+    "use_case": null
+   },
+   {
+    "id": "ABC-A-002",
+    "description": "Action 2",
+    "owner": "Bo",
+    "workstream": "Build",
+    "priority": "Urgent",
+    "due_date": "2026-10-30",
+    "status": "Open",
+    "latest_update": "",
+    "client_message": "",
+    "milestone": "ABC-M-001",
+    "use_case": null
+   },
+   {
+    "id": "ABC-A-003",
+    "description": "Action 3",
+    "owner": "Ana",
+    "workstream": "Delivery",
+    "priority": "Medium",
+    "due_date": "2026-11-20",
+    "status": "Closed",
+    "latest_update": "",
+    "client_message": "",
+    "milestone": null,
+    "use_case": "ABC-U-001"
+   },
+   {
+    "id": "ABC-A-004",
+    "description": "Action 4",
+    "owner": null,
+    "workstream": null,
+    "priority": "Medium",
+    "due_date": null,
+    "status": "Delayed",
+    "latest_update": "",
+    "client_message": "",
+    "milestone": null,
+    "use_case": null
+   },
+   {
+    "id": "ABC-A-005",
+    "description": "Book the crane",
+    "owner": "Bo",
+    "workstream": "Build",
+    "priority": "Low",
+    "due_date": "2026-11-05",
+    "status": "Open",
+    "latest_update": "Crane arrives Friday",
+    "client_message": "",
+    "milestone": "ABC-M-001",
+    "use_case": "ABC-U-001"
+   }
+  ],
+  "raid": [
+   {
+    "id": "ABC-001",
+    "type": "Risk",
+    "description": "Risk 1",
+    "owner": "Bo",
+    "workstream": "Build",
+    "priority": "High",
+    "due_date": null,
+    "status": "Open",
+    "client_message": "",
+    "milestone": null,
+    "use_case": null
+   },
+   {
+    "id": "ABC-002",
+    "type": "Issue",
+    "description": "Risk 2",
+    "owner": "Bo",
+    "workstream": "Build",
+    "priority": "Low",
+    "due_date": "2026-10-01",
+    "status": "Closed",
+    "client_message": "",
+    "milestone": null,
+    "use_case": null
+   }
+  ],
+  "decisions": [
+   {
+    "id": "ABC-D-001",
+    "decision": "Decision 1",
+    "made_by": "Cy",
+    "status": "Pending",
+    "needed_by": "2026-11-03",
+    "date": null,
+    "client_message": "",
+    "use_case": null
+   },
+   {
+    "id": "ABC-D-002",
+    "decision": "Decision 2",
+    "made_by": "Cy",
+    "status": "Made",
+    "needed_by": null,
+    "date": "2026-10-01",
+    "client_message": "",
+    "use_case": null
+   }
+  ],
+  "use_cases": [
+   {
+    "id": "ABC-U-001",
+    "ref": "UC-1",
+    "title": "Daily reporting"
+   }
+  ],
+  "milestones": [
+   {
+    "id": "ABC-M-001",
+    "name": "Go live"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "state": {},
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "open",
+     "f": {},
+     "not": {},
+     "q": "",
+     "group": "ws"
+    },
+    "items": [
+     {
+      "id": "ABC-A-001",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 1",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Open",
+      "priority": "Medium",
+      "due": "2026-10-20",
+      "bucket": "overdue",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-002",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Urgent",
+      "due": "2026-10-30",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": "Go live",
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-004",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 4",
+      "owner": null,
+      "workstream": null,
+      "status": "Delayed",
+      "priority": "Medium",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     },
+     {
+      "id": "ABC-001",
+      "kind": "risk",
+      "type": "R",
+      "title": "Risk 1",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "High",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-001",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 1",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Pending",
+      "priority": null,
+      "due": "2026-11-03",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     }
+    ],
+    "count": 6,
+    "counts": {
+     "type": {
+      "all": 6,
+      "A": 4,
+      "R": 1,
+      "D": 1
+     },
+     "show": {
+      "open": 6,
+      "closed": 3,
+      "all": 9
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 5,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 4,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [],
+    "groups": [
+     {
+      "key": "Build",
+      "label": "Build",
+      "count": 3,
+      "items": [
+       {
+        "id": "ABC-A-002",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Urgent",
+        "due": "2026-10-30",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": "Go live",
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       },
+       {
+        "id": "ABC-001",
+        "kind": "risk",
+        "type": "R",
+        "title": "Risk 1",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "High",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "Delivery",
+      "label": "Delivery",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-001",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 1",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Open",
+        "priority": "Medium",
+        "due": "2026-10-20",
+        "bucket": "overdue",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "(none)",
+      "label": "No workstream",
+      "count": 2,
+      "items": [
+       {
+        "id": "ABC-A-004",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 4",
+        "owner": null,
+        "workstream": null,
+        "status": "Delayed",
+        "priority": "Medium",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-D-001",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 1",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Pending",
+        "priority": null,
+        "due": "2026-11-03",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "type": "R",
+    "show": "all"
+   },
+   "expect": {
+    "state": {
+     "type": "R",
+     "show": "all",
+     "f": {},
+     "not": {},
+     "q": "",
+     "group": "ws"
+    },
+    "items": [
+     {
+      "id": "ABC-001",
+      "kind": "risk",
+      "type": "R",
+      "title": "Risk 1",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "High",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-002",
+      "kind": "issue",
+      "type": "R",
+      "title": "Risk 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Closed",
+      "priority": "Low",
+      "due": "2026-10-01",
+      "bucket": "past",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     }
+    ],
+    "count": 2,
+    "counts": {
+     "type": {
+      "all": 9,
+      "A": 5,
+      "R": 2,
+      "D": 2
+     },
+     "show": {
+      "open": 1,
+      "closed": 1,
+      "all": 2
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [],
+    "groups": [
+     {
+      "key": "Build",
+      "label": "Build",
+      "count": 2,
+      "items": [
+       {
+        "id": "ABC-001",
+        "kind": "risk",
+        "type": "R",
+        "title": "Risk 1",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "High",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-002",
+        "kind": "issue",
+        "type": "R",
+        "title": "Risk 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Closed",
+        "priority": "Low",
+        "due": "2026-10-01",
+        "bucket": "past",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "f": {
+     "owner": [
+      "Bo"
+     ],
+     "due": [
+      "soon",
+      "overdue"
+     ]
+    },
+    "group": "owner"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "open",
+     "f": {
+      "due": [
+       "overdue",
+       "soon"
+      ],
+      "owner": [
+       "Bo"
+      ]
+     },
+     "not": {},
+     "q": "",
+     "group": "owner"
+    },
+    "items": [
+     {
+      "id": "ABC-A-002",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Urgent",
+      "due": "2026-10-30",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": "Go live",
+      "latest_update": ""
+     }
+    ],
+    "count": 1,
+    "counts": {
+     "type": {
+      "all": 1,
+      "A": 1,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 1,
+      "closed": 0,
+      "all": 1
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": true,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": true
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 1,
+        "selected": true
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": true,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 1,
+        "selected": true
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "due",
+      "label": "Due",
+      "negated": false,
+      "values": [
+       {
+        "value": "overdue",
+        "label": "Overdue"
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days"
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "negated": false,
+      "values": [
+       {
+        "value": "Bo",
+        "label": "Bo"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "Bo",
+      "label": "Bo",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-002",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Urgent",
+        "due": "2026-10-30",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": "Go live",
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "f": {
+     "owner": [
+      "Bo"
+     ]
+    },
+    "not": {
+     "owner": true
+    },
+    "show": "all",
+    "group": "due"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {
+      "owner": [
+       "Bo"
+      ]
+     },
+     "not": {
+      "owner": true
+     },
+     "q": "",
+     "group": "due"
+    },
+    "items": [
+     {
+      "id": "ABC-A-001",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 1",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Open",
+      "priority": "Medium",
+      "due": "2026-10-20",
+      "bucket": "overdue",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-003",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 3",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Closed",
+      "priority": "Medium",
+      "due": "2026-11-20",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-004",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 4",
+      "owner": null,
+      "workstream": null,
+      "status": "Delayed",
+      "priority": "Medium",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-001",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 1",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Pending",
+      "priority": null,
+      "due": "2026-11-03",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-002",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 2",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Made",
+      "priority": null,
+      "due": "2026-10-01",
+      "bucket": "past",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     }
+    ],
+    "count": 5,
+    "counts": {
+     "type": {
+      "all": 5,
+      "A": 3,
+      "R": 0,
+      "D": 2
+     },
+     "show": {
+      "open": 3,
+      "closed": 2,
+      "all": 5
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 3,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": true,
+      "negated": true,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 4,
+        "selected": true
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 4,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 5,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "negated": true,
+      "values": [
+       {
+        "value": "Bo",
+        "label": "Bo"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "overdue",
+      "label": "Overdue",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-001",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 1",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Open",
+        "priority": "Medium",
+        "due": "2026-10-20",
+        "bucket": "overdue",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "next",
+      "label": "Next week",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-D-001",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 1",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Pending",
+        "priority": null,
+        "due": "2026-11-03",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "later",
+      "label": "Later",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-003",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 3",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Closed",
+        "priority": "Medium",
+        "due": "2026-11-20",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "none",
+      "label": "No date",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-004",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 4",
+        "owner": null,
+        "workstream": null,
+        "status": "Delayed",
+        "priority": "Medium",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "past",
+      "label": "Earlier",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-D-002",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 2",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Made",
+        "priority": null,
+        "due": "2026-10-01",
+        "bucket": "past",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "q": "decision",
+    "show": "all",
+    "group": "type"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {},
+     "not": {},
+     "q": "decision",
+     "group": "type"
+    },
+    "items": [
+     {
+      "id": "ABC-D-001",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 1",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Pending",
+      "priority": null,
+      "due": "2026-11-03",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-002",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 2",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Made",
+      "priority": null,
+      "due": "2026-10-01",
+      "bucket": "past",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     }
+    ],
+    "count": 2,
+    "counts": {
+     "type": {
+      "all": 2,
+      "A": 0,
+      "R": 0,
+      "D": 2
+     },
+     "show": {
+      "open": 1,
+      "closed": 1,
+      "all": 2
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "q",
+      "label": "Search",
+      "negated": false,
+      "values": [
+       {
+        "value": "decision",
+        "label": "decision"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "D",
+      "label": "Decisions",
+      "count": 2,
+      "items": [
+       {
+        "id": "ABC-D-001",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 1",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Pending",
+        "priority": null,
+        "due": "2026-11-03",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-D-002",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 2",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Made",
+        "priority": null,
+        "due": "2026-10-01",
+        "bucket": "past",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "f": {
+     "owner": [
+      "Gone"
+     ]
+    },
+    "group": "priority"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "open",
+     "f": {},
+     "not": {},
+     "q": "",
+     "group": "priority"
+    },
+    "items": [
+     {
+      "id": "ABC-A-001",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 1",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Open",
+      "priority": "Medium",
+      "due": "2026-10-20",
+      "bucket": "overdue",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-002",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Urgent",
+      "due": "2026-10-30",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": "Go live",
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-004",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 4",
+      "owner": null,
+      "workstream": null,
+      "status": "Delayed",
+      "priority": "Medium",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     },
+     {
+      "id": "ABC-001",
+      "kind": "risk",
+      "type": "R",
+      "title": "Risk 1",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "High",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-001",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 1",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Pending",
+      "priority": null,
+      "due": "2026-11-03",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     }
+    ],
+    "count": 6,
+    "counts": {
+     "type": {
+      "all": 6,
+      "A": 4,
+      "R": 1,
+      "D": 1
+     },
+     "show": {
+      "open": 6,
+      "closed": 3,
+      "all": 9
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 5,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 4,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [],
+    "groups": [
+     {
+      "key": "Urgent",
+      "label": "Urgent",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-002",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Urgent",
+        "due": "2026-10-30",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": "Go live",
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "High",
+      "label": "High",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-001",
+        "kind": "risk",
+        "type": "R",
+        "title": "Risk 1",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "High",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "Medium",
+      "label": "Medium",
+      "count": 2,
+      "items": [
+       {
+        "id": "ABC-A-001",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 1",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Open",
+        "priority": "Medium",
+        "due": "2026-10-20",
+        "bucket": "overdue",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-004",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 4",
+        "owner": null,
+        "workstream": null,
+        "status": "Delayed",
+        "priority": "Medium",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     },
+     {
+      "key": "Low",
+      "label": "Low",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       }
+      ]
+     },
+     {
+      "key": "(none)",
+      "label": "No priority",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-D-001",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 1",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Pending",
+        "priority": null,
+        "due": "2026-11-03",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "q": "crane book"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {},
+     "not": {},
+     "q": "crane book",
+     "group": "none"
+    },
+    "items": [
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     }
+    ],
+    "count": 1,
+    "counts": {
+     "type": {
+      "all": 1,
+      "A": 1,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 1,
+      "closed": 0,
+      "all": 1
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "q",
+      "label": "Search",
+      "negated": false,
+      "values": [
+       {
+        "value": "crane book",
+        "label": "crane book"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "",
+      "label": "All items",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "q": "BOOK  Crane"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {},
+     "not": {},
+     "q": "BOOK  Crane",
+     "group": "none"
+    },
+    "items": [
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     }
+    ],
+    "count": 1,
+    "counts": {
+     "type": {
+      "all": 1,
+      "A": 1,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 1,
+      "closed": 0,
+      "all": 1
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "q",
+      "label": "Search",
+      "negated": false,
+      "values": [
+       {
+        "value": "BOOK  Crane",
+        "label": "BOOK  Crane"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "",
+      "label": "All items",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "q": "crane pump"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {},
+     "not": {},
+     "q": "crane pump",
+     "group": "none"
+    },
+    "items": [],
+    "count": 0,
+    "counts": {
+     "type": {
+      "all": 0,
+      "A": 0,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 0,
+      "closed": 0,
+      "all": 0
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "q",
+      "label": "Search",
+      "negated": false,
+      "values": [
+       {
+        "value": "crane pump",
+        "label": "crane pump"
+       }
+      ]
+     }
+    ],
+    "groups": []
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "q": "book the"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {},
+     "not": {},
+     "q": "book the",
+     "group": "none"
+    },
+    "items": [
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     }
+    ],
+    "count": 1,
+    "counts": {
+     "type": {
+      "all": 1,
+      "A": 1,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 1,
+      "closed": 0,
+      "all": 1
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "q",
+      "label": "Search",
+      "negated": false,
+      "values": [
+       {
+        "value": "book the",
+        "label": "book the"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "",
+      "label": "All items",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "q": "u-001 action"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {},
+     "not": {},
+     "q": "u-001 action",
+     "group": "none"
+    },
+    "items": [
+     {
+      "id": "ABC-A-003",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 3",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Closed",
+      "priority": "Medium",
+      "due": "2026-11-20",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": null,
+      "latest_update": ""
+     }
+    ],
+    "count": 1,
+    "counts": {
+     "type": {
+      "all": 1,
+      "A": 1,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 0,
+      "closed": 1,
+      "all": 1
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "q",
+      "label": "Search",
+      "negated": false,
+      "values": [
+       {
+        "value": "u-001 action",
+        "label": "u-001 action"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "",
+      "label": "All items",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-003",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 3",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Closed",
+        "priority": "Medium",
+        "due": "2026-11-20",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "f": {
+     "ms": [
+      "Go live"
+     ]
+    }
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {
+      "ms": [
+       "Go live"
+      ]
+     },
+     "not": {},
+     "q": "",
+     "group": "none"
+    },
+    "items": [
+     {
+      "id": "ABC-A-002",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Urgent",
+      "due": "2026-10-30",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": "Go live",
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     }
+    ],
+    "count": 2,
+    "counts": {
+     "type": {
+      "all": 2,
+      "A": 2,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 2,
+      "closed": 0,
+      "all": 2
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": true,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 2,
+        "selected": true
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 7,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "negated": false,
+      "values": [
+       {
+        "value": "Go live",
+        "label": "Go live"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "",
+      "label": "All items",
+      "count": 2,
+      "items": [
+       {
+        "id": "ABC-A-002",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Urgent",
+        "due": "2026-10-30",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": "Go live",
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "f": {
+     "uc": [
+      "Use case UC-1"
+     ]
+    }
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {
+      "uc": [
+       "Use case UC-1"
+      ]
+     },
+     "not": {},
+     "q": "",
+     "group": "none"
+    },
+    "items": [
+     {
+      "id": "ABC-A-003",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 3",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Closed",
+      "priority": "Medium",
+      "due": "2026-11-20",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     }
+    ],
+    "count": 2,
+    "counts": {
+     "type": {
+      "all": 2,
+      "A": 2,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 1,
+      "closed": 1,
+      "all": 2
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": true,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 2,
+        "selected": true
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 7,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "negated": false,
+      "values": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "",
+      "label": "All items",
+      "count": 2,
+      "items": [
+       {
+        "id": "ABC-A-003",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 3",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Closed",
+        "priority": "Medium",
+        "due": "2026-11-20",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "f": {
+     "uc": [
+      "Use case UC-1"
+     ]
+    },
+    "not": {
+     "uc": true
+    }
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {
+      "uc": [
+       "Use case UC-1"
+      ]
+     },
+     "not": {
+      "uc": true
+     },
+     "q": "",
+     "group": "none"
+    },
+    "items": [
+     {
+      "id": "ABC-A-001",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 1",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Open",
+      "priority": "Medium",
+      "due": "2026-10-20",
+      "bucket": "overdue",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-002",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Urgent",
+      "due": "2026-10-30",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": "Go live",
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-004",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 4",
+      "owner": null,
+      "workstream": null,
+      "status": "Delayed",
+      "priority": "Medium",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-001",
+      "kind": "risk",
+      "type": "R",
+      "title": "Risk 1",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "High",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-002",
+      "kind": "issue",
+      "type": "R",
+      "title": "Risk 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Closed",
+      "priority": "Low",
+      "due": "2026-10-01",
+      "bucket": "past",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-001",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 1",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Pending",
+      "priority": null,
+      "due": "2026-11-03",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-002",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 2",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Made",
+      "priority": null,
+      "due": "2026-10-01",
+      "bucket": "past",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     }
+    ],
+    "count": 7,
+    "counts": {
+     "type": {
+      "all": 7,
+      "A": 3,
+      "R": 2,
+      "D": 2
+     },
+     "show": {
+      "open": 5,
+      "closed": 2,
+      "all": 7
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 3,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": true,
+      "negated": true,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 2,
+        "selected": true
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 7,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 6,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "negated": true,
+      "values": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "",
+      "label": "All items",
+      "count": 7,
+      "items": [
+       {
+        "id": "ABC-A-001",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 1",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Open",
+        "priority": "Medium",
+        "due": "2026-10-20",
+        "bucket": "overdue",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-002",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Urgent",
+        "due": "2026-10-30",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": "Go live",
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-004",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 4",
+        "owner": null,
+        "workstream": null,
+        "status": "Delayed",
+        "priority": "Medium",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-001",
+        "kind": "risk",
+        "type": "R",
+        "title": "Risk 1",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "High",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-002",
+        "kind": "issue",
+        "type": "R",
+        "title": "Risk 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Closed",
+        "priority": "Low",
+        "due": "2026-10-01",
+        "bucket": "past",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-D-001",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 1",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Pending",
+        "priority": null,
+        "due": "2026-11-03",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-D-002",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 2",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Made",
+        "priority": null,
+        "due": "2026-10-01",
+        "bucket": "past",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "ms",
+    "f": {
+     "ms": [
+      "ABC-M-001"
+     ]
+    }
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {},
+     "not": {},
+     "q": "",
+     "group": "ms"
+    },
+    "items": [
+     {
+      "id": "ABC-A-001",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 1",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Open",
+      "priority": "Medium",
+      "due": "2026-10-20",
+      "bucket": "overdue",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-002",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Urgent",
+      "due": "2026-10-30",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": "Go live",
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-003",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 3",
+      "owner": "Ana",
+      "workstream": "Delivery",
+      "status": "Closed",
+      "priority": "Medium",
+      "due": "2026-11-20",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-004",
+      "kind": "action",
+      "type": "A",
+      "title": "Action 4",
+      "owner": null,
+      "workstream": null,
+      "status": "Delayed",
+      "priority": "Medium",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     },
+     {
+      "id": "ABC-001",
+      "kind": "risk",
+      "type": "R",
+      "title": "Risk 1",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "High",
+      "due": null,
+      "bucket": "none",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-002",
+      "kind": "issue",
+      "type": "R",
+      "title": "Risk 2",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Closed",
+      "priority": "Low",
+      "due": "2026-10-01",
+      "bucket": "past",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-001",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 1",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Pending",
+      "priority": null,
+      "due": "2026-11-03",
+      "bucket": "soon",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     },
+     {
+      "id": "ABC-D-002",
+      "kind": "decision",
+      "type": "D",
+      "title": "Decision 2",
+      "owner": "Cy",
+      "workstream": null,
+      "status": "Made",
+      "priority": null,
+      "due": "2026-10-01",
+      "bucket": "past",
+      "use_case": null,
+      "milestone": null,
+      "latest_update": ""
+     }
+    ],
+    "count": 9,
+    "counts": {
+     "type": {
+      "all": 9,
+      "A": 5,
+      "R": 2,
+      "D": 2
+     },
+     "show": {
+      "open": 6,
+      "closed": 3,
+      "all": 9
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 3,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 2,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 7,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 7,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [],
+    "groups": [
+     {
+      "key": "Go live",
+      "label": "Go live",
+      "count": 2,
+      "items": [
+       {
+        "id": "ABC-A-002",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Urgent",
+        "due": "2026-10-30",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": "Go live",
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       }
+      ]
+     },
+     {
+      "key": "(none)",
+      "label": "No milestone",
+      "count": 7,
+      "items": [
+       {
+        "id": "ABC-A-001",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 1",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Open",
+        "priority": "Medium",
+        "due": "2026-10-20",
+        "bucket": "overdue",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-003",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 3",
+        "owner": "Ana",
+        "workstream": "Delivery",
+        "status": "Closed",
+        "priority": "Medium",
+        "due": "2026-11-20",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-A-004",
+        "kind": "action",
+        "type": "A",
+        "title": "Action 4",
+        "owner": null,
+        "workstream": null,
+        "status": "Delayed",
+        "priority": "Medium",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-001",
+        "kind": "risk",
+        "type": "R",
+        "title": "Risk 1",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "High",
+        "due": null,
+        "bucket": "none",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-002",
+        "kind": "issue",
+        "type": "R",
+        "title": "Risk 2",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Closed",
+        "priority": "Low",
+        "due": "2026-10-01",
+        "bucket": "past",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-D-001",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 1",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Pending",
+        "priority": null,
+        "due": "2026-11-03",
+        "bucket": "soon",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       },
+       {
+        "id": "ABC-D-002",
+        "kind": "decision",
+        "type": "D",
+        "title": "Decision 2",
+        "owner": "Cy",
+        "workstream": null,
+        "status": "Made",
+        "priority": null,
+        "due": "2026-10-01",
+        "bucket": "past",
+        "use_case": null,
+        "milestone": null,
+        "latest_update": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "state": {
+    "show": "all",
+    "group": "none",
+    "f": {
+     "due": [
+      "later"
+     ]
+    },
+    "q": "crane"
+   },
+   "expect": {
+    "state": {
+     "type": "all",
+     "show": "all",
+     "f": {
+      "due": [
+       "later"
+      ]
+     },
+     "not": {},
+     "q": "crane",
+     "group": "none"
+    },
+    "items": [
+     {
+      "id": "ABC-A-005",
+      "kind": "action",
+      "type": "A",
+      "title": "Book the crane",
+      "owner": "Bo",
+      "workstream": "Build",
+      "status": "Open",
+      "priority": "Low",
+      "due": "2026-11-05",
+      "bucket": "later",
+      "use_case": "Use case UC-1",
+      "milestone": "Go live",
+      "latest_update": "Crane arrives Friday"
+     }
+    ],
+    "count": 1,
+    "counts": {
+     "type": {
+      "all": 1,
+      "A": 1,
+      "R": 0,
+      "D": 0
+     },
+     "show": {
+      "open": 1,
+      "closed": 0,
+      "all": 1
+     }
+    },
+    "dimensions": [
+     {
+      "dim": "ws",
+      "label": "Workstream",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Build",
+        "label": "Build",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delivery",
+        "label": "Delivery",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No workstream",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "status",
+      "label": "Status",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Open",
+        "label": "Open",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Delayed",
+        "label": "Delayed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Pending",
+        "label": "Pending",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Closed",
+        "label": "Closed",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Made",
+        "label": "Made",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "due",
+      "label": "Due",
+      "active": true,
+      "negated": false,
+      "options": [
+       {
+        "value": "overdue",
+        "label": "Overdue",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "soon",
+        "label": "Due in 7 days",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "later",
+        "label": "Later",
+        "count": 1,
+        "selected": true
+       },
+       {
+        "value": "none",
+        "label": "No date",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "past",
+        "label": "Earlier",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "owner",
+      "label": "Owner",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Ana",
+        "label": "Ana",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Bo",
+        "label": "Bo",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "Cy",
+        "label": "Cy",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No owner",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "priority",
+      "label": "Priority",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Urgent",
+        "label": "Urgent",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "High",
+        "label": "High",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Medium",
+        "label": "Medium",
+        "count": 0,
+        "selected": false
+       },
+       {
+        "value": "Low",
+        "label": "Low",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No priority",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "uc",
+      "label": "Use case",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Use case UC-1",
+        "label": "Use case UC-1",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No use case",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "dim": "ms",
+      "label": "Milestone",
+      "active": false,
+      "negated": false,
+      "options": [
+       {
+        "value": "Go live",
+        "label": "Go live",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "value": "(none)",
+        "label": "No milestone",
+        "count": 0,
+        "selected": false
+       }
+      ]
+     }
+    ],
+    "chips": [
+     {
+      "dim": "due",
+      "label": "Due",
+      "negated": false,
+      "values": [
+       {
+        "value": "later",
+        "label": "Later"
+       }
+      ]
+     },
+     {
+      "dim": "q",
+      "label": "Search",
+      "negated": false,
+      "values": [
+       {
+        "value": "crane",
+        "label": "crane"
+       }
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "key": "",
+      "label": "All items",
+      "count": 1,
+      "items": [
+       {
+        "id": "ABC-A-005",
+        "kind": "action",
+        "type": "A",
+        "title": "Book the crane",
+        "owner": "Bo",
+        "workstream": "Build",
+        "status": "Open",
+        "priority": "Low",
+        "due": "2026-11-05",
+        "bucket": "later",
+        "use_case": "Use case UC-1",
+        "milestone": "Go live",
+        "latest_update": "Crane arrives Friday"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}
