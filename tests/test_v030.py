@@ -72,6 +72,14 @@ COVERED = [
      "test_launcher::AgainstAFakeServer::test_start_then_the_real_check_sees_our_clark_and_a_second_launch_only_opens_a_window"),
     ("#229", "Generated page files merge by rebuilding and equal a fresh build",
      "test_merge_driver::MergeDriverTests::test_with_the_driver_different_sources_merge_and_the_pages_equal_a_fresh_build"),
+    ("#238", "Help says PDF files are not read yet, and the panel says how many were skipped",
+     "test_ask_passages::OnTheRoute::test_pdf_is_said_to_be_not_supported_yet"),
+    ("#98", "The four section styles are shown as picture cards",
+     "test_section_style_cards::Cards::test_C_four_cards_each_with_a_drawing_and_one_real_radio_in_a_named_group"),
+    ("#78", "The peek shows coloured icons for status, priority and date",
+     "test_peek_icons::ToneRules::test_priority_urgent_red_high_amber_medium_blue_low_and_none_grey"),
+    ("#239", "History names an undone batch on every row of the batch",
+     "test_history_rows::Rows::test_undo_several_is_named_on_every_row_of_the_batch"),
 ]
 
 # Not on main (or no test found): (item, check, the question or where it is being built).
