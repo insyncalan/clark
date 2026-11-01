@@ -87,8 +87,28 @@ class PythonSide(unittest.TestCase):
 
     def test_a_template_saved_through_the_change_route_fits_its_limit(self):
         """The route's body limit is above the largest content (with room for the request around it and its escaping)."""
-        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], 72 * 1024)
-        self.assertGreaterEqual(sv.ROUTE_BODY_LIMITS["/api/change"], max(m.LIMIT for m in section_kinds.REGISTRY.values()) + 8 * 1024)
+        biggest = max(m.LIMIT for m in section_kinds.REGISTRY.values())
+        limit = sv.ROUTE_BODY_LIMITS["/api/change"]
+        self.assertEqual(limit, 2 * biggest + 4 * 1024)
+        # worst case: a stored body of quotes and backslashes, escaped once in the stored text and again as a string in the request
+        stored = '"\\' * (biggest // 2)
+        self.assertEqual(len(stored), biggest)
+        head = json.dumps({"project": "ABC", "op": "edit", "changes": {"body": stored}, "pad": ""}).encode("ascii")
+        self.assertGreater(len(head), 2 * biggest, "the worst case is about twice the content")
+        pad = limit - len(head)
+        self.assertGreaterEqual(pad, 0, "the worst case fits the limit")
+        calls = []
+
+        def change(req):
+            calls.append(req)
+            return 200, {"ok": True}
+        running = Running(change=change, undo=lambda req: (200, {"ok": True}))
+        self.addCleanup(running.close)
+        fits = head.replace(b'"pad": ""', b'"pad": "' + b"x" * pad + b'"')
+        self.assertEqual(len(fits), limit)
+        self.assertEqual(running.api("POST", "/api/change", fits)[0], 200)
+        self.assertEqual(calls[0]["changes"]["body"], stored)
+        self.assertEqual(running.api("POST", "/api/change", fits + b" ")[0], 400, "one past the limit is refused")
 
     def test_a_stub_publishes_nothing_whatever_its_body_holds(self):
         ctx = base.Context({"actions": [{"id": "ABC-A-001", "description": "Fictional"}]}, "2030-01-15")
@@ -256,7 +276,8 @@ class PageSide(unittest.TestCase):
         variants = [{}, {"archived": 1}, {"archived": None}, {"archived": True}, {"archived": False}, {"archived": "0"},
                     {"client_visible": 0}, {"client_visible": None}, {"client_visible": True}, {"client_visible": "1"},
                     {"project": "XYZ"}, {"project": None}, {"hidden_id": True}, {"label": "Sensitive"}, {"label": "SENSITIVE"},
-                    {"label": "Board only"}, {"label": "Kept label"}, {"label": "Default out"}, {"no_project": True}]
+                    {"label": "Board only"}, {"label": "Kept label"},
+                    {"label": "STRASSE"}, {"label": "Stra\u00dfe"}, {"label": "Mi\u1e9e"}, {"label": "Mi\u017f\u017f"}, {"label": "\u039f\u0394\u039f\u03a3"}, {"label": "Default out"}, {"no_project": True}]
         data = {"project": {"code": "ABC", "name": "Fictional Programme", "health_reason": "", "current_state": ""},
                 "workstreams": [], "links": [], "labels": {}}
         hidden = []
@@ -273,6 +294,9 @@ class PageSide(unittest.TestCase):
                     data["labels"][r["id"]] = [v["label"]]
                 data[kind].append(r)
         label_rules = [{"name": "Board only", "behaviour": "exclude", "default_choice": None},
+                       {"name": "Strasse", "behaviour": "exclude", "default_choice": None},      # ß, ẞ, long s and final sigma fold as casefold does
+                       {"name": "Miss", "behaviour": "exclude", "default_choice": None},
+                       {"name": "\u03bf\u03b4\u03bf\u03c2", "behaviour": "exclude", "default_choice": None},
                        {"name": "Default out", "behaviour": None, "default_choice": "exclude"},
                        {"name": "Kept label", "behaviour": "show", "default_choice": None}]
         for hidden_section in (None, "raid", "usecases"):

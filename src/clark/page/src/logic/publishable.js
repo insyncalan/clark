@@ -12,7 +12,8 @@ export const SECTION_OF_KIND = { milestones: "milestones", actions: "actions", r
 
 const isZero = (v) => v === 0 || v === false;            // Python's `== 0`: 0 and False, never null, "0" or a missing field
 const isOne = (v) => v === 1 || v === true;
-const fold = (s) => String(s).toLowerCase();             // publish folds with casefold; for label names the two agree
+// publish folds with casefold; upper then lower folds the long s, then the final sigma and ß (and ẞ) are folded by hand (to sigma and ss). tests/test_section_registry.py checks the two against each other.
+const fold = (s) => String(s).toUpperCase().toLowerCase().replace(/\u03c2/g, "\u03c3").replace(/\u00df/g, "ss");
 
 // The label names (folded) that keep a row out: Sensitive, and any label whose behaviour or default choice is exclude.
 export function excludedLabels(rules) {
