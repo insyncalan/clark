@@ -180,7 +180,7 @@ def find_chrome():
 
 def chrome_starts(chrome):
     try:
-        proc = subprocess.run([chrome, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"], capture_output=True, timeout=60)
+        proc = subprocess.run([chrome, "--headless=new", "--use-mock-keychain", "--password-store=basic", "--disable-gpu", "--dump-dom", "about:blank"], capture_output=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired):
         return False
     return proc.returncode == 0
