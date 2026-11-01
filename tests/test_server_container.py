@@ -128,14 +128,14 @@ class Compose(unittest.TestCase):
     """The compose file's published port is a security control (see docs/handoff/design-427-docker-first-start.md)."""
 
     def test_every_published_port_is_on_127_0_0_1_only(self):
-        text = (ROOT / "docker" / "compose.yaml").read_text()
+        text = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
         ports = re.findall(r'^\s*-\s*"?([0-9][^"\n]*:[0-9]+(?::[0-9]+)?(?:/\w+)?)"?\s*$', text, re.M)
         self.assertTrue(ports, "no published port found")
         for port in ports:
             self.assertTrue(port.startswith("127.0.0.1:"), port)
 
     def test_the_image_sets_the_container_setting_and_runs_as_a_user_that_is_not_root(self):
-        text = (ROOT / "docker" / "Dockerfile").read_text()
+        text = (ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("CLARK_CONTAINER=1", text)
         self.assertRegex(text, r"(?m)^USER clark$")
 

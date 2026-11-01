@@ -51,10 +51,19 @@ def system():
     return sys.platform
 
 
+def container_mode():
+    """#427: True only when CLARK_CONTAINER=1 is set (by the shipped Dockerfile) AND this really is a container (Docker's
+    /.dockerenv or Podman's /run/.containerenv exists). Never true by the setting alone, or by a marker file alone."""
+    return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
+
+
 def _only_mac(what, on=None):
     """Raise NotBuiltYet unless `on` (default: this system) is the Mac."""
     on = on or system()
     if on != MAC:
+        if on == "linux" and container_mode():          # #427: said in the words of the person who started Docker
+            raise NotBuiltYet(f"{what} is not available when clark runs in Docker: it needs the Mac. Start clark the other way "
+                              "(clark.command) to use it")
         raise NotBuiltYet(f"{what} on {'Windows' if on == WINDOWS else on} is not built yet: clark runs on macOS for now")
 
 
@@ -86,7 +95,12 @@ def log_dir(home=None, on=None):
 
 def onedrive_roots(home=None, on=None):
     """The OneDrive folders on this machine, as suggestions only (the user still picks a folder): the OneDrive app's
-    ~/Library/CloudStorage/OneDrive-<name>/ folders, and the older app's ~/OneDrive*/ folders. Sorted; may be empty."""
+    ~/Library/CloudStorage/OneDrive-<name>/ folders, and the older app's ~/OneDrive*/ folders. Sorted; may be empty.
+    #427: inside the shipped container (Linux and container_mode()) there is no OneDrive app to find, so the answer is an
+    empty list. This is the one place Linux is let through: outside a container, Linux still raises NotBuiltYet. The cost is
+    that the OneDrive refusal on the shared data folder cannot work in there; the Mac-side starter must check it first."""
+    if (on or system()) == "linux" and container_mode():
+        return []
     _only_mac("Finding OneDrive", on)
     home = Path(home or Path.home())
     found = list((home / "Library" / "CloudStorage").glob("OneDrive*")) + list(home.glob("OneDrive*"))

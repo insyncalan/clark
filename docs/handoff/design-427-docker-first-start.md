@@ -41,9 +41,36 @@ clark listens on 127.0.0.1 only, and refuses any request whose peer address is n
 - `tests/test_server_container.py`: with no setting, nothing changes and non-loopback peers are refused; the setting alone, or the marker file alone, is not enough; in container mode the gateway and loopback pass and any other peer is refused; the Host and Origin checks hold for the gateway peer; the gateway is read from a route table; the compose file publishes to 127.0.0.1 only.
 - `docker/Dockerfile` (python 3.12.12 slim, pinned by digest, non-root user 10001, only clark's files, a health check), `docker/Dockerfile.dockerignore` (only those files reach the build), `docker/compose.yaml`.
 
-## A blocker found: clark does not yet start on Linux
+## Slice 2: clark starts on Linux inside the container
 
-A container is Linux, and `platform.py` refuses non-Mac systems. A run with the system named "linux" stops at once with "Finding OneDrive on linux is not built yet". With only the OneDrive list made empty, the same run starts and `/health` answers. So the container will not start until a second slice makes `platform.onedrive_roots` return an empty list inside a container, and the features that still need the Mac (folder and file dialogs, "open a file", the Ask folders' never-read list) say plainly that they are not available in Docker. Two consequences to decide: the OneDrive refusal then cannot protect the shared folder (the host side must), and the log folder falls back to none (clark carries on without a log) unless it is pointed into `/data`. This is not done here because it is `platform.py`, outside this slice.
+A container is Linux, and `platform.py` refused every system but the Mac: a run with the system named "linux" stopped at once with "Finding OneDrive on linux is not built yet". Slice 2 lets clark start there, in the shipped container and nowhere else on Linux.
+
+### What changed (`src/clark/platform.py`)
+
+- `container_mode()` (new): true only when `CLARK_CONTAINER=1` **and** `/.dockerenv` or `/run/.containerenv` exists. The same rule as `server.container_mode()` (which keeps its own copy so the guarded server imports nothing); a test fails if the two ever differ.
+- `onedrive_roots()`: on Linux **and** in container mode, returns an empty list. On Linux outside a container (the setting alone, a marker file alone, or neither) it still raises `NotBuiltYet`; Windows still raises; the Mac branch is the same code as before and its tests are unchanged.
+- `_only_mac()`: in a container, every other Mac-only call now says "X is not available when clark runs in Docker: it needs the Mac. Start clark the other way (clark.command) to use it" instead of "on linux is not built yet". It is still `NotBuiltYet`, so every caller that already handles it keeps working. Outside a container the old words are unchanged.
+- Two small fixes to slice 1 that its own source test caught: the route table is opened with `encoding="utf-8"` in `server.py`, and the same in `tests/test_server_container.py`.
+
+### Every other call on the start path (checked by starting clark for real with the system named "linux" and the container markers faked: `/health` answered 200 and the page loaded)
+
+| Call | What happens in the container |
+|---|---|
+| `onedrive_roots()` (data folder check, store, settings, Ask, Word, publish) | empty list (the change) |
+| `login_name()` | works anywhere; no change |
+| `data_dir()` | still Mac-only, but the container always starts with `--data /data` (the Dockerfile's CMD), so it is never asked. Starting without `--data` stops with the Docker words above |
+| `log_dir()` | `start_log` already catches the refusal: clark runs **without a daily log** (and `/api/diagnostics` and the log screen answer "not found"). Pointing the log into `/data` is a later slice |
+| `never_read_places()` | Adding an Ask folder reaches it (`ask_folders.py`, `reach.never_inside`) and raises `NotBuiltYet` that nothing there catches; the server's catch-all answers it, so the person gets the generic error, not a plain sentence (**listed, not fixed, not hand-checked**). Ask itself already says "Questions work on a Mac for now" (`ask_claude`), so the feature is not offered to answer anyway |
+| `open_file`, `reveal_file`, `open_url` | refused with the Docker words; the log screen and the page already turn that into a message. The container never opens a browser (the Mac-side starter does) |
+| `choose_folder`, `choose_save_file`, `choose_open_file` | refused with the Docker words; Publish, Word export, Ask folders and section templates already show the refusal. Typing a folder path still works where the page offers it |
+| `launcher_name`, `find_chrome`, `start_detached`, `open_app_window` | only used by `launch.py` (the Mac's `clark.command`); not on the container's start path |
+
+### What the container mode loses, plainly
+
+1. **The OneDrive refusal does not protect the shared data folder inside the container.** On the Mac clark refuses to keep its database in OneDrive (a synced folder can corrupt it). In the container there is no OneDrive app to find, so the check has nothing to compare with, and a data folder shared in from a OneDrive folder is **accepted**. The Mac-side starter (`clark-docker.command`, the follow-up) must check the folder before it starts the container and refuse a OneDrive path, using the same rule as the terminal route. Until it exists, the compose file's default folder (the terminal route's own, outside OneDrive) is the only protection, and a person who sets `CLARK_DATA` into OneDrive is not stopped.
+2. The same empty list means Word import/export, Ask folders and publish also do not warn about a OneDrive place the person types.
+3. No daily log, and no folder, Save or Open windows (see the table).
+4. Outside a container nothing is gained: Linux still stops with "not built yet".
 
 ## The data folder
 
@@ -101,6 +128,6 @@ Way 2: without Docker
 ## Not done, and why
 
 - The Mac-side starter, the stop script, the START-HERE change in `dev/tools/package.py` and the download list (`release_files.py`, which the updater also reads): the download is a closed list with its own tests, and it should change in one reviewed step.
-- Linux support in `platform.py`: see above.
+- Pointing the log into `/data`, and the OneDrive check in the Mac-side starter: see slice 2 above.
 - No image was built and no container started: the machine's load was over 40 (91 at the start). Only the compose file was checked (`docker compose config`), and the guarded tests were run.
 - The done-when in the issue (both routes tried on a clean Mac from the downloaded zip) is untouched.

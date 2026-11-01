@@ -79,7 +79,7 @@ def container_mode():
 def container_gateway():
     """#427: the container's default gateway address, the one peer a published port arrives from; None when it can't be read."""
     try:
-        with open("/proc/net/route") as table:
+        with open("/proc/net/route", encoding="utf-8") as table:
             for line in table.read().splitlines()[1:]:
                 f = line.split()
                 if f[1] == "00000000" and int(f[3], 16) & 2:
