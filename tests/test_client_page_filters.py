@@ -25,6 +25,8 @@ TODAY = "2026-10-28"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 VARIANTS = [(w, s) for w in (1400, 900) for s in ("light", "dark")]
 INTERNAL = "ZQ-INTERNAL-ONLY-ROW"
+HIDDEN_OWNER = "Hidden Owner"            # the row that is not the client's has an owner and a workstream of its own
+HIDDEN_WS = "Hidden Workstream"
 CLOSED = ["PUB-A-104", "PUB-D-001", "PUB-D-003"]
 
 
@@ -40,7 +42,8 @@ def plant():
                    latest_update=f"Note {n}", client_message="", milestone=None, use_case=None,
                    closed="2026-10-02" if status == "Closed" else None)
         p["data"]["actions"].append(row)
-    p["data"]["actions"].append(dict(base, id="PUB-A-199", description=INTERNAL, client_visible=0, client_message=""))
+    p["data"]["actions"].append(dict(base, id="PUB-A-199", description=INTERNAL, client_visible=0, client_message="",
+                                    owner=HIDDEN_OWNER, workstream=HIDDEN_WS))
     return p
 
 
@@ -102,6 +105,21 @@ class ClientPageFilters(unittest.TestCase):
         self.assertNotIn(INTERNAL, self.html)
         self.assertNotIn("PUB-A-199", self.html)
 
+    def test_the_owner_and_workstream_options_leave_out_a_hidden_row(self):
+        self.assertNotIn(HIDDEN_OWNER, self.html)
+        self.assertNotIn(HIDDEN_WS, self.html)
+        with chrome() as cdp:
+            sid = self.go(cdp, 1400, "light")
+            self.click(cdp, sid, "[data-show=all]")
+            for field, shown in (("owner", "Ana Lopez"), ("workstream", "Build")):
+                self.click(cdp, sid, f'[data-fb="{field}"]')
+                self.settle(cdp, sid, f"!!document.querySelector('#fbox-{field}')")
+                values = cdp.js(f"[...document.querySelectorAll('#fbox-{field} input[type=checkbox]')].map(i => i.value)", sid)
+                self.assertIn(shown, values, f"the {field} options list the client's own rows")
+                self.assertFalse([v for v in values if "Hidden" in v], f"a hidden row's {field} is not an option: {values}")
+                self.assertNotIn("Hidden", cdp.js(f"document.querySelector('#fbox-{field}').textContent", sid))
+                self.click(cdp, sid, f'[data-fb="{field}"]')
+
     def test_each_control_works(self):
         for width, scheme in VARIANTS:
             with self.subTest(width=width, scheme=scheme), chrome() as cdp:
@@ -127,6 +145,9 @@ class ClientPageFilters(unittest.TestCase):
                 self.assertTrue(wait(lambda: self.ids(cdp, sid) == open_ids))
                 # a second filter opens with one click; nothing moves
                 before = self.spots(cdp, sid)
+                # Where a scrollbar takes room (Linux, Windows; headless Chrome on a Mac draws none, so this cannot be seen moving
+                # there), the centred page would shift when a filter shortens the list and the bar goes: its room is kept.
+                self.assertEqual(cdp.js("getComputedStyle(document.documentElement).scrollbarGutter", sid), "stable")
                 self.tick(cdp, sid, "owner", "Ana Lopez")
                 self.settle(cdp, sid, "!!document.querySelector('[data-chip=owner]')")
                 self.assertTrue(all(self.ids(cdp, sid)) and self.count(cdp, sid) == 2)
@@ -190,9 +211,11 @@ class ClientPageFilters(unittest.TestCase):
             self.assertEqual(sorted(kept), ["filters", "group", "mode", "not", "type", "v"])
             self.assertNotIn("crane", json.dumps(kept).lower(), "the search words are not kept")
             self.assertIsNone(cdp.js("localStorage.getItem('clark.work.v1')", sid), "the editor's key is not written")
-            # open the file again with a bare address: the choices come back, the search does not
+            # open the file again with a bare address, as a new visit (an empty page first, so no earlier page is still running and
+            # no hash change redraws the old one with no filters while it saves): the choices come back, the search does not
+            cdp.call("Page.navigate", {"url": "about:blank"}, sid)
+            self.settle(cdp, sid, "location.href === 'about:blank'")
             cdp.call("Page.navigate", {"url": self.path.as_uri() + "#work"}, sid)
-            cdp.call("Page.reload", {}, sid)
             self.settle(cdp, sid, "!!document.querySelector('#work-list') && !!document.querySelector('[data-chip=owner]')")
             self.assertEqual(cdp.js("document.querySelector('[data-show=all]').getAttribute('aria-pressed')", sid), "true")
             self.assertEqual(cdp.js("document.querySelector('#q').value", sid), "")
