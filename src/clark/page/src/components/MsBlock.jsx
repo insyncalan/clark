@@ -1,4 +1,4 @@
-// The milestones block (#44a): the Timeline / Calendar switcher (discreet, top right), the open view, the rail list and the
+// The milestones block (#44a): the Timeline / Calendar switcher (icon and word, top right), the open view, the rail list and the
 // Legend. The same block is the Milestones page, the Dashboard's Milestones section and, in a published file, both places; there
 // it starts on Timeline, shows only what the file holds (its rows are already the client's), and says the client's words.
 import { useState } from "preact/hooks";
@@ -22,7 +22,7 @@ export function MsBlock({ place }) {
     <div class="msv" data-view={view} data-place={place}>
       <div class="msv-sw" role="group" aria-label="Milestone view">
         {[["line", "Timeline"], ["cal", "Calendar"]].map(([v, t]) => (
-          <button type="button" key={v} class="ib tip" data-msvb={v} aria-label={t} title={t} aria-current={String(view === v)} onClick={() => choose(v)}><Icon name={v === "line" ? "tline" : "cal"} /></button>
+          <button type="button" key={v} class="msv-b" data-msvb={v} aria-label={t} aria-current={String(view === v)} onClick={() => choose(v)}><Icon name={v === "line" ? "tline" : "cal"} /><span>{t}</span></button>
         ))}
       </div>
       {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} /> : <MsTimeline rows={rows} today={today} place={place} open={open} />}

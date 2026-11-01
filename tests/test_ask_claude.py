@@ -437,6 +437,11 @@ class NativeProgram(Fake):
     """The native-program rule (native_problem and find_command), on files made for each case."""
     native = False
 
+    def setUp(self):
+        old = os.umask(0o022)            # the folders made here are only this user's, whatever the runner's umask (002 on CI)
+        self.addCleanup(os.umask, old)
+        super().setUp()
+
     def program(self, name="claude", head=b"\xcf\xfa\xed\xfe", mode=0o755, folder=None):
         folder = folder or (self.d / "app")
         folder.mkdir(parents=True, exist_ok=True)

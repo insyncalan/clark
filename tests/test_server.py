@@ -79,10 +79,10 @@ class Stoppable(sv.LocalServer):
 class Running:
     """A server on a free port in a thread, stopped by close() (which also drops the connections it holds, as stopping would)."""
 
-    def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda: PROJECTS, change=None, undo=None,
+    def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda: PROJECTS, change=None, undo=None, sneak=None,
                  publisher=StubPublisher()):
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
-                               undo=undo, publisher=publisher)
+                               undo=undo, sneak=sneak, publisher=publisher)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -291,16 +291,24 @@ class Saving(ServerTest):
             return 409, {"ok": False, "message": "That step has been undone already.", "code": "undone"}
         return Running(change=change, undo=undo)
 
-    def test_the_post_routes_are_exactly_change_undo_the_publish_ones_the_two_backup_ones_profile_and_the_two_word_ones(self):
-        self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/publish", "/api/client-folder", "/api/preview",
-                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/word-import", "/api/word-export"})     # #43, #111, #147, #180; #48 added the last two
+    def test_the_post_routes_are_exactly_change_undo_the_sneak_read_the_publish_ones_the_two_backup_ones_profile_the_draft_email_two_the_two_word_ones_and_the_ask_settings(self):
+        self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/sneak/read", "/api/publish", "/api/client-folder", "/api/preview",
+                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/page-error", "/api/logging", "/api/logging/open-folder", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
+                                                  "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
+                                                  "/api/ask/change/apply"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
+        self.assertEqual(sv.POST_ROUTES["/api/sneak/read"], sv.sneak_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024,
-                                                "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/word-export": 1024,     # #111, #180; #48
-                                                "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024})
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
+                                                "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
+                                                 "/api/word-export": 1024,     # #111, #180; #48
+                                                "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
+                                                "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
+                                                "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                                                "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024})     # #47, #47e
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
