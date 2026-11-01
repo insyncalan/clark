@@ -22,7 +22,7 @@ import sqlite3
 import unicodedata
 import uuid
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from clark import platform, section_bodies
@@ -31,7 +31,7 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 4          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 5          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -119,7 +119,8 @@ CANCEL_CHANGES = {"actions": {"status": "Cancelled"}, "raid": {"status": "Cancel
 
 # clark: a step's route, as item_events records it (data-model.md), and the vias it is written with. "word" (#48, Head ruling Q4): a Word import.
 ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate", "word")
-PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board")      # + board (#126)
+PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board",      # + board (#126)
+          "eye", "draft", "email", "text", "ask")                                           # + #123: with the eye, a draft, a sent email, selected text, ask clark
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
@@ -177,6 +178,26 @@ class Unfinished(Invalid):
 def clock():
     """The current time, in UTC (a test replaces this to fix the time)."""
     return datetime.now(timezone.utc)
+
+
+def local_offset():
+    """The machine's offset from UTC at this moment as '+HH:MM' or '-HH:MM' (#123); a test replaces this one function. The step's
+    own clock is used, so a test that fixes the time gets the offset of that instant."""
+    off = clock().astimezone().utcoffset() or timedelta(0)
+    minutes = int(off.total_seconds() // 60)
+    sign = "+" if minutes >= 0 else "-"
+    return f"{sign}{abs(minutes) // 60:02d}:{abs(minutes) % 60:02d}"
+
+
+OFFSET_RE = r"[+-](?:(?:0[0-9]|1[0-3]):(?:00|15|30|45)|14:00)"     # a real offset (mirrors applies.utc_offset's CHECK); UTC is '+00:00', never 'Z' or '-00:00'
+
+
+def checked_offset(text):
+    """`text` when it is a real offset from UTC ('+HH:MM' or '-HH:MM', at most 14 hours, in quarter hours), else None, which the
+    history shows as "Time zone not recorded": a machine that reports an odd offset never stops a step being written."""
+    if isinstance(text, str) and re.fullmatch(OFFSET_RE, text) and text != "-00:00":
+        return text
+    return None
 
 
 def now():
@@ -1686,9 +1707,54 @@ def migrate_section_bodies(con):
     _report_sections_allow_content_types(con)
 
 
+# #123: applies.utc_offset and the wider places, step 5 (the next free number after Word's 3 and the section bodies' 4). Frozen: never
+# reads schema.sql. The rebuilt item_events keeps every route and place the earlier steps allow (Word's 'word' among them), so a file
+# that already holds such a row still migrates and opens.
+HISTORY_VERSION = 5
+VERSION_5_ITEM_EVENTS = """CREATE TABLE item_events_v5 (
+  event_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         TEXT NOT NULL,
+  apply_id   INTEGER REFERENCES applies(apply_id),
+  item_id    TEXT NOT NULL,
+  change     INTEGER,
+  kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
+  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate','word')),
+  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board','eye','draft','email','text','ask')),
+  origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),
+  actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),
+  src_ref    TEXT CHECK (src_ref IS NULL OR (length(src_ref) <= 300 AND instr(src_ref, char(10)) = 0)),
+  undoes     INTEGER REFERENCES item_events(event_id)
+)"""
+VERSION_5_NEW_WORDS = ("'word'", "'eye'", "'draft'", "'email'", "'text'", "'ask'")     # the table is made again unless its definition names all of these
+
+
+def migrate_to_history(con):
+    """Schema version 4 to 5 (#123): applies.utc_offset (NULL on every old row: the zone was not recorded, and +00:00 would claim
+    UTC), and item_events made again with the wider places, ids kept, sequence kept, both indexes made again. Each part is skipped
+    when it is already done. Inside the caller's transaction; the runner writes the version."""
+    if "utc_offset" not in [r[1] for r in con.execute("PRAGMA table_info(applies)")]:
+        con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT CHECK (utc_offset IS NULL OR "
+                    "(length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]' AND substr(utc_offset, 2, 2) <= '14' "
+                    "AND substr(utc_offset, 5, 2) IN ('00','15','30','45') AND (substr(utc_offset, 2, 2) < '14' OR substr(utc_offset, 5, 2) = '00') "
+                    "AND utc_offset <> '-00:00'))")
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is not None and not all(w in have[0] for w in VERSION_5_NEW_WORDS):
+        seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+        con.execute(VERSION_5_ITEM_EVENTS)
+        con.execute("INSERT INTO item_events_v5 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                    "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes FROM item_events ORDER BY event_id")
+        con.execute("DROP TABLE item_events")
+        con.execute("ALTER TABLE item_events_v5 RENAME TO item_events")
+        if seq is not None:
+            con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+            con.execute("INSERT INTO sqlite_sequence (name, seq) SELECT 'item_events', ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'item_events')", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies))
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history))
 
 
 def migration_plan(version, table=None):
@@ -2305,8 +2371,8 @@ class Step:
     def apply_id(self):
         """This step's applies row, made the first time something is logged."""
         if self._apply_id is None:
-            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device) VALUES (?, '[]', ?, ?)",
-                                   (now(), self.by_user, self.store.device))
+            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device, utc_offset) VALUES (?, '[]', ?, ?, ?)",
+                                   (now(), self.by_user, self.store.device, checked_offset(local_offset())))
             self._apply_id = cur.lastrowid
         return self._apply_id
 
