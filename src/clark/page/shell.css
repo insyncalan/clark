@@ -967,3 +967,24 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+
+/* Section templates, G4 Dates and lists (#96): Key dates and Checklist. Tokens only; status is always in words as well as colour. */
+.tpl-dates { margin: 8px 0; padding: 0; list-style: none; }
+.tpl-dates-row { display: grid; grid-template-columns: minmax(96px, max-content) minmax(0, 1fr) auto; align-items: baseline; gap: 4px 14px; padding: 8px 0; border-top: 1px solid var(--grey-200); }
+.tpl-dates-row:first-child { border-top: 0; }
+.tpl-dates-day { font-weight: var(--weight-medium); color: var(--heading); font-variant-numeric: tabular-nums; }
+.tpl-dates-label { min-width: 0; overflow-wrap: anywhere; color: var(--text); }
+.tpl-dates-words { font-size: var(--size-small); color: var(--text-muted); }
+.tpl-dates-row.is-late .tpl-dates-words { color: var(--status-red-text); font-weight: var(--weight-medium); }
+.tpl-dates-row.is-risk .tpl-dates-words { color: var(--status-amber-text); font-weight: var(--weight-medium); }
+.tpl-check { margin: 8px 0; }
+.tpl-check-count { margin: 0 0 6px; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-check-list { margin: 0; padding: 0; list-style: none; }
+.tpl-check-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: baseline; gap: 4px 10px; padding: 6px 0; border-top: 1px solid var(--grey-200); }
+.tpl-check-row:first-child { border-top: 0; }
+.tpl-check-box { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 2px solid var(--grey-500); border-radius: 4px; background: var(--surface); color: var(--status-green-text); font-size: 13px; line-height: 1; font-weight: var(--weight-semibold); }
+.tpl-check-row.is-done .tpl-check-box { border-color: var(--status-green); background: var(--status-green-tint); }
+.tpl-check-text { min-width: 0; overflow-wrap: anywhere; color: var(--text); }
+.tpl-check-row.is-done .tpl-check-text { color: var(--text-muted); text-decoration: line-through; }
+.tpl-check-state { font-size: var(--size-small); color: var(--text-muted); }
+.tpl-check-row.is-done .tpl-check-state { color: var(--status-green-text); }
