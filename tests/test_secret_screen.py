@@ -145,6 +145,13 @@ class Screen(unittest.TestCase):
             with self.subTest(text[:30]):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_a_quoted_letters_only_password_is_flagged_on_purpose(self):
+        # Deliberate trade-off (Head, #242): a missed password leaks; a false positive costs one file and a visible
+        # "N files were left out for safety" line. Do not "fix" this by accident.
+        self.assertTrue(secret_screen.looks_like_secret("pass" + 'word: "required"'))
+        self.assertTrue(secret_screen.looks_like_secret("pass" + "phrase = 'orangebicycle'"))
+        self.assertFalse(secret_screen.looks_like_secret("pa" + 'ss = "nothingmuch"'))       # other labels are not widened
+
     def test_harmless_prose_about_a_password_is_not_a_secret(self):
         for text in ("the password is required", "the password was reset yesterday", "The secret is good-quality data.",
                      "The pin is loose and the pass is closed.", "the credentials are stored safely", "password is Required."):

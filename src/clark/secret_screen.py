@@ -60,7 +60,9 @@ PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|cred
 # (in _KEY and UNQUOTED_LOCAL above).
 SHORT_SK = r"\bsk-(?=[A-Za-z0-9]{0,40}\d)[A-Za-z0-9]{16,}"
 SHORT_APIKEY = r"""(?i)\bapi[ _-]?key\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}["']?([A-Za-z0-9_-]{6,})"""
-LETTER_PASSWORD = r"""(?i)""" + _PW + r"""\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([A-Za-z]{8,})"|'([A-Za-z]{8,})')"""
+LETTER_PASSWORD = r"""(?i)\b(?:passw(?:or)?d|pwd|passphrase)\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([A-Za-z]{8,})"|'([A-Za-z]{8,})')"""
+# Deliberate trade-off (Head, #242): only these four labels, and a quoted word like password: "required" IS flagged. A missed password
+# leaks; a false positive costs one file and a visible "N files were left out for safety" line. Do not "fix" it.
 # Known gaps, kept as Tech Debt: a secret of letters only ("correcthorsebattery") and a bare 40-character hex string with no key
 # word are not caught; guessing them would drop too many ordinary files.
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
