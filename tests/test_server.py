@@ -1319,6 +1319,35 @@ def wait(check, seconds=15):
     return False
 
 
+def wait_toast(read, seconds=10):
+    """The text of the toast a page test is about to read: waits (up to `seconds`) for `read()` to give something, then returns the text
+    that wait saw (not a second read, which could find the toast gone). A slow runner paints a toast late. Fails with a plain
+    message if none appears. It does not tell an old toast from a new one: clear the old one first when that matters."""
+    seen = []
+
+    def check():
+        text = read()
+        if text:
+            seen.append(text)
+        return bool(text)
+
+    if not wait(check, seconds):
+        raise AssertionError(f"no toast appeared within {seconds} s")
+    return seen[-1]
+
+
+class WaitToast(unittest.TestCase):
+    """wait_toast needs no browser: it is given the function that reads the toast."""
+
+    def test_it_returns_the_text_the_wait_saw(self):
+        reads = iter(["", "", "Saved.", ""])   # a fourth read would find the toast gone
+        self.assertEqual(wait_toast(lambda: next(reads), 5), "Saved.")
+
+    def test_no_toast_fails_with_a_plain_message(self):
+        with self.assertRaisesRegex(AssertionError, "no toast appeared within 1 s"):
+            wait_toast(lambda: "", 1)
+
+
 class _Pipe:
     """Chrome's --remote-debugging-pipe (as system/prototype/run_selftest.py): JSON messages ended by a NUL byte."""
 
