@@ -61,6 +61,11 @@ FAMILIES = {
     "ssh key name": "ssh_private" + "_key=" + "A1b2C3d4E5f6G7h8I9j0K1l2",
     "pass header table": "user,p" + "w\nmail," + "Welcome" + "2026!",
     "quoted passphrase with spaces": "pass" + 'word = "correct horse 9 battery"',
+    "short sk key": "sk-" + "Ab12Cd34Ef56Gh78",
+    "short quoted api key": 'api_' + 'key = "ab12cd"',
+    "short bare api key": "API_" + "KEY: x9y8z7q",
+    "letters-only quoted password": "pass" + 'word = "correcthorse"',
+    "api key with a space": "API " + "key: " + "Xk9Qm2Lp7Zt4Rw8Vb1Nc",
     "long token near a word": "the api " + "key is " + "Xk9" + "Qm2Lp7" * 5 + "Zt4Rw8Vb1Nc",
 }
 
@@ -134,7 +139,9 @@ class Screen(unittest.TestCase):
         for text in ("https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
                      "getProjectMilestoneSummaryForReport2026V2", "Token: 2026-11-01", "The secret is good-quality data.",
                      "![x](data:image/png;base64," + "iVBORw0KGgo" * 40 + ")", "user,name\nmail,bob",
-                     "Password,Owner,Date\nreset,Sam,01-11-2026"):
+                     "Password,Owner,Date\nreset,Sam,01-11-2026",
+                     "The task-force-management-plan and desk-based-research", "The API key owner is Sam.", "api key: 2026-11-01",
+                     "Set the password policy: weekly"):
             with self.subTest(text[:30]):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
