@@ -112,6 +112,13 @@ def looks_like_secret(text):
     return False
 
 
+def _secret(text):
+    """The ask path's screen: this module's own check or `secret_screen`, the one screen the rest of clark uses (imported here, not at
+    the top, because `secret_screen` imports this module). Either one refusing is a refusal."""
+    from clark import secret_screen
+    return looks_like_secret(text) or secret_screen.looks_like_secret(text)
+
+
 def _words_joined(run):
     """Whether a long run is only words (and numbers) joined by - _ or /, like a document name or a web address path: every part is
     all letters, all digits, or (at most two of them) a short code such as Q3 or v2. A random key has mostly mixed parts."""
@@ -173,9 +180,9 @@ def build_request(question, passages, earlier=()):
         turns.append((turn[0], turn[1]))
     if len(turns) > MAX_EARLIER_TURNS or any(len(t) > MAX_TURN for _r, t in turns):
         raise AskRefused(CHAT_TOO_LONG)
-    if looks_like_secret(question):
+    if _secret(question):
         raise AskRefused(SECRET)
-    if any(r == "user" and looks_like_secret(t) for r, t in turns):
+    if any(r == "user" and _secret(t) for r, t in turns):
         raise AskRefused(SECRET_EARLIER)
     chosen = []
     for p in passages or ():

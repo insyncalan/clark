@@ -8,6 +8,8 @@ import { Minimap } from "./Minimap.jsx";
 import { scrollTargets, entries, countOf } from "../logic/minimap.js";
 import { todayIso } from "../workItems.js";
 import { slots as slotsOf } from "../logic/placement.js";
+import { emptyBody } from "../logic/emptyBody.js";
+export { emptyBody };
 import { templateFor, templateEmpty } from "../templates/index.js";
 import { rowsOf, shownRows } from "../logic/needs.js";
 
@@ -17,15 +19,6 @@ import { rowsOf, shownRows } from "../logic/needs.js";
 export function slots(all, keep) {
   const at = slotsOf(all, keep);
   return all.filter((s) => at[s.id]).map((s) => at[s.id]);
-}
-
-// A text section's body with nothing to read (#74): no letters once tags and spaces are gone (a non-breaking space is a space) and
-// no picture. `<p></p>`, `<br>`, `&nbsp;` or spaces alone are empty. The body is the HTML publish.clean_html already cleaned; it
-// is parsed as an inert document (nothing in it runs or loads) only to read its text.
-export function emptyBody(html) {
-  if (typeof html !== "string" || !html.trim()) return true;
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return !doc.body.textContent.trim() && !doc.body.querySelector("img");
 }
 
 // Scroll so a section's top sits just under the sticky top bar (the minimap's click). Never a #link: the address is left alone.
@@ -69,7 +62,7 @@ export function Dashboard({ tools }) {
       <h1>{d.project.name}</h1>
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
       <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" ? " drop-end" : ""}`}>
-        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} onExport={!editing && !fromFile.value && tools && tools.exportExcel ? tools.exportExcel : null} />)}
+        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} onExport={!editing && !fromFile.value && tools && tools.exportExcel ? tools.exportExcel : null} />)}
       </div>
       {editing && list.length === 0 ? <tools.Add /> : null}
       <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} counts={counts} />
