@@ -79,6 +79,17 @@ export function sentWords(entry, saved = false, failed = false) {
   return `Marked as sent for ${items} on ${d}-${m}-${y}. It is not saved to the history yet.`;
 }
 
+/** What a person reads when "I sent it" got no message of the server's own (a fault, no answer, an old page): by the status of the
+ *  reply (0 for none), each ending "Nothing was saved." and saying what to do next. */
+export function sentFailedWords(status) {
+  const tail = " " + NOTHING_SAVED;
+  if (status === 0) return "clark did not answer. Start it again from clark.command, then try again." + tail;
+  if (status === 403) return "This page is out of date. Reload the page and try again." + tail;
+  if (status === 500) return "A problem came up recording that. Try again. If it happens again, restart clark." + tail;
+  if (status === 503) return "That could not be recorded just now. Wait a moment and try again. If it keeps happening, restart clark." + tail;
+  return "That could not be recorded. Reload the page and try again." + tail;
+}
+
 /** What the builder is asked with each time something changes. Only the editor's own inputs; the caller adds the items, the
  *  recipient, the sender, the clock and the settings. An unknown kind is refused in plain words (never sent on). */
 export function buildOptions(state) {

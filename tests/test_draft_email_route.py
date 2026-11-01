@@ -425,7 +425,8 @@ class Sent(unittest.TestCase):
         self.assertTrue(started.wait(5))
         status, body = self.seam(self.good(ids=[self.b, self.a]))          # the same ids in another order
         self.assertEqual((status, body["code"] if "code" in body else body.get("error")), (409, "already_recording"), body)
-        self.assertEqual(body["message"], feed.BUSY_SENT + " Nothing was saved.")
+        self.assertEqual(body["message"], "That is already being recorded. Wait a moment and look at the history before you press again.")
+        self.assertNotIn("Nothing was saved", body["message"], "the first press is being saved: the wait is not a refusal of a save")
         self.assertNotIn(self.a, body["message"])
         release.set()
         t.join(5)

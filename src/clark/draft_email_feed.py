@@ -206,8 +206,10 @@ NOTHING_SAVED = "Nothing was saved."                # the last words of every re
 
 
 def said_nothing_saved(answer):
-    """(status, body) with " Nothing was saved." added to the end of a refusal's message (once); an answer that was recorded is left as it is."""
+    """(status, body) with " Nothing was saved." added to the end of a refusal's message (once); an answer that was recorded, and the 409 "already being recorded" wait, are left as they are."""
     status, body = answer
+    if isinstance(body, dict) and body.get("code") == "already_recording":
+        return answer                                  # a wait, not a refusal: the first press is being saved
     if isinstance(body, dict) and body.get("ok") is False and isinstance(body.get("message"), str) and not body["message"].endswith(NOTHING_SAVED):
         body = dict(body, message=f"{body['message']} {NOTHING_SAVED}")
     return status, body
