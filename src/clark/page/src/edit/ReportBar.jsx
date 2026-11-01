@@ -14,6 +14,14 @@ import { lastLine } from "./Publish.jsx";
 const hintOpen = signal(!recall("dragHintSeen", false));
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 
+// The Friday of the current week (Monday to Sunday), as YYYY-MM-DD in the person's own day: only offered, never saved on its own.
+export function fridayOfThisWeek(now = new Date()) {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  d.setDate(d.getDate() + 5 - (d.getDay() || 7));
+  const two = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
+}
+
 export function ReportBar() {
   useEffect(() => { refreshLatest(); }, [project.value]);
   if (!data.value || !data.value.project) return null;
@@ -24,8 +32,13 @@ export function ReportBar() {
     if (!editing && hintOpen.value && recall("dragHintSeen", false)) hintOpen.value = false;
   }, [editing]);
   const published = lastLine(latest.value);
-  const save = (e) => {       // typed as DD-MM-YYYY, as Key dates takes it: clark's own way, never the browser's calendar
+  const save = (e, confirmed) => {       // typed as DD-MM-YYYY, as Key dates takes it: clark's own way, never the browser's calendar
     const el = e.currentTarget, raw = el.value.trim(), iso = parseDay(raw);
+    if (!raw && !week && confirmed) {       // an empty box with no week yet: Enter confirms the Friday shown as the starting value
+      const friday = fridayOfThisWeek();
+      change({ kind: "projects", op: "update", changes: { week_ending: friday }, place: "cell" }, `Week ending changed to ${shownDate(friday)}.`);
+      return;
+    }
     if (!raw || iso === week) { el.value = shownDate(week); return; }
     if (!iso) { say("problem", problem.day + " The old week ending date was kept."); el.value = shownDate(week); return; }       // not a day: the old one comes back
     change({ kind: "projects", op: "update", changes: { week_ending: iso }, place: "cell" }, `Week ending changed to ${shownDate(iso)}.`)
@@ -34,7 +47,7 @@ export function ReportBar() {
   return (
     <div class="rbar" id="report-bar">
       {editing ? (
-        <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" id="week-ending" key={week} defaultValue={shownDate(week)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} /></label>
+        <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder={week ? "DD-MM-YYYY" : shownDate(fridayOfThisWeek())} title={week ? undefined : "Press Enter to use this Friday, or type a date"} id="week-ending" key={week} defaultValue={shownDate(week)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") { if (!week && !e.currentTarget.value.trim()) save(e, true); else e.currentTarget.blur(); } }} /></label>
       ) : (
         <span class="rbar-week" id="week-ending-text">{week ? `Week ending ${shownDate(week)}` : "No week ending date yet"}</span>
       )}

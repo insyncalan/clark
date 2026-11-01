@@ -181,6 +181,19 @@ class Dialog(Base):
             p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
             self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
 
+    def test_C_view_shows_the_published_chip_and_no_field_after_a_publish(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            p.go()
+            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.go()
+            p.until("!document.querySelector('#publish-dialog[open]')", "the dialog closed")
+            p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the chip says when")
+            self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
+            self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
+            self.assertEqual(p.js("document.querySelectorAll('.rbar input').length"), 0, "View has no field")
+
     def test_C_cancelling_the_save_window_says_so_and_writes_nothing(self):
         self.rig.save_to = None
         with chrome() as cdp:

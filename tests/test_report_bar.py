@@ -79,6 +79,29 @@ class Bar(Base):
     def type_week(self, p, text):
         p.js("(() => { const e = document.querySelector('#week-ending'); e.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, %s); e.blur(); })()" % json.dumps(text))
 
+    def friday(self):
+        import datetime
+        t = datetime.date.today()
+        return t + datetime.timedelta(days=4 - t.weekday())
+
+    def test_an_empty_week_offers_this_weeks_friday_and_saves_it_only_on_enter(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertFalse(self.week(), "the fixture starts with no week ending")
+            p.edit()
+            p.until("!!document.querySelector('#week-ending')", "the date field")
+            f = self.friday()
+            self.assertEqual(p.js("document.querySelector('#week-ending').placeholder"), f.strftime("%d-%m-%Y"))
+            self.assertEqual(p.js("document.querySelector('#week-ending').type"), "text", "never a native date input")
+            self.assertEqual(p.js("document.querySelector('#week-ending').value"), "", "only offered, not filled in")
+            p.js("(() => { const e = document.querySelector('#week-ending'); e.focus(); e.blur(); })()")
+            self.assertFalse(self.week(), "leaving the box empty saves nothing")
+            p.js("document.querySelector('#week-ending').focus()")
+            p.key("Enter", code="Enter", vk=13)
+            p.saved()
+            self.assertEqual(self.week(), f.isoformat())
+            self.assertEqual(p.toast(), "Week ending changed to %s." % f.strftime("%d-%m-%Y"))
+
     def test_a_typed_entry_that_is_not_a_day_keeps_the_old_date_and_says_so(self):
         with chrome() as cdp:
             p = self.show(cdp)
