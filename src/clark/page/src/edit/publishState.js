@@ -2,7 +2,7 @@
 // unticked every time the dialog opens (never remembered, not even in localStorage) and cannot be ticked until a client folder is
 // saved. A taken name in the client folder is asked about before anything is written. Nothing here names a folder or a file.
 // Also a Word document (#48) is unticked every time as well: when it is ticked, the Word report is saved by the one Word path (wordApi.js exportWord,
-// the same as Export to Word) once the web page is published, beside it, and in the client folder too when To client is ticked.
+// the same as Export to Word) once the web page is published, in the folder last used for the project, and in the client folder too when To client is ticked.
 import { signal } from "@preact/signals";
 import { data, project } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
@@ -69,18 +69,22 @@ export function request(s, code) {
 // The Word question is the exception: the web page is already published, so Cancel there leaves the Word report unsaved and says so.
 export function cancel() {
   const s = dialog.value;
-  if (s && s.phase === "wordclash") { set({ phase: "done", wclash: null, message: { kind: "info", text: `${s.published} The Word report was not saved.` } }); return; }
+  if (s && s.phase === "wordclash") { set({ phase: "done", wclash: null, message: { kind: "info", text: `${s.published} The Word report was not saved, because you cancelled.` } }); return; }
   if (s && s.phase !== "working") close();
 }
 
-// Save the Word report beside the web page that was just published (`said` is what publishing said), or answer the question about a
+// The Word report's refusals say "Nothing was saved." (true in Export to Word); here the web page was saved, so that sentence is left out.
+const afterPublish = (text) => String(text).replace(/\s*Nothing (was|has been) saved\.?/g, "").trim();
+
+// Save the Word report, in the folder last used for the project, after the web page that was just published (`said` is what publishing said), or answer the question about a
 // taken name. Whatever happens, the box ends in "done" with both results in words: the web page is published either way.
 async function sendWord(s, said) {
   set({ phase: "working", step: "word", published: said, message: null });
   const o = await exportWord(project.value, s.ticked && s.saved, s.phase === "wordclash" ? { on_clash: s.wchoice } : null);
   if (o.kind === "clash") { set({ phase: "wordclash", step: "publish", wclash: o, wchoice: "number", wconfirmed: false, message: null }); return; }
   if (o.kind === "saved") set({ phase: "done", step: "publish", wclash: null, message: { kind: "success", text: `${said} ${o.message}` } });
-  else set({ phase: "done", step: "publish", wclash: null, message: { kind: "error", text: `${said} The Word report was not saved. ${o.message}` } });
+  else if (o.kind === "cancelled") set({ phase: "done", step: "publish", wclash: null, message: { kind: "info", text: `${said} The Word report was not saved, because you cancelled.` } });
+  else set({ phase: "done", step: "publish", wclash: null, message: { kind: "error", text: `${said} The web page is published, but the Word report was not saved. ${afterPublish(o.message)}` } });
 }
 
 export async function go() {

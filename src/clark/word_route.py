@@ -58,15 +58,24 @@ BAD_OP = "That isn't something clark can do with a Word file."
 NO_FILE = "Choose a Word file to import."
 BAD_NAME = "The file's name could not be read. Choose the Word file again."
 BAD_FILE = "That file could not be read. Choose the Word file again."
-EXPIRED = "That import is no longer waiting. Choose the Word file again."
+EXPIRED = "The list from that file has expired. Nothing was added. Choose the Word file again."
 BAD_ACCEPT = "Accept all, or give the numbers of the items to accept."
 NOTHING_ACCEPTED = "Nothing was accepted, so nothing was added."
-NO_UNDO = "That step can't be undone from here."
-UNDONE = "That step has been undone already."
-NOT_RECORDED = ("{file} was added, but clark could not note that in its list of imports, so importing the same file again may add "
-                "the same items twice.")
+NO_UNDO = "That import can't be undone from here. Nothing was changed."
+UNDONE = "That import has already been undone. Nothing was changed."
+NOT_RECORDED = " clark could not note this import in its list, so do not import the same file again: it may add the same items twice."
 ALL_SEEN = "Everything in {file} has been added already, so nothing was added."
-SOME_SEEN = " {n} item(s) were added from this content a moment ago, so they were not added again."
+SOME_SEEN = "{n} {items} from this file {were} added a moment ago, so {they} not added again."
+SIZE_TOO_BIG = ("{file} is bigger than the {mb} MB that clark can open. Save a smaller copy (for example without big pictures), "
+                "then choose it again. Nothing was added.")
+
+BUSY = "Nothing was added. clark is busy with something else. Wait a moment and try again."
+
+
+def _n(n, one, many=None):
+    """'1 item', '3 items'."""
+    return f"{n} {one if n == 1 else many or one + 's'}"
+
 
 PLANS = {}                           # plan id → {"project", "plan", "file", "at"}; used only under changes.LOCK
 
@@ -155,7 +164,7 @@ def _check(store, req, project, today, clock):
         raise Refused(NO_FILE)
     shown = word_import.file_label(name)
     if len(data) > docx_read.MAX_FILE_BYTES * 4 // 3 + 16:                # said before anything is decoded
-        raise Refused(f"{shown} is more than {docx_read.MAX_FILE_BYTES // 1048576} MB, more than clark will open. Save a smaller copy, or split it into two files, then choose it again.")
+        raise Refused(SIZE_TOO_BIG.format(file=shown, mb=docx_read.MAX_FILE_BYTES // 1048576))
     try:
         raw = base64.b64decode(data, validate=True)
     except (binascii.Error, ValueError):
@@ -232,20 +241,23 @@ def _apply(store, who, req, project, clock):
     problems, step_id, refused = _excel_import()._try(store, _rows(plan, project, chosen), who, commit=True, src_ref=src,
                                                       made=made, route=ROUTE, place=None)
     if refused:
-        raise Refused(f"Nothing was added, because clark could not start the import: {refused}", 503, "busy")
+        raise Refused(BUSY, 503, "busy")
     if problems:
-        names = "; ".join(p.message for p in problems)
-        raise Refused(f"Nothing was added, because {len(problems)} item(s) break a rule: {names} Choose fewer items, or fix them in "
-                      "the Word file and import it again.", 400, "rolled_back")
+        lines = "\n".join(p.message for p in problems)
+        raise Refused(f"Nothing was added. {_n(len(problems), 'item')} could not be added:\n{lines}\nUntick them, or fix them in "
+                      "the Word file and read it again.", 400, "rolled_back")
     note = ""
     try:
         _remember(store, [{"fp": i.fp, "id": made[i.n], "table": i.table} for i in chosen if i.n in made])
     except (OSError, platform.PlatformError, ValueError):
-        note = " " + NOT_RECORDED.format(file=file)
+        note = NOT_RECORDED
     PLANS.pop(key, None)                                                 # an import is applied once
     count = len(chosen)
-    words = f"Added {count} new item(s) from {file} as one step you can undo. They are not shown to the client until you turn " \
-            "them on." + (SOME_SEEN.format(n=skipped) if skipped else "") + note
+    one = count == 1
+    words = (f"Added {_n(count, 'new item')} from {file}. {'It is' if one else 'They are'} not shown to the client until you turn "
+             f"{'it' if one else 'them'} on. Press Undo to take {'it' if one else 'them all'} back."
+             + (" " + SOME_SEEN.format(n=skipped, items="item" if skipped == 1 else "items", were="was" if skipped == 1 else "were",
+                                       they="it was" if skipped == 1 else "they were") if skipped else "") + note)
     return 200, {"ok": True, "apply_id": step_id, "added": [made[i.n] for i in chosen if i.n in made], "message": words}
 
 
@@ -272,8 +284,9 @@ def _undo(store, who, req, project):
         raise Refused(NO_UNDO) from None
     removed = len({e["ref"] for e in done["reversed"] if e["change"] == "removed"})
     left = len(done["skipped"])
-    words = f"Put back: {removed} item(s) from the Word import were removed." + \
-            (f" {left} change(s) were left as they are because they were changed later." if left else "")
+    words = f"Undone. {_n(removed, 'item')} from the Word import {'was' if removed == 1 else 'were'} removed." + \
+            (f" {_n(left, 'item')} {'was left as it is' if left == 1 else 'were left as they are'}, because {'it was' if left == 1 else 'they were'} "
+             "changed after the import." if left else "")
     return 200, {"ok": True, "apply_id": done["step_id"], "message": words}
 
 
@@ -314,19 +327,25 @@ CHOOSE_FOLDER = "Choose the folder for the Word report"
 
 BAD_FLAG = "That must be true or false."
 BAD_CLASH = "That isn't a choice clark offers. Choose Add a number, Replace it or Cancel."
-NO_CLIENT_FOLDER = "No client folder yet. Set it in Settings."
+NO_CLIENT_FOLDER = "No client folder yet. Set it in Settings. Nothing was saved."
 OVERWRITE_UNCONFIRMED = "Replacing a file needs your confirmation, and the request didn't carry it. Nothing was saved."
-NAME_TAKEN = "A file called “{name}” is already in {where}. Nothing was saved yet."
+NAME_TAKEN = "A file called “{name}” is already in {where}."
+NAME_TAKEN_END = " The Word report has not been saved yet. Choose {choices}."
 APPEARED = "A file called “{name}” appeared in {where} while clark was working. Nothing was saved; try again to choose what to do."
-FOLDER_GONE = "The folder “{name}” isn't there, or clark can't write to it. Check it, or choose another folder."
-FOLDER_DATA = "That folder is inside clark's own data folder. Choose a folder for reports."
-NOT_SAVED = "{name} could not be saved ({reason}). If it is open in Word, close it and try again. Nothing was written."
-NOT_AS_MADE = "{name} was not saved as it was made (the folder may be syncing), so it was taken back. Try again."
+APPEARED_CLIENT = ("The report was saved, but it was not copied to the client folder, because a file called “{name}” appeared there "
+                   "while clark was working. Nothing was added to the client folder. Export again to choose what to do.")
+FOLDER_GONE = "The folder “{name}” isn't there, or clark can't write to it. Check it, or choose another folder. Nothing was saved."
+FOLDER_DATA = "That folder is inside clark's own data folder. Nothing was saved. Press Save again and choose a different folder."
+NOT_SAVED = "{name} could not be saved ({reason}). If it is open in Word, close it and try again. Nothing was saved."
+NOT_AS_MADE = "{name} did not save correctly (the folder may be syncing), so clark removed it. Nothing was kept. Try again."
 NOT_AS_MADE_REPLACED = "{name} was replaced, but what was saved did not match what clark made (the folder may be syncing). Save it again."
 SAVED = "Saved “{name}” in {folder}."
 SAVED_CLIENT = " It was also copied to the client folder as “{name}”. OneDrive uploads it from there; clark can't see when that finishes."
-CLIENT_FAILED = " It was not copied to the client folder: {reason} Nothing was added to the client folder."
-NOT_RECORDED_FILE = " The file is fine, but clark could not record it ({reason}); save it again to record it."
+CLIENT_FAILED = "The report was saved, but it was not copied to the client folder: {reason} Nothing was added to the client folder."
+NOT_RECORDED_FILE = (" The file is saved and is fine. clark could not note it in the project's list of reports, so the Dashboard may "
+                     "not show it. Do not save it again.")
+NOT_MADE = "The Word report could not be made. Nothing was saved. Restart clark and try again. If it happens again, tell whoever looks after clark."
+ARCHIVED = "An archived project can't be exported. Restore it first. Nothing was saved."
 CANCELLED = "Cancelled. Nothing was saved."
 
 
@@ -408,6 +427,18 @@ def _take_back(dest):
         pass
 
 
+def _made_words(e):
+    """What a refusal to make the report says. Only two are plain enough for a person to read as they are: an archived project
+    and a report over the size limit. Anything else (the page's own build, its checks, the database) is developer talk, so it gets
+    one plain line and the details stay out of the screen."""
+    text = str(e)
+    if text.startswith("An archived project"):
+        return ARCHIVED
+    if isinstance(e, docx_build.WordError) and re.match(r"The report is [\d.]+ MB, which is over the \d+ MB limit\.", text):
+        return text
+    return NOT_MADE
+
+
 def _do_export(store, who, req, today, chosen, roots):
     code, want_client, clash = _export_shape(req)
     row = store.read("projects", ref=code)
@@ -419,7 +450,7 @@ def _do_export(store, who, req, today, chosen, roots):
         published = publish.select(publish.read_inputs(store, code, as_at))
         data = docx_build.build(published)
     except (publish.PublishError, docx_build.WordError) as e:
-        raise Refused(str(e)) from None
+        raise Refused(_made_words(e)) from None
     digest = hashlib.sha256(data).hexdigest()
     week = published["data"]["project"]["week_ending"]
     local = _usable_local(chosen) if chosen else _usable_local(store.last_publish_folder(code) or "")
@@ -437,7 +468,7 @@ def _do_export(store, who, req, today, chosen, roots):
         checked = to_client.preflight(_ReadFs(), saved, data_dir=str(Path(store.path).parent), onedrive_roots=roots,
                                      local_folder=str(local))
         if not checked["ok"]:
-            raise Refused(checked["message"] + " Nothing was saved.", 400, "client_folder")
+            raise Refused(checked["message"].replace("then publish again.", "then try again.") + " Nothing was saved.", 400, "client_folder")
         client = Path(checked["folder"])
     try:
         listing = {"here": _names_in(local), **({"client": _names_in(client)} if client else {})}
@@ -451,14 +482,16 @@ def _do_export(store, who, req, today, chosen, roots):
         return 200, {"ok": True, "cancelled": True, "message": CANCELLED}
     if taken and clash is None:
         names = " ".join(NAME_TAKEN.format(name=n, where=where[k]) for k, n in taken.items())
-        return 409, {"ok": False, "code": "name_taken", "message": names + " Add a number, replace it, or cancel.",
+        can_replace = "here" in taken and not listing["here"][taken["here"].lower()]          # the screen offers Replace only then
+        end = NAME_TAKEN_END.format(choices="Add a number, Replace it or Cancel" if can_replace else "Add a number or Cancel")
+        return 409, {"ok": False, "code": "name_taken", "message": names + end,
                      "taken": taken, "choices": ["number", "overwrite", "cancel"] if "here" in taken else ["number", "cancel"],
-                     "can_replace": "here" in taken and not listing["here"][taken["here"].lower()]}
+                     "can_replace": can_replace}
     names, replace = dict(wanted), False
     for k, n in taken.items():
         if clash == "overwrite" and k == "here":
             if listing["here"][n.lower()]:
-                raise Refused(f"“{n}” is a folder, so it can't be replaced. Add a number instead.", 400, "folder_has_name")
+                raise Refused(f"“{n}” is a folder, so it can't be replaced. Add a number instead. Nothing was saved.", 400, "folder_has_name")
             replace = True
         else:
             names[k] = to_client.numbered_name(n, list(listing[k]), local if k == "here" else client)
@@ -480,20 +513,21 @@ def _do_export(store, who, req, today, chosen, roots):
         target = client / names["client"]
         try:
             if not _write_new(target, data):
-                failed = APPEARED.format(name=target.name, where=where["client"])
+                failed = APPEARED_CLIENT.format(name=target.name)
             elif not _verified(target, digest):
                 _take_back(target)
-                failed = "what was copied did not match the report, so it was taken back."
+                failed = CLIENT_FAILED.format(reason="What was copied did not match the report, so it was taken back.")
             else:
                 copy = target
         except (OSError, platform.PlatformError) as e:
-            failed = f"{getattr(e, 'strerror', None) or e}."
-        words += SAVED_CLIENT.format(name=names["client"]) if copy else CLIENT_FAILED.format(reason=failed)
+            why = str(getattr(e, "strerror", None) or e).strip().rstrip(".")
+            failed = CLIENT_FAILED.format(reason=f"{why[:1].upper()}{why[1:]}.")
+        words += SAVED_CLIENT.format(name=names["client"]) if copy else " " + failed
     seq = None
     try:
         seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)
     except Invalid as e:
-        words += NOT_RECORDED_FILE.format(reason=str(e))
+        words += NOT_RECORDED_FILE
     return 200, {"ok": True, "path": str(dest), "name": dest.name, "sha256": digest, "bytes": len(data), "seq": seq,
                  "client_name": copy.name if copy else None, "client_failed": bool(failed), "message": words}
 

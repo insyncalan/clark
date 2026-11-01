@@ -441,6 +441,7 @@ textarea.tpl-field { resize: vertical; }
 .wi-item b { margin-right: 6px; font-weight: var(--weight-medium); color: var(--heading); }
 .wi-notes { margin: 12px 0 0; padding-left: 18px; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
 .wi-notes li { margin: 2px 0; }
+.word-msg p { white-space: pre-line; overflow-wrap: anywhere; }       /* a refusal that lists items puts each on its own line */
 
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }

@@ -113,7 +113,7 @@ class Screens(unittest.TestCase):
         return p.js("document.querySelector('#%s').innerText" % box)
 
     def msg(self, p):
-        return p.js("(document.querySelector('#word-msg') || {}).innerText || ''")
+        return p.js("(document.querySelector('.word-msg') || {}).innerText || ''")
 
     def focus_is(self, p):
         return p.js("(function(){var e=document.activeElement;return e.id || e.getAttribute('data-go') !== null && 'go' || e.tagName})()")
@@ -263,7 +263,10 @@ class Export(Screens):
                 p.js("document.querySelector('[data-go]').click()")
                 p.until("!!document.querySelector('input[name=word-clash]')", "the question was asked")
                 text = self.text(p, "word-export-dialog")
-                self.assertIn(f"A file called “{first}” is already in “Reports”. Nothing was saved yet.", text)
+                self.assertIn(f"A file called “{first}” is already in “Reports”. The Word report has not been saved yet. Choose Add a number, Replace it or Cancel.", text)
+                self.assertIn("The Word file name is taken", text)
+                self.assertIn("The old file is replaced by the new one. A copy already in the client folder is kept, and the new one gets a number.", text)
+                self.assertEqual(p.js("document.querySelector('[data-go]').innerText"), "Continue")
                 self.assertIn("Add a number", text)
                 self.assertIn("Replace it", text)
                 self.inside(p, "word-export-dialog")
@@ -315,13 +318,13 @@ class Export(Screens):
                 p = self.page(cdp, w, scheme)
                 self.open_export(p)
                 p.js("document.querySelector('[data-go]').click()")
-                p.until("/inside clark.s own data folder/.test(document.querySelector('#word-msg').innerText)", "the refusal was said")
-                self.assertEqual(self.msg(p), "That folder is inside clark's own data folder. Choose a folder for reports.")
-                self.assertEqual(p.js("document.querySelector('#word-msg').getAttribute('role')"), "alert")
+                p.until("/inside clark.s own data folder/.test(document.querySelector('.word-msg').innerText)", "the refusal was said")
+                self.assertEqual(self.msg(p), "That folder is inside clark's own data folder. Nothing was saved. Press Save again and choose a different folder.")
+                self.assertEqual(p.js("document.querySelector('.word-msg').getAttribute('role')"), "alert")
                 self.assertNotRegex(self.msg(p), JARGON)
                 self.assertEqual((self.word_files(self.rig.data_dir), self.word_files(self.reports), self.rig.rows()), ([], [], []))
                 self.assertFalse(p.js("document.querySelector('[data-go]').disabled"), "the box is still usable")
-                self.assertEqual(p.js("document.querySelector('#word-msg .error') !== null"), True)
+                self.assertEqual(p.js("document.querySelector('.word-msg .error') !== null"), True)
 
     def test_busy_is_said_in_words_and_the_buttons_are_off(self):
         with chrome() as cdp:
@@ -331,7 +334,7 @@ class Export(Screens):
             p = self.page(cdp)
             self.open_export(p)
             p.js("document.querySelector('[data-go]').click()")
-            p.until("/Saving the Word report/.test(document.querySelector('#word-msg').innerText)", "it says it is saving")
+            p.until("/Saving the Word report/.test(document.querySelector('.word-msg').innerText)", "it says it is saving")
             self.assertIn("If a window asks where to save it, choose a folder there.", self.msg(p))
             self.assertEqual(p.js("document.querySelector('#word-export-dialog').getAttribute('aria-busy')"), "true")
             self.assertTrue(p.js("document.querySelector('[data-go]').disabled && document.querySelector('[data-cancel]').disabled && document.querySelector('#word-client').disabled"))
@@ -382,7 +385,7 @@ class WordToo(Screens):
                 p.open_publish()
                 text = p.dialog_text()
                 self.assertIn("Also a Word document", text)
-                self.assertIn("A Word copy of the report, saved beside the web page.", text)
+                self.assertIn("A Word copy of the report, saved in the folder last used for this project.", text)
                 self.assertEqual(p.js("[document.querySelector('#pub-word').checked, document.querySelector('#pub-word').disabled]"), [False, False])
                 self.inside(p, "publish-dialog")
                 self.colours(p, "publish-dialog", scheme)
@@ -456,12 +459,15 @@ class WordToo(Screens):
             self.publish_with(p)
             p.until("!!document.querySelector('input[name=word-clash]')", "the question about the Word file was asked")
             self.assertIn("The Word file name is taken", p.dialog_text())
+            self.assertIn("The web page is published.", p.dialog_text())
+            self.assertIn("The Word report has not been saved yet.", p.dialog_text())
+            self.assertEqual(p.js("document.querySelector('[data-go]').innerText"), "Continue")
             self.assertIn("Add a number", p.dialog_text())
             self.assertTrue((self.rig.local / "chosen.html").exists(), "the web page is published already")
             self.assertEqual((self.rig.local / "PUB-report-2026-10-23.docx").read_bytes(), b"an earlier file", "the Word file is untouched")
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("document.querySelector('[data-go]').innerText === 'Close'", "it ended in the box, not closed")
-            self.assertIn("The Word report was not saved.", p.message())
+            self.assertIn("The Word report was not saved, because you cancelled.", p.message())
             self.assertIn("Published", p.message() + p.dialog_text())
             p.js("document.querySelector('[data-go]').click()")
             p.until("!document.querySelector('#publish-dialog')", "closed")
@@ -506,7 +512,7 @@ class Import(Screens):
                     self.open_import(p)
                     self.inside(p, "word-import-dialog")
                     self.assertEqual(self.focus_is(p), "word-file", "focus starts on the file picker")
-                    self.assertIn("Choose a Word file (.docx) of up to 25 MB.", self.text(p, "word-import-dialog"))
+                    self.assertIn("Choose a Word file of up to 25 MB.", self.text(p, "word-import-dialog"))
                     self.assertTrue(p.js("document.querySelector('[data-read]').disabled"), "Read the file waits for a file")
                     self.colours(p, "word-import-dialog", scheme)
                     self.read_it(p)
@@ -555,13 +561,12 @@ class Import(Screens):
                     t = self.toast(p)
                     self.assertEqual(t["kind"], "done")
                     self.assertTrue(t["undo"])
-                    self.assertIn("Added 2 new item(s) from week notes.docx as one step you can undo.", t["text"])
-                    self.assertIn("They are not shown to the client until you turn them on.", t["text"])
+                    self.assertIn("Added 2 new items from week notes.docx. They are not shown to the client until you turn them on. Press Undo to take them all back.", t["text"])
                     p.js("document.querySelector('.toast [data-undo]').click()")
-                    p.until("/Put back/.test(document.querySelector('.toast .toast-text').textContent)", "the undo was said")
+                    p.until("/Undone/.test(document.querySelector('.toast .toast-text').textContent)", "the undo was said")
                     self.assertEqual(self.counts(), before, "one Undo takes the whole import back")
                     self.assertEqual(self.sent[-1], ("import", {"op": "undo", "project": "PUB", "apply_id": self.sent[-1][1]["apply_id"]}))
-                    self.assertIn("2 item(s) from the Word import were removed.", p.js("document.querySelector('.toast .toast-text').textContent"))
+                    self.assertIn("Undone. 2 items from the Word import were removed.", p.js("document.querySelector('.toast .toast-text').textContent"))
 
     def test_accept_all_is_sent_as_all_and_the_work_items_show_the_new_ones(self):
         with chrome() as cdp:
@@ -577,7 +582,7 @@ class Import(Screens):
             after = self.counts()
             self.assertEqual((after["actions"] - before["actions"], after["raid"] - before["raid"], after["decisions"] - before["decisions"]), (2, 1, 1))
             p.js("document.querySelector('.toast [data-undo]').click()")
-            p.until("/Put back/.test(document.querySelector('.toast .toast-text').textContent)", "undone")
+            p.until("/Undone/.test(document.querySelector('.toast .toast-text').textContent)", "undone")
             self.assertEqual(self.counts(), before)
 
     def test_closing_the_preview_adds_nothing_and_the_same_file_can_be_read_again(self):
@@ -608,11 +613,11 @@ class Import(Screens):
                 before = self.counts()
                 self.open_import(p)
                 self.read_it(p, b"this is only some plain text, not a Word file at all", "notes.docx")
-                p.until("!!document.querySelector('#word-msg .error')", "the refusal was shown")
+                p.until("!!document.querySelector('.word-msg .error')", "the refusal was shown")
                 said = self.msg(p)
                 self.assertIn("notes.docx", said)
                 self.assertNotRegex(said, JARGON)
-                self.assertEqual(p.js("document.querySelector('#word-msg').getAttribute('role')"), "alert")
+                self.assertEqual(p.js("document.querySelector('.word-msg').getAttribute('role')"), "alert")
                 self.assertFalse(p.js("!!document.querySelector('#word-import-dialog [data-add]')"), "no preview, nothing to add")
                 self.assertTrue(p.js("document.querySelector('[data-read]').disabled"), "choose another file to go on")
                 self.assertEqual(self.counts(), before)
@@ -628,11 +633,39 @@ class Import(Screens):
                 self.open_import(p)
                 p.js("""(function(){var dt=new DataTransfer(); dt.items.add(new File([new ArrayBuffer(26*1024*1024)], 'big report.docx'));
                     var el=document.querySelector('#word-file'); el.files=dt.files; el.dispatchEvent(new Event('change',{bubbles:true}))})()""")
-                p.until("!!document.querySelector('#word-msg .error')", "the refusal was shown")
-                self.assertEqual(self.msg(p), "big report.docx is more than 25 MB, more than clark will open. Save a smaller copy, or split it into two files, then choose it again.")
+                p.until("!!document.querySelector('.word-msg .error')", "the refusal was shown")
+                self.assertEqual(self.msg(p), "big report.docx is bigger than the 25 MB that clark can open. Save a smaller copy (for example without big pictures), then choose it again. Nothing was added.")
                 self.assertTrue(p.js("document.querySelector('[data-read]').disabled"), "it cannot be read")
                 self.assertEqual(self.sent, [], "nothing was sent: the page refused it")
                 self.inside(p, "word-import-dialog")
+
+    def test_a_file_that_is_not_named_as_a_word_file_is_refused_before_it_is_sent(self):
+        with chrome() as cdp:
+            self.start()
+            p = self.page(cdp, edit=True)
+            self.open_import(p)
+            self.choose_file(p, b"%PDF-1.4 not Word at all", "plan.pdf")
+            p.until("!!document.querySelector('.word-msg .error')", "the refusal was shown")
+            self.assertEqual(self.msg(p), "plan.pdf is not a Word file. Choose a Word file.")
+            self.assertTrue(p.js("document.querySelector('[data-read]').disabled"), "it cannot be read")
+            self.assertEqual(self.sent, [], "nothing was sent: the page refused it")
+
+    def test_a_file_whose_items_were_all_added_before_says_so(self):
+        with chrome() as cdp:
+            self.start()
+            p = self.page(cdp, edit=True)
+            self.open_import(p)
+            self.read_it(p)
+            p.until("!!document.querySelector('#word-import-dialog [data-add]')", "the preview")
+            p.key("Enter", code="Enter", vk=13)
+            p.until("!document.querySelector('#word-import-dialog')", "added")
+            self.open_import(p)
+            self.read_it(p)
+            p.until("!!document.querySelector('#word-count')", "the answer")
+            text = self.text(p, "word-import-dialog")
+            self.assertIn("Everything in week notes.docx has been added before, so there is nothing new to add.", text)
+            self.assertNotIn("Put actions, risks, issues or decisions under a heading", text, "the advice to add headings is wrong here")
+            self.assertEqual(p.js("document.querySelector('[data-cancel]').innerText"), "Close")
 
     def test_a_file_with_nothing_new_says_so_and_offers_only_close(self):
         with chrome() as cdp:
@@ -643,8 +676,9 @@ class Import(Screens):
             self.read_it(p, docx(P("Weekly notes", style="Heading1") + P("Just some words")))
             p.until("!!document.querySelector('#word-count')", "the answer")
             text = self.text(p, "word-import-dialog")
-            self.assertIn("Nothing new was found in week notes.docx.", text)
-            self.assertIn("Nothing new was found. Put actions, risks, issues or decisions under a heading with that name.", text)
+            said = "Nothing new was found in week notes.docx. Put actions, risks, issues or decisions under a heading with that name, then choose the file again."
+            self.assertIn(said, text)
+            self.assertEqual(text.count("Nothing new was found"), 1, "said once, not as a heading and again as a note")
             self.assertFalse(p.js("!!document.querySelector('#word-import-dialog [data-add]')"), "nothing to add")
             self.assertEqual(p.js("document.querySelector('[data-cancel]').innerText"), "Close")
             self.assertEqual(self.sent[-1][1]["op"], "check")
@@ -665,7 +699,7 @@ class Import(Screens):
             self.rig.httpd.word_import = slow
             self.open_import(p)
             self.read_it(p)
-            p.until("/Reading the file/.test(document.querySelector('#word-msg').innerText)", "it says it is reading")
+            p.until("/Reading the file/.test(document.querySelector('.word-msg').innerText)", "it says it is reading")
             self.assertEqual(p.js("document.querySelector('#word-import-dialog').getAttribute('aria-busy')"), "true")
             self.assertTrue(p.js("document.querySelector('[data-read]').disabled && document.querySelector('[data-cancel]').disabled && document.querySelector('#word-file').disabled"))
             p.key("Escape", code="Escape", vk=27)
@@ -684,7 +718,7 @@ class Import(Screens):
             p.until("!!document.querySelector('#word-import-dialog [data-add]')", "the preview")
             word_route.PLANS.clear()                                     # the server forgot it (it waits 30 minutes)
             p.js("document.querySelector('#word-import-dialog [data-add]').click()")
-            p.until("!!document.querySelector('#word-file') && !!document.querySelector('#word-msg .error')", "back to the file, with the words")
+            p.until("!!document.querySelector('#word-file') && !!document.querySelector('.word-msg .error')", "back to the file, with the words")
             self.assertEqual(self.msg(p), word_route.EXPIRED)
             self.assertEqual(self.counts(), before)
 
@@ -799,10 +833,10 @@ class Words(unittest.TestCase):
             self.assertTrue(m, const)
             self.assertRegex(m.group(1), r"(Choose|Try|Check|Look|Reload|restart|again)", f"{const} says what to do")
             self.assertNotRegex(m.group(1), JARGON)
-        self.assertIn("Save a smaller copy, or split it into two files, then choose it again.", src, "the over-size words are the server's own")
+        self.assertIn("Save a smaller copy (for example without big pictures), then choose it again. Nothing was added.", src, "the over-size words are the server's own")
         m = re.search(r'tooBig = \(name\) => `([^`]+)`', src)
         self.assertEqual(m.group(1).replace("${name}", "N").replace("${WORD_FILE_MB}", "25"),
-                         "N is more than 25 MB, more than clark will open. Save a smaller copy, or split it into two files, then choose it again.")
+                         "N is bigger than the 25 MB that clark can open. Save a smaller copy (for example without big pictures), then choose it again. Nothing was added.")
 
 
 if __name__ == "__main__":

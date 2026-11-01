@@ -11,7 +11,7 @@ export function WordClash({ clash, choice, confirmed, onPick, onConfirm }) {
           <span><b>Add a number</b><small>Keeps the old file and saves the new one beside it.</small></span></label>
         {clash.canReplace ? (
           <label class="pubopt"><input type="radio" name="word-clash" value="overwrite" checked={choice === "overwrite"} onChange={() => onPick("overwrite")} />
-            <span><b>Replace it</b><small>The old file is overwritten.</small></span></label>
+            <span><b>Replace it</b><small>The old file is replaced by the new one. A copy already in the client folder is kept, and the new one gets a number.</small></span></label>
         ) : null}
         {choice === "overwrite" ? (
           <div class="pub-note">

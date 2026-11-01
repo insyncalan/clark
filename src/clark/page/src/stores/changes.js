@@ -190,7 +190,7 @@ export function changeWord(send, failed) {
 async function sendWordUndo(code, applyId) {
   const r = await wordUndoRequest(code, applyId);
   if (r.status === 200 && r.body && r.body.ok === true) return { ok: true, reply: r.body };
-  return { ok: false, message: wordWords(r, "That step could not be undone just now, and nothing was changed. Reload the page and try again.") };
+  return { ok: false, message: wordWords(r, "That could not be undone just now. Nothing was changed. Reload the page and try again.") };
 }
 
 // #80: change fields of one work item, in one step. `table` is actions, raid or decisions; `changes` the fields to set. The page

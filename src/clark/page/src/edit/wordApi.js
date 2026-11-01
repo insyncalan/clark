@@ -8,7 +8,10 @@ import { call } from "./publishApi.js";
 export const WORD_FILE_MB = 25;        // the largest Word file clark reads (WORD_FILE_MB in server.py); a bigger one is refused here, before it is sent
 
 // The refusal for a file over the limit, in the server's own words so the person reads the same thing from either place.
-export const tooBig = (name) => `${name} is more than ${WORD_FILE_MB} MB, more than clark will open. Save a smaller copy, or split it into two files, then choose it again.`;
+export const tooBig = (name) => `${name} is bigger than the ${WORD_FILE_MB} MB that clark can open. Save a smaller copy (for example without big pictures), then choose it again. Nothing was added.`;
+// A file whose name does not end in .docx is refused here, before it is read or sent (the box's file picker only suggests Word files).
+export const isWordName = (name) => /\.docx$/i.test(String(name || ""));
+export const notWord = (name) => `${name} is not a Word file. Choose a Word file.`;
 export const EMPTY = "That file is empty. Choose the Word file again.";
 export const UNREADABLE = "That file could not be read by your browser. Choose the Word file again.";
 

@@ -6,7 +6,7 @@
 import { signal } from "@preact/signals";
 import { project, mode } from "../stores/report.js";
 import { changeWord } from "../stores/changes.js";
-import { exportWord, checkRequest, applyRequest, readFile, words, tooBig, WORD_FILE_MB } from "./wordApi.js";
+import { exportWord, checkRequest, applyRequest, readFile, words, tooBig, isWordName, notWord, WORD_FILE_MB } from "./wordApi.js";
 import { savedFolder } from "./publishState.js";
 
 export const READ_FAILED = "Something went wrong while the file was being read, and nothing was added. Choose the file again. If it happens again, restart clark.";
@@ -72,7 +72,8 @@ export function cancelImport() {
 export function chooseFile(file) {
   const s = importBox.value;
   if (!s || s.phase !== "choose") return;
-  if (file && file.size > WORD_FILE_MB * 1024 * 1024) setImport({ file: null, message: { kind: "error", text: tooBig(file.name) } });
+  if (file && !isWordName(file.name)) setImport({ file: null, message: { kind: "error", text: notWord(file.name) } });
+  else if (file && file.size > WORD_FILE_MB * 1024 * 1024) setImport({ file: null, message: { kind: "error", text: tooBig(file.name) } });
   else setImport({ file: file || null, message: null });
 }
 
@@ -87,7 +88,7 @@ export async function goRead() {
   const b = r.body;
   if (r.status === 200 && b && b.ok === true && typeof b.plan === "string" && Array.isArray(b.items)) {
     const plan = { key: b.plan, file: String(b.file || file.name), items: b.items.map((i) => ({ n: i.n, text: String(i.text) })),
-      problems: (b.problems || []).map(String), notes: (b.notes || []).map(String) };
+      problems: (b.problems || []).map(String), notes: (b.notes || []).map(String), already: Number.isInteger(b.already_added) ? b.already_added : 0 };
     setImport({ phase: "plan", plan, ticks: plan.items.map((i) => i.n), message: null });
     return;
   }
@@ -113,7 +114,7 @@ export async function goAdd() {
   setImport({ phase: "adding", message: null });
   const out = await changeWord((code) => applyRequest(code, s.plan.key, accept), ADD_FAILED);
   if (out.ok) { closeImport(); return; }
-  // A plan that is no longer waiting is gone: the file has to be read again. Any other refusal leaves the list to change.
+  // A plan that has expired is gone: the file has to be read again. Any other refusal leaves the list to change.
   if (out.status === 410) setImport({ phase: "choose", file: null, plan: null, ticks: [], message: { kind: "error", text: out.message } });
   else setImport({ phase: "plan", message: { kind: "error", text: out.message } });
 }

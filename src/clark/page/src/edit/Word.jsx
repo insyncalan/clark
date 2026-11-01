@@ -11,6 +11,11 @@ import { exportBox, goExport, cancelExport, tickClient, pickClash, confirmReplac
   importBox, goRead, goAdd, cancelImport, chooseFile, tickItem, tickAllItems } from "./wordState.js";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
+// Why an empty list is empty, said once: everything in the file was added before, or there was nothing to find (a list with problems
+// says what each one is, so it only says nothing new was found).
+const nothingNew = (plan) => plan.already > 0 ? `Everything in ${plan.file} has been added before, so there is nothing new to add.`
+  : plan.problems.length ? `Nothing new was found in ${plan.file}.`
+  : `Nothing new was found in ${plan.file}. Put actions, risks, issues or decisions under a heading with that name, then choose the file again.`;
 export const count = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
 
 // A modal dialog that is shown when it mounts, and gives focus back to the profile circle when it goes.
@@ -42,7 +47,7 @@ function Export() {
   return (
     <dialog id="word-export-dialog" class="dlg" aria-labelledby="word-x-title" aria-busy={working ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelExport(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); goExport(); }}>
-        <h2 id="word-x-title">{s.phase === "clash" ? "That file name is taken" : "Export to Word"}</h2>
+        <h2 id="word-x-title">{s.phase === "clash" ? "The Word file name is taken" : "Export to Word"}</h2>
         {s.phase === "clash" ? null : (
           <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${shownDate(p.week_ending)}` : ""}</p>
         )}
@@ -50,19 +55,19 @@ function Export() {
           <WordClash clash={s.clash} choice={s.choice} confirmed={s.confirmed} onPick={pickClash} onConfirm={confirmReplace} />
         ) : (
           <div class="pubopts">
-            <p class="muted word-where">The report is saved as a Word file in the folder you last published it to. If there is none yet, a window asks you to choose one.</p>
+            <p class="muted word-where">The report is saved as a Word file in the folder last used for this project. If there is none yet, a window asks you to choose one.</p>
             <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="word-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tickClient(e.currentTarget.checked)} />
               <span><b>To client</b><small>{s.saved ? `Also copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
           </div>
         )}
         {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="word-warn">The client will see this report.</p> : null}
-        <div class="pub-msg" id="word-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
+        <div class="pub-msg word-msg" id="word-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {working ? "Saving the Word report… If a window asks where to save it, choose a folder there." : s.message ? <p class={s.message.kind}>{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">
           {s.phase === "done" ? null : <button type="button" class="btn quiet" data-cancel onClick={cancelExport} disabled={working}>Cancel</button>}
           <button type="submit" class="btn pri" data-go disabled={working || !exportReady(s)}>
-            {s.phase === "done" ? "Close" : s.phase === "clash" ? "OK" : s.ticked ? "Save and send to the client" : "Save the Word report"}
+            {s.phase === "done" ? "Close" : s.phase === "clash" ? "Continue" : s.ticked ? "Save and send to the client" : "Save the Word report"}
           </button>
         </div>
       </form>
@@ -87,7 +92,7 @@ function Import() {
         <h2 id="word-i-title">Import from Word</h2>
         {s.phase === "plan" || s.phase === "adding" ? (
           <>
-            <p class="muted dlg-sub" id="word-count">{plan.items.length === 0 ? `Nothing new was found in ${plan.file}.` : `${count(plan.items.length, "new item")} found in ${plan.file}. Nothing is added until you choose.`}</p>
+            <p class="muted dlg-sub" id="word-count">{plan.items.length === 0 ? nothingNew(plan) : `${count(plan.items.length, "new item")} found in ${plan.file}. Nothing is added until you choose.`}</p>
             {plan.items.length ? (
               <>
                 <div class="wi-all">
@@ -112,13 +117,13 @@ function Import() {
           </>
         ) : (
           <>
-            <p class="muted dlg-sub">Choose a Word file (.docx) of up to {WORD_FILE_MB} MB. You will see what it holds first. Nothing is added until you choose.</p>
+            <p class="muted dlg-sub">Choose a Word file of up to {WORD_FILE_MB} MB. You will see what it holds first. Nothing is added until you choose.</p>
             <label class="pub-field">Word file
               <input type="file" id="word-file" accept=".docx" disabled={busy} onChange={(e) => chooseFile(e.currentTarget.files && e.currentTarget.files[0])} />
             </label>
           </>
         )}
-        <div class="pub-msg" id="word-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
+        <div class="pub-msg word-msg" id="word-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {s.phase === "reading" ? "Reading the file…" : s.phase === "adding" ? `Adding ${count(n, "item")}…` : s.message ? <p class={s.message.kind}>{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">
