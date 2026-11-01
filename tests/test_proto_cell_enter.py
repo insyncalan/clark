@@ -5,7 +5,7 @@ The product page does this already (src/clark/page/src/components/WorkItems.jsx:
 button, and tests/test_inline_edits.py proves it). The prototype's row listened for Enter on anything inside it, opened the
 peek and cancelled the key, so the cell's button never got its click. This loads the prototype (system/prototype/index.html,
 its clock fixed to one day, as run_selftest.py does) in headless Chrome and drives it with real key events: Enter on a status,
-owner, priority or due cell opens that cell's picker with the focus inside it and the peek stays shut; Esc closes it and the
+owner, priority or due cell opens that cell's picker with the focus inside it (the calendar keeps it on its cell and takes the keys itself) and the peek stays shut; Esc closes it and the
 focus is back on the cell; Enter on the row itself still opens the peek; Enter in the owner picker's name box is the box's own.
 The browser part is required: it fails, never skips, without Chrome (set CLARK_CHROME to its path).
 """
@@ -98,7 +98,10 @@ class CellEnter(unittest.TestCase):
                     self.assertFalse(self.peek_open(cdp, sid), f"Enter on the {prop} cell did not open the peek")
                     self.assertEqual(cdp.js("location.hash.includes('id=')", sid), False, "the address does not name an item either")
                     self.assertEqual(cdp.js(f"document.querySelector({json.dumps(sel)}).getAttribute('aria-expanded')", sid), "true")
-                    self.assertTrue(cdp.js("document.querySelector('.menu').contains(document.activeElement)", sid), f"the focus is inside the {prop} picker")
+                    if prop != "due":      # the calendar keeps the focus on its cell and takes the arrows and Enter itself (core.js, calPick)
+                        self.assertTrue(cdp.js("document.querySelector('.menu').contains(document.activeElement)", sid), f"the focus is inside the {prop} picker")
+                    else:
+                        self.assertTrue(cdp.js("!!document.querySelector('.menu [data-cp]')", sid), "the calendar shows its days")
                     key(cdp, sid, "Escape")
                     self.until(cdp, sid, "!document.querySelector('.menu')", f"Esc closed the {prop} picker")
                     self.assertTrue(cdp.js(f"document.activeElement === document.querySelector({json.dumps(sel)})", sid), f"the focus is back on the {prop} cell")

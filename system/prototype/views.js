@@ -1068,7 +1068,7 @@
         C.$$('.ghead').forEach(h => h.addEventListener('click', () => { const g = h.parentElement, on = !g.classList.contains('open'); g.classList.toggle('open', on); h.setAttribute('aria-expanded', on); W.open[g.dataset.ws] = on; saveW(); }));
         /* owner, due, priority and status change in place, from the same pickers as the peek, each one step with Undo */
         C.$$('[data-pick]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); C.propPick(b, D.S.items.find(i => i.id === b.dataset.pick), 'in the table'); }));
-        C.$$('tr[data-id]').forEach(r => { r.addEventListener('click', e => { if (e.target.closest('[data-weye], [data-pick]')) return; C.openItem(r.dataset.id, ids()); }); r.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); C.openItem(r.dataset.id, ids()); } }); });
+        C.$$('tr[data-id]').forEach(r => { r.addEventListener('click', e => { if (e.target.closest('[data-weye], [data-pick]')) return; C.openItem(r.dataset.id, ids()); }); r.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === r) { e.preventDefault(); C.openItem(r.dataset.id, ids()); } }); });   /* Enter on the row itself; a cell's button keeps its own Enter (it opens its picker) */
         C.$$('[data-weye]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const x = D.S.items.find(i => i.id === b.dataset.weye); const u = D.change('item', x, { client: !x.client }, D.who('with the eye')); C.refresh(); C.toast(`${x.id} ${x.client ? 'shown to' : 'hidden from'} the client`, u); }));
       };
       /* the chips and the views redraw with the list; the box itself is never redrawn, so it keeps the focus and what is typed */
