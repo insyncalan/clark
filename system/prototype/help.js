@@ -204,7 +204,7 @@
     { id: 'add-a-section-from-a-template', g: 'The report', t: 'Add a section from a template', w: 'Dashboard › Edit › the + under a section’s grip', go: 'dashboard+edit', s: [
       'On the **Dashboard**, press **Edit**. Press the **+** under the grip of the section you want the new one to follow, or open its menu and choose **Add a template below…**.',
       'The **Add a section** box opens. Choose a kind on the left (on a phone the kinds are a row of chips along the top), or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.',
-      'Under **Place it**, choose **On its own row** or, when the next section is on a row of its own and the template can be half width, **Beside** that section.',
+      'Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.',
       'Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.',
       'Every template other than **Text** and **Needs from you** is empty when you add it, with each of its parts labelled. Filling the parts in comes in a later release; until then an empty template is left out of the published page. **Needs from you** works at once, from live data and the lines you add, and is published.',
       'One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for.' ] },
@@ -399,7 +399,7 @@
         ['Needs from you', 'Added from a template: what you need from the client, from pending decisions, items marked Needed from the client and lines you add. Published straight after At a glance, and left out when empty. See [Needs from you](#ref-needs-from-you).'] ]],
       ['p', 'Add more sections from the **+** under any section’s grip, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit.'] ] },
     { id: 'section-templates', g: 'Screens', t: 'Section templates', w: 'Dashboard › Edit › Add a section', b: [
-      ['p', 'Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the next section (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template).'],
+      ['p', 'Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template).'],
       ['p', 'In this prototype an added template is empty, with each part labelled, and an empty template is left out of the published page and the Word file. **Text** is the exception: it adds an ordinary text section. Each template works at the widths shown.'],
       ['tbl', ['Template', 'What it is for', 'Fits'], [
         ['Text', 'Words under a heading, written in clark’s one editor.', 'Full or half'],
