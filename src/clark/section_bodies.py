@@ -13,8 +13,8 @@ What this base decides, and nothing more:
   request's own text. The same content therefore always makes the same text, and saving it again changes nothing.
 
 What the base does NOT decide: the content's own shape. That is each item's job, in its checker:
-- #121 (needs) fills `_checked_needs`; #189 (tracker) fills `_checked_tracker`. Both are stubs here: they accept whatever
-  passed the generic check above. #189's open question (is a line's number 0 to 100, or a share of the whole, and is the overall
+- #121 (needs) fills `_checked_needs` (below: rows of what is needed, what kind, who from, by when); #189 (tracker) fills
+  `_checked_tracker`, still a stub here: it accepts whatever passed the generic check above. #189's open question (is a line's number 0 to 100, or a share of the whole, and is the overall
   figure the sum of the group totals) is NOT decided here.
 
 The plug-in points (a later item changes only these, never store.py, changes.py or history.py):
@@ -24,7 +24,7 @@ The plug-in points (a later item changes only these, never store.py, changes.py 
 - EMPTY[type]: the body a new section of that type starts with. Chosen by the store, never taken from the request.
 - LIMITS[type]: the most bytes the stored text may take.
 - published(type, value): what a published file carries of a checked body (a dict that is merged into the section's entry), or
-  None to leave the section out. The base publishes nothing of the content (see published).
+  None to leave the section out. Needs publishes its shown rows; the tracker publishes nothing of its content yet (see published).
 """
 import json
 import unicodedata
@@ -34,7 +34,7 @@ BODY_TYPES = (NEEDS, TRACKER)            # the section types (besides text) that
 MAX_DEPTH = 8                            # lists and objects inside each other, at most
 MAX_DIGITS = 15                          # a whole number of more digits is refused before Python reads it (slow on 3.9)
 DEFAULT_LIMIT = 262144                   # bytes of stored text, unless LIMITS says less
-LIMITS = {NEEDS: 65536, TRACKER: 262144}
+LIMITS = {NEEDS: 262144, TRACKER: 262144}      # needs: 100 rows of the longest text, each character written as six ASCII bytes, still fits
 
 
 class Bad(ValueError):
@@ -145,10 +145,101 @@ def _generic(body, kind, rules):
         raise Bad(TOO_DEEP) from None
 
 
+# ── 'Needs from you' (#121) ───────────────────────────────────────────────────
+# The content is one object: {"v": 1, "rows": [row, ...]}, a row being {"what", "kind", "from", "by", "hidden"}. The list's order is
+# the order shown; a row has no id. `kind` says what is needed. `by` is empty or a real day, stored YYYY-MM-DD.
+NEEDS_VERSION = 1
+NEEDS_KINDS = ("decision", "information", "date")
+NEEDS_MAX_ROWS = 100
+NEEDS_WHAT_MAX = 300
+NEEDS_FROM_MAX = 100
+NEEDS_YEARS = (2000, 2100)               # the first and last year a "by" date may name
+NEEDS_ROW_KEYS = ("what", "kind", "from", "by", "hidden")
+
+NEEDS_SHAPE = "Needs from you holds a list of rows."
+NEEDS_TOO_MANY = f"Needs from you can have at most {NEEDS_MAX_ROWS} rows."
+NEEDS_ROW_SHAPE = "A row holds what is needed, what kind it is, who it is from, the date it is needed by, and whether it is left out."
+NEEDS_WHAT_MISSING = "Say what is needed."
+NEEDS_WHAT_LONG = f"What is needed can be {NEEDS_WHAT_MAX} characters at most."
+NEEDS_KIND = "Choose whether it is a decision, information or a date."
+NEEDS_FROM_LONG = f"From can be {NEEDS_FROM_MAX} characters at most."
+NEEDS_FROM_BAD = "From must be a name or a team, or empty."
+NEEDS_BY = f"By must be a real day between {NEEDS_YEARS[0]} and {NEEDS_YEARS[1]}, or empty."
+NEEDS_HIDDEN = "A row is either shown or left out."
+
+
+def _real_day(text):
+    """`text` when it is a real calendar day written YYYY-MM-DD (years NEEDS_YEARS), else None. Never a time zone, never a clock."""
+    if not (isinstance(text, str) and len(text) == 10 and text[4] == "-" and text[7] == "-"
+            and text[:4].isascii() and text[5:7].isascii() and text[8:].isascii()
+            and text[:4].isdigit() and text[5:7].isdigit() and text[8:].isdigit()):
+        return None
+    year, month, day = int(text[:4]), int(text[5:7]), int(text[8:])
+    if not NEEDS_YEARS[0] <= year <= NEEDS_YEARS[1] or not 1 <= month <= 12:
+        return None
+    leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+    last = (31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[month - 1]
+    return text if 1 <= day <= last else None
+
+
+def _checked_needs_row(row, rules):
+    """One row rebuilt field by field, or Bad. Text is trimmed; `from` and `by` may be empty; `hidden` is 0 or 1 (a row with none
+    is shown). Nothing the row names is kept that this does not know."""
+    if type(row) is not dict or set(row) - set(NEEDS_ROW_KEYS) or not {"what", "kind"} <= set(row):
+        raise Bad(NEEDS_ROW_SHAPE)
+    what, kind, who = row["what"], row["kind"], row.get("from", "")
+    by, hidden = row.get("by", ""), row.get("hidden", 0)
+    if not isinstance(what, str):
+        raise Bad(NEEDS_WHAT_MISSING)
+    what = what.strip()
+    if not what or not rules.visible(what):
+        raise Bad(NEEDS_WHAT_MISSING)
+    if len(what) > NEEDS_WHAT_MAX:
+        raise Bad(NEEDS_WHAT_LONG)
+    if not isinstance(kind, str) or kind not in NEEDS_KINDS:
+        raise Bad(NEEDS_KIND)
+    if not isinstance(who, str):
+        raise Bad(NEEDS_FROM_BAD)
+    who = who.strip()
+    if who and not rules.visible(who):
+        raise Bad(NEEDS_FROM_BAD)
+    if len(who) > NEEDS_FROM_MAX:
+        raise Bad(NEEDS_FROM_LONG)
+    if by is None:
+        by = ""
+    if by != "" and _real_day(by) is None:
+        raise Bad(NEEDS_BY)
+    if type(hidden) is not int or hidden not in (0, 1):
+        raise Bad(NEEDS_HIDDEN)
+    return {"what": what, "kind": kind, "from": who, "by": by, "hidden": hidden}
+
+
 def _checked_needs(value, rules):
-    """The 'Needs from you' content's own shape. STUB: #121 fills this (rows of what is needed, from whom, by when; limits;
-    a real date; hidden rows). Until then it accepts what passed the generic check."""
-    return value
+    """The 'Needs from you' content's own shape: {"v": 1, "rows": [...]} with at most NEEDS_MAX_ROWS rows, each rebuilt by
+    _checked_needs_row. Any other key, another version, or a list in place of the object is refused in plain words."""
+    if type(value) is not dict or set(value) - {"v", "rows"} or "rows" not in value:
+        raise Bad(NEEDS_SHAPE)
+    if "v" in value and (type(value["v"]) is not int or value["v"] != NEEDS_VERSION):
+        raise Bad(NEEDS_SHAPE)
+    rows = value["rows"]
+    if type(rows) is not list:
+        raise Bad(NEEDS_SHAPE)
+    if len(rows) > NEEDS_MAX_ROWS:
+        raise Bad(NEEDS_TOO_MANY)
+    return {"v": NEEDS_VERSION, "rows": [_checked_needs_row(r, rules) for r in rows]}
+
+
+def _shown_needs_row(row):
+    """A published row: {"what", "kind", "from", "by"} with `by` written DD-MM-YYYY, or None when the row is hidden or does not
+    have the checked shape (published never trusts what it is given more than it must; nothing is copied that is not named here)."""
+    if type(row) is not dict or type(row.get("hidden")) is not int or row["hidden"] != 0:
+        return None
+    what, kind, who, by = row.get("what"), row.get("kind"), row.get("from"), row.get("by")
+    if not (isinstance(what, str) and what and isinstance(who, str) and isinstance(by, str) and kind in NEEDS_KINDS):
+        return None
+    if by != "" and _real_day(by) is None:
+        return None
+    return {"what": what, "kind": kind, "from": who, "by": f"{by[8:]}-{by[5:7]}-{by[:4]}" if by else ""}
 
 
 def _checked_tracker(value, rules):
@@ -158,7 +249,7 @@ def _checked_tracker(value, rules):
 
 
 CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker}
-EMPTY = {NEEDS: "", TRACKER: ""}         # a new section starts with no content at all; an item may give a richer start
+EMPTY = {NEEDS: "", TRACKER: ""}         # a new section starts with no content at all (for needs that is the same as an empty list: nothing shows, nothing is published)
 
 
 def check(kind, body, rules):
@@ -180,6 +271,11 @@ def check(kind, body, rules):
 
 def published(kind, value):
     """What the published file carries of a checked body, as a dict merged into the section's entry; None leaves the section
-    out ('an empty template stays out'). BASE: nothing of the content is published, so the section keeps its place and title
-    only. #121 and #189 each add their own table here: fields picked by name from the checked value, hidden rows left out."""
+    out ('an empty template stays out').
+    needs (#121): {"rows": [{"what", "kind", "from", "by"}]}, the rows that show (a hidden row is absent, not marked), `by` written
+    DD-MM-YYYY; None when no row shows. Fields are picked by name, never copied whole, and text only.
+    tracker: nothing of the content is published yet, so the section keeps its place and title only (#189 adds its table)."""
+    if kind == NEEDS:
+        rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
+        return {"rows": rows} if rows else None
     return {}
