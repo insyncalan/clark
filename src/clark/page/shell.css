@@ -222,7 +222,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
 @media (max-width: 900px) { table.items .c-due { width: 134px; } }
-/* The letter badge before an item's title (#456; prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
+/* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
    longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
 .kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 13px; font-weight: 400; flex: none; background: var(--grey-100); color: var(--grey-700); }
 .kb.k-action { background: var(--brand-blue-tint); color: var(--status-blue-text); }
@@ -552,7 +552,7 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .seg.icons button:focus-visible, .bib:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bib .i, .seg.icons .i { width: 18px; height: 18px; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; padding: 4px 8px; border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: 13px; line-height: 1.4; white-space: nowrap; pointer-events: none; }
-/* Each group is its own bordered card (#456; prototype `.group`): a grey heading bar, then the column names and the rows. */
+/* Each group is its own bordered card (prototype `.group`): a grey heading bar, then the column names and the rows. */
 .wgroup { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); margin-bottom: 12px; overflow: hidden; }
 .wgroup table.items { margin-top: 0; }
 .wgroup table.items th:first-child, .wgroup table.items td:first-child { padding-left: 16px; }
