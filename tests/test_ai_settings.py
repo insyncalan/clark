@@ -24,6 +24,7 @@ from clark import ai_menu, ai_service, ask_service, page
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WIDTHS = (1400, 900)
+LATER = "AI suggestions come in a later version."
 CHECKING = "Checking whether AI suggestions are on…"
 UNAVAILABLE = "AI suggestions are off, because clark could not check just now. Reload the page to try again."
 CONTRAST = """(()=>{
@@ -82,11 +83,25 @@ class Line(unittest.TestCase):
             self.line(js, ai_menu.why_off("off"))
             self.assertEqual(js("document.querySelector('#ai-state').dataset.state"), "off")
 
-    def test_without_the_route_the_line_says_it_could_not_check(self):
-        self.s.httpd.ai = None
+    def test_without_the_route_the_line_says_it_comes_in_a_later_version(self):
+        self.s.httpd.ai = None                 # the route answers 404: the AI service is not in this version
         with chrome() as cdp:
             js = self.show(cdp)
-            self.line(js, UNAVAILABLE)
+            self.line(js, LATER)
+            self.assertEqual(js("document.querySelector('#ai-state').dataset.state"), "later")
+
+    def test_a_server_fault_or_no_answer_says_it_could_not_check(self):
+        for name, replace in (("500", "return Promise.resolve(new Response('{}', {status: 500}))"), ("network", "return Promise.reject(new TypeError('Failed to fetch'))")):
+            with self.subTest(name), chrome() as cdp:
+                sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
+                js = lambda e: cdp.js(e, sid)          # noqa: E731
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#report')"), 20))
+                js("""const real = window.fetch;
+                      window.fetch = function (url) { if (String(url).indexOf('/api/ai/status') >= 0) { %s; } return real.apply(this, arguments); };
+                      location.hash = '#settings&p=ABC'""" % replace)
+                self.assertTrue(wait(lambda: js("(document.querySelector('#ai-state') || {}).innerText") == UNAVAILABLE, 20),
+                                js("(document.querySelector('#ai-state') || {}).innerText"))
+                self.assertEqual(js("document.querySelector('#ai-state').dataset.state"), "unavailable")
 
     def test_until_the_server_answers_the_line_says_so(self):
         with chrome() as cdp:

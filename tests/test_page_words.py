@@ -194,9 +194,9 @@ class Words(unittest.TestCase):
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                                   "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
-                                  "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status here: unavailable
+                                  "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
-                                  "AI suggestions are off, because clark could not check just now. Reload the page to try again."])
+                                  "AI suggestions come in a later version."])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)

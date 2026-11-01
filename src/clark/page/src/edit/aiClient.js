@@ -71,17 +71,19 @@ export function realAiClient({ token, fetchFn } = {}) {
     headers: Object.assign({ "X-Clark-Token": token ? token() : "" }, body === undefined ? {} : { "Content-Type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  let state = "off", words = "";
+  let state = "off", words = "", gone = false;
   return {
     status: () => state,
+    missing: () => gone,                       // true once the status route answered 404: the AI service is not in this version
     line: () => words,
     async refresh() {
       try {
         const r = await send("GET", "/api/ai/status");
+        gone = r.status === 404;
         const b = await r.json().catch(() => null);
         if (r.status === 200 && b && b.ok === true && STATES.includes(b.state)) { state = b.state; words = typeof b.line === "string" ? b.line : ""; }
         else { state = "off"; words = ""; }
-      } catch (e) { state = "off"; words = ""; }
+      } catch (e) { state = "off"; words = ""; gone = false; }
       return state;
     },
     async suggest(request, signal) {

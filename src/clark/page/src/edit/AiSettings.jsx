@@ -6,6 +6,7 @@ import { token } from "../stores/report.js";
 import { realAiClient } from "./aiClient.js";
 
 export const AI_CHECKING_LINE = "Checking whether AI suggestions are on…";
+export const AI_LATER_LINE = "AI suggestions come in a later version.";      // the status route answered 404: no AI service in this version
 export const AI_UNAVAILABLE_LINE = "AI suggestions are off, because clark could not check just now. Reload the page to try again.";
 const client = realAiClient({ token });
 
@@ -15,6 +16,7 @@ export function AiSettings() {
     let live = true;
     client.refresh().then(() => {
       if (!live) return;
+      if (client.missing()) return setShown({ state: "later", line: AI_LATER_LINE });
       const line = client.line();
       setShown(line ? { state: client.status(), line } : { state: "unavailable", line: AI_UNAVAILABLE_LINE });
     });
