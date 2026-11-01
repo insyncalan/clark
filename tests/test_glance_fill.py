@@ -14,8 +14,9 @@ from test_glance_page import Setup  # noqa: F401
 from test_server import chrome
 
 PAGE = SRC / "clark" / "page"
-GAP, TILE_MIN = 12, 150          # the row gap and the least a tile may be, in px (shell.css)
+GAP, TILE_MIN = 12, 140          # the row gap and the least a tile may be, in px (shell.css)
 ROOM_900 = 900 - 2 * 16 - (2 * 16 + 2)   # the page's side padding, then the frame's padding and border at 900 px: 834 px
+EDIT_GUTTER, SCROLL_BAR = 32, 15         # Edit's left gutter, and a classic scroll bar's width
 
 
 def rule(css, selector):
@@ -37,8 +38,8 @@ class Source(unittest.TestCase):
 
     def test_four_tiles_at_the_least_width_fit_one_line_at_900(self):
         health = 2 * TILE_MIN + GAP
-        self.assertEqual(3 * TILE_MIN + health + 3 * GAP, 798)     # three tiles, Project health and three gaps
-        self.assertLessEqual(3 * TILE_MIN + health + 3 * GAP, ROOM_900 - 15, "with a 15 px scroll bar too")
+        self.assertEqual(3 * TILE_MIN + health + 3 * GAP, 748)     # three tiles, Project health and three gaps
+        self.assertLessEqual(3 * TILE_MIN + health + 3 * GAP, ROOM_900 - EDIT_GUTTER - SCROLL_BAR, "in Edit, with a scroll bar too (787 px)")
 
     def test_edit_keeps_the_label_line_clear_of_the_grip_and_eye_and_the_hidden_tag_clear_of_the_text(self):
         css = (PAGE / "shell.css").read_text()
