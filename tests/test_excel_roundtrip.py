@@ -122,7 +122,7 @@ class RoundTrip(unittest.TestCase):
 
 
 class FormulaGuard(unittest.TestCase):
-    """#37 writes text that could be a formula with a leading apostrophe; the import must take it off again."""
+    """Text that could be a formula is written as a text cell, as typed; the import must give it back unchanged."""
 
     TEXTS = ("=1+1", "+1", "-cmd", "@SUM(A1)", "'quoted", "'=1", "a=b", "-5", " =1", "x ", "  padded  ", " 'q")
 
