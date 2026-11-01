@@ -939,7 +939,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucn { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
 .meter { display: flex; gap: 2px; flex: 1 1 120px; max-width: 280px; height: 8px; }
 .meter i { flex: 1 1 0; border-radius: 2px; background: var(--status-grey); }
-.meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); }
+.meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); } .meter .m-n { background: var(--status-grey); }
 .ucrows { border-top: 1px solid var(--grey-200); }
 .ucrows > li.ucrow { padding: 0; border-top: 0; border-bottom: 1px solid var(--grey-100); }
 .ucbar { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 104px 112px; gap: 12px; align-items: center; width: 100%; min-height: 40px; padding: 6px 4px; cursor: pointer; font-size: var(--size-body); }
