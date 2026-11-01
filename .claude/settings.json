@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(uptime)"
+    ],
+    "deny": [
+      "Bash(git push * main)",
+      "Bash(git push --force*)",
+      "Bash(git push * --tags*)",
+      "Bash(gh release *)",
+      "Bash(gh repo delete *)",
+      "Bash(gh repo edit *)"
+    ]
+  }
+}
