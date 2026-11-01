@@ -86,6 +86,15 @@ class Held(unittest.TestCase):
             for why in LATER[part].values():
                 self.assertTrue(why.strip())
 
+    def test_the_held_list_is_indented_evenly(self):
+        """Every held id sits two spaces in, like its neighbours (a stray space once crept onto one line)."""
+        text = (HELP / "helpLater.json").read_text(encoding="utf-8")
+        ids = set(LATER["howto"]) | set(LATER["reference"])
+        for n, line in enumerate(text.splitlines(), 1):
+            m = re.match(r'^( *)"([^"]+)": "', line)
+            if m and m.group(2) in ids:
+                self.assertEqual(len(m.group(1)), 2, f"helpLater.json line {n}: {m.group(2)} is not indented by two spaces")
+
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need"])
