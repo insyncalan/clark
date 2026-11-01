@@ -75,8 +75,13 @@ class Registry(unittest.TestCase):
     def test_the_base_publishes_nothing_of_the_content(self):
         for kind in ("needs", "tracker"):
             self.assertEqual(sb.published(kind, {"rows": [{"what": "<script>"}]}), {})
+        from clark import section_kinds
+        from clark.section_kinds import base
         for kind in TEMPLATE_TYPES:                    # #96: a template stub is left out of the file altogether
+            if section_kinds.REGISTRY[kind].READY:     # a built template answers for itself (its own tests); every one is built now
+                continue
             self.assertIsNone(sb.published(kind, {"rows": [{"what": "<script>"}]}))
+        self.assertIsNone(base.stub_published({"rows": [{"what": "<script>"}]}, base.Context()), "the stub contract publishes nothing")
 
 
 class Canonical(unittest.TestCase):
