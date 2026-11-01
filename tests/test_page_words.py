@@ -258,9 +258,10 @@ class Words(unittest.TestCase):
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
 
     def test_no_sentence_on_the_page_starts_with_the_product_name(self):
-        """A screen sentence does not start with the product name (the rule set in #170): every string in the page's code, and the
-        words of Help (the page's and the prototype's), at the start of a string and after a full stop inside one."""
-        starts = re.compile(r"""(?:[`"'>]|[.!?]\s)\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
+        """A screen sentence does not start with the product name (the rule set in #170, and #225 for the part after a colon or
+        semicolon): every string in the page's code, and the words of Help (the page's and the prototype's), at the start of a
+        string and after a full stop, colon or semicolon inside one."""
+        starts = re.compile(r"""(?:[`"'>]|[.!?:;]\s)\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
         headings = ("clark version and updates",)                                   # a heading in Help's list of Settings entries, not a sentence
         files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
                  PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
@@ -274,20 +275,11 @@ class Words(unittest.TestCase):
                         continue
                     self.fail(f"{f.name}:{n}: a sentence starts with the product name")
 
-    def test_no_clause_in_report_js_starts_with_the_product_name(self):
-        """#225: in report.js a screen sentence, or the part after a colon or semicolon, does not start with the product name."""
-        text = (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8")
-        starts = re.compile(r"""(?:[`"'>]|[.!?:;]\s)\s*clark\s+[a-z]""", re.I)
-        for n, line in enumerate(text.splitlines(), 1):
-            if line.lstrip().startswith("//"):
-                continue
-            self.assertIsNone(starts.search(line), f"report.js:{n}: a sentence starts with the product name")
-
     def test_help_shows_no_real_looking_version_as_an_example(self):
         """#209: the held Updating clark entry and the prototype's say clark X.Y.Z, not a version that may not exist."""
         for path in (PAGE_SRC / "help" / "helpHeld.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
             text = path.read_text(encoding="utf-8")
-            self.assertIn("makes a clark X.Y.Z appear", text, path.name)
+            self.assertIn("clark X.Y.Z", text, path.name)                   # the placeholder is there; the wording around it is free
             self.assertNotRegex(text, r"clark \d+\.\d+\.\d+", path.name)
 
     def test_help_names_no_version_that_may_not_exist(self):
