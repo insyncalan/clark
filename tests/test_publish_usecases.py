@@ -1,4 +1,4 @@
-"""The Use Cases tab in the published file (item #168), in the style of test_publish.
+"""The Use Cases tab in the published file, in the style of test_publish.
 
 Run: python3 dev/run_tests.py test_publish_usecases
 The rule lives in publish.client_use_cases; select calls it. Each dropped thing carries a marker (ZQ-...) that is searched for in
