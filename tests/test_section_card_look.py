@@ -73,11 +73,31 @@ class Styles(unittest.TestCase):
         self.assertNotIn("border", rule('html[data-secstyle="grey"] .sec'), "the card's one border is not drawn again")
 
     def test_one_card_takes_the_cards_away_and_keeps_one_frame(self):
+        """The report's own frame (.frame.report) is the one border; the inner .secs box draws none, so there are never two."""
         sec = rule('html[data-secstyle="card"] .sec')
         for want in ("background: transparent", "border: 0", "box-shadow: none", "border-radius: 0", "border-top: 1px solid var(--grey-200)"):
             self.assertIn(want, sec)
-        self.assertIn("border: 1px solid var(--grey-200)", rule('html[data-secstyle="card"] .secs'))
-        self.assertIn("border-top: 0", rule('html[data-secstyle="card"] .secs > .sec:first-child'), "no line right under the frame's own edge")
+        secs = rule('html[data-secstyle="card"] .secs')
+        for want in ("border: 0", "border-radius: 0", "background: transparent", "padding: 4px 0 12px"):
+            self.assertIn(want, secs)
+        self.assertNotIn("1px solid", secs, "the inner box has no border of its own")
+        self.assertNotIn('html[data-secstyle="card"] .frame.report', CSS, "the frame keeps its own look: border, surface and padding")
+
+    def test_a_pair_has_one_unbroken_line_and_the_first_row_has_none(self):
+        first = rule('html[data-secstyle="card"] .secs > .sec:first-child, html[data-secstyle="card"] .secs > .sec.slot-left:first-child + .sec.slot-right')
+        self.assertIn("border-top: 0", first, "no line in the first row, for either half of a pair")
+        self.assertIn("margin-left: -24px; padding-left: 24px", CSS, "the right half reaches back across the 24 px gap, so the line has no break")
+        self.assertIn("@media (min-width: 901px) {\n  html[data-secstyle=\"card\"] .sec.slot-right { margin-left: -24px; padding-left: 24px; }", CSS)
+        self.assertIn('html[data-secstyle="card"] .sec.slot-right > .sec-ctl { left: 0; }', CSS, "the right half's control sits in the gap, inside its own box")
+        self.assertIn(".secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 24px;", CSS, "the gap the right half reaches back across is 24 px")
+
+    def test_the_edit_gutter_is_the_frames_side_padding_not_the_inner_boxs(self):
+        """1400: the frame's 28 px side padding holds the 24 px control (left: -26px, from the base rule). 900: the frame widens to 36 px in Edit."""
+        self.assertIn("left: -26px", rule(".sec-ctl").split("opacity")[0])
+        self.assertIn("padding: 24px 28px", rule(".frame"))
+        self.assertIn('html[data-secstyle="card"] #report[data-mode="edit"] { padding-left: 36px; }', CSS)
+        self.assertIn('html[data-secstyle="card"] #report[data-mode="edit"] .sec { --sec-px: 0px; padding-left: 0; }', CSS)
+        self.assertIn("left: -30px", CSS[CSS.index('html[data-secstyle="card"] #report[data-mode="edit"] .sec > .sec-ctl'):])
 
     def test_each_style_names_only_what_it_changes(self):
         for style in ("roomy", "grey", "card"):
