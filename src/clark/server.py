@@ -274,23 +274,33 @@ def csp_take(n):
         return room
 
 
-REFUSED = {"since": 0.0, "n": 0}
-REFUSED_LOCK = threading.Lock()
+class Refused:
+    """Requests turned away before authorised() let them in (#234): counted, never a line of their own, so a page on another
+    site looping requests at this port cannot fill the day's log. Once `interval` seconds are up, the next one writes the
+    count in one line: a number only, nothing of any request (no path, query, header or Origin). `clock` is monotonic, so a
+    clock stepping back never holds the line back; tests pass their own."""
+
+    def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic):
+        self.interval, self.clock, self.lock = interval, clock, threading.Lock()
+        self.since, self.n = None, 0
+
+    def count(self):
+        with self.lock:
+            now = self.clock()
+            n = 0
+            if self.since is None or now - self.since >= self.interval:
+                n, self.since, self.n = self.n, now, 0
+            self.n += 1
+        if n:
+            LOG.warning("%d requests were turned away and not logged one by one", n)
+
+
+REFUSED = Refused()
 
 
 def refused_count():
-    """One more request turned away with a 403 (the Host, the Origin or the token, #234): counted, never a line of its own,
-    so a page on another site looping requests at this port cannot fill the day's log. Once a minute is up, the next one
-    writes the count in one line: a number only, nothing of any request (no path, query, header or Origin)."""
-    with REFUSED_LOCK:
-        now = time.time()
-        n = 0
-        if now - REFUSED["since"] >= CSP_REPORT_WINDOW:
-            n = REFUSED["n"]
-            REFUSED.update(since=now, n=0)
-        REFUSED["n"] += 1
-    if n:
-        LOG.warning("%d requests were turned away and not logged one by one", n)
+    """One more request turned away (see Refused)."""
+    REFUSED.count()
 
 
 def csp_report_route(handler):
@@ -643,11 +653,21 @@ class Handler(BaseHTTPRequestHandler):
     default_request_version = "HTTP/1.0"               # clark: a request line that doesn't parse still gets headers
     timeout = 30                                       # clark: an idle or half-sent request never holds a thread
 
+    def parse_request(self):
+        self.let_in = False                            # set by authorised(); fresh for each request (#234)
+        return super().parse_request()
+
+    def log_request(self, code="-", size="-"):
+        """A reply to a request authorised() did not let in (any /api/ call before its token passed, and any refusal: a 403,
+        a doubled header, an unknown method, an oversized header) is counted, not a line of its own (#234)."""
+        if not getattr(self, "let_in", False) and ((getattr(self, "path", "") or "").startswith("/api/")
+                                                   or (isinstance(code, int) and code >= 400)):
+            return refused_count()
+        return super().log_request(code, size)
+
     def log_message(self, fmt, *args):
         """Quiet: one log line per API call; safe when the request line didn't parse. (creaite log_message)"""
         path = getattr(self, "path", "") or ""
-        if args[1:2] == ("403",):         # turned away (Host, Origin or token): counted, not one line each (#234)
-            return refused_count()
         if path.startswith("/api/") and path.split("?")[0] not in (HERE_ROUTE, "/api/page-error"):   # the heartbeat is not logged; a page error's own capped line is its record
             LOG.info("%s %s", ascii(getattr(self, "command", "") or "")[1:-1], ascii(path.split("?")[0])[1:-1])   # escaped: no raw bytes
 
@@ -729,6 +749,7 @@ class Handler(BaseHTTPRequestHandler):
         if not token_ok(sent):
             self.send(403, error_body("stale", stale=True))
             return False
+        self.let_in = True
         return True
 
     def run_route(self, route, *args):

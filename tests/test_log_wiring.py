@@ -12,7 +12,6 @@ import logging
 import shutil
 import tempfile
 import threading
-import time
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -134,8 +133,12 @@ class RefusedRequests(Rig):
         super().setUp()
         handler = clog.install(self.log)
         self.addCleanup(logging.getLogger("clark").removeHandler, handler)
-        self.addCleanup(sv.REFUSED.update, dict(sv.REFUSED))
-        sv.REFUSED.update(since=time.time(), n=0)          # a minute that has just begun
+        self.ticks = [1000.0]
+        patch = mock.patch.object(sv, "REFUSED", sv.Refused(clock=lambda: self.ticks[0]))
+        patch.start()
+        self.addCleanup(patch.stop)
+        sv.refused_count()                                    # a minute that has just begun (the first refusal starts it)
+        sv.REFUSED.n = 0
 
     def foreign(self, method, path, host=None):
         """One request as another site's page sends it with mode no-cors: its own Origin, cross-site, no token."""
@@ -170,7 +173,7 @@ class RefusedRequests(Rig):
 
     def test_the_minute_is_said_in_one_line_with_nothing_of_the_requests(self):
         self.flood(25)
-        sv.REFUSED["since"] -= sv.CSP_REPORT_WINDOW + 1                     # the minute is up
+        self.ticks[0] += sv.CSP_REPORT_WINDOW + 1                           # the minute is up
         self.flood(3)
         (line,) = self.text().splitlines()
         self.assertRegex(line, r" WARN  server +25 requests were turned away and not logged one by one$")
