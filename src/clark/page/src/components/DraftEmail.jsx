@@ -5,7 +5,7 @@
 import { useState, useRef, useEffect } from "preact/hooks";
 import { MODES, LABELS, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
-export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip }) {
+export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip, none: noneWords }) {
   const [note, setNote] = useState("");
   const preview = useRef(null);
   const edited = useRef(false);
@@ -51,8 +51,8 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
         <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button></div>
     );
   }
-  const none = items.length === 0;                       // nothing is offered: one clear message, nothing to tick
-  const problem = none ? NO_OPEN_ITEMS : blocked(draft);
+  const none = items.length === 0;                       // nothing is offered: one clear message (a caller may say why in its own words), nothing to tick
+  const problem = none ? noneWords || NO_OPEN_ITEMS : blocked(draft);
   const link = mailLink(draft);
   const internal = internalNote(draft.internal_ids);
   const picked = state.picked || [];

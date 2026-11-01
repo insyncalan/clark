@@ -9,12 +9,13 @@ required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
 import contextlib
 import json
+import time
 import unittest
 
 from _paths import ROOT, SRC
 
 from _demo import USER
-from clark import draft_read, publish
+from clark import draft_email_feed, publish
 
 from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click, need_chrome  # noqa: E402
@@ -22,6 +23,7 @@ from test_work_items import bundled, page_target  # noqa: E402
 import test_work_board_page as board  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
+NOT_OFFERED = "This item cannot go in an email: it is hidden from the report, marked sensitive or restricted, or no longer open."
 TODAY = board.TODAY                        # Thursday 29-10-2026
 
 KEYS = {"Enter": (13, "\r"), " ": (32, " "), "Escape": (27, ""), "ArrowDown": (40, ""), "ArrowUp": (38, ""), "ArrowLeft": (37, ""),
@@ -101,13 +103,20 @@ class Rules(unittest.TestCase):
         self.assertEqual((got["name"], got["table"], got["changes"], got["words"], got["back"]),
                          ("Show to the client", "raid", {"client_visible": 1}, "ABC-002 is shown to the client.", "ABC-002 is hidden from the client again."))
 
-    def test_the_draft_is_asked_for_with_the_dialogs_own_state(self):
+    def test_the_draft_is_asked_for_by_the_item_and_then_with_the_dialogs_own_state(self):
+        self.assertEqual(self.js("RM.draftRequest('ABC-A-001')"), {"item": "ABC-A-001", "picked": ["ABC-A-001"]},
+                         "the first ask names the item and ticks it; the kind is left to the server")
         st = {"mode": "chase", "picked": ["ABC-A-001"], "replyBy": "2026-11-20", "unblocks": " the go-live ", "includeUpdate": True}
-        self.assertEqual(self.js(f"RM.draftParams({json.dumps(st)}, 'ABC-A-001')"),
-                         {"mode": "chase", "picked": "ABC-A-001", "include_update": "1", "reply_by": "2026-11-20", "unblocks": "the go-live"})
+        self.assertEqual(self.js(f"RM.draftRequest('ABC-A-001', {json.dumps(st)})"),
+                         {"item": "ABC-A-001", "mode": "chase", "picked": ["ABC-A-001"], "include_update": True, "reply_by": "2026-11-20", "unblocks": "the go-live"})
         none = {"mode": "update_request", "picked": [], "replyBy": "", "unblocks": "", "includeUpdate": False}
-        self.assertEqual(self.js(f"RM.draftParams({json.dumps(none)}, 'ABC-A-001')"),
-                         {"mode": "update_request", "picked": "none", "include_update": "0"})
+        self.assertEqual(self.js(f"RM.draftRequest('ABC-A-001', {json.dumps(none)})"),
+                         {"item": "ABC-A-001", "mode": "update_request", "picked": [], "include_update": False})
+        reply = {"mode": "decision", "picked": ["ABC-D-001"]}
+        self.assertEqual(self.js(f"RM.draftState({json.dumps(reply)})"),
+                         {"mode": "decision", "picked": ["ABC-D-001"], "replyBy": "", "unblocks": "", "includeUpdate": False})
+        self.assertEqual(self.js(f"RM.draftState({json.dumps(reply)}, {json.dumps(st)})"),
+                         {"mode": "decision", "picked": ["ABC-D-001"], "replyBy": "2026-11-20", "unblocks": " the go-live ", "includeUpdate": True})
 
     def test_the_lists_offer_what_the_cells_offer_without_what_the_item_has(self):
         row = json.dumps(self.ACTION)
@@ -151,8 +160,24 @@ class Menu(board.Base):
 
     def setUp(self):
         super().setUp()
-        who = type("Who", (), {"who": lambda self: "Sam Example", "own_domains": lambda self: []})()      # the sender's name, no own domains
-        self.s.httpd.draft = draft_read.make_read(lambda code: publish.read_inputs(self.store, code), who, lambda: f"{TODAY} 09:00")
+        # PR 68's own seam for POST /api/draft-email (#50), as __main__ gives it; every request it gets is kept to be read back.
+        self.drafts = []
+        real = draft_email_feed.make(self.store.data_for, profile=lambda: {"name": "Sam Example", "own_domains": []},
+                                     clock=lambda: f"{TODAY} 09:00",
+                                     rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(self.store, c)))
+
+        def draft_seam(req):
+            self.drafts.append(req)
+            return real(req)
+        self.s.httpd.draft_email = draft_seam
+        real_sent = draft_email_feed.make_sent(self.store.path, [], by_user=lambda: "Sam Example")
+        self.sent_calls = []
+
+        def sent_seam(req):
+            self.sent_calls.append(req)
+            time.sleep(0.4)                           # slow enough for a second press to arrive while the first is in flight
+            return real_sent(req)
+        self.s.httpd.draft_email_sent = sent_seam
 
     def open_menu(self, cdp, sid, selector):
         right_click(cdp, sid, selector)
@@ -422,6 +447,8 @@ class Menu(board.Base):
             click(cdp, sid, "[data-rm=draft]")
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
             self.shut(cdp, sid)
+            self.assertEqual(self.drafts, [{"project": "ABC", "item": a, "picked": [a]}], "one ask, PR 68's POST /api/draft-email, for this item, ticked")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.de .pick input')].map(i => [i.value, i.checked])", sid), [[a, True]], "its tick is pre-picked")
             self.assertEqual(cdp.js("document.querySelector('.de').getAttribute('role')", sid), "dialog")
             meta = cdp.js("[...document.querySelectorAll('.de-meta dt, .de-meta dd')].map(e => e.textContent)", sid)
             self.assertEqual(meta[0:2], ["To", "No address yet. Add one in your mail app."], "the To line is empty, for the person to type")
@@ -434,6 +461,7 @@ class Menu(board.Base):
             # a change in the dialog asks for a new draft; it is still only a draft
             click(cdp, sid, ".de-kinds input[value=decision]")
             self.until(cdp, sid, "/Decision/.test(document.querySelector('.de-meta').textContent)", "the other kind of email")
+            self.assertEqual(self.drafts[-1], {"project": "ABC", "item": a, "mode": "decision", "picked": [a], "include_update": False})
             self.assertTrue(cdp.js("/^mailto:\\?subject=/.test(document.querySelector('.de a.pk-btn').getAttribute('href'))", sid), "a plain mail link with no address")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
@@ -469,8 +497,41 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=draft]")
             t = self.wait_toast(cdp, sid, "note")
-            self.assertIn("no such item", t["text"])
+            self.assertEqual(t["text"], draft_email_feed.BAD_ITEM)
             self.assertFalse(cdp.js("!!document.querySelector('[data-draft-email]')", sid))
+
+    def test_a_hidden_or_sensitive_item_is_not_offered_and_the_dialog_says_so_instead_of_an_empty_draft(self):
+        with chrome() as cdp:
+            hid, sens = self.id_of("Order the laptops"), self.id_of("Send the invitations")
+            with self.store.step("dashboard", USER) as st:
+                st.create("report_hidden", {"project": "ABC", "item_id": hid})
+                st.create("item_labels", {"item_id": sens, "label": "Sensitive"})
+                st.update("actions", sens, {"owner": "Sara Khan"})
+            sid = self.visit(cdp)
+            for item in (hid, sens):
+                self.open_menu(cdp, sid, self.TABLE % item)
+                click(cdp, sid, "[data-rm=draft]")
+                self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+                self.assertEqual(self.drafts[-1], {"project": "ABC", "item": item, "picked": [item]})
+                self.assertEqual(cdp.js("document.querySelector('.de-problem').textContent", sid), NOT_OFFERED, "said plainly")
+                self.assertEqual(cdp.js("document.querySelectorAll('.de .pick input').length", sid), 0, "nothing to tick")
+                self.assertTrue(cdp.js("[...document.querySelectorAll('.de .pk-btn.pri, .de .pk-btn')].filter(b => /Copy|sent/.test(b.textContent)).every(b => b.disabled)", sid), "nothing to copy or record")
+                self.assertFalse(cdp.js("/Share|Order|Book|laptops|training/.test(document.querySelector('.de-preview').textContent)", sid), "no words of the item in the draft")
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
+
+    def test_i_sent_it_saves_the_ids_through_pr_68s_own_route(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            self.assertEqual(self.store.email_sent_for("ABC"), [])
+            cdp.js("[...document.querySelectorAll('.de .pk-btn')].find(b => /sent/.test(b.textContent)).click()", sid)
+            self.until(cdp, sid, "/sent/i.test(document.querySelector('.de-note').textContent)", "the note")
+            rows = self.store.email_sent_for("ABC")
+            self.assertEqual([r["ids"] for r in rows], [[a]])
 
     def test_on_the_board_and_in_full_screen(self):
         with chrome() as cdp:

@@ -49,22 +49,6 @@ async function postItem(path, body, fits = (r) => !!r.item) {
   }
 }
 
-// The Draft email of one item (#97): GET /api/draft, read only; it sends nothing. {ok: true, reply: {items, state, draft, today, reason}} or
-// {ok: false, message}. A refusal of the route (a missing item, an option it cannot read) is its own short plain sentence, shown as it is.
-export async function getDraft(project, item, params = {}) {
-  try {
-    const q = new URLSearchParams({ project, item, ...params });
-    const r = await fetch(`/api/draft?${q}`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
-    const reply = await r.json().catch(() => null);
-    if (r.ok && reply && reply.ok === true && reply.draft && typeof reply.draft === "object" && Array.isArray(reply.items) && reply.state) return { ok: true, reply };
-    const said = reply && typeof reply.message === "string" ? reply.message : "";
-    const mine = (r.status === 400 || r.status === 404) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
-    return { ok: false, message: mine ? said : r.status === 403 ? plainChange(403, reply) : "The email could not be drafted. Try again. If it happens again, restart clark." };
-  } catch (e) {
-    return { ok: false, message: plainChange(0) };
-  }
-}
-
 // An archive, or a copy of an item (#97): the reply says the step (apply_id) and the record, with no sections.
 export const sendRecordChange = (project, req) => postItem("/api/change", { ...req, project }, (r) => typeof r.apply_id === "number");
 
@@ -86,6 +70,25 @@ export async function sendEmailSent(project, entry) {
     const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
     if ((r.status === 400 || r.status === 404 || r.status === 409) && said) return { ok: false, message: said };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
+  }
+}
+
+// The Draft email (#50) as the right-click menu asks for it (#97): POST /api/draft-email with the request body (see draft_email_feed.py), read
+// only; it sends nothing. {ok: true, reply: {mode, items, picked, draft}} or {ok: false, message}. A refusal of the route (400, 404, 409) is
+// its own short plain sentence, shown as it is.
+export async function readDraftEmail(project, body) {
+  try {
+    const r = await fetch("/api/draft-email", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, project }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true && reply.draft && typeof reply.draft === "object" && Array.isArray(reply.items) && Array.isArray(reply.picked) && typeof reply.mode === "string") return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
+    if ((r.status === 400 || r.status === 404 || r.status === 409) && said) return { ok: false, message: said };
+    return { ok: false, message: r.ok ? "The email could not be drafted. Try again. If it happens again, restart clark." : plainChange(r.status, reply) };
   } catch (e) {
     return { ok: false, message: plainChange(0) };
   }

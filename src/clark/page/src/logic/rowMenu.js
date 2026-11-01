@@ -22,7 +22,7 @@ export function emailOf(data, ownerId) {
 }
 
 /** The Draft email entry: {name, reason, to, disabled}. It opens the Draft email dialog with a draft the server builds for this one
- *  item (GET /api/draft); nothing is sent. Only an item with no owner is greyed. `to` is the address found by owner id on the People
+ *  item (POST /api/draft-email); nothing is sent. Only an item with no owner is greyed. `to` is the address found by owner id on the People
  *  list (#115), "" until that exists, and then the To line is left empty for the person to type: `reason` says so. */
 export function draftEntry(row, data) {
   const o = ownerOf(row.owner);
@@ -44,14 +44,22 @@ export function eyeChange(row) {
   };
 }
 
-/** The query the Draft email asks the server with, from the dialog's state (logic/draftEmail.js buildOptions): the kind, whether the one
- *  item is ticked ("none" when not), the reply-by day, what it holds up and whether the latest update goes in. */
-export function draftParams(state, id) {
+export const NOT_OFFERED = "This item cannot go in an email: it is hidden from the report, marked sensitive or restricted, or no longer open.";
+
+/** The body of POST /api/draft-email (draft_email_feed.py) for this one item. `state` is the dialog's (logic/draftEmail.js buildOptions); without
+ *  it, the first ask: the item ticked and the kind left for the server to choose from the item. `item` keeps the offer to this one item. */
+export function draftRequest(id, state) {
+  if (!state) return { item: id, picked: [id] };
   const o = buildOptions(state);
-  const p = { mode: o.mode, picked: o.picked.includes(id) ? id : "none", include_update: o.include_update ? "1" : "0" };
-  if (o.reply_by) p.reply_by = o.reply_by;
-  if (o.unblocks) p.unblocks = o.unblocks;
-  return p;
+  const body = { item: id, mode: o.mode, picked: o.picked, include_update: o.include_update };
+  if (o.reply_by) body.reply_by = o.reply_by;
+  if (o.unblocks) body.unblocks = o.unblocks;
+  return body;
+}
+
+/** The dialog's state from the route's answer: the kind and ticks it chose, with the options as they were (or empty at the first ask). */
+export function draftState(reply, was) {
+  return { mode: reply.mode, picked: reply.picked, replyBy: was ? was.replyBy : "", unblocks: was ? was.unblocks : "", includeUpdate: was ? !!was.includeUpdate : false };
 }
 
 /** The statuses the Change status list offers (the same as the Status cell's picker), without the one the item has. */

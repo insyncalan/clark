@@ -68,11 +68,14 @@ export function pickWords(n, of) {
   return n === of ? `${n} ${noun(n)} ticked` : `${n} of ${of} ${noun(of)} ticked`;
 }
 
-/** The note after I sent it: what was recorded and the day (DD-MM-YYYY). */
-export function sentWords(entry) {
+/** The note after I sent it: what was recorded and the day (DD-MM-YYYY), and whether the history has it. */
+export function sentWords(entry, saved = false, failed = false) {
   const n = (entry.ids || []).length;
   const [y, m, d] = text(entry.date).split("-");
-  return `Marked as sent for ${n} ${n === 1 ? "item" : "items"} on ${d}-${m}-${y}. It is not saved to the history yet.`;
+  if (failed) return "That could not be saved to the history, so nothing was marked as sent. Try again.";
+  const items = `${n} ${n === 1 ? "item" : "items"}`;
+  if (saved) return `Recorded: ${items} marked as sent on ${d}-${m}-${y}. It is in the history.`;      // only after the save worked
+  return `Marked as sent for ${items} on ${d}-${m}-${y}. It is not saved to the history yet.`;
 }
 
 /** What the builder is asked with each time something changes. Only the editor's own inputs; the caller adds the items, the
@@ -106,6 +109,8 @@ export function blocked(draft) {
  *  the preview is drawn, so a draft handed in from elsewhere can never run a script or load a picture. */
 const TAGS = new Set(["DIV", "P", "B", "I", "STRONG", "EM", "BR", "TABLE", "TBODY", "THEAD", "TR", "TD", "TH"]);
 const ATTRS = new Set(["style", "align", "cellpadding", "cellspacing", "border", "colspan"]);
+// A style may not load anything or hold an at-rule: any "@" is refused (the same pattern, plain: the built page holds no literal at-rule word, which test_page scans for).
+const STYLE_BAD = /url\s*\(|expression|@/i;
 
 /** The email's HTML with everything outside the allowed elements and attributes removed (the text of a removed element goes
  *  with it when it is a script or style). Returns a string. */
@@ -123,7 +128,7 @@ export function safeHtml(html, parse) {
         continue;
       }
       for (const a of Array.from(child.attributes)) {
-        const bad = !ATTRS.has(a.name) || (a.name === "style" && /url\s*\(|expression|@import/i.test(a.value));
+        const bad = !ATTRS.has(a.name) || (a.name === "style" && STYLE_BAD.test(a.value));
         if (bad) child.removeAttribute(a.name);
       }
       walk(child);

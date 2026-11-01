@@ -1,5 +1,5 @@
 // The right-click menu on a work item (#97): a row of the table or a card of the board, by a right click, the menu key or Shift+F10.
-// Draft email to the owner (opens the Draft email dialog over a draft clark builds for this one item, GET /api/draft: nothing is sent, and the To line is left empty until the People list, #115), the peek, Change status, Move due date and Change owner (each a short list), Show to or Hide from the client, Copy link, Copy ID,
+// Draft email to the owner (opens the Draft email dialog over a draft clark builds for this one item, POST /api/draft-email: nothing is sent, and the To line is left empty until the People list, #115), the peek, Change status, Move due date and Change owner (each a short list), Show to or Hide from the client, Copy link, Copy ID,
 // Duplicate and Archive. Each entry does what its button elsewhere does: a change is one step with Undo in the toast (the cells'
 // own words and requests, itemEdit.js), Archive is clark's archive step (never a delete, FR-43c). What each entry offers is in
 // ../logic/rowMenu.js. An entry that can't be used is listed with its reason under it. In View the changes are listed but greyed.
@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, mode, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
 import { changeCell, changeRecord, say } from "../stores/changes.js";
-import { getDraft } from "../api.js";
+import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
@@ -18,7 +18,7 @@ import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
-import { draftEntry, eyeChange, draftParams, statusList, dueList, ownerList, duplicateRequest, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
+import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
 
 const ROW = "tr[data-id], article.bcard";
@@ -144,10 +144,10 @@ function Panel({ s }) {
     if (id === "draft") {
       const from = s.from, code = project.value;
       close("pick");
-      return getDraft(code, row.id).then((r) => {
+      return readDraftEmail(code, draftRequest(row.id)).then((r) => {
         if (!r.ok) { say("note", r.message); refocus(row.id); return; }
         if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
-        draftOpen.value = { id: row.id, items: r.reply.items, state: r.reply.state, draft: r.reply.draft, today: r.reply.today, from, n: 0 };
+        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from };
       });
     }
     if (id === "peek") { close("pick"); openCard(row.id); return undefined; }
@@ -215,10 +215,12 @@ function DraftHost({ d }) {
   const onChange = (next) => {
     const n = ++asked.current;
     draftOpen.value = { ...draftOpen.value, state: next };           // the ticks and options show at once; the email follows
-    getDraft(project.value, d.id, draftParams(next, d.id)).then((r) => {
+    let body;
+    try { body = draftRequest(d.id, next); } catch (e) { say("note", e.message); return; }
+    readDraftEmail(project.value, body).then((r) => {
       if (n !== asked.current || !draftOpen.value) return;
       if (!r.ok) { say("note", r.message); return; }
-      draftOpen.value = { ...draftOpen.value, state: r.reply.state, draft: r.reply.draft, items: r.reply.items };
+      draftOpen.value = { ...draftOpen.value, state: draftState(r.reply, next), draft: r.reply.draft, items: r.reply.items };
     });
   };
   const keys = (e) => {
@@ -233,7 +235,7 @@ function DraftHost({ d }) {
   };
   return (
     <div class="ad-scrim" data-draft-email={d.id} ref={root} onKeyDown={keys} onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} />
+      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={(entry) => sendEmailSent(project.value, entry)} none={NOT_OFFERED} />
     </div>
   );
 }
