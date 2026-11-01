@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import platform, section_bodies
+from clark import people as people_rules, platform, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -2155,6 +2155,42 @@ class Store:
             where.append("archived = 1" if archived else "archived = 0")
         sql = f"SELECT * FROM {_table(kind)}" + (" WHERE " + " AND ".join(where) if where else "")
         return [dict(r) for r in self.con.execute(sql, args)]
+
+    def people(self, archived=False):
+        """The people list (#115), read only: live people (the default), archived ones (True) or both (None), in id order. The
+        people table is made by migration step 8; a file without it (never after open_store) reads as an empty list."""
+        if archived not in (None, False, True):
+            raise Invalid("archived is None, False or True")
+        if not self.con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'people'").fetchone():
+            return []
+        where = "" if archived is None else (" WHERE archived = 1" if archived else " WHERE archived = 0")
+        return [dict(r) for r in self.con.execute("SELECT * FROM people" + where + " ORDER BY id")]
+
+    def resolve_owner(self, text):
+        """What an owner name typed on a work item points at (#115), read only. The one resolver: the same answer for the page's
+        edit, an Excel import and a teammate's file. Returns people.resolve's dict (status blank, one, many, archived or none, and
+        the ids). It never makes a person, never guesses and never matches on a fuzzy likeness."""
+        return people_rules.resolve(text, self.people(archived=None))
+
+    def plan_people_import(self, text):
+        """The plan for rows pasted into the People list's import box (#115), read only: nothing is written here. Pasted text over
+        people.TEXT_LIMIT characters or people.ROW_LIMIT rows is refused whole, in words. Each row is checked (people.check_person),
+        then set against the list: an email already on the list is a problem; a name or alias already there is marked 'same'
+        (with the ids) so the box can ask, never merged by itself. Returns {rows, problems, ok}; ok is True only with no problem."""
+        rows, problems = people_rules.parse_rows(text)
+        have = self.people(archived=None)
+        for row in rows:
+            clean = row["clean"]
+            if clean["email"]:
+                for person in have:
+                    if (person.get("email") or "") == clean["email"]:
+                        msg = f"Row {row['row']}: " + people_rules.duplicate_email(person["name"])
+                        row["problems"].append(msg)
+                        problems.append(msg)
+                        break
+            found = people_rules.resolve(clean["name"], have)
+            row["same"] = found["ids"] if found["status"] in ("one", "many", "archived") else []
+        return {"rows": rows, "problems": problems, "ok": bool(rows) and not problems}
 
     def data_for(self, code, archived="hide"):
         """One project's data for the page (#33), from its own read-only connection; None if there's no such project.
