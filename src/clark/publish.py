@@ -876,11 +876,12 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
-def build(store, code, now=None, branding=None):
+def build(store, code, now=None, branding=None, section_style=None):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
     date (YYYY-MM-DD); due dates and Overdue read as at that date. publish() and the To client route (#43) both start here, so
-    the file written to Local and the file copied to the client are the same bytes, made once."""
+    the file written to Local and the file copied to the client are the same bytes, made once. `section_style` is the style the
+    person chose on the page (section_style() keeps it only if it is one of STYLES); the file carries it in its own data block."""
     as_at = str(now or milestones.today())
     try:
         if not re.fullmatch(r"\d{4}-\d\d-\d\d", as_at):          # Python 3.11 and later also read 20261028
@@ -889,6 +890,8 @@ def build(store, code, now=None, branding=None):
     except ValueError:
         raise PublishError(f"{as_at!r} is not a date. Give the publish date as YYYY-MM-DD.") from None
     inputs = read_inputs(store, code, as_at)
+    if section_style is not None:
+        inputs["section_style"] = section_style
     if inputs["data"]["project"].get("archived"):           # #126: checked here, not in select (glance.kept_rows calls select and must still work)
         raise PublishError("An archived project can't be published. Restore it first.")
     published = add_glance(select(inputs), inputs)
