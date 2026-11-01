@@ -82,6 +82,33 @@ class HistoryMany(unittest.TestCase):
         finally:
             demo.close()
 
+    def test_hundreds_of_ids_with_no_hyphen_read_as_history_reads_them(self):
+        """An id with no hyphen has no code to match by, so each is asked the three ways history() asks; many of them are read in
+        bounded queries (a very long OR is refused by SQLite) and give what history() gives, mixed with hyphenated ids."""
+        from clark import history
+        demo = DemoStore()
+        try:
+            con = demo.store.con
+            bare = ["plain%d" % n for n in range(450)]
+            keys = {b: b for b in bare}
+            keys["plain7"] = "plain7|plain8|x"                     # a joined key that names two of them
+            for n, (b, key) in enumerate(keys.items()):
+                cur = con.execute("INSERT INTO change_log (tbl, item_id, field, new_value, op, via) "
+                                  "VALUES ('actions', ?, 'owner', 'Sam', 'update', 'test')", (key,))
+                con.execute("INSERT INTO item_events (at, item_id, change, kind, route, actor) "
+                            "VALUES (?, ?, ?, 'change', 'dashboard', 'you')", ("2030-01-01 00:%02d:00" % (n % 60), key, cur.lastrowid))
+            con.commit()
+            a1 = demo.action()
+            demo.update("actions", a1, {"owner": "Sam Example"})
+            ids = bare + [a1, "ABC-A-999"]
+            many = history.history_many(con, ids)
+            self.assertEqual(set(many), set(ids))
+            for i in ids:
+                self.assertEqual(many[i], history.history(con, i), i)
+            self.assertEqual(len(many["plain0"]), 1)
+        finally:
+            demo.close()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -65,6 +65,9 @@ def history(con, item_id):
     return build_events(rows, reverted_rowids(con))
 
 
+BATCH = 100                                                # ids per query in history_many
+
+
 def history_many(con, ids):
     """{id: history(con, id)} for every ID in `ids`, read in ONE pass: the undone steps are found once and the log is read once
     (the single-item query's leading wildcard cannot use the index, so asking per item scans the whole log each time). Each
@@ -73,11 +76,18 @@ def history_many(con, ids):
     if not ids:
         return {}
     wanted = set(ids)
-    codes = sorted({i.split("-", 1)[0] for i in ids})
-    where = " AND (" + " OR ".join(["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes)) + ")"
-    args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")]
+    found = {}
+    for at in range(0, len(ids), BATCH):                   # a bounded number of terms per query: SQLite refuses a very long OR
+        part = ids[at:at + BATCH]
+        codes = sorted({i.split("-", 1)[0] for i in part if "-" in i})
+        bare = [i for i in part if "-" not in i]           # no code to match by: ask the three ways history() asks
+        terms = ["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes) + ["c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?"] * len(bare)
+        args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")] + [x for i in bare for x in (i, i + "|%", "%|" + i + "|%")]
+        for r in con.execute(ROW_SQL + " AND (" + " OR ".join(terms) + ")", args):
+            found[r["rowid"]] = r
+    rows = sorted(found.values(), key=lambda r: (r["event_id"], r["rowid"]))
     mine = {i: [] for i in ids}
-    for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", args):
+    for r in rows:
         key = str(r["item_id"])
         if "|" not in key:                                  # the usual row: keyed by its own item alone
             if key in wanted:
