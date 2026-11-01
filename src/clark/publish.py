@@ -442,6 +442,10 @@ LOOK_PICTURES = re.compile(r"\s*--(?:art-home|image-cover|image-fade)\s*:\s*\Z")
 LOOK_PICTURE_TYPE = re.compile(r"image/(?:png|jpeg|gif|webp|svg\+xml)\Z")
 _DATA_URL = re.compile(r"[\"'\s]*data:([^;,\"')]*)", re.I)
 _PROPERTY = re.compile(r"\s*([\w-]+)\s*:")
+# The pieces of _CSS_PIECE, except that a run of words and punctuation with no string or bracket in it is one piece, not one per
+# word (a function name before its ( is still its own piece). The walk below reads only brackets, strings, { } ; and the end of a
+# piece, so it costs a step per bracket or string, not per word: an embedded font is a handful of steps, not thousands.
+_PICTURE_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
 
 
 def _picture_as_data(css, work=None):
@@ -470,7 +474,7 @@ def _picture_as_data(css, work=None):
         logo = LOGO_RULE.match(plain, blocks[0][1]) if len(blocks) == 1 else None      # the rule's own block, nothing around it
         return not (logo and start < logo.end())
 
-    for m in _CSS_PIECE.finditer(plain):
+    for m in _PICTURE_PIECE.finditer(plain):
         work.spend()
         piece = m.group(0)
         if m.group(1) is not None:
