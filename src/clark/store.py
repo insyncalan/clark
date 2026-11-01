@@ -33,7 +33,8 @@ SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 9          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v10.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
+SCHEMA_VERSION = 10         # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#412): a use case can be Done. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -95,7 +96,7 @@ ALLOWED = {
     ("raid", "impact"): ("High", "Medium", "Low"),
     ("raid", "likelihood"): ("High", "Medium", "Low"),
     ("decisions", "status"): ("Pending", "Made", "Withdrawn"),
-    ("use_cases", "status"): ("On track", "Flag", "High risk"),                                    # clark
+    ("use_cases", "status"): ("On track", "Flag", "High risk", "Done"),                            # clark
     ("links", "kind"): ("blocks",),
     ("labels", "behaviour"): ("warn", "exclude"),
     ("labels", "default_choice"): ("include", "exclude"),
@@ -1978,10 +1979,37 @@ def migrate_people(con):
             con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN owner_id TEXT REFERENCES people(id)")
 
 
+def _use_cases_allow_done(con):
+    """use_cases.status gains 'Done' (#412). SQLite cannot widen a CHECK in place, so the table is made again from its frozen
+    text (SCHEMA_USE_CASES_DONE, never schema.sql), every row is copied by column name with its id and its rowid, the old table
+    is dropped and the new one takes its name. Nothing else changes: no table points at use_cases by a key (a work item names
+    its use case in a plain text column), and use_cases has no index or trigger of its own. Only when the table's own definition
+    does not name 'Done' yet, so a second run (or a new database) does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'use_cases'").fetchone()
+    if have is not None and "'Done'" in have[0]:
+        return
+    (made,) = [st for st in _statements(SCHEMA_USE_CASES_DONE.read_text(encoding="utf-8")) if "CREATE TABLE IF NOT EXISTS use_cases (" in st]
+    if have is None:
+        con.execute(made)
+        return
+    con.execute(made.replace("CREATE TABLE IF NOT EXISTS use_cases (", "CREATE TABLE use_cases_done (", 1))
+    con.execute("INSERT INTO use_cases_done (rowid, id, project, ref, title, status, headline, standing, sort_order, client_visible, "
+                "source, archived, updated_at) SELECT rowid, id, project, ref, title, status, headline, standing, sort_order, "
+                "client_visible, source, archived, updated_at FROM use_cases ORDER BY rowid")
+    con.execute("DROP TABLE use_cases")
+    con.execute("ALTER TABLE use_cases_done RENAME TO use_cases")
+
+
+def migrate_use_case_done(con):
+    """A use case can be Done (#412): use_cases is made again with 'Done' in its status CHECK. Its own step (see SCHEMA_VERSION and
+    MIGRATIONS); it touches no other table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _use_cases_allow_done(con)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
-              (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people))
+              (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_use_case_done))
 
 
 def migration_plan(version, table=None):

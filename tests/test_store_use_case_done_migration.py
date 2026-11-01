@@ -75,8 +75,8 @@ def add_use_cases(path):
                 "VALUES ('ABC-A-001', 'ABC', 'Send the matching rules', '2026-10-01', 'ABC-U-001', 'test')")
     con.execute("INSERT INTO raid (id, project, type, description, raised, use_case, source) "
                 "VALUES ('ABC-001', 'ABC', 'Risk', 'Portal supplier late', '2026-10-01', 'ABC-U-002', 'test')")
-    con.execute("INSERT INTO decisions (id, project, decision, raised, use_case, source) "
-                "VALUES ('ABC-D-001', 'ABC', 'Keep the archive read-only', '2026-10-01', 'ABC-U-003', 'test')")
+    con.execute("INSERT INTO decisions (id, project, decision, status, needed_by, use_case, source) "
+                "VALUES ('ABC-D-001', 'ABC', 'Keep the archive read-only', 'Pending', '2026-11-20', 'ABC-U-003', 'test')")
     con.execute("INSERT INTO links (from_item, to_item, kind, source) VALUES ('ABC-A-001', 'ABC-U-002', 'blocks', 'test')")
     con.execute("INSERT OR IGNORE INTO labels (name, colour, behaviour, default_choice, builtin) VALUES ('Sensitive', 'red', 'warn', 'exclude', 1)")
     con.execute("INSERT INTO item_labels (item_id, label, added_by) VALUES ('ABC-U-003', 'Sensitive', 'Sam Lee')")
@@ -182,7 +182,7 @@ class Migrating(Base):
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], 0)        # a migration is not a step
             self.assertEqual({r["id"]: r["status"] for r in s.read("use_cases", "ABC")},
-                             {u[0]: u[3] for u in ucs if not u[8]})
+                             {u[0]: u[3] for u in ucs})                     # the archived one too: it stays archived, never lost
         finally:
             s.close()
         after = every_row(path)
