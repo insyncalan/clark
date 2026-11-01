@@ -5,11 +5,11 @@
 // due date (a week from today; a decision is needed today, as the prototype has it), an action's or a risk's workstream (the one
 // filtered on, else the first active one, as the prototype has it) and an action's priority. Whether the item is
 // shown to the client is the store's default (every work item is client-visible by default, D-3); the eye hides it.
-// View is read only, so a pick made in View turns the page to Edit first: the new item is open to be edited, and the toast with its
-// Undo is an Edit part. As in the prototype, the list is then set so the new row is drawn: the Open, Closed, All switch, the type,
+// #449: the prototype adds in View, so a pick made in View stays in View: the item is made, the toast with its Undo is drawn in View
+// too (Toast.jsx), and the panel opens as View draws it (read only: there is no title to take the keyboard). As in the prototype, the list is then set so the new row is drawn: the Open, Closed, All switch, the type,
 // every filter and the search are cleared, and the item's group is opened; the panel opens and its title takes the keyboard.
 import { newItem } from "../stores/changes.js";
-import { openPeek, mode, filterState, setFilterState, setQuery, rows } from "../stores/report.js";
+import { openPeek, filterState, setFilterState, setQuery, rows } from "../stores/report.js";
 import { work, setWork, contextFor } from "../stores/work.js";
 import { cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 import { initial } from "../filters.js";
@@ -73,7 +73,6 @@ export async function addItem(kind, place = "menu") {
   const today = todayIso();
   const req = newItemRequest(kind, today, place, workstreamFor(filterState.value, contextFor(today, "all").workstreams));
   if (!req) return null;
-  if (mode.value !== "edit") mode.value = "edit";
   const reply = await newItem(req, placeholderWords(kind));
   if (!reply || typeof reply.ref !== "string") return null;
   showRow(reply.ref, today);

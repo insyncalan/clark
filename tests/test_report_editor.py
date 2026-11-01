@@ -1309,7 +1309,7 @@ class Published(unittest.TestCase):
     def test_the_published_build_has_no_route_no_edit_control_and_no_edit_button(self):
         text = page.VIEW_PAGE.read_text(encoding="utf-8")
         for never in ("/api/change", "/api/undo", "plaintext-only", "data-edit-only", "data-drag", "contenteditable",
-                      "Add a text section", "Add a section below", "Add a template below", "View (V)", "Edit (E)", "aria-keyshortcuts"):
+                      "Add a text section", "Add a section below", "Add a template below", "Column width reset", "View (V)", "Edit (E)", "aria-keyshortcuts"):
             self.assertNotIn(never, text, never)
         self.assertIn("/api/change", page.PAGE.read_text(encoding="utf-8"), "the served page does have it")
         with tempfile.TemporaryDirectory() as tmp:

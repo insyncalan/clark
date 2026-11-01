@@ -10,7 +10,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import KEYS, click, where  # noqa: E402
+from test_work_filters import KEYS, click, dblclick, where  # noqa: E402
 
 ARROWS = {"ArrowLeft": 37, "ArrowRight": 39}
 
@@ -122,6 +122,32 @@ class Columns(Base):
                     cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": 1 if kind == "mousePressed" else 0, "clickCount": n}, sid)
                 self.until(cdp, sid, f"Math.round(document.querySelector(\".col[data-col='{col}']\").getBoundingClientRect().width) === 272", "a double-click resets")
                 self.assertEqual(self.sent, [])
+
+    def test_a_double_click_on_the_grip_says_column_width_reset_in_a_toast_in_view_and_in_edit(self):
+        """#449 (row 48): the prototype's double-click puts the width back and says "Column width reset" in a toast. The toast is drawn
+        in View as in Edit, once, inside the page's one live region, and is in view at 1400 and 900 px, light and dark."""
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                for edit in (False, True):
+                    with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
+                        sid = self.visit(cdp, width=width, edit=edit)
+                        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                        self.board(cdp, sid, "status")
+                        col = self.order(cdp, sid)[0]
+                        grip = f".col[data-col='{col}'] .col-rz"
+                        cdp.js(f"document.querySelector(\"{grip}\").focus()", sid)
+                        plain_key(cdp, sid, "End")
+                        self.assertEqual(self.width(cdp, sid, col), 640)
+                        self.assertFalse(cdp.js("!!document.querySelector('.toast')", sid), "no toast before the double-click")
+                        dblclick(cdp, sid, grip)
+                        self.until(cdp, sid, f"Math.round(document.querySelector(\".col[data-col='{col}']\").getBoundingClientRect().width) === 272", "reset")
+                        self.until(cdp, sid, "!!document.querySelector('.toasts .toast .toast-text')", "the toast")
+                        self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), "Column width reset")
+                        self.assertEqual(cdp.js("document.querySelectorAll('.toasts').length", sid), 1, "one live region")
+                        self.assertFalse(cdp.js("!!document.querySelector('.toast [data-undo]')", sid), "a width has no Undo: it is never saved")
+                        self.assertTrue(cdp.js("(() => { const r = document.querySelector('.toast').getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()", sid), "the toast is in view")
+                        self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
+                        self.assertEqual(self.sent, [])
 
     def test_widths_and_order_belong_to_the_grouping(self):
         with chrome() as cdp:
