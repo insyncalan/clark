@@ -20,7 +20,10 @@ VERSION = "0.4.0"
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
-    ("#96", "The Add a section box offers only the section types the store takes", "test_templates::Logic::test_what_the_store_takes_is_what_the_list_says"),
+    ("#96", "The Add a section box offers only the section types the store takes (all first-slice templates are filled in)", "test_templates::Logic::test_the_first_slice_is_all_there_with_everything_filled_in"),
+    ("#96", "A template is placeable only when it is ready", "test_templates::Logic::test_a_stub_type_is_placeable_only_when_ready"),
+    ("#96", "A file added to a Documents and links section is copied into Report files, in one step with one Undo",
+     "test_section_file_route::Route::test_the_file_is_copied_and_added_in_one_step_and_undo_leaves_the_copy"),
     ("#44a", "The Milestones Calendar opens on Month", "test_calendar_scales::Scale::test_month_is_the_default"),
     ("#45", "The Use cases section lists every use case of the project in order", "test_use_cases_read::WhatItReturns::test_the_project_use_cases_in_order"),
     ("#164", "A use case field changes in one step with one Undo", "test_changes_use_cases::Edit::test_each_field_changes_in_one_step_with_undo"),
@@ -59,6 +62,9 @@ WALK_THROUGH = [
      "needs Excel", "Export the demo project, open it in Excel, scroll a data sheet and read the Cover sheet."),
     ("#85", "An exported Excel file that is edited, saved again and imported still matches its export", "live only",
      "needs Excel", "Change a cell in Excel, save, import it, and check the changes listed are only yours."),
+    ("#96", "Each template can be added, the Figures As of box refuses a bad date, and a file can be added to a Documents and links section",
+     "judgement", "only a person can see that each result looks right",
+     "In Edit, Add a section: add one of each template; type 31-02-2026 in a Figures As of box and read the words; in a Documents and links section add a file and check it is in the client folder's Report files folder."),
     ("#111", "Settings > Safety previews and restores a backup", "judgement",
      "the owner reads the words and decides they are clear", "Open Settings > Safety, preview a backup and read it; restore only a demo copy."),
     ("#110", "Copy diagnostics gives a report with no client content", "judgement",
