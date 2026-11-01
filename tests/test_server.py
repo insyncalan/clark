@@ -425,7 +425,7 @@ class Saving(ServerTest):
 
     def test_the_undo_limit_sits_above_the_largest_batch_the_seam_accepts(self):
         """#268: 200 steps (twice the 100 a batch takes, the most the seam looks at) of 19 digits is a request the seam answers in
-        words ("Choose at most 100 ..."); the byte limit must not turn it into the general "too big" first."""
+        words ("Choose 1 to 100 changes to undo."); the byte limit must not turn it into the general "too big" first."""
         from clark import store as clark_store
         running = self.seams()
         self.addCleanup(running.close)
