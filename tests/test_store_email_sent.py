@@ -208,7 +208,7 @@ class Append(Base):
 
     def test_a_fresh_insert_still_works_and_the_migrated_file_refuses_replace_too(self):
         self.send()
-        self.send()
+        self.send(mode="update_request")
         con = sqlite3.connect(self.store.path)
         try:
             self.assertEqual(con.execute("SELECT count(*) FROM email_sent").fetchone()[0], 2)
@@ -397,6 +397,26 @@ class Refusals258(Base):
         self.refuses("is ahead of today", day=str(TODAY + timedelta(days=2)))
         for d in (TODAY, TODAY - timedelta(days=1), TODAY + timedelta(days=1)):
             self.assertTrue(self.send(day=str(d)))
+
+    def test_an_item_whose_label_is_excluded_by_default_is_refused_like_a_sensitive_one(self):
+        item, other = self.demo.action(description="x"), self.demo.action(description="y")
+        with self.store.step("dashboard", USER) as st:
+            st.create("labels", {"name": "Keep quiet", "behaviour": "warn", "default_choice": "exclude"})
+            st.create("labels", {"name": "Never", "behaviour": "exclude", "default_choice": "include"})
+            st.create("item_labels", {"item_id": item, "label": "Keep quiet"})
+            st.create("item_labels", {"item_id": other, "label": "Never"})
+        self.refuses("hidden, closed or marked Sensitive", ids=[self.a, item])
+        self.refuses("hidden, closed or marked Sensitive", ids=[other])
+        self.assertTrue(self.send(ids=[self.a]))
+
+    def test_the_same_press_again_within_seconds_is_one_record_and_anything_different_is_another(self):
+        first = self.send(ids=[self.a, self.b])
+        self.assertEqual(self.send(ids=[self.b, self.a]), first, "a second tab a moment later")
+        self.assertEqual(len(self.store.email_sent_for("ABC")), 1)
+        for change in ({"mode": "update_request"}, {"ids": [self.a]}, {"day": str(TODAY - timedelta(days=1))}, {"who": "Pat Doe"}):
+            with self.subTest(change=change):
+                self.assertNotEqual(self.send(**change), first)
+        self.assertEqual(len(self.store.email_sent_for("ABC")), 5)
 
 
 

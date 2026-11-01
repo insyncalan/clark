@@ -2527,6 +2527,7 @@ class Store:
 
     EMAIL_MODES = ("update_request", "chase", "decision")
     EMAIL_MAX_IDS = 50
+    EMAIL_REPEAT_SECONDS = 10               # the same press from a second tab inside this long is the same record
 
     def log_email_sent(self, code, ids, mode, day, by_user, today=None):
         """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
@@ -2585,6 +2586,13 @@ class Store:
                            for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
                                              ("decisions", ("Withdrawn", "Withdrawn"))))):
                 raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
+            # The same person pressing the same record again within seconds (a second tab) is the same record, not a second chase.
+            for r in self.con.execute("SELECT seq FROM email_sent WHERE project = ? AND day = ? AND mode = ? AND by_user = ? "
+                                      "AND at >= datetime('now', ?)",
+                                      (code, str(day), mode, str(by_user).strip(), f"-{self.EMAIL_REPEAT_SECONDS} seconds")).fetchall():
+                if {x["item_id"] for x in self.con.execute("SELECT item_id FROM email_sent_items WHERE seq = ?", (r["seq"],))} == set(ids):
+                    self.con.execute("COMMIT")
+                    return r["seq"]
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
@@ -2595,13 +2603,13 @@ class Store:
             raise
 
     def sensitive_among(self, ids):
-        """True when any of the item ids is labelled Sensitive or carries a label whose behaviour is 'exclude': the one test for
+        """True when any of the item ids is labelled Sensitive or carries a label whose behaviour or default choice is 'exclude': the one test for
         what may never go in an email (the sent record refuses it here)."""
         values = list(ids)
         if not values:
             return False
         return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({', '.join('?' * len(values))}) "
-                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", values).fetchone())
+                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude' OR b.default_choice = 'exclude')", values).fetchone())
 
     def email_sent_for(self, code, limit=200):
         """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
