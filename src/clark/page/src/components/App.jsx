@@ -14,6 +14,7 @@ export function App({ tools }) {
   const own = (tabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
   const Page = view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
   const Toast = tools && tools.Toast;
+  const RowMenu = tools && tools.RowMenu;               // the right-click menu on a work item (#97); a published file has none
   const Layer = tools && tools.HelpLayer;                // Help (#82) sits over the open page; a published file has none
   const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none
   const Ask = tools && tools.AskPanel;                   // the ask panel (#47a) sits over the open page; a published file has none
@@ -26,6 +27,7 @@ export function App({ tools }) {
       {Ask ? <Ask /> : null}
       {status.value === "ready" ? <Peek tools={tools} /> : null}
       {Toast ? <Toast /> : null}
+      {RowMenu ? <RowMenu /> : null}
       {Pal ? <Pal /> : null}
       {AddDialog ? <AddDialog /> : null}
     </>
