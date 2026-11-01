@@ -13,7 +13,7 @@ export function Milestones({ tools }) {
   return (
     <section class="frame milestones" id="milestones">
       <h1>Milestones</h1>
-      <MsBlock place="page" />
+      <MsBlock place="page" tools={tools} />
       {More ? <More /> : null}
     </section>
   );
