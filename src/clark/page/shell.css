@@ -341,6 +341,48 @@ table.needs .n-over { margin-left: 2px; }
 .slot-left table.needs .n-by, .slot-right table.needs .n-by { width: 34%; }
 @media (max-width: 900px) { table.needs .n-from { width: 26%; } table.needs .n-by { width: 30%; } }
 
+/* 'Progress tracker' (#189): the overall bar, then each group of lines. Only tokens; "behind plan" is never colour alone (▼ and words). */
+.sec-tracker { margin: 8px 0 8px; min-width: 0; }
+.tr-overall { margin: 0 0 16px; }
+.tr-figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 28px; }
+.tr-fig { display: flex; flex-direction: column; }
+.tr-k { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.tr-v { font-family: var(--font-head); font-size: 34px; line-height: 1.1; color: var(--heading); }
+.tr-health { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-bottom: 4px; }
+.tr-note { color: var(--text); font-size: 14px; }
+.tr-bar { position: relative; height: 14px; margin: 10px 0 4px; border-radius: 999px; background: var(--grey-100); overflow: visible; }
+.tr-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--brand-blue); min-width: 0; }
+.tr-mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--text); }
+.tr-behindline { margin: 4px 0 0; font-size: 14px; color: var(--status-red-text); }
+.tr-behind { margin-left: 6px; font-size: 13px; color: var(--status-red-text); white-space: nowrap; }
+.pill.v { background: var(--grey-100); color: var(--text); }
+.pill.v::before { background: var(--data-1); }
+table.tracker { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; margin: 0 0 18px; }
+table.tracker caption.tr-cap, .tr-half .tr-cap { text-align: left; font-family: var(--font-head); font-size: 16px; color: var(--heading); padding: 6px 4px; font-weight: 400; margin: 0; }
+table.tracker th { text-align: left; font-weight: 400; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 8px; border-top: 1px solid var(--grey-200); }
+table.tracker td { padding: 8px 8px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
+table.tracker th:first-child, table.tracker td:first-child { padding-left: 4px; }
+table.tracker .t-no { width: 6%; }
+table.tracker .t-date { width: 11%; }
+table.tracker .t-status { width: 13%; }
+table.tracker .t-n { width: 9%; text-align: right; }
+table.tracker .t-count { width: 8%; }
+table.tracker tr.tr-total th, table.tracker tr.tr-total td { border-top: 1px solid var(--grey-300); color: var(--heading); font-weight: var(--weight-medium); text-transform: none; letter-spacing: 0; font-size: 14px; }
+table.tracker tr.tr-none td { text-align: left; }
+.tr-sub { font-family: var(--font); font-size: 14px; color: var(--text-muted); }
+.tr-half { margin: 0 0 14px; }
+.tr-list { list-style: none; margin: 0; padding: 0; }
+.tr-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 12px; align-items: baseline; padding: 8px 4px; border-top: 1px solid var(--grey-100); }
+.tr-list .tr-text { overflow-wrap: anywhere; }
+.tr-weights { margin: 4px 0 0; }
+@media (max-width: 900px) {
+  table.tracker .t-date, table.tracker .t-count, table.tracker th.t-date, table.tracker th.t-count { display: none; }
+  table.tracker .t-n { width: 14%; }
+  table.tracker .t-status { width: 20%; }
+  table.tracker .t-no { width: 8%; }
+}
+@media print { .tr-bar, .tr-fill, .tr-mark { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
+
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
 .sec.is-hidden { border-top-style: dashed; }
 .sec.is-hidden > :not(.sec-ctl) { opacity: .65; }
