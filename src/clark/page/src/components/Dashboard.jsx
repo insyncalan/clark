@@ -56,7 +56,10 @@ export function Dashboard({ tools }) {
   const counts = {};
   for (const s of list) { const c = countOf(s, d, todayIso(), fromFile.value); if (c) counts[s.id] = c; }
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
+  const Bar = tools && tools.ReportBar && !fromFile.value ? tools.ReportBar : null;      // a page clark serves only (A-D2)
   return (
+    <>
+    {Bar ? <Bar /> : null}
     <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
       <p class="crumbs">{d.project.client_name || "Report"}</p>
       <h1>{d.project.name}</h1>
@@ -67,5 +70,6 @@ export function Dashboard({ tools }) {
       {editing && list.length === 0 ? <tools.Add /> : null}
       <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} counts={counts} />
     </section>
+    </>
   );
 }

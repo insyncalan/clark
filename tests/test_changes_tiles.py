@@ -63,7 +63,7 @@ class Base(unittest.TestCase):
 class Kinds(Base):
     def test_the_two_kinds_and_their_fields(self):
         self.assertEqual(changes.CHANGE_KINDS["glance_tiles"], {"update": ("hidden", "outline"), "move": ()})
-        self.assertEqual(changes.CHANGE_KINDS["projects"], {"update": ("health", "health_reason"), "archive": (), "restore": ()})   # #126 adds archive and restore
+        self.assertEqual(changes.CHANGE_KINDS["projects"], {"update": ("health", "health_reason", "week_ending"), "archive": (), "restore": ()})   # #126 adds archive and restore
         for kind in ("glance_tiles", "projects"):
             columns = set(store_module.columns(self.s.con, kind))
             for fields in changes.CHANGE_KINDS[kind].values():
@@ -236,13 +236,14 @@ class Tiles(Base):
 
 class Health(Base):
     def test_a_health_change_with_a_reason_is_one_step_and_undo_puts_both_back(self):
+        week = self.project()["week_ending"]
         body = self.ok(self.proj(health="At risk", health_reason="Test environment is late"))
-        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Test environment is late"})
+        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Test environment is late", "week_ending": week})
         self.assertEqual(set(body), {"ok", "apply_id", "ref", "project"})
         status, back = self.back(body["apply_id"])
         self.assertEqual(status, 200, back)
         self.assertEqual(back["words"], "Put back: the health of the project (On track) and its reason.")
-        self.assertEqual(back["project"], {"health": "On track", "health_reason": None})
+        self.assertEqual(back["project"], {"health": "On track", "health_reason": None, "week_ending": week})
         self.assertEqual((self.project()["health"], self.project()["health_reason"]), ("On track", None))
         self.assertEqual(self.back(body["apply_id"])[0], 409)
 
@@ -287,11 +288,37 @@ class Health(Base):
         self.refused({**self.proj(health="At risk", health_reason="x"), "id": "ABC"}, "That change doesn't take 'id'.")
         self.refused({**self.proj(health="At risk", health_reason="x"), "id": None}, "That change doesn't take 'id'.")
         self.refused({**self.proj(health="At risk", health_reason="x"), "after": "x"}, "That change doesn't take 'after'.")
-        for field in ("name", "phase", "status", "code", "current_state", "layout", "active", "archived", "sponsor", "client_name", "week_ending"):
+        for field in ("name", "phase", "status", "code", "current_state", "layout", "active", "archived", "sponsor", "client_name"):
             self.refused(self.proj(**{field: "x"}), f"The field '{field}' can't be set here.")
         self.refused(self.proj(), "Say what to change.")
         self.refused({"project": "ABC", "kind": "projects", "op": "update"}, "Say what to change.")
         self.refused({"project": "ABC", "kind": "projects", "op": "update", "changes": "At risk"}, "Send the changes as an object.")
+
+    def test_a_real_week_ending_date_is_one_step_and_undo_puts_the_old_date_back(self):
+        old = self.project()["week_ending"]
+        body = self.ok(self.proj(week_ending="2026-11-06"))
+        self.assertEqual(body["project"]["week_ending"], "2026-11-06")
+        self.assertEqual(self.project()["week_ending"], "2026-11-06")
+        status, back = self.back(body["apply_id"])
+        self.assertEqual(status, 200, back)
+        self.assertEqual(back["project"]["week_ending"], old)
+        self.assertEqual(self.project()["week_ending"], old)
+        self.assertEqual(self.back(body["apply_id"])[0], 409)
+
+    def test_a_week_ending_that_is_not_a_real_date_is_refused_and_the_old_date_kept(self):
+        old = self.project()["week_ending"]
+        for value in ("2026-13-45", "x", 5, None, "2026-02-30", "6-11-2026", "", "20261029", "2026-W44-3", "2026-10-29\n", " 2026-10-29", "\uff12\uff10\uff12\uff16-\uff11\uff10-\uff12\uff19"):
+            with self.subTest(value=value):
+                self.refused(self.proj(week_ending=value), changes.BAD_WEEK)
+                self.assertEqual(self.project()["week_ending"], old)
+
+    def test_week_ending_and_health_change_in_one_step(self):
+        old = self.project()["week_ending"]
+        body = self.ok(self.proj(health="At risk", health_reason="Late", week_ending="2026-11-13"))
+        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Late", "week_ending": "2026-11-13"})
+        status, back = self.back(body["apply_id"])
+        self.assertEqual(status, 200, back)
+        self.assertEqual((self.project()["health"], self.project()["week_ending"]), ("On track", old))
 
     def test_a_value_that_is_not_a_health_or_not_text(self):
         for value in ("Green", "on track", "", None, 1, ["At risk"], True):
@@ -427,7 +454,7 @@ class WhatAnUndoMayReverse(Base):
         self.assertEqual(set(changes.UNDOABLE), {"report_sections", "actions", "raid", "decisions", "glance_tiles", "projects",
                                                  "milestones", "use_cases", "documents", "workstreams", "report_hidden"})   # #126 adds the archivable records
         self.assertEqual(changes.UNDOABLE["glance_tiles"], ("hidden", "outline", "sort_order"))
-        self.assertEqual(changes.UNDOABLE["projects"], ("health", "health_reason", "archived", "active"))
+        self.assertEqual(changes.UNDOABLE["projects"], ("health", "health_reason", "week_ending", "archived", "active"))
         self.assertTrue(set(changes.UNDOABLE) >= set(changes.CHANGE_KINDS), "every kind the route admits can be undone")
 
     def test_a_dashboard_step_that_renamed_the_project_is_refused(self):
