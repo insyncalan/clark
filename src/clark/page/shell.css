@@ -967,3 +967,31 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+
+/* G5 typed notes (#96): Callout, Quote, Contacts, Table, as the report and the published file draw them. Tokens only. */
+.tpl-callout { margin: 8px 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); background: var(--surface-muted); color: var(--text); overflow-wrap: anywhere; }
+.tpl-callout.tone-info { border-left-color: var(--status-blue); }
+.tpl-callout.tone-decision { border-left-color: var(--status-amber); }
+.tpl-callout.tone-warning { border-left-color: var(--status-red); }
+.tpl-callout-tone { margin: 0 0 var(--space-1); font-size: var(--size-small); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.tone-info .tpl-callout-tone { color: var(--status-blue-text); }
+.tone-decision .tpl-callout-tone { color: var(--status-amber-text); }
+.tone-warning .tpl-callout-tone { color: var(--status-red-text); }
+.tpl-callout-h { margin: 0 0 var(--space-1); font-weight: var(--weight-medium); color: var(--heading); }
+.tpl-callout-p { margin: 0 0 var(--space-2); }
+.tpl-callout-p:last-child { margin-bottom: 0; }
+.tpl-quote { margin: 8px 0; padding: 0 0 0 var(--space-4); border-left: 3px solid var(--brand-blue); min-width: 0; overflow-wrap: anywhere; }
+.tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
+.tpl-quote-q p { margin: 0; }
+.tpl-quote-by { margin-top: var(--space-2); font-size: var(--size-small); color: var(--text-muted); }
+.tpl-contacts { list-style: none; margin: 8px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
+.tpl-contact { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.tpl-contact-name { font-weight: var(--weight-medium); color: var(--heading); }
+.tpl-contact-role { font-size: var(--size-small); color: var(--text-muted); }
+.tpl-contact-line { font-size: var(--size-small); }
+.tpl-contact-line a { color: var(--link); }
+.tpl-table-wrap { margin: 8px 0; max-width: 100%; overflow-x: auto; }
+.tpl-table { width: 100%; border-collapse: collapse; font-size: var(--size-body); }
+.tpl-table caption { caption-side: bottom; padding-top: var(--space-2); text-align: left; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-table th, .tpl-table td { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.tpl-table th { background: var(--surface-muted); color: var(--heading); font-weight: var(--weight-medium); }
