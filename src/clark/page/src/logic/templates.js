@@ -1,12 +1,19 @@
 // The section templates and the Add a section box's logic (#96): pure functions and one list. No DOM, no signals, nothing sent.
 // docs/handoff/design-96-templates.md has the rules. A template is data; the box (edit/AddDialog.jsx) draws it and edit/actions.js
-// sends the requests that `plan` gives back. The second slice adds entries to TEMPLATES and nothing else.
+// sends the requests that `plan` gives back.
+//
+// A template is placeable only when its entry says `ready: true` AND the store takes its type (ACCEPTS). The store takes every
+// template type from #96's registry change (R0); each template's `ready` is switched on by the lead once that template is built
+// (its section_kinds module and its page part say READY; tests/test_section_registry.py refuses `ready` on a stub). Until then
+// it is listed but says "Coming with a later release." LATER holds the second slice's entries: in the catalogue, not yet in the
+// box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
+import { TEMPLATE_TYPES } from "../templates/types.js";
 import { WORDS as NEEDS } from "./needs.js";
 
-// What the store takes in a new section today (changes.py NEW_SECTION_TYPES: text, and needs since the section that carries content, #121).
-// A template whose type is not here is listed but not offered. Widen this only when the store takes the type (the design note, section 6).
-export const ACCEPTS = { types: ["text", "needs"] };
+// What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, needs since the section that carries content (#121),
+// and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
+export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES] };
 
 export const KINDS = [
   { id: "text", name: "Text and pictures" },
@@ -21,29 +28,50 @@ export const RECENT_MAX = 3;
 
 // Words and parts are the prototype's (system/prototype/views.js, the same list Help's table draws from). `fit` puts the better width first.
 export const TEMPLATES = [
-  { id: "text", name: "Text", kind: "text", fit: ["full", "half"], type: "text", title: "New section", body: "",
+  { id: "text", name: "Text", kind: "text", fit: ["full", "half"], type: "text", title: "New section", body: "", ready: true,
     description: "Words under a heading, written in clark’s one editor.", holds: ["Heading", "Text"] },
-  { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "",
+  { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "", ready: true,
     description: "A story with a picture: a site visit, a design, a screenshot of the new system.", holds: ["Heading", "Text", "Image", "Caption"] },
-  { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures", title: "Key figures", body: "",
+  { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures4", title: "Key figures", body: "", ready: true,
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
-  { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures", title: "Key figures", body: "",
+  { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
-  { id: "raid-3", name: "RAID cards, three", kind: "work", fit: ["full"], type: "raidcards", title: "Risks and issues", body: "",
+  { id: "raid-3", name: "RAID cards, three", kind: "work", fit: ["full"], type: "raid3", title: "Risks and issues", body: "", ready: true,
     description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
-  { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raidcards", title: "Risks and issues", body: "",
+  { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: true,
     description: "Four shorter cards: good for “this week’s actions” or “decisions needed”.", holds: ["Heading", "RAID card ×4"] },
-  { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "",
+  { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", ready: true,
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
-  { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "",
+  { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
-  { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "",
+  { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
     description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
-  { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "",
+  { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
-  { id: "needs", name: NEEDS.title, kind: "dates", fit: ["full", "half"], type: "needs", title: NEEDS.title, body: "",
+  { id: "needs", name: NEEDS.title, kind: "dates", fit: ["full", "half"], type: "needs", title: NEEDS.title, body: "", ready: true,
     description: "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", holds: ["Heading", "Row: what is needed", "From", "By"] },
+  { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
+    description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
+  { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
+    description: "A single file to read.", holds: ["Heading", "File", "Text"] },
 ];
+
+// The second slice (#96): every other template type, built (its section_kinds module and page part say READY) but not in the
+// box yet (find, list and plan read TEMPLATES only). No words here: their names, descriptions and parts wait for their words and
+// Help rows, and a template the box does not offer is not named on the page. The lead moves an entry into TEMPLATES, with its
+// words and its Help row.
+export const LATER = [
+  { id: "headline", type: "headline", ready: true },
+  { id: "gallery", type: "gallery", ready: true },
+  { id: "table", type: "table", ready: true },
+  { id: "image-caption", type: "imagecap", ready: true },
+  { id: "quote", type: "quote", ready: true },
+  { id: "contacts", type: "contacts", ready: true },
+  { id: "checklist", type: "checklist", ready: true },
+];
+
+// Every template entry, in the box or not: one per template type, and Text and Needs from you (#121).
+export const CATALOGUE = [...TEMPLATES, ...LATER];
 
 export const MESSAGES = {
   gone: "That section isn't in the report any more. Reload the page.",
@@ -59,7 +87,7 @@ const FIT_WORDS = { full: "Full width", half: "Half width" };
 export const fitWords = (t) => t.fit.map((f) => FIT_WORDS[f]).join(" or ");
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || null;
-export const available = (t) => !!t && ACCEPTS.types.includes(t.type);
+export const available = (t) => !!t && t.ready === true && ACCEPTS.types.includes(t.type);
 export const kindName = (id) => (KINDS.find((k) => k.id === id) || { name: "" }).name;
 
 const words = (s) => String(s || "").toLowerCase().split(/\s+/).filter(Boolean);
@@ -119,7 +147,7 @@ export function besideState(sections, after, template) {
 // The requests to make to add template `id` below section `after` (null: at the end), alone or beside that section as its second
 // half. { ok: true, requests, words, partial } or { ok: false, message }. Beside is one request (`new` takes `beside`, and clark sets the pairing in the same step). A section added alone below a
 // last section that carries a stale pairing flag needs a second request to clear it, because `new` does not clear it; `partial` is
-// what the toast says if that second request fails. Today a template other than the available ones is refused here, in words,
+// what the toast says if that second request fails. A template that is not available (not ready yet) is refused here, in words,
 // before anything is sent.
 export function plan(sections, id, after, beside = false) {
   const t = find(id);
