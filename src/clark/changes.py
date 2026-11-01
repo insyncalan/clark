@@ -653,6 +653,8 @@ def _do_change(store, by_user, req):
             ref = _add(st, project, rows, ids, title, after, new_type)
             if beside:
                 st.update(table, after, {"beside": 1})              # the same step: one Undo removes the section and the pairing
+            elif ids and after in (None, ids[-1]) and rows[-1]["beside"] == 1 and _on_its_own(rows, ids[-1]):
+                st.update(table, ids[-1], {"beside": 0})            # #244: a stale flag on the lone last section would pair the new one with it; cleared in the same step, so one Undo restores both
         else:
             _mine(ref, ids, NOT_MINE)
             if op == UPDATE:
