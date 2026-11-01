@@ -964,6 +964,12 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
         except OSError as e:
             raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}). Nothing was written.") from e
     digest = built["sha256"]
+    earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
+    if overwrite:
+        try:
+            earlier = read_plain(dest, 64 * 1048576)
+        except OSError:
+            earlier = None
     try:
         try:
             platform.write_file(dest, body)
@@ -983,6 +989,14 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
         seq = store.log_publication(code, dest, project["week_ending"], digest, by_user, number=built["number"])
     except NumberTaken as e:           # another publication took the number: this file says a number it does not have, so it is taken back
         if not overwrite:
+            take_back(dest, digest)
+        elif earlier is not None:
+            if still_ours(dest, digest):
+                try:
+                    platform.write_file(dest, earlier)
+                except (OSError, platform.PlatformError):
+                    pass
+        else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e
     except Exception as e:             # the file is good; only the record failed: say so, so nobody publishes it twice

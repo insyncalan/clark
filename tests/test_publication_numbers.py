@@ -308,6 +308,61 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(numbers(store.con, "PUB"), [1])
 
 
+    def _overwrite_rig(self):
+        tmp = tempfile.mkdtemp(prefix="clark-test-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        store = open_store(fx.build_db(Path(tmp) / "clark.db"), onedrive_roots=[])
+        self.addCleanup(store.close)
+        folder = Path(tmp) / "out"
+        folder.mkdir()
+        return store, folder
+
+    def _lost_race(self, store, folder, **kw):
+        real = store_module.Store.next_publication
+        store_module.Store.next_publication = lambda self, code: 1               # a stale view of the counter
+        try:
+            return publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING, **kw)
+        finally:
+            store_module.Store.next_publication = real
+
+    def test_overwrite_with_a_lost_race_puts_the_earlier_file_back_byte_for_byte(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        earlier = b"an earlier report \xe2\x80\x93 kept exactly"
+        dest.write_bytes(earlier)
+        with self.assertRaises(publish.PublishError):
+            self._lost_race(store, folder, overwrite=True)
+        self.assertEqual(dest.read_bytes(), earlier)
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing numbered or half-written is left")
+        self.assertEqual(numbers(store.con, "PUB"), [1])
+
+    def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
+        store, folder = self._overwrite_rig()
+        store.log_publication("PUB", Path("/tmp/clark-fictional/other.html"), None, SHA, "Someone Else")
+        with self.assertRaises(publish.PublishError):
+            self._lost_race(store, folder, overwrite=True)
+        self.assertEqual(list(folder.iterdir()), [])
+
+    def test_overwrite_without_a_race_still_replaces_the_file(self):
+        store, folder = self._overwrite_rig()
+        first = publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)
+        dest = Path(first["path"])
+        dest.write_bytes(b"old")
+        second = publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING, overwrite=True)
+        self.assertEqual(second["path"], first["path"])
+        self.assertEqual(second["number"], 2)
+        self.assertEqual(dest.read_bytes()[:15].lower(), b"<!doctype html>")
+        self.assertEqual(numbers(store.con, "PUB"), [1, 2])
+
+    def test_a_lost_race_without_overwrite_leaves_nothing(self):
+        store, folder = self._overwrite_rig()
+        store.log_publication("PUB", Path("/tmp/clark-fictional/other.html"), None, SHA, "Someone Else")
+        with self.assertRaises(publish.PublishError):
+            self._lost_race(store, folder)
+        self.assertEqual(list(folder.iterdir()), [])
+
+
 class TheHistoryLine(unittest.TestCase):
     def test_each_publish_is_one_line_in_all_and_in_no_other_filter(self):
         demo = DemoStore()
