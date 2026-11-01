@@ -1946,7 +1946,7 @@ OWNER_ID_TABLES = ("actions", "raid", "milestones", "workstreams", "decisions") 
 
 
 def migrate_people(con):
-    """The people step (#115): the people table (schema_v4.sql, idempotent) first, then an optional link column beside each of the
+    """The people step (#115): the people table (schema_v9.sql, idempotent) first, then an optional link column beside each of the
     five free-text owner columns (a column with a default of NULL is allowed in SQLite, and the table exists before the columns
     point at it). It creates no people and sets every link to NULL: the owner text keeps working exactly as before, and linking
     is a later, deliberate step. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 9 in

@@ -1854,7 +1854,14 @@ def _do_people_undo(store, by_user, req):
     if not rows or not any(r["table"] == "people" for r in rows) or any(r["via"] != "dashboard" for r in rows):
         raise Refused(NO_PEOPLE_UNDO)
     try:
-        store.undo(step, by_user)
+        plan = store.undo_many([step], by_user, dry=True)       # the very same run, always rolled back: nothing is written yet
+        if any(x["why"] in ("already undone", "is an undo") for x in plan["skipped"]):
+            raise Refused(UNDONE, 409, "undone")
+        if plan["skipped"]:                                    # all or nothing: one row that can't go back refuses the whole undo
+            raise Refused(_people_undo_reason(store, rows, plan["skipped"]))
+        done = store.undo(step, by_user)
+        if done["skipped"]:                                    # not reachable under the lock; never leave a half-undo if it were
+            raise Refused(_people_undo_reason(store, rows, done["skipped"]))
     except Invalid as e:
         text = str(e)
         if "undone already" in text or "undid an undo" in text:
@@ -1862,7 +1869,42 @@ def _do_people_undo(store, by_user, req):
         if text.startswith("clark's data is in use"):
             raise Refused(IN_USE, 503, "busy") from None
         raise Refused(NO_PEOPLE_UNDO) from None
-    return 200, {"ok": True, "people": store.people(archived=None)}
+    restored = _people_undo_counts(rows)
+    return 200, {"ok": True, "people": store.people(archived=None), "restored": restored, "message": _people_undo_words(restored)}
+
+
+def _people_undo_reason(store, rows, skipped):
+    """Plain words for an Undo that would leave something behind: what to do first. Names the person who now holds an email the
+    step freed, when that is the cause; otherwise says how many changes can't go back."""
+    freed = {r["key"] for r in rows if r["table"] == "people" and r["field"] == "email"}
+    for pid in sorted(freed):
+        for line in store.con.execute("SELECT old_value FROM change_log WHERE tbl = 'people' AND item_id = ? AND field = 'email' "
+                                      "ORDER BY rowid DESC", (pid,)):
+            mail = line[0]
+            if not mail:
+                continue
+            other = store.con.execute("SELECT name FROM people WHERE email = ? AND id <> ? AND archived = 0", (mail, pid)).fetchone()
+            if other:
+                return (f"This can't be undone: an email address it would put back is now used by {other[0]}. "
+                        f"Change or archive {other[0]} first, then undo again. Nothing has been changed.")
+            break
+    n = len(skipped)
+    return (f"This can't be undone: {n} change{'s' if n != 1 else ''} can no longer be put back, because the data has changed since. "
+            "Undo the later change first, then undo again. Nothing has been changed.")
+
+
+def _people_undo_counts(rows):
+    people = {r["key"] for r in rows if r["table"] == "people"}
+    emails = {r["key"] for r in rows if r["table"] == "people" and r["field"] == "email"}
+    items = {(r["table"], r["key"]) for r in rows if r["table"] != "people"}
+    return {"people": len(people), "emails": len(emails), "items": len(items)}
+
+
+def _people_undo_words(c):
+    p = f"{c['people']} {'person' if c['people'] == 1 else 'people'}"
+    e = f", {c['emails']} email address{'' if c['emails'] == 1 else 'es'}" if c["emails"] else ""
+    i = f" and {c['items']} item{'' if c['items'] == 1 else 's'}" if c["items"] else ""
+    return f"Undone: put back {p}{e}{i}."
 
 
 def _do_people_list(store, by_user, req):
