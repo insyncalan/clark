@@ -1,6 +1,7 @@
 // The other pages as a shell: Work items and the Dashboard (Dashboard.jsx) sit in one frame of the same width (
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
-import { status, message, project, projects, projectsState, openProject, tryAgain } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, data, fromFile, asAt } from "../stores/report.js";
+import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
 
@@ -8,11 +9,35 @@ function Empty({ title, children, action }) {
   return <section class="frame empty"><h1>{title}</h1><p class="muted">{children}</p>{action}</section>;
 }
 
+// The head of the Milestones page (#458; the prototype's): the project, the title, a sentence on where the last milestone stands and,
+// in the editor, the Add milestone button. The sentence is worked out from the rows the list shows, so a published file's is the client's.
+function MsHead({ Add }) {
+  const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
+  const line = headLine(milestoneRows(data.value.milestones, today, client));
+  return (
+    <>
+      <p class="crumbs">{data.value.project.name}</p>
+      <div class="head">
+        <div>
+          <h1>Milestones</h1>
+          <p class="head-sub" id="ms-summary">
+            {line
+              ? <><b>{line.name}</b> is {line.agreed ? "agreed" : "forecast"} for {showDate(line.date)}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
+              : "No milestones yet."}
+          </p>
+        </div>
+        {Add ? <Add /> : null}
+      </div>
+    </>
+  );
+}
+
 export function Milestones({ tools }) {
   const More = tools && tools.MilestoneMore;      // the owner's extra block under the Plan view (#136): Edit only, so a published page has none
+  const Add = tools && !fromFile.value ? tools.MsAdd : null;      // the owner's Add milestone (#458): not in a published file
   return (
     <section class="frame milestones" id="milestones">
-      <h1>Milestones</h1>
+      <MsHead Add={Add} />
       <MsBlock place="page" />
       {More ? <More /> : null}
     </section>

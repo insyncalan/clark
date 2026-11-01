@@ -214,6 +214,10 @@ export async function sendMilestoneChange(project, req) {
   }
 }
 
+// Add one work item or milestone (#458; op "new", place "report", clark/changes.py): {ok: true, reply} (the reply's `ref` is the new id and
+// `apply_id` its step) or {ok: false, message}. `values` are the fields the kind's `new` list takes. A short refusal of clark's own is shown as it is.
+export const sendNewRow = (project, kind, values) => postItem("/api/change", { project, kind, op: "new", values, place: "report" });
+
 // The Use cases page's own reads (#157). Both are GETs of routes that exist: /api/use-cases (each use case carries its history) and
 // /api/data with archived=only (the archived use cases, which the page's usual read leaves out). {ok, ...} or {ok: false}: a read
 // that fails is never a throw and the page says so in its own words.

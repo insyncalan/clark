@@ -1,20 +1,25 @@
 // Milestones Movement (#136; BRD FR-50 to FR-53), the owner's block under the Milestones list. Edit only: it is one of the `tools`
 // (edit/index.js), so the published page, which is given none, has none of it. It reads GET /api/movement (the server's cut-down view,
 // movement_view.py: no internal note), draws the sentence, one row per open milestone (worst first), the chosen milestone's card
-// with What changed, and the two choices: Hold, and Move the agreed date (who agreed it, the reason and the source are asked for, and
-// the confirm says what will happen). Each choice is one change with one Undo (stores/changes.js). Words: edit/movementWords.js.
+// with What changed, and the four choices: Hold, Move the agreed date (who agreed it, the reason and the source are asked for, and
+// the confirm says what will happen), Add a recovery action and Escalate to steering (#458: a linked action, a steering decision;
+// each opens in the peek). Below them is the owner's Internal note (#458), saved when the box is left. Each choice is one change
+// with one Undo (stores/changes.js). Words: edit/movementWords.js.
 import { signal } from "@preact/signals";
-import { useEffect } from "preact/hooks";
-import { project, mode } from "../stores/report.js";
+import { useEffect, useRef } from "preact/hooks";
+import { project, mode, data, reread, openPeek } from "../stores/report.js";
 import { changeMilestone, say, undone } from "../stores/changes.js";
 import { dayNumber, showDate, todayIso } from "../workItems.js";
+import { addDays } from "../logic/milestones.js";
 import { readMovement } from "./movementApi.js";
+import { addRow } from "./newRows.js";
 import * as W from "./movementWords.js";
 
 const phase = signal("loading");        // loading | ready | failed
 const view = signal(null);              // the last view that was read
 const picked = signal("");              // the chosen milestone's id ("" for the first row)
 const form = signal(null);              // null, or { to, who, reason, source, errors: [], busy } for the open Move form
+const adding = signal(false);           // a recovery action or a steering decision is being added: the two buttons wait
 
 let seq = 0;
 async function load() {
@@ -105,6 +110,31 @@ async function hold(r) {
   focusRow(r.id);
 }
 
+const lower = (name) => name.charAt(0).toLowerCase() + name.slice(1);
+const milestoneRow = (id) => ((data.value && data.value.milestones) || []).find((m) => m.id === id);
+
+// Add a recovery action (#458): a High priority action due in 7 days, in the milestone's workstream and linked to it. It opens in the peek.
+async function recover(r) {
+  if (adding.value) return;
+  adding.value = true;
+  try {
+    const m = milestoneRow(r.id), values = { description: W.fill(W.RECOVER_TITLE, lower(r.name)), priority: "High", due_date: addDays(todayIso(), 7), milestone: r.id };
+    if (m && m.workstream) values.workstream = m.workstream;
+    const reply = await addRow("actions", values, (id) => W.fill(W.TOAST_ACTION, id, r.name));
+    if (reply && reply.ref) openPeek(reply.ref, "item");
+  } finally { adding.value = false; }
+}
+
+// Escalate to steering (#458): a Pending decision needed in 7 days. A decision is not tied to a milestone, so its words name it. It opens in the peek.
+async function escalate(r) {
+  if (adding.value) return;
+  adding.value = true;
+  try {
+    const reply = await addRow("decisions", { decision: W.fill(W.ESCALATE_TITLE, lower(r.name)), needed_by: addDays(todayIso(), 7) }, (id) => W.fill(W.TOAST_DECISION, id, r.name));
+    if (reply && reply.ref) openPeek(reply.ref, "item");
+  } finally { adding.value = false; }
+}
+
 async function move(r) {
   const f = form.value;
   const { out, iso } = problems(r, f);
@@ -143,6 +173,27 @@ function MoveForm({ r }) {
   );
 }
 
+// The owner's Internal note (#458): saved when the box is left, never published. It is read from the project's own data (the Movement
+// read leaves it out), and the data is read again after the save and after an Undo, so the box shows what clark holds.
+function Note({ r }) {
+  const m = milestoneRow(r.id), saved = (m && m.internal_note) || "", box = useRef(null);
+  useEffect(() => { if (box.current) box.current.value = saved; }, [r.id, saved]);
+  const save = async (e) => {
+    const text = e.currentTarget.value.trim();
+    if (text === saved.trim()) return;
+    const res = await changeMilestone({ id: r.id, changes: { internal_note: text } }, W.TOAST_NOTE);
+    if (!res.ok) { say("problem", res.message || W.NOTE_FAILED); return; }
+    await reread(project.value);
+  };
+  return (
+    <>
+      <h4>{W.NOTE_HEADING}</h4>
+      <textarea ref={box} class="field mvm-note" id="mvNote" rows="4" maxlength="2000" placeholder={W.NOTE_PLACEHOLDER} aria-describedby="mvNote-help" onBlur={save}></textarea>
+      <p class="muted mvm-help" id="mvNote-help">{W.NOTE_HELP}</p>
+    </>
+  );
+}
+
 function Card({ r }) {
   const open = form.value && form.value.id === r.id;
   const can = r.can_move;
@@ -166,9 +217,12 @@ function Card({ r }) {
       <div class="mvm-actions">
         <button type="button" class="btn" id="mv-hold" onClick={() => hold(r)}>{W.HOLD_LABEL}</button>
         <button type="button" class="btn" id="mv-move" disabled={!can || open} aria-describedby={can ? undefined : "mv-why"} onClick={start}>{W.MOVE_LABEL}</button>
+        <button type="button" class="btn" id="mv-recover" disabled={adding.value} onClick={() => recover(r)}>{W.RECOVER_LABEL}</button>
+        <button type="button" class="btn" id="mv-escalate" disabled={adding.value} onClick={() => escalate(r)}>{W.ESCALATE_LABEL}</button>
       </div>
       {!can ? <p class="muted" id="mv-why">{W.NOT_SLIPPED}</p> : null}
       {open ? <MoveForm r={r} /> : null}
+      <Note r={r} />
     </div>
   );
 }

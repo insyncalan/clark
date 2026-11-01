@@ -110,7 +110,7 @@ class TheFields(Base):
 
 class TheRefusals(Base):
     def test_fields_outside_the_list_are_refused_and_nothing_is_written(self):
-        for field in ("internal_note", "owner", "name", "workstream", "sort_order", "archived", "project", "id", "description",
+        for field in ("owner", "name", "workstream", "sort_order", "archived", "project", "id", "description",
                       "percent_complete", "client_visible"):
             with self.subTest(field=field):
                 self.refused(self.req({field: "x"}))
@@ -314,8 +314,8 @@ class TheUndoBoundary(Base):
         status, body = self.undo({"project": "ABC", "apply_id": step})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
 
-    def test_the_internal_note_is_not_in_what_can_be_undone_from_here(self):
-        step = self.demo.update("milestones", self.m, {"internal_note": "PLANTED-NOTE", "forecast_date": "2030-03-20"})
+    def test_a_step_that_changed_the_internal_note_and_the_owner_is_still_not_undone_here(self):      # #458: the note is on the list, the owner is not
+        step = self.demo.update("milestones", self.m, {"internal_note": "PLANTED-NOTE", "owner": "Someone Else"})
         status, body = self.undo({"project": "ABC", "apply_id": step})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
         self.assertEqual(self.row()["internal_note"], "PLANTED-NOTE")
@@ -328,16 +328,47 @@ class TheUndoBoundary(Base):
         self.assertEqual(self.row()["archived"], 0)
 
 
+class TheInternalNote(Base):
+    """#458: the one box Movement keeps for the owner. It is saved and undone like any Movement change, it may run over several
+    lines, and nothing about it comes back in a reply or a Movement entry."""
+    def test_the_note_is_saved_with_its_line_breaks_cleared_and_undone(self):
+        got = self.ok({"internal_note": "Waiting for the vendor\r\nChase on Friday  "})
+        self.assertEqual(self.row()["internal_note"], "Waiting for the vendor\nChase on Friday")
+        self.assertNotIn("internal_note", got["milestone"])
+        self.assertNotIn("Waiting", repr(got))
+        status, undone = self.undo({"project": "ABC", "apply_id": got["apply_id"]})
+        self.assertEqual((status, undone["ok"], undone["skipped"]), (200, True, []), undone)
+        self.assertIsNone(self.row()["internal_note"])
+        got = self.ok({"internal_note": "again"})
+        got = self.ok({"internal_note": ""})
+        self.assertIsNone(self.row()["internal_note"])
+        self.assertTrue(got["undoable"])
+
+    def test_the_note_is_held_to_plain_text_and_a_length(self):
+        self.refused(self.req({"internal_note": "a\x00b"}), changes.NOTE_TEXT_WORDS)
+        self.refused(self.req({"internal_note": "a\u202eb"}), changes.NOTE_TEXT_WORDS)
+        self.refused(self.req({"internal_note": "x" * (changes.INTERNAL_NOTE_MAX + 1)}), changes.ITEM_VALUE_WORDS)
+        self.refused(self.req({"internal_note": ["x"]}), changes.ITEM_VALUE_WORDS)
+        self.ok({"internal_note": "x" * changes.INTERNAL_NOTE_MAX})
+
+    def test_the_note_never_reaches_a_movement_entry_or_the_published_fields(self):
+        from clark import movement_read
+        self.ok({"internal_note": "ZQ-NOTE-77 supplier wants more money"})
+        view = movement_read.make_read(self.s.milestone_moves, self.s.data_for)("ABC")
+        self.assertNotIn("ZQ-NOTE-77", repr(view))
+        self.assertTrue({"internal_note"} <= NEVER_PUBLISH)
+
+
 class TheLists(unittest.TestCase):
     def test_the_allow_lists_name_no_internal_field(self):
         fields = set(changes.CHANGE_KINDS["milestones"][changes.UPDATE])
         self.assertEqual(fields, {"baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
-                                  "client_message", "movement"})
-        self.assertFalse(fields & {"internal_note", "owner", "name", "workstream", "sort_order", "project", "id", "archived"})
+                                  "client_message", "movement", "internal_note"})      # #458: + the internal note
+        self.assertFalse(fields & {"owner", "name", "workstream", "sort_order", "project", "id", "archived"})
         self.assertEqual(changes.KIND_OP_KEYS["milestones"][changes.UPDATE], ("id", "changes", "rebaseline"))
         self.assertTrue(fields <= set(changes.UNDOABLE["milestones"]))
         self.assertIn("archived", changes.UNDOABLE["milestones"])
-        self.assertNotIn("internal_note", changes.UNDOABLE["milestones"])
+        self.assertIn("internal_note", changes.UNDOABLE["milestones"])
 
     def test_the_published_file_still_never_reads_the_internal_note_or_the_choice(self):
         self.assertTrue({"internal_note", "movement"} <= NEVER_PUBLISH)

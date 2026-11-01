@@ -228,6 +228,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .head h1 { margin-bottom: 0; }
+.head-sub { margin: 2px 0 0; font-size: var(--size-small); color: var(--text-muted); }      /* the sentence under a page's title (the Milestones page, #458) */
 .note { margin: 8px 0 0; font-size: 13px; }
 .note:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

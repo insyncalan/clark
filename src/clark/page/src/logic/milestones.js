@@ -222,3 +222,13 @@ export function labelLines(xs, width, gap = 0) {
     return r;
   });
 }
+
+// The Milestones page's one-sentence summary (#458; the prototype's, views.js): the last milestone's date (and where it is now
+// expected), then how many are achieved and how many are still to come. Cancelled ones are not counted. null when there is none.
+// `agreed` is false for a last milestone that has only a forecast, so the page does not call that date agreed.
+export function headLine(rows) {
+  const live = (rows || []).filter((r) => r.state !== CANCELLED);
+  if (!live.length) return null;
+  const last = live[live.length - 1], achieved = live.filter((r) => r.state === "Achieved").length;
+  return { name: last.name, date: last.baseline || last.forecast, agreed: !!last.baseline, expected: last.slip > 0 ? last.expected : null, achieved, toCome: live.length - achieved };
+}

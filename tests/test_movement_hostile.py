@@ -224,14 +224,14 @@ class Hostile(unittest.TestCase):
 
     # ---- what may be written
     def test_fields_not_allowed(self):
-        for f, v in (("internal_note", INTERNAL + "2"), ("owner", "Mallory"), ("archived", 1), ("status", "Cancelled"), ("name", "Hijack"),
+        for f, v in (("owner", "Mallory"), ("archived", 1), ("status", "Cancelled"), ("name", "Hijack"),
                      ("workstream", "X"), ("client_visible", 0), ("percent_complete", 5), ("description", "x"), ("sort_order", 9),
                      ("source", "x"), ("project", "OTH"), ("id", "PUB-M-009"), ("updated_at", "2020-01-01 00:00:00"), ("status", "Planned "),
                      ("status", ["Done"]), ("status", None)):
             self.refused_and_unchanged("field %s=%r" % (f, v), lambda f=f, v=v: self.change({f: v}))
 
     def test_many_fields_one_invalid_writes_nothing(self):
-        for bad in ({"state": "Bogus"}, {"status": "Cancelled"}, {"movement": "escalate"}, {"forecast_date": "2026-02-30"}, {"internal_note": "x"},
+        for bad in ({"state": "Bogus"}, {"status": "Cancelled"}, {"movement": "escalate"}, {"forecast_date": "2026-02-30"}, {"internal_note": "x" * 2001},
                     {"client_message": "a" * 501}, {"state_reason": "a\x00b"}):
             fields = {"forecast_date": "2031-01-01", "client_message": "ZQ-PARTIAL-1", "movement": "hold", **bad}
             self.refused_and_unchanged("mixed with %r" % list(bad), lambda fields=fields: self.change(fields))

@@ -66,9 +66,10 @@ CHANGE_KINDS = {
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
     "projects": {UPDATE: ("health", "health_reason")},
     # #136: Milestones Movement. The dates, Done, the state with its reason, the client wording and the Movement choice. Never the
-    # internal note, the owner, the name, the workstream, the place or the archive flag (archive stays its own op).
+    # owner, the name, the workstream, the place or the archive flag (archive stays its own op). #458: + the internal note, the one
+    # box Movement keeps for the owner (owner only: never in a reply, a Movement entry or a published file).
     "milestones": {UPDATE: ("baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
-                            "client_message", "movement")},
+                            "client_message", "movement", "internal_note")},
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
     "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible")},
@@ -95,7 +96,7 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "glance_tiles": ("hidden", "outline", "sort_order"),
             "projects": ("health", "health_reason", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
-                           "client_message", "movement"),     # #136: a Movement step; its decision is a work item's row (see _movement_step)
+                           "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",), "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone")      # #67: a row added in the report: no id,
@@ -179,6 +180,7 @@ NO_DECISION_FIELD = {"workstream": "A decision isn't part of a workstream.", "mi
                      "priority": "A decision has no priority."}
 ITEM_VALUE_WORDS = "That value isn't one clark can use."
 ITEM_TEXT_WORDS = "Use plain text, with no line breaks or hidden characters."
+NOTE_TEXT_WORDS = "Use plain text, with no hidden characters."      # #458: the internal note may hold line breaks
 ITEM_BAD_KINDS = frozenset({"Cc", "Cf", "Cs", "Co", "Zl", "Zp"})   # as the store's section titles: control, format, surrogate, private use, separators
 NOT_A_DATE = "That isn't a date. Pick a day from the calendar."
 NOT_A_CHOICE = "That choice isn't one clark has."
@@ -792,6 +794,7 @@ MILESTONE_DATES = ("baseline_date", "forecast_date", "actual_date")
 MILESTONE_STATUSES = ("Planned", "Done")                 # Cancelled is its own matter, never set from a request
 MILESTONE_MOVEMENTS = ("hold", "rebaseline")             # recover and escalate come with their own item
 MILESTONE_TEXT = {"state_reason": 300, "client_message": 500}
+INTERNAL_NOTE_MAX = 2000                                 # #458: the internal note, in characters; it may run over several lines
 MILESTONE_SHOWN = ("id", "status", "baseline_date", "forecast_date", "actual_date", "state", "state_set", "state_reason",
                    "client_message", "movement")          # what a reply says of a milestone: never its internal note
 REBASELINE_KEYS = ("agreed_with", "reason", "source", "date")
@@ -822,6 +825,14 @@ def _checked_milestone_changes(fields):
             if v not in (None, "") and (not isinstance(v, str) or v not in MILESTONE_MOVEMENTS):
                 raise Refused(BAD_MOVEMENT)
             out[k] = v or None
+        elif k == "internal_note":                                  # #458: plain text over several lines; the line breaks are the only control character let through
+            if v is not None and (not isinstance(v, str) or len(v) > INTERNAL_NOTE_MAX):
+                raise Refused(ITEM_VALUE_WORDS)
+            if isinstance(v, str):
+                v = v.replace("\r\n", "\n").replace("\r", "\n")
+                if not _plain_text(v.replace("\n", " ")):
+                    raise Refused(NOTE_TEXT_WORDS)
+            out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
         else:                                                       # state_reason, client_message
             if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_TEXT[k]):
                 raise Refused(ITEM_VALUE_WORDS)
@@ -871,8 +882,9 @@ def _hold_line(today, forecast):
 def _do_milestone_change(store, by_user, req, project, table, columns, place):
     """#136: change fields of one milestone of THIS project, in one step (several fields, one Undo). Moving the agreed date is a
     rebaseline: who agreed it, the reason and the source are asked for (milestone_rows.rebaseline_request's own rules and words),
-    and the date, the new decision and the note are one step. A Hold writes its dated line as the step's note. The internal note,
-    the owner, the name, the workstream and the archive flag are not changeable here. A refusal writes nothing."""
+    and the date, the new decision and the note are one step. A Hold writes its dated line as the step's note. The internal note
+    (#458) may be set or cleared; the owner, the name, the workstream and the archive flag are not changeable here. A refusal
+    writes nothing."""
     ref = req.get("id")
     changes = _checked_milestone_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
     given = _checked_rebaseline(req.get("rebaseline"))
