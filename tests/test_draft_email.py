@@ -206,7 +206,7 @@ class PlainWordsMedium(unittest.TestCase):
     def test_nothing_ticked_on_i_sent_it_says_what_to_do(self):
         with self.assertRaises(ValueError) as a:
             de.sent_entry([], "chase", TODAY)
-        self.assertEqual(str(a.exception), "Tick at least one item before you press I sent it.")
+        self.assertEqual(str(a.exception), "Tick at least one item before you press I sent it. Nothing was saved.")
 
     def test_an_empty_selection_blocks_copying(self):
         d = build(picked=[])

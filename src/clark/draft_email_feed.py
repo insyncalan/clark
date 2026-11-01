@@ -192,6 +192,15 @@ def chase_counts_of(records):
 SENT_KEYS = ("project", "ids", "mode", "day")
 MAX_SENT = 50                                      # the ids one record can hold (Store.EMAIL_MAX_IDS)
 BAD_SENT = "That could not be recorded. Reload the page and try again."
+NOTHING_SAVED = "Nothing was saved."                # the last words of every refusal of "I sent it"
+
+
+def said_nothing_saved(answer):
+    """(status, body) with " Nothing was saved." added to the end of a refusal's message (once); an answer that was recorded is left as it is."""
+    status, body = answer
+    if isinstance(body, dict) and body.get("ok") is False and isinstance(body.get("message"), str) and not body["message"].endswith(NOTHING_SAVED):
+        body = dict(body, message=f"{body['message']} {NOTHING_SAVED}")
+    return status, body
 
 
 def make_sent(path, onedrive_roots=None, by_user=None, today=None):
@@ -205,7 +214,7 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
         seq = store.log_email_sent(req["project"], req["ids"], req["mode"], req["day"], who, today=today() if callable(today) else today)
         return 200, {"ok": True, "seq": seq}
 
-    def seam(req):
+    def check(req):
         if not isinstance(req, dict) or any(k not in SENT_KEYS for k in req) or any(k not in req for k in SENT_KEYS):
             return refuse(400, "bad_request", BAD_SENT)
         code, ids, mode, day = (req[k] for k in SENT_KEYS)
@@ -218,4 +227,7 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
         if not isinstance(day, str) or not DAY.fullmatch(day) or not _day(day):
             return refuse(400, "bad_date", BAD_DATE)
         return _call(path, onedrive_roots, by_user, work, {"project": code, "ids": ids, "mode": mode, "day": day})
+
+    def seam(req):
+        return said_nothing_saved(check(req))
     return seam

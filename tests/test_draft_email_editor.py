@@ -140,7 +140,7 @@ class Logic(InBrowser):
         self.assertEqual(self.val("T.logic.MODES.map((m) => m.label)"), ["Update request", "Chase", "Decision"])
         msg = self.error("T.logic.buildOptions({mode: 'remind'})")
         self.assertEqual(msg, "That kind of email isn't available. Choose Update request, Chase or Decision.")
-        self.assertEqual(self.error("T.logic.sentEntry(['ABC-A-001'], 'remind', '2026-10-13')"), msg)
+        self.assertEqual(self.error("T.logic.sentEntry(['ABC-A-001'], 'remind', '2026-10-13')"), msg + " Nothing was saved.")
 
     def test_toggling_keeps_the_order_of_the_offered_items(self):
         got = self.val(f"T.logic.togglePick({lit(OFFERED)}, ['ABC-A-005'], 'ABC-A-001')")
@@ -255,9 +255,9 @@ class Logic(InBrowser):
     def test_i_sent_it_records_ids_day_and_kind_never_the_text(self):
         got = self.val("T.logic.sentEntry(['ABC-A-001', 'ABC-A-001', 'ABC-A-002', ''], 'chase', '2026-10-13')")
         self.assertEqual(got, {"kind": "email_sent", "ids": ["ABC-A-001", "ABC-A-002"], "date": "2026-10-13", "mode": "chase"})
-        self.assertEqual(self.error("T.logic.sentEntry([], 'chase', '2026-10-13')"), "Tick at least one item before you press I sent it.")
+        self.assertEqual(self.error("T.logic.sentEntry([], 'chase', '2026-10-13')"), "Tick at least one item before you press I sent it. Nothing was saved.")
         self.assertEqual(self.error("T.logic.sentEntry(['ABC-A-001'], 'chase', 'today')"),
-                         "The date for this record is missing. Reload the page and try again.")
+                         "The date for this record is missing. Reload the page and try again. Nothing was saved.")
         # The same shape as the Python module's own entry, so the store can take either.
         py = draft_email.sent_entry(["ABC-A-001", "ABC-A-002"], "chase", "2026-10-13")
         self.assertEqual(py, {"kind": "email_sent", "ids": ["ABC-A-001", "ABC-A-002"], "date": "2026-10-13", "mode": "chase"})

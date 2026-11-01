@@ -404,6 +404,31 @@ class Sent(unittest.TestCase):
             self.assertNotRegex(got["message"], r"(?i)traceback|sqlite|\bsql\b|exception")
         self.assertEqual(self.fingerprint(), before)
 
+    def test_every_refusal_ends_nothing_was_saved(self):
+        """#208(d): the last words of each refusal of "I sent it", whichever rule refused it (the shape, the store, the seam)."""
+        bad = [{"project": "ABC", "ids": [self.a], "mode": "chase"}, self.good(project="abc"), self.good(mode="reminder"), self.good(ids=[]),
+               self.good(day="28-10-2026"), self.good(ids=[self.a, "ABC-A-999"]), self.good(day="2026-11-05"), self.good(project="XYZ"), "text"]
+        for body in bad:
+            status, got = self.post(body)
+            self.assertFalse(got["ok"], body)
+            self.assertTrue(got["message"].endswith(" Nothing was saved."), (body, got["message"]))
+            self.assertEqual(got["message"].count("Nothing was saved."), 1, got["message"])
+        self.assertEqual(self.post(self.good(mode="reminder"))[1]["message"],
+                         "That kind of email isn't available. Choose Update request, Chase or Decision. Nothing was saved.")
+        self.assertEqual(self.post(self.good(project="XYZ"))[1]["message"],
+                         "There is no project with that code. Nothing was saved.")
+
+    def test_no_name_for_who_pressed_it_is_refused_in_the_words_of_the_ticket(self):
+        """#208(a)."""
+        seam = feed.make_sent(self.store.path, [], by_user=lambda: "  ", today=date(2026, 10, 28))
+        status, body = seam(self.good())
+        self.assertEqual((status, body["ok"]), (400, False))
+        self.assertEqual(body["message"], "Add your name in Settings, then try again. Nothing was saved.")
+        self.assertEqual(self.store.email_sent_for("ABC"), [])
+
+    def test_a_good_answer_is_left_alone(self):
+        self.assertEqual(feed.said_nothing_saved((200, {"ok": True, "seq": 3})), (200, {"ok": True, "seq": 3}))
+
     def test_the_email_words_never_reach_the_database_file(self):
         self.post(self.good(text="PLANTED-WORDS-xyzzy", email="planted@partner.test"))
         self.post(self.good())

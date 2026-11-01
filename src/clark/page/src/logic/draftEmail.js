@@ -9,7 +9,8 @@ export const MODES = [
   { mode: "decision", label: "Decision" },
 ];
 export const CHOOSE_A_KIND = "That kind of email isn't available. Choose Update request, Chase or Decision.";
-export const NOTHING_TO_RECORD = "Tick at least one item before you press I sent it.";
+export const NOTHING_SAVED = "Nothing was saved.";
+export const NOTHING_TO_RECORD = "Tick at least one item before you press I sent it. " + NOTHING_SAVED;
 export const COPY_REFUSED = "The browser did not copy it. Press ⌘C to copy the selected text.";
 export const NO_OPEN_ITEMS = "There are no open items to put in an email.";
 export const NO_ADDRESS = "No address yet. Add one in your mail app.";
@@ -201,9 +202,9 @@ export function mailLink(draft, limit) {
  *  kind of email, never the email's text. Throws in plain words when nothing is ticked or the kind is unknown. The caller
  *  saves it as one undoable step (#31's path; not built here). */
 export function sentEntry(ids, mode, day) {
-  if (!modeKnown(mode)) throw new Error(CHOOSE_A_KIND);
+  if (!modeKnown(mode)) throw new Error(`${CHOOSE_A_KIND} ${NOTHING_SAVED}`);
   const seen = Array.from(new Set((ids || []).filter((i) => typeof i === "string" && i.trim()))).slice(0, MAX_IDS);
   if (!seen.length) throw new Error(NOTHING_TO_RECORD);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text(day))) throw new Error("The date for this record is missing. Reload the page and try again.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text(day))) throw new Error("The date for this record is missing. Reload the page and try again. " + NOTHING_SAVED);
   return { kind: SENT_KIND, ids: seen, date: day, mode };
 }
