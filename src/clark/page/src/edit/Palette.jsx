@@ -2,7 +2,7 @@
 // and focus goes back where it was. A native <dialog> opened as a modal (Tab stays inside, as in Publish). The search box is a
 // combobox over a listbox: Up and Down move (wrapping, past any result that cannot run now), Enter runs, a click runs. The keys
 // are heard on `window` in the capture phase, so they come before Help's own Esc.
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { paletteOpen, search, step, runResult } from "./palette.js";
 import { view, projectsState, loadProjects } from "../stores/report.js";
 
@@ -46,7 +46,8 @@ function onKey(e) {
 }
 
 export function Palette() {
-  useEffect(() => { window.addEventListener("keydown", onKey, true); return () => window.removeEventListener("keydown", onKey, true); }, []);
+  // A layout effect, so the keys are heard from the first paint: a plain effect waits for the next frame, which a tab in the background may not draw for a while.
+  useLayoutEffect(() => { window.addEventListener("keydown", onKey, true); return () => window.removeEventListener("keydown", onKey, true); }, []);
   return paletteOpen.value ? <Box /> : null;
 }
 

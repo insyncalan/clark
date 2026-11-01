@@ -274,6 +274,13 @@ class Enter(Base):
             self.run_first(p, "export")
             p.until("window.__asked.some(u => u.indexOf('/api/export') >= 0 || u.indexOf('xport') >= 0)", "Export asked the menu's own route")
 
+    def test_the_ask_command_opens_the_ask_panel(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.run_first(p, "ask about")
+            p.until("!!document.querySelector('#ask-panel')", "the ask panel opened (the one the slash key opens)")
+            self.assertFalse(p.js("!!document.querySelector('#palette[open]')"), "the palette closed first")
+
     def test_the_item_opens_from_settings_by_leaving_for_a_page_that_has_a_peek(self):
         with chrome() as cdp:
             p = self.visit(cdp, "#settings&p=ABC")

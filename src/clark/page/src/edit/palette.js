@@ -9,6 +9,8 @@ import { KIND_WORDS } from "../workItems.js";
 import { openPublish } from "./Publish.jsx";
 import { preview, exportExcel } from "./ProfileMenu.jsx";
 import { openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
+import { openPanel } from "./askPanelState.js";
+import { PANEL_TITLE } from "./askWords.js";
 
 export const paletteOpen = signal(false);
 export const MOST_ITEMS = 8;          // work items shown at most, so a short word does not fill the box
@@ -27,6 +29,7 @@ function commands() {
     { key: "preview", label: "Preview the page in a new tab", more: "published page", why, run: () => preview() },
     { key: "export", label: "Export to Excel", more: "workbook download xlsx", why, run: () => exportExcel() },
     { key: "settings", label: "Settings", more: "options folder client", why: tabs.value.includes("settings") ? "" : "Settings is not available on this page.", run: () => show("settings") },
+    { key: "ask", label: PANEL_TITLE, more: "question chat", why: "", run: () => openPanel() },          // the same panel "/" and the ask button open (#47a)
     { key: "help", label: "Help", more: "keys shortcuts how", why: "", run: () => openHelp() },
     ...MODES.map((m) => ({ key: "look-" + m, label: "Appearance: " + LOOK_WORDS[m], more: "theme look colour", why: "", now: appearance.value === m, run: () => setAppearance(m) })),
   ].map((c) => ({ id: "cmd-" + c.key, kind: "Command", label: c.label, more: c.more, disabled: c.why, now: !!c.now, run: c.run }));
