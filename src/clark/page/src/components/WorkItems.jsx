@@ -156,7 +156,7 @@ function SearchBox() {
 }
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell }) {
+function List({ Board, Cell, Bulk }) {
   const st = filterState.value, today = fromFile.value && asAt.value ? asAt.value : todayIso();
   const filtered = applyFilters(itemRows.value, st, today);
   const cs = chips(st);
@@ -168,7 +168,8 @@ function List({ Board, Cell }) {
   useLayoutEffect(() => { if (selecting()) sel.sync(drawnOrder(), matching); });
   return (
     <div id="work-list">
-      {selecting() ? <SelectBar sel={sel} matching={matching} /> : null}
+      {selecting() ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
+      {Bulk ? <Bulk.Layer /> : null}
       <div class="factive">
         <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
         {cs.map((c) => (
@@ -189,7 +190,7 @@ function List({ Board, Cell }) {
 }
 
 export function WorkItems({ tools }) {
-  useEffect(() => { if (selecting()) installSelectionRules(); }, []);
+  useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const d = data.value, plan = addPlan(filterState.value.type), Board = tools && tools.Board;
   const Cell = tools && tools.Cell && mode.value === "edit" && !fromFile.value ? tools.Cell : null;
   const board = !!Board && work.value.view === "board";
@@ -208,7 +209,7 @@ export function WorkItems({ tools }) {
         : <>
             <Switches><GroupBy board={board} />{fromFile.value ? <SearchBox /> : null}{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
             <FilterBar />
-            <List Board={Board} Cell={Cell} />
+            <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
           </>}
     </section>
   );

@@ -4,8 +4,10 @@
 // A text section's body (Summary, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
 // cleaned it (publish.clean_html) before it wrote the file, and the file holds nothing else. A published file draws no other type
 // (Dashboard leaves those sections out of it, so a client never reads that something is missing). The page clark serves never
-// draws a saved body as markup until the one editor and the page's cleanHtml arrive (#66); there, every section shows one quiet
-// line, the same for every type.
+// draws a saved body as markup in Edit until the one editor arrives (#66); there, every type but the ones below shows one quiet
+// line. In View (A-D4) the page clark serves draws a text section's body, and the Current state section's text (the project's
+// current_state), as the cleaned text: `clean` is the page's own cleaner (cleanHtml, from edit/index.js; the published page has none
+// and has no use for one, its text is already cleaned). A published file does not draw Current state: that is a product decision.
 // A section template (#96) is drawn by its own parts, looked up by type (Edit: its Edit part from tools.templateEdit, given the
 // section and the tools; View and the file: its view part from templates/index.js, given the section and the report's data). Dashboard leaves a template
 // with nothing to show out of View and the file, so its view part is only ever asked to draw something. No branch per template
@@ -17,7 +19,13 @@ import { anchorId } from "../logic/minimap.js";
 import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
 import { MsBlock } from "./MsBlock.jsx";
+import { emptyBody } from "../logic/emptyBody.js";
 import { Needs } from "./Needs.jsx";
+
+// View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
+function ViewText({ html }) {
+  return emptyBody(html) ? <p class="quiet">Nothing recorded.</p> : <div class="sec-body prose" data-view-text dangerouslySetInnerHTML={{ __html: html }} />;
+}
 
 // A template's Edit part, from the tools (edit/templates/); the quiet line if the tools have none for it.
 function TemplateEdit({ section, tools }) {
@@ -25,7 +33,7 @@ function TemplateEdit({ section, tools }) {
   return Edit ? <Edit section={section} tools={tools} /> : <p class="quiet">Not shown on this page yet.</p>;
 }
 
-export function Section({ section, index, count, slot, anchor, tools, onExport }) {
+export function Section({ section, index, count, slot, anchor, tools, clean, onExport }) {
   const editing = !!tools;
   const hidden = section.hidden ? 1 : 0;
   const drop = editing && dropAt.value ? dropAt.value : null;      // what a drag would draw (#95)
@@ -49,6 +57,8 @@ export function Section({ section, index, count, slot, anchor, tools, onExport }
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
         : fromFile.value && section.type === "text"
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
+        : !editing && clean && (section.type === "text" || section.type === "current")
+        ? <ViewText html={clean(section.type === "current" ? ((data.value && data.value.project) || {}).current_state : section.body)} />
         : <p class="quiet">Not shown on this page yet.</p>}
     </article>
   );
