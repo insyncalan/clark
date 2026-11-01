@@ -56,10 +56,10 @@ CHANGE_KINDS = {
     "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
-    # store works it out from impact and likelihood; `archived` is in no list.
+    # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
     "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description")},
-    "raid": {UPDATE: ("status", "workstream", "owner", "due_date", "milestone", "use_case", "description")},
+    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description")},
     "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision")},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
@@ -108,11 +108,12 @@ ITEM_KINDS = ("actions", "raid", "decisions")        # the work items; every oth
 UC_FIELDS = CHANGE_KINDS["use_cases"][UPDATE]        # #164: what a request may change on a use case
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
-ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision")
+ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood")   # D-12: a rating is never cleared, as a new row
 CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
 TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
-              for k in ITEM_KINDS}                   # what a reply says of a changed item
+              + (("priority",) if k == "raid" else ()) for k in ITEM_KINDS}   # what a reply says of a changed item: a risk's priority too,
+                                                     # which the store works out from impact and likelihood (said back, never taken)
 FLAG_FIELDS = ("hidden", "beside")        # 0 or 1 only: a bool, a float, a string or any other number is refused
 BASE_KEYS = ("project", "kind", "op", "place")
 OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before", "flags"), DELETE: ("id",),
@@ -167,6 +168,12 @@ NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
 NOT_A_STATUS = "That status isn't available for this item."
+# D-12: the status picker's Rating sets a risk's or issue's impact and likelihood; these are its own refusals.
+RATING_FIELDS = ("impact", "likelihood")
+NOT_A_RATING = "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick a rating from the list."
+RATING_KINDS = ("Risk", "Issue")
+RATING_NOT_THIS_KIND = "Only a risk or an issue has a rating, so nothing was changed. Pick a status instead."
+RATING_NOT_OPEN = "A closed or cancelled item can't be rated, so nothing was changed. Reopen it first."
 NO_WORKSTREAM = "That workstream isn't available."
 ARCHIVED_MILESTONE = "That milestone is archived. Restore it first."
 NOT_PLANNED = "A Hold or a Rebaseline is for a Planned milestone. This one is not Planned."
@@ -737,6 +744,13 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
         row = store.read(table, ref=ref) if isinstance(ref, str) else None
         if row is None or row["project"] != project or row["archived"]:
             raise Refused(ITEM_NOT_MINE)
+        if table == "raid" and any(f in changes for f in RATING_FIELDS):   # D-12: an open risk or issue only, High, Medium or Low
+            if row["type"] not in RATING_KINDS:
+                raise Refused(RATING_NOT_THIS_KIND)
+            if changes.get("status", row["status"]) != "Open":
+                raise Refused(RATING_NOT_OPEN)
+            if any(changes[f] not in clark_store.ALLOWED[("raid", f)] for f in RATING_FIELDS if f in changes):
+                raise Refused(NOT_A_RATING)
         link = changes.get("use_case")
         if link is not None:                                        # an existing use case of this project, else the same words for every other case
             found = store.read("use_cases", ref=link) if _belongs("use_cases", link, project) else None
