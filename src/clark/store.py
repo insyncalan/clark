@@ -2527,7 +2527,6 @@ class Store:
 
     EMAIL_MODES = ("update_request", "chase", "decision")
     EMAIL_MAX_IDS = 50
-    EMAIL_DAYS_BACK = 31                    # a sent record is made as the email goes, so its day is this recent or it is refused
     EMAIL_REPEAT_SECONDS = 10               # the same press from a second tab inside this long is the same record
 
     def log_email_sent(self, code, ids, mode, day, by_user, today=None):
@@ -2536,7 +2535,7 @@ class Store:
         is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
         anything is written: a project that isn't here or is archived, a mode that isn't one of the three, no id or more than 50, an
         id that is not a work item (action, risk or issue, decision) of this project, a day that is not a real date or is more than
-        one day ahead of today (a time zone may differ by that much) or more than 31 days back, and no name for who pressed it. Duplicate ids count once. One
+        one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
         transaction. Returns the record's number."""
         if not str(by_user or "").strip():
             raise Invalid("A sent record needs who pressed it.")
@@ -2554,11 +2553,12 @@ class Store:
                 raise ValueError
             sent = date.fromisoformat(str(day))
         except ValueError:
-            raise Invalid("The day the email was sent must be a real date.") from None
-        if sent < (today or date.today()) - timedelta(days=self.EMAIL_DAYS_BACK):
-            raise Invalid("The day the email was sent is too long ago to be right. Check the date.")
-        if sent > (today or date.today()) + timedelta(days=1):
-            raise Invalid("The day the email was sent can't be in the future.")
+            raise Invalid("The date this page sent is not a real date. Reload the page and try again. Nothing was saved.") from None
+        now = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
+        if sent < now - timedelta(days=1):
+            raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.")
+        if sent > now + timedelta(days=1):
+            raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
             raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
         try:

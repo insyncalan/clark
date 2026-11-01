@@ -142,6 +142,19 @@ class ServerTest(unittest.TestCase):
         self.s = Running()
         self.addCleanup(self.s.close)
 
+    def wait_until(self, read, want, what, limit=15.0):
+        """Wait, up to `limit` seconds, for `read()` to equal `want`; fail with the last value read. The server sends a reply
+        from inside run_route and only then leaves its `finally` (which takes the count down), so on a loaded machine the
+        client can see the reply a moment before the count has moved (#358): the test waits for the condition, never for a time."""
+        end = time.monotonic() + limit
+        while True:
+            seen = read()
+            if seen == want:
+                return
+            if time.monotonic() >= end:
+                self.fail(f"{what}: wanted {want!r}, still {seen!r} after {limit:g} s")
+            time.sleep(0.01)
+
     def report(self, body, host="default", ctype="application/csp-report", extra=None):
         h = {"Content-Type": ctype, "Content-Length": str(len(body)), **(extra or {})}
         return self.s.ask("POST", sv.CSP_REPORT_ROUTE, h, body, host=host)
@@ -1036,7 +1049,7 @@ class Here(ServerTest):
             raise RuntimeError("x")
         with mock.patch.dict(sv.POST_ROUTES, {"/api/broken": broken}), self.assertLogs("clark.server", "ERROR"):
             self.assertEqual(self.s.api("POST", "/api/broken", b"{}")[0], 500)
-        self.assertFalse(sv.busy())
+        self.wait_until(sv.busy, False, "a failing POST is not left counted as a running job")
         self.assertEqual(self.s.api("POST", "/api/here", b"{}")[0], 200)
         self.assertFalse(sv.busy(), "/api/here is not counted as a job")
 
@@ -1317,6 +1330,35 @@ def wait(check, seconds=15):
             return True
         time.sleep(0.2)
     return False
+
+
+def wait_toast(read, seconds=10):
+    """The text of the toast a page test is about to read: waits (up to `seconds`) for `read()` to give something, then returns the text
+    that wait saw (not a second read, which could find the toast gone). A slow runner paints a toast late. Fails with a plain
+    message if none appears. It does not tell an old toast from a new one: clear the old one first when that matters."""
+    seen = []
+
+    def check():
+        text = read()
+        if text:
+            seen.append(text)
+        return bool(text)
+
+    if not wait(check, seconds):
+        raise AssertionError(f"no toast appeared within {seconds} s")
+    return seen[-1]
+
+
+class WaitToast(unittest.TestCase):
+    """wait_toast needs no browser: it is given the function that reads the toast."""
+
+    def test_it_returns_the_text_the_wait_saw(self):
+        reads = iter(["", "", "Saved.", ""])   # a fourth read would find the toast gone
+        self.assertEqual(wait_toast(lambda: next(reads), 5), "Saved.")
+
+    def test_no_toast_fails_with_a_plain_message(self):
+        with self.assertRaisesRegex(AssertionError, "no toast appeared within 1 s"):
+            wait_toast(lambda: "", 1)
 
 
 class _Pipe:
