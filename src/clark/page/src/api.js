@@ -54,6 +54,25 @@ async function postItem(path, body) {
 export const sendChange = (project, req) => post("/api/change", { project, kind: KIND, ...req }, !req.kind || req.kind === KIND ? hasSections : () => true);
 export const sendUndo = (project, applyId) => post("/api/undo", { project, apply_id: applyId });
 
+// Undo several (the Activity tab): `steps` are the steps of the rows chosen. A preview changes nothing; a run is one new change that
+// puts them all back. {ok: true, reply} or {ok: false, message, confirm}: `confirm` is true when the server wants the second
+// confirm (more than 25). Its refusals are fixed plain sentences, so a short one is shown as it is.
+export async function sendUndoMany(project, steps, { preview = false, confirm = false } = {}) {
+  try {
+    const r = await fetch("/api/undo", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify(preview ? { project, steps, preview: true } : confirm ? { project, steps, confirm: true } : { project, steps }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true && Array.isArray(reply.undo) && Array.isArray(reply.skipped)) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
+    return { ok: false, confirm: r.status === 409 && !!reply && reply.code === "confirm", message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, confirm: false, message: plainChange(0) };
+  }
+}
+
 // "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Answers
 // {ok: true} or {ok: false, message}; a refusal comes back in the route's own plain words, any other failure in plainChange's.
 export async function sendEmailSent(project, entry) {

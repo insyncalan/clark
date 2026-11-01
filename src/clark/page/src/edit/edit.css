@@ -164,6 +164,26 @@
 .pal-more, .pal-why { font-size: var(--size-small); }
 .pal-why { flex-basis: 100%; padding-left: 88px; }
 .pal-none { margin: 0; padding: 14px 16px; }
+.pa-undo { margin: 0 0 8px; }
+.pa-undo .selbar { margin: 4px 0; flex-wrap: wrap; }
+.pa-undo .pa-do { min-height: 30px; padding: 3px 12px; border-color: var(--brand-blue); color: var(--heading); }
+.pa-undo .pa-do:disabled { opacity: .55; cursor: not-allowed; }
+.pa-msg { margin: 4px 0; font-size: var(--size-small); }
+.pa-bad { color: var(--status-red-text); }
+.pa-preview { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.pa-h { margin: 0 0 4px; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
+.pa-h:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pa-lines { margin: 0 0 8px; padding-left: 18px; color: var(--text); overflow-wrap: anywhere; }
+.pa-sure { margin: 4px 0 8px; color: var(--text); font-weight: var(--weight-medium); }
+.pa-acts { display: flex; align-items: center; gap: 12px; }
+.pa-all { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: var(--size-small); color: var(--text); cursor: pointer; }
+.pa-line { display: flex; align-items: flex-start; gap: 4px; }
+.pa-notick { flex: none; width: 28px; }
+.pa-body { min-width: 0; flex: 1; }
+.pa-why { margin: 2px 0 0; font-size: var(--size-small); }
+.pa-row[data-step] { cursor: pointer; }
+.pa-row.picked { background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
+.pa-row[data-step] .pa-what { user-select: text; }
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }

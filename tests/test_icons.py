@@ -129,7 +129,7 @@ class InThePage(unittest.TestCase):
         found = set()
         for body in re.findall(r"<script>(.*?)</script>", self.html, flags=re.S):
             # The minifier names a template's variable differently as the bundle changes; the name is not what is pinned.
-            found |= {re.sub(r"\$\{\w+\}", "${R}", a) for a in re.findall(r"https?://[^\s\"'`)\\<>,;]*", body)}
+            found |= {re.sub(r"\$\{[\w$]+\}", "${R}", a) for a in re.findall(r"https?://[^\s\"'`)\\<>,;]*", body)}
         self.assertEqual(found, {"http://", "https://", "https://${R}", "https://example.com",
                                  "http://www.w3.org/1998/Math/MathML", "http://www.w3.org/1999/xhtml", "http://www.w3.org/2000/svg",
                                  "https://github.com/markedjs/marked.", "https://prosemirror.net/docs/guide/#generatable"})
