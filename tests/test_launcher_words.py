@@ -138,7 +138,7 @@ class TheOtherLaunchMessages(unittest.TestCase):
             platform.open_app_window(url, chrome, popen=popen, on=platform.MAC)
         code = launch.open_clark("http://127.0.0.1:8800/", said.append, {}, lambda e: "/stub", open_window, lambda u: None)
         self.assertEqual(code, 1)
-        self.assertEqual(said, ["Chrome could not be started, so clark's window did not open. clark is still running. "
+        self.assertEqual(said, ["Chrome could not be started, so clark's window did not open. The clark server is still running. "
                                 "To use it, open this address in your browser: http://127.0.0.1:8800/"])
 
     def test_a_start_up_number_that_is_not_a_number_says_what_to_change(self):
