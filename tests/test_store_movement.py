@@ -26,8 +26,12 @@ def add_milestone(demo, name, **values):
 
 def bulk(demo, milestone, field, n, apply_id=None, rows_per_step=1):
     """n forecast moves for `milestone`, written straight into the log (fast): a step of its own for each (`rows_per_step` events
-    each, so a test can make a step with several rows)."""
+    each, so a test can make a step with several rows). The connection commits every statement unless told otherwise, so the
+    rows go in one transaction (#357), unless the caller has one open already, which it then leaves to its caller to commit."""
     con = demo.store.con
+    own = not con.in_transaction
+    if own:
+        con.execute("BEGIN")
     for i in range(n):
         con.execute("INSERT INTO applies (by_user, device) VALUES (?, 'demo')", (USER,))
         step = con.execute("SELECT max(apply_id) FROM applies").fetchone()[0]
@@ -37,6 +41,8 @@ def bulk(demo, milestone, field, n, apply_id=None, rows_per_step=1):
                               (step, milestone, field, "2030-01-%02d" % (1 + i % 28), "2030-02-%02d" % (1 + i % 28)))
             con.execute("INSERT INTO item_events (at, apply_id, item_id, change, kind, route, actor) "
                         "VALUES ('2026-10-01T00:00:00.000Z', ?, ?, ?, 'change', 'dashboard', 'you')", (step, milestone, cur.lastrowid))
+    if own:
+        con.execute("COMMIT")
 
 
 class TheReply(unittest.TestCase):
