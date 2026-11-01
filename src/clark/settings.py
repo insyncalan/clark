@@ -85,6 +85,13 @@ _UNSEEN = frozenset({"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"})
 _ADDRESS = re.compile(r"[^@\s<>?,;:\"()\[\]\\]+@[^@\s<>?,;:\"()\[\]\\]+\.[^@\s<>?,;:\"()\[\]\\]+")
 
 
+class ProfileRefused(ValueError):
+    """A refusal of set_profile, in plain words; `field` is "name" or "email", the box it is about (None when it is about neither)."""
+    def __init__(self, message, field=None):
+        super().__init__(message)
+        self.field = field
+
+
 def _one_line(value):
     """`value` as text on one line (runs of spaces made one, ends trimmed), or None when it holds a control, format, surrogate,
     private-use, unassigned or separator-line character (a bidi override, a zero-width mark, a line break)."""
@@ -109,14 +116,14 @@ def set_profile(data_dir, name, email):
     not shaped like an address, and then writes nothing. The file is replaced in one step (platform.write_file), and a file that can't
     be read is never replaced."""
     if name is not None and not isinstance(name, str) or email is not None and not isinstance(email, str):
-        raise ValueError(NAME_BAD)
+        raise ProfileRefused(NAME_BAD, "name" if not isinstance(name, str) and name is not None else "email")
     clean_name, clean_email = _one_line(name or ""), _one_line(email or "")
     if clean_name is None:
-        raise ValueError(NAME_BAD)
+        raise ProfileRefused(NAME_BAD, "name")
     if len(clean_name) > NAME_MAX:
-        raise ValueError(NAME_TOO_LONG)
+        raise ProfileRefused(NAME_TOO_LONG, "name")
     if clean_email is None or clean_email and (len(clean_email) > EMAIL_MAX or not _ADDRESS.fullmatch(clean_email)):
-        raise ValueError(EMAIL_BAD)
+        raise ProfileRefused(EMAIL_BAD, "email")
     data_dir = Path(data_dir)
     current = read(data_dir)
     path = data_dir / FILE

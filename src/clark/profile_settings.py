@@ -22,14 +22,14 @@ class Profile:
 
     def save(self, req):
         """Save {"name", "email"} (both keys, each text, either may be empty): (200, {"ok": true, name, email}), or (400, a refusal in
-        plain words ending "Nothing was saved."); a refusal writes nothing."""
+        plain words ending "Nothing was saved.", with "field": "name" or "email", the box it is about, or null); a refusal writes nothing."""
         if not isinstance(req, dict) or set(req) != set(KEYS) or not all(isinstance(req[k], str) for k in KEYS):
             return 400, {"ok": False, "message": BAD, "code": "bad_request"}
         with self.lock:
             try:
                 saved = settings.set_profile(self.data_dir, req["name"], req["email"])
             except ValueError as e:
-                return 400, {"ok": False, "message": str(e), "code": "refused"}
+                return 400, {"ok": False, "message": str(e), "code": "refused", "field": getattr(e, "field", None)}
         return 200, {"ok": True, **saved}
 
     def who(self):

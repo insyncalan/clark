@@ -193,6 +193,12 @@ class Route(Folder):
         self.assertEqual((status, body["message"]), (400, settings.EMAIL_BAD))
         self.assertIsNone(self.disk())
 
+    def test_a_refusal_names_its_box(self):
+        """#237: a save carries both boxes, so the refusal says which one it is about."""
+        self.assertEqual(self.ask("POST", {"name": "N" * 61, "email": ""})[1]["field"], "name")
+        self.assertEqual(self.ask("POST", {"name": "Sam", "email": "nope"})[1]["field"], "email")
+        self.assertEqual(self.ask("POST", {"name": "N" * 61, "email": "nope"})[1]["field"], "name", "the name is judged first")
+
     def test_no_seam_is_404(self):
         bare = sv.LocalServer((sv.HOST, 0))
         threading.Thread(target=bare.serve_forever, daemon=True).start()

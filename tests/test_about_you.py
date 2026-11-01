@@ -189,6 +189,27 @@ class AboutYou(Base):
             self.assertEqual(self.saved(), before)
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
 
+    def test_C_a_refusal_shows_under_its_own_box_in_either_order(self):
+        """#237: a save carries both boxes, so a refusal about the email must not land under the name, nor blank the email's message."""
+        bad = "That email address is not complete. Check it, or leave it empty. Nothing was saved."
+        said = lambda f: f"document.querySelector('#about-{f}').closest('.fld').querySelector('.fld-bad').textContent"
+        for first in ("email", "name"):
+            with self.subTest(first=first), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p)
+                if first == "email":
+                    self.type_into(p, "email", "nope")
+                    p.until(f"{said('email')} !== ''", "the email refusal shows")
+                    self.type_into(p, "name", "Sam Lee")
+                else:
+                    self.type_into(p, "name", "Sam Lee", leave="none")
+                    self.type_into(p, "email", "nope")
+                p.until(f"{said('email')} !== ''", "the email refusal shows")
+                self.assertEqual(p.js(said("email")), bad)
+                self.assertEqual(p.js(said("name")), "", "the name box has no message")
+                self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee", "the name keeps what was typed")
+                self.assertEqual(p.js("document.querySelector('#about-email').value"), "nope", "the email keeps what was typed")
+
     def test_C_the_menu_still_opens_when_the_first_click_is_lost(self):
         """The helper that opens the menu must survive a click the page never took (a slow computer right after a load): the first click is
         swallowed here, and the menu is there all the same, once and not toggled shut."""

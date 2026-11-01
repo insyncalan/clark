@@ -120,7 +120,7 @@ export async function readData(project) {
 }
 
 // Your name and email (#180, Settings › Personal › About you), kept in clark's own settings on this computer. getProfile answers
-// {name, email} or null; saveProfile answers {ok: true, name, email} or {ok: false, message}: a refusal is in the route's own plain
+// {name, email} or null; saveProfile answers {ok: true, name, email} or {ok: false, message, field}: `field` is the box a refusal is about (name or email, or null); a refusal is in the route's own plain
 // words (ending "Nothing was saved."), any other failure in plainChange's.
 export async function getProfile() {
   try {
@@ -140,7 +140,7 @@ export async function saveProfile(name, email) {
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, name: String(reply.name || ""), email: String(reply.email || "") };
     const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
-    if (r.status === 400 && said) return { ok: false, message: said };
+    if (r.status === 400 && said) return { ok: false, message: said, field: reply.field === "name" || reply.field === "email" ? reply.field : null };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
     return { ok: false, message: plainChange(0) };

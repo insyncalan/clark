@@ -49,9 +49,11 @@ function AboutYou() {
       setSaid({ name: "", email: "" });
       return;
     }
-    const mine = field === "name" ? name : email;
-    if ((mine.current ? mine.current.value : typed[field]) !== sent[field]) return;
-    setSaid({ name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
+    // the refusal says which box it is about (a save carries both, so the box just left may not be the one refused)
+    const about = r.field === "name" || r.field === "email" ? r.field : field;
+    const mine = about === "name" ? name : email;
+    if ((mine.current ? mine.current.value : typed[about]) !== sent[about]) return;
+    setSaid({ name: about === "name" ? r.message : "", email: about === "email" ? r.message : "" });
   };
   const box = (field, label, type, line, ref) => (
     <div class="fld">
