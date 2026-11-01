@@ -15,10 +15,13 @@ import { ClientFolder } from "./ClientFolder.jsx";
 import { Movement } from "./Movement.jsx";
 import { RichField } from "./RichField.jsx";
 import { richOn } from "./richSave.js";
+import { cleanHtml } from "../logic/cleanHtml.js";
 import { Safety } from "./Safety.jsx";
 import { HelpLayer } from "../help/Help.jsx";
 import { AddDialog } from "./AddDialog.jsx";
 import { installKeys, openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
-export const EDIT = { glance: GLANCE, Personal, RichField, richOn, Gutter, Add, Title, Toggle, Toast, Cell, Publish, ProfileMenu, ClientFolder, Safety, MilestoneMore: Movement, Board, LayoutSwitch, HelpLayer, AddDialog, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };
+// `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
+const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
+export const EDIT = { clean, glance: GLANCE, Personal, RichField, richOn, Gutter, Add, Title, Toggle, Toast, Cell, Publish, ProfileMenu, ClientFolder, Safety, MilestoneMore: Movement, Board, LayoutSwitch, HelpLayer, AddDialog, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };
