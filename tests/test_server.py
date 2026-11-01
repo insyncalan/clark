@@ -21,6 +21,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import _routes as routes_expected
 from _paths import ROOT, SRC
 
 from clark import appfiles, idle, page, server as sv
@@ -307,11 +308,8 @@ class Saving(ServerTest):
             return 409, {"ok": False, "message": "That step has been undone already.", "code": "undone"}
         return Running(change=change, undo=undo)
 
-    def test_the_post_routes_are_exactly_change_undo_the_sneak_read_the_publish_ones_the_two_backup_ones_profile_the_draft_email_two_the_two_word_ones_and_the_ask_settings(self):
-        self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/sneak/read", "/api/publish", "/api/client-folder", "/api/preview",
-                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/page-error", "/api/logging", "/api/logging/open-folder", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
-                                                  "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
-                                                  "/api/ask/change/apply", "/api/section-image", "/api/section-file", "/api/people", "/api/people/undo"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read; #96 R1 the picture one, R2 the section file
+    def test_the_post_routes_are_exactly_the_listed_ones(self):
+        self.assertEqual(routes_expected.unplanned(sv), {}, "a route the tests were not told of, or one that has gone")     # tests/_routes.py
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/sneak/read"], sv.sneak_route)
@@ -894,7 +892,7 @@ def free_port():
 
 
 class Here(ServerTest):
-    """#71: POST /api/here and the idle stop. /api/here is outside POST_ROUTES (test_the_post_routes_are_exactly_change_and_undo
+    """#71: POST /api/here and the idle stop. /api/here is outside POST_ROUTES (test_the_post_routes_are_exactly_the_listed_ones
     stays as it is), so the token checks the Token class makes for the table are made here for it."""
 
     def test_here_needs_the_token_and_the_dispatcher_checks(self):
