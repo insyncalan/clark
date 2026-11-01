@@ -254,6 +254,12 @@
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; white-space: nowrap; }
 }
+@media (max-width: 900px) {      /* the project switcher (A-D25) adds a name beside the tabs: they scroll in their own bar, the name shortens, and the mode switch stays in the window */
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+  .top .tab { flex: none; white-space: nowrap; }
+  .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
+}
 
 /* Use cases page: detail */
 /* One use case on its own page (Edit only): the crumb, the title, two columns at 1400 px and one at 900 px; tokens only, 13 px text at least, 24 px targets, no sideways scroll. */

@@ -1657,6 +1657,12 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; white-space: nowrap; }
 }
+@media (max-width: 900px) {      
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+  .top .tab { flex: none; white-space: nowrap; }
+  .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
+}
 
 
 
