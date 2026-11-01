@@ -30,8 +30,8 @@ class Source(unittest.TestCase):
             self.assertNotIn('"k"', text.lower(), name)
 
     def test_the_cursor_is_drawn_not_only_coloured(self):
-        self.assertIn("table.items tr[data-id]:focus-visible { outline: 2px dotted", CSS)
-        self.assertIn(".bc-main:focus-visible { outline: 2px dotted", CSS)
+        self.assertIn("table.items tr[data-id]:focus-visible { outline: 2px solid", CSS)
+        self.assertIn(".bc-main:focus-visible { outline: 2px solid", CSS)
 
     def test_help_lists_every_key(self):
         for words in ("Work items table: move the cursor", "Work items board: move from card to card", "In Edit, [[Enter]] on a cell opens that cell"):
@@ -58,7 +58,7 @@ class Keys(ie.Live):
                 key(cdp, sid, "Home")
                 self.assertEqual(cdp.js(FOCUS, sid), rows[0])
                 self.assertEqual(cdp.js("document.querySelectorAll('#work tr[data-id][tabindex=\"0\"]').length", sid), 1, "one tab stop")
-                self.assertIn("dotted", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
+                self.assertIn("solid", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
 
     def test_enter_opens_the_cursor_rows_peek_and_left_and_right_do_nothing_in_view(self):
         for width in (1400, 900):
@@ -130,7 +130,7 @@ class Keys(ie.Live):
                 self.assertEqual(at(), ids[-1])
                 key(cdp, sid, "Home")
                 self.assertEqual(at(), ids[0])
-                self.assertIn("dotted", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
+                self.assertIn("solid", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={ids[0]}')", "Enter opens the card's peek")
                 self.assertEqual(cdp.js("(document.querySelector('[data-move]') || {}).tagName || 'none'", sid), "none", "View: no Move to button")

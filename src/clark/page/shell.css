@@ -568,8 +568,8 @@ table.items.grouped tr.grp th { padding: 10px 4px 6px; border-top: 1px solid var
 .bcard.drag { opacity: .5; }
 .bcard.done .bc-title { color: var(--text-muted); }
 .bc-main { cursor: pointer; border-radius: var(--radius-sm); }
-.bc-main:focus-visible { outline: 2px dotted var(--brand-blue); outline-offset: 2px; }   /* the cursor: dotted, never only colour */
-table.items tr[data-id]:focus-visible { outline: 2px dotted var(--brand-blue); outline-offset: -2px; }
+.bc-main:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }   /* the cursor: a drawn solid blue ring, never only colour */
+table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bc-top { display: flex; align-items: center; gap: 8px; padding-right: 28px; }
 .bc-id { font-size: 13px; color: var(--text-muted); }
 .eye { display: inline-flex; color: var(--status-blue-text); }
