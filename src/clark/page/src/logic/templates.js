@@ -9,9 +9,11 @@
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES } from "../templates/types.js";
+import { WORDS as NEEDS } from "./needs.js";
 
-// What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, and every type in the template registry).
-export const ACCEPTS = { types: ["text", ...TEMPLATE_TYPES] };
+// What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, needs since the section that carries content (#121),
+// and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
+export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES] };
 
 export const KINDS = [
   { id: "text", name: "Text and pictures" },
@@ -46,6 +48,8 @@ export const TEMPLATES = [
     description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
   { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
+  { id: "needs", name: NEEDS.title, kind: "dates", fit: ["full", "half"], type: "needs", title: NEEDS.title, body: "", ready: true,
+    description: "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", holds: ["Heading", "Row: what is needed", "From", "By"] },
   { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
     description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
   { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
@@ -66,7 +70,7 @@ export const LATER = [
   { id: "checklist", type: "checklist", ready: true },
 ];
 
-// Every template entry, in the box or not: one per template type, and Text.
+// Every template entry, in the box or not: one per template type, and Text and Needs from you (#121).
 export const CATALOGUE = [...TEMPLATES, ...LATER];
 
 export const MESSAGES = {

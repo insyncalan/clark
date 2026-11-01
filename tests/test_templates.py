@@ -39,12 +39,13 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "docs-links", "description": "The papers that go with this week’s report."},
     {"id": "callout", "description": "One thing the reader must see."},
     {"id": "key-dates", "description": "What’s coming, from the milestones."},
+    {"id": "needs", "description": "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by."},
     {"id": "link-preview", "description": "A web page shown as a card you write: a dashboard, a news item, a recording."},
     {"id": "one-doc", "description": "A single file to read."},
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
 ]
-FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "raid-3", "raid-4", "work-items", "docs-links", "callout", "key-dates",
-               "link-preview", "one-doc"]      # the box's templates: the first slice and the two files and links ones moved in (#96 G7); every one built
+FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "raid-3", "raid-4", "work-items", "docs-links", "callout", "key-dates", "needs",
+               "link-preview", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
 
 
 class Logic(unittest.TestCase):
@@ -128,6 +129,7 @@ class Logic(unittest.TestCase):
             "docs-links": ("The papers that go with this week’s report.", ["Heading", "File (one or more)", "Link list"], ["full", "half"]),
             "callout": ("One thing the reader must see.", ["Heading", "Callout · decision"], ["half", "full"]),
             "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
+            "needs": ("What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", ["Heading", "Row: what is needed", "From", "By"], ["full", "half"]),
             "link-preview": ("A web page shown as a card you write: a dashboard, a news item, a recording.", ["Heading", "Link", "Card text"], ["full"]),
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
@@ -135,8 +137,10 @@ class Logic(unittest.TestCase):
     def test_a_stub_type_is_placeable_only_when_ready(self):
         """#96 R0: the store takes every template's type (the real change route makes one); a template is placeable only when its
         catalogue entry is ready. Every template in the box is built and ready now (tests/test_section_registry.py ties ready to the
-        section_kinds module and the page part); with ready off, none is placeable."""
+        section_kinds module and the page part); with ready off, none is placeable. ACCEPTS is the store's real answer: text, needs
+        (#121) and every template type."""
         from clark import changes, store
+        self.assertEqual(self.t("ACCEPTS")["types"][:2], ["text", "needs"])
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title"), "new still takes a type and a title only")
         for x in self.t("TEMPLATES"):
             self.assertIn(x["type"], store.SECTION_TYPES, x["id"])
@@ -152,7 +156,7 @@ class Logic(unittest.TestCase):
     # ── search, kinds, counts, recently used ─────────────────────────────────
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 12)
+        self.assertEqual(len(self.t("list()")), 13)
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -289,9 +293,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 12)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 13)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates12", "Text and pictures2", "Figures2", "Work items3", "Files and links3", "People and dates1", "Notes1"])
+                             ["All templates13", "Text and pictures2", "Figures2", "Work items3", "Files and links3", "People and dates2", "Notes1"])
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_it_takes_the_event_exactly_as_the_gutter_sends_it(self):
@@ -419,14 +423,14 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 12, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 13, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():
                 row = p.js(f"document.querySelector('[data-template={tid}]').textContent")
                 self.assertIn(desc, row, f"{tid}: its own description is readable")
                 self.assertNotIn("Coming with a later release.", row, tid)
-            # the arrow keys walk through all twelve, and the preview follows; each one can be placed
+            # the arrow keys walk through all thirteen, and the preview follows; each one can be placed
             p.js("document.querySelector('input[name=template]:checked').focus()")
             seen = [p.js("document.activeElement.value")]
             for _ in range(len(FIRST_SLICE) - 1):

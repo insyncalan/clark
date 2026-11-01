@@ -22,6 +22,14 @@ def check(kind, body):
 
 
 PURE_LIBRARY = ("base64", "binascii", "re")      # #96: standard library parts that read no file and no database
+class Generic(unittest.TestCase):
+    """The tests of the generic layer (shape, limits, canonical text) hand a type's content in whatever form they like, so the
+    needs checker (its own tests are in test_needs_content.py) is put aside for them: it takes any content that passed the generic check."""
+
+    def setUp(self):
+        patch = mock.patch.dict(sb.CHECKERS, {"needs": lambda value, rules: value})
+        patch.start()
+        self.addCleanup(patch.stop)
 
 
 class Registry(unittest.TestCase):
@@ -72,9 +80,9 @@ class Registry(unittest.TestCase):
             with self.assertRaises(sb.Bad):
                 check("needs", '{"a":1}')
 
-    def test_the_base_publishes_nothing_of_the_content(self):
-        for kind in ("needs", "tracker"):
-            self.assertEqual(sb.published(kind, {"rows": [{"what": "<script>"}]}), {})
+    def test_the_tracker_publishes_nothing_of_its_content_yet_and_needs_publishes_only_its_shown_rows(self):
+        self.assertEqual(sb.published("tracker", {"rows": [{"what": "<script>"}]}), {})
+        self.assertIsNone(sb.published("needs", {"rows": [{"what": "<script>"}]}), "a row without the checked shape is not published")
         from clark import section_kinds
         from clark.section_kinds import base
         for kind in TEMPLATE_TYPES:                    # #96: a template stub is left out of the file altogether
@@ -84,7 +92,7 @@ class Registry(unittest.TestCase):
         self.assertIsNone(base.stub_published({"rows": [{"what": "<script>"}]}, base.Context()), "the stub contract publishes nothing")
 
 
-class Canonical(unittest.TestCase):
+class Canonical(Generic):
     def test_the_stored_text_is_rebuilt_sorted_compact_and_ascii(self):
         got = check("needs", ' { "b" : [ 1 , true , null ] , "a" : "caf\u00e9" } ')
         self.assertEqual(got, '{"a":"caf\\u00e9","b":[1,true,null]}')
@@ -106,7 +114,7 @@ class Canonical(unittest.TestCase):
         self.assertEqual(json.loads(got), {"a": "<script>alert(1)</script> <img src=x onerror=y>"})
 
 
-class Hostile(unittest.TestCase):
+class Hostile(Generic):
     def refuses(self, body, kind="needs", words=None):
         began = time.monotonic()
         with self.assertRaises(sb.Bad) as e:
@@ -166,7 +174,7 @@ class Hostile(unittest.TestCase):
         self.refuses('{"a":"%s"}' % ("x" * (pad + 1)), words=sb.TOO_BIG)
 
     def test_the_stored_text_is_over_the_limit_when_escapes_make_it_longer(self):
-        body = json.dumps({"a": "\u00e9" * 30000}, ensure_ascii=False)       # about 60 KB as typed, 180 KB once stored in ASCII
+        body = json.dumps({"a": "\u00e9" * (sb.LIMITS["needs"] // 6 + 100)}, ensure_ascii=False)       # two bytes a letter as typed, six once stored in ASCII: under the limit typed, over it stored
         self.refuses(body, words=sb.TOO_BIG)
 
     def test_hidden_characters_are_refused_in_a_value_and_in_a_key(self):

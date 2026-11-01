@@ -5,6 +5,8 @@ import { Add } from "./Add.jsx";
 import { Title } from "./Title.jsx";
 import { Toggle } from "./Toggle.jsx";
 import { Toast } from "./Toast.jsx";
+import { SneakPeek as Words, SneakButton as WordsButton } from "./SneakPeek.jsx";
+import { PeekTabs, PeekActivity } from "./PeekActivity.jsx";
 import { Cell } from "./cells/Cell.jsx";
 import { Board, LayoutSwitch } from "./Board.jsx";
 import { Publish } from "./Publish.jsx";
@@ -14,8 +16,10 @@ import { GLANCE } from "./GlanceEdit.jsx";
 import { ClientFolder } from "./ClientFolder.jsx";
 import { Movement } from "./Movement.jsx";
 import { RichField } from "./RichField.jsx";
+import { NeedsEdit } from "./NeedsEdit.jsx";
 import { richOn } from "./richSave.js";
 import { Safety } from "./Safety.jsx";
+import { Palette } from "./Palette.jsx";
 import { AskSettings } from "./AskSettings.jsx";
 import { askOn, setAsk, loadAsk } from "./askState.js";
 import { AskPanel } from "./AskPanel.jsx";
@@ -26,4 +30,4 @@ import { installKeys, openHelp, closeHelp, helpOpen } from "../help/helpStore.js
 import { templateEdit } from "./templates/index.js";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
-export const EDIT = { glance: GLANCE, Personal, RichField, richOn, Gutter, Add, Title, Toggle, Toast, Cell, Publish, ProfileMenu, exportExcel, ClientFolder, Safety, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, Board, LayoutSwitch, HelpLayer, AddDialog, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };
+export const EDIT = { glance: GLANCE, Personal, RichField, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ProfileMenu, exportExcel, ClientFolder, Safety, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };

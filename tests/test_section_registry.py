@@ -223,9 +223,9 @@ class PageSide(unittest.TestCase):
         self.assertTrue(all(v == "function" for v in self.val("T.edits").values()))
         self.assertTrue(all(p["view"] == "function" and p["isEmpty"] == "function" for p in self.val("T.parts").values()))
         cat = self.val("T.templates.CATALOGUE")
-        cat_types = [x["type"] for x in cat if x["type"] != "text"]
+        cat_types = [x["type"] for x in cat if x["type"] not in ("text", "needs")]
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
-        self.assertEqual([x["type"] for x in cat if x["type"] == "text"], ["text"])
+        self.assertEqual([x["type"] for x in cat if x["type"] in ("text", "needs")], ["text", "needs"], "and Text and Needs from you (#121), once each")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
         self.assertEqual(self.val("T.templates.TEMPLATES.length + T.templates.LATER.length"), len(cat))
         self.assertTrue(set(store_module.SECTION_TYPES) >= set(x["type"] for x in cat))
@@ -243,12 +243,12 @@ class PageSide(unittest.TestCase):
         """Replaces the first slice's 'the store refuses every type but text': the store now takes every template type, and only
         the catalogue's ready flag (switched on by the lead once a template is built) makes one placeable."""
         accepts = self.val("T.templates.ACCEPTS.types")
-        self.assertEqual(accepts, ["text"] + list(section_kinds.TYPES))
+        self.assertEqual(accepts, ["text", "needs"] + list(section_kinds.TYPES))      # needs: the section that carries content (#121)
         self.assertLessEqual(set(accepts), set(changes.NEW_SECTION_TYPES), "the page's ACCEPTS is all taken by the change route")
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title"), "new still takes a type and a title only")
         for x in self.val("T.templates.CATALOGUE"):
             tid = x["id"]
-            if x["type"] == "text":
+            if x["type"] in ("text", "needs"):       # not templates of the registry: always placeable
                 self.assertIs(x["ready"], True)
                 continue
             ready = x["ready"]
