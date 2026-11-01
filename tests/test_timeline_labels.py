@@ -39,6 +39,25 @@ PROBE = r"""(() => {
 })()"""
 
 
+# The 'Today' tag, with the Today line put so that the tag lands on a label: the tag is what is drawn at its own middle.
+TAG_PROBE = r"""(() => {
+  const today = document.querySelector('.mv-today'), tag = today && today.querySelector('b'); if (!tag) return JSON.stringify({ error: 'no Today tag' });
+  const out = [];
+  for (const lab of document.querySelectorAll('.mv-strip .mv-lab')) {
+    const strip = lab.closest('.mv-strip'), r = lab.getBoundingClientRect(), s = strip.getBoundingClientRect();
+    today.style.left = Math.round(r.left - s.left - 8) + 'px';
+    lab.scrollIntoView({ block: 'nearest', inline: 'center' });
+    tag.style.top = Math.round(lab.getBoundingClientRect().top - today.getBoundingClientRect().top) + 'px';     // the tag onto this label's row
+    const t = tag.getBoundingClientRect(), l = lab.getBoundingClientRect();
+    if (t.right <= l.left || t.left >= l.right || t.bottom <= l.top || t.top >= l.bottom) continue;     // the tag is not over this label
+    const x = (Math.max(t.left, l.left) + Math.min(t.right, l.right)) / 2, y = (Math.max(t.top, l.top) + Math.min(t.bottom, l.bottom)) / 2;
+    const at = document.elementFromPoint(x, y);
+    out.push({ lab: lab.dataset.lab, on: at === tag ? 'tag' : (at ? (at.className || at.tagName) : 'nothing') });
+  }
+  return JSON.stringify({ over: out });
+})()"""
+
+
 def tearDownModule():
     shutil.rmtree(EMPTY_BRANDING, ignore_errors=True)
 
@@ -80,6 +99,20 @@ class Labels(unittest.TestCase):
                     self.assertGreater(len(got["labels"]), 1, where)
                     for item in got["labels"]:
                         self.assertEqual(item["on"], "label", f"{where}: the Today line is drawn over the label {item['lab']} ({item['on']})")
+
+    def test_the_today_tag_stays_readable_over_a_label(self):
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#milestones&p=TUL"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-strip .mv-lab').length", sid) > 1), "the timeline drew")
+            got = json.loads(cdp.js(TAG_PROBE, sid))
+            self.assertNotIn("error", got)
+            self.assertTrue(got["over"], "the Today tag was put over at least one label")
+            for item in got["over"]:
+                self.assertEqual(item["on"], "tag", f"the label {item['lab']} is drawn over the 'Today' tag ({item['on']})")
 
 
 if __name__ == "__main__":
