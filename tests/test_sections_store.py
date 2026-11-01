@@ -84,7 +84,7 @@ class Seed(Base):
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(ELEVEN))
         self.assertTrue(all(s["type"] in NINE for s in default_sections.DEFAULT_SECTIONS))
-        self.assertEqual(set(store_module.SECTION_TYPES), set(NINE))
+        self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker"})      # the nine of the starting report, and the two that carry content
 
     def test_data_for_gives_the_sections_in_order_with_their_own_query(self):
         data = self.s.data_for("ABC")
@@ -360,7 +360,7 @@ class Delete(Base):
             with self.subTest(section=row["title"]):
                 if row["type"] == "text":
                     continue
-                with self.assertRaisesRegex(Invalid, "Only a text section can be deleted; hide the others"):
+                with self.assertRaisesRegex(Invalid, "Only a text, needs or tracker section can be deleted; hide the others"):
                     with self.s.step("dashboard", USER) as st:
                         st.cancel("report_sections", row["id"])
         self.assertEqual(len(self.sections()), 11)
