@@ -68,7 +68,7 @@ class Shape(unittest.TestCase):
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
         self.assertEqual((len(STEPS), len(SECTIONS)), (28, 30))
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (31, 31))
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):
@@ -288,6 +288,16 @@ class LowWordsRound(unittest.TestCase):
     def test_no_line_starts_with_ask_clark(self):
         self.assertIn("The check in ask clark warns you when", self.ALL)
         self.assertFalse([s for _, s in words() if re.match(r"(?i)ask clark[’']s\b", s.strip())])
+
+    def test_the_section_style_lines_are_the_ones_settings_shows(self):
+        """Help and Settings > Personal give the same four lines for the four styles, and they are the prototype's Settings words."""
+        table = next(b for sec in SECTIONS if sec["id"] == "layouts" for b in sec["b"] if b[0] == "tbl")
+        proto = (PROTO / "views.js").read_text(encoding="utf-8")
+        card = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Personal.jsx").read_text(encoding="utf-8")
+        self.assertEqual(len(table[2]), 4)
+        for name, line in table[2]:
+            self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
+            self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
 
 if __name__ == "__main__":
