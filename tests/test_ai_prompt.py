@@ -48,7 +48,7 @@ class TheirOwnRules(unittest.TestCase):
 
     def test_ask_clark_keeps_its_rules_byte_for_byte(self):
         req = ask.build_request("How is the plan?", [ask.Passage("report: actions", "ABC-A-001 Send the plan")])
-        self.assertEqual(req.system, "")
+        self.assertEqual(req.system, ask.RULES, "ask clark names its rules itself; nothing is left to a blank")
         self.assertEqual(ac.arguments("/x/claude")[-1], ask.RULES)
         self.assertEqual(ac.arguments("/x/claude", "", None)[-2:], ["--system-prompt", ask.RULES])
 
