@@ -1,8 +1,9 @@
 """A section that carries content: the checker registry (the shared base for 'Needs from you' and 'Progress tracker').
 
-A section of type `needs` or `tracker` keeps its content as JSON text in the section's `body` column. This module is pure (it
-reads no file and no database, and imports nothing from clark): store.py calls it from the section rules, so every write of a
-body, including an Undo that puts one back, passes through the same walls; publish.py calls it again at publish time.
+A section of type `needs` or `tracker`, or of one of the section template types (#96, the registry in section_kinds/), keeps its
+content as JSON text in the section's `body` column. This module is pure (it reads no file and no database, and imports nothing
+from clark but the registry, which is pure too): store.py calls it from the section rules, so every write of a body, including
+an Undo that puts one back, passes through the same walls; publish.py calls it again at publish time.
 
 What this base decides, and nothing more:
 - the content is one JSON object or one JSON list, no longer than the type's byte limit (checked before it is parsed);
@@ -23,22 +24,25 @@ The plug-in points (a later item changes only these, never store.py, changes.py 
   rules.visible(text), the store's text rules (see Rules).
 - EMPTY[type]: the body a new section of that type starts with. Chosen by the store, never taken from the request.
 - LIMITS[type]: the most bytes the stored text may take.
-- published(type, value): what a published file carries of a checked body (a dict that is merged into the section's entry), or
-  None to leave the section out. The base publishes nothing of the content (see published).
+- published(type, value, ctx): what a published file carries of a checked body (a dict that is merged into the section's entry),
+  or None to leave the section out. The base publishes nothing of the content (see published).
+
+A section template (#96) is NOT added here: each one is a module in section_kinds/ (its READY, LIMIT, EMPTY, check and
+published; the contract is section_kinds/base.py), and the tables below are built from that registry, which is filled with all
+eighteen types up front. A template's builder changes only its own module.
 """
 import json
 import unicodedata
 
+from clark.section_kinds import REGISTRY as TEMPLATES, TYPES as TEMPLATE_TYPES
+from clark.section_kinds.base import Bad, Context
+
 NEEDS, TRACKER = "needs", "tracker"
-BODY_TYPES = (NEEDS, TRACKER)            # the section types (besides text) that carry content
+BODY_TYPES = (NEEDS, TRACKER) + TEMPLATE_TYPES   # the section types (besides text) that carry content
 MAX_DEPTH = 8                            # lists and objects inside each other, at most
 MAX_DIGITS = 15                          # a whole number of more digits is refused before Python reads it (slow on 3.9)
 DEFAULT_LIMIT = 262144                   # bytes of stored text, unless LIMITS says less
-LIMITS = {NEEDS: 65536, TRACKER: 262144}
-
-
-class Bad(ValueError):
-    """The content can't be saved. The message is plain words for a person and never quotes the value."""
+LIMITS = {NEEDS: 65536, TRACKER: 262144, **{t: m.LIMIT for t, m in TEMPLATES.items()}}
 
 
 class Rules:
@@ -157,8 +161,8 @@ def _checked_tracker(value, rules):
     return value
 
 
-CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker}
-EMPTY = {NEEDS: "", TRACKER: ""}         # a new section starts with no content at all; an item may give a richer start
+CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, **{t: m.check for t, m in TEMPLATES.items()}}
+EMPTY = {NEEDS: "", TRACKER: "", **{t: m.EMPTY for t, m in TEMPLATES.items()}}   # a new section starts with no content at all; an item may give a richer start
 
 
 def check(kind, body, rules):
@@ -178,8 +182,13 @@ def check(kind, body, rules):
     return text
 
 
-def published(kind, value):
+def published(kind, value, ctx=None):
     """What the published file carries of a checked body, as a dict merged into the section's entry; None leaves the section
-    out ('an empty template stays out'). BASE: nothing of the content is published, so the section keeps its place and title
-    only. #121 and #189 each add their own table here: fields picked by name from the checked value, hidden rows left out."""
+    out ('an empty template stays out'). A section template answers for itself (its module's published, given `ctx`, what
+    publish already kept: a Context); a stub answers None, so it is never in a file. BASE, for needs and tracker: nothing of
+    the content is published, so the section keeps its place and title only. #121 and #189 each add their own table here:
+    fields picked by name from the checked value, hidden rows left out."""
+    if kind in TEMPLATES:
+        out = TEMPLATES[kind].published(value, ctx if ctx is not None else Context())
+        return out if isinstance(out, dict) and out else None
     return {}
