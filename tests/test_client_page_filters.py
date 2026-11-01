@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from _new_page import until_new_page
 from _paths import ROOT  # noqa: F401  (puts src/ on the path)
 import _publish_fixture as fx
 
@@ -256,8 +257,9 @@ class ClientPageFilters(unittest.TestCase):
                 sid = open_page(cdp, self.path.as_uri() + "#work", 1400, "light")
                 self.settle(cdp, sid, "!!document.querySelector('#work-list')")
                 cdp.js(f"localStorage.setItem('clark.work.PUB', {json.dumps(bad)})", sid)
+                cdp.js("window.__old_document = true", sid)
                 cdp.call("Page.reload", {}, sid)
-                self.settle(cdp, sid, "!!document.querySelector('#work-list')")
+                until_new_page(self, lambda: cdp.js("window.__old_document === undefined && !!document.querySelector('#work-list')", sid), "the page again")
                 self.assertEqual(self.count(cdp, sid), 6, "the start page: every open row")
                 self.assertFalse(cdp.js("!!document.querySelector('.fchip')", sid))
 

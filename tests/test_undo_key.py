@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 from _demo import USER
+from _new_page import until_new_page
 from clark import changes, page, server as sv
 from clark.store import open_store
 from test_server import CHROME, Running, chrome, wait
@@ -248,10 +249,10 @@ class UndoKey(unittest.TestCase):
             self.assertEqual([which for which, _ in self.sent], ["change"], "the change was sent, as it must be")
             self.assertEqual(posts, ["/api/change"], "and nothing else was posted: the list stays on the page")
             self.assertEqual(self.kept(cdp, sid), before, "nothing was kept in the browser")
-            cdp.js("window.__before_reload = true", sid)
+            cdp.js("window.__old_document = true", sid)
             cdp.call("Page.reload", {}, sid)
-            self.until(cdp, sid, "window.__before_reload === undefined && document.querySelectorAll('#work tbody tr').length > 0",
-                       "the page was read again")
+            until_new_page(self, lambda: cdp.js("window.__old_document === undefined && document.querySelectorAll('#work tbody tr').length > 0", sid),
+                           "the page was read again", 20)
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Edit shows the cells' pickers")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)

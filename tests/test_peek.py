@@ -14,6 +14,7 @@ from datetime import date
 from pathlib import Path
 from unittest import mock
 
+from _new_page import until_new_page
 from _paths import ROOT
 import _testpage as testpage
 
@@ -349,8 +350,9 @@ class Browser(unittest.TestCase):
                 for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 700), ("mouseReleased", client - 700)):
                     cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": edge[1], "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1}, sid)
                 self.assertTrue(wait(lambda: abs(w() - min(700, client)) <= 2), f"dragged to {w()}")
+                cdp.js("window.__old_document = true", sid)
                 cdp.call("Page.reload", {}, sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                until_new_page(self, lambda: cdp.js("window.__old_document === undefined && !!document.querySelector('#peek')", sid), "the peek after a reload")
                 self.assertLessEqual(abs(w() - min(700, client)), 2, "kept after a reload")
                 cdp.js("document.querySelector('.pk-edge').focus()", sid)
                 for _ in range(40):

@@ -19,6 +19,7 @@ from datetime import date
 from pathlib import Path
 from unittest import mock
 
+from _new_page import until_new_page
 from _paths import ROOT, SRC
 import _testpage as testpage
 
@@ -709,8 +710,9 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("history.length", sid), 2)
             self.assertEqual(cdp.js("window.__push", sid), 0)
             want = self.shown(cdp, sid)
+            cdp.js("window.__old_document = true", sid)
             cdp.call("Page.reload", {}, sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
+            until_new_page(self, lambda: cdp.js("window.__old_document === undefined && document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0, "the rows again")
             self.assertEqual(cdp.js("location.hash", sid), h)
             self.assertEqual(self.shown(cdp, sid), want)
             self.assertEqual(self.pressed(cdp, sid, "[data-show=all]"), "true")
@@ -816,8 +818,9 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == f"#work&p=TUL&item={item}&f=mode:all;type:action"))
             self.assertEqual(cdp.js("clarkPage.peek().id", sid), item)
             h = cdp.js("location.hash", sid)
+            cdp.js("window.__old_document = true", sid)
             cdp.call("Page.reload", {}, sid)                                # a reload brings back both
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
+            until_new_page(self, lambda: cdp.js("window.__old_document === undefined && document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0, "the rows again")
             self.assertEqual(cdp.js("location.hash", sid), h)
             self.assertEqual(cdp.js("clarkPage.peek().id", sid), item)
             self.assertEqual(self.pressed(cdp, sid, "[data-type=action]"), "true")
@@ -869,8 +872,10 @@ class RealBrowser(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
             cdp.js("location.hash = '#work&p=TUL&f=mode:closed;type:decision;client:no;priority:Urgent'", sid)     # a hand-made address
+            cdp.js("window.__old_document = true", sid)
             cdp.call("Page.reload", {}, sid)
-            self.assertTrue(wait(lambda: "No items match these filters." in (cdp.js("document.querySelector('#work-list').innerText", sid) or "")))
+            until_new_page(self, lambda: "No items match these filters." in (cdp.js(
+                "window.__old_document === undefined && ((document.querySelector('#work-list') || {}).innerText || '')", sid) or ""), "the empty list again")
             self.assertEqual(cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid), 0)
             click(cdp, sid, "#clearAll2")
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))

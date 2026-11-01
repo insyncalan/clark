@@ -9,6 +9,7 @@ from pathlib import Path
 
 import _paths  # noqa: F401
 from _clean_html import wait_for
+from _new_page import until_new_page
 from _paths import ROOT, TOOLS
 
 sys.path.insert(0, str(TOOLS))
@@ -48,9 +49,11 @@ class Store:
     def ev(self, expr):
         return self.cdp.js(expr, self.sid)
 
-    def reload(self):
+    def reload(self, test):
+        self.cdp.js("window.__old_document = true", self.sid)
         self.cdp.call("Page.reload", {}, self.sid)
-        assert wait_for(lambda: self.cdp.js("typeof KP === 'object'", self.sid) is True, 60), "the script did not reload"
+        until_new_page(test, lambda: self.cdp.js("window.__old_document === undefined && typeof KP === 'object'", self.sid) is True,
+                       "the script did not reload", 60)
 
 
 class Switch(unittest.TestCase):
@@ -64,7 +67,7 @@ class Switch(unittest.TestCase):
 
     def setUp(self):
         self.page.ev("localStorage.removeItem('clark.single-keys')")
-        self.page.reload()                          # the switch is read when the page starts: each test starts it fresh
+        self.page.reload(self)                          # the switch is read when the page starts: each test starts it fresh
 
     def test_on_by_default(self):
         self.assertIs(self.page.ev("KP.singleKeys.value"), True)

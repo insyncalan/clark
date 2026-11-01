@@ -13,6 +13,7 @@ import unittest
 from unittest import mock
 
 from _demo import USER
+from _new_page import until_new_page
 from _paths import ROOT, SRC
 
 from clark import changes, page, server as sv  # noqa: E402
@@ -101,8 +102,10 @@ class Base(unittest.TestCase):
         self.assertTrue(wait(lambda: bool(cdp.js(f"!!({expr})", sid)), secs), f"timed out waiting for {what or expr}")
 
     def reload(self, cdp, sid):
+        cdp.js("window.__old_document = true", sid)
         cdp.call("Page.reload", {}, sid)
-        self.until(cdp, sid, "document.documentElement.dataset.ready === '1' && !!document.querySelector('#work-list')", "the page after a reload")
+        until_new_page(self, lambda: cdp.js("window.__old_document === undefined && document.documentElement.dataset.ready === '1' && !!document.querySelector('#work-list')", sid),
+                       "the page after a reload", 30)
 
     def board(self, cdp, sid, group="status", lane=None, mode="all"):
         """Remember the layout (as the person would by clicking), then reload so it is drawn."""

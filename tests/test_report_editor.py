@@ -18,6 +18,7 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from _editor_checks import edit_elements
+from _new_page import until_new_page
 from _paths import SRC, TOOLS
 import _testpage as testpage
 
@@ -60,16 +61,8 @@ class Pg:
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
 
     def until_new_page(self, expr, what, seconds=10):
-        """until(), but a call made while the page is navigating is waited out: Chrome answers it with 'Inspected target navigated
-        or closed' (seen on the hosted macOS runner), and the next poll sees the new page. Any other error still fails."""
-        def ask():
-            try:
-                return self.js(expr)
-            except RuntimeError as e:
-                if "navigated or closed" in str(e):
-                    return False
-                raise
-        self.t.assertTrue(wait(ask, seconds), what)
+        """until(), but a call made while the page is navigating is waited out (see _new_page.py)."""
+        until_new_page(self.t, lambda: self.js(expr), what, seconds)
 
     def ready(self):
         self.until("document.querySelectorAll('.sec').length > 0 || !!document.querySelector('#no-sections')", "the report drew")

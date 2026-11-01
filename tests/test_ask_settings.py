@@ -16,6 +16,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from _new_page import until_new_page
 from _paths import SRC
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
@@ -127,8 +128,9 @@ class Settings(unittest.TestCase):
             self.assertEqual(js("document.querySelector('[data-ask-switch]').innerText"), "Turn on asking")
             self.assertEqual(read(self.db)[0], False, "the database holds it, for this computer")
             self.assertEqual(js("localStorage.getItem('clark.askEnabled')"), None, "nothing is kept in the browser")
+            js("window.__old_document = true")
             js("localStorage.clear(); location.reload()")
-            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == OFF, 20), "off after a reload")
+            until_new_page(self, lambda: js("window.__old_document === undefined && (document.querySelector('#ask-state') || {}).innerText") == OFF, "off after a reload", 20)
             js("document.querySelector('[data-ask-switch]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#ask-state').innerText") == ON, 20))
             self.assertEqual(read(self.db)[0], True)
@@ -137,9 +139,10 @@ class Settings(unittest.TestCase):
         with chrome() as cdp:
             sid = navigate(cdp, self.s.port, "#settings&p=ABC")
             js = lambda e: cdp.js(e, sid)          # noqa: E731
+            js("window.__old_document = true")
             js("localStorage.setItem('clark.askEnabled', 'off'); location.reload()")
-            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == ON, 20),
-                            "the database says on, so the page says on")
+            until_new_page(self, lambda: js("window.__old_document === undefined && (document.querySelector('#ask-state') || {}).innerText") == ON,
+                           "the database says on, so the page says on", 20)
             self.assertEqual(read(self.db)[0], True)
 
     def test_asking_reads_as_off_when_the_server_cannot_say(self):

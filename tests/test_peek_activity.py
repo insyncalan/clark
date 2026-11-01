@@ -13,6 +13,7 @@ import subprocess
 import time
 import unittest
 
+from _new_page import until_new_page
 from _paths import ROOT
 
 from clark import activity_read, page  # noqa: E402
@@ -184,8 +185,9 @@ class ActivityBrowser(unittest.TestCase):
                     click(cdp, sid, "[data-pk-tab=activity]")
                     self.peek_stays(cdp, sid, ids[0])
                     # a reload with &item= in the address opens the peek (in View, as every reload is), and it stays
+                    cdp.js("window.__old_document = true", sid)
                     cdp.call("Page.reload", {}, sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                    until_new_page(self, lambda: cdp.js("window.__old_document === undefined && !!document.querySelector('#peek')", sid), "the peek after a reload")
                     self.peek_stays(cdp, sid, ids[0], rows=False)
 
 

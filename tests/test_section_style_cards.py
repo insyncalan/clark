@@ -53,24 +53,6 @@ def stable(p, expr, seconds=2.0, every=0.05):
     return last
 
 
-def settled(p, expr, what, seconds=15):
-    """p.until, but a page that is navigating (a reload in flight) is waited out: Chrome says 'Inspected target navigated or closed'
-    to a call made in that gap, and the next poll sees the new page. Any other error still fails."""
-    def ask():
-        try:
-            return p.js(expr)
-        except RuntimeError as e:
-            if "navigated or closed" in str(e):
-                return False
-            raise
-    end = time.time() + seconds
-    while time.time() < end:
-        if ask():
-            return
-        time.sleep(0.1)
-    p.t.fail(what)
-
-
 class Cards(Base):
     def open_settings(self, p, look="light"):
         p.js("document.querySelector('#profile-btn').click()")
@@ -154,8 +136,9 @@ class Cards(Base):
             p.js("document.querySelector('input[name=secstyle][value=card]').closest('label').click()")
             p.until("document.documentElement.dataset.secstyle === 'card'", "a click on the card chooses it")
             self.assertEqual(self.chosen(p), ["card"])
-            p.js("window.__before = 1; location.reload()")
-            settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
+            p.js("window.__old_document = true")
+            p.js("location.reload()")
+            p.until_new_page("window.__old_document === undefined && !!document.querySelector('#profile-btn')", "reloaded")
             self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "card", "kept for the page")
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu [data-kind=settings]')", "menu")

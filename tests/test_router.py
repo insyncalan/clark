@@ -19,6 +19,7 @@ import time
 import unittest
 from pathlib import Path
 
+from _new_page import until_new_page
 from _paths import ROOT, SRC, TOOLS
 import _testpage as testpage
 
@@ -86,6 +87,12 @@ class Browser(unittest.TestCase):
 
     def ev(self, expr):
         return self.cdp.js(expr, self.sid)
+
+    def reload(self):
+        """Reload and wait for the NEW page (see _new_page.py): the old one still says ready until it goes."""
+        self.ev("window.__old_document = true")
+        self.cdp.call("Page.reload", {}, self.sid)
+        until_new_page(self, lambda: self.ev("window.__old_document === undefined && document.documentElement.dataset.ready") == "1", "reloaded", 10)
 
     def until(self, expr, want, what=""):
         ok = wait(lambda: self.ev(expr) == want, 10)
@@ -782,8 +789,7 @@ class BuiltPage(Browser):
                 self.ev("clarkPage.show('dashboard')")
                 self.cdp.call("Page.navigate", {"url": self.base + want}, self.sid)              # a bookmark
                 self.until("document.documentElement.dataset.ready", "1", "reopened")
-                self.cdp.call("Page.reload", {}, self.sid)
-                self.until("document.documentElement.dataset.ready", "1", "reloaded")
+                self.reload()
                 name = DATA[re.search(r"p=([A-Z]+)", want).group(1)]["project"]["name"]
                 self.until("document.getElementById('project-name').textContent", name, f"the project after reload of {want}")
                 self.assertEqual(self.ev("location.hash"), want)
@@ -838,8 +844,7 @@ class BuiltPage(Browser):
             self.draw(cdp, "#work&p=PDF&item=A-12&f=a%26b%3Dc")
             self.assertEqual(self.ev("clarkPage.filters()"), "a%26b%3Dc")
             self.assertEqual(self.peek(), {"kind": "item", "id": "A-12"}, "the peek is untouched by f")
-            self.cdp.call("Page.reload", {}, self.sid)
-            self.until("document.documentElement.dataset.ready", "1", "reloaded")
+            self.reload()
             self.until("document.getElementById('project-name').textContent", "Example Programme", "the data")
             self.assertEqual(self.ev("location.hash"), "#work&p=PDF&item=A-12&f=a%26b%3Dc")
             self.assertEqual(self.ev("clarkPage.filters()"), "a%26b%3Dc")
