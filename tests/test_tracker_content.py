@@ -230,6 +230,18 @@ class Shape(unittest.TestCase):
         self.refuses({"v": 1, "rows": []}, sb.TRACKER_SHAPE)
 
 
+class TooLong(Shape):
+    def test_a_line_or_note_that_is_too_long_says_what_to_do(self):
+        for words in (sb.TRACKER_TEXT_LONG, sb.TRACKER_NOTE_LONG):
+            self.assertIn("Shorten it", words)
+        body = copy.deepcopy(DEMO)
+        body["groups"][0]["lines"][0]["text"] = "a" * (sb.TRACKER_TEXT_MAX + 1)
+        self.assertEqual(self.refuses(body), sb.TRACKER_TEXT_LONG)
+        body = copy.deepcopy(DEMO)
+        body["overall"]["note"] = "a" * (sb.TRACKER_NOTE_MAX + 1)
+        self.assertEqual(self.refuses(body), sb.TRACKER_NOTE_LONG)
+
+
 class Size(unittest.TestCase):
     """Non-ASCII text is stored as \\u escapes (up to twelve bytes a letter), so the size limit has to fit the checker's own largest tracker."""
 

@@ -125,7 +125,7 @@ class Kept(Published):
         self.write(first, body("one"))
         got = self.sections()
         self.assertEqual((got[first]["beside"], second in got), (0, False))        # the partner has no body: out, so the first takes the full row
-        self.write(second, body("two"))
+        self.write(second, tbody("two"))
         got = self.sections()
         self.assertEqual((got[first]["beside"], got[second]["beside"]), (1, 0))      # both in: a pair
         self.raw(second, "not json")

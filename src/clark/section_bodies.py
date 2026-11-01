@@ -249,14 +249,14 @@ def _shown_needs_row(row):
 # takes the default shown here; a key this does not know is refused, never dropped.
 TRACKER_VERSION = 1
 TRACKER_MAX_GROUPS = 10
-TRACKER_MAX_LINES_PER_GROUP = 35
-TRACKER_MAX_LINES = 35           # in all. The change route takes 16 KB: the longest ASCII tracker (10 groups with 80-letter names, every line at its
-#                                  longest with all three counts at 99999, the 200-letter note) sends as 16018 bytes at 35 lines (16432 at 36), so the
-#                                  cap here, not the route, is what a person meets. Wider letters take more bytes typed; the route then says so in plain words.
+TRACKER_MAX_LINES_PER_GROUP = 47
+TRACKER_MAX_LINES = 47           # in all. The change route takes 16 KB: the longest ASCII tracker (10 groups with 80-letter names, every line at its
+#                                  longest, 100-letter text, all three counts at 99999, the 100-letter note) sends as 16186 bytes at 47 lines (16500 at 48),
+#                                  so the cap here, not the route, is what a person meets. Wider letters take more bytes typed; the route then says so in plain words.
 TRACKER_NAME_MAX = 80
-TRACKER_TEXT_MAX = 200
+TRACKER_TEXT_MAX = 100
 TRACKER_NO_MAX = 10
-TRACKER_NOTE_MAX = 200
+TRACKER_NOTE_MAX = 100
 TRACKER_TENTHS = (0, 1000)               # weight, planned, achieved, and the overall actual and planned
 TRACKER_COUNT_MAX = 99999                # tasks, agents, workflows: whole, or empty
 TRACKER_STATUSES = ("planned", "inprogress", "completed", "late")
@@ -266,7 +266,7 @@ TRACKER_LINE_KEYS = ("no", "text", "start", "end", "status", "weight", "planned"
 
 TRACKER_SHAPE = "The progress tracker holds an overall figure, the columns shown, and groups of lines."
 TRACKER_OVERALL = "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty."
-TRACKER_NOTE_LONG = f"The note can be {TRACKER_NOTE_MAX} characters at most."
+TRACKER_NOTE_LONG = f"The note can be {TRACKER_NOTE_MAX} characters at most. Shorten it and try again."
 TRACKER_COLUMNS_BAD = "Each extra column is either shown or not."
 TRACKER_GROUP_SHAPE = "A group holds a name and its lines."
 TRACKER_TOO_MANY_GROUPS = f"A tracker can have at most {TRACKER_MAX_GROUPS} groups."
@@ -275,7 +275,7 @@ TRACKER_NAME_LONG = f"A group name can be {TRACKER_NAME_MAX} characters at most.
 TRACKER_TOO_MANY_LINES = f"A group can have at most {TRACKER_MAX_LINES_PER_GROUP} lines and a tracker {TRACKER_MAX_LINES} in all."
 TRACKER_LINE_SHAPE = "A line holds a number, a description, dates, a status, a weight, what was planned and what was achieved."
 TRACKER_TEXT_MISSING = "Describe each line."
-TRACKER_TEXT_LONG = f"A line description can be {TRACKER_TEXT_MAX} characters at most."
+TRACKER_TEXT_LONG = f"A line description can be {TRACKER_TEXT_MAX} characters at most. Shorten it and try again."
 TRACKER_NO_BAD = f"A line number can be {TRACKER_NO_MAX} characters at most."
 TRACKER_DATE = f"A date must be a real day between {NEEDS_YEARS[0]} and {NEEDS_YEARS[1]}, or empty."
 TRACKER_DATE_ORDER = "A line can't end before it starts."
