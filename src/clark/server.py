@@ -733,6 +733,26 @@ DOWNLOAD_CHUNK = 64 * 1024
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
+# What the address of a preview shows once it has been opened, or when it ran out of time or was never made: a plain page in the
+# browser tab, in plain words, not a bare line (the prototype's Preview is a page in a tab). It names nothing internal.
+PREVIEW_GONE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview not available</title>
+<style>
+:root { color-scheme: light dark; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f9; color: #1d2733; }
+main { box-sizing: border-box; max-width: 34rem; margin: 24px; padding: 28px 32px; background: #fff; border: 1px solid #d9dee5; border-radius: 12px; }
+h1 { margin: 0 0 8px; font-size: 1.4rem; font-weight: 500; }
+p { margin: 0 0 8px; color: #55606e; }
+@media (prefers-color-scheme: dark) { body { background: #12171d; color: #e8ecf1; } main { background: #1b222b; border-color: #2e3844; } p { color: #a9b4c1; } }
+</style></head><body><main>
+<h1>This preview is no longer available</h1>
+<p>A preview opens once, and only for a couple of minutes after you ask for it.</p>
+<p>Go back to clark, open your menu (the circle at the top right) and choose Preview the page in a new tab for a new one.</p>
+</main></body></html>
+"""
+
+
 def preview_page_route(handler):
     """GET /preview?id=: the page a preview made, once. A new tab can't send the token, so the address itself is the one-visit
     secret (made by POST /api/preview); the Host and Origin checks are as everywhere. Nothing is written."""
@@ -741,7 +761,7 @@ def preview_page_route(handler):
         return handler.send(404 if publisher is None else 403, error_body("not_found" if publisher is None else "not_allowed"))
     body = publisher.take_preview((parse_qs(urlsplit(handler.path).query).get("id") or [""])[0])
     if body is None:
-        return handler.send(404, error_body("not_found"))
+        return handler.send(404, PREVIEW_GONE, "text/html")      # a second visit, a late one or a guess: a plain page, still a 404
     return handler.send(200, body, "text/html")
 
 

@@ -675,7 +675,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-head { margin-bottom: 10px; }
 .hp-head kbd { font-size: 13px; padding: 2px 5px; }
 .hp-search input { width: 300px; padding-right: 34px; }
-.hp-search kbd-unused { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 13px; padding: 2px 6px; color: var(--text-muted); pointer-events: none; }
+.hp-search kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 13px; padding: 2px 6px; color: var(--text-muted); pointer-events: none; }
 .hp-search input:focus + kbd, .hp-search input:not(:placeholder-shown) + kbd { display: none; }
 .hp-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--grey-200); margin: 0 0 22px; }
 .hp-tabs button { all: unset; position: relative; padding: 10px 14px; font-size: 15px; color: var(--text-muted); cursor: pointer; border-radius: 6px 6px 0 0; transition: color var(--dur-instant) var(--ease-out); }
@@ -776,17 +776,29 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-none span { color: var(--text-muted); font-size: 14px; }
 
 
-.hp.frame { padding: 24px 28px; }
 .hp-head { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-start; justify-content: space-between; }
-.hp-head h1 { margin: 0 0 4px; }
+.hp-head h1 { margin: 0 0 4px; font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .hp-head p { margin: 0; }
 .hp-actions { display: flex; gap: 10px; align-items: center; }
 .hp-search input { box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; width: 300px; }
 .hp-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .hp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.hp-close { min-height: 36px; padding: 0 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer; }
-.hp-close:hover { border-color: var(--brand-blue); }
-.hp-close:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.hp-search { position: relative; display: block; }
+.hp-search > .i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
+.hp-search input { padding-left: 32px; padding-right: 34px; }
+.hp-back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.hp-back .i { width: 16px; height: 16px; }
+.hp-back:hover { border-color: var(--brand-blue); }
+.hp-back:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+/* the line under the title names the key on a keyboard and the button on a phone (a phone has no ? key) */
+.hp-taphint { display: none; }
+@media (max-width: 700px), (hover: none) { .hp-keyhint { display: none; } .hp-taphint { display: inline; } }
+@media (max-width: 860px) { .hp-actions { flex: 1 1 100%; } .hp-search { flex: 1 1 auto; } .hp-search input { width: 100%; } }
+
+/* the Help button in the top bar: the circle's neighbour, a "?" in the bar's own colours */
+.hp-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: var(--white); font-size: 16px; font-weight: var(--weight-medium); cursor: pointer; }
+.hp-top:hover { background: rgba(255,255,255,.14); }
+.hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 
 /* Milestones (item 44a): the timeline, the rail list, the Calendar and the Legend. Tokens only; no font under 13px. */
 .msv { position: relative; margin-top: 8px; }
@@ -893,6 +905,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubopt input { margin: 3px 0 0; flex: none; width: 16px; height: 16px; }
 .pubopt span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .pubopt small { font-size: var(--size-small); color: var(--text-muted); }
+.pubopt small .link { font-size: inherit; display: inline; padding: 3px 0; }      /* "Settings, Publishing": a link in the sentence, at least 24 px to point at */
+.setting { scroll-margin-top: calc(var(--topbar) + 16px); }
+.setting:focus { outline: 2px solid var(--brand-blue); outline-offset: 2px; }       /* the card the Publish box's link opened */
 .pubopt:focus-within { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .pub-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--size-small); }
 .pub-field input { min-height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: var(--size-body); }

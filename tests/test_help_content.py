@@ -234,7 +234,7 @@ class WordingRound(unittest.TestCase):
     def test_the_panel_header_does_not_say_question_mark_comes_back_from_help(self):       # HIGH
         jsx = (HELP / "Help.jsx").read_text(encoding="utf-8")
         self.assertNotIn("to come back", jsx)
-        self.assertRegex(jsx, r"to open Help\. Esc or Close takes you back")
+        self.assertRegex(jsx, r"to open Help; Esc or Back takes you where you were")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("by 12-12-2026", self.ALL)

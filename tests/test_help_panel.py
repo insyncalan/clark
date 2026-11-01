@@ -115,12 +115,75 @@ class Panel(Base):
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.hasAttribute('data-drag')", "Esc put focus back on the handle")
             self.assertEqual(p.js("document.activeElement.closest('.sec').dataset.id"), p.js("window.__id"))
-            # the Close button does the same, and a part of the top bar is the same element still
+            # the Back button does the same, and a part of the top bar is the same element still
             p.js("document.querySelector('.mode[data-mode=view]').focus()")
             p.key("?", code="Slash", vk=191)
             p.until("!!document.querySelector('#help')", "Help opened from the View button")
-            p.js("document.querySelector('#hpClose').click()")
-            p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Close put focus back on View")
+            p.js("document.querySelector('#hpBack').click()")
+            p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Back put focus back on View")
+
+    def test_the_top_bar_has_a_help_button_and_help_has_a_back_button(self):
+        """C-H5 (prototype index.html #helpBtn): a "?" in the top bar opens Help on the tab used last; Help says Back, and Back puts the
+        person where they were, with focus on the button that opened Help. Both widths."""
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                self.assertEqual(p.js("(function(){var b=document.querySelector('header.top #help-btn');return b&&[b.textContent,b.getAttribute('aria-label'),b.title,b.getBoundingClientRect().width>=24,b.getBoundingClientRect().height>=24,b.getBoundingClientRect().right<=innerWidth]})()"),
+                                 ["?", "Help", "Help (?)", True, True, True], f"{w}: the button is in the top bar, named Help, big enough, in view")
+                self.assertTrue(p.js("var a=document.querySelector('#help-btn').getBoundingClientRect(), b=document.querySelector('#profile-btn').getBoundingClientRect(); a.right <= b.left"), "beside the circle, before it")
+                p.js("document.querySelector('#help-btn').focus(); document.querySelector('#help-btn').click()")
+                p.until("!!document.querySelector('#help')", f"{w}: the button opened Help")
+                self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back")
+                self.assertEqual(p.js("document.querySelector('#hpClose')"), None, "no Close Help button any more")
+                self.assertIn("Esc or Back takes you where you were", p.js("document.querySelector('.hp-head p').textContent"))
+                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{w}: no sideways scroll")
+                p.js("document.querySelector('#hpBack').click()")
+                p.until("!document.querySelector('#help') && !!document.querySelector('#report') && document.activeElement.id === 'help-btn'", f"{w}: Back returned to the page and the button")
+
+    def test_help_is_a_page_of_cards_with_a_search_icon_and_a_key_chip(self):
+        """C-H6 and C-H7: no outer frame; the search box has its icon and a "/" chip that goes while the box is used; the Reference
+        tab has its contents rail beside cards. Light and dark."""
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            for scheme in ("light", "dark"):
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
+                self.assertEqual(p.js("document.querySelector('#help').classList.contains('frame')"), False, "Help is not drawn as one bordered panel")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('#help')).borderTopWidth"), "0px")
+                self.assertEqual(p.js("!!document.querySelector('.hp-search > svg[data-icn=search]')"), True, "the search icon")
+                self.assertEqual(p.js("(function(){var k=document.querySelector('#hpQk');return [k.textContent,k.getAttribute('aria-label'),getComputedStyle(k).display]})()"),
+                                 ["/", "Press slash to search", "block"], "the key chip shows while the box is empty and not in use")
+                p.js("document.querySelector('#hpTab-reference').click()")
+                p.until("!!document.querySelector('.hp-two .hp-idx')", "the contents rail")
+                self.assertEqual(p.js("(function(){var r=document.querySelector('.hp-idx').getBoundingClientRect(), c=document.querySelector('.hp-ref').getBoundingClientRect();"
+                                      "return [getComputedStyle(document.querySelector('.hp-idx')).position, r.right <= c.left, getComputedStyle(document.querySelector('.hp-ref')).borderTopWidth]})()"),
+                                 ["sticky", True, "1px"], "the rail beside the cards, each card with its own edge")
+            p.js("var q=document.querySelector('#hpQ'); q.focus()")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('#hpQk')).display"), "none", "the chip goes while the box has the focus")
+            p.type("keys")
+            p.until("!!document.querySelector('#hpRes a.hp-r')", "results")
+            p.js("document.querySelector('#hpTab-start').focus()")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('#hpQk')).display"), "none", "and while it has a word in it")
+
+    def test_a_result_marks_the_matched_word(self):
+        """C-H9: the matched word is marked in the title and in the line, as text; the mark is the prototype's flash colour."""
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            p.js("var q=document.querySelector('#hpQ'); q.focus()")
+            p.type("shortcuts")
+            p.until("document.querySelectorAll('#hpRes a.hp-r').length > 0", "results")
+            marks = p.js("[...document.querySelectorAll('#hpRes a.hp-r mark')].map(m => m.textContent.toLowerCase())")
+            self.assertTrue(marks and all(m.startswith("shortcut") for m in marks), marks)
+            self.assertEqual(p.js("document.querySelectorAll('#hpRes a.hp-r .hp-rl mark').length > 0 || document.querySelectorAll('#hpRes a.hp-r .hp-rt mark').length > 0"), True)
+            self.assertNotEqual(p.js("getComputedStyle(document.querySelector('#hpRes mark')).backgroundColor"), "rgba(0, 0, 0, 0)", "the mark has a background")
+            self.assertEqual(p.js("document.querySelector('#hpRes a.hp-r').textContent.indexOf('<')"), -1)
+            p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
+            p.type("<b>x</b>")
+            p.until("!!document.querySelector('.hp-none')", "nothing found")
+            self.assertEqual(p.js("document.querySelectorAll('#hpRes b, #hpRes mark').length"), 1, "only the empty-result line's own bold; what was typed is text")
 
     def test_esc_clears_the_search_from_a_result_or_a_tab_then_closes(self):            # MEDIUM
         from test_server import chrome
@@ -171,7 +234,7 @@ class Published(unittest.TestCase):
     def test_the_published_page_has_no_help(self):
         text = (Path(page.__file__).parent / "page-view.html").read_text(encoding="utf-8")
         text = re.sub(r"data:[a-z0-9/+.-]+;base64,[A-Za-z0-9+/=]+", "data:", text)          # a short word can turn up by chance inside the fonts' base64 data
-        for word in ("Twelve jobs", "clark.helpTab", "Search Help", "hpQ", "Your first ten minutes"):
+        for word in ("Twelve jobs", "clark.helpTab", "Search Help", "hpQ", "Your first ten minutes", "help-btn"):
             self.assertNotIn(word, text)
 
     def test_the_published_build_takes_none_of_the_help_files(self):

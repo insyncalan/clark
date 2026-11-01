@@ -6,6 +6,7 @@ Run: python3 dev/run_tests.py test_preview_export_route
 """
 import http.client
 import json
+import re
 import tempfile
 import threading
 import time
@@ -56,6 +57,29 @@ class Preview(Case):
         want = publish.build(self.rig.store, "PUB", base.DAY, base.EMPTY_BRANDING)["body"]
         self.assertEqual(page, want)
         self.assertEqual(get(self.rig, body["url"], token=False)[0], 404)       # one visit
+
+    def test_a_second_visit_shows_a_plain_page_not_a_bare_message(self):
+        """D-18: an address that was used, that ran out of time or that was never made answers a small web page in plain words
+        (still a 404 and still no report page), with nothing internal in it. The same page for every case."""
+        _, body = self.preview()
+        first = get(self.rig, body["url"], token=False)
+        self.assertEqual(first[0], 200)
+        for path in (body["url"], "/preview?id=guess", "/preview"):
+            status, r, raw = get(self.rig, path, token=False)
+            self.assertEqual(status, 404, path)
+            self.assertTrue(r.getheader("Content-Type").startswith("text/html"), path)
+            self.assertIn("Content-Security-Policy", dict(r.getheaders()))
+            html = raw.decode("utf-8")
+            self.assertEqual(html, sv.PREVIEW_GONE, "one page whatever the reason")
+            self.assertIn("<h1>This preview is no longer available</h1>", html)
+            self.assertIn("choose Preview the page in a new tab for a new one", html)
+            self.assertNotIn("Reload the page", html, "not the bare 'could not be found' line")
+            self.assertNotIn(body["url"].split("=")[1], html, "the address is not repeated")
+            self.assertEqual(re.findall(r"(?i)traceback|\.py\b|exception|errno|/Users/|nonce|token", html), [], "nothing internal")
+            self.assertEqual(first[2] == raw, False, "and never the report page")
+        csp = " ".join(v for k, v in get(self.rig, "/preview?id=guess", token=False)[1].getheaders() if k == "Content-Security-Policy")
+        self.assertIn(sv.csp_hashes(sv.PREVIEW_GONE)["style"][0], csp, "its one inline style is allowed by its own hash")
+        self.assertEqual(get(self.rig, "/preview?id=guess", token=False, headers={"Origin": "http://evil.example"})[0], 403, "a foreign origin is still refused, in the usual way")
 
     def test_it_logs_no_publication_and_writes_no_file(self):
         before = self.rig.everything_written()
