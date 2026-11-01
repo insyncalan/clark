@@ -75,8 +75,8 @@ ATTACKS = {
     "pass key": "pa" + "ss=" + PW,
     "quoted passphrase": "pass" + 'word: "' + "correct horse 7 battery" + '"',
 }
-# columns need line breaks, which the one-line Ask… field squeezes into spaces, so these two are checked in the selection only
-COLUMNS = {"table header column", "csv column"}
+# a key split inside its prefix by a line break (squeezing would turn the break into a space and hide it)
+SPLIT_PREFIX = "sk-an\n" + "t-" + BODY + "K1L2"
 TEXT = "The supplier confirmed the delivery for Friday."
 
 
@@ -119,20 +119,35 @@ class TheAttackCases(unittest.TestCase):
     def test_each_is_refused_in_ask_and_in_the_selection_and_never_sent(self):
         for name, key in ATTACKS.items():
             with self.subTest(name):
-                if name not in COLUMNS:
-                    with self.assertRaises(Refused) as cm:
-                        am.check_request("custom", TEXT, "plain", "Use this: " + key)
-                    self.assertEqual(str(cm.exception), am.SECRET_MESSAGE)
+                with self.assertRaises(Refused) as cm:
+                    am.check_request("custom", TEXT, "plain", "Use this: " + key)
+                self.assertEqual(str(cm.exception), am.SECRET_MESSAGE)
                 with self.assertRaises(Refused) as cm:
                     am.check_request("rewrite", "Notes:\n" + key + "\nend", "plain")
                 self.assertEqual(str(cm.exception), am.SECRET_MESSAGE)
                 prov = FakeProvider()
-                if name not in COLUMNS:
-                    r = am.suggest(prov, "custom", TEXT, "plain", "Use this: " + key)
-                    self.assertEqual((r["ok"], r["message"]), (False, am.SECRET_MESSAGE))
+                r = am.suggest(prov, "custom", TEXT, "plain", "Use this: " + key)
+                self.assertEqual((r["ok"], r["message"]), (False, am.SECRET_MESSAGE))
+                card = am.AiSession().begin("custom", TEXT, "plain", 0, 5, instruction="Use this: " + key)
+                self.assertEqual((card.status, card.message, card.label), ("failed", am.SECRET_MESSAGE, ""))
+                card = am.AiSession().begin("rewrite", "Notes:\n" + key, "plain", 0, 5)
+                self.assertEqual((card.status, card.message), ("failed", am.SECRET_MESSAGE))
                 r = am.suggest(prov, "rewrite", "Notes:\n" + key, "plain")
                 self.assertEqual((r["ok"], r["message"]), (False, am.SECRET_MESSAGE))
                 self.assertEqual(prov.calls, [])
+
+    def test_the_split_prefix_case_in_both(self):
+        with self.assertRaises(Refused):
+            am.check_request("custom", TEXT, "plain", SPLIT_PREFIX)
+        with self.assertRaises(Refused):
+            am.check_request("rewrite", SPLIT_PREFIX, "plain")
+        prov = FakeProvider()
+        self.assertFalse(am.suggest(prov, "custom", TEXT, "plain", SPLIT_PREFIX)["ok"])
+        self.assertFalse(am.suggest(prov, "rewrite", SPLIT_PREFIX, "plain")["ok"])
+        self.assertEqual(prov.calls, [])
+        card = am.AiSession().begin("custom", TEXT, "plain", 0, 5, instruction=SPLIT_PREFIX)
+        self.assertEqual((card.status, card.label), ("failed", ""))
+        self.assertNotIn("api03", card.label + card.message)
 
     def test_one_rule_not_two(self):
         self.assertFalse(hasattr(am, "SECRET"))

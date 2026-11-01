@@ -203,7 +203,10 @@ def _instruction(option, instruction):
     """The user's own instruction (Ask…), spaces squeezed; needed for Ask…, capped; ignored for every other option."""
     if option != "custom":
         return ""
-    clean = " ".join(str(instruction or "").split())
+    raw = str(instruction or "")
+    if _secret(raw):                  # screened as typed, before any squeezing could join or split a line
+        raise Refused(SECRET_MESSAGE)
+    clean = " ".join(raw.split())
     if _unsafe(clean):
         raise Refused(HIDDEN_MESSAGE)
     if not clean:
@@ -221,12 +224,13 @@ def check_request(option, text, place, instruction=""):
     if not isinstance(option, str) or option not in PLACES[place]:
         raise Refused("That option isn't offered here.")
     text = str(text or "")
+    if (_secret(text) or _secret(" ".join(text.split()))      # the text as given, and its squeezed form, before anything else
+            or (option == "custom" and _secret(str(instruction or "")))):
+        raise Refused(SECRET_MESSAGE)
     if not text.strip():
         raise Refused("Select some text first.")
     if _unsafe(text):
         raise Refused(HIDDEN_MESSAGE)
-    if _secret(text):
-        raise Refused(SECRET_MESSAGE)
     if len(text) > MAX_TEXT:
         raise Refused(f"That's too much text for one suggestion; select under {MAX_TEXT // 1000}k characters.")
     if option == "notes" and sum(1 for ln in text.splitlines() if ln.strip()) < 2:
