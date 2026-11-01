@@ -438,7 +438,7 @@ textarea.tpl-field { resize: vertical; }
 .tracker-edit td.t-tools, .tracker-edit th.t-tools { width: 22%; text-align: right; }
 .tracker-edit .tr-list li { grid-template-columns: minmax(0, 1fr) auto auto; }
 .tracker-edit .tr-list li .t-tools-wrap { grid-column: 1 / -1; }
-.tracker-edit .t-form-row, .tracker-edit li.t-form-row { display: block; }
+.tracker-edit li.t-form-row { display: block; }       /* a table row stays a table row, or its cell stops spanning the table */
 .tracker-edit tr.t-form-row td { background: var(--grey-50); padding: 10px; }
 .tracker-edit li.t-form-row { background: var(--grey-50); padding: 10px; border-top: 1px solid var(--grey-100); }
 .tracker-edit .t-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px 10px; margin: 0 0 8px; }

@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
-import { Overall, GroupFull, GroupHalf, columnsOf, fitOf } from "../components/Tracker.jsx";
+import { Overall, GroupFull, GroupHalf, columnsOf, fitOf, useNarrow, colCount } from "../components/Tracker.jsx";
 import {
   trackerOf, totals, pct, problem, totalProblem, made, draftOf, blankLine, nameProblem, noteProblem, bodyOf, STATUSES, HEALTH, COLUMNS, NAME_MAX, TEXT_MAX, NO_MAX, NOTE_MAX, WORDS,
   withLineAdded, withLineReplaced, withoutLine, withLineMoved, withGroupAdded, withGroupRenamed, withoutGroup, withGroupMoved, withOverall, withColumn, MAX_GROUPS, MAX_LINES,
@@ -64,6 +64,7 @@ export function TrackerEdit({ section, slot }) {
   const tracker = trackerOf(section, false);
   const t = totals(tracker);
   const fit = fitOf(slot);
+  const narrow = useNarrow();
   const [at, setAt] = useState(null);                     // null, or { g, i } with i the line's index, or NEW
   const [draft, setDraft] = useState(blankLine());
   const [error, setError] = useState("");
@@ -128,12 +129,12 @@ export function TrackerEdit({ section, slot }) {
   const formAt = (g) => (i) => {
     if (!at || at.g !== g || at.i !== i) return null;
     const form = <LineForm at={i} draft={draft} setDraft={setDraft} error={error} busy={busy} onSave={onSave} onCancel={() => closeLine(`[data-group="${g}"] [data-line="${i}"] [data-edit]`)} counts={counts} />;
-    return fit === "full" ? <tr key={`f${i}`} class="t-form-row"><td colSpan={9 + counts.length}>{form}</td></tr> : <li key={`f${i}`} class="t-form-row">{form}</li>;
+    return fit === "full" ? <tr key={`f${i}`} class="t-form-row"><td colSpan={colCount(narrow, counts, true)}>{form}</td></tr> : <li key={`f${i}`} class="t-form-row">{form}</li>;
   };
   const footOf = (g) => {
     if (at && at.g === g && at.i === NEW) {
       const form = <LineForm at={NEW} draft={draft} setDraft={setDraft} error={error} busy={busy} onSave={onSave} onCancel={() => closeLine(`[data-group="${g}"] [data-add-line]`)} counts={counts} />;
-      return fit === "full" ? <tr key="new" class="t-form-row"><td colSpan={9 + counts.length}>{form}</td></tr> : <li key="new" class="t-form-row">{form}</li>;
+      return fit === "full" ? <tr key="new" class="t-form-row"><td colSpan={colCount(narrow, counts, true)}>{form}</td></tr> : <li key="new" class="t-form-row">{form}</li>;
     }
     return null;
   };

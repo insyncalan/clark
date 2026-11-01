@@ -4,6 +4,7 @@
 // It draws in View and in a published file, view only (no input, no button); Edit draws edit/TrackerEdit.jsx in its place, with the
 // same pieces below. A line behind plan carries "▼ n" and, for a screen reader, the words, so colour is never the only signal.
 // Every value is a text node: nothing the section holds is read as markup. The sums come from logic/tracker.js and are never stored.
+import { useEffect, useState } from "preact/hooks";
 import { data, fromFile } from "../stores/report.js";
 import { showDate } from "../workItems.js";
 import { trackerOf, totals, fill, fmt, statusWord, healthWord, behindWords, COLUMNS, WORDS } from "../logic/tracker.js";
@@ -50,20 +51,36 @@ export function Overall({ overall }) {
 // The columns a Full table draws: the fixed ones, then the counts the owner switched on.
 export const columnsOf = (tracker) => COLUMNS.filter(([k]) => tracker.columns[k]);
 
-export function GroupFull({ group, columns, extraHead, extraCell, below, foot }) {
+// At 900 px and narrower the date and count columns are not drawn at all (a cell that is merely hidden would leave every colSpan
+// counting columns that are not there), so each row's colSpan is the number of columns it really has.
+const QUERY = "(max-width: 900px)";
+const narrowNow = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(QUERY).matches;
+export function useNarrow() {
+  const [narrow, setNarrow] = useState(narrowNow);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined;
+    const mq = window.matchMedia(QUERY);
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
+// How many columns a Full table has: no, description, status, weight, planned, achieved (and, when wide, start, end and the counts shown), then a tools column in Edit.
+export const colCount = (narrow, columns, tools) => (narrow ? 6 : 8 + columns.length) + (tools ? 1 : 0);
+
+export function GroupFull({ group, columns: shown, extraHead, extraCell, below, foot }) {
+  const narrow = useNarrow();
+  const columns = narrow ? [] : shown;
+  const date = (cell) => (narrow ? null : cell);
   return (
     <table class="tracker tr-full" data-tr-group>
       <caption class="tr-cap">{group.name}</caption>
-      {/* The narrow width collapses the date and count columns (visibility: collapse on the col), so every row's colSpan stays right. */}
-      <colgroup>
-        <col class="c-no" /><col class="c-what" /><col class="c-date" /><col class="c-date" /><col class="c-status" /><col class="c-n" /><col class="c-n" /><col class="c-n" />
-        {columns.map(([k]) => <col key={k} class="c-n c-count" />)}
-        {extraHead ? <col class="c-tools" /> : null}
-      </colgroup>
       <thead>
         <tr>
           <th scope="col" class="t-no">{WORDS.no}</th><th scope="col" class="t-what">{WORDS.what}</th>
-          <th scope="col" class="t-date">{WORDS.start}</th><th scope="col" class="t-date">{WORDS.end}</th><th scope="col" class="t-status">{WORDS.status}</th>
+          {date(<th scope="col" class="t-date">{WORDS.start}</th>)}{date(<th scope="col" class="t-date">{WORDS.end}</th>)}<th scope="col" class="t-status">{WORDS.status}</th>
           <th scope="col" class="t-n">{WORDS.weight}</th><th scope="col" class="t-n">{WORDS.planned}</th><th scope="col" class="t-n">{WORDS.achieved}</th>
           {columns.map(([k, w]) => <th key={k} scope="col" class="t-n t-count">{w}</th>)}
           {extraHead || null}
@@ -74,7 +91,7 @@ export function GroupFull({ group, columns, extraHead, extraCell, below, foot })
           below && below(i) ? below(i) : (
             <tr key={i} data-tr-line={i}>
               <td class="t-no">{l.no || DASH}</td><td class="t-what">{l.text}</td>
-              <td class="t-date num">{l.start ? showDate(l.start) : DASH}</td><td class="t-date num">{l.end ? showDate(l.end) : DASH}</td>
+              {date(<td class="t-date num">{l.start ? showDate(l.start) : DASH}</td>)}{date(<td class="t-date num">{l.end ? showDate(l.end) : DASH}</td>)}
               <td class="t-status"><StatusPill status={l.status} /></td>
               <td class="t-n num">{fmt(l.weight)}%</td>
               <td class="t-n num">{fmt(l.planned)}%</td>
@@ -85,9 +102,9 @@ export function GroupFull({ group, columns, extraHead, extraCell, below, foot })
           )
         ))}
         {foot || null}
-        {group.none && !foot ? <tr class="tr-none"><td colSpan={8 + columns.length + (extraHead ? 1 : 0)} class="quiet" data-tr-nolines>{WORDS.noLines}</td></tr> : null}
+        {group.none && !foot ? <tr class="tr-none"><td colSpan={colCount(narrow, columns, !!extraHead)} class="quiet" data-tr-nolines>{WORDS.noLines}</td></tr> : null}
         <tr class="tr-total" data-tr-total>
-          <th scope="row" colSpan={5} class="t-what">{WORDS.total}</th>
+          <th scope="row" colSpan={narrow ? 3 : 5} class="t-what">{WORDS.total}</th>
           <td class="t-n num">{fmt(group.weight)}%</td><td class="t-n num">{fmt(group.planned)}%</td><td class="t-n num">{fmt(group.achieved)}%<Behind behind={group.behind} /></td>
           {columns.map(([k]) => <td key={k} class="t-n t-count" />)}
           {extraHead ? <td /> : null}

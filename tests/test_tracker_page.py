@@ -174,13 +174,13 @@ class Page(Base):
             self.assertEqual([g["name"] for g in self.stored(ref)["groups"]], ["Foundations", "Build", "Hand over", "Roll out"])
             self.click(p, ref, "[data-group='3'] [data-add-line]")
             p.until(self.present(ref, "[data-line-form]"), "the line form")
-            self.fill(p, ref, text="Train the team", no="4.1", start="05-01-2026", end="27-03-2026", weight="10", planned="7.5", achieved="2", status="late")
+            self.fill(p, ref, text="Train the team", no="4.1", start="05-01-2026", end="27-03-2026", weight="5", planned="7.5", achieved="2", status="late")
             self.click(p, ref, "[data-save]")
             p.until(self.count(ref, "[data-group='3'] [data-tr-line]") + " === 1", "the line is drawn")
             self.assertEqual(self.steps(), before + 2)
             saved = self.stored(ref)["groups"][3]["lines"][0]
             self.assertEqual((saved["text"], saved["no"], saved["weight"], saved["planned"], saved["achieved"], saved["status"], saved["start"]),
-                             ("Train the team", "4.1", 100, 75, 20, "late", "2026-01-05"))
+                             ("Train the team", "4.1", 50, 75, 20, "late", "2026-01-05"))
             self.assertEqual(p.toast(), "Line added.")
             p.js("document.querySelector('[data-undo]').click()")
             p.until(self.count(ref, "[data-group='3'] [data-tr-line]") + " === 0", "Undo took the line away")
@@ -293,18 +293,19 @@ class Page(Base):
             p = self.visit(cdp)
             for width in (1400, 900):
                 self.resize(cdp, p, width, "light")
-                for name, index in (("Weight", 5), ("Planned", 6), ("Achieved", 7)):
+                p.until(self.one(ref, "thead tr") + ".cells.length === " + ("9" if width == 1400 else "6"), "the table has the columns of this width")
+                for name, index in (("Weight", 5 if width == 1400 else 3), ("Planned", 6 if width == 1400 else 4), ("Achieved", 7 if width == 1400 else 5)):
                     head = p.js("(function(){var r=" + self.one(ref, "[data-tr-group] thead tr") + ".cells[" + str(index) + "].getBoundingClientRect();return [r.left, r.right, r.width];})()")
-                    cell = p.js("(function(){var r=" + self.one(ref, "[data-tr-total]") + ".cells[" + str(index - 4) + "].getBoundingClientRect();return [r.left, r.right, r.width];})()")
+                    cell = p.js("(function(){var r=" + self.one(ref, "[data-tr-total]") + ".cells[" + str(index - (4 if width == 1400 else 2)) + "].getBoundingClientRect();return [r.left, r.right, r.width];})()")
                     self.assertGreater(cell[2], 0, name)
                     self.assertAlmostEqual(head[0], cell[0], delta=1.5, msg="the total is under " + name + " at " + str(width))
                     self.assertAlmostEqual(head[1], cell[1], delta=1.5, msg=name + " " + str(width))
                 row = p.js(self.one(ref, "[data-tr-total]") + ".cells[0].textContent")
                 self.assertEqual(row, "Total")
                 if width == 900:
-                    self.assertEqual(p.js(self.one(ref, "thead tr") + ".cells[2].getBoundingClientRect().width"), 0, "the start date is collapsed")
-                    self.assertEqual(p.js(self.one(ref, "thead tr") + ".cells[8].getBoundingClientRect().width"), 0, "the Tasks count is collapsed")
-                    self.assertGreater(p.js(self.one(ref, "thead tr") + ".cells[7].getBoundingClientRect().width"), 40, "Achieved stays in view")
+                    self.assertEqual(p.js("[..." + self.one(ref, "thead tr") + ".cells].map(c => c.textContent)"), ["No.", "Description", "Status", "Weight", "Planned", "Achieved"], "no dates or counts at 900")
+                    self.assertEqual(p.js(self.one(ref, "[data-tr-total]") + ".cells[0].colSpan"), 3, "the label spans the three columns before the figures")
+                    self.assertGreater(p.js(self.one(ref, "thead tr") + ".cells[5].getBoundingClientRect().width"), 40, "Achieved stays in view")
 
     def test_the_no_lines_row_and_the_form_row_fit_the_table_at_900(self):
         ref = self.make({"groups": [{"name": "Only", "lines": []}]})
@@ -312,6 +313,7 @@ class Page(Base):
             p = self.visit(cdp)
             p.edit()
             self.resize(cdp, p, 900, "light")
+            p.until(self.one(ref, "thead tr") + ".cells.length === 7", "the table is drawn for 900 px")
             self.click(p, ref, "[data-add-line]")
             p.until(self.present(ref, "[data-line-form]"), "the form")
             self.assertEqual(self.overflow(p, ref), [])
@@ -400,7 +402,7 @@ class Page(Base):
                             small = p.js("[..." + self.many(ref, "*") + "].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && parseFloat(getComputedStyle(e).fontSize) < 13).map(e => e.className)")
                             self.assertEqual(small, [], "no text under 13 px: " + where)
                         if width == 900:
-                            self.assertEqual(p.js(self.one(full, "th.t-date") + ".getBoundingClientRect().width"), 0, "dates drop at 900: " + where)
+                            p.until(self.count(full, "th.t-date") + " === 0", "dates drop at 900: " + where)
                             self.assertTrue(p.js(self.one(full, "[data-tr-actual]") + ".getBoundingClientRect().right <= innerWidth"), "the figures stay in view")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
 
