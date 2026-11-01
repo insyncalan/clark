@@ -129,7 +129,8 @@ class OneFile(unittest.TestCase):
         demo = token_names((ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8"))
         css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", css))
-        self.assertEqual(sorted(used - demo), [])
+        own = set(re.findall(r"(--[a-z0-9-]+)\s*:", css))                      # a variable the sheet sets itself (the card's side padding) is not a brand token
+        self.assertEqual(sorted(used - demo - own), [])
         self.assertNotRegex(css, r"#[0-9a-fA-F]{3,8}\b", "the shell takes its colours from tokens, never a hard-coded one")
 
 

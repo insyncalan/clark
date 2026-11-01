@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendBulk, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendBulk, readData, sendRestore } from "../api.js";
 import { flashed } from "./wordsState.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
@@ -124,6 +124,20 @@ export function changeItem(req, done) {
     const step = r.reply.undoable === false ? null : r.reply.apply_id;
     if (step) itemSteps.set(step, "");
     say("done", done, step, code);
+    return r.reply;
+  });
+}
+
+// Restore one archived work item (B-5): the work items are read again after it and after its undo. A refusal is a note.
+export function restoreItem(table, id) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendRestore(code, table, id);
+    if (!r.ok) { say("note", r.message); return null; }
+    await reread(code);
+    const step = r.reply.apply_id || null;
+    if (step) itemSteps.set(step, "");
+    say("done", `${id} restored.`, step, code);
     return r.reply;
   });
 }
