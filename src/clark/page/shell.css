@@ -1220,3 +1220,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-left: 4px solid var(--brand-blue); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-small); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+
+/* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
+.pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pk-val .i { width: 16px; height: 16px; }
+.ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
+.ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
