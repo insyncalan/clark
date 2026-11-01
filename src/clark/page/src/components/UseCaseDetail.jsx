@@ -207,9 +207,9 @@ export function UseCaseDetail({ id }) {
         <div class="ucd-main">
           <section class="ucd-card" aria-labelledby="ucd-h-std">
             <h2 id="ucd-h-std" class="ucd-ch"><span>Where it stands</span>{!ro ? <span class="ucd-hint">Click the text to change it</span> : null}</h2>
-            {!ro ? <RichField field="standing" id={u.id} value={u.standing} label={`where ${refWords(u)} stands`} empty="Nothing written yet. Click to write."
+            {!ro ? <RichField field="standing" id={u.id} value={u.standing} label={`where ${refWords(u)} stands`} empty="Nothing recorded. Click to write."
               save={(html) => send({ standing: html }, "Text saved.")} />
-              : safe(u.standing) ? <div class="prose ucd-std" dangerouslySetInnerHTML={{ __html: safe(u.standing) }} /> : <p class="muted">Nothing written yet.</p>}
+              : safe(u.standing) ? <div class="prose ucd-std" dangerouslySetInnerHTML={{ __html: safe(u.standing) }} /> : <p class="muted">Nothing recorded.</p>}
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-work">
             <h2 id="ucd-h-work" class="ucd-ch"><span>Work items</span>
