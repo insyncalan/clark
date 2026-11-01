@@ -5,6 +5,7 @@ taken back; History gets one line per publish. Fictional data only.
 Run: python3 dev/run_tests.py test_publication_numbers
 """
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -361,6 +362,24 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(dest.read_bytes(), earlier)
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing numbered or half-written is left")
         self.assertEqual(numbers(store.con, "PUB"), [1])
+
+    def test_overwrite_with_a_lost_race_puts_back_a_link_it_replaced(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        with self.assertRaises(publish.PublishError):
+            self._lost_race(store, folder, overwrite=True)
+        self.assertTrue(os.path.islink(dest), "the link is back, not removed and not turned into a file")
+        self.assertEqual(os.readlink(dest), str(target))
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
 
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
         store, folder = self._overwrite_rig()

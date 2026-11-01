@@ -1010,11 +1010,16 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
             raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}). Nothing was written.") from e
     digest = built["sha256"]
     earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
+    earlier_link = None                    # #388: so is a link it replaces (the link itself, not the file it points at)
     if overwrite:
         try:
             earlier = read_plain(dest, 64 * 1048576)
         except OSError:
             earlier = None
+            try:
+                earlier_link = os.readlink(dest)
+            except OSError:
+                earlier_link = None
     try:
         try:
             platform.write_file(dest, body)
@@ -1040,6 +1045,13 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 try:
                     platform.write_file(dest, earlier)
                 except (OSError, platform.PlatformError):
+                    pass
+        elif earlier_link is not None:
+            if still_ours(dest, digest):
+                try:
+                    os.unlink(dest)
+                    os.symlink(earlier_link, dest)
+                except OSError:
                     pass
         else:
             take_back(dest, digest)
