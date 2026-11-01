@@ -299,7 +299,7 @@ class Shown(unittest.TestCase):
         self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "howto-add-a-section-from-a-template", "ref-status-words", "howto-use-the-board", "ref-keys"], ["work", "dashboard+edit"]))
         for q in ("movement", "diagnostics"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match
             self.assertEqual(s["q"][q], [], q)
-        self.assertEqual(s["q"]["publish"], ["howto-arrange-the-report", "howto-ask-for-what-you-need", "ref-profile-circle", "ref-layouts", "ref-milestone-states"],
+        self.assertEqual(s["q"]["publish"], ["howto-arrange-the-report", "howto-ask-for-what-you-need", "ref-profile-circle", "ref-layouts", "ref-status-words", "ref-milestone-states"],
                          "only entries that mention the published page or the Publish menu line; no Publish entry of its own is shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
