@@ -74,7 +74,7 @@ class Registry(unittest.TestCase):
             with self.assertRaises(sb.Bad):
                 check("needs", '{"a":1}')
 
-    def test_a_tracker_body_of_the_wrong_shape_publishes_nothing_and_needs_publishes_only_its_shown_rows(self):
+    def test_the_tracker_publishes_only_its_checked_groups_and_lines_and_needs_only_its_shown_rows(self):
         self.assertEqual(sb.published("tracker", {"rows": [{"what": "<script>"}]}), None)
         self.assertIsNone(sb.published("needs", {"rows": [{"what": "<script>"}]}), "a row without the checked shape is not published")
 
