@@ -11,7 +11,7 @@ import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", clientreport: "Client Requested Report View", settings: "Settings" };
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }, clientreport: "Client Requested Report View", settings: "Settings" };   // the published tab is "Use Cases"
 export const SHORT_TITLES = { clientreport: "Client report" };   // the tab button on a narrow window; the page keeps its full name (#192)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
@@ -38,7 +38,7 @@ export const fromFile = signal(false);       // true when the page is a publishe
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
-export const tabs = signal(VIEWS);           // the views the tab bar offers; a published file has no Settings
+export const tabs = signal(VIEWS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
 export const moves = signal(0);              // counts Back and Forward (and a typed address): a menu that is open closes on each
 export const projects = signal([]);                 // [{code, name}] from GET /api/projects
 export const projectsState = signal("loading");     // loading | ready | failed
