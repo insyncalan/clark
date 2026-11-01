@@ -200,5 +200,79 @@ class Refusals(unittest.TestCase):
         self.assertIs(sv.Refused.__init__.__defaults__[2], threading.Timer)
 
 
+class ShutdownFlush(unittest.TestCase):
+    """#260: when clark stops, the refused-request window still open is written (one line with its count); nothing is
+    written when no window is open. serve() has one exit, a finally block, so a normal stop, the idle stop (which calls
+    httpd.shutdown) and Ctrl+C all pass through it."""
+
+    def setUp(self):
+        folder = Path(tempfile.mkdtemp(prefix="clark-refused-stop-")).resolve()
+        self.addCleanup(shutil.rmtree, folder, True)
+        self.log = clog.Log(folder / "logs", data=folder, clock=lambda: NOW, routes=set(sv.GET_ROUTES) | set(sv.POST_ROUTES))
+        handler = clog.install(self.log)
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        p = mock.patch.object(sv, "REFUSED", sv.Refused(timer=None))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def lines(self):
+        text = "".join(p.read_text(encoding="utf-8") for p in self.log.files())
+        return [x for x in text.splitlines() if clog.ENTRY.match(x)]
+
+    def stop_by_idle(self, refusals):
+        """Run serve() the way the launcher does: the idle watcher calls httpd.shutdown once the refusals are counted."""
+        counted = threading.Event()
+
+        class Idle:
+            def here(self):
+                pass
+
+            def watch(self, shutdown, busy, say):
+                counted.wait(10)
+                shutdown()
+
+        with mock.patch.object(sv, "IDLE", Idle()):
+            t = threading.Thread(target=sv.serve, kwargs=dict(port=0, out=io.StringIO(), projects=lambda: []))
+            t.start()
+            for _ in range(refusals):
+                sv.refused_count()
+            self.assertEqual(self.lines(), [], "nothing is written while the window is open")
+            counted.set()
+            t.join(20)
+        self.assertFalse(t.is_alive())
+
+    def test_the_idle_stop_writes_the_open_window_as_one_line_with_its_count(self):
+        self.stop_by_idle(FLOOD)
+        lines = self.lines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertEqual(MANY.search(lines[0]).group(1), str(FLOOD))
+
+    def test_one_refusal_before_the_stop_is_written_in_the_singular(self):
+        self.stop_by_idle(1)
+        lines = self.lines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertRegex(lines[0], ONE)
+
+    def test_ctrl_c_writes_the_open_window_too(self):
+        for _ in range(7):
+            sv.refused_count()
+        with mock.patch.object(sv.LocalServer, "serve_forever", side_effect=KeyboardInterrupt):
+            self.assertEqual(sv.serve(port=0, out=io.StringIO(), projects=lambda: []), 0)
+        lines = self.lines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertEqual(MANY.search(lines[0]).group(1), "7")
+
+    def test_a_stop_with_no_refusals_writes_nothing(self):
+        with mock.patch.object(sv.LocalServer, "serve_forever", side_effect=KeyboardInterrupt):
+            self.assertEqual(sv.serve(port=0, out=io.StringIO(), projects=lambda: []), 0)
+        self.assertEqual(self.lines(), [])
+
+    def test_flushing_twice_writes_the_window_once(self):
+        sv.refused_count()
+        sv.REFUSED.flush()
+        sv.REFUSED.flush()
+        self.assertEqual(len(self.lines()), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
