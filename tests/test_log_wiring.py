@@ -214,32 +214,72 @@ class SettingsRoutes(Rig):
 
     def raise_one(self, area, message):
         """Log one fault the way the server does: a real exception with a real stack, so the log holds a class and a file name."""
+        self.log.routes = set(sv.GET_ROUTES) | set(sv.POST_ROUTES) | {"/api/backups"}      # the routes the launcher gives the log, so a route is kept
         try:
             raise TypeError("reading x")
         except TypeError as e:
             self.log.exception(area, message, e)
 
+    # one entry of each kind and the sentence the owner approved for it (Romanoff's table on PR 213, 01-11-2026)
+    KINDS = [
+        ("server", "POST /api/change failed", "Saving a change did not work."),
+        ("server", "POST /api/undo failed", "Saving a change did not work."),
+        ("server", "POST /api/people failed", "Saving a change did not work."),
+        ("server", "POST /api/people/undo failed", "Saving a change did not work."),
+        ("server", "POST /api/profile failed", "Saving a change did not work."),
+        ("server", "POST /api/section-file failed", "Saving a change did not work."),
+        ("server", "POST /api/section-image failed", "Saving a change did not work."),
+        ("server", "POST /api/publish failed", "Publishing did not work."),
+        ("server", "GET /api/publication failed", "Publishing did not work."),
+        ("server", "POST /api/client-folder failed", "Publishing did not work."),
+        ("server", "GET /api/export failed", "Making the Excel workbook did not work."),
+        ("server", "POST /api/word-export failed", "Making the Word file did not work."),
+        ("server", "POST /api/word-import failed", "Reading the Word file did not work."),
+        ("server", "POST /api/backups failed", "Making a backup did not work."),
+        ("server", "POST /api/backups/restore failed", "Restoring a backup did not work."),
+        ("server", "POST /api/draft-email failed", "Drafting the email did not work."),
+        ("server", "POST /api/draft-email/sent failed", "Marking the email as sent did not work."),
+        ("server", "POST /api/ask failed", "Asking clark did not work."),
+        ("server", "POST /api/ask/change/apply failed", "Asking clark did not work."),
+        ("server", "POST /api/logging failed", "Changing the log setting did not work."),
+        ("server", "GET /api/people failed", "Loading part of the page did not work."),
+        ("server", "GET /api/data failed", "Loading part of the page did not work."),
+        ("page", "TypeError: reading", "Part of the page stopped working."),
+        ("store", "could not write", "Reading or saving your project data did not work."),
+        ("server", "POST /api/sneak/read failed", "Something did not work."),
+        ("scan", "something odd", "Something did not work."),
+    ]
+
     def test_each_kind_of_error_is_one_plain_line_and_none_gives_technical_text(self):
-        self.raise_one("server", "POST /api/profile failed")
-        self.raise_one("server", "GET /api/people failed")
-        self.log.error("page", "TypeError: reading")
-        self.log.error("store", "could not write")
+        for area, message, _ in self.KINDS:
+            self.raise_one(area, message)
         status, b = self.api("GET", "/api/diagnostics")
         self.assertEqual(status, 200)
-        self.assertEqual(len(b["errors"]), 4)
+        self.assertEqual(len(b["errors"]), len(self.KINDS))
         for e in b["errors"]:
             self.assertEqual(sorted(e), ["count", "last", "next", "what"])
-            self.assertEqual(e["next"], log_routes.TRY_AGAIN)
+            self.assertEqual(e["next"], "Try again. If it keeps happening, use Copy diagnostics and send it to the person who is helping you.")
             self.assertEqual(e["last"], "29-10-2026 09:30")
-        wording = sorted(e["what"] for e in b["errors"])
-        self.assertEqual(wording, ["", "", "", "Saving a change did not work."])
+        self.assertEqual(sorted(e["what"] for e in b["errors"]), sorted(k[2] for k in self.KINDS))
         shown = json.dumps(b["errors"])
-        for technical in ("Traceback", ".py", "TypeError", "/api/", "POST", "GET", "failed", "server", "page", "store", "run_route", "profile", "people"):
+        for technical in ("Traceback", ".py", "TypeError", "/api/", "POST", "GET", "failed", "server", "store", "run_route", "profile", "people", "scan"):
             self.assertNotIn(technical, shown)
         self.assertIn("server: POST", b["report"])          # Copy diagnostics keeps the detail
         self.assertIn("page: TypeError: reading", b["report"])
         self.assertIn("store: could not write", b["report"])
         self.assertIn("test_log_wiring.py", b["report"])
+
+    def test_a_write_to_a_save_route_is_a_save_but_a_read_of_it_is_a_read(self):
+        self.raise_one("server", "POST /api/projects failed")
+        self.raise_one("server", "GET /api/projects failed")
+        status, b = self.api("GET", "/api/diagnostics")
+        self.assertEqual(sorted(e["what"] for e in b["errors"]), ["Loading part of the page did not work.", "Saving a change did not work."])
+
+    def test_plain_error_gives_the_count_and_the_time_and_ignores_the_groups_own_words(self):
+        g = {"count": 3, "area": "server", "message": f"GET /api/data failed {MARK}", "last": NOW}
+        self.assertEqual(log_routes.plain_error(g), {"count": 3, "last": "29-10-2026 09:30", "what": "Loading part of the page did not work.",
+                                                     "next": log_routes.TRY_AGAIN})
+        self.assertNotIn(MARK, json.dumps(log_routes.plain_error(g)))
 
     def test_the_report_holds_no_planted_marker(self):
         self.counts = {"projects": 1, MARK: 3}
@@ -427,17 +467,24 @@ class Settings(Rig):
                              "Copied. Paste it into a message to the person who is helping you.")
 
     def test_the_errors_list_says_plain_words_and_copy_diagnostics_keeps_the_detail(self):
+        self.log.routes = set(sv.GET_ROUTES) | set(sv.POST_ROUTES)
+        for _ in range(3):
+            try:
+                raise TypeError("reading x")
+            except TypeError as e:
+                self.log.exception("server", "POST /api/profile failed", e)
         try:
-            raise TypeError("reading x")
+            raise TypeError("reading y")
         except TypeError as e:
-            self.log.exception("server", "POST /api/profile failed", e)
+            self.log.exception("server", "POST /api/publish failed", e)
         self.log.error("page", "TypeError: reading")
         for width, scheme in self.each():
-            self.until("document.querySelectorAll('#log-errors li').length === 2", "the two errors")
+            self.until("document.querySelectorAll('#log-errors li').length === 3", "the three errors")
             shown = self.js("document.querySelector('#log-errors').innerText")
-            self.assertIn("Saving a change did not work.", shown)
-            self.assertEqual(shown.count("Try again. If it keeps happening, use Copy diagnostics and send it to us."), 2)
-            self.assertIn("29-10-2026 09:30", shown)
+            self.assertIn("Last on 29-10-2026 09:30. Happened 3 times. Saving a change did not work.", shown)
+            self.assertIn("Last on 29-10-2026 09:30. Happened once. Publishing did not work.", shown)
+            self.assertIn("Last on 29-10-2026 09:30. Happened once. Part of the page stopped working.", shown)
+            self.assertEqual(shown.count("Try again. If it keeps happening, use Copy diagnostics and send it to the person who is helping you."), 3)
             for technical in ("Traceback", ".py", "TypeError", "/api/", "POST", "failed", "server", "page:", "run_route"):
                 self.assertNotIn(technical, shown, f"{technical} at {width} {scheme}")
             self.js("window.__copied = null; Object.defineProperty(navigator, 'clipboard', {value: {writeText: function (t) { window.__copied = t; return Promise.resolve(); }}, configurable: true})")

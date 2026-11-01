@@ -14,17 +14,58 @@ NOT_OPENED = "The log folder could not be opened. Try again; if it keeps happeni
 BAD_LEVEL = "That level isn't one of the choices. Reload the page and try again."
 
 # The Errors list on screen says each error in plain words. The technical line (area, route, class) stays in the log and in Copy
-# diagnostics, which is for support. A kind with no approved sentence gets an empty `what`, never a guess.
+# diagnostics, which is for support. One fixed sentence per kind of error, chosen here from the route and the area of the log
+# entry; none of the entry's own text is passed on. The sentences are the ones Romanoff drafted and the owner approved on
+# PR 213, 01-11-2026.
 SAVE_DID_NOT_WORK = "Saving a change did not work."
-TRY_AGAIN = "Try again. If it keeps happening, use Copy diagnostics and send it to us."
-A_WRITE_FAILED = re.compile(r"^(POST|PUT|PATCH|DELETE) .* failed")
+TRY_AGAIN = "Try again. If it keeps happening, use Copy diagnostics and send it to the person who is helping you."
+READ_DID_NOT_WORK = "Loading part of the page did not work."
+PAGE_DID_NOT_WORK = "Part of the page stopped working."
+STORE_DID_NOT_WORK = "Reading or saving your project data did not work."
+SOMETHING_DID_NOT_WORK = "Something did not work."
+A_REQUEST_FAILED = re.compile(r"^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (\S+) failed")
+WRITES = ("POST", "PUT", "PATCH", "DELETE")
+SAVING_ROUTES = frozenset("""/api/change /api/undo /api/people /api/people/undo /api/profile /api/projects /api/use-cases /api/milestones
+    /api/movement /api/section-file /api/section-image""".split())
+ROUTE_SENTENCES = {
+    "/api/publish": "Publishing did not work.",
+    "/api/publication": "Publishing did not work.",
+    "/api/client-folder": "Publishing did not work.",
+    "/api/export": "Making the Excel workbook did not work.",
+    "/api/word-export": "Making the Word file did not work.",
+    "/api/word-import": "Reading the Word file did not work.",
+    "/api/backups/restore": "Restoring a backup did not work.",
+    "/api/draft-email": "Drafting the email did not work.",
+    "/api/draft-email/sent": "Marking the email as sent did not work.",
+    "/api/logging": "Changing the log setting did not work.",
+}
+
+
+def what_it_was(group):
+    """The fixed sentence for one error group: from its area, and for a server error from the request's method and route."""
+    if group["area"] == "page":
+        return PAGE_DID_NOT_WORK
+    if group["area"] == "store":
+        return STORE_DID_NOT_WORK
+    m = A_REQUEST_FAILED.match(group["message"]) if group["area"] == "server" else None
+    if not m:
+        return SOMETHING_DID_NOT_WORK
+    method, route = m.groups()
+    if route == "/api/ask" or route.startswith("/api/ask/"):
+        return "Asking clark did not work."
+    if method == "POST" and route == "/api/backups":
+        return "Making a backup did not work."
+    if method in WRITES and route in SAVING_ROUTES:
+        return SAVE_DID_NOT_WORK
+    if route in ROUTE_SENTENCES:
+        return ROUTE_SENTENCES[route]
+    return READ_DID_NOT_WORK if method == "GET" else SOMETHING_DID_NOT_WORK
 
 
 def plain_error(group):
-    """One error group from the log, as the plain line the list shows: how many and when, what it was about (a fixed sentence
-    for its kind, or nothing where none is approved) and what to do next. None of the group's own text is passed on."""
-    what = SAVE_DID_NOT_WORK if group["area"] == "server" and A_WRITE_FAILED.match(group["message"]) else ""
-    return {"count": group["count"], "last": f"{group['last']:%d-%m-%Y %H:%M}", "what": what, "next": TRY_AGAIN}
+    """One error group from the log, as the plain line the list shows: when it was last and how many times, what it was about (a
+    fixed sentence for its kind) and what to do next. None of the group's own text is passed on."""
+    return {"count": group["count"], "last": f"{group['last']:%d-%m-%Y %H:%M}", "what": what_it_was(group), "next": TRY_AGAIN}
 
 
 class Logs:

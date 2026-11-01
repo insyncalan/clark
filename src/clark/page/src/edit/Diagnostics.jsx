@@ -87,7 +87,7 @@ export function Diagnostics() {
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
       {info ? <h3>Errors in the last 7 days</h3> : null}
       {info && info.errors.length ? (
-        <ul class="plain" id="log-errors">{info.errors.map((e, i) => <li key={i}>{e.last}, {e.count === 1 ? "once" : e.count + " times"}. {e.what ? e.what + " " : ""}{e.next}</li>)}</ul>
+        <ul class="plain" id="log-errors">{info.errors.map((e, i) => <li key={i}>Last on {e.last}. Happened {e.count === 1 ? "once" : e.count + " times"}. {e.what} {e.next}</li>)}</ul>
       ) : info ? <p class="muted" id="log-errors">None.</p> : null}
     </section>
   );
