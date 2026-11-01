@@ -130,6 +130,20 @@ class Kept(unittest.TestCase):
         self.same(ids, cache)
         self.same(ids, cache)
 
+    def test_an_id_with_no_hyphen_is_read_whole_and_gives_the_full_answer(self):
+        ids = self.busy_history()
+        a1, a2 = ids[:2]
+        con = self.store.con
+        for old, new in ((a1, "AB"), (a2, "ABC")):                  # a store's IDs all have a hyphen: rename the log's by hand
+            con.execute("UPDATE change_log SET item_id = replace(item_id, ?, ?)", (old, new))
+            con.execute("UPDATE item_events SET item_id = replace(item_id, ?, ?)", (old, new))
+        con.commit()
+        bare = ["AB", "ABC", "ABC-7"]
+        got = answers(self.con(), bare, cache=history.ReviewCache())
+        self.assertEqual(got, answers(self.con(), bare, many=True))
+        self.assertTrue(got["AB"]["last_reviewed"], "the hyphenless id got no events")
+        self.same(bare + ids[2:], history.ReviewCache())
+
     def test_a_dashboard_event_that_is_an_undo_is_not_a_review(self):
         self.at(2)
         first, second = self.demo.action(), self.demo.action(description="Second")
