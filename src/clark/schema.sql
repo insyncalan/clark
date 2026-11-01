@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS milestones (
   workstream    TEXT,                                   -- clark: the prototype groups milestones by workstream (checked like actions.workstream)
   source        TEXT NOT NULL,
   archived      INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
-  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  owner_id TEXT REFERENCES people(id)   -- clark: the link to the people table (#115), beside the free-text owner
 );
 
 CREATE TABLE IF NOT EXISTS workstreams (
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS workstreams (
   source     TEXT NOT NULL,
   archived   INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  owner_id TEXT REFERENCES people(id),   -- clark: the link to the people table (#115), beside the free-text owner
   UNIQUE (project, name COLLATE NOCASE)
 );
 -- Not copied: channel (a Teams channel; clark has no Teams).
@@ -83,7 +85,8 @@ CREATE TABLE IF NOT EXISTS actions (
   use_case     TEXT,                                  -- clark: the use case it belongs to (FR-31; checked by the writer)
   source       TEXT NOT NULL,
   archived     INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
-  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  owner_id TEXT REFERENCES people(id)   -- clark: the link to the people table (#115), beside the free-text owner
 );
 
 CREATE TABLE IF NOT EXISTS raid (
@@ -107,7 +110,8 @@ CREATE TABLE IF NOT EXISTS raid (
   use_case     TEXT,                                  -- clark: as on actions
   source       TEXT NOT NULL,
   archived     INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
-  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  owner_id TEXT REFERENCES people(id)   -- clark: the link to the people table (#115), beside the free-text owner
 );
 
 CREATE TABLE IF NOT EXISTS decisions (
@@ -128,6 +132,7 @@ CREATE TABLE IF NOT EXISTS decisions (
   source       TEXT NOT NULL,
   archived     INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
   updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  owner_id TEXT REFERENCES people(id),   -- clark: the link to the people table (#115), beside the free-text owner
   CHECK (status <> 'Made' OR date IS NOT NULL),
   CHECK (replaces IS NULL OR replaces <> id)
 );
@@ -383,3 +388,22 @@ CREATE TABLE IF NOT EXISTS app_settings (
 INSERT OR IGNORE INTO app_settings (id) VALUES (1);
 
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);   -- schema_version, created_at, device, db_id, role (owner|teammate), share_folder; on a teammate's copy base_db_id, base_seq, base_apply_id
+
+-- #115: people belong to the portfolio, not one project. A person is archived, never deleted. Version 8's migrate_people makes the
+-- same table and the five owner_id links on a file made before it (schema_v8.sql, frozen); tests pin the two together.
+CREATE TABLE IF NOT EXISTS people (
+  id            TEXT PRIMARY KEY CHECK (id GLOB 'P-[0-9][0-9][0-9]'),
+  name          TEXT NOT NULL CHECK (length(trim(name)) > 0),
+  email         TEXT CHECK (email IS NULL OR (email = lower(trim(email)) AND length(email) BETWEEN 3 AND 254)),   -- stored trimmed and lower-cased; unique when set
+  organisation  TEXT,
+  role          TEXT,
+  label         TEXT CHECK (label IS NULL OR length(label) <= 30),          -- shown after the name when two people share it; never matched on
+  aliases       TEXT,                                                       -- ';'-separated, like workstreams.aliases
+  kind          TEXT NOT NULL DEFAULT 'person' CHECK (kind IN ('person','group')),
+  needs_details INTEGER NOT NULL DEFAULT 0 CHECK (needs_details IN (0,1)),
+  archived      INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+  source        TEXT NOT NULL,
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS people_email ON people(email) WHERE email IS NOT NULL;

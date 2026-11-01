@@ -31,8 +31,9 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
+SCHEMA_V8 = Path(__file__).with_name("schema_v8.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 7          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 8          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#115): the people table and owner_id (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -347,7 +348,7 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled"})
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details"})
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -1827,10 +1828,26 @@ def migrate_to_history(con):
     con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
 
 
+OWNER_ID_TABLES = ("actions", "raid", "milestones", "workstreams", "decisions")     # #115: each gets owner_id, beside its free-text owner (workstreams.lead, decisions.made_by)
+
+
+def migrate_people(con):
+    """The people step (#115): the people table (schema_v4.sql, idempotent) first, then an optional link column beside each of the
+    five free-text owner columns (a column with a default of NULL is allowed in SQLite, and the table exists before the columns
+    point at it). It creates no people and sets every link to NULL: the owner text keeps working exactly as before, and linking
+    is a later, deliberate step. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 8 in
+    MIGRATIONS (the number is set finally at merge)."""
+    for statement in _statements(SCHEMA_V8.read_text(encoding="utf-8")):
+        con.execute(statement)
+    for table in OWNER_ID_TABLES:
+        if "owner_id" not in columns(con, table):
+            con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN owner_id TEXT REFERENCES people(id)")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
-              (7, migrate_email_sent))
+              (7, migrate_email_sent), (8, migrate_people))
 
 
 def migration_plan(version, table=None):
