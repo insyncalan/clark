@@ -88,7 +88,7 @@ export function LineField({ section, field, label, value, max, hint, words, chec
   };
   const id = `tpl-${section.id}-${field}`;
   return (
-    <div class="tpl-field">
+    <div class="tpl-pic-field">
       <label for={id}>{label}</label>
       <input id={id} ref={ref} type="text" maxLength={max} placeholder={hint || ""} defaultValue={value || ""} onBlur={commit} onKeyDown={onKeyDown} spellcheck={true} />
     </div>
@@ -111,7 +111,7 @@ export function WordsField({ section, field, label, value, max, hint, words }) {
   };
   const id = `tpl-${section.id}-${field}`;
   return (
-    <div class="tpl-field">
+    <div class="tpl-pic-field">
       <label for={id}>{label}</label>
       <textarea id={id} ref={ref} rows={4} maxLength={max} placeholder={hint || ""} defaultValue={joined} onBlur={commit} onKeyDown={onKeyDown} />
     </div>
@@ -138,10 +138,10 @@ export function PictureSlot({ section, slot, image, label, longest = 1600, most 
     if (f) take(f);
   };
   return (
-    <div class={`tpl-slot${pic ? " has-pic" : ""}${over ? " over" : ""}`} data-slot={slot}
+    <div class={`tpl-pic-slot${pic ? " has-pic" : ""}${over ? " over" : ""}`} data-slot={slot}
       onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
-      {pic ? <img src={pic} alt="" class="tpl-slot-img" /> : <p class="tpl-slot-empty">{busy ? "Making the picture smaller…" : `${label}: choose a picture, or drop one here.`}</p>}
-      <div class="tpl-slot-acts">
+      {pic ? <img src={pic} alt="" class="tpl-pic-slot-img" /> : <p class="tpl-pic-slot-empty">{busy ? "Making the picture smaller…" : `${label}: choose a picture, or drop one here.`}</p>}
+      <div class="tpl-pic-slot-acts">
         <button type="button" class="btn sm" data-act="pick" disabled={busy} onClick={() => input.current && input.current.click()}>
           {pic ? "Change picture" : "Add a picture"}
         </button>

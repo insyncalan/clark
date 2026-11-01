@@ -373,21 +373,21 @@ class InThePage(PageBase):
             self.assertEqual(struct.unpack(">II", raw[16:24]), (1600, 800), "the longest side is 1600 px")
             self.assertEqual(self.body(ref)["words"], WORDS, "the picture kept the words")
             self.assertEqual(self.applies(), start + 3)
-            p.until(f"!!document.querySelector('{sel} .tpl-slot.has-pic img')", "the picture shows in Edit")
+            p.until(f"!!document.querySelector('{sel} .tpl-pic-slot.has-pic img')", "the picture shows in Edit")
             self.assertIn("Pictures in this report: 0.", p.js(f"document.querySelector('{sel} .tpl-total').textContent"))
             for width in (1400, 900):
                 for theme in ("light", "dark"):
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                     p.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}")
                     fits = p.js(f"(function(){{var s=document.querySelector('{sel}'), r=s.getBoundingClientRect();"
-                                "return s.scrollWidth <= s.clientWidth + 1 && [...s.querySelectorAll('.tpl-edit textarea, .tpl-edit input:not([type=file]), .tpl-slot, .tpl-edit button')]"
+                                "return s.scrollWidth <= s.clientWidth + 1 && [...s.querySelectorAll('.tpl-edit textarea, .tpl-edit input:not([type=file]), .tpl-pic-slot, .tpl-edit button')]"
                                 ".every(e => {var i=e.getBoundingClientRect(); return i.right <= r.right + 1 && i.left >= r.left - 1;});})()")
                     self.assertTrue(fits, f"Edit fits at {width} px, {theme}")
             p.js(f"document.querySelector('{sel} [data-act=pick]').focus()")
             self.assertNotEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "none", "the focus ring shows")
             # one Undo takes the picture back out, and keeps the words
             p.js("document.querySelector('[data-undo]').click()")
-            p.until(f"!document.querySelector('{sel} .tpl-slot.has-pic')", "Undo took the picture out")
+            p.until(f"!document.querySelector('{sel} .tpl-pic-slot.has-pic')", "Undo took the picture out")
             self.assertEqual(self.body(ref), {"v": 1, "words": WORDS, "caption": "Fictional hall"})
             p.view()
             p.until(f"!!document.querySelector('{sel} .tpl-words')", "View draws the words")
@@ -399,7 +399,7 @@ class InThePage(PageBase):
         built = publish.build(self.store, "ABC", now="2030-01-15")
         html = built["body"].decode("utf-8")
         self.assertNotIn("section-image", html)
-        self.assertNotIn("tpl-slot", html)
+        self.assertNotIn("tpl-pic-slot", html)
         server = Running(page_html=lambda: html)
         self.addCleanup(server.close)
         with chrome() as cdp:

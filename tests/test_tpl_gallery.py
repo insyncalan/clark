@@ -100,12 +100,12 @@ class InThePage(PicturePage):
             self.at_widths(cdp, p, sel, "img")
             p.edit()
             new = f"[data-id={json.dumps(ref)}]"
-            p.until(f"document.querySelectorAll('{new} .tpl-slot').length === 1", "one free slot")
-            self.drop_file(p, f"{new} .tpl-slot[data-slot=\"1\"] input[type=file]", 2000, 1500)
+            p.until(f"document.querySelectorAll('{new} .tpl-pic-slot').length === 1", "one free slot")
+            self.drop_file(p, f"{new} .tpl-pic-slot[data-slot=\"1\"] input[type=file]", 2000, 1500)
             p.saved()
             pic = self.body(ref)["pictures"]["1"]
             self.assertLessEqual(max(self.width_of(pic) or 0, 0), 1200, "a gallery picture is at most 1200 px")
-            p.until(f"document.querySelectorAll('{new} .tpl-slot').length === 2", "the next slot is offered")
+            p.until(f"document.querySelectorAll('{new} .tpl-pic-slot').length === 2", "the next slot is offered")
             p.clear_toast()
             p.js(f"document.querySelector('{new} input[id$=-caption-1]').focus()")
             p.type("Fictional caption")

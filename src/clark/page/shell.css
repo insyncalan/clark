@@ -1079,6 +1079,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .sec.slot-full .wil-lines, .sec.slot-left .wil-table, .sec.slot-right .wil-table { display: none; }
 @media (max-width: 1100px) {
   .wil-table .wil-c-workstream, .wil-table .wil-c-owner { width: 120px; }
+}
 
 /* Pictures group (#96): Text and image, Image with caption, Image gallery, Headline band. View and the published file; tokens only. */
 .tpl-fig { margin: 0; min-width: 0; }

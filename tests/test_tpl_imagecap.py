@@ -109,7 +109,7 @@ class InThePage(PicturePage):
             self.assertEqual(p.toast(), "Picture taken out.")
             self.assertEqual(self.body(ref), {"v": 1, "caption": "Fictional new caption"})
             p.js("document.querySelector('[data-undo]').click()")
-            p.until(f"!!document.querySelector('{new} .tpl-slot.has-pic')", "Undo put the picture back")
+            p.until(f"!!document.querySelector('{new} .tpl-pic-slot.has-pic')", "Undo put the picture back")
 
 
 if __name__ == "__main__":
