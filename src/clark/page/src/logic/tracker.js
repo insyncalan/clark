@@ -86,6 +86,7 @@ export const WORDS = {
     count: `A count must be a whole number from 0 to ${COUNT_MAX}, or empty.`,
     name: "Give each group a name.",
     nameLong: `A group name can be ${NAME_MAX} characters at most.`,
+    total: "The lines' weight, planned and achieved figures can each add up to 100% at most.",
     noteLong: `The note can be ${NOTE_MAX} characters at most.`,
   },
 };
@@ -263,3 +264,9 @@ export const withoutGroup = (t, g) => (inRange(t.groups, g) ? { ...t, groups: t.
 export const withGroupMoved = (t, g, by) => (inRange(t.groups, g) && inRange(t.groups, g + by) ? { ...t, groups: swap(t.groups, g, g + by) } : null);
 export const withOverall = (t, overall) => ({ ...t, overall: { ...t.overall, ...overall } });
 export const withColumn = (t, name, on) => ({ ...t, columns: { ...t.columns, [name]: !!on } });
+
+// "" when no column of figures (weight, planned, achieved) adds up to more than the whole across the tracker, else the store's sentence.
+export function totalProblem(tracker) {
+  const all = tracker.groups.flatMap((g) => g.lines);
+  return ["weight", "planned", "achieved"].some((k) => all.reduce((n, l) => n + l[k], 0) > WHOLE) ? WORDS.problems.total : "";
+}

@@ -286,6 +286,79 @@ class Page(Base):
             self.assertEqual(p.toast(), "That is too big to save, and nothing was changed. Shorten a line or remove some lines, then try again.")
             self.assertTrue(p.js(self.present(ref, "[data-line-form]")), "the form stays open")
 
+    def test_the_totals_sit_under_their_headings_at_1400_and_900(self):
+        """At 900 px the date columns collapse; the total row, the no-lines row and a line form must still line up with the columns that remain."""
+        ref = self.make({**BODY, "columns": {"tasks": True, "agents": False, "workflows": False}})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for width in (1400, 900):
+                self.resize(cdp, p, width, "light")
+                for name, index in (("Weight", 5), ("Planned", 6), ("Achieved", 7)):
+                    head = p.js("(function(){var r=" + self.one(ref, "[data-tr-group] thead tr") + ".cells[" + str(index) + "].getBoundingClientRect();return [r.left, r.right, r.width];})()")
+                    cell = p.js("(function(){var r=" + self.one(ref, "[data-tr-total]") + ".cells[" + str(index - 4) + "].getBoundingClientRect();return [r.left, r.right, r.width];})()")
+                    self.assertGreater(cell[2], 0, name)
+                    self.assertAlmostEqual(head[0], cell[0], delta=1.5, msg="the total is under " + name + " at " + str(width))
+                    self.assertAlmostEqual(head[1], cell[1], delta=1.5, msg=name + " " + str(width))
+                row = p.js(self.one(ref, "[data-tr-total]") + ".cells[0].textContent")
+                self.assertEqual(row, "Total")
+                if width == 900:
+                    self.assertEqual(p.js(self.one(ref, "thead tr") + ".cells[2].getBoundingClientRect().width"), 0, "the start date is collapsed")
+                    self.assertEqual(p.js(self.one(ref, "thead tr") + ".cells[8].getBoundingClientRect().width"), 0, "the Tasks count is collapsed")
+                    self.assertGreater(p.js(self.one(ref, "thead tr") + ".cells[7].getBoundingClientRect().width"), 40, "Achieved stays in view")
+
+    def test_the_no_lines_row_and_the_form_row_fit_the_table_at_900(self):
+        ref = self.make({"groups": [{"name": "Only", "lines": []}]})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.resize(cdp, p, 900, "light")
+            self.click(p, ref, "[data-add-line]")
+            p.until(self.present(ref, "[data-line-form]"), "the form")
+            self.assertEqual(self.overflow(p, ref), [])
+            row = p.js("(function(){var t=" + self.one(ref, "table.tracker") + ".getBoundingClientRect(),r=" + self.one(ref, ".t-form-row td") + ".getBoundingClientRect();return [Math.round(t.left),Math.round(t.right),Math.round(r.left),Math.round(r.right)];})()")
+            self.assertAlmostEqual(row[0], row[2], delta=2)
+            self.assertAlmostEqual(row[1], row[3], delta=2)
+
+    def test_a_half_typed_line_survives_another_save_and_only_its_own_save_closes_it(self):
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.click(p, ref, "[data-group='0'] [data-add-line]")
+            p.until(self.present(ref, "[data-line-form]"), "the form")
+            self.fill(p, ref, text="Half typed", planned="12")
+            self.set(p, ref, "[data-overall-edit] [data-f=health]", "ontrack", "change")
+            self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["health"] == "ontrack"))
+            p.until("!" + self.one(ref, "[data-overall-edit] [data-f=health]") + ".disabled", "free again")
+            self.assertTrue(p.js(self.present(ref, "[data-line-form]")), "the form is still open")
+            self.assertEqual(p.js(self.one(ref, "[data-line-form] [data-f=text]") + ".value"), "Half typed")
+            self.assertEqual(p.js(self.one(ref, "[data-line-form] [data-f=planned]") + ".value"), "12")
+            p.js(self.one(ref, "[data-col=tasks]") + ".click()")
+            self.assertTrue(self.wait_until(lambda: self.stored(ref)["columns"]["tasks"] is True))
+            p.until("!" + self.one(ref, "[data-col=tasks]") + ".disabled", "free again")
+            self.assertEqual(p.js(self.one(ref, "[data-line-form] [data-f=text]") + ".value"), "Half typed", "still there after a second save")
+            self.click(p, ref, "[data-save]")
+            p.until("!" + self.one(ref, "[data-line-form]"), "its own save closes it")
+            self.assertEqual(self.stored(ref)["groups"][0]["lines"][-1]["text"], "Half typed")
+
+    def test_a_line_that_would_take_a_total_past_100_is_refused_in_words_and_sends_nothing(self):
+        ref = self.make(BODY)               # planned adds up to 50% already; weights to 94%
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.click(p, ref, "[data-group='0'] [data-add-line]")
+            p.until(self.present(ref, "[data-line-form]"), "the form")
+            sent = len(self.sent)
+            self.fill(p, ref, text="Too much", weight="7", planned="51", achieved="0")
+            self.click(p, ref, "[data-save]")
+            p.until(self.present(ref, "[data-line-error]"), "a sentence")
+            self.assertEqual(p.js(self.text_of(ref, "[data-line-error]")), sb.TRACKER_TOTAL)
+            self.assertEqual(len(self.sent), sent)
+
+    def test_the_stores_total_refusal_has_its_plain_words_on_the_page(self):
+        text = (PAGE / "src" / "stores" / "report.js").read_text(encoding="utf-8")
+        self.assertIn(json.dumps(sb.TRACKER_TOTAL) + ":", text)
+
     def test_escape_cancels_with_nothing_sent(self):
         ref = self.make(BODY)
         with chrome() as cdp:
@@ -327,7 +400,7 @@ class Page(Base):
                             small = p.js("[..." + self.many(ref, "*") + "].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && parseFloat(getComputedStyle(e).fontSize) < 13).map(e => e.className)")
                             self.assertEqual(small, [], "no text under 13 px: " + where)
                         if width == 900:
-                            self.assertEqual(p.js("getComputedStyle(" + self.one(full, "th.t-date") + ").display"), "none", "dates drop at 900: " + where)
+                            self.assertEqual(p.js(self.one(full, "th.t-date") + ".getBoundingClientRect().width"), 0, "dates drop at 900: " + where)
                             self.assertTrue(p.js(self.one(full, "[data-tr-actual]") + ".getBoundingClientRect().right <= innerWidth"), "the figures stay in view")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
 

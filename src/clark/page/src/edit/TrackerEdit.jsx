@@ -8,7 +8,7 @@ import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { Overall, GroupFull, GroupHalf, columnsOf, fitOf } from "../components/Tracker.jsx";
 import {
-  trackerOf, totals, pct, problem, made, draftOf, blankLine, nameProblem, noteProblem, bodyOf, STATUSES, HEALTH, COLUMNS, NAME_MAX, TEXT_MAX, NO_MAX, NOTE_MAX, WORDS,
+  trackerOf, totals, pct, problem, totalProblem, made, draftOf, blankLine, nameProblem, noteProblem, bodyOf, STATUSES, HEALTH, COLUMNS, NAME_MAX, TEXT_MAX, NO_MAX, NOTE_MAX, WORDS,
   withLineAdded, withLineReplaced, withoutLine, withLineMoved, withGroupAdded, withGroupRenamed, withoutGroup, withGroupMoved, withOverall, withColumn, MAX_GROUPS, MAX_LINES,
 } from "../logic/tracker.js";
 
@@ -76,12 +76,13 @@ export function TrackerEdit({ section, slot }) {
   const counts = columnsOf(tracker);
   const locked = busy || at !== null || naming !== null;
 
-  const run = async (next, done, back) => {
+  // `close`: the save is the open form's own, so that form closes. Any other save leaves an open form and what was typed in it as they are.
+  const run = async (next, done, back, close = false) => {
     if (!next || busy) return false;
     setBusy(true);
     const reply = await save(sid, next, done);
     setBusy(false);
-    if (reply) { setAt(null); setNaming(null); setError(""); setNameError(""); if (back) focusLater(sid, back); }
+    if (reply) { if (close) { setAt(null); setNaming(null); setError(""); setNameError(""); } if (back) focusLater(sid, back); }
     return !!reply;
   };
   const openLine = (g, i) => { setAt({ g, i }); setDraft(i === NEW ? blankLine() : draftOf(tracker.groups[g].lines[i])); setError(""); };
@@ -90,15 +91,18 @@ export function TrackerEdit({ section, slot }) {
     const said = problem(draft);
     if (said) { setError(said); return; }
     const line = made(draft);
-    if (at.i === NEW) run(withLineAdded(tracker, at.g, line), WORDS.added, `[data-group="${at.g}"] [data-add-line]`);
-    else run(withLineReplaced(tracker, at.g, at.i, line), WORDS.saved, `[data-group="${at.g}"] [data-line="${at.i}"] [data-edit]`);
+    const next = at.i === NEW ? withLineAdded(tracker, at.g, line) : withLineReplaced(tracker, at.g, at.i, line);
+    const over = next && totalProblem(next);
+    if (over) { setError(over); return; }
+    if (at.i === NEW) run(next, WORDS.added, `[data-group="${at.g}"] [data-add-line]`, true);
+    else run(next, WORDS.saved, `[data-group="${at.g}"] [data-line="${at.i}"] [data-edit]`, true);
   };
   const openName = (g) => { setNaming(g); setName(g === NEW ? "" : tracker.groups[g].name); setNameError(""); };
   const onName = () => {
     const said = nameProblem(name);
     if (said) { setNameError(said); return; }
-    if (naming === NEW) run(withGroupAdded(tracker, name.trim()), WORDS.groupAdded, "[data-add-group]");
-    else run(withGroupRenamed(tracker, naming, name.trim()), WORDS.saved, `[data-group="${naming}"] [data-rename]`);
+    if (naming === NEW) run(withGroupAdded(tracker, name.trim()), WORDS.groupAdded, "[data-add-group]", true);
+    else run(withGroupRenamed(tracker, naming, name.trim()), WORDS.saved, `[data-group="${naming}"] [data-rename]`, true);
   };
   const onNote = (e) => {
     const note = e.currentTarget.value.trim();

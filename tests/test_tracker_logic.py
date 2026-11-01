@@ -270,6 +270,18 @@ class Totals(unittest.TestCase):
 
     # ── the words ────────────────────────────────────────────────────────────
 
+    def test_a_total_past_the_whole_is_refused_in_the_stores_words(self):
+        words = "The lines' weight, planned and achieved figures can each add up to 100% at most."
+        self.assertEqual(self.k("WORDS.problems.total"), words)
+        self.assertEqual(self.k(f"totalProblem({lit(TRACKER)})"), "")
+        for field in ("weight", "planned", "achieved"):
+            over = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 600, 600, 600), line("Two", 401, 401, 401)]}]}
+            over["groups"][0]["lines"][0].update({k: 0 for k in ("weight", "planned", "achieved") if k != field})
+            over["groups"][0]["lines"][1].update({k: 0 for k in ("weight", "planned", "achieved") if k != field})
+            self.assertEqual(self.k(f"totalProblem({lit(over)})"), words, field)
+        exact = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 600, 600, 600), line("Two", 400, 400, 400)]}]}
+        self.assertEqual(self.k(f"totalProblem({lit(exact)})"), "")
+
     def test_every_word_is_plain_and_none_starts_with_the_product_name(self):
         words = [w for w in self.k("ALL_WORDS()") if w.strip()]
         self.assertGreater(len(words), 50)

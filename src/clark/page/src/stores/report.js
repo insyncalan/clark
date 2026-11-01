@@ -300,6 +300,7 @@ const CHANGE_KNOWN = {
   "A line can't end before it starts.": "A line can't end before it starts, and nothing was changed. Change one of the dates.",
   "Choose Planned, In progress, Completed or Late.": "Choose Planned, In progress, Completed or Late. Nothing was changed.",
   "A percentage must be a number from 0 to 100.": "A percentage must be a number from 0 to 100. Nothing was changed.",
+  "The lines' weight, planned and achieved figures can each add up to 100% at most.": "The lines' weight, planned and achieved figures can each add up to 100% at most, and nothing was changed. Lower one of them.",
   "A count must be a whole number from 0 to 99999, or empty.": "A count must be a whole number from 0 to 99999, or empty. Nothing was changed.",
   "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
   "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",

@@ -54,6 +54,12 @@ export function GroupFull({ group, columns, extraHead, extraCell, below, foot })
   return (
     <table class="tracker tr-full" data-tr-group>
       <caption class="tr-cap">{group.name}</caption>
+      {/* The narrow width collapses the date and count columns (visibility: collapse on the col), so every row's colSpan stays right. */}
+      <colgroup>
+        <col class="c-no" /><col class="c-what" /><col class="c-date" /><col class="c-date" /><col class="c-status" /><col class="c-n" /><col class="c-n" /><col class="c-n" />
+        {columns.map(([k]) => <col key={k} class="c-n c-count" />)}
+        {extraHead ? <col class="c-tools" /> : null}
+      </colgroup>
       <thead>
         <tr>
           <th scope="col" class="t-no">{WORDS.no}</th><th scope="col" class="t-what">{WORDS.what}</th>

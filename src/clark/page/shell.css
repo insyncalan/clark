@@ -377,7 +377,7 @@ table.tracker tr.tr-none td { text-align: left; }
 .tr-list .tr-text { overflow-wrap: anywhere; }
 .tr-weights { margin: 4px 0 0; }
 @media (max-width: 900px) {
-  table.tracker .t-date, table.tracker .t-count, table.tracker th.t-date, table.tracker th.t-count { display: none; }
+  table.tracker col.c-date, table.tracker col.c-count { visibility: collapse; }       /* the column goes, the cells and every colSpan stay as they are */
   table.tracker .t-n { width: 14%; }
   table.tracker .t-status { width: 20%; }
   table.tracker .t-no { width: 8%; }
