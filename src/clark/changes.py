@@ -192,7 +192,6 @@ RATING_FIELDS = ("impact", "likelihood")
 NOT_A_RATING = "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick a rating from the list."
 RATING_KINDS = ("Risk", "Issue")
 RATING_NOT_THIS_KIND = "Only a risk or an issue has a rating, so nothing was changed. Pick a status instead."
-RATING_NOT_OPEN = "A closed or cancelled item can't be rated, so nothing was changed. Reopen it first."
 NO_WORKSTREAM = "That workstream isn't available."
 ARCHIVED_MILESTONE = "That milestone is archived. Restore it first."
 NOT_PLANNED = "A Hold or a Rebaseline is for a Planned milestone. This one is not Planned."
@@ -767,11 +766,9 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
         row = store.read(table, ref=ref) if isinstance(ref, str) else None
         if row is None or row["project"] != project or row["archived"]:
             raise Refused(ITEM_NOT_MINE)
-        if table == "raid" and any(f in changes for f in RATING_FIELDS):   # D-12: an open risk or issue only, High, Medium or Low
+        if table == "raid" and any(f in changes for f in RATING_FIELDS):   # D-12: a risk or issue only, whatever its status (#448), High, Medium or Low
             if row["type"] not in RATING_KINDS:
                 raise Refused(RATING_NOT_THIS_KIND)
-            if changes.get("status", row["status"]) != "Open":
-                raise Refused(RATING_NOT_OPEN)
             if any(changes[f] not in clark_store.ALLOWED[("raid", f)] for f in RATING_FIELDS if f in changes):
                 raise Refused(NOT_A_RATING)
         link = changes.get("use_case")

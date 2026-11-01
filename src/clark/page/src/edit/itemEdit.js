@@ -3,7 +3,7 @@
 // later. A change is sent through api.js as kind actions, raid or decisions, op update (clark/changes.py, #68): only
 // the fields it accepts are named here. A RAID item's priority comes from its impact and likelihood and a decision has none, so
 // their Priority cell is not a picker.
-import { dueField, showDate, dayNumber, colourOf } from "../workItems.js";
+import { dueField, showDate, dayNumber, colourOf, pillOf } from "../workItems.js";
 
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const STATUSES = {
@@ -40,24 +40,20 @@ export function statusChoices(row) {
   return row.kind === "decision" && row.status === "Made" ? all.filter((s) => s !== "Pending") : all.slice();
 }
 
-// The Status cell in Edit shows the status itself, the word its picker offers, so a pick and the cell always say the same:
-// Open and Pending blue, Delayed amber, Made green, Closed, Cancelled and Withdrawn grey. (View keeps #36's pills, where a late
-// action reads Overdue and an open risk its colour.)
-const STATUS_TONE = { Open: "b", Pending: "b", Delayed: "a", Made: "g", Closed: "n", Cancelled: "n", Withdrawn: "n" };
+// #448 (row 54): the Status cell in Edit shows the live look, as the prototype's C.look does and View's pill does: a pick redraws it
+// from the reply at once. An open risk or issue reads its colour (Red, Amber, Green), a late action Overdue, Delayed amber, Made
+// green; Closed, Cancelled and Withdrawn are grey. The picker still offers, and its toast still says, the status words.
 
-/** The Status cell's pill in Edit: {text, class}, with the item's own status as its word. */
-export function statusPill(row) {
-  const s = String(row.status == null ? "" : row.status);
-  return { text: s, class: STATUS_TONE[s] || "n" };
-}
+/** The Status cell's pill in Edit: {text, class}, the item's live look (the same as View's). `today` is YYYY-MM-DD. */
+export function statusPill(row, today) { return pillOf(row, today); }
 
 // D-12: a risk's or issue's rating is worked out from its impact and likelihood, so a colour is picked by setting those two:
 // Red is High impact with Medium likelihood (High priority), Amber Medium and Medium, Green Low and Low.
 export const RATINGS = { Red: { impact: "High", likelihood: "Medium" }, Amber: { impact: "Medium", likelihood: "Medium" }, Green: { impact: "Low", likelihood: "Low" } };
 
-/** The Rating section of an open risk's or issue's status picker: the three colours, or none for any other item (an assumption,
- * a dependency, a closed or cancelled one), as clark/changes.py refuses. */
-export function ratingChoices(row) { return RATED.includes(row.kind) && row.status === "Open" ? Object.keys(RATINGS) : []; }
+/** The Rating section of a risk's or issue's status picker: the three colours, whatever its status (#448, as the prototype), or
+ * none for any other item (an action, a decision, an assumption, a dependency), as clark/changes.py refuses. */
+export function ratingChoices(row) { return RATED.includes(row.kind) ? Object.keys(RATINGS) : []; }
 const RATED = ["risk", "issue"];
 
 /** The field a pick belongs to: the picker's Rating entries are sent as `rating:Red`, `rating:Amber` or `rating:Green`. */

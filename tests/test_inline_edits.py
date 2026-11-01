@@ -140,12 +140,18 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.change(self.MADE, "status", "Withdrawn")["changes"], {"status": "Withdrawn"}, "a made decision keeps its date")
         self.assertEqual(self.change({**self.MADE, "status": "Withdrawn"}, "status", "Pending")["changes"], {"status": "Pending", "date": None})
 
-    def test_the_status_cell_in_edit_says_the_status_its_picker_offers(self):
-        late = {**self.ACTION, "status": "Delayed", "due_date": "2026-10-01"}       # View reads Overdue
-        soon = {**self.ACTION, "due_date": "2026-10-30"}                             # View reads Due soon
-        got = self.js(f"[{json.dumps(late)}, {json.dumps(soon)}, {json.dumps(self.RISK)}, {json.dumps({**self.RISK, 'status': 'Cancelled'})}, "
-                      f"{json.dumps(self.PENDING)}, {json.dumps(self.MADE)}, {json.dumps({**self.MADE, 'status': 'Withdrawn'})}, {json.dumps({**self.ACTION, 'status': 'Closed'})}].map(E.statusPill)")
-        self.assertEqual(got, [{"text": "Delayed", "class": "a"}, {"text": "Open", "class": "b"}, {"text": "Open", "class": "b"}, {"text": "Cancelled", "class": "n"},
+    def test_the_status_cell_in_edit_shows_the_live_look_the_prototype_gives(self):
+        """#448 (row 54, system/prototype/core.js C.look): Edit's Status cell reads as View's pill does, not the raw status word."""
+        late = {**self.ACTION, "status": "Delayed", "due_date": "2026-10-01"}       # a late action reads Overdue
+        soon = {**self.ACTION, "due_date": "2026-10-30"}                             # Due soon
+        delayed = {**self.ACTION, "status": "Delayed", "due_date": "2026-11-20"}
+        rows = [late, soon, delayed, self.RISK, {**self.RISK, "priority": "Medium"}, {**self.RISK, "priority": "Low"}, {**self.RISK, "kind": "issue", "priority": "Urgent"},
+                {**self.RISK, "status": "Cancelled"}, {**self.RISK, "status": "Closed", "priority": "Low"},
+                self.PENDING, self.MADE, {**self.MADE, "status": "Withdrawn"}, {**self.ACTION, "status": "Closed"}]
+        got = self.js(f"{json.dumps(rows)}.map(r => E.statusPill(r, {json.dumps(TODAY)}))")
+        self.assertEqual(got, [{"text": "Overdue", "class": "r"}, {"text": "Due soon", "class": "a"}, {"text": "Delayed", "class": "a"},
+                               {"text": "Red", "class": "r"}, {"text": "Amber", "class": "a"}, {"text": "Green", "class": "g"}, {"text": "Red", "class": "r"},
+                               {"text": "Cancelled", "class": "n"}, {"text": "Closed", "class": "n"},
                                {"text": "Pending", "class": "b"}, {"text": "Made", "class": "g"}, {"text": "Withdrawn", "class": "n"}, {"text": "Closed", "class": "n"}])
 
     def test_rating_rules(self):
@@ -157,10 +163,14 @@ class Rules(unittest.TestCase):
         self.assertIsNone(self.change(self.RISK, "rating", "rating:Red"), "the colour it already has sends nothing")
         self.assertNotIn("priority", self.change(self.RISK, "rating", "rating:Green")["changes"], "priority is worked out by the store, never sent")
         self.assertIn("error", self.change(self.ACTION, "rating", "rating:Red"))
-        others = [{**self.RISK, "kind": "issue"}, {**self.RISK, "kind": "assumption"}, {**self.RISK, "kind": "dependency"}, {**self.RISK, "status": "Closed"}, {**self.RISK, "status": "Cancelled"}]
-        self.assertEqual(self.js(f"{json.dumps(others)}.map(r => E.ratingChoices(r).length)"), [3, 0, 0, 0, 0], "an open risk or issue only, as the server")
+        others = [{**self.RISK, "kind": "issue"}, {**self.RISK, "kind": "assumption"}, {**self.RISK, "kind": "dependency"}, {**self.RISK, "status": "Closed"}, {**self.RISK, "status": "Cancelled"},
+                  {**self.RISK, "kind": "issue", "status": "Closed"}]
+        self.assertEqual(self.js(f"{json.dumps(others)}.map(r => E.ratingChoices(r).length)"), [3, 0, 0, 3, 3, 3],
+                         "a risk or issue whatever its status (#448, system/prototype/peek.js:260), as the server")
         self.assertIn("error", self.change(others[1], "rating", "rating:Red"))
-        self.assertIn("error", self.change(others[3], "rating", "rating:Red"))
+        self.assertEqual(self.change(others[3], "rating", "rating:Green")["changes"], {"impact": "Low", "likelihood": "Low"}, "a closed risk is rated")
+        self.assertEqual(self.change(others[4], "rating", "rating:Amber")["words"], "ABC-007 rated Amber.", "a cancelled one too")
+        self.assertIsNone(self.change(others[3], "rating", "rating:Red"), "the colour it already has sends nothing")
         self.assertEqual(self.js("[E.pickField('status', 'rating:Red'), E.pickField('status', 'Open'), E.pickField('owner', 'x')]"), ["rating", "status", "owner"])
 
     def test_a_raid_items_priority_says_why_it_is_not_a_picker(self):
@@ -447,11 +457,12 @@ class Live(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width)
                 cell = "[data-cell='TUL-007:status']"
-                self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Open", "Edit shows the status itself, the picker's word, not the risk's colour")
+                self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Red", "Edit shows the live look: an open risk reads its colour (#448)")
                 before = self.steps()
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent)", sid), ["Open", "Closed", "Cancelled", "Red", "Amber", "Green"])
+                self.assertEqual(cdp.js("document.querySelector(\"[data-cell='TUL-007:status']\").getAttribute('aria-label')", sid), "Status of TUL-007: Red. Change", "the label says the word on screen")
                 groups = cdp.js("[...document.querySelectorAll('[data-pop][role=menu] [role=group]')].map(g => [document.getElementById(g.getAttribute('aria-labelledby')).textContent,"
                                 " [...g.querySelectorAll('[role=menuitemradio]')].map(b => b.dataset.value), g.querySelectorAll('[aria-checked=true]').length])", sid)
                 self.assertEqual(groups, [["Status", ["Open", "Closed", "Cancelled"], 1], ["Rating", ["rating:Red", "rating:Amber", "rating:Green"], 1]],
@@ -468,7 +479,7 @@ class Live(unittest.TestCase):
                 self.undo(cdp, sid, "status", "Status of TUL-007 is back to Open.")
                 r = self.row("raid", "TUL-007")
                 self.assertEqual((r["status"], r["closed"]), ("Open", None))
-                self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Open'", "Undo draws it open")
+                self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Red'", "Undo draws it Red, its live look")
                 # keyboard: Space opens, End jumps, Enter picks
                 cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
                 key(cdp, sid, " ")
@@ -490,7 +501,7 @@ class Live(unittest.TestCase):
                 self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Delayed'", "the cell says Delayed")
                 self.assertEqual(self.toast(cdp, sid), "Status of TUL-A-001 changed to Delayed.")
                 self.undo(cdp, sid, "action status")
-                self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Open'", "Undo draws it Open")
+                self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Due soon'", "Undo draws its live look, Due soon")
 
     def test_rating_from_the_status_picker_sets_impact_and_likelihood_with_one_undo(self):
         for width in (1400, 900):
@@ -510,6 +521,135 @@ class Live(unittest.TestCase):
                 r = self.row("raid", "TUL-007")
                 self.assertNotEqual((r["impact"], r["likelihood"]), ("Low", "Low"), "Undo puts impact and likelihood back")
                 self.assertEqual(r["priority"], store_priority(r["impact"], r["likelihood"]))
+
+    def menu_state(self, cdp, sid):
+        """What the open status menu offers, and which of its entries are ticked."""
+        return cdp.js("[[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.dataset.value),"
+                      " [...document.querySelectorAll('[data-pop] [role=menuitemradio][aria-checked=true]')].map(b => b.dataset.value)]", sid)
+
+    def test_a_closed_risk_is_offered_a_rating_and_keeps_its_closed_look(self):
+        """#448 (row 53, system/prototype/peek.js:260): the Rating section is offered whatever the status; a pick leaves the risk closed."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width)
+                cell = "[data-cell='TUL-008:status']"
+                self.assertEqual(self.row("raid", "TUL-008")["status"], "Closed")
+                self.assertEqual(self.cell_text(cdp, sid, "TUL-008", "status"), "Closed", "a closed risk reads Closed in the cell")
+                click(cdp, sid, cell)
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
+                self.assertEqual(self.menu_state(cdp, sid), [["Open", "Closed", "Cancelled", "rating:Red", "rating:Amber", "rating:Green"], ["Closed", "rating:Amber"]],
+                                 "the Rating is offered on a closed risk, with its own rating ticked")
+                before = self.steps()
+                click(cdp, sid, "[data-pop] [data-value='rating:Green']")
+                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
+                r = self.row("raid", "TUL-008")
+                self.assertEqual((r["status"], r["closed"], r["impact"], r["likelihood"], r["priority"]), ("Closed", "2026-10-14", "Low", "Low", "Low"),
+                                 "rated, still closed, closing date untouched")
+                self.changed_once(before, "rating of a closed risk")
+                self.assertEqual(self.toast(cdp, sid), "TUL-008 rated Green.")
+                self.assertEqual(self.cell_text(cdp, sid, "TUL-008", "status"), "Closed", "the cell keeps the closed look")
+                self.undo(cdp, sid, "rating of a closed risk", "TUL-008 is back to Amber.")
+                self.assertEqual(self.row("raid", "TUL-008")["priority"], "Medium")
+                # a cancelled issue too, and an assumption is still not offered one
+                click(cdp, sid, "[data-cell='TUL-012:status']")
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the cancelled issue's menu opened")
+                self.assertEqual(self.menu_state(cdp, sid)[1], ["Cancelled", "rating:Red"])
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the menu shut")
+                click(cdp, sid, "[data-cell='TUL-009:status']")
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the assumption's menu opened")
+                self.assertEqual(self.menu_state(cdp, sid)[0], ["Open", "Closed", "Cancelled"], "an assumption has no rating")
+
+    def test_a_status_pick_redraws_the_cell_to_its_live_look_at_once(self):
+        """#448 (row 54, system/prototype/core.js:200): after a pick the Status cell shows the look, not the raw word."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cell = "[data-cell='TUL-007:status']"
+            self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Red")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.pill').className", sid), "pill r")
+            click(cdp, sid, cell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
+            click(cdp, sid, "[data-pop] [data-value='rating:Green']")
+            self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Green'", "the cell says Green at once")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.pill').className", sid), "pill g")
+            click(cdp, sid, cell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened again")
+            click(cdp, sid, "[data-pop] [data-value=Closed]")
+            self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Closed'", "Closed reads Closed")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.pill').className", sid), "pill n")
+            self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "status"), "Red", "an overdue issue is Red, as in View")
+            self.assertEqual(self.cell_text(cdp, sid, "TUL-D-016", "status"), "Pending")
+
+    def peek_picker(self, width):
+        """#448 (row 55, system/prototype/peek.js:256): the peek's Status row opens the table's picker; one pick, one step, one Undo."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, width)
+            cdp.js("clarkPage.openPeek('TUL-007', 'item')", sid)
+            pcell = "#peek [data-cell='peek:TUL-007:status']"
+            self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's Status row is a picker in Edit")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").textContent", sid), "Red")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").getAttribute('aria-label')", sid), "Status of TUL-007: Red. Change")
+            click(cdp, sid, pcell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the peek's menu opened")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 1, "one picker open, not the table's too")
+            self.assertEqual(self.menu_state(cdp, sid), [["Open", "Closed", "Cancelled", "rating:Red", "rating:Amber", "rating:Green"], ["Open", "rating:Red"]], "the table's own choices")
+            before = self.steps()
+            click(cdp, sid, "[data-pop] [data-value=Closed]")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
+            self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
+            self.changed_once(before, "status from the peek")
+            self.assertEqual(self.toast(cdp, sid), "Status of TUL-007 changed to Closed.")
+            self.until(cdp, sid, f"document.querySelector(\"{pcell}\").textContent === 'Closed'", "the peek's cell says Closed")
+            self.assertEqual(cdp.js("(document.querySelector('#peek [data-pk-rating]') || {}).textContent", sid), " · Red", "a closed risk keeps its rating word in the peek")
+            self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Closed", "the table's cell says it too")
+            # the rating of the now closed risk, from the peek
+            click(cdp, sid, pcell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened on a closed risk")
+            click(cdp, sid, "[data-pop] [data-value='rating:Amber']")
+            self.until(cdp, sid, "(document.querySelector('#peek [data-pk-rating]') || {}).textContent === ' · Amber'", "the peek says Closed · Amber")
+            self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
+            self.undo(cdp, sid, "rating from the peek", "TUL-007 is back to Red.")
+            self.until(cdp, sid, "(document.querySelector('#peek [data-pk-rating]') || {}).textContent === ' · Red'", "Undo draws Closed · Red again in the peek")
+            self.assertEqual(self.row("raid", "TUL-007")["priority"], "High")
+
+    # One test for each width: each starts on a fresh store, since the first leaves TUL-007 closed.
+    def test_the_peek_has_the_same_status_picker_as_the_table(self):
+        self.peek_picker(1400)
+
+    def test_the_peek_has_the_same_status_picker_as_the_table_at_900(self):
+        self.peek_picker(900)
+
+    def test_a_pick_in_the_peek_is_about_the_open_item_even_with_two_rows_selected(self):
+        """#448: the peek's picker never turns into the table's bulk change (#196)."""
+        mod = 4 if sys.platform == "darwin" else 2
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            for ref, mods, n in (("TUL-007", 0, 1), ("TUL-010", mod, 2)):      # as the test above: wait for each to be picked before the next
+                click(cdp, sid, f"tr[data-id='{ref}'] .c-item .t", mods)
+                self.until(cdp, sid, f"document.querySelectorAll(\"tr[data-id].picked\").length === {n} && document.querySelector(\"tr[data-id='{ref}']\").classList.contains('picked')", f"{ref} picked, {n} in all")
+            cdp.js("clarkPage.openPeek('TUL-007', 'item')", sid)
+            pcell = "#peek [data-cell='peek:TUL-007:status']"
+            self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's picker is there")
+            click(cdp, sid, pcell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
+            before = self.steps()
+            click(cdp, sid, "[data-pop] [data-value=Cancelled]")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved at once, no question first")
+            self.assertEqual((self.row("raid", "TUL-007")["status"], self.row("raid", "TUL-010")["status"]), ("Cancelled", "Open"), "only the open item changed")
+            self.changed_once(before, "one item, from the peek")
+
+    def test_the_view_peek_of_a_closed_risk_says_closed_and_its_rating_word_with_no_picker(self):
+        """#448 (done-when 5): in View the peek of a closed risk says Closed and its rating word; no picker, no internal field. The
+        published file itself is checked in test_peek.PublishedList."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                cdp.js("clarkPage.openPeek('TUL-008', 'item')", sid)
+                self.until(cdp, sid, "!!document.querySelector('#peek [data-pk-rating]')", "the peek says the rating word")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Amber")
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "View has no picker")
+                labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
+                self.assertNotIn("Shown to client", labels)
 
     def rating_drawn(self, cdp, sid, ref):
         """The row's Priority cell and the Rating ticked in its status picker (opened and shut again)."""

@@ -268,7 +268,10 @@ class IconsBrowser(unittest.TestCase):
             # never colour alone: the icon sits beside a written word, and its shape is the row's own
             self.assertTrue(row["words"], where)
         self.assertEqual(rows["status"]["words"], rows["status"]["words"].strip())
-        self.assertIn(rows["status"]["words"], PLAIN_STATUS, iid)
+        status, _, kept = rows["status"]["words"].partition(" · ")      # a closed or cancelled risk or issue keeps its rating word: "Closed · Amber"
+        self.assertIn(status, PLAIN_STATUS, iid)
+        if kept:
+            self.assertIn(kept, {"Red", "Amber", "Green", "Not rated"}, f"{iid}: the rating word kept beside the status")
         if "priority" in rows:
             self.assertIn(rows["priority"]["words"], PLAIN_PRIORITY, iid)
             if priority:
