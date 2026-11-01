@@ -170,7 +170,7 @@ def make(data_for, profile=None, clock=None, chased=None, rules_for=None):
                           "unblocks": unblocks, "chased": chased(code), "project_names": {code: (data.get("project") or {}).get("name") or code}})
         shown = [{"id": i["id"], "text": i["text"], "kind": i["kind"], "due": i.get("due"), "owner": i.get("owner"),
                   "internal": bool(outside and de.is_internal(i))} for i in offer]
-        return 200, {"ok": True, "project": code, "mode": mode, "items": shown, "picked": ticks, "draft": draft}
+        return 200, {"ok": True, "project": code, "mode": mode, "items": shown, "picked": ticks, "draft": draft, "outside": bool(outside)}
     return seam
 
 
