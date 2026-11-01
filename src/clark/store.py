@@ -2270,6 +2270,20 @@ class Store:
         sql = f"SELECT * FROM {_table(kind)}" + (" WHERE " + " AND ".join(where) if where else "")
         return [dict(r) for r in self.con.execute(sql, args)]
 
+    def live_holder_of_freed_email(self, person_ids):
+        """#115: read only. For people whose email a step cleared, the name of a live person who now holds that address, or None.
+        It is why an Undo of the merge can't give the address back."""
+        for pid in sorted(set(person_ids)):
+            for (mail,) in self.con.execute("SELECT old_value FROM change_log WHERE tbl = 'people' AND item_id = ? AND field = 'email' "
+                                            "ORDER BY rowid DESC", (pid,)):
+                if not mail:
+                    continue
+                other = self.con.execute("SELECT name FROM people WHERE email = ? AND id <> ? AND archived = 0", (mail, pid)).fetchone()
+                if other:
+                    return other[0]
+                break
+        return None
+
     def people(self, archived=False):
         """The people list (#115), read only: live people (the default), archived ones (True) or both (None), in id order. The
         people table is made by migration step 9; a file without it (never after open_store) reads as an empty list."""

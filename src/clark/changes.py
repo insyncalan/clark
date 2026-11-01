@@ -1876,18 +1876,10 @@ def _do_people_undo(store, by_user, req):
 def _people_undo_reason(store, rows, skipped):
     """Plain words for an Undo that would leave something behind: what to do first. Names the person who now holds an email the
     step freed, when that is the cause; otherwise says how many changes can't go back."""
-    freed = {r["key"] for r in rows if r["table"] == "people" and r["field"] == "email"}
-    for pid in sorted(freed):
-        for line in store.con.execute("SELECT old_value FROM change_log WHERE tbl = 'people' AND item_id = ? AND field = 'email' "
-                                      "ORDER BY rowid DESC", (pid,)):
-            mail = line[0]
-            if not mail:
-                continue
-            other = store.con.execute("SELECT name FROM people WHERE email = ? AND id <> ? AND archived = 0", (mail, pid)).fetchone()
-            if other:
-                return (f"This can't be undone: an email address it would put back is now used by {other[0]}. "
-                        f"Change or archive {other[0]} first, then undo again. Nothing has been changed.")
-            break
+    other = store.live_holder_of_freed_email([r["key"] for r in rows if r["table"] == "people" and r["field"] == "email"])
+    if other:
+        return (f"This can't be undone: an email address it would put back is now used by {other}. "
+                f"Change or archive {other} first, then undo again. Nothing has been changed.")
     n = len(skipped)
     return (f"This can't be undone: {n} change{'s' if n != 1 else ''} can no longer be put back, because the data has changed since. "
             "Undo the later change first, then undo again. Nothing has been changed.")
