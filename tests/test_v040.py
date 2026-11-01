@@ -45,6 +45,7 @@ COVERED = [
     ("Esc", "An inline date closes on one Esc", "test_inline_edits::Live::test_every_inline_date_closes_on_one_esc_a_click_away_or_tab_and_changes_nothing"),
     ("#182", "A bad idle-timer value keeps the default", "test_idle::Environment::test_number_refuses_non_finite_values"),
     ("plain errors", "A broken or odd request gets a plain-words reply", "test_server_error_pages::PlainPages::test_the_wording_is_plain"),
+    ("#78", "The peek shows coloured icons for status, priority and date", "test_peek_icons::ToneRules::test_priority_urgent_red_high_amber_medium_blue_low_and_none_grey"),
 ]
 
 # Not on main (or no test found): (item, check, the question or where it is being built).
@@ -66,9 +67,6 @@ WALK_THROUGH = [
      "the owner reads the words and decides they are clear", "Open Settings > Safety, preview a backup and read it; restore only a demo copy."),
     ("#110", "Copy diagnostics gives a report with no client content", "judgement",
      "only a person can read the report for client content", "Settings > Logs and diagnostics: choose Debug, work for a minute, Copy diagnostics, read it."),
-    ("#164", "The owner can edit an existing use case, with Undo", "live only",
-     "the page's own editing of a use case is not found in the code on main; the server accepts the change (test above)",
-     "Try to edit a use case in the Use cases section of the Dashboard. Say whether you can; the release notes say you can."),
 ]
 
 
