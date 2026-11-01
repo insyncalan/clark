@@ -13,12 +13,12 @@ export function statusTone(row, today) { return pillOf(row, today).class; }
 /** Urgent red, High amber, Medium blue; Low and no priority grey. */
 export function priorityTone(priority) { return PRIORITY_TONE[priority] || "n"; }
 
-/** The date: red when it is past and the item is open, amber when it is within 7 days (today counts), blue for a later date or a closed item's date, grey for no date. */
+/** The date: red when an open ACTION is past its date (the prototype reddens late actions only), amber when it is within 7 days or when any other open item (a risk, an issue or a decision) is past its date, blue for a later date or a closed item's date, grey for no date. A late date also says "N days late" beside it, so the tone is never the only signal. */
 export function dateTone(row, today) {
   const a = dayNumber(dueField(row)), b = dayNumber(today);
   if (a === null) return "n";
   if (b === null || !isOpen(row)) return "b";
-  if (a < b) return "r";
+  if (a < b) return row.kind === "action" ? "r" : "a";
   return a - b <= 7 ? "a" : "b";
 }
 
