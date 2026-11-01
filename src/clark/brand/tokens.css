@@ -22,7 +22,7 @@
   --status-green-tint: #D9F1EC; --status-amber-tint: #FCEFCF; --status-red-tint: #F6E0DD;
   --status-green-text: #006B5E; --status-amber-text: #8A5200; --status-red-text: #A3301F;
   /* how clear a section's control is at rest (#101): faint in light, clearer in dark, where .3 is close to invisible */
-  --sh-rest: .3;
+  --sh-rest: .3; --tile-ctl: 41px; --tile-tag: 54px;
 }
 /* dark mode: the same tokens, redrawn for a dark page; the top bar and the report cover stay dark. The values are written twice because CSS cannot
    share them: once for data-theme=dark (chosen) and once for data-theme=auto (follow the computer). tests/test_page.py keeps the two copies equal. */

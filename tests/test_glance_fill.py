@@ -26,7 +26,7 @@ def rule(css, selector):
 
 class Source(unittest.TestCase):
     def test_tiles_share_the_row_and_health_takes_two_shares_and_the_gap(self):
-        css = (PAGE / "shell.css").read_text()
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
         cell, health = rule(css, ".tcell"), rule(css, ".tcell.health")
         self.assertIn("flex: 1 1 0", cell, "each tile takes an equal share")
         self.assertIn(f"min-width: {TILE_MIN}px", cell)
@@ -42,7 +42,7 @@ class Source(unittest.TestCase):
         self.assertLessEqual(3 * TILE_MIN + health + 3 * GAP, ROOM_900 - EDIT_GUTTER - SCROLL_BAR, "in Edit, with a scroll bar too (787 px)")
 
     def test_edit_keeps_the_label_line_clear_of_the_grip_and_eye_and_the_hidden_tag_clear_of_the_text(self):
-        css = (PAGE / "shell.css").read_text()
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
         self.assertIn("--tile-ctl: 41px", css, "54 px of controls, less the tile's 17 px border and padding, and a 4 px gap")
         self.assertRegex(css, r'#report\[data-mode="edit"\] \.glance \.fig \.k \{ padding-right: var\(--tile-ctl\); \}')
         self.assertRegex(css, r'#report\[data-mode="edit"\] \.glance \.tcell\.is-hidden \.fig \{ padding-bottom: var\(--tile-tag\); \}')
@@ -50,7 +50,7 @@ class Source(unittest.TestCase):
 
     def test_both_built_pages_carry_the_rules(self):
         for name in ("page.html", "page-view.html"):
-            html = (PAGE / name).read_text()
+            html = (PAGE / name).read_text(encoding="utf-8")
             self.assertIn(f"flex: 2 1 {GAP}px", html, name)
             self.assertIn(f"min-width: {TILE_MIN}px", html, name)
 
