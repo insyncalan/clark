@@ -72,9 +72,12 @@ def history_many(con, ids):
     if not ids:
         return {}
     wanted = set(ids)
-    codes = sorted({i.split("-", 1)[0] for i in ids})
-    where = " AND (" + " OR ".join(["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes)) + ")"
-    args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")]
+    codes = sorted({i.split("-", 1)[0] for i in ids if "-" in i})
+    bare = sorted(i for i in ids if "-" not in i)            # an ID with no hyphen (a project's code) is matched whole
+    tests = (["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes)
+             + ["c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?"] * len(bare))
+    where = " AND (" + " OR ".join(tests) + ")"
+    args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")] + [x for b in bare for x in (b, b + "|%", "%|" + b + "|%")]
     mine = {i: [] for i in ids}
     for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", args):
         key = str(r["item_id"])

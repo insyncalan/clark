@@ -82,6 +82,18 @@ class HistoryMany(unittest.TestCase):
         finally:
             demo.close()
 
+    def test_an_id_without_a_hyphen_is_found(self):
+        """A project's code has no hyphen: the batch read still finds its rows, as history() does (#252)."""
+        from clark import history
+        demo = DemoStore()
+        try:
+            demo.update("projects", "ABC", {"health": "At risk"})
+            one = history.history(demo.store.con, "ABC")
+            self.assertTrue(one)
+            self.assertEqual(history.history_many(demo.store.con, ["ABC"]), {"ABC": one})
+        finally:
+            demo.close()
+
 
 if __name__ == "__main__":
     unittest.main()
