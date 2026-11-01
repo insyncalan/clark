@@ -32,7 +32,8 @@ class Source(unittest.TestCase):
         self.assertIn(f"min-width: {TILE_MIN}px", cell)
         self.assertIn(f"flex: 2 1 {GAP}px", health, "two shares, and the gap as its basis, so it is 2 tiles + 1 gap wide")
         self.assertIn(f"min-width: {2 * TILE_MIN + GAP}px", health)
-        self.assertIn(f"gap: {GAP}px", rule(css, ".glance"))
+        glance = rule(css, ".glance")
+        self.assertTrue(f"gap: {GAP}px" in glance or (GAP == 12 and "gap: var(--space-3)" in glance), "the tile gap")   # 12 px, or its token
         self.assertNotIn("0 0 190px", css)
         self.assertNotIn("0 0 392px", css)
 
