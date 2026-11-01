@@ -41,7 +41,88 @@
 .mvm-confirm { margin: var(--space-3) 0 var(--space-1); }
 .mvm-problems p { margin: var(--space-1) 0; color: var(--status-red-text); }
 @media (max-width: 1100px) { .mvm-row { grid-template-columns: 1fr auto; } .mvm-track { grid-column: 1 / -1; } }
+/* The peek's Details and Activity tabs (#42): Edit only. */
+.pk-tabs { display: flex; gap: 4px; margin: 4px 0 8px; border-bottom: 1px solid var(--grey-200); }
+.pk-tab { min-height: 32px; padding: 4px 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-small); cursor: pointer; }
+.pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
+.pk-tab:focus-visible, .pk-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pa-list { list-style: none; margin: 0; padding: 0; }
+.pa-row { padding: 8px 0; border-top: 1px solid var(--grey-100); }
+.pa-meta { margin: 0; font-size: var(--size-small); color: var(--text-muted); }
+.pa-who { color: var(--text); font-weight: var(--weight-medium); }
+.pa-what { margin: 2px 0 0; color: var(--text); overflow-wrap: anywhere; }
+.pa-kind, .pa-f { color: var(--text-muted); }
+.pa-from, .pa-what del { color: var(--text-muted); text-decoration: line-through; }
+.pa-what ins { color: var(--status-green-text); text-decoration: underline; }
+.pa-none { padding: 12px 0; margin: 0; }
 
+/* The ask panel (#47a), Edit parts only: full height on the right, over the page. A stub look from the page's tokens (#102 lands the
+   real one); nothing below 13px. */
+.ask-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 45; display: flex; flex-direction: column; gap: 10px; max-width: 90%; padding: 16px 18px 14px 22px; background: var(--surface); color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); }
+.ask-panel:focus { outline: none; }
+.ask-grip { position: absolute; left: -4px; top: 0; bottom: 0; width: 9px; cursor: col-resize; touch-action: none; }
+.ask-grip:hover, .ask-grip:focus-visible { background: var(--brand-blue); opacity: .35; outline: none; }
+.ask-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ask-head h2 { margin: 0; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+.ask-status, .ask-note, .ask-off, .ask-sent { margin: 0; font-size: var(--size-small); }
+.ask-off { font-size: var(--size-body); color: var(--text); }
+.ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.ask-turn { padding: 8px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.ask-turn.user { align-self: flex-end; max-width: 92%; }
+.ask-turn.problem { border-color: var(--status-amber); }
+.ask-who { font-size: 13px; color: var(--text-muted); }
+.ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask-form { display: flex; flex-direction: column; gap: 8px; }
+.ask-form textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
+.ask-form textarea:focus-visible, .ask-panel a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* #47e: a suggested change in the ask panel */
+.ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.ask-passage { margin: 0; padding: 6px 10px; border-left: 3px solid var(--grey-300); background: var(--surface); }
+.ask-passage figcaption { font-size: var(--size-small); overflow-wrap: anywhere; }
+.ask-passage blockquote { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--size-small); }
+.ask-change { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); }
+.ask-change-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.ask-diff { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--size-small); }
+.ask-diff th, .ask-diff td { padding: 3px 6px; text-align: left; vertical-align: top; border-top: 1px solid var(--grey-200); overflow-wrap: anywhere; }
+.ask-diff thead th { border-top: 0; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ask-diff td[data-after] { font-weight: var(--weight-medium); }
+.ask-confirm { display: flex; flex-direction: column; gap: 6px; }
+.ask-confirm p, .ask-change-line, .ask-refused { margin: 0; }
+.ask-confirm label { display: flex; gap: 8px; align-items: flex-start; }
+.ask-change-actions { display: flex; justify-content: flex-end; }
+.ask-change-line.problem, .ask-refused { color: var(--text); border-left: 3px solid var(--status-amber); padding-left: 8px; }
+.ask-change-line:focus-visible, .ask-change button:focus-visible, .ask-confirm input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+/* 'Needs from you' in Edit: the row's own buttons sit under its date; a row being edited is a row of fields; a row left out of the
+   published page is dashed and tagged, never dimmed (dimming lowers the text's contrast). */
+.needs-edit .n-acts { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.needs-edit .n-date { display: inline-block; }
+.needs-edit tr.n-left td { border-top-style: dashed; background: var(--grey-50); }
+.needs-edit tr.n-left td .tag.hid { margin-left: 4px; }
+.needs-edit .n-f { display: block; margin: 0 0 6px; }
+.needs-edit .n-f input, .needs-edit .n-f select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.needs-edit .n-f input:focus-visible, .needs-edit .n-f select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.needs-edit tr.n-form td { background: var(--grey-50); }
+.needs-edit .n-err { margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
+.needs-edit .n-add { margin: 8px 0 4px; }
+.needs-edit .btn:disabled { color: var(--text-muted); cursor: default; }
+
+/* The command palette (#198), Edit parts only: a modal box with one search box and the results under it. */
+.pal { width: min(620px, calc(100% - 32px)); margin-top: 10vh; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; }
+.pal[open] { display: flex; }
+.pal-q { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.pal-q input { width: 100%; min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.pal-q input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pal-list { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+.pal-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-height: 32px; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+.pal-row.on { background: var(--grey-100); outline: 1px solid var(--grey-300); }
+.pal-row.off { cursor: default; }
+.pal-row.off .pal-label, .pal-row.off .pal-kind { color: var(--text-muted); }
+.pal-kind { flex: none; min-width: 78px; font-size: var(--size-small); color: var(--text-muted); }
+.pal-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.pal-more, .pal-why { font-size: var(--size-small); }
+.pal-why { flex-basis: 100%; padding-left: 88px; }
+.pal-none { margin: 0; padding: 14px 16px; }
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: var(--space-2) 0; padding: var(--space-3) .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }
