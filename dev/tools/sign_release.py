@@ -37,8 +37,8 @@ import ed25519_sign  # noqa: E402
 import ed25519_verify  # noqa: E402
 
 MAGIC = b"CLARK-KEY-1\n"
-SCRYPT = {"n": 2 ** 15, "r": 8, "p": 1, "maxmem": 64 * 1024 * 1024, "dklen": 64}
-# The domain value is read from the app so the signer and the verifier can never drift apart.
+SCRYPT = {"n": 2 ** 17, "r": 8, "p": 1, "maxmem": 256 * 1024 * 1024, "dklen": 64}
+# The domain value is imported from src/clark/updates.py on purpose, so the signer and the verifier can never drift apart.
 from clark import updates  # noqa: E402
 
 

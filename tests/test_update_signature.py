@@ -232,6 +232,42 @@ class VersionRuleTest(SignedBase):
         self.refuses(path, "damaged")
 
 
+class ParsedVersionTest(SignedBase):
+    """Versions are compared as numbers (X, Y, Z), never as text, and only a plain X.Y.Z is accepted."""
+
+    def test_ordering_is_numeric(self):
+        self.assertEqual("0.3.10", self.read(make_zip(self.tmp, version="0.3.10"), installed="0.3.9").version)   # as text 10 < 9
+        self.refuses(make_zip(self.fresh(), version="0.3.9"), "older", installed="0.3.10")
+        self.assertEqual("0.10.0", self.read(make_zip(self.fresh(), version="0.10.0"), installed="0.9.9").version)
+        self.refuses(make_zip(self.fresh(), version="0.4.0"), "same", installed="0.4.0")
+
+    def test_a_version_that_is_not_plain_x_y_z_never_parses(self):
+        for bad in ("0.4", "0.4.0.0", "01.2.3", "0.03.1", "0.4.0+local", "0.4.0-rc1", "0.4.0rc1", "v0.4.0", " 0.4.0", "0.4.0 ", "0.4.0\n",
+                    "\u0664.0.0", "", "0.4.0.dev1x"):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                updates.version_key(bad)
+
+    def test_a_manifest_version_that_is_not_plain_is_refused_even_if_signed(self):
+        for text in ("0.4", "0.4.0+local", "0.4.0-rc1", "00.4.0", "0.4.00"):
+            with self.subTest(text=text):
+                path = make_zip(self.fresh(), version="0.4.0", manifest=lambda doc, t=text: doc.update(version=t))
+                self.refuses(path, "damaged")
+
+    def test_a_manifest_version_that_differs_from_the_file_name_is_refused_for_the_same_version_too(self):
+        for named, inside in (("0.3.0", "0.3.1"), ("0.3.0", "0.3.00"), ("0.3.0", "0.3"), ("0.3.1", "0.3.0")):
+            with self.subTest(named=named, inside=inside):
+                path = make_zip(self.fresh(), version=named, manifest=lambda doc, v=inside: doc.update(version=v))
+                self.refuses(path, "damaged", installed="0.3.0", reinstall=True)
+
+    def test_two_differently_built_files_of_one_version_signed_by_the_one_key_are_both_accepted(self):
+        """Accepted on purpose, no action: the key holder decides what counts as the release; the signature does not pick one build."""
+        first = make_zip(self.fresh(), notes="Build one.\n")
+        second = make_zip(self.fresh(), notes="Build two.\n", files={**listed_files(), "README.md": b"A different build.\n"})
+        self.assertNotEqual(first.read_bytes(), second.read_bytes())
+        self.assertEqual("Build one.\n", self.read(first).notes)
+        self.assertEqual("Build two.\n", self.read(second).notes)
+
+
 class OneSetOfBytesTest(SignedBase):
     def test_a_file_replaced_after_the_check_does_not_change_what_is_staged(self):
         path = make_zip(self.tmp)
@@ -268,6 +304,14 @@ class OneSetOfBytesTest(SignedBase):
         with self.assertRaises(UpdateError) as said:
             ui.read_taken(kept, digest, "mac", "0.3.0", 2)
         self.assertEqual("badsig", said.exception.key)
+
+    def test_the_folder_take_in_keeps_its_copy_in_is_private(self):
+        data_dir = self.fresh()
+        kept, _ = ui.take_in(make_zip(self.tmp), data_dir, "mac")
+        if os.name != "nt":
+            self.assertEqual(0o700, stat.S_IMODE(os.stat(kept.parent).st_mode))
+            self.assertEqual(0o600, stat.S_IMODE(os.stat(kept).st_mode))
+            self.assertEqual(0o600, stat.S_IMODE(os.stat(str(kept) + ".sig").st_mode))
 
     def test_take_in_does_not_leave_an_old_signature_beside_an_unsigned_file(self):
         data_dir = self.fresh()
