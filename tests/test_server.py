@@ -295,7 +295,7 @@ class Saving(ServerTest):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/sneak/read", "/api/publish", "/api/client-folder", "/api/preview",
                                                   "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
                                                   "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
-                                                  "/api/ask/change/apply"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read
+                                                  "/api/ask/change/apply", "/api/ai/suggest", "/api/ai/stop"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read; #72 the AI suggestion and its Stop
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/sneak/read"], sv.sneak_route)
@@ -307,7 +307,8 @@ class Saving(ServerTest):
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
                                                 "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
-                                                "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024})     # #47, #47e
+                                                "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
+                                                "/api/ai/suggest": 32 * 1024, "/api/ai/stop": 1024})     # #47, #47e; #72
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
