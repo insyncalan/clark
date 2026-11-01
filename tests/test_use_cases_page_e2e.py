@@ -132,5 +132,28 @@ class Walk(unittest.TestCase):
         self.until(cdp, sid, f"location.hash === {json.dumps(LIST)} && document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "Forward to the list")
 
 
+    def test_an_archived_use_case_address_opens_it_read_only_with_restore(self):
+        """The address of an archived use case (not in the page's live data) opens its own page, read-only, with Restore: one step back."""
+        ref = "1.1"                  # the demo's reference for UC (the walk above reads it from the list)
+        made = changes.make_change(self.path, [], USER)({"project": "TUL", "kind": "use_cases", "op": "archive", "id": UC, "place": "cell"})
+        self.assertTrue(self.row()["archived"], made)
+        before = self.steps()
+        detail = f"{LIST}&uc={ref}"
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            js = lambda expr: cdp.js(expr, sid)  # noqa: E731
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{detail}"}, sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-mode=edit]')", "the page drew")
+            js("document.querySelector('[data-mode=edit]').click()")
+            self.until(cdp, sid, f"location.hash === {json.dumps(detail)} && !!document.querySelector('[data-ucd][data-archived] [data-restore]')", "the archived use case opened at its own address, with Restore")
+            self.assertFalse(js("!!document.querySelector('#usecases')"), "not the list")
+            self.assertEqual(js("document.querySelectorAll('[data-ucd] textarea, [data-ucd] input').length"), 0, "read-only")
+            click(cdp, sid, "[data-restore]")
+            self.until(cdp, sid, "/Use case restored/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the Restore said so")
+            self.assertEqual((bool(self.row()["archived"]), self.steps()), (False, before + 1), "Restore is one step")
+
 if __name__ == "__main__":
     unittest.main()
