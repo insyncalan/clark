@@ -259,6 +259,74 @@ class AboutYou(Base):
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
             self.handled(p, "Sam Lee")
 
+    def test_C_a_refusal_is_not_shown_for_a_box_typed_in_since_even_back_to_the_same_words(self):
+        """The box has moved if it was typed in after the save was sent, whatever it says now: a refusal that arrives late must not show."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, delays=[1200])
+            self.type_into(p, "name", "N" * 61)                      # sent, refused, answered late
+            self.type_into(p, "name", "N", leave="none")
+            self.type_into(p, "name", "N" * 61, leave="none")        # back to the refused words, not sent
+            p.until("window.__answered >= 1", "the refusal was answered")
+            time.sleep(0.3)
+            bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
+            self.assertEqual(p.js(bad), "", "no refusal over a box typed in since")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61)
+
+    def test_C_the_email_box_keeps_a_newer_refusal_and_an_older_refusal_arriving_late_does_not_show_over_a_good_save(self):
+        """The same two late-answer rules as the name box, for the email box."""
+        bad = "document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent"
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, delays=[2000, 300])
+            self.type_into(p, "email", "a@b@c")                      # sent first, refused, answered last
+            self.type_into(p, "email", "sam@example.com")            # sent second, answered first
+            p.until("window.__answered >= 1", "the good save was answered")
+            p.until("window.__answered >= 2", "the older refused save was answered too")
+            time.sleep(0.3)
+            self.assertEqual(p.js(bad), "", "no refusal over the saved email")
+            self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), None)
+            self.assertEqual(self.saved().get("profile_email"), "sam@example.com")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "email", "sam@example.com")
+            p.until("document.querySelector('#about-email').value === 'sam@example.com'", "typed")
+            time.sleep(0.5)
+            self.slow_saves(p, delays=[2000, 300])
+            self.type_into(p, "email", "sam@example.org")            # good, sent first, answered last
+            self.type_into(p, "email", "a@b@c")                      # refused, answered first
+            p.until("window.__answered >= 1", "the refusal was answered")
+            p.until(f"{bad} !== ''", "the refusal shows")
+            p.until("window.__answered >= 2", "the older good save was answered too")
+            time.sleep(0.3)
+            self.assertNotEqual(p.js(bad), "", "the refusal is still shown")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "a@b@c")
+            self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
+
+    def test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box(self):
+        """#420: the saved name and email are on disk, but the page's first read of them is slow. A name saved before that read lands must not
+        blank the email that was already saved (the save waits for the read, and sends the email as clark has it)."""
+        (self.rig.data_dir / "settings.json").write_text(json.dumps({"profile_name": "Old Name", "profile_email": "keep@example.test"}), encoding="utf-8")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            cdp.call("Page.enable", {}, p.sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source":
+                     "(() => { const f = window.fetch; window.__readDone = 0; window.fetch = (u, o) => (String(u).includes('/api/profile') && !(o && o.method === 'POST')) "
+                     "? f(u, o).then((r) => new Promise((ok) => setTimeout(() => { window.__readDone++; ok(r); }, 2500))) : f(u, o); })()"}, p.sid)
+            p.js("window.__before_reload = true; location.reload()")
+            p.until("!window.__before_reload && !!document.querySelector('#profile-btn')", "the page again (not the one being left)")
+            self.open_settings(p)
+            self.assertEqual(p.js("window.__readDone"), 0, "the first read has not landed")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "", "the email box is still empty: the read is out")
+            self.type_into(p, "name", "New Name")                    # saved before the read has landed
+            p.until("window.__readDone >= 1", "the first read landed")
+            self.handled(p, "New Name", "keep@example.test")
+            self.assertEqual(self.saved(), {"profile_name": "New Name", "profile_email": "keep@example.test"}, "the email already saved was kept")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "keep@example.test")
+
 
 class Source(unittest.TestCase):
     def test_the_words_are_pinned(self):
