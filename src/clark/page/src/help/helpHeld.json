@@ -58,7 +58,7 @@
   },
   {
    "where": "ref-updating-clark bullet",
-   "text": "In this prototype nothing is installed for real. **Simulate a new release** makes a clark 0.3.0 appear so you can try the steps.",
+   "text": "In this prototype nothing is installed for real. **Simulate a new release** makes a clark X.Y.Z appear so you can try the steps.",
    "why": "simulated release in the prototype"
   },
   {
