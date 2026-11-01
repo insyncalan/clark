@@ -16,7 +16,7 @@ function Figure({ t, file }) {
       <span class="k"><i class="ragdot" aria-hidden="true"></i>{t.label}</span>
       <span class="v num">{t.value}</span>
       <span class="dd">{t.detail}</span>
-      {t.word ? <span class="tw">{t.word}</span> : null}
+      {t.word ? <span class="tw" aria-hidden="true">{t.word}</span> : null}   {/* the word is in the tile's own label below, so it is not read twice */}
     </>
   );
   const aria = `${t.label}: ${t.value}${t.detail ? ", " + t.detail : ""}${t.word ? ". " + t.word : ""}`;

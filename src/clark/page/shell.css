@@ -47,7 +47,10 @@ main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .fig .k { display: flex; align-items: center; gap: 6px; font-size: var(--size-small); color: var(--text-muted); }
 .fig .v { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
 .fig .dd { font-size: var(--size-small); color: var(--text-muted); }
-.fig .tw { font-size: var(--size-small); color: var(--text); }
+/* The status word is a small chip: its border is the word's own colour, so the edge keeps the text's contrast (5 to 1 or more on the
+   tile and on a hidden tile, light and dark) and no fill is drawn over the tile. Shared by the editor page and the published page. */
+.fig .tw { align-self: flex-start; margin-top: 4px; padding: 1px 8px; border: 1px solid currentColor; border-radius: var(--radius-sm); font-size: var(--size-small); font-weight: var(--weight-medium); line-height: 1.3; white-space: nowrap; color: var(--text); }
+.fig.rag-g .tw { color: var(--status-green-text); } .fig.rag-a .tw { color: var(--status-amber-text); } .fig.rag-r .tw { color: var(--status-red-text); }
 .fig .hrow { display: flex; align-items: flex-start; gap: 12px; margin-top: 4px; }
 .fig .hrow .dd { font-size: inherit; color: inherit; }
 .fig .hreason { flex: 1 1 auto; min-width: 0; font-size: var(--size-body); color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
