@@ -238,7 +238,7 @@ export function changeBulk(req, back) {
 }
 
 // #197: Cmd or Ctrl+Z. Undoes the newest step of the open project that the toast offered Undo for (the same as its button); with none,
-// it says NOTHING_TO_UNDO Resolves to the undo's reply, or null.
+// it says NOTHING_TO_UNDO. Resolves to the undo's reply, or null.
 export function undoLast(code = project.value) {
   for (let i = undoable.length - 1; i >= 0; i--) {
     if (undoable[i].code === code) {
