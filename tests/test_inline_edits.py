@@ -155,6 +155,10 @@ class Rules(unittest.TestCase):
         self.assertIsNone(self.change(self.RISK, "rating", "rating:Red"), "the colour it already has sends nothing")
         self.assertNotIn("priority", self.change(self.RISK, "rating", "rating:Green")["changes"], "priority is worked out by the store, never sent")
         self.assertIn("error", self.change(self.ACTION, "rating", "rating:Red"))
+        others = [{**self.RISK, "kind": "issue"}, {**self.RISK, "kind": "assumption"}, {**self.RISK, "kind": "dependency"}, {**self.RISK, "status": "Closed"}, {**self.RISK, "status": "Cancelled"}]
+        self.assertEqual(self.js(f"{json.dumps(others)}.map(r => E.ratingChoices(r).length)"), [3, 0, 0, 0, 0], "an open risk or issue only, as the server")
+        self.assertIn("error", self.change(others[1], "rating", "rating:Red"))
+        self.assertIn("error", self.change(others[3], "rating", "rating:Red"))
         self.assertEqual(self.js("[E.pickField('status', 'rating:Red'), E.pickField('status', 'Open'), E.pickField('owner', 'x')]"), ["rating", "status", "owner"])
 
     def test_a_raid_items_priority_says_why_it_is_not_a_picker(self):
@@ -437,7 +441,12 @@ class Live(unittest.TestCase):
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent)", sid), ["Open", "Closed", "Cancelled", "Red", "Amber", "Green"])
-                self.assertEqual(cdp.js("(document.querySelector('[data-pop] .menu-head') || {}).textContent", sid), "Rating", "a Rating section under the statuses")
+                groups = cdp.js("[...document.querySelectorAll('[data-pop][role=menu] [role=group]')].map(g => [document.getElementById(g.getAttribute('aria-labelledby')).textContent,"
+                                " [...g.querySelectorAll('[role=menuitemradio]')].map(b => b.dataset.value), g.querySelectorAll('[aria-checked=true]').length])", sid)
+                self.assertEqual(groups, [["Status", ["Open", "Closed", "Cancelled"], 1], ["Rating", ["rating:Red", "rating:Amber", "rating:Green"], 1]],
+                                 "two labelled groups, one tick in each")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [role=group] > [id]')].map(h => [h.textContent, h.offsetWidth > 1])", sid),
+                                 [["Status", False], ["Rating", True]], "a Rating heading under the statuses; Status is named for a screen reader only")
                 click(cdp, sid, "[data-pop] [data-value=Closed]")
                 self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
                 r = self.row("raid", "TUL-007")
@@ -453,7 +462,9 @@ class Live(unittest.TestCase):
                 cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
                 key(cdp, sid, " ")
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "Space opens it")
-                key(cdp, sid, "ArrowDown"); key(cdp, sid, "ArrowDown")
+                key(cdp, sid, "ArrowDown"); key(cdp, sid, "ArrowDown"); key(cdp, sid, "ArrowDown")
+                self.assertEqual(self.focused(cdp, sid), "rating:Red", "Down moves on into the Rating group")
+                key(cdp, sid, "ArrowUp")
                 self.assertEqual(self.focused(cdp, sid), "Cancelled")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved by keyboard")
@@ -470,7 +481,7 @@ class Live(unittest.TestCase):
                 self.undo(cdp, sid, "action status")
                 self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Open'", "Undo draws it Open")
 
-    def test_rating_from_the_status_picker_sets_impact_and_likelihood_and_the_colour_follows(self):
+    def test_rating_from_the_status_picker_sets_impact_and_likelihood_with_one_undo(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width)
