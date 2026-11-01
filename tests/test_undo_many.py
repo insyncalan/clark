@@ -400,5 +400,23 @@ class Request(Base):
                     self.assertNotIn(jargon, words.lower())
 
 
+class BodyLimitAndMemory(unittest.TestCase):
+    """#241: the /api/undo body limit fits 100 steps with 8-digit numbers (and the 200 allowed before a refusal); the page's undo
+    list is memory only and says so."""
+
+    def test_the_body_limit_fits_a_hundred_eight_digit_steps(self):
+        from clark import server as sv
+        body = json.dumps({"project": "ABC", "steps": [90000000 + i for i in range(2 * MAX_UNDO_MANY)], "preview": False,
+                           "confirm": False}).encode()
+        self.assertGreater(len(body), 1024)
+        self.assertLessEqual(len(body), sv.ROUTE_BODY_LIMITS["/api/undo"])
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/undo"], 4 * 1024)
+
+    def test_the_memory_only_list_is_said_plainly(self):
+        from pathlib import Path
+        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/stores/changes.js").read_text()
+        self.assertIn("Nothing to undo since this page was opened. Older changes are in Activity.", src)
+
+
 if __name__ == "__main__":
     unittest.main()
