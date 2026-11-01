@@ -269,7 +269,7 @@ class PageSide(unittest.TestCase):
         """Their words are held back with Help's until their slice ships: no name, description or parts on the page."""
         self.assertEqual({k for x in self.val("T.templates.LATER") for k in x}, {"id", "type", "ready"})
         later = [x["id"] for x in self.val("T.templates.LATER")]
-        self.assertEqual(len(later), 9)
+        self.assertEqual(len(later), 7)      # nine at R0; Link preview and One document moved into the box (#96 G7)
         listed = [x["id"] for x in self.val("T.templates.list()")]
         self.assertEqual(set(later) & set(listed), set())
         for tid in later:

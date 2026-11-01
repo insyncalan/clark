@@ -28,39 +28,42 @@ export const RECENT_MAX = 3;
 export const TEMPLATES = [
   { id: "text", name: "Text", kind: "text", fit: ["full", "half"], type: "text", title: "New section", body: "", ready: true,
     description: "Words under a heading, written in clark’s one editor.", holds: ["Heading", "Text"] },
-  { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "", ready: false,
+  { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "", ready: true,
     description: "A story with a picture: a site visit, a design, a screenshot of the new system.", holds: ["Heading", "Text", "Image", "Caption"] },
-  { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures4", title: "Key figures", body: "", ready: false,
+  { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures4", title: "Key figures", body: "", ready: true,
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
-  { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: false,
+  { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
-  { id: "raid-3", name: "RAID cards, three", kind: "work", fit: ["full"], type: "raid3", title: "Risks and issues", body: "", ready: false,
+  { id: "raid-3", name: "RAID cards, three", kind: "work", fit: ["full"], type: "raid3", title: "Risks and issues", body: "", ready: true,
     description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
-  { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: false,
+  { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: true,
     description: "Four shorter cards: good for “this week’s actions” or “decisions needed”.", holds: ["Heading", "RAID card ×4"] },
-  { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", ready: false,
+  { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", ready: true,
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
-  { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: false,
+  { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
-  { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: false,
+  { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
     description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
-  { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: false,
+  { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
+  { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
+    description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
+  { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
+    description: "A single file to read.", holds: ["Heading", "File", "Text"] },
 ];
 
-// The second slice (#96): every other template type, not ready and not in the box yet (find, list and plan read TEMPLATES only).
-// No words here: their names, descriptions and parts are held back with Help's until their slice ships, and a template
-// the box does not offer is not named on the page. The lead moves an entry into TEMPLATES, with its words and its Help row.
+// The second slice (#96): every other template type, built (its section_kinds module and page part say READY) but not in the
+// box yet (find, list and plan read TEMPLATES only). No words here: their names, descriptions and parts wait for their words and
+// Help rows, and a template the box does not offer is not named on the page. The lead moves an entry into TEMPLATES, with its
+// words and its Help row.
 export const LATER = [
-  { id: "headline", type: "headline", ready: false },
-  { id: "gallery", type: "gallery", ready: false },
-  { id: "table", type: "table", ready: false },
-  { id: "link-preview", type: "linkcard", ready: false },
-  { id: "image-caption", type: "imagecap", ready: false },
-  { id: "quote", type: "quote", ready: false },
-  { id: "contacts", type: "contacts", ready: false },
-  { id: "checklist", type: "checklist", ready: false },
-  { id: "one-doc", type: "onedoc", ready: false },
+  { id: "headline", type: "headline", ready: true },
+  { id: "gallery", type: "gallery", ready: true },
+  { id: "table", type: "table", ready: true },
+  { id: "image-caption", type: "imagecap", ready: true },
+  { id: "quote", type: "quote", ready: true },
+  { id: "contacts", type: "contacts", ready: true },
+  { id: "checklist", type: "checklist", ready: true },
 ];
 
 // Every template entry, in the box or not: one per template type, and Text.
