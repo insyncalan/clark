@@ -1,9 +1,10 @@
-"""Prototype parity A-S11: Settings › Data (Export to Excel), in a real browser at 1400 and 900 px, light and dark.
-Run: python3 dev/run_tests.py test_data_card
+"""Prototype parity A-S11 and #444: Settings › Data (Export workbook, Import workbook, Reset the demo data), in a real browser at 1400 and
+900 px, light and dark. Run: python3 dev/run_tests.py test_data_card
 
-What is asserted: the card is on Settings with its heading and words; it has an Export to Excel button and no Import or Reset button
-(the server has no route for either); pressing the button asks the server's export route once and the browser is given a workbook
-(the page says so); the card never widens the page; the button's text meets 4.5:1 in light and dark.
+What is asserted: the card is on Settings with its heading and words; it has Export workbook and Import workbook, and no Reset the demo
+data unless clark says its data is the demo data (this server has no demo seam, so it does not); pressing Export asks the server's export
+route once and the browser is given a workbook (the page says so); the card never widens the page; the buttons' text meets 4.5:1 in
+light and dark. The Import box and the Reset confirm are in test_settings_data_page.
 Chrome is required: these tests fail, never skip, without it.
 """
 import unittest
@@ -21,16 +22,16 @@ class DataCard(Base):
         p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
-    def test_C_the_card_its_words_and_only_the_export_button(self):
+    def test_C_the_card_its_words_and_the_export_and_import_buttons_but_no_reset_here(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 p.width(w)
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('#data-card h2').textContent"), "Data")
-                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export to Excel"])
+                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook"])
                 self.assertIn("Excel workbook", p.js("document.querySelector('#data-card p').textContent"))
-                self.assertFalse(p.js("/import|reset/i.test(document.querySelector('#data-card').innerText)"))
+                self.assertFalse(p.js("/reset/i.test(document.querySelector('#data-card').innerText)"), "not demo data: no Reset the demo data")
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_C_pressing_export_downloads_one_workbook_and_says_so(self):
@@ -49,7 +50,7 @@ class DataCard(Base):
                 p = self.page(cdp)
                 p.js(f"document.documentElement.setAttribute('data-theme', '{scheme}')")
                 self.open_settings(p)
-                ratio = p.js("""(() => { const b = document.querySelector('[data-export-workbook]'); const cs = getComputedStyle(b);
+                ratio = p.js("""(() => { const b = document.querySelector('#import-workbook'); const cs = getComputedStyle(b);
                   const px = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return m.slice(0, 3); };
                   const lum = ([r, g, bl]) => { const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(r) + .7152 * f(g) + .0722 * f(bl); };
                   let bg = b, c; while (bg) { c = getComputedStyle(bg).backgroundColor; if (!/rgba\\(.*, 0\\)|transparent/.test(c)) break; bg = bg.parentElement; }
