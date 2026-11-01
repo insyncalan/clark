@@ -130,6 +130,18 @@ class Bar(Base):
                 p.until("document.querySelector('#week-ending').value === '2031-05-02'", "the date came back")
                 self.assertEqual(self.week(), "2031-05-02")
 
+    def test_a_message_from_edit_does_not_follow_the_person_into_view(self):
+        self.set_week("2031-05-02")
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            self.type_week(p, "2031-05-09")
+            p.saved()
+            p.js("document.querySelector('[data-mode=view]').click()")
+            p.until("document.querySelector('#report').dataset.mode === 'view'", "View")
+            self.assertEqual(p.js("document.querySelectorAll('.toast').length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('[data-edit-only]').length"), 0, "View has no Edit part, the message included")
+
     def test_a_cleared_field_keeps_the_old_date(self):
         self.set_week("2031-05-02")
         with chrome() as cdp:
