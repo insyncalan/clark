@@ -21,6 +21,9 @@
   --status-green: #008675; --status-amber: #E8A013; --status-red: #C0392B; --status-grey: #8A9BA0;
   --status-green-tint: #D9F1EC; --status-amber-tint: #FCEFCF; --status-red-tint: #F6E0DD;
   --status-green-text: #006B5E; --status-amber-text: #8A5200; --status-red-text: #A3301F;
+  /* the peek's coloured icons: each is one of the tokens above, so a person's own look reaches them by itself, and each is at least 3:1 on the peek's
+     background and on its Changed highlight in light and in dark (tests/test_peek_icons.py). Amber takes the text shade, since the plain amber is 2.2:1 on white. */
+  --icon-red: var(--status-red); --icon-amber: var(--status-amber-text); --icon-green: var(--status-green); --icon-blue: var(--brand-blue); --icon-grey: var(--grey-700);
   /* how clear a section's control is at rest (#101): faint in light, clearer in dark, where .3 is close to invisible */
   --sh-rest: .3; --tile-ctl: 41px; --tile-tag: 54px;
 }
