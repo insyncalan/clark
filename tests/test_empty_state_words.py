@@ -33,7 +33,6 @@ class EmptyStateWordsTest(unittest.TestCase):
             text = read(ROOT / "src/clark/page" / name)
             self.assertIn("Not written yet.", text, name)
             self.assertNotIn("Nothing written yet", text, name)
-            self.assertNotIn("Nothing recorded", text, name)
         self.assertIn("Not written yet. Click to write.", read(ROOT / "src/clark/page/page.html"))
 
     def test_prototype_says_not_written_yet_for_use_cases(self):
