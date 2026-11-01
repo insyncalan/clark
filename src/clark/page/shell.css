@@ -422,7 +422,7 @@ table.tracker tr.tr-none td { text-align: left; }
 @media (hover: none) { .sec-ctl { opacity: 1; } }
 /* At 900 px and below the frame's side padding is only 16 px, so the control would hang outside the card (issue 139). In Edit the section keeps
    room for it inside its own padding (32 px: the 24 px control and a 4 px gap each side); the box itself, its left edge and width, do not change. */
-@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; } }
+@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: .75; } }      /* in the padding it is clear at rest (issue 130, point 2), in both themes */
 @media (prefers-reduced-motion: reduce) { .sec-ctl { transition: none; } }      /* after the rule above, so it wins */
 .sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 4px; margin: 0 -4px; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }
@@ -917,6 +917,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pub-msg .error { color: var(--status-red-text); }
 .pub-msg .success { color: var(--status-green-text); }
 .pub-msg .info, .pub-msg .note { color: var(--text-muted); }
+/* Publish (issue 130, point 4): a spinner while it works, then a tick with the success line. With reduced motion the ring stays still. */
+.pub-msg .working { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.spin { flex: none; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
+@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin 900ms linear infinite; } }
+@keyframes pub-spin { to { transform: rotate(360deg); } }
+.pub-msg .success { display: flex; align-items: center; gap: 8px; }
+.pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
+.pub-tick .i { width: 11px; height: 11px; stroke-width: 3; }
 .dlg-f { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .btn.pri { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .btn.pri:disabled { opacity: .55; cursor: default; }

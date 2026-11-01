@@ -483,6 +483,19 @@
     ]
    },
    {
+    "id": "find-a-use-case",
+    "g": "The report",
+    "t": "Find and open a use case",
+    "w": "Edit › Use cases",
+    "go": "dashboard+edit",
+    "s": [
+     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
+     "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
+     "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
+     "Click a name to open the use case on its own page. Back returns to the list."
+    ]
+   },
+   {
     "id": "add-supporting-documents",
     "g": "The report",
     "t": "Add supporting documents",
