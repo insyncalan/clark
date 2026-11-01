@@ -312,7 +312,7 @@
      "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
      "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too.",
      "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
-     "Your choices are kept for next time. A tile on the Dashboard, or **See all work items** on a use case, opens Work items already filtered to what it counts."
+     "Your choices are kept for next time. A tile on the Dashboard, or **See all N open work items** on a use case, opens Work items already filtered to what it counts."
     ]
    },
    {
@@ -461,8 +461,8 @@
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
-     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all work items** opens Work items filtered to that use case.",
-     "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all N open work items** opens Work items filtered to that use case.",
+     "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag** or **High risk**.",
      "In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.",
      "**Archive use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Show archived** finds it, and **Restore** or **Undo** brings it back."
     ]
@@ -1135,7 +1135,7 @@
      ],
      [
       "p",
-      "Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey)."
+      "Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red)."
      ]
     ]
    },
