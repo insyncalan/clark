@@ -101,6 +101,8 @@ NO_ANSWER = ("Claude couldn't answer just now. Try again in a moment. If it keep
              "when it asks.")
 TOO_SLOW = "Claude took too long to answer, so it was stopped. Try a shorter question."
 TOO_LONG_REPLY = "Claude's answer was too long to read, so it was stopped. Ask a narrower question."
+BAD_SYSTEM = ask.BAD_INPUT                          # a coding fault, so the same plain line as any other bad input
+MAX_SYSTEM = 8000                                   # characters of a caller-given system prompt
 BUSY = "Another question is being answered. Wait for it, or press Stop."
 # Hints: added after the status sentence when this computer's set-up is one questions can't follow.
 PROXY_HINT = ("This computer reaches the internet through a proxy or its own security certificates. Questions don't use those "
@@ -138,12 +140,13 @@ def child_env(home=None, user=None):
     return env
 
 
-def arguments(path, canary=""):
+def arguments(path, canary="", system=None):
     """The command line for one run: the fixed flags, the fixed rules as the system prompt (with this request's canary, #277),
-    and nothing the person typed."""
+    and nothing the person typed. `system` is a fixed rules text written in clark's own code (ai_menu.SUGGEST_RULES); left out,
+    it is ask clark's `ask.RULES`. The canary goes onto either one."""
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
-            "--max-budget-usd", MAX_BUDGET_USD, "--system-prompt", ask.system_prompt(canary)]
+            "--max-budget-usd", MAX_BUDGET_USD, "--system-prompt", ask.system_prompt(canary, system)]
 
 
 def roots_for(home=None):
@@ -334,9 +337,9 @@ class ClaudeCommand(ask.Provider):
         return {"connected": path is not None, "why": words}
 
     # ----- one question -----
-    def answer(self, path, text, canary=""):
+    def answer(self, path, text, canary="", system=None):
         """Send `text` to the command at `path` (already checked) and read its answer: the reply text, or an ask.Failure."""
-        status, out, _code = run(arguments(path, canary), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
+        status, out, _code = run(arguments(path, canary, system), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
         if status == "stopped":
             return ask.Failure(ask.STOPPED)
         if status == "slow":
@@ -348,15 +351,26 @@ class ClaudeCommand(ask.Provider):
             return ask.Failure(" ".join([NO_ANSWER] + hints()))
         return reply
 
+    @staticmethod
+    def fixed_rules(system):
+        """True only for a rules text clark's own code wrote (ask clark's, or the suggestions'): a caller cannot choose its own."""
+        from clark import ai_menu                    # here, not at the top: ai_menu is the page-facing module and imports ask
+        return isinstance(system, str) and len(system) <= MAX_SYSTEM and system in (ask.RULES, ai_menu.SUGGEST_RULES)
+
     def ask(self, request):
         if not self.lock.acquire(blocking=False):
             return ask.Failure(BUSY)
         try:
             self.stop_event.clear()
+            system = getattr(request, "system", "")
+            if system == "":
+                system = None
+            elif not self.fixed_rules(system):
+                return ask.Failure(BAD_SYSTEM)       # fails closed, before any sign-in check: never falls back to another prompt
             path, why = self.usable(reuse=True)
             if path is None:
                 return ask.Failure(why)
-            return self.answer(path, self.envelope(request.text), request.canary)
+            return self.answer(path, self.envelope(request.text), request.canary, system)
         finally:
             self.lock.release()
 
