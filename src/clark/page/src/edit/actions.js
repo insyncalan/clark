@@ -1,6 +1,6 @@
 // What each edit control asks of clark: one change, one request, one toast (stores/changes.js). The ordered list is the one on
 // the page (data.report_sections), which is the one clark last sent. Nothing here edits it.
-import { data } from "../stores/report.js";
+import { data, project, reread } from "../stores/report.js";
 import { change, changeThen } from "../stores/changes.js";
 import { keep } from "./focus.js";
 import { note } from "./notes.js";
@@ -95,5 +95,6 @@ export async function addFromTemplate(id, after, beside) {
     ? await changeThen(one, () => two, p.words, p.partial)
     : await change(one, p.words);
   if (first) keep(Promise.resolve(first), "new", "title");
+  else await reread(project.value);       // clark said no: the page may be out of date (the section above gone, or paired since), so it shows what clark holds
   return first;
 }
