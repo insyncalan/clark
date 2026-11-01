@@ -109,7 +109,7 @@ OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "be
            ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",)}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
 MAX_FLAGS = 4                             # a move may set the `beside` of at most this many sections (the moved one, its old partner, its new one, the one before)
-PLACES = tuple(p for p in ("menu", "cell", "report", "board") if p in clark_store.PLACES)   # where the change was made (the step's place); "board" counts once the store knows it
+PLACES = tuple(p for p in ("menu", "cell", "report", "board", "peek", "eye", "draft", "email", "text") if p in clark_store.PLACES)   # where the page says the change was made (the step's place); #123: + peek, eye, draft, email, text. Not bulk, dashboard, excel or ask: no screen of the page is those (ask clark and Excel import write through their own routes)
 MOVEMENT_PLACE = "movement"               # #136: a Movement change is written as place "dashboard" with the src_ref "Movement" (no schema change)
 MADE_OP = clark_store.OP_MADE            # the log's word for a row a step made: the store's own constant
 VIA = "dashboard"                         # the route of every step made here; an undo is never undone from here
@@ -1356,11 +1356,14 @@ def _do_undo(store, by_user, req):
     if not isinstance(req, dict):
         raise Refused(NOT_JSON_OBJECT)
     for k in req:
-        if k not in ("project", "apply_id"):
+        if k not in ("project", "apply_id", "place"):
             raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
     project = req.get("project")
     if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
         raise Refused(BAD_PROJECT, code="bad_project_code")
+    place = req.get("place")                                        # #123: where the Undo was pressed; the step's route is "undo" whatever it is
+    if place is not None and (not isinstance(place, str) or place not in PLACES):
+        raise Refused(BAD_PLACE)
     step = req.get("apply_id")
     if type(step) is not int or not 1 <= step < 2 ** 63:
         raise Refused(NO_UNDO)                                      # the same words as every other step that isn't ours
@@ -1372,7 +1375,7 @@ def _do_undo(store, by_user, req):
     names = {r["id"]: r["title"] for r in _sections(store, project)}
     _name_use_cases(store, step_rows, names)                        # #164
     try:                                                            # still inside the caller's one lock
-        done = store.undo(step, by_user)
+        done = store.undo(step, by_user, place=place)
     except Invalid as e:
         text = str(e)
         if "undone already" in text or "undid an undo" in text:
@@ -1448,7 +1451,7 @@ def _call(path, onedrive_roots, by_user, work, req):
 
 def make_change(path, onedrive_roots=None, by_user=None):
     """The `change` the server calls for POST /api/change, for the database at `path`. `by_user` is a name or a function
-    that gives one (default: the login name, platform.login_name; Settings can override it later)."""
+    that gives one (the server passes the profile name, falling back to the login name, platform.login_name, which is also the default here)."""
     def change(req):
         return _call(path, onedrive_roots, by_user, _do_change, req)
     return change
