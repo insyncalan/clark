@@ -24,7 +24,7 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
 # 'Add a row' is the button of the Needs from you section (edit/NeedsEdit.jsx), which the prototype does not have; read against the page's own words (logic/needs.js).
-CHECKED_BY_HAND = set(['Add a row', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
+CHECKED_BY_HAND = set(['Add a row', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all N open work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -298,6 +298,17 @@ class LowWordsRound(unittest.TestCase):
         for name, line in table[2]:
             self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
+
+    def test_use_case_help_says_what_the_page_says(self):
+        """The page's button reads "See all N open work items" and a use case has three statuses (UseCases.jsx)."""
+        page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
+        self.assertIn("See all ${n} open work", page)
+        self.assertEqual(self.ALL.count("**See all N open work items**"), 3)
+        self.assertNotIn("See all work items", self.ALL)
+        self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];', page)
+        self.assertIn("Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red).", self.ALL)
+        self.assertNotIn("or **Done**", self.ALL)
+        self.assertNotIn("**Done** (grey)", self.ALL)
 
 
 if __name__ == "__main__":
