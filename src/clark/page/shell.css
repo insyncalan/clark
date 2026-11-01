@@ -967,3 +967,31 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+/* Pictures group (#96): Text and image, Image with caption, Image gallery, Headline band. View and the published file; tokens only. */
+.tpl-fig { margin: 0; min-width: 0; }
+.tpl-fig img { display: block; width: 100%; height: auto; max-height: 520px; object-fit: contain; border-radius: var(--radius); background: var(--surface-muted); }
+.tpl-fig figcaption { margin-top: var(--space-2); font-size: var(--size-small); color: var(--text-muted); }
+.tpl-ti { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.tpl-ti.pic-left { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.tpl-ti.pic-left .tpl-fig { order: -1; }
+.tpl-ti.no-pic { grid-template-columns: minmax(0, 1fr); }
+.tpl-words p { margin: 0 0 var(--space-3); color: var(--text); line-height: var(--leading); }
+.tpl-words p:last-child { margin-bottom: 0; }
+.slot-left .tpl-ti, .slot-right .tpl-ti, .slot-left .tpl-band.has-pic, .slot-right .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
+.slot-left .tpl-ti .tpl-fig, .slot-right .tpl-ti .tpl-fig { order: 0; }
+.tpl-gal { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.tpl-gal.n-1 { grid-template-columns: minmax(0, 1fr); }
+.tpl-gal.n-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tpl-gal .tpl-fig img { aspect-ratio: 4 / 3; object-fit: cover; max-height: none; }
+.tpl-band { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-5) var(--space-6); border-radius: var(--radius-lg); background: var(--brand-navy); color: var(--text-on-brand); }
+.tpl-band.has-pic { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.tpl-band-words { margin: 0; font-family: var(--font-head); font-size: var(--size-h2); font-weight: var(--weight-semibold); line-height: 1.25; color: var(--text-on-brand); }
+.tpl-band-btn { display: inline-flex; align-items: center; min-height: 36px; margin-top: var(--space-4); padding: 0 var(--space-4); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-weight: var(--weight-medium); text-decoration: none; }
+.tpl-band-btn:hover { background: var(--grey-100); }
+.tpl-band-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tpl-band .tpl-fig img { max-height: 240px; background: transparent; }
+@media (max-width: 900px) {
+  .tpl-ti, .tpl-ti.pic-left, .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
+  .tpl-ti.pic-left .tpl-fig { order: 0; }
+  .tpl-gal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
