@@ -94,7 +94,7 @@ class Appearance(Base):
                 p.width(w)
                 self.open_menu(p)
                 roles = p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')})")
-                self.assertEqual(roles[:6], ["menuitem", "menuitem", "menuitem", "menuitem", "separator", "group"])
+                self.assertEqual(roles[:7], ["menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "separator", "group"])   # Publish, Preview, Export to Excel, Export to Word, Import from Word (#48)
                 self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                                  "presentation,menuitemradio,menuitemradio,menuitemradio", "the label and the three radios are one group")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
