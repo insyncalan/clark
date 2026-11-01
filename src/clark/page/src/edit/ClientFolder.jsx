@@ -30,7 +30,7 @@ export function ClientFolder() {
 
   return (
     <section class="frame setting" id="publishing">
-      <h2>Publishing</h2>
+      <h2 id="publishing-h" tabIndex={-1}>Publishing</h2>
       <p class="muted">Where Publish saves the report. Local is always used; the client folder only when you tick To client.</p>
       <div class="setting-part" id="local-folder">
         <h3>Local folder</h3>
