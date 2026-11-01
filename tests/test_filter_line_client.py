@@ -167,11 +167,15 @@ class ClientLine(unittest.TestCase):
             for s in self.val(f"P.fl.suggest({json.dumps(field + ':')}, ROWS, CTX)"):
                 self.assertLessEqual(s["n"], total, s)
         # the hidden row's owner and workstream are not values, so they say so and narrow nothing
-        for line in (f'owner:"{HIDDEN_OWNER}"', f'workstream:"{HIDDEN_WS}"'):
+        for field, hidden, name in (("owner", HIDDEN_OWNER, "owner"), ("workstream", HIDDEN_WS, "workstream")):
+            line = f'{field}:"{hidden}"'
             p = self.val(f"P.fl.parse({json.dumps(line)}, ROWS, CTX)")
             self.assertEqual(p["chips"], [])
-            self.assertTrue(p["errors"])
-            self.assertNotIn("Hidden", p["errors"][0]["msg"] .replace(HIDDEN_OWNER, "").replace(HIDDEN_WS, ""))
+            # the whole message, word for word: it offers only the values the file's own rows hold
+            held = sorted({r[field] for r in rows if r.get(field)})
+            quoted = [f'"{v}"' if re.search(r'[\s,":]', v) else v for v in held]
+            tail = quoted[0] if len(quoted) == 1 else f"{', '.join(quoted[:-1])} or {quoted[-1]}"
+            self.assertEqual([e["msg"] for e in p["errors"]], [f'No {name} is called {hidden}. Try {tail}.'])
             self.assertEqual(len(self.ids(line)), total)
 
     def test_the_rows_carry_no_internal_flag_a_line_could_reach(self):
