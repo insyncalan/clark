@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, demo_route, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -178,19 +178,41 @@ class ServerOutput:
         self.out.flush()
 
 
-def demo_database(folder):
-    """Build the fictional demo database (dev/demo_data.py, #30) in `folder`; its path."""
+def demo_module():
+    """dev/demo_data.py, which builds the demo database (#30)."""
     if str(DEV) not in sys.path:
         sys.path.insert(0, str(DEV))
     try:
         import demo_data
     except ImportError as e:
         raise Quiet("--demo needs a file that is missing (dev/demo_data.py). Use a full copy of the clark folder.") from e
+    return demo_data
+
+
+def demo_database(folder):
+    """Build the fictional demo database (dev/demo_data.py, #30) in `folder`; its path."""
+    demo_data = demo_module()
     try:
         demo_data.build(Path(folder) / DB_NAME, demo_data.parse_now(os.environ.get("CLARK_NOW")))
     except demo_data.DemoError as e:
         raise Quiet(str(e)) from e
     return Path(folder) / DB_NAME
+
+
+def demo_rebuild(path):
+    """#444: put the demo database at `path` back as it started. It is built beside the file, then swapped in whole, so a failure leaves
+    the data as it was. Only the demo seam (demo_route) calls it, and only for the demo folder."""
+    demo_data = demo_module()
+    path = Path(path)
+    fresh = path.with_name("clark-reset.db")
+    try:
+        demo_data.build(fresh, demo_data.parse_now(os.environ.get("CLARK_NOW")), onedrive_roots=[])
+        for side in demo_data.sidecars(path)[1:]:
+            if side.exists():
+                side.unlink()
+        os.replace(str(fresh), str(path))
+    finally:
+        demo_data.remove_database(fresh)
 
 
 def open_data(folder, onedrive_roots):
@@ -376,6 +398,9 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                     "people": changes.make_people(store.path, roots, who.who),
                     "people_undo": changes.make_people_undo(store.path, roots, who.who),
                     "people_list": changes.make_people_list(store.path, roots, who.who),
+                    "excel_import": excel_route.make_excel_import(store.path, roots, who.who),     # #444
+                    "project_save": project_route.make_project(store.path, roots, who.who),        # #444
+                    "demo": demo_route.make_demo(store.path, Path(scratch) if args.demo else None, demo_rebuild if args.demo else None),     # #444: the reset only for the demo folder
                     "word_import": word_import or word_route.make_word_import(store.path, roots),
                     "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())

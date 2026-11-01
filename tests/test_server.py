@@ -298,19 +298,25 @@ class Saving(ServerTest):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/sneak/read", "/api/publish", "/api/client-folder", "/api/preview",
                                                   "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/page-error", "/api/logging", "/api/logging/open-folder", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
                                                   "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
-                                                  "/api/ask/change/apply", "/api/section-image", "/api/section-file", "/api/people", "/api/people/undo"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read; #96 R1 the picture one, R2 the section file
+                                                  "/api/ask/change/apply", "/api/section-image", "/api/section-file", "/api/people", "/api/people/undo",
+                                                  "/api/excel-import", "/api/project", "/api/demo"})     # #444: the workbook import, a project's new and edit, the demo's reset; #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read; #96 R1 the picture one, R2 the section file
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/sneak/read"], sv.sneak_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
         self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
+        self.assertEqual(sv.POST_ROUTES["/api/excel-import"], sv.excel_import_route)      # #444
+        self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
+        self.assertEqual(sv.POST_ROUTES["/api/demo"], sv.demo_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
+                                                "/api/excel-import": (sv.EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #444: a workbook as text
+                                                "/api/project": 4 * 1024, "/api/demo": 1024,                           # #444
                                                 "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
