@@ -32,7 +32,10 @@ class EmptyStateWordsTest(unittest.TestCase):
         for name in PAGES:
             text = read(ROOT / "src/clark/page" / name)
             self.assertIn("Not written yet.", text, name)
-            self.assertNotIn("Nothing written yet", text, name)
+            # The old words are gone from the use case screens. Other screens (the client report's own blank, the rich text reader's default)
+            # keep their own wording, so this looks for the old use case lines in the built page, not for the phrase anywhere.
+            for old in ('||"Nothing written yet."', 'class:"muted",children:"Nothing written yet."', 'empty:"Nothing written yet. Click to write."'):
+                self.assertNotIn(old, text, name)
         self.assertIn("Not written yet. Click to write.", read(ROOT / "src/clark/page/page.html"))
 
     def test_prototype_says_not_written_yet_for_use_cases(self):
