@@ -127,7 +127,7 @@
       el.querySelector('.cp-t').textContent = d1.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }); };
     const pick = iso => { if (o.min && iso && iso < o.min) return; C.closePop(); onPick(iso); };
     return C.popover(anchor, `<div class="cp" role="dialog" aria-label="Choose a date"><div class="cp-h"><button type="button" class="ib" data-cpm="-1" aria-label="Previous month">${C.icon('left', 's')}</button><b class="cp-t"></b><button type="button" class="ib" data-cpm="1" aria-label="Next month">${C.icon('right', 's')}</button></div><div class="cp-g" role="grid"></div>
-      ${(o.quick || []).length ? `<div class="cp-q">${o.quick.map(([t, v]) => `<button type="button" data-cpq="${v}">${t}${v ? `<small>${D.fd(v)}</small>` : ''}</button>`).join('')}</div>` : ''}</div>`, { wire: el => {
+      ${(o.quick || []).length ? `<div class="cp-q">${o.quick.map(([t, v]) => `<button type="button" data-cpq="${v}">${t}${v ? `<small>${D.fd(v)}</small>` : ''}</button>`).join('')}</div>` : ''}</div>`, { onClose: o.onClose, wire: el => {
       draw(el);
       el.addEventListener('click', e => { const b = e.target.closest('[data-cp],[data-cpm],[data-cpq]'); if (!b) return; e.stopPropagation();
         if (b.dataset.cpm) { const d = new Date(view + '-01T00:00:00'); d.setMonth(d.getMonth() + +b.dataset.cpm); view = D.toIso(d).slice(0, 7); draw(el); }

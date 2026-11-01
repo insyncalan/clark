@@ -161,6 +161,19 @@
       'Press a column’s heading to collapse it. Drag a heading onto another column to move it, or press [[Alt+Left]] or [[Alt+Right]] on it. Drag a column’s right edge to make it wider or narrower (260 to 640 pixels); the arrow keys move it 16 pixels, and a double-click puts it back.',
       'Every move has **Undo** in the message. Click a card, or press [[Enter]] on it, to open it.' ],
       n: 'A move that doesn’t fit says so: an action can’t be Made, and nothing changes its type by moving.' },
+    { id: 'change-several-work-items', g: 'Work items', t: 'Select and change several work items', w: 'Work items › the table and the board', go: 'work', s: [
+      '**Pick more than one.** Hold [[Mod]] and click to add or remove an item, hold [[Shift]] and click to pick a range, or press [[Space]] on the row or card the cursor is on. [[Shift+Up]] and [[Shift+Down]] extend the pick, and [[Mod+A]] picks every row shown. Each group’s heading has a tick box. **Select all N matching** picks every item the filters show, even in a group that is shut. Once something is picked, a click picks that one item and a double click opens its peek.',
+      'With two or more picked, a bar appears above the list: **N selected**, then **Close**, **Reopen**, **Status**, **Owner**, **Due date**, **Priority**, **Workstream** and **Milestone** (a decision offers only **Made by**). If the items are of different kinds every button is off and the bar says why.',
+      'Each change is one step with **Undo** in the message. An item that can’t take the change is left out and named; if none can, nothing changes. Above 25 items clark asks first, and changing one cell of a picked row asks before it changes all of them.',
+      '[[Esc]], the **×** on the bar, a click outside the page, or a change of tab clears the pick. A change that saved clears it too. Nothing here deletes or archives.' ] },
+    { id: 'hand-over-work', g: 'Work items', t: 'Hand over work to someone else', w: 'Work items with an owner filter · Settings › People', go: 'work', s: [
+      'Filter Work items to one owner (for example owner:"Priya Nair"), then press **Hand over**. In Settings › People, **Hand over their work** next to a name does the same.',
+      'A tick box shows on each open item; a click ticks it. **All** ticks every open item shown, and the bar counts **N of M selected**. Type or choose a name in **Hand over to**, then press **Hand over**. Closed items are never offered.',
+      'One step changes the owner of every ticked item, with one **Undo**. **Cancel** or [[Esc]] leaves without changing anything. While you are picking, a click or [[Space]] only ticks, and the selection keys and the right-click menu are off.' ] },
+    { id: 'right-click-a-work-item', g: 'Work items', t: 'Right-click a work item', w: 'Work items › a row or a card', go: 'work', s: [
+      'Right-click a row or a card (or press [[Shift+F10]] or the [[Menu]] key on it) for its menu: **Draft email to** the owner, **Open the peek**, **Change status**, **Move due date** (Friday, a week on, or pick a date), **Change owner**, **Show to the client** or **Hide from the client**, **Copy link to this item**, **Copy ID**, **Duplicate** and **Archive**.',
+      'Draft email is greyed with the reason when the item has no owner or is no longer open. Each entry does what its button elsewhere does, with **Undo** in the message where it changes something. Archive never deletes.',
+      'Right-click an item in a pick of two or more and the menu names the pick (**3 items**) and offers the same changes as the bar, and **Copy IDs**. In the menu, [[Up]] and [[Down]] move, [[Right]] opens a list, [[Left]] goes back and [[Esc]] closes it.' ] },
     { id: 'change-an-item-in-the-peek', g: 'Work items', t: 'Change an item in the peek', w: 'Any work item: a row, a card or its ID', go: 'work', s: [
       'Click a row, a card or an ID. The item opens in the **peek** at the right, and the page stays where it was.',
       'Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.',
@@ -335,6 +348,12 @@
     ['[[Left]] [[Right]]', 'On a board column’s right edge: 16 pixels narrower or wider'],
     ['[[Enter]] or [[Space]]', 'On a use case row: open or close its detail'],
     ['[[Home]] [[End]]', 'In Help’s tabs, with [[Left]] and [[Right]]: move between the tabs'],
+    ['[[Up]] [[Down]] [[Home]] [[End]]', 'Work items: on a row, move the cursor (a dotted outline) up and down the table, to the first and last row. On a board card, [[Left]] and [[Right]] move too, in reading order'],
+    ['[[Right]] [[Left]]', 'Work items, on a table row: open the peek, and close it. With the peek open, [[Up]] and [[Down]] in its top bar step to the previous and next item, and [[Esc]] puts the keyboard back on that item’s row'],
+    ['[[Space]]', 'Work items: add the row or card the cursor is on to the selection, or take it off. In Hand over, tick it'],
+    ['[[Shift+Up]] [[Shift+Down]] [[Mod+A]]', 'Work items: extend the selection from the cursor, or select every row shown. [[Esc]] clears it. Click selects one row, [[Mod]]+click adds or removes one, [[Shift]]+click selects the range'],
+    ['[[O]] [[S]] [[P]] [[T]] [[C]] [[V]]', 'Work items, on a row, a card or a selection: owner, status, priority, due date, close; [[V]] shows or hides the row from the client. Not with the peek open, where [[C]] is Draft email'],
+    ['[[Shift+F10]] or [[Menu]]', 'Work items: the same menu as a right click, on a row, a card or a selection'],
     ['[[Mod+Z]]', 'In an editor: undo your typing, or an accepted AI suggestion'],
     ['Double-click', 'On the left edge of the peek or ask clark, or a board column’s right edge: back to the usual width'],
   ];

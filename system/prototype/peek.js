@@ -52,7 +52,7 @@
   C.openItem = (id, list) => open({ kind: 'item', id, list: list || (cur && cur.kind === 'item' ? cur.list : [id]) });
   C.openMs = (id, list) => open({ kind: 'ms', id, list: list || C.mss().map(m => m.id) });
   C.redrawPeek = () => { if (cur) draw(false, 'redraw'); };
-  function open(c) { const was = !!UI.peek, same = UI.peek === c.id; { const g = grabOpener(); if (!was) opener = g; else if (g) opener = g; /* moved by a click on another row: that row is the one to go back to */ } cur = c; UI.peek = c.id; tab = 'all'; C.sneakClose(true); draw(was, 'open'); markSel(); if (!same) C.nav && C.nav(was ? 'replace' : 'push'); }
+  function open(c) { const was = !!UI.peek, same = UI.peek === c.id; { const g = grabOpener(); if (!was) opener = g; else if (g) opener = g; /* moved by a click on another row: that row is the one to go back to */ else if (c.kind === 'item') { const r = C.$(`#wlist .group tr[data-id="${CSS.escape(c.id)}"], #wlist [data-card="${CSS.escape(c.id)}"]`); if (r) opener = { el: r, sel: `${r.tagName.toLowerCase()}[${r.hasAttribute('data-id') ? 'data-id' : 'data-card'}="${CSS.escape(c.id)}"]` }; } /* stepped with Previous, Next or an arrow: Esc goes back to the row of the item now shown (#246) */ } cur = c; UI.peek = c.id; tab = 'all'; C.sneakClose(true); draw(was, 'open'); markSel(); if (!same) C.nav && C.nav(was ? 'replace' : 'push'); }
   function markSel() { C.$$('[data-id]').forEach(r => r.classList.toggle('sel', !!cur && cur.kind === 'item' && r.dataset.id === cur.id && r.tagName === 'TR'));
     C.$$('.mv-row, .mv-mk').forEach(r => r.classList.toggle('sel', !!cur && cur.kind === 'ms' && r.dataset.ms === cur.id)); }
 

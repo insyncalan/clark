@@ -863,6 +863,8 @@
   /* the one value a field has in the line (for Add and the board's columns), or '' */
   const one = k => { const c = conds().filter(x => x.field === k && !x.not && !x.none); return c.length === 1 && c[0].vals.length === 1 ? c[0].vals[0] : ''; };
   const lineType = () => { const c = conds().filter(x => x.field === 'type' && !x.not && !x.none); if (c.length !== 1) return 'all'; return { action: 'A', decision: 'D', risk: 'R', issue: 'R', 'issue,risk': 'R' }[c[0].vals.map(v => v.toLowerCase()).sort().join()] || 'all'; };
+  C.workMatching = () => workList().map(x => x.id);   // the items the filters show: multi.js (select all matching, Hand over) asks
+  C.workOwnerLine = () => conds().some(c => c.field === 'owner' && !c.not && !c.none);   // the line names an owner: Hand over is offered
   const lineShow = () => { const pos = conds().filter(x => x.field === 'is' && !x.not && !x.none).flatMap(x => x.vals); return pos.includes('open') && !pos.includes('closed') ? 'open' : pos.includes('closed') && !pos.includes('open') ? 'closed' : 'all'; };
   C.workFilter = o => { W.code = UI.code; setLine(FL.fromFilter(o)); W.view = FL.views(UI.code)[0]?.id || ''; pickView(); saveW(); C.go('work'); };   // a tile opens Work items on a line that shows exactly what it counts
   C.workLine = line => { W.code = UI.code; setLine(line); pickView(); saveW(); if (UI.view === 'work') C.render(); else C.go('work'); };   // the same, from a line (ask clark could fill it; the self-test uses it)
@@ -969,8 +971,8 @@
       hd.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); bwPut(W.group, k, col.getBoundingClientRect().width + (e.key === 'ArrowRight' ? 16 : -16)); });
     });
     C.$$('[data-card]').forEach(c => {
-      c.addEventListener('click', e => { if (e.target.closest('[data-mvto]')) return; C.openItem(c.dataset.card, ids()); });
-      c.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === c) { e.preventDefault(); C.openItem(c.dataset.card, ids()); } });   /* Enter or Space on the card itself; its Move button keeps its own keys */
+      c.addEventListener('click', e => { if (e.target.closest('[data-mvto]')) return; if (C.multi.click(e, c.dataset.card)) return; C.openItem(c.dataset.card, ids()); });
+      c.addEventListener('keydown', e => { if (C.multi.keyCard(e, c.dataset.card)) return; if ((e.key === 'Enter' || e.key === ' ') && e.target === c) { e.preventDefault(); C.openItem(c.dataset.card, ids()); } });   /* Enter or Space on the card itself; its Move button keeps its own keys */
       c.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', c.dataset.card); e.dataTransfer.effectAllowed = 'move'; c.classList.add('dragging'); });
       c.addEventListener('dragend', () => c.classList.remove('dragging'));
     });
@@ -1067,9 +1069,11 @@
         C.$('#clearAll')?.addEventListener('click', clr);
         C.$$('.ghead').forEach(h => h.addEventListener('click', () => { const g = h.parentElement, on = !g.classList.contains('open'); g.classList.toggle('open', on); h.setAttribute('aria-expanded', on); W.open[g.dataset.ws] = on; saveW(); }));
         /* owner, due, priority and status change in place, from the same pickers as the peek, each one step with Undo */
-        C.$$('[data-pick]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); C.propPick(b, D.S.items.find(i => i.id === b.dataset.pick), 'in the table'); }));
-        C.$$('tr[data-id]').forEach(r => { r.addEventListener('click', e => { if (e.target.closest('[data-weye], [data-pick]')) return; C.openItem(r.dataset.id, ids()); }); r.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); C.openItem(r.dataset.id, ids()); } }); });
+        C.$$('[data-pick]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const x = D.S.items.find(i => i.id === b.dataset.pick); if (C.multi.cell(b, x)) return; C.propPick(b, x, 'in the table'); }));
+        /* a row: a click opens the peek until something is picked (multi.js); the keys are the arrows, Space, Enter and the letters (multi.js); Enter on a cell's own button opens its picker, not the peek */
+        C.$$('tr[data-id]').forEach(r => { r.addEventListener('click', e => { if (e.target.closest('[data-weye], [data-pick]')) return; if (C.multi.click(e, r.dataset.id)) return; C.openItem(r.dataset.id, ids()); }); r.addEventListener('keydown', e => { if (C.multi.key(e, r.dataset.id)) return; if (e.key === 'Enter' && e.target === r) { e.preventDefault(); C.openItem(r.dataset.id, ids()); } }); });
         C.$$('[data-weye]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const x = D.S.items.find(i => i.id === b.dataset.weye); const u = D.change('item', x, { client: !x.client }, D.who('with the eye')); C.refresh(); C.toast(`${x.id} ${x.client ? 'shown to' : 'hidden from'} the client`, u); }));
+        C.multi.wire();   /* several at once, the cursor and the right-click menu (multi.js): the marks, the group ticks and the bar for what is picked */
       };
       /* the chips and the views redraw with the list; the box itself is never redrawn, so it keeps the focus and what is typed */
       const wireLine = () => {
@@ -1365,12 +1369,13 @@
   C.peopleRows = () => { const det = D.S.people || {}, names = new Map(C.people(true).map(n => [n.toLowerCase(), n]));
     Object.keys(det).forEach(k => { if (!names.has(k.toLowerCase())) names.set(k.toLowerCase(), k); });
     return [...names.values()].sort((a, b) => a.localeCompare(b)).map(name => ({ name, email: (det[name] || {}).email || '', org: (det[name] || {}).org || '', role: (det[name] || {}).role || '' })); };
+  const handN = name => C.items().filter(x => x.owner === name && C.isOpen(x)).length;   /* Hand over their work (#199) is offered where the person has open items in this project */
   let ppOnly = false;   /* the People list filtered to those who need details: the only time a row carries the chip (S4) */
   const peopleCard = () => { const rows = C.peopleRows(), need = rows.filter(r => !r.email).length, shown = ppOnly && need ? rows.filter(r => !r.email) : rows, one = rows.length === 1;
     return `<div class="card" id="people"><div class="card-h"><h2>People</h2><span class="sp"></span><button class="btn sm" id="ppPasteBtn" aria-expanded="false" aria-controls="ppPaste">Paste from Excel</button></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.</p>
       <div class="pp-paste" id="ppPaste" hidden><label for="ppText">Rows from Excel: name, email, organisation, role, separated by tabs</label><textarea class="field" id="ppText" rows="5" placeholder="Sam Rivers[tab]sam@example.com[tab]Supplier[tab]Delivery lead"></textarea><div class="pp-acts"><button class="btn sm pri" id="ppAdd">Add to the list</button><span class="muted" id="ppMsg" role="status"></span></div></div>
       ${rows.length ? `<p class="pp-sum" id="ppCount"><span>${need} of ${rows.length} ${one ? 'person needs' : 'people need'} details</span>${need || ppOnly ? ` <button type="button" class="link" id="ppOnly" aria-pressed="${ppOnly && need ? 'true' : 'false'}">${ppOnly && need ? 'Show everyone' : 'Show only these'}</button>` : ''}</p>
-      <table class="set stack ppl" id="ppTable"><thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th>Role</th></tr></thead><tbody>${shown.map(r => `<tr data-person="${esc(r.name)}"><td class="nm"><b style="font-weight:500">${esc(r.name)}</b>${ppOnly && !r.email ? ' <span class="tag need">Needs details</span>' : ''}</td><td data-l="Email">${esc(r.email) || '<span class="muted">—</span>'}</td><td data-l="Organisation">${esc(r.org) || '<span class="muted">—</span>'}</td><td data-l="Role">${esc(r.role) || '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>
+      <table class="set stack ppl" id="ppTable"><thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th>Role</th></tr></thead><tbody>${shown.map(r => `<tr data-person="${esc(r.name)}"><td class="nm"><b style="font-weight:500">${esc(r.name)}</b>${ppOnly && !r.email ? ' <span class="tag need">Needs details</span>' : ''}${handN(r.name) ? ` <button type="button" class="link pp-ho" data-ho="${esc(r.name)}">Hand over their work</button>` : ''}</td><td data-l="Email">${esc(r.email) || '<span class="muted">—</span>'}</td><td data-l="Organisation">${esc(r.org) || '<span class="muted">—</span>'}</td><td data-l="Role">${esc(r.role) || '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>
       ` : '<p class="muted">No owners yet.</p>'}</div>`; };
   /* ═════════════ settings (simple) ═════════════ */
   /* go to a card, or to a field in one (Help's Settings links, the Publish box's "Set it in Settings, Publishing"): scrolled clear of the bars, and the field takes the focus */

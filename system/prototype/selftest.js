@@ -539,6 +539,268 @@
     await undo(); ok('undoing a create writes "Creation undone"', !S().items.includes(nr) && S().history.some(h => h.id === nr.id && h.field === '-' && h.text === 'Creation undone' && h.how === window.ClarkDB.who('undo'))); key(document.body, 'Escape'); await sleep(40);
   });
 
+  /* ── several work items at once (#195, #196), Hand over (#199), the arrow keys (#194, #246, #276) and the right-click menu (#97): multi.js ── */
+  await step('select several work items, the bulk bar, Hand over, arrow keys and the right-click menu', async () => {
+    const MU = C.multi, M = MU.M, H = MU.H, act = () => document.activeElement, D0 = window.ClarkDB;
+    const row = id => $(`#wlist .group tr[data-id="${id}"]`), ids = () => $$('#wlist .group tr[data-id]').map(r => r.dataset.id);
+    const mouse = (el, o = {}) => { el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, ...o })); el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...o })); };
+    const cell = (id, f) => $(`[data-pick="${id}"][data-prop=${f}]`);
+    const ctx = (el, x = 240, y = 220) => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+    const bar = () => $('#selBar'), btns = () => $$('#selBar [data-bulk]').map(b => b.textContent.trim());
+    const reset = async () => { key(document.body, 'Escape'); await sleep(30); if (H.on) { click($('#handCancel')); await sleep(30); } if (M.ids.length) { MU.clear(); await sleep(30); } };
+    const status = id => item(id).status;
+    click($('.tab[data-view=work]')); await sleep(80); if ($('[data-layout=table]') && !$('table.items')) { click($('[data-layout=table]')); await sleep(60); }
+    if ($('#clearAll')) { click($('#clearAll')); await sleep(60); }
+    const order = ids(), a = order[0], b = order[1], c3 = order[2];
+    ok('Hand over is not offered until the line names an owner; no bar, no ticks, no selection at first', !$('#handBtn') && !$('#mbar .selbar') && !M.ids.length && !$$('#wlist .mtick').length && $$('#wlist .group-tick,#wlist .gtick').length >= 2);
+
+    /* #195: selecting */
+    mouse(row(a).querySelector('td')); await sleep(100); ok('#195 a plain click with nothing picked still opens the peek (as before)', $('#peek').classList.contains('on') && C.UI.peek === a && !M.ids.length);
+    key(act(), 'Escape'); await sleep(60);
+    mouse(row(a).querySelector('td'), { ctrlKey: true }); await sleep(40);
+    ok('#195 Ctrl or Cmd+click picks one row: a tick mark before the title, a border, aria-selected, and the table is a multiselectable grid', M.ids.join() === a && row(a).classList.contains('picked') && row(a).getAttribute('aria-selected') === 'true' && !!row(a).querySelector('.tcell > .mtick')
+      && row(b).getAttribute('aria-selected') === 'false' && $('#wlist table.items').getAttribute('role') === 'grid' && $('#wlist table.items').getAttribute('aria-multiselectable') === 'true' && getComputedStyle(row(a).querySelector('td')).boxShadow !== 'none');
+    ok('#195 one picked: no bar yet, and the peek stayed shut', !bar() && !$('#peek').classList.contains('on'));
+    mouse(row(b).querySelector('td'), { metaKey: true }); await sleep(40);
+    ok('#195 two picked: the bar says "2 selected" and a polite message says it too', !!bar() && $('#selCount').textContent === '2 selected' && $('#mLive').textContent.trim() === '2 selected' && $('#mLive').getAttribute('aria-live') === 'polite');
+    ok('#195 the bar offers "Select all N matching" while the filters show more', $('#selAll').textContent === `Select all ${order.length} matching`);
+    mouse(row(order[4]).querySelector('td'), { shiftKey: true }); await sleep(40);
+    ok('#195 Shift+click picks the range from the last one, in the order drawn', M.ids.join() === order.slice(1, 5).join(), M.ids.join());
+    mouse(row(order[7]).querySelector('td'), { shiftKey: true, ctrlKey: true }); await sleep(40);
+    ok('#195 Ctrl+Shift+click adds the range', order.slice(1, 8).every(i => M.ids.includes(i)) && M.ids.length === 7, M.ids.length);
+    mouse(row(c3).querySelector('td')); await sleep(40);
+    ok('#195 once something is picked, a plain click picks only that row', M.ids.join() === c3 && !bar() && !$('#peek').classList.contains('on'));
+    row(c3).focus(); key(row(c3), ' '); await sleep(30); ok('#195 Space on the cursor row takes it off', !M.ids.length && !row(c3).classList.contains('picked'));
+    key(row(c3), ' '); key(row(c3), 'ArrowDown', { shiftKey: true }); key(act(), 'ArrowDown', { shiftKey: true }); await sleep(40);
+    ok('#195 Shift+Down extends the pick from the cursor, and the keyboard follows', M.ids.join() === order.slice(2, 5).join() && act().dataset.id === order[4], M.ids.join());
+    key(act(), 'ArrowUp', { shiftKey: true }); await sleep(30); ok('#195 Shift+Up takes the last one back off', M.ids.join() === order.slice(2, 4).join());
+    key(act(), 'a', { ctrlKey: true }); await sleep(40); ok('#195 Ctrl or Cmd+A picks every row shown', M.ids.length === order.length && !$('#selAll'));
+    ok('#195 with all picked, the bar says "N selected" and offers no "Select all"', $('#selCount').textContent === `${order.length} selected`);
+    click($('#selClear')); await sleep(40); ok('#195 the X on the bar clears the pick', !M.ids.length && !bar() && !$$('#wlist .picked').length);
+    /* group tick boxes */
+    { const g = $$('#wlist .group').find(z => z.querySelectorAll('tr[data-id]').length >= 2), tk = $('.gtick', g), gi = [...g.querySelectorAll('tr[data-id]')].map(r => r.dataset.id);
+      tk.checked = true; tk.dispatchEvent(new Event('change', { bubbles: true })); await sleep(40);
+      ok('#195 a group heading has a tick box that picks that group\'s rows', gi.every(i => M.ids.includes(i)) && M.ids.length === gi.length && tk.checked && tk.getAttribute('aria-label').startsWith('Select '), tk.getAttribute('aria-label'));
+      mouse(row(gi[0]).querySelector('td'), { ctrlKey: true }); await sleep(40); ok('#195 part picked: the box is part-checked', tk.indeterminate && !tk.checked);
+      tk.dispatchEvent(new Event('change', { bubbles: true })); await sleep(40); ok('#195 ticking a part-checked group picks the rest', tk.checked && !tk.indeterminate);
+      tk.dispatchEvent(new Event('change', { bubbles: true })); await sleep(40); ok('#195 ticking a full group clears it', !M.ids.length && !tk.checked);
+      mouse(row(gi[0]).querySelector('td'), { ctrlKey: true }); mouse(row(order.find(i => !gi.includes(i))).querySelector('td'), { ctrlKey: true }); await sleep(40);
+      click($('.ghead', g)); await sleep(60);
+      ok('#195 shutting a group drops its rows from the pick and says how many ("1 left the selection")', !M.ids.includes(gi[0]) && /^1 left the selection$/.test($('#selNote') ? $('#selNote').textContent : M.note) && tk.disabled && /Open the group/.test(tk.title), M.note);
+      click($('.ghead', g)); await sleep(60); await reset(); }
+    /* select all N matching, including a shut group; filtering drops rows */
+    { const g = $$('#wlist .group')[0], gi = [...g.querySelectorAll('tr[data-id]')].map(r => r.dataset.id), other = order.filter(i => !gi.includes(i));
+      mouse(row(other[0]).querySelector('td'), { ctrlKey: true }); mouse(row(other[1]).querySelector('td'), { ctrlKey: true }); await sleep(30);
+      click($('#selAll')); await sleep(40); ok('#195 Select all N matching picks every item the filters show', M.ids.length === order.length && M.all);
+      click($('.ghead', g)); await sleep(60); ok('#195 and a shut group keeps its rows picked once "all matching" is on', M.ids.length === order.length);
+      click($('.ghead', g)); await sleep(60); await reset();
+      const o1 = order[0], o2 = order.find(i => item(i).owner !== item(o1).owner);
+      mouse(row(o1).querySelector('td'), { ctrlKey: true }); mouse(row(o2).querySelector('td'), { ctrlKey: true }); await sleep(30);
+      await flType('owner:"' + item(o1).owner + '"'); await sleep(40);
+      ok('#195 filtering drops the rows no longer shown, and says so ("1 left the selection")', M.ids.join() === o1 && /^1 left the selection$/.test(M.note) && /1 left the selection/.test($('#selNote').textContent), M.ids.join() + '|' + M.note);
+      click($('#clearAll')); await sleep(60); await reset(); }
+    /* the rules: a peek that shows one record closes at two; Esc, a click outside and a change of tab clear */
+    mouse(row(a).querySelector('td')); await sleep(100); ok('#195 (a peek open on one item)', C.UI.peek === a);
+    mouse(row(b).querySelector('td'), { ctrlKey: true }); await sleep(40); mouse(row(c3).querySelector('td'), { ctrlKey: true }); await sleep(120);
+    ok('#195 picking two or more closes a peek that shows one record', M.ids.length === 2 && !$('#peek').classList.contains('on') && !C.UI.peek, M.ids.join());
+    key(document.body, 'Escape'); await sleep(40); ok('#195 Esc clears the pick', !M.ids.length && !bar());
+    mouse(row(a).querySelector('td'), { ctrlKey: true }); mouse(row(b).querySelector('td'), { ctrlKey: true }); await sleep(30);
+    $('#mLive').dispatchEvent(new MouseEvent('click', { bubbles: true })); document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })); await sleep(30);
+    ok('#195 a click outside Work items clears the pick', !M.ids.length);
+    mouse(row(a).querySelector('td'), { ctrlKey: true }); mouse(row(b).querySelector('td'), { ctrlKey: true }); await sleep(30);
+    click($('.tab[data-view=milestones]')); await sleep(80); click($('.tab[data-view=work]')); await sleep(80);
+    ok('#195 a change of tab clears the pick (it is kept in memory only: nothing is stored)', !M.ids.length && !localStorage.getItem('clark.selection'));
+    ok('#195 the Archived list stays single-select: no ticks, no grid', (() => { C.store.set('wArch', true); C.refresh(); const t = $('#wArchList table'); const r = !t || (!t.getAttribute('role') && !$$('#wArchList .mtick, #wArchList .gtick').length); C.store.set('wArch', false); C.refresh(); return r; })());
+    await sleep(60);
+
+    /* #196: the bulk bar */
+    const acts = ['PDF-A-012', 'PDF-A-015', 'PDF-A-018'];
+    acts.slice(0, 2).forEach((id, i) => mouse(row(id).querySelector('td'), { ctrlKey: true })); await sleep(40);
+    ok('#196 the bar offers Close, Reopen, Status, Owner, Due date, Priority, Workstream and Milestone for actions', btns().join() === 'Close,Reopen,Status,Owner,Due date,Priority,Workstream,Milestone', btns().join());
+    ok('#196 the bar is a group named for what it changes', $('#selBar .sb-acts').getAttribute('aria-label') === 'Change 2 items' && $('#selBar').getAttribute('aria-label') === 'Selection');
+    const h0 = S().history.length, st0 = acts.slice(0, 2).map(status);
+    click($('[data-bulk=status]')); await sleep(60); ok('#196 Status opens the cells\' own list, named for the items', !!$('.menu') && /Status of 2 items/.test($('.menu').getAttribute('aria-label')) && ['Open', 'Delayed', 'Closed', 'Cancelled'].every(t => $$('.menu [data-i]').some(o => o.textContent.trim() === t)));
+    await menuPick('Delayed'); await sleep(80);
+    ok('#196 one pick changes both, as one step with one toast that says so', acts.slice(0, 2).every(i => status(i) === 'Delayed') && $('#toastMsg').textContent === 'Changed 2 items.' && !$('#toastUndo').hidden && !M.ids.length, $('#toastMsg').textContent);
+    ok('#196 one history line for each item', S().history.length - h0 === 2 && S().history.slice(h0).every(h => h.field === 'status' && h.to === 'Delayed' && h.how === D0.who('in the table')), JSON.stringify(S().history.slice(h0).map(h => [h.id, h.how])));
+    await undo(); ok('#196 one Undo puts both back, and says so', acts.slice(0, 2).every((i, k) => status(i) === st0[k]) && /^Undone: 2 items are back as they were\.$/.test($('#toastMsg').textContent), $('#toastMsg').textContent);
+    await reset();
+    /* owner, due, priority, workstream, milestone, close, reopen */
+    const pickTwo = async () => { mouse(row(acts[0]).querySelector('td'), { ctrlKey: true }); mouse(row(acts[1]).querySelector('td'), { ctrlKey: true }); await sleep(40); };
+    await pickTwo(); click($('[data-bulk=priority]')); await sleep(50); await menuPick('Urgent'); await sleep(80);
+    ok('#196 Priority changes both', acts.slice(0, 2).every(i => item(i).priority === 'Urgent')); await undo(); await reset();
+    await pickTwo(); click($('[data-bulk=owner]')); await sleep(50); ok('#196 Owner opens the name box over the people', !!$('#ownIn'));
+    $('#ownIn').value = '   '; key($('#ownIn'), 'Enter'); await sleep(40); ok('#196 a blank name is refused in plain words', /A name can't be blank/.test($('#toastMsg').textContent) && item(acts[0]).owner === 'Sam Rivers');
+    click($('[data-bulk=owner]')); await sleep(50); $('#ownIn').value = 'Priya  Nair'; key($('#ownIn'), 'Enter'); await sleep(80);
+    ok('#196 a typed owner is saved with its spaces made single, on both', acts.slice(0, 2).every(i => item(i).owner === 'Priya Nair')); await undo(); ok('#196 Undo gives each its own owner back', item(acts[0]).owner === 'Sam Rivers' && item(acts[1]).owner === 'Jo Ellis'); await reset();
+    await pickTwo(); click($('[data-bulk=due]')); await sleep(50); ok('#196 Due date opens the calendar with its quick dates', !!$('.menu .cp') && !!$('.menu [data-cpq]'));
+    click($('.menu [data-cpq=""]')); await sleep(80); ok('#196 No date clears both', acts.slice(0, 2).every(i => !item(i).due)); await undo(); await reset();
+    await pickTwo(); click($('[data-bulk=workstream]')); await sleep(50); await menuPick('Testing'); await sleep(80); ok('#196 Workstream moves both', acts.slice(0, 2).every(i => item(i).ws === 'Testing')); await undo(); await reset();
+    await pickTwo(); click($('[data-bulk=milestone]')); await sleep(50); await menuPick('No milestone'); await sleep(80); ok('#196 Milestone changes both', acts.slice(0, 2).every(i => !item(i).ms)); await undo(); await reset();
+    await pickTwo(); click($('[data-bulk=reopen]')); await sleep(80); ok('#196 "Nothing changed: they already have that" when they already do, and nothing is saved', /Nothing changed: they already have that\./.test($('#toastMsg').textContent) && $('#toastUndo').hidden && !!bar());
+    click($('[data-bulk=close]')); await sleep(80); ok('#196 Close closes both (they leave the open list)', acts.slice(0, 2).every(i => status(i) === 'Closed') && !row(acts[0])); await undo(); ok('#196 and one Undo reopens both', acts.slice(0, 2).every(i => status(i) === 'Open') && !!row(acts[0])); await reset();
+    /* mixed kinds */
+    mouse(row(acts[0]).querySelector('td'), { ctrlKey: true }); mouse(row('PDF-003').querySelector('td'), { ctrlKey: true }); await sleep(40);
+    ok('#196 mixed kinds: every control is off and the reason is text', $$('#selBar [data-bulk]').every(b => b.getAttribute('aria-disabled') === 'true') && $('#selWhy').textContent === 'These items are of different kinds');
+    click($('[data-bulk=status]')); await sleep(40); ok('#196 a press on an off control opens nothing and says why', !$('.menu') && /different kinds/.test($('#toastMsg').textContent));
+    await reset();
+    /* a risk and an issue are one kind; a decision takes only "Made by", and one already made is left out and named */
+    mouse(row('PDF-003').querySelector('td'), { ctrlKey: true }); mouse(row('PDF-002').querySelector('td'), { ctrlKey: true }); await sleep(40);
+    ok('#196 risks and issues together are one kind and take the same controls', btns().includes('Priority') && $$('#selBar [data-bulk]').every(x => x.getAttribute('aria-disabled') !== 'true')); await reset();
+    { const chip = $('.fchip[data-tok="is:open"] [data-fx]'); click(chip); await sleep(60); await flType('type:decision'); await sleep(40);
+      const dec = $$('#wlist .group tr[data-id]').map(r => r.dataset.id); ok('#196 (decisions shown, made and pending)', dec.includes('PDF-D-007') && dec.includes('PDF-D-008'), dec.join());
+      mouse(row('PDF-D-007').querySelector('td'), { ctrlKey: true }); mouse(row('PDF-D-008').querySelector('td'), { ctrlKey: true }); await sleep(40);
+      ok('#196 decisions offer only "Made by"', btns().join() === 'Made by', btns().join());
+      click($('[data-bulk=made_by]')); await sleep(50); $('#ownIn').value = 'Jo Ellis'; key($('#ownIn'), 'Enter'); await sleep(80);
+      ok('#196 an item that can\'t take it is left out and named; the rest change', item('PDF-D-008').owner === 'Jo Ellis' && item('PDF-D-007').owner === 'Steering group' && /^Changed 1 item\. Left out PDF-D-007: It has been made or withdrawn, so who made it stays as recorded\./.test($('#toastMsg').textContent), $('#toastMsg').textContent);
+      await undo(); ok('#196 Undo restores it', item('PDF-D-008').owner === 'Priya Nair'); await reset();
+      click($('#clearAll')); await sleep(60); }
+    /* the confirm above 25 (the demo project has 12 open items, so the limit is lowered here to try it) */
+    ok('#196 the confirm limit is 25 items', MU.confirmAbove === 25); MU.confirmAbove = 3;
+    const A4 = ['PDF-A-012', 'PDF-A-015', 'PDF-A-016', 'PDF-A-018']; A4.forEach(i => mouse(row(i).querySelector('td'), { ctrlKey: true })); await sleep(40);
+    const pr0 = A4.map(i => item(i).priority); click($('[data-bulk=priority]')); await sleep(50); await menuPick('Low'); await sleep(80);
+    ok('#196 above the limit a question comes first: "Change 4 items?", nothing is changed yet', !!$('#dlg[open] #bkYes') && $('#bkQ').textContent === 'Change 4 items?' && $('#dlg').getAttribute('role') === 'alertdialog' && A4.every((i, k) => item(i).priority === pr0[k]) && document.activeElement.id === 'bkYes');
+    click($('#dlg [data-close]')); await sleep(40); ok('#196 Cancel leaves everything as it was', A4.every((i, k) => item(i).priority === pr0[k]) && M.ids.length === 4);
+    click($('[data-bulk=priority]')); await sleep(50); await menuPick('Low'); await sleep(80); click($('#bkYes')); await sleep(100);
+    ok('#196 Change then makes the one change for all four', A4.every(i => item(i).priority === 'Low') && /^Changed 4 items\./.test($('#toastMsg').textContent)); await undo(); MU.confirmAbove = 25; await reset();
+    /* editing one cell of a selected row changes the whole pick, and asks first */
+    await pickTwo(); mouse(row(acts[2]).querySelector('td'), { ctrlKey: true }); await sleep(30);
+    const pc = acts.map(i => item(i).priority); click(cell(acts[0], 'priority')); await sleep(50); ok('#196 a cell of a picked row opens its picker, named for all of them', !!$('.menu') && /Priority of 3 items/.test($('.menu').getAttribute('aria-label')));
+    await menuPick('Urgent'); await sleep(60); ok('#196 and asks before it changes them all: "Change the priority of all 3 selected items?"', $('#bkQ') && $('#bkQ').textContent === 'Change the priority of all 3 selected items?' && acts.every((i, k) => item(i).priority === pc[k]));
+    click($('#bkYes')); await sleep(100); ok('#196 yes changes every picked row, as one step', acts.every(i => item(i).priority === 'Urgent') && $('#toastMsg').textContent === 'Changed 3 items.'); await undo(); ok('#196 one Undo restores all three', acts.every((i, k) => item(i).priority === pc[k])); await reset();
+    mouse(row(acts[0]).querySelector('td'), { ctrlKey: true }); mouse(row('PDF-003').querySelector('td'), { ctrlKey: true }); await sleep(30);
+    click(cell(acts[0], 'owner')); await sleep(40); ok('#196 a cell on a mixed pick changes nothing and says why, and to clear the pick', !$('.menu') && /different kinds, so the owner can't be changed for all of them\. Clear the selection to change only this one\./.test($('#toastMsg').textContent)); await reset();
+    /* the keys */
+    row(acts[0]).focus(); key(row(acts[0]), 'p'); await sleep(60); ok('#196 P on a row opens Priority for that item', !!$('.menu') && /Priority of 1 item/.test($('.menu').getAttribute('aria-label'))); key(act(), 'Escape'); await sleep(40);
+    ok('#196 Esc closes it and the keyboard is back on the row', !$('.menu') && act() === row(acts[0]));
+    mouse(row(acts[0]).querySelector('td'), { ctrlKey: true }); mouse(row(acts[1]).querySelector('td'), { ctrlKey: true }); await sleep(30); row(acts[1]).focus(); key(row(acts[1]), 'c'); await sleep(100);
+    ok('#196 C on a row of a pick closes the whole pick (one step)', acts.slice(0, 2).every(i => status(i) === 'Closed')); await undo(); await reset();
+    row(acts[0]).focus(); key(row(acts[0]), 's'); await sleep(50); ok('#196 S opens Status', /Status of 1 item/.test(($('.menu') || { getAttribute: () => '' }).getAttribute('aria-label'))); key(act(), 'Escape'); await sleep(30);
+    row(acts[0]).focus(); key(row(acts[0]), 'o'); await sleep(50); ok('#196 O opens Owner', !!$('#ownIn')); key(act(), 'Escape'); await sleep(30);
+    row(acts[0]).focus(); key(row(acts[0]), 't'); await sleep(50); ok('#196 T opens the due date', !!$('.menu .cp')); key(act(), 'Escape'); await sleep(30);
+    { const w = item(acts[0]).client; row(acts[0]).focus(); key(row(acts[0]), 'v'); await sleep(60); ok('#196 V shows or hides the cursor row from the client', item(acts[0]).client === !w); await undo(); }
+    C.store.set('singleKeys', false); row(acts[0]).focus(); key(row(acts[0]), 'p'); await sleep(40); ok('#196 the letter keys do nothing when the Single-key switch is off', !$('.menu')); C.store.set('singleKeys', true);
+
+    /* #199: Hand over */
+    await flType('owner:"Priya Nair"'); await sleep(60);
+    const mine = ids(); ok('#199 with the line naming an owner, Hand over is offered beside Add', !!$('#handBtn') && $('#handBtn').nextElementSibling === $('#newBtn') && mine.length >= 3 && mine.every(i => item(i).owner === 'Priya Nair'), mine.join());
+    click($('#handBtn')); await sleep(60);
+    ok('#199 pick mode: a tick box on each open item, "0 of N selected", a Hand over to field, Hand over and Cancel', $$('#wlist .mtick.box').length === mine.length && $('#handCount').textContent === `0 of ${mine.length} selected` && !!$('#handTo') && $('#handGo').textContent === 'Hand over' && $('#handCancel').textContent === 'Cancel' && document.activeElement === $('#handTo') && !$('#handBtn'));
+    ok('#199 the button says what is missing, in words', $('#handGo').getAttribute('aria-disabled') === 'true' && $('#handWhy').textContent === 'Tick at least one item.');
+    mouse(row(mine[0]).querySelector('td')); await sleep(40); ok('#199 a click only ticks (no peek, no pick)', H.ticks.join() === mine[0] && !$('#peek').classList.contains('on') && !M.ids.length && $('#handCount').textContent === `1 of ${mine.length} selected`);
+    row(mine[1]).focus(); key(row(mine[1]), ' '); await sleep(30); ok('#199 Space on a row ticks it too', H.ticks.length === 2);
+    ok('#199 the row keys of picking several and of changing one are off', (() => { key(row(mine[1]), 'ArrowDown', { shiftKey: true }); key(row(mine[1]), 'a', { ctrlKey: true }); key(row(mine[1]), 'c'); ctx(row(mine[1])); return H.ticks.length === 2 && !M.ids.length && status(mine[1]) !== 'Closed' && !$('.menu') && !$('#dlg[open]'); })());
+    click($('#handAll')); await sleep(30); ok('#199 All ticks every open item shown: "N of N selected"', H.ticks.length === mine.length && $('#handCount').textContent === `${mine.length} of ${mine.length} selected`);
+    ok('#199 now it asks who to', $('#handWhy').textContent === 'Say who to hand over to.' && $('#handGo').getAttribute('aria-disabled') === 'true'); click($('#handGo')); await sleep(40); ok('#199 and pressing it without a name changes nothing', mine.every(i => item(i).owner === 'Priya Nair') && H.on);
+    { const t = $('#handTo'); t.value = 'Sam Rivers'; t.dispatchEvent(new Event('input', { bubbles: true })); await sleep(30); ok('#199 with a name, it is ready', !$('#handGo').getAttribute('aria-disabled') && $('#handWhy').textContent === ''); }
+    const hh = S().history.length; click($('#handGo')); await sleep(100);
+    ok('#199 one step changes the owner of every ticked item, one history line each, and pick mode ends', mine.every(i => item(i).owner === 'Sam Rivers') && S().history.length - hh === mine.length && !H.on && !$('#handBar') && $('#toastMsg').textContent === `Changed ${mine.length} items.`, $('#toastMsg').textContent);
+    await undo(); ok('#199 one Undo gives every owner back, and says so', mine.every(i => item(i).owner === 'Priya Nair') && new RegExp(`^Undone: ${mine.length} items are back with their owner\\.$`).test($('#toastMsg').textContent), $('#toastMsg').textContent);
+    click($('#handBtn')); await sleep(40); MU.confirmAbove = 2; click($('#handAll')); $('#handTo').value = 'Jo Ellis'; $('#handTo').dispatchEvent(new Event('input', { bubbles: true })); click($('#handGo')); await sleep(60);
+    ok('#199 above the limit a question comes first: "Hand over N items to Jo Ellis?"', $('#bkQ') && $('#bkQ').textContent === `Hand over ${mine.length} items to Jo Ellis?` && mine.every(i => item(i).owner === 'Priya Nair')); click($('#dlg [data-close]')); await sleep(40);
+    MU.confirmAbove = 25; key(document.body, 'Escape'); await sleep(40); ok('#199 Esc cancels pick mode with nothing changed, and Hand over is back', !H.on && !$('#handBar') && !!$('#handBtn') && mine.every(i => item(i).owner === 'Priya Nair'));
+    click($('#handBtn')); await sleep(40); click($('#handCancel')); await sleep(40); ok('#199 Cancel does the same', !H.on && document.activeElement === $('#handBtn'));
+    /* closed items are never offered */
+    click($('#clearAll')); await sleep(60); await flType('owner:"Ravi Mehta"'); click($('.fchip[data-tok="is:open"] [data-fx]')); await sleep(60);
+    { const ravi = ids(); click($('#handBtn')); await sleep(40); ok('#199 a closed item is never offered: no tick box, not counted', ravi.includes('PDF-A-009') && !row('PDF-A-009').querySelector('.mtick') && $('#handCount').textContent === `0 of ${ravi.filter(i => C.isOpen(item(i))).length} selected`);
+      mouse(row('PDF-A-009').querySelector('td')); await sleep(30); ok('#199 and a click on it ticks nothing', !H.ticks.length); click($('#handCancel')); await sleep(30); }
+    click($('#clearAll')); await sleep(60);
+    /* from the People list */
+    C.go('settings'); await sleep(150);
+    { const ho = $('[data-ho="Priya Nair"]'); ok('#199 Settings › People has "Hand over their work" for a person who owns open items, and not for one who owns none', !!ho && ho.textContent === 'Hand over their work' && !$('[data-ho="Steering group"]'));
+      if (ho) { click(ho); await sleep(150); ok('#199 it opens Work items on that person\'s open items, in pick mode', C.UI.view === 'work' && H.on && $$('#wlist .group tr[data-id]').every(r => item(r.dataset.id).owner === 'Priya Nair') && !!$('#handBar')); click($('#handCancel')); await sleep(30); } }
+    click($('#clearAll')); await sleep(60);
+
+    /* #194: the arrow keys */
+    { const rs = $$('#wlist .group tr[data-id]'); ok('#194 the table is one Tab stop: one row has tabindex 0, the others -1', rs.filter(r => r.tabIndex === 0).length === 1 && rs.filter(r => r.tabIndex === -1).length === rs.length - 1); }
+    row(order[0]).focus(); key(act(), 'ArrowDown'); ok('#194 Down moves to the next row, and the Tab stop goes with it', act() === row(order[1]) && row(order[1]).tabIndex === 0 && row(order[0]).tabIndex === -1 && row(order[1]).classList.contains('cur'));
+    key(act(), 'ArrowUp'); ok('#194 Up moves back', act() === row(order[0]));
+    key(act(), 'End'); ok('#194 End goes to the last row', act() === row(order.at(-1))); key(act(), 'ArrowDown'); ok('#194 and Down at the end stays there', act() === row(order.at(-1))); key(act(), 'Home'); ok('#194 Home goes to the first', act() === row(order[0]));
+    ok('#194 the arrows cross a group heading without stopping on it', (() => { const g = $$('#wlist .group'); const last = [...g[0].querySelectorAll('tr[data-id]')].at(-1).dataset.id, first2 = g[1].querySelector('tr[data-id]').dataset.id; row(last).focus(); key(act(), 'ArrowDown'); return act().dataset.id === first2; })());
+    ok('#194 the cursor is drawn: a dotted outline in the stylesheet, not only a colour', /table\.items:focus-within tbody tr\.cur\s*\{[^}]*outline:\s*2px dotted/.test(window.CLARK_APPCSS));
+    row(order[0]).focus(); key(act(), 'ArrowRight'); await sleep(100); ok('#194 Right on a row opens its peek', C.UI.peek === order[0] && $('#peek').classList.contains('on'));
+    ok('#246 the keyboard is in the peek (on Close) when it opens', $('#peek').contains(act()) && act().id === 'pkClose');
+    key(act(), 'ArrowDown'); await sleep(100); ok('#246 Down in the peek\'s top bar steps to the next item in the list, and focus stays where it was', C.UI.peek === order[1] && act().id === 'pkClose' && M.cursor === order[1] && row(order[1]).classList.contains('cur') && row(order[1]).tabIndex === 0);
+    key(act(), 'ArrowUp'); await sleep(100); ok('#246 Up steps back', C.UI.peek === order[0] && M.cursor === order[0]);
+    { const inBody = $('#peek [data-prop=status]'); inBody.focus(); key(inBody, 'ArrowDown'); await sleep(50); ok('#246 elsewhere in the peek an arrow does not step (it scrolls as usual)', C.UI.peek === order[0]); }
+    $('#pkClose').focus(); key(act(), 'ArrowDown'); await sleep(100); key(act(), 'Escape'); await sleep(80);
+    ok('#246 Esc closes the peek and the keyboard goes back to the row of the item it last showed', !$('#peek').classList.contains('on') && act() === row(order[1]), act().tagName + ' ' + (act().dataset || {}).id);
+    row(order[1]).focus(); key(act(), 'ArrowRight'); await sleep(100); row(order[1]).focus(); key(act(), 'ArrowDown'); await sleep(100);
+    ok('#194 with the peek open, Down on a row moves the cursor and the peek follows it', C.UI.peek === order[2] && act() === row(order[2]));
+    key(act(), 'ArrowLeft'); await sleep(100); ok('#194 Left on a row closes the peek', !$('#peek').classList.contains('on'));
+    row(order[0]).focus(); key(act(), 'Enter'); await sleep(100); ok('#194 Enter on a row opens its peek', C.UI.peek === order[0]); key(act(), 'Escape'); await sleep(80);
+    /* #276: Enter on a cell opens the cell's picker, not the peek; Right and Left cross the cells; Down goes to the same cell of the next row */
+    { const cb = cell(order[0], 'owner'); cb.focus(); const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }); cb.dispatchEvent(ev); await sleep(60);
+      ok('#276 Enter on a cell does not open the peek, and is left to the button (its own click opens the picker)', !$('#peek').classList.contains('on') && !ev.defaultPrevented);
+      cb.click(); await sleep(50); ok('#276 and the button\'s click opens the owner picker', !!$('#ownIn')); key($('#ownIn'), 'Escape'); await sleep(40);
+      cb.focus(); key(act(), 'ArrowRight'); ok('#194 Right on a cell moves to the next cell of the row', act() === cell(order[0], 'due')); key(act(), 'ArrowLeft'); key(act(), 'ArrowLeft'); ok('#194 Left on the first cell goes back to the row', act() === row(order[0]));
+      cell(order[0], 'priority').focus(); key(act(), 'ArrowDown'); ok('#194 Down on a cell goes to the same cell of the next row', act() === cell(order[1], 'priority')); }
+    /* the board */
+    click($('[data-layout=board]')); await sleep(80);
+    { const cs = () => $$('#wlist [data-card]').map(c => c.dataset.card), cd = id => $(`[data-card="${id}"]`); const co = cs();
+      cd(co[0]).focus(); key(act(), 'ArrowRight'); ok('#194 board: Right moves card to card in reading order', act() === cd(co[1])); key(act(), 'ArrowDown'); ok('#194 board: Down too', act() === cd(co[2])); key(act(), 'ArrowLeft'); ok('#194 board: Left and Up go back', act() === cd(co[1])); key(act(), 'ArrowUp'); ok('#194 board: Up', act() === cd(co[0]));
+      key(act(), 'End'); ok('#194 board: End and Home go to the first and last card', act() === cd(co.at(-1))); key(act(), 'Home'); ok('#194 board: Home', act() === cd(co[0]));
+      cd(co[0]).focus(); key(act(), ' '); await sleep(100); ok('#194 board: Space still opens the peek while nothing is picked', C.UI.peek === co[0]); key(act(), 'Escape'); await sleep(80);
+      const b1 = 'PDF-A-012', b2 = 'PDF-A-015'; mouse(cd(b1), { ctrlKey: true }); mouse(cd(b2), { ctrlKey: true }); await sleep(40);
+      ok('#195 board: Ctrl+click picks cards, with a tick mark, a border and aria-pressed, and the bar is above the board', M.ids.join() === b1 + ',' + b2 && cd(b1).classList.contains('picked') && cd(b1).getAttribute('aria-pressed') === 'true' && !!cd(b1).querySelector('.bc-top > .mtick') && !!bar() && !!(bar().compareDocumentPosition($('.board')) & 4));
+      click($('[data-bulk=priority]')); await sleep(50); await menuPick('Low'); await sleep(80); ok('#196 board: the bar changes the picked cards', M.ids.length === 0 && [b1, b2].every(i => item(i).priority === 'Low')); await undo(); await reset();
+      mouse(cd(b1), { ctrlKey: true }); cd(b2).focus(); key(act(), ' '); await sleep(30); ok('#195 board: once something is picked, Space picks the card the cursor is on', M.ids.join() === b1 + ',' + b2); await reset();
+      cd(co[2]).focus(); key(act(), 'ArrowDown', { shiftKey: true }); await sleep(30); ok('#195 board: Shift+Down extends from the cursor card', M.ids.length === 2 && M.ids.includes(co[2]) && M.ids.includes(co[3])); await reset(); }
+    /* #97: the right-click menu (the board first, then the table and the full screen board) */
+    { const card = id => $(`[data-card="${id}"]`), cid = $$('#wlist [data-card]').map(c => c.dataset.card)[0], x0 = item(cid);
+      ctx(card(cid)); await sleep(60);
+      ok('#97 right-click on a card opens its menu, named for the item, and picks nothing', !!$('.menu') && $('.menu').getAttribute('role') === 'menu' && $('.menu').getAttribute('aria-label') === `Actions for ${cid}` && !M.ids.length);
+      const texts = $$('.menu [data-i]').map(o => o.textContent.trim().replace(/\s+/g, ' '));
+      ok('#97 the menu offers Draft email to the owner, Open the peek, Change status, Move due date, Change owner, Show or Hide, Copy link, Copy ID, Duplicate and Archive',
+        [`Draft email to ${x0.owner}`, 'Open the peek', 'Change status', 'Move due date', 'Change owner', x0.client ? 'Hide from the client' : 'Show to the client', 'Copy link to this item', 'Copy ID', 'Duplicate', 'Archive'].every((t, i) => texts[i] && texts[i].startsWith(t)), texts.join(' | '));
+      ok('#97 Draft email says there is no address on the People list, instead of guessing one', /has no email on the People list, so the To line is left empty\./.test(texts[0]));
+      key(act(), 'Escape'); await sleep(40); ok('#97 Esc closes it and the keyboard goes back to the card', !$('.menu') && !$$('.ctx-at').length && (act() === card(cid) || act().closest('[data-card]') === card(cid)));
+    }
+    click($('[data-layout=table]')); await sleep(80);
+    { const id = acts[0], x = item(id), r = () => row(id);
+      ctx(r().querySelector('td')); await sleep(60); ok('#97 right-click on a row opens the same menu', !!$('.menu') && $('.menu').getAttribute('aria-label') === `Actions for ${id}`);
+      await menuPick('Draft email'); await sleep(100); ok('#97 Draft email to the owner opens the Draft email box for this item', $('#dlg').open && /Draft email/.test($('#dlg .dlg-h').textContent) && $('#dlg .dlg-h').textContent.includes(x.owner) && $('#mlPrev').textContent.includes(id)); $('#dlg').close(); await sleep(30);
+      ctx(r().querySelector('td')); await sleep(60); await menuPick('Change status'); await sleep(60);
+      ok('#97 Change status opens a list of the other statuses, with Back', !!$('.menu') && $('.menu').getAttribute('aria-label') === `Change status of ${id}` && !$$('.menu [data-i]').some(o => o.textContent.trim() === x.status) && $$('.menu [data-i]').at(-1).textContent.includes('Back'));
+      await menuPick('Delayed'); await sleep(80); ok('#97 a status pick is one step with Undo, and the history says where', x.status === 'Delayed' && /set to Delayed/.test($('#toastMsg').textContent) && !$('#toastUndo').hidden && S().history.filter(h => h.id === id && h.field === 'status').at(-1).how === D0.who('in the table')); await undo(); ok('#97 Undo', x.status === 'Open');
+      ctx(r().querySelector('td')); await sleep(60); await menuPick('Move due date'); await sleep(60);
+      ok('#97 Move due date offers Friday and A week on, each with its date, Pick a date and No date', ['Friday', 'A week on', 'Pick a date', 'No date'].every(t => $$('.menu [data-i]').some(o => o.textContent.trim().startsWith(t))) && /\d\d-\d\d-\d{4}/.test($('.menu').textContent), $('.menu').textContent);
+      const wk = D0.addDays(D0.TODAY, 7); await menuPick('A week on'); await sleep(80); ok('#97 A week on moves the due date', x.due === wk); await undo();
+      ctx(r().querySelector('td')); await sleep(60); await menuPick('Change owner'); await sleep(60); ok('#97 Change owner lists the other people', !$$('.menu [data-i]').some(o => o.textContent.trim().startsWith(x.owner)) && $$('.menu [data-i]').length >= 4);
+      key(act(), 'ArrowLeft'); await sleep(60); ok('#97 Left goes back to the first list', !!$('.menu') && $('.menu').getAttribute('aria-label') === `Actions for ${id}`);
+      await menuPick('Change owner'); await sleep(60); click($$('.menu [data-i]').find(o => o.textContent.includes('Lena Fox'))); await sleep(80); ok('#97 an owner pick changes the owner', x.owner === 'Lena Fox'); await undo(); ok('#97 Undo gives the owner back', x.owner === 'Sam Rivers');
+      { const w = x.client; ctx(r().querySelector('td')); await sleep(60); await menuPick(w ? 'Hide from the client' : 'Show to the client'); await sleep(80); ok('#97 Show or Hide from the client is the eye', x.client === !w); await undo(); }
+      ctx(r().querySelector('td')); await sleep(60); const n0 = S().items.length; await menuPick('Duplicate'); await sleep(80); ok('#97 Duplicate adds a copy, with Undo', S().items.length === n0 + 1 && /Copy of/.test(S().items.at(-1).title + $('#toastMsg').textContent)); await undo(); ok('#97 Undo takes the copy away', S().items.length === n0);
+      ctx(r().querySelector('td')); await sleep(60); await menuPick('Archive'); await sleep(80); ok('#97 Archive moves it out of the lists (never deleted), with Undo', !!x.archived && !r() && S().items.includes(x)); await undo(); ok('#97 Undo brings it back', !x.archived && !!r());
+      ctx(r().querySelector('td')); await sleep(60); await menuPick('Copy ID'); await sleep(80); ok('#97 Copy ID says so (or says the browser would not)', /copied|did not copy/.test($('#toastMsg').textContent), $('#toastMsg').textContent);
+      /* no owner, or closed: Draft email is greyed, with the reason as text */
+      { const o = item('PDF-A-022'), was = o.owner; o.owner = ''; C.refresh(); await sleep(40); ctx(row('PDF-A-022').querySelector('td')); await sleep(60);
+        const d = $('.menu [data-i]'); ok('#97 an item with no owner: Draft email is greyed, with the reason in words', d.getAttribute('aria-disabled') === 'true' && /This item has no owner yet, so there is no one to write to\./.test(d.textContent)); key(act(), 'Escape'); await sleep(40); o.owner = was; C.refresh(); await sleep(40); }
+      /* the keyboard: Shift+F10 and the Menu key */
+      r().focus(); key(r(), 'F10', { shiftKey: true }); await sleep(60); ok('#97 Shift+F10 opens the menu under the row', !!$('.menu') && $('.menu').getAttribute('aria-label') === `Actions for ${id}` && $('.menu [data-i].active') !== null); key(act(), 'Escape'); await sleep(40); ok('#97 and Esc puts the keyboard back on the row', act() === r());
+      r().focus(); key(r(), 'ContextMenu'); await sleep(60); ok('#97 the Menu key does the same', !!$('.menu')); key(act(), 'ArrowDown'); key(act(), 'ArrowDown'); key(act(), 'ArrowDown'); ok('#97 Up and Down move through the menu', !!act().closest('.menu')); key(act(), 'Escape'); await sleep(40);
+      ok('#97 a right-click on a link, box or text being edited keeps the browser\'s own menu', (() => { const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); $('#fl').dispatchEvent(ev); return !ev.defaultPrevented && !$('.menu'); })());
+    }
+    /* a right click on a pick of two or more: the "N items" menu */
+    mouse(row(acts[0]).querySelector('td'), { ctrlKey: true }); mouse(row(acts[1]).querySelector('td'), { ctrlKey: true }); await sleep(40); ctx(row(acts[1]).querySelector('td')); await sleep(60);
+    { const t = $$('.menu [data-i], .menu .lab').map(o => o.textContent.trim().replace(/\s+/g, ' ')); ok('#196 right-click on a pick: the menu says "2 items" and offers the bar\'s actions and Copy IDs', $('.menu').getAttribute('aria-label') === '2 items' && t[0] === '2 items' && ['Close', 'Reopen', 'Status…', 'Owner…', 'Due date…', 'Priority…', 'Workstream…', 'Milestone…', 'Copy IDs'].every(x => t.includes(x)) && M.ids.length === 2, t.join(' | ')); }
+    await menuPick('Priority'); await sleep(60); ok('#196 a menu action opens its picker for all of them', !!$('.menu') && /Priority of 2 items/.test($('.menu').getAttribute('aria-label'))); await menuPick('Low'); await sleep(80);
+    ok('#196 and changes them in one step', acts.slice(0, 2).every(i => item(i).priority === 'Low') && $('#toastMsg').textContent === 'Changed 2 items.'); await undo(); await reset();
+    mouse(row(acts[0]).querySelector('td'), { ctrlKey: true }); mouse(row('PDF-003').querySelector('td'), { ctrlKey: true }); await sleep(40); ctx(row('PDF-003').querySelector('td')); await sleep(60);
+    ok('#196 right-click on a mixed pick: only Copy IDs, and a disabled line says why', $$('.menu [data-i]').length === 2 && $$('.menu [data-i]')[0].getAttribute('aria-disabled') === 'true' && /different kinds/.test($('.menu').textContent) && $$('.menu [data-i]')[1].textContent.trim() === 'Copy IDs'); key(act(), 'Escape'); await sleep(40); await reset();
+    mouse(row(acts[0]).querySelector('td'), { ctrlKey: true }); mouse(row(acts[1]).querySelector('td'), { ctrlKey: true }); await sleep(40); ctx(row(acts[2]).querySelector('td')); await sleep(60);
+    ok('#97 a right-click on a row outside the pick picks that row alone, and opens its own menu', M.ids.join() === acts[2] && $('.menu').getAttribute('aria-label') === `Actions for ${acts[2]}`); key(act(), 'Escape'); await sleep(40); await reset();
+    /* the board in full screen */
+    click($('[data-layout=board]')); await sleep(80); click($('#bFull')); await sleep(60);
+    { const cid = $$('#wlist [data-card]').map(c => c.dataset.card)[0]; ctx($(`[data-card="${cid}"]`)); await sleep(60); ok('#97 the menu opens on the board full screen too', document.body.classList.contains('bfull') && !!$('.menu') && $('.menu').getAttribute('aria-label') === `Actions for ${cid}`); key(act(), 'Escape'); await sleep(40); }
+    click($('#bFull')); await sleep(60); click($('[data-layout=table]')); await sleep(80);
+    C.help.open('ref-keys'); await sleep(140);
+    { const kr = $$('#hp-ref-keys tbody tr').map(r => r.textContent); ok('Help\'s keys table lists the arrows on rows, Right and Left, Space, the selection keys, the letter keys and Shift+F10', ['Home', '→', 'Space', 'Shift', 'F10'].every(w => kr.some(t => t.includes(w))) && kr.some(t => /O\s*S\s*P\s*T\s*C\s*V/.test(t))); }
+    for (const [id, word] of [['howto-change-several-work-items', /Select all N matching/], ['howto-hand-over-work', /Hand over to/], ['howto-right-click-a-work-item', /Draft email to/]]) { C.help.open(id); await sleep(140); ok(`Help has the task ${id.replace('howto-', '')}`, !!$('#hp-' + id) && word.test($('#hp-' + id).textContent)); }
+    click($('.tab[data-view=work]')); await sleep(80); await reset();
+    ok('the pick and pick mode are not left behind, and the demo data is as it was', !M.ids.length && !H.on && !$('#mbar .selbar') && item('PDF-A-012').status === 'Open' && item('PDF-A-012').owner === 'Sam Rivers');
+  });
+
   await step('import from Excel', async () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['ID', 'Type', 'Workstream', 'Title', 'Owner', 'Due', 'Status', 'Rating', 'Use case'], ['PDF-A-016', 'Action', 'Data platform', 'Load the second source system', 'Jo Ellis', '15-12-2026', 'In progress', '', '2.1'], ['', 'Risk', 'Vendor', 'Supplier capacity is limited', 'Sam Rivers', '01-12-2026', 'Open', 'Red', ''], ['', 'Action', '', '', '', '', '', '', '']]), 'Actions');

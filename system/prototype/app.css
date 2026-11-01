@@ -1486,3 +1486,34 @@ table.items.arch tr.arch { cursor: pointer; }
 .pv-tile .hpill { align-self: flex-start; }
 .pv-foot { font-size: 13px; margin: 14px 0 0; }
 @media (max-width: 700px) { .pv-tiles { grid-template-columns: 1fr 1fr; } .pv-tiles .pv-tile:first-child { grid-column: 1 / -1; } .pv-mark { font-size: 22px; } .pv-cover { padding: 18px 16px 14px; } }
+
+/* Several work items at once (#195, #196), Hand over (#199), the arrow-key cursor (#194) and the right-click menu (#97): multi.js */
+.group { position: relative; }
+.gtick-hit { position: absolute; left: 6px; top: 0; width: 32px; height: 44px; display: grid; place-items: center; cursor: pointer; z-index: 1; }
+.gtick { width: 16px; height: 16px; margin: 0; accent-color: var(--brand-blue); cursor: pointer; }
+.gtick:disabled { cursor: not-allowed; opacity: .45; } .gtick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.group .ghead { padding-left: 44px; }
+/* a picked row or card is shown by a tick mark before the title, a border and a tint (not by colour alone) */
+table.items tbody tr.picked td { background: var(--brand-blue-tint); }
+table.items tbody tr.picked td:first-child { box-shadow: inset 3px 0 0 var(--brand-blue); }
+.bcard.picked { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue), var(--shadow); background: var(--brand-blue-tint); }
+.mtick { flex: none; width: 18px; height: 18px; display: inline-grid; place-items: center; border-radius: 50%; background: var(--brand-blue); color: #fff; }
+.mtick svg { width: 12px; height: 12px; }
+.mtick.box { border-radius: 4px; background: var(--surface); border: 1.5px solid var(--control-border); } .mtick.box.on { background: var(--brand-blue); border-color: var(--brand-blue); }
+/* the cursor: a dotted outline on the row or card the arrow keys are on (the one Tab stop of the table), while the keyboard is in the list */
+table.items:focus-within tbody tr.cur { outline: 2px dotted var(--brand-blue); outline-offset: -2px; }
+table.items tbody tr.cur:focus-visible { outline-style: solid; }
+.board:focus-within .bcard.cur { outline: 2px dotted var(--brand-blue); outline-offset: 2px; } .bcard.cur:focus-visible { outline-style: solid; }
+/* the bar above the list while two or more are picked, and Hand over's bar */
+.selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 12px; margin-bottom: 12px; background: var(--brand-blue-tint); border: 1px solid var(--brand-blue); border-radius: var(--radius-lg); font-size: 14px; }
+.sb-n { font-weight: 500; color: var(--heading); }
+.sb-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.sb-a[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.sb-why { font-size: 13px; } .sb-x { margin-left: auto; }
+.sel-note { margin: -6px 0 10px; font-size: 13px; }
+.handbar .hb-to { display: inline-flex; align-items: center; gap: 8px; } .handbar .field { width: 220px; }
+.handbar .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.ctx-at { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ctx-sub { display: flex; align-items: center; width: 100%; gap: 12px; } .ctx-go { margin-left: auto; display: inline-flex; color: var(--text-muted); }
+.menu [role^=menuitem] > span > small { white-space: normal; max-width: 260px; }
+.pp-ho { margin-left: 10px; font-size: 13px; display: inline-flex; align-items: center; min-height: 24px; }
