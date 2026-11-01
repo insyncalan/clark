@@ -39,10 +39,10 @@ function Owner({ name }) {
 
 const active = signal("");                      // the id of the row that is the table's one tab stop
 
-// A cell the arrows reach: a picker's button (Edit) or the Client-visible eye (the page clark serves). `field` names it for "the same cell of the next row".
-const CELLS = "[data-cell], .weye";
+// A cell the arrows reach: a picker's button (Edit) or the Client-visible eye's button (Edit). `field` names it for "the same cell of the next row".
+const CELLS = "[data-cell], button.weye";
 const fieldOf = (c) => (c ? (c.dataset.cell ? c.dataset.cell.slice(c.dataset.cell.lastIndexOf(":") + 1) : "client") : "");
-const cellIn = (r, field) => (field === "client" ? r.querySelector(".weye") : field ? r.querySelector(`[data-cell$=":${field}"]`) : null);
+const cellIn = (r, field) => (field === "client" ? r.querySelector("button.weye") : field ? r.querySelector(`[data-cell$=":${field}"]`) : null);
 
 // The arrow keys inside the table. Only a key on a row or on a cell's own button: never one meant for an open picker.
 function keys(e, row) {
@@ -151,7 +151,7 @@ function Table({ rows, today, type, Cell, Eye }) {
                 <tr class="grp"><th colspan={n} scope="colgroup">
                   {on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
                   <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
-                    <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length}</span>
+                    <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
                 {shut ? null : <tr class="colh"><Heads eye={Eye} /></tr>}

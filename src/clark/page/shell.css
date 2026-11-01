@@ -560,7 +560,9 @@ table.items.grouped tr.grp th { padding: 10px 16px; border-top: 0; text-transfor
 table.items tbody tr.grp, table.items tbody tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: 8px; text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
-table.items .weye[aria-pressed="true"] { color: var(--status-blue-text); }
+table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
+table.items .weye.ro { display: inline-grid; place-items: center; color: var(--grey-500); cursor: default; }
+table.items .weye.ro .i { width: 16px; height: 16px; }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .grp-b .i { width: 14px; height: 14px; transition: transform var(--dur-instant) var(--ease-out); }

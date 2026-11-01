@@ -50,7 +50,7 @@ class Source(unittest.TestCase):
 
     def test_the_published_file_carries_no_eye_and_none_of_its_words(self):
         view = (PAGE / "page-view.html").read_text(encoding="utf-8")
-        for word in ("data-weye", "Client-visible", "hidden from the client.", "Select to show the client", "Not shown to the client"):
+        for word in ("Client-visible", "hidden from the client.", "Select to show the client", "Not shown to the client"):
             self.assertNotIn(word, view, f"the published file holds the editor's eye: {word!r}")
         editor = (PAGE / "page.html").read_text(encoding="utf-8")
         self.assertIn("Client-visible", editor, "the page clark serves has the eye")
@@ -61,6 +61,42 @@ class Source(unittest.TestCase):
         for op in ('op: "new"', 'op: "delete"', 'op: "pick"'):
             self.assertIn(op, eye)
         self.assertNotIn("client_visible:", eye, "the item's own flag is never written by the page directly")
+
+
+    def test_the_eye_is_a_button_in_edit_only_and_a_read_only_mark_with_words_in_view(self):
+        eye = (PAGE / "src" / "edit" / "cells" / "Eye.jsx").read_text(encoding="utf-8")
+        view = eye[eye.index('if (mode.value !== "edit")'):eye.index("  return (\n    <button")]
+        self.assertIn('role="img"', view)
+        self.assertIn("Shown to the client", eye)
+        self.assertIn("Hidden from the client", eye)
+        for word in ("<button", "onClick", "tabIndex", "aria-pressed", "go("):
+            self.assertNotIn(word, view, f"the View mark is not a control: {word!r}")
+        jsx = (PAGE / "src" / "components" / "WorkItems.jsx").read_text(encoding="utf-8")
+        self.assertIn('"button.weye"', jsx, "the arrows reach the eye's button only (there is none in View)")
+
+    def test_the_group_heading_says_how_many_items_in_words(self):
+        jsx = (PAGE / "src" / "components" / "WorkItems.jsx").read_text(encoding="utf-8")
+        self.assertIn('{c.rows.length} {c.rows.length === 1 ? "item" : "items"}', jsx)
+        self.assertNotRegex(jsx, r'<span class="gc num">\{c\.rows\.length\}</span>', "no bare number")
+
+    def test_help_has_the_letter_key_and_a_row_for_the_eye_column(self):
+        import json
+        src = json.loads((PAGE / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        sections = {x["id"]: x for x in src["reference"]["sections"]}
+        key = next(b for b in sections["status-words"]["b"] if b[0] == "tbl" and b[1][0] == "Letter")
+        rows = {r[0]: r[1] for r in key[3]}
+        self.assertEqual({k: v.split(" (")[0] for k, v in rows.items()},
+                         {"A": "Action", "R": "Risk", "I": "Issue", "D": "Decision", "S": "Assumption", "P": "Dependency"})
+        for k in ("S", "P"):
+            self.assertIn("waits for the owner", rows[k], f"{k} is not final yet and Help says so")
+        table = next(b for b in sections["work-items"]["b"] if b[0] == "tbl" and b[1][0] == "Table column")
+        eye = next(r for r in table[3] if r[0].startswith("The eye"))[1]
+        for phrase in ("In View it is a mark only", "in Edit", "client flag", "hidden list", "Sensitive"):
+            self.assertIn(phrase, eye)
+        item = next(r for r in table[3] if r[0] == "Item")[1]
+        self.assertNotIn("point at it", item, "a keyboard user cannot reach a tooltip; the key is in Help")
+        raw = (PAGE / "src" / "help" / "helpContent.json").read_bytes()
+        self.assertTrue(raw.endswith(b"}\n"), "helpContent.json keeps its final newline")
 
 
 class Letters(unittest.TestCase):
@@ -84,10 +120,10 @@ MEASURE = r"""(() => {
   const heads = [...document.querySelectorAll('#work table.items th')].filter((t) => !t.closest('tr.grp')).map((t) => t.textContent.trim());
   const cards = [...document.querySelectorAll('#work .wgroup')].map((c) => { const s = getComputedStyle(c), t = c.querySelector('table.items');
     return { bw: s.borderTopWidth, radius: parseFloat(s.borderTopLeftRadius), tables: c.querySelectorAll('table.items').length, groups: c.querySelectorAll('tbody[data-group]').length,
-             inside: !!t && t.getBoundingClientRect().right <= c.getBoundingClientRect().right + 1, head: !!c.querySelector('tr.grp .grp-b') }; });
+             inside: !!t && t.getBoundingClientRect().right <= c.getBoundingClientRect().right + 1, head: !!c.querySelector('tr.grp .grp-b'), count: (c.querySelector('tr.grp .gc') || {}).textContent, rows: c.querySelectorAll('tr[data-id]').length }; });
   const rows = [...document.querySelectorAll('#work tr[data-id]')].map((r) => { const k = r.querySelector('.c-item .kb'), e = r.querySelector('.c-eye .weye'), b = k && k.getBoundingClientRect();
     return { id: r.dataset.id, kind: r.dataset.kind, letter: k ? k.textContent : null, label: k ? k.getAttribute('aria-label') : null, title: k ? k.getAttribute('title') : null,
-             w: b ? Math.round(b.width) : 0, h: b ? Math.round(b.height) : 0, eye: e ? e.getAttribute('aria-pressed') : null, eyeLabel: e ? e.getAttribute('aria-label') : null,
+             w: b ? Math.round(b.width) : 0, h: b ? Math.round(b.height) : 0, eye: e ? (e.getAttribute('aria-pressed') || (e.classList.contains('on') ? 'true' : 'false')) : null, eyeTag: e ? e.tagName : null, eyeTab: e ? e.tabIndex : null, eyeLabel: e ? e.getAttribute('aria-label') : null,
              tag: !!r.querySelector('.tag.cl'), type: !!r.querySelector('.c-type') }; });
   const wide = [...document.querySelectorAll('#work table.items tbody td')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.className);
   return JSON.stringify({ heads, cards, rows, wide, sw: document.documentElement.scrollWidth, vw: innerWidth });
@@ -101,8 +137,14 @@ class Table(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(self.folder), True)
         self.addCleanup(self.store.close)
         self.path = self.folder / "clark.db"
+        self.sent = []
+        change, undo = changes.make_change(self.path, [], USER), changes.make_undo(self.path, [], USER)
+
+        def counted(*a, **k):
+            self.sent.append(a)
+            return change(*a, **k)
         self.s = Running(data_for=self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.page_html(EMPTY_BRANDING),
-                         change=changes.make_change(self.path, [], USER), undo=changes.make_undo(self.path, [], USER))
+                         change=counted, undo=undo)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
@@ -152,12 +194,16 @@ class Table(unittest.TestCase):
                         for c in got["cards"]:
                             self.assertEqual((c["bw"], c["tables"], c["groups"], c["head"], c["inside"]), ("1px", 1, 1, True, True), f"{where}: a group is a card of its own")
                             self.assertGreaterEqual(c["radius"], 8, where + ": the card is rounded")
+                            self.assertRegex(c["count"], r"^\d+ items?$", where + ": the heading says N items, not a bare number")
+                            if c["rows"]:
+                                self.assertEqual(c["count"], f"{c['rows']} item" + ("" if c["rows"] == 1 else "s"), where + ": one item, or N items")
                         kinds = set()
                         for r in got["rows"]:
                             kinds.add(r["kind"])
                             self.assertEqual((r["letter"], r["label"], r["title"]), (LETTERS[r["kind"]], WORDS[r["kind"]], WORDS[r["kind"]]), f"{where}: {r['id']}")
                             self.assertEqual((r["w"], r["h"]), (22, 22), f"{where}: {r['id']} badge is one 22 px square, never a broken word")
                             self.assertIn(r["eye"], ("true", "false"), f"{where}: {r['id']} has its eye")
+                            self.assertEqual(r["eyeTag"], "BUTTON" if mode == "edit" else "SPAN", f"{where}: a button in Edit, a read-only mark in View")
                             self.assertFalse(r["tag"] or r["type"], f"{where}: {r['id']} has no 'Shown to client' tag and no Type cell")
                         self.assertIn("dependency", kinds, where + ": the longest old Type word is on the page")
                         self.assertEqual(got["wide"], [], where + ": a cell has text wider than its box")
@@ -171,10 +217,27 @@ class Table(unittest.TestCase):
         self.assertTrue(got["TUL-A-002"]["eyeLabel"].startswith("Shown to the client: "))
         self.assertTrue(got["TUL-A-004"]["eyeLabel"].startswith("Not shown to the client: "))
 
-    def test_the_eye_turns_an_item_off_and_on_with_a_toast_and_undo_in_view(self):
-        ref, eye = "TUL-A-002", "tr[data-id='TUL-A-002'] .weye"
+    def test_the_eye_in_view_is_a_read_only_mark_and_a_click_changes_nothing(self):
+        eye = "tr[data-id='TUL-A-002'] .weye"
         with chrome() as cdp:
             sid = self.open(cdp, 1400)
+            got = json.loads(cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(eye)}); return JSON.stringify({{ tag: e.tagName, role: e.getAttribute('role'), label: e.getAttribute('aria-label'), tab: e.tabIndex, pressed: e.hasAttribute('aria-pressed'), buttons: document.querySelectorAll('#work .c-eye button').length }}); }})()", sid))
+            self.assertEqual((got["tag"], got["role"], got["pressed"], got["buttons"]), ("SPAN", "img", False, 0), "no button, no pressed state")
+            self.assertLess(got["tab"], 0, "not a focus stop")
+            self.assertTrue(got["label"].startswith("Shown to the client: "), "the mark has its words")
+            hid = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('#work .weye')].filter(e => e.getAttribute('aria-label').startsWith('Hidden from the client')).length)", sid))
+            self.assertGreater(hid, 0, "a hidden item says Hidden from the client")
+            click(cdp, sid, eye)
+            cdp.js("new Promise((r) => setTimeout(r, 400))", sid)
+            self.assertEqual(self.hidden(), set(), "a click in View hides nothing")
+            self.assertEqual(self.sent, [], "a click in View sends no request")
+            self.assertEqual(cdp.js("document.querySelector('.toast-text') ? 1 : 0", sid), 0, "no toast")
+            self.assertTrue(cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-label').startsWith('Shown to the client')", sid), "the mark is unchanged")
+
+    def test_the_eye_in_edit_turns_an_item_off_and_on_with_a_toast_and_undo(self):
+        ref, eye = "TUL-A-002", "tr[data-id='TUL-A-002'] .weye"
+        with chrome() as cdp:
+            sid = self.open(cdp, 1400, "edit")
             self.assertEqual(self.hidden(), set())
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'false'", sid)), "the eye turned off")
@@ -194,7 +257,7 @@ class Table(unittest.TestCase):
     def test_the_eye_turns_an_item_on_by_its_own_flag_and_refuses_a_sensitive_one_in_words(self):
         eye = "tr[data-id='TUL-A-004'] .weye"
         with chrome() as cdp:
-            sid = self.open(cdp, 1400)
+            sid = self.open(cdp, 1400, "edit")
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", sid)), "the eye turned on")
             mine = {r["id"]: r for r in self.read("TUL")["actions"]}
@@ -204,15 +267,27 @@ class Table(unittest.TestCase):
                             "a Sensitive item is refused in plain words")
             self.assertEqual(cdp.js("document.querySelector(\"tr[data-id='TUL-A-001'] .weye\").getAttribute('aria-pressed')", sid), "false")
 
-    def test_the_arrow_keys_reach_the_eye_and_the_table_stays_one_tab_stop(self):
+    def test_the_arrow_keys_reach_the_eye_in_edit_and_the_table_stays_one_tab_stop(self):
         with chrome() as cdp:
-            sid = self.open(cdp, 1400)
+            sid = self.open(cdp, 1400, "edit")
             stops = cdp.js("[...document.querySelectorAll('#work table.items *')].filter(e => e.tabIndex >= 0 && !e.disabled && !e.closest('tr.grp')).length", sid)
             self.assertEqual(stops, 1, "one tab stop")
             cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
+            for _ in range(8):
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "ArrowRight", "code": "ArrowRight", "windowsVirtualKeyCode": 39}, sid)
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "ArrowRight", "code": "ArrowRight", "windowsVirtualKeyCode": 39}, sid)
+                if cdp.js("document.activeElement.classList.contains('weye')", sid):
+                    break
+            self.assertEqual(cdp.js("document.activeElement.className", sid), "ib weye", "Right along a row, in Edit, reaches the eye")
+
+    def test_the_arrow_keys_in_view_stay_on_the_row_and_the_eye_is_no_stop(self):
+        with chrome() as cdp:
+            sid = self.open(cdp, 1400)
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#work .c-eye *')].filter(e => e.tabIndex >= 0).length", sid), 0, "the eye column holds no focus stop")
+            cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "ArrowRight", "code": "ArrowRight", "windowsVirtualKeyCode": 39}, sid)
             cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "ArrowRight", "code": "ArrowRight", "windowsVirtualKeyCode": 39}, sid)
-            self.assertEqual(cdp.js("document.activeElement.className", sid), "ib weye", "Right from a row, in View, reaches the eye")
+            self.assertFalse(cdp.js("document.activeElement.classList.contains('weye')", sid), "no eye to reach in View")
 
     def test_a_published_file_has_no_eye_and_no_client_column(self):
         import _publish_fixture as fx
@@ -239,7 +314,6 @@ class Table(unittest.TestCase):
             self.assertFalse(cdp.js("!!document.querySelector('.weye, .c-eye, .tag.cl')", sid))
             self.assertGreater(len(got["cards"]), 0)
             html = path.read_text(encoding="utf-8")
-            self.assertNotIn("data-weye", html)
             self.assertNotIn("Client-visible", html)
 
 
