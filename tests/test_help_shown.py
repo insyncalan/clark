@@ -97,14 +97,22 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "at-a-glance", "layouts", "work-items", "status-words", "picker",
+                          "milestone-states", "excel", "dates-and-ids", "using-help", "keys", "icons"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 22 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
-        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
+
+    def test_every_link_inside_the_shown_help_goes_to_a_shown_place(self):
+        """A link in a shown entry never points at an entry that is still held (it would go nowhere)."""
+        places = {"ref-" + x["id"] for x in SHOWN["reference"]["sections"]} | {"howto-" + x["id"] for x in SHOWN["howto"]["tasks"]}
+        places |= {"start-" + p for p in SHOWN["start"]["parts"]}
+        links = set(re.findall(r"\]\(#([a-z0-9-]+)\)", json.dumps(SHOWN)))
+        self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
         self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (27, 30, 22))

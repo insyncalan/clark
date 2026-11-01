@@ -663,7 +663,7 @@
      [
       "ul",
       [
-       "**Publish…**: the Publish box, on the Dashboard. See [Publishing](#ref-publishing).",
+       "**Publish…**: the Publish box, on the Dashboard.",
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
        "**Settings**.",
@@ -897,19 +897,19 @@
       [
        [
         "Slim gaps (standard)",
-        "Each section is its own card, with a slim gap that shows the page picture."
+        "Sections close together, divided by a thin line."
        ],
        [
         "Roomy gaps",
-        "The same, with more space between the sections."
+        "More space between sections."
        ],
        [
         "Grey headers",
-        "Slim gaps, and each section title in a grey band."
+        "Each section’s title sits on a grey band."
        ],
        [
         "One card",
-        "All the sections in one long card."
+        "All the sections inside a single card."
        ]
       ]
      ]
