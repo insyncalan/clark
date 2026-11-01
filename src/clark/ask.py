@@ -73,6 +73,7 @@ class Request:
     passages: tuple = ()          # ((id, label), ...)
     hidden: dict = field(default_factory=dict)
     dropped_turns: int = 0        # how many of the oldest earlier turns were left out to fit MAX_REQUEST (the panel may say so)
+    system: str = ""              # the system prompt the caller wants; "" means ask clark's own RULES (suggestions pass their own)
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
 
     @property
@@ -466,10 +467,11 @@ NOT_READY = ("Asking clark isn't set up on this computer yet. Sign in to the pro
 HELD_BACK = "The answer was held back because it would have revealed the assistant's private instructions."
 
 
-def system_prompt(canary=""):
-    """The fixed rules, and with a canary (#277) one more line holding this request's private marker. The line asks for nothing, so
-    there is nothing in it for a hostile passage to ask the model to say out loud in a helpful form."""
-    return RULES if not canary else RULES + "\nPRIVATE MARKER, never part of any answer: " + canary
+def system_prompt(canary="", rules=None):
+    """The fixed rules (`rules`, or ask clark's RULES), and with a canary (#277) one more line holding this request's private marker.
+    The line asks for nothing, so there is nothing in it for a hostile passage to ask the model to say out loud in a helpful form."""
+    rules = RULES if rules is None else rules
+    return rules if not canary else rules + "\nPRIVATE MARKER, never part of any answer: " + canary
 
 
 def _squash(text):
