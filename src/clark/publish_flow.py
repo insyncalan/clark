@@ -27,7 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-from clark import milestones, page, platform, publish, to_client
+from clark import changes, milestones, page, platform, publish, section_files, to_client
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -151,17 +151,19 @@ class Publisher:
     never be in)."""
 
     def __init__(self, db_path, onedrive_roots=None, *, fs=None, choose_save_file=None, choose_folder=None, today=None,
-                 by_user=None, data_dir=None, branding=None, backups_dir=None):
+                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.fs = fs or to_client.RealFs()
         self.choose_save_file = choose_save_file or platform.choose_save_file
         self.choose_folder = choose_folder or platform.choose_folder
+        self.choose_open_file = choose_open_file or platform.choose_open_file      # #96: a file for a section template
         self.today = today or milestones.today
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
-        self.lock = threading.Lock()          # one publish at a time
+        self.add_section_file = changes.make_section_file(self.db_path, self.onedrive_roots, self.by_user)   # #96: the step that adds a copied file
+        self.lock = threading.Lock()          # one publish at a time (and one file for a section: section_files.py)
         self.previews, self.preview_lock = {}, threading.Lock()      # {nonce: (bytes, time made)}: in memory only
 
     def store(self):
@@ -197,7 +199,7 @@ class Publisher:
         want_client, confirmed = asked["to_client"], asked["confirmed"]
         today = str(self.today())
         try:
-            built = publish.build(store, code, today, self.branding)
+            built = publish.build(store, code, today, self.branding, body.get("section_style"))
         except publish.PublishError as e:
             return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
         week = built["project"]["week_ending"]
@@ -224,7 +226,7 @@ class Publisher:
             # The Save window may have been open a while. What the client is to get is made again now, so a flag turned off
             # meanwhile is honoured; if anything differs, every check before the copy runs again on the new file.
             try:
-                again = publish.build(store, code, today, self.branding)
+                again = publish.build(store, code, today, self.branding, body.get("section_style"))
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
             # The client folder is checked again whether or not the file changed: it may have been swapped for a link (or
@@ -396,6 +398,12 @@ class Publisher:
         return 200, {"ok": True, "changed": True, "folder": folder, "folder_name": to_client.folder_name(folder),
                      "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"]}
 
+    # ----- a file for a section template (#96) -----
+    def section_file(self, body):
+        """POST /api/section-file {project, section}: the system's Open dialog, the copy into the client folder's "Report files"
+        folder and the step that adds the file to the section (section_files.py has the rules)."""
+        return section_files.attach(self, body)
+
     # ----- preview and export (#147) -----
     def preview(self, body):
         """POST /api/preview {project}: the published page as publish would make it (publish.build), kept in memory for one visit
@@ -408,7 +416,7 @@ class Publisher:
             if store.read("projects", ref=code) is None:
                 return 404, self.fail("project_not_found")
             try:
-                built = publish.build(store, code, str(self.today()), self.branding)
+                built = publish.build(store, code, str(self.today()), self.branding, body.get("section_style"))
             except publish.PublishError as e:
                 return 409, self.fail("preview_not_made", MESSAGES["preview_not_made"].format(reason=made_words(e)))
         finally:

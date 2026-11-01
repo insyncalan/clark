@@ -1,0 +1,193 @@
+"""#42: the peek's Activity tab (Edit only), the rule the peek follows with multi-select, and the peek's text contrast.
+Run: PYTHONPATH=../src python3 test_peek_activity.py
+
+Part 1 is the rule `peekFollowsSelection` (page/src/peek/follow.js), run in node when node is on the machine. Part 2 reads the
+built pages: the Activity tab and its route are in the served page and in no published file. Part 3 measures the peek's text
+colours against its backgrounds from the committed tokens, light and dark (4.5:1). Part 4 is the page in a real browser at 1400
+and 900 px: in Edit the Activity tab shows who, how and when, newest first, by mouse and by keys; View has no tabs.
+"""
+import json
+import re
+import shutil
+import subprocess
+import time
+import unittest
+
+from _paths import ROOT
+
+from clark import activity_read, page  # noqa: E402
+from test_dark_contrast import dark_blocks, ratio  # noqa: E402
+import test_peek as tp  # noqa: E402
+from test_peek import key  # noqa: E402
+from test_server import chrome, wait  # noqa: E402
+from test_work_filters import click, dblclick  # noqa: E402
+
+SRC = ROOT / "src" / "clark" / "page" / "src"
+TOKENS = ROOT / "src" / "clark" / "brand" / "tokens.css"
+
+
+class MissingItem(unittest.TestCase):
+    def test_an_item_the_open_data_lacks_says_so_and_not_could_not_be_read(self):
+        api = (SRC / "edit" / "activityApi.js").read_text(encoding="utf-8")
+        tab = (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
+        self.assertIn("r.status === 404", api)
+        self.assertIn("got.missing", tab)
+        self.assertIn("may be archived", tab)
+        self.assertIn("Press ", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))
+        self.assertIn("Cmd+Enter", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))
+
+
+class FollowRule(unittest.TestCase):
+    def run_js(self, body):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("no node")
+        code = f'import {{ peekFollowsSelection as F }} from "{(SRC / "peek" / "follow.js").as_uri()}"; {body}'
+        done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
+    def test_two_or_more_close_an_open_peek_one_moves_it_and_none_leaves_it(self):
+        out = self.run_js('console.log(JSON.stringify([F(0, true), F(1, true), F(2, true), F(7, true), '
+                          'F(0, false), F(1, false), F(2, false), F(-1, true), F(NaN, true), F(1.5, true)]))')
+        self.assertEqual(out, ["stay", "follow", "close", "close", "none", "none", "none", "stay", "stay", "stay"])
+
+    def test_the_peek_state_module_exposes_it_and_the_rule_is_written_down(self):
+        self.assertIn('export { peekFollowsSelection } from "../peek/follow.js"', (SRC / "stores" / "peekState.js").read_text(encoding="utf-8"))
+        doc = (ROOT / "docs" / "handoff" / "design-42-peek.md").read_text(encoding="utf-8")
+        self.assertIn("peekFollowsSelection(count, peekOpen)", doc)
+        self.assertIn("With 2 or more selected, an open peek closes", doc)
+
+
+class BuiltPages(unittest.TestCase):
+    def test_the_activity_tab_is_in_the_served_page_only(self):
+        served, view = page.PAGE.read_text(encoding="utf-8"), page.VIEW_PAGE.read_text(encoding="utf-8")
+        for word in ("/api/activity", "data-activity", "Reading the history", "Item details and history"):
+            self.assertIn(word, served, word)
+            self.assertNotIn(word, view, word)
+
+    def test_help_names_the_tab_that_is_there_and_one_name_for_sneak_peek(self):
+        text = (SRC / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertNotIn("**All**, **Activity**, **Updates** and **Source**", text)
+        self.assertNotIn("All, Activity, Updates and Source", text)
+        self.assertIn("**Activity** tab", text)
+        self.assertNotIn("Change an item in words", text)
+        self.assertIn("Change an item with words", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))
+
+
+def light_tokens(css):
+    """The light values: every #hex token set before the first dark block (a later one wins)."""
+    head = css.split(":root[data-theme=dark]")[0]
+    out = {}
+    for name, value in re.findall(r"(--[\w-]+):\s*(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3})\b", head):
+        out[name] = ("#" + "".join(c * 2 for c in value[1:]) if len(value) == 4 else value).upper()
+    return out
+
+
+# (text token, background token): the peek's fields, its tabs, the Activity rows and the words box.
+PAIRS = (("--text", "--surface"), ("--text-muted", "--surface"), ("--heading", "--surface"), ("--status-green-text", "--surface"),
+         ("--status-red-text", "--surface"), ("--text", "--grey-50"), ("--text-muted", "--grey-50"), ("--status-red-text", "--grey-50"))
+
+
+class Contrast(unittest.TestCase):
+    def test_the_peek_text_is_at_least_4_5_to_1_in_light_and_dark(self):
+        css = TOKENS.read_text(encoding="utf-8")
+        modes = [("light", light_tokens(css))] + [("dark", b) for b in dark_blocks(css)]
+        for mode, tokens in modes:
+            for fg, bg in PAIRS:
+                with self.subTest(mode=mode, fg=fg, bg=bg):
+                    self.assertGreaterEqual(ratio(tokens[fg], tokens[bg]), 4.5, f"{mode}: {fg} on {bg}")
+
+    def test_the_activity_styles_use_only_those_tokens(self):
+        css = (SRC / "edit" / "edit.css").read_text(encoding="utf-8")
+        mine = "\n".join(line for line in css.splitlines() if line.startswith((".pa-", ".pk-tab", ".pk-activity")))
+        used = set(re.findall(r"(?<![\w-])color:\s*var\((--[\w-]+)\)", mine))
+        self.assertTrue(used)
+        self.assertTrue(used <= {fg for fg, _ in PAIRS}, used)
+
+
+class ActivityBrowser(unittest.TestCase):
+    setUpClass = tp.Browser.__dict__["setUpClass"]
+    tearDownClass = tp.Browser.__dict__["tearDownClass"]
+    edit_mode = tp.Browser.edit_mode
+    ids_on_page = tp.Browser.ids_on_page
+
+    def load_page(self, cdp, width):
+        s, sid = tp.Browser.load_page(self, cdp, width)
+        s.httpd.activity = activity_read.make_read(self.store.path, self.store.data_for)
+        return s, sid
+
+    def test_edit_shows_who_how_and_when_newest_first_by_mouse_and_keys_and_view_has_no_tabs(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                s, sid = self.load_page(cdp, width)
+                ids = self.ids_on_page(cdp, sid)
+                dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                self.assertFalse(cdp.js("!!document.querySelector('#peek [role=tablist],[data-activity]')", sid), "no tabs in View")
+                key(cdp, sid, "Escape")
+                self.edit_mode(cdp, sid)
+                dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
+                click(cdp, sid, "[data-pk-tab=activity]")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-activity-row]').length", sid) > 0))
+                self.assertEqual(cdp.js("document.querySelector('[data-pk-tab=activity]').getAttribute('aria-selected')", sid), "true")
+                first = cdp.js("document.querySelector('[data-activity-row] .pa-meta').textContent", sid)
+                self.assertRegex(first, r"\d{2}-\d{2}-\d{4}", "the when is a date the person reads")
+                self.assertNotIn("{", cdp.js("document.querySelector('[data-activity]').textContent", sid), "no raw JSON")
+                stamps = cdp.js("Array.from(document.querySelectorAll('[data-activity-row] .pa-meta')).map(e => (e.textContent.match(/\\d{2}-\\d{2}-\\d{4}( \\d{2}:\\d{2})?/) || [''])[0])", sid)
+                keys = [(s[6:10], s[3:5], s[0:2], s[11:]) for s in stamps]
+                self.assertEqual(keys, sorted(keys, reverse=True), "newest first, in the browser")
+                # the keys: Left goes back to Details, focus stays on the tabs
+                cdp.js("document.querySelector('[data-pk-tab=activity]').focus()", sid)
+                key(cdp, sid, "ArrowLeft")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields')", sid)))
+                self.assertEqual(cdp.js("document.activeElement.dataset.pkTab", sid), "details")
+                self.assertFalse(cdp.js("!!document.querySelector('[data-activity]')", sid))
+
+    def peek_stays(self, cdp, sid, item, rows=True):
+        """The peek is still open on `item` well after the router's 400 ms Back fallback, with Activity rows if asked."""
+        time.sleep(0.9)
+        self.assertEqual(cdp.js("document.querySelector('#peek') && document.querySelector('#peek').dataset.peek", sid), item, "the peek vanished")
+        self.assertIn("item=" + item, cdp.js("location.hash", sid))
+        if rows:
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-activity-row]').length", sid) > 0))
+
+    def test_closing_and_reopening_at_once_keeps_the_peek_and_its_activity_back_forward_and_reload(self):
+        """The Activity tab made the peek vanish: Esc steps Back and, 400 ms later, a fallback rewrote the address if it looked
+        unmoved. Reopening the same item within that time looked unmoved, so the fallback closed the peek just opened."""
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    s, sid = self.load_page(cdp, width)
+                    cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": theme}]}, sid)
+                    ids = self.ids_on_page(cdp, sid)
+                    one = f"#work tbody tr[data-id='{ids[0]}'] .c-item"
+                    dblclick(cdp, sid, one)                                    # open in View, close with Esc, at once into Edit
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                    key(cdp, sid, "Escape")
+                    self.edit_mode(cdp, sid)
+                    dblclick(cdp, sid, one)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
+                    click(cdp, sid, "[data-pk-tab=activity]")
+                    self.peek_stays(cdp, sid, ids[0])
+                    # in Edit, Esc and the same row clicked again at once (the same address within 400 ms): still open
+                    key(cdp, sid, "Escape")
+                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid), 2))
+                    dblclick(cdp, sid, one)
+                    self.peek_stays(cdp, sid, ids[0], rows=False)
+                    # Back closes it, Forward brings it back with its Activity tab
+                    cdp.js("history.back()", sid)
+                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
+                    cdp.js("history.forward()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
+                    click(cdp, sid, "[data-pk-tab=activity]")
+                    self.peek_stays(cdp, sid, ids[0])
+                    # a reload with &item= in the address opens the peek (in View, as every reload is), and it stays
+                    cdp.call("Page.reload", {}, sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                    self.peek_stays(cdp, sid, ids[0], rows=False)
+
+
+if __name__ == "__main__":
+    unittest.main()

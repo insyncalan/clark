@@ -2,6 +2,7 @@
 // these routes, so the published page (view.jsx) has no way to publish and no mention of them. Nothing here names a folder or a
 // file: the client folder is the one saved in Settings, which the server reads itself.
 import { token, plain } from "../stores/report.js";
+import { style } from "../stores/style.js";
 
 // {status, body}: never a throw, whatever the network or the server did. A status of 0 is "no answer".
 async function call(method, path, body) {
@@ -15,9 +16,10 @@ async function call(method, path, body) {
   }
 }
 
-export const publishRequest = (body) => call("POST", "/api/publish", body);
+// The report is published, and previewed, in the section style chosen in Settings › Personal: it goes with the request and the file carries it.
+export const publishRequest = (body) => call("POST", "/api/publish", { ...body, section_style: style.value });
 export const folderRequest = (project, action) => call("POST", "/api/client-folder", { project, action });
-export const previewRequest = (project) => call("POST", "/api/preview", { project });
+export const previewRequest = (project) => call("POST", "/api/preview", { project, section_style: style.value });
 export const latestRequest = (project) => call("GET", `/api/publication?project=${encodeURIComponent(project)}`);
 
 // The words for a reply. The publish routes write plain words themselves (to_client.py and publish_flow.py: a test pins that none
@@ -48,3 +50,13 @@ export async function exportRequest(project) {
     return { status: 0, body: null, blob: null, name: "" };
   }
 }
+// The folders asking may read (#47): GET /api/ask-folders?project= and POST /api/ask-folders {project, action: "add" | "remove",
+// path}; "choose" opens the system's folder window on the server (no path from the page). The server checks a folder and saves it; a server without this route answers 404, which the page says in plain words.
+export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
+export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
+export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
+
+// Asking's on/off switch for this computer (#47), kept in the database. GET /api/ask-enabled answers {ok, ask_enabled, saved}; POST
+// takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
+export const askEnabledRead = () => call("GET", "/api/ask-enabled");
+export const askEnabledChange = (enabled) => call("POST", "/api/ask-enabled", { enabled });

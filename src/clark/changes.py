@@ -19,24 +19,34 @@ What it does, and does not:
   needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type; each save replaces
   the whole body in one step with one Undo. A needs or tracker section may be deleted like a text one (Undo-able, kept in
   change_log): "we archive, we never delete" is about work items and is not breached.
+- #96 R1, pictures: a section template that holds pictures (its section_kinds module has `with_picture`) never takes one through
+  /api/change: a body sent there may not name `pictures`, may be at most the module's TEXT_LIMIT, and keeps the pictures already
+  stored (read inside the step). A picture is set or taken out only by POST /api/section-image (`section_image(req)`): one slot,
+  read and written in one step with one Undo; the picture is checked by the template's own rules (PNG, JPEG or WebP only, its
+  first bytes, its size, no camera details) before the step and again by the store's checker on write.
+- #96: make_section_file adds a file that section_files.py copied into the client folder to a Documents and links or One document
+  section, as one step with one Undo; its request is made by clark, not by the page (it is no op of /api/change).
 
 `change(req)` and `undo(req)` return (status, body); the server sends them. make_change / make_undo build them for one
 database file; the launcher passes those to server.serve. Standard library only, Python 3.9.
 """
+import json
 import re
 import threading
+from contextlib import contextmanager
 import unicodedata
 from datetime import date
 from pathlib import Path
 
-from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies
+from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
 from clark import store as clark_store
+from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
 
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
 # "update" or "delete" string anywhere in src/ as SQL (its check is case-blind until #39's case-sensitive version merges), and
 # these are not SQL: no op here is ever put in a statement.
-NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK = "new update move delete archive restore pick".split()
+NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK = "new update move delete archive restore pick bulk".split()
 
 # The allow-list: kind -> op -> the fields a request may give (`values` for new, `changes` for update). A field must also
 # be a column of the table (tests/test_changes.py asserts it for each). sort_order, project, id and type (after creation)
@@ -93,6 +103,11 @@ CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", 
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone")   # raised, status or source
 CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by")      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
+# #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
+# are here (its priority is worked out from them); a decision takes only who makes it.
+CHANGE_KINDS["actions"][BULK] = ("status", "owner", "due_date", "priority", "workstream", "milestone")
+CHANGE_KINDS["raid"][BULK] = ("status", "owner", "due_date", "impact", "likelihood", "workstream", "milestone")
+CHANGE_KINDS["decisions"][BULK] = ("made_by",)
 for _kind in ARCHIVABLE:                              # #126: every record can be archived and restored, with no fields; the items keep their update
     CHANGE_KINDS.setdefault(_kind, {}).update({ARCHIVE: (), RESTORE: ()})
 ITEM_KINDS = ("actions", "raid", "decisions")        # the work items; every other kind is a report section
@@ -107,13 +122,18 @@ ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in 
 FLAG_FIELDS = ("hidden", "beside")        # 0 or 1 only: a bool, a float, a string or any other number is refused
 BASE_KEYS = ("project", "kind", "op", "place")
 OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before", "flags"), DELETE: ("id",),
-           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",)}
+           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm")}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
+MAX_BULK = 500                            # #196: a bulk change names at most this many items (the body limit allows about this many)
+BULK_CONFIRM_ABOVE = 25                   # #196: more items than this need the request's `confirm`, counting every id sent
+BULK_PLACE = "bulk"                       # #196: the store's place for a bulk change ("in the table" in the history)
 MAX_FLAGS = 4                             # a move may set the `beside` of at most this many sections (the moved one, its old partner, its new one, the one before)
-PLACES = tuple(p for p in ("menu", "cell", "report", "board") if p in clark_store.PLACES)   # where the change was made (the step's place); "board" counts once the store knows it
+PLACES = tuple(p for p in ("menu", "cell", "report", "board", "peek", "eye", "draft", "email", "text") if p in clark_store.PLACES)   # where the page says the change was made (the step's place); #123: + peek, eye, draft, email, text. Not bulk, dashboard, excel or ask: no screen of the page is those (ask clark and Excel import write through their own routes)
 MOVEMENT_PLACE = "movement"               # #136: a Movement change is written as place "dashboard" with the src_ref "Movement" (no schema change)
 MADE_OP = clark_store.OP_MADE            # the log's word for a row a step made: the store's own constant
 VIA = "dashboard"                         # the route of every step made here; an undo is never undone from here
+ASSISTANT = "assistant"                   # #47e: the route of a step ask clark makes (make_ask_change); history says "via ask clark"
+ASK_ACTOR = "clark"                       # #47e: and its actor (store.ACTORS)
 SHOWN = ("id", "type", "title", "beside", "hidden", "sort_order")      # what a reply says of a section: never its body
 DEFAULT_TITLE = "New section"             # the title of a section added with none (server side: the page need not send one)
 LOCK = threading.Lock()                   # one change or undo at a time in this process; across processes the store's
@@ -143,6 +163,17 @@ PICK_TOO_MANY = f"Choose at most {MAX_PICK} items at a time."
 PICK_NOT_HIDDEN = "One of those is already on the page. Reload the page and try again."
 PICK_SENSITIVE = "A Sensitive item is never published, so it can't be added to the report."
 PICK_ARCHIVED = "One of those is archived. Restore it first."
+BULK_NOTHING = "Choose at least one item to change."
+BULK_TOO_MANY = f"Choose at most {MAX_BULK} items at a time."
+BULK_KINDS = "These items are of different kinds."
+BULK_PROJECTS = "These items are in different projects."
+BULK_CONFIRM = "Send confirm as true or false."
+BULK_ARCHIVED = "It is archived. Restore it first."
+BULK_DECIDED = "It has been made or withdrawn, so who made it stays as recorded. Record a new decision instead."
+DECIDED = ("Made", "Withdrawn")              # #196: a decision with one of these keeps its `made_by` in a bulk change
+BULK_GONE = "It isn't in this project now. Reload the page."
+BULK_NONE_CAN = "Nothing changed: none of these items can take that change."
+BULK_ALREADY = "Nothing changed: they already have that."
 ITEM_KEEPS_TYPE = "A work item keeps its type."
 NO_ARCHIVE = "An item can't be archived by editing its details. Archiving isn't available from the page yet. Ask the clark team if you need an item hidden now."
 NO_RAID_PRIORITY = "A risk or issue's priority comes from its impact and likelihood. Change those in its details."
@@ -206,9 +237,10 @@ NOT_OPENED = "clark's data could not be opened"
 class Refused(Exception):
     """A request clark won't act on: the status, and the plain words a person reads."""
 
-    def __init__(self, message, status=400, code="refused"):
+    def __init__(self, message, status=400, code="refused", extra=None):
         super().__init__(message)
         self.message, self.status, self.code = message, status, code
+        self.extra = dict(extra or {})          # #196: more for the page (a bulk change's left-out items); never replaces the three
 
 
 def _shown(name):
@@ -257,7 +289,8 @@ def _shape(req):
                 raise Refused(INVALID_LAYOUT)
             raise Refused(f"That change doesn't take '{_shown(k)}'.")
     place = req.get("place")
-    if place is not None and (not isinstance(place, str) or place not in PLACES + ((MOVEMENT_PLACE,) if (kind, op) == ("milestones", UPDATE) else ())):
+    if place is not None and (not isinstance(place, str) or place not in PLACES + ((MOVEMENT_PLACE,) if (kind, op) == ("milestones", UPDATE) else ())
+                              + ((BULK_PLACE,) if op == BULK else ())):
         raise Refused(BAD_PLACE)
     return project, kind, op, place
 
@@ -352,13 +385,108 @@ def _section_body(section, body):
     """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
     (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
     takes a body here; a text section's body write stays closed until its own item opens it. A refusal is plain words and never
-    quotes the content. The store checks it again on write (every write, an Undo too)."""
+    quotes the content. The store checks it again on write (every write, an Undo too). A section that holds pictures (#96 R1)
+    takes its words here and keeps its stored pictures (_keep_pictures)."""
     if section["type"] not in section_bodies.CHECKERS:
         raise Refused(NO_BODY_HERE)
     try:
+        if _picture_kind(section["type"]) is not None:
+            return _keep_pictures(section, body)
         return clark_store.check_section_body(section["type"], body)
     except Invalid as e:
         raise Refused(str(e)) from None
+
+
+# ── Pictures in a section template (#96 R1) ───────────────────────────────────
+
+PICTURES = "pictures"                     # the one field of a picture template's body that only POST /api/section-image sets
+IMAGE_KEYS = ("project", "section", "slot", "image", "place")
+NO_PICTURE_HERE = "That section can't hold a picture."
+PICTURE_NOT_TEXT = "Send the picture as text, or nothing to take it out."
+WORDS_TOO_LONG = "That text is too long to save. Shorten it and try again."
+
+
+def _picture_kind(kind):
+    """The section_kinds module of a template that holds pictures (it has `with_picture`), or None."""
+    module = section_kinds.REGISTRY.get(kind)
+    return module if module is not None and callable(getattr(module, "with_picture", None)) else None
+
+
+def _stored_value(section):
+    """The stored body of a section as a value (None when it has none, or when it no longer checks: then it starts afresh)."""
+    try:
+        text = clark_store.check_section_body(section["type"], section.get("body") or "")
+    except Invalid:
+        return None
+    return json.loads(text) if text else None
+
+
+def _keep_pictures(section, body):
+    """A picture template's words from /api/change, with the pictures already stored kept: the sent body is checked on its own
+    (it may not name `pictures`, and is at most the template's TEXT_LIMIT), then the stored pictures are put back and the whole
+    is checked again. The pictures are read from the row read inside the step, so a picture added meanwhile is never lost."""
+    module = _picture_kind(section["type"])
+    if len(body) > module.TEXT_LIMIT:
+        raise Refused(WORDS_TOO_LONG)
+    text = clark_store.check_section_body(section["type"], body)
+    value = json.loads(text) if text else {"v": 1}
+    if type(value) is not dict:
+        raise Refused(section_bodies.NOT_READABLE)
+    if PICTURES in value:
+        raise Refused(pictures.PICTURES_OWN_WAY)
+    stored = _stored_value(section)
+    if type(stored) is dict and stored.get(PICTURES):
+        value[PICTURES] = stored[PICTURES]
+    return clark_store.check_section_body(section["type"], section_bodies.canonical(value))
+
+
+def _do_section_image(store, by_user, req):
+    """POST /api/section-image: {project, section, slot, image, place}. Sets the picture in one slot of a picture template (or
+    takes it out when `image` is null), as one step with one Undo. The picture is checked by the template's own rules before the
+    step (pictures.picture: a PNG, JPEG or WebP data address, its first bytes, its size, no camera details) and
+    the whole body again by the store's checker on write. The reply is the change route's: apply_id, ref and the sections."""
+    if not isinstance(req, dict):
+        raise Refused(NOT_JSON_OBJECT)
+    for k in req:
+        if k not in IMAGE_KEYS:
+            raise Refused(f"A picture request doesn't take '{_shown(k)}'. Reload the page and try again.")
+    project = req.get("project")
+    if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
+        raise Refused(BAD_PROJECT, code="bad_project_code")
+    place = req.get("place", "report")
+    if not isinstance(place, str) or place not in PLACES:
+        raise Refused(BAD_PLACE)
+    ref, slot, image = req.get("section"), req.get("slot"), req.get("image")
+    if not isinstance(ref, str):
+        raise Refused(NOT_MINE)
+    if not isinstance(slot, str):
+        raise Refused(pictures.BAD_SLOT)
+    if image is not None and not isinstance(image, str):
+        raise Refused(PICTURE_NOT_TEXT)
+    if store.read("projects", ref=project) is None:
+        raise Refused(NO_PROJECT, 404, "project_not_found")
+    table = "report_sections"
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the body read next is the body written
+        rows = _sections(store, project)
+        _mine(ref, [r["id"] for r in rows], NOT_MINE)
+        section = next(r for r in rows if r["id"] == ref)
+        module = _picture_kind(section["type"])
+        if module is None:
+            raise Refused(NO_PICTURE_HERE)
+        try:
+            if image is not None:
+                pictures.picture(image, module.PICTURE_MAX)
+            value = module.with_picture(_stored_value(section), slot, image)
+        except section_base.Bad as e:
+            raise Refused(str(e)) from None
+        try:
+            body = clark_store.check_section_body(section["type"], section_bodies.canonical(value))
+        except Invalid as e:
+            raise Refused(str(e)) from None
+        if body != section.get("body"):
+            st.update(table, ref, {"body": body})
+        apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
+    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
 
 
 # ── The change ────────────────────────────────────────────────────────────────
@@ -471,7 +599,7 @@ def _do_change(store, by_user, req):
     if store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     table = next(k for k in CHANGE_KINDS if k == kind)              # the allow-list's own spelling, never the request's
-    if (kind == "report_hidden" or (op == NEW and kind in NEWABLE)) and clark_store.is_archived(store.con, project):
+    if (kind == "report_hidden" or op == BULK or (op == NEW and kind in NEWABLE)) and clark_store.is_archived(store.con, project):
         raise Refused(PROJECT_NOT_ACTIVE)                           # #67: an archived project is read only; said alike for show, hide, pick and a new row
     if op in (ARCHIVE, RESTORE):
         return _do_archive(store, by_user, project, table, op, place, req.get("id"))
@@ -480,6 +608,8 @@ def _do_change(store, by_user, req):
         return _do_use_case_change(store, by_user, req, project, table, columns, place)       # is never taken by the work item path
     if op == NEW and kind in NEWABLE:
         return _do_new_row(store, by_user, req, project, table, columns, place)
+    if op == BULK:
+        return _do_bulk(store, by_user, req, project, table, columns, place)
     if kind in ITEM_KINDS:
         return _do_item_change(store, by_user, req, project, table, columns, place)
     if kind == "milestones":
@@ -957,6 +1087,110 @@ def _do_pick(store, by_user, req, project, table, place):
     return 200, {"ok": True, "apply_id": apply_id, "added": ids, "shown_to_client": shown, "hidden": _hidden_ids(store, project)}
 
 
+def _bulk_ids(given, project, table):
+    """A bulk change's `ids`: a list of 1 to MAX_BULK work item ids, each of THIS project and of `table`'s kind, duplicates
+    dropped (first kept). Worked out from the id alone, before anything is read, so a refusal tells nothing of what exists."""
+    if not isinstance(given, list) or not given:
+        raise Refused(BULK_NOTHING)
+    if len(given) > MAX_BULK:
+        raise Refused(BULK_TOO_MANY)
+    ids = []
+    for ref in given:
+        m = clark_store.ITEM_ID.fullmatch(ref) if isinstance(ref, str) and ref.isascii() else None      # no other script's digits
+        if m is None:
+            raise Refused(ITEM_NOT_MINE)
+        if m.group(1) != project:
+            raise Refused(BULK_PROJECTS)
+        if clark_store.item_table(ref) != table:
+            raise Refused(BULK_KINDS)
+        if ref not in ids:
+            ids.append(ref)
+    return ids
+
+
+def _bulk_words(changed, unchanged, left_out):
+    """What a bulk change did, for the page's toast: how many changed (or that nothing did), how many had it already, and each
+    item left out and why (at most three named, then a count)."""
+    n = len(changed)
+    lines = [f"Changed {n} item{'' if n == 1 else 's'}."] if n else [BULK_ALREADY]
+    if unchanged and n:
+        lines.append(f"{len(unchanged)} already had that.")
+    for e in left_out[:3]:
+        lines.append(f"Left out {e['id']}: {e['why']}")
+    if len(left_out) > 3:
+        lines.append(f"{len(left_out) - 3} more were left out.")
+    return " ".join(lines)
+
+
+def _do_bulk(store, by_user, req, project, table, columns, place):
+    """#196: the same field change to several work items of one kind in THIS project, in ONE step: one safety copy, one Undo,
+    and each item's fields logged as a single edit logs them (one history line per item and field). Each item is tried first in a
+    step that is always rolled back (dry): an item that can't take the change (archived, gone, or refused by the store's own
+    rules) is left out and named with fixed words, and one that has the change already is counted. Then the rest are written in
+    one step; if any of them is refused there (the data changed in between), that whole step rolls back and nothing is written.
+    Nothing is written when none can take it. More than BULK_CONFIRM_ABOVE ids (every id sent, before any is left out) need
+    `confirm: true`; else the reply asks. Archiving is not a field here: an item is never archived or deleted from a bulk change."""
+    ids = _bulk_ids(req.get("ids"), project, table)
+    changes = _checked_item_changes(_fields(req.get("changes"), table, BULK, columns, "the changes"))
+    if not changes:
+        raise Refused("Say what to change.")
+    for k, v in changes.items():
+        if v is not None and (table, k) in clark_store.ALLOWED and v not in clark_store.ALLOWED[(table, k)]:
+            raise Refused(NOT_A_STATUS if k == "status" else NOT_A_CHOICE)
+    confirm = req.get("confirm", False)
+    if type(confirm) is not bool:
+        raise Refused(BULK_CONFIRM)
+    if len(ids) > BULK_CONFIRM_ABOVE and not confirm:
+        raise Refused(f"Change {len(ids)} items?", 409, "confirm", {"count": len(ids)})
+    where = {"place": place or BULK_PLACE}
+    left_out, unchanged, ready = [], [], []
+    with store.step(VIA, by_user, dry=True, **where) as st:         # always rolled back: only a trial of each item
+        for ref in ids:
+            row = store.read(table, ref=ref)
+            if row is None or row["project"] != project:
+                left_out.append({"id": ref, "why": BULK_GONE})
+                continue
+            if row["archived"]:
+                left_out.append({"id": ref, "why": BULK_ARCHIVED})
+                continue
+            if table == "decisions" and "made_by" in changes and row["status"] in DECIDED:
+                left_out.append({"id": ref, "why": BULK_DECIDED})       # the record of who decided is not rewritten
+                continue
+            try:
+                st.update(table, ref, changes)
+            except Invalid as e:                                    # a rule of the store, in fixed words: no field name, no value
+                words_ = _store_words(e)
+                if words_ is None:
+                    raise
+                left_out.append({"id": ref, "why": words_})
+                continue
+            (unchanged if store.read(table, ref=ref) == row else ready).append(ref)
+    if not ready:
+        if left_out and not unchanged:
+            why = {e["why"] for e in left_out}
+            raise Refused(next(iter(why)) if len(why) == 1 else BULK_NONE_CAN, 400, "none_can", {"left_out": left_out})
+        return 200, {"ok": True, "apply_id": None, "undoable": False, "changed": [], "unchanged": unchanged, "left_out": left_out,
+                     "words": _bulk_words([], unchanged, left_out), "items": []}
+    with store.step(VIA, by_user, **where) as st:                   # BEGIN IMMEDIATE: one step for every item that can take it
+        changed = []
+        for ref in ready:
+            before = store.read(table, ref=ref)
+            if table == "decisions" and "made_by" in changes and before["status"] in DECIDED:
+                raise Refused(STALE)                                # made or withdrawn since the trial: the whole step rolls back
+            try:
+                st.update(table, ref, changes)
+            except Invalid as e:                                    # changed since the trial: the whole step rolls back
+                if _store_words(e) is None:
+                    raise
+                raise Refused(STALE) from None
+            (changed if store.read(table, ref=ref) != before else unchanged).append(ref)    # what was written, not what the trial said
+        apply_id = st.peek_apply_id()
+    shown = tuple(dict.fromkeys(ITEM_SHOWN[table] + CHANGE_KINDS[table][BULK] + (("priority",) if table == "raid" else ())))
+    items = [{k: r[k] for k in shown} for r in (store.read(table, ref=ref) for ref in changed)]
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "changed": changed, "unchanged": unchanged,
+                 "left_out": left_out, "words": _bulk_words(changed, unchanged, left_out), "items": items}
+
+
 def _tiles(store, code):
     """The project's tile rows as shown: by place, then tile."""
     rows = sorted(store.read("glance_tiles", code), key=lambda r: (r["sort_order"], r["tile"]))
@@ -1119,6 +1353,11 @@ def _row_is_ours(row, project, project_step, flagged):
     return table == "projects" and project_step and field == "active" and key == project
 
 
+def _ours(store, step, rows, project):
+    """_eligible, and #47e: an assistant-route step is ours only when ask clark made it. The one test for a single undo and a batch."""
+    return _eligible(rows, project) and not (any(r["via"] == ASSISTANT for r in rows) and store.step_actors(step) != {ASK_ACTOR})
+
+
 def _eligible(rows, project):
     """Whether step rows (Store.step_rows) are the dashboard's own to undo from here: at least one, every one written via the
     dashboard (the starting sections an old project's first change makes carry their own via), none by an undo, and every one
@@ -1146,13 +1385,16 @@ def _eligible(rows, project):
         return (r["table"] == "decisions" and bool(items["decisions"].fullmatch(str(r["key"])))
                 and (r.get("op") == MADE_OP or r.get("field") in ("client_visible", "updated_at")))
     if any(r["table"] == "milestones" and r.get("op") != MADE_OP and r.get("field") in CHANGE_KINDS["milestones"][UPDATE] for r in rows):
-        return all(r["via"] == VIA and movement_row(r) for r in rows)      # nothing else in it: not a mix of families
+        return all(r["via"] in (VIA, ASSISTANT) and movement_row(r) for r in rows)      # nothing else in it (#47e: ask clark's step too)
 
     def of_item(r):
         return r["table"] in items and bool(items[r["table"]].fullmatch(str(r["key"]))) and (r["table"], str(r["key"])) not in flagged
 
     def item_field_row(r):
-        return of_item(r) and ((r.get("op") == MADE_OP and r["table"] != "use_cases") or r.get("field") in tuple(CHANGE_KINDS[r["table"]].get(UPDATE, ())) + ("closed", "priority"))
+        if not of_item(r):
+            return False
+        fields = tuple(CHANGE_KINDS[r["table"]].get(UPDATE, ())) + tuple(CHANGE_KINDS[r["table"]].get(BULK, ())) + ("closed", "priority")   # #196: + a bulk change's
+        return (r.get("op") == MADE_OP and r["table"] != "use_cases") or r.get("field") in fields
 
     def item_stamp_row(r):
         return of_item(r) and r.get("field") == "updated_at"
@@ -1164,9 +1406,9 @@ def _eligible(rows, project):
     picked = any(r.get("field") == "note" and r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"]))) for r in rows)
     if (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
         return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA) and pick_row(r) for r in rows)
-    if any(item_field_row(r) for r in rows):                        # a step of work-item fields: nothing else in it
-        return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA)
-                   and (item_field_row(r) or item_stamp_row(r)) for r in rows)
+    if any(item_field_row(r) for r in rows):                        # a step of work-item fields: nothing else in it (#47e: ask clark's too)
+        return all((r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
+                   and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r)) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
     page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "week_ending", "note"))
                       for r in rows)
@@ -1180,7 +1422,7 @@ def _eligible(rows, project):
 UC_FIELD_NAMES = {"title": "name", "headline": "headline", "standing": "standing text"}
 ITEM_FIELD_NAMES = {"description": "title", "decision": "title", "status": "status", "workstream": "workstream", "owner": "owner", "priority": "priority",
                     "due_date": "due date", "milestone": "milestone", "made_by": "decider", "needed_by": "needed-by date",
-                    "date": "decision date", "closed": "closing date", "use_case": "use case"}
+                    "date": "decision date", "closed": "closing date", "use_case": "use case", "impact": "impact", "likelihood": "likelihood"}
 UC_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-U-\d{3}")                  # #164: a use case's id; the words call it by its name
 TILE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}\|(" + "|".join(TILES) + ")")      # #45: a tile's key
 ITEM_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[ADMU]-)?\d{3}")        # a work item's id is what a person calls it
@@ -1369,24 +1611,29 @@ def _name_use_cases(store, step_rows, names):
 def _do_undo(store, by_user, req):
     if not isinstance(req, dict):
         raise Refused(NOT_JSON_OBJECT)
+    if "steps" in req and "apply_id" not in req:                    # #197: several steps at once
+        return _do_undo_many(store, by_user, req)
     for k in req:
-        if k not in ("project", "apply_id"):
+        if k not in ("project", "apply_id", "place"):
             raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
     project = req.get("project")
     if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
         raise Refused(BAD_PROJECT, code="bad_project_code")
+    place = req.get("place")                                        # #123: where the Undo was pressed; the step's route is "undo" whatever it is
+    if place is not None and (not isinstance(place, str) or place not in PLACES):
+        raise Refused(BAD_PLACE)
     step = req.get("apply_id")
     if type(step) is not int or not 1 <= step < 2 ** 63:
         raise Refused(NO_UNDO)                                      # the same words as every other step that isn't ours
     if store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     step_rows = store.step_rows(step)
-    if not _eligible(step_rows, project):                           # a missing step, another project's and another route's
-        raise Refused(NO_UNDO)                                      # all say the same: nothing tells which exist
+    if not _ours(store, step, step_rows, project) and not _batch_is_ours(store, step, project):   # a missing step, another project's and
+        raise Refused(NO_UNDO)                                      # another route's all say the same: nothing tells which exist
     names = {r["id"]: r["title"] for r in _sections(store, project)}
     _name_use_cases(store, step_rows, names)                        # #164
     try:                                                            # still inside the caller's one lock
-        done = store.undo(step, by_user)
+        done = store.undo(step, by_user, place=place)
     except Invalid as e:
         text = str(e)
         if "undone already" in text or "undid an undo" in text:
@@ -1427,6 +1674,152 @@ def _do_undo(store, by_user, req):
 
 # ── Calls the server makes ────────────────────────────────────────────────────
 
+# ── #197: Undo several ────────────────────────────────────────────────────────
+
+CONFIRM_ABOVE = 25                        # more steps than this need `confirm: true` (the page asks a second time first)
+MANY_NONE = "Choose at least one change to undo."
+MANY_TOO_MANY = f"Choose at most {clark_store.MAX_UNDO_MANY} changes to undo at a time."
+MANY_NOT_MINE = "One of those changes isn't in this project. Reload the page and try again."   # a missing step and another project's: the same words
+MANY_CONFIRM = "Confirm that you want to undo these {n} changes."
+MANY_NOTHING = "None of those changes can be undone."
+MANY_BAD_FLAG = "That must be true or false."
+IS_AN_UNDO = "This is an undo. Undo it on its own."
+UNDONE_ALREADY = "This has been undone already."
+NOT_FROM_HERE = "This change can't be undone from here."
+ARCHIVED_NOW = "It is archived. Restore it first."
+CHANGED_SINCE = "It was changed later, so it is left as it is."
+
+
+def _of_project(key, project):
+    """Whether a change_log key is one of this project's: its code, or an id or a pair that starts with it."""
+    key = str(key)
+    return key == project or key.startswith(project + "-") or key.startswith(project + "|")
+
+
+def _batch_is_ours(store, step, project):
+    """#197: whether `step` is a batch undo (Store.undo_many) of this project's own steps, so the toast's Undo may undo it."""
+    steps = store.batch_undo_steps(step)
+    return bool(steps) and all(_ours(store, s, store.step_rows(s), project) for s in steps)
+
+
+def _many_why(why, by_step):
+    """The store's reason for leaving a change as it is, as a fixed sentence for the preview (no value, no field's text)."""
+    why = str(why or "")
+    if why == NOT_FROM_HERE:
+        return why
+    if why == "is an undo":
+        return IS_AN_UNDO
+    if why == "already undone":
+        return UNDONE_ALREADY
+    if why.endswith("is archived. Restore it first."):
+        return ARCHIVED_NOW
+    if by_step or why.startswith("has changed since"):
+        return CHANGED_SINCE
+    return _skipped_why(why)
+
+
+def _many_field(field):
+    """A field as a person reads it in the preview."""
+    if field is None:
+        return ""
+    return (ITEM_FIELD_NAMES.get(field) or MILESTONE_FIELD_NAMES.get(field) or MILESTONE_KEPT_AS_WAS.get(field)
+            or UC_FIELD_NAMES.get(field) or str(field).replace("_", " "))
+
+
+def _many_entries(entries, skipped):
+    """The preview's lines, newest step first: one per field changed, one per item made or put back whole (never one per column)."""
+    out, seen = [], set()
+    for e in entries:
+        whole = e.get("change") in ("removed", "put back")
+        key = (e["step"], e["ref"], e.get("change") if whole else e["field"])
+        if key in seen:
+            continue
+        seen.add(key)
+        line = {"step": e["step"], "ref": str(e["ref"]), "field": "" if whole else _many_field(e["field"])}
+        if skipped:
+            line["why"] = _many_why(e.get("why"), e.get("by_step"))
+        else:
+            line["change"] = e.get("change") or "set"
+        out.append(line)
+    return out
+
+
+def _many_flag(req, key):
+    value = req.get(key, False)
+    if type(value) is not bool:
+        raise Refused(MANY_BAD_FLAG)
+    return value
+
+
+def _do_undo_many(store, by_user, req):
+    """#197: POST /api/undo with `steps` (the steps of the history rows chosen), `preview` and `confirm`. A preview is the same
+    run rolled back: it lists each change that will be undone and each that will be left, with its reason. Without `preview` one
+    new step undoes them all (newest first), and its Undo puts them all back. A step not of this project refuses the whole request;
+    a step of this project that can't be undone from here is left out and named. The data can change between the preview and the
+    run, so the run's reply is complete on its own: what was undone and what was left, with the reasons, as the preview gives them;
+    the page shows that reply, not the preview it showed before."""
+    for k in req:
+        if k not in ("project", "steps", "preview", "confirm"):
+            raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
+    project = req.get("project")
+    if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
+        raise Refused(BAD_PROJECT, code="bad_project_code")
+    preview, confirm = _many_flag(req, "preview"), _many_flag(req, "confirm")
+    steps = req.get("steps")
+    if not isinstance(steps, list) or not steps:
+        raise Refused(MANY_NONE)
+    if len(steps) > clark_store.MAX_UNDO_MANY * 2:                  # refused before any is looked at, duplicates or not
+        raise Refused(MANY_TOO_MANY)
+    if any(type(s) is not int or not 1 <= s < 2 ** 63 for s in steps):
+        raise Refused(MANY_NOT_MINE)
+    steps = sorted(set(steps), reverse=True)
+    if len(steps) > clark_store.MAX_UNDO_MANY:
+        raise Refused(MANY_TOO_MANY)
+    if store.read("projects", ref=project) is None:
+        raise Refused(NO_PROJECT, 404, "project_not_found")
+    if len(steps) > CONFIRM_ABOVE and not preview and not confirm:
+        raise Refused(MANY_CONFIRM.format(n=len(steps)), 409, "confirm")
+    left, ours = [], []
+    for s in steps:
+        rows = store.step_rows(s)
+        if not rows or not any(_of_project(r["key"], project) for r in rows):
+            raise Refused(MANY_NOT_MINE)                            # nothing tells a missing step from another project's
+        if all(str(r["via"]).startswith(clark_store.REVERT_VIA) for r in rows):
+            why = "is an undo"
+        elif not _ours(store, s, rows, project):
+            why = NOT_FROM_HERE
+        else:
+            ours.append(s)
+            continue
+        mine = [r for r in rows if _of_project(r["key"], project) and r["field"] not in UNDO_ALSO]
+        left += [{"step": s, "ref": r["key"], "field": None, "why": why, "by_step": None} for r in mine[:1]]
+        # one line for the step, left whole: named by a row of THIS project (never another's), with no field
+    done = {"step_id": None, "reversed": [], "skipped": []}
+    if ours:
+        try:
+            done = store.undo_many(ours, by_user, dry=preview)
+        except Invalid as e:
+            if str(e).startswith("clark's data is in use"):
+                raise Refused(IN_USE, 503, "busy") from None
+            if str(e).startswith("There's no step"):              # gone since it was checked: the same words as a missing one
+                raise Refused(MANY_NOT_MINE) from None
+            raise                                                   # a safety copy that can't be made, in the store's plain words
+    undo = _many_entries(done["reversed"], False)
+    skipped = _many_entries(sorted(left + done["skipped"], key=lambda e: -e["step"]), True)
+    out = {"ok": True, "preview": preview, "apply_id": done["step_id"], "count": len(steps),
+           "needs_confirm": len(steps) > CONFIRM_ABOVE, "undo": undo, "skipped": skipped}
+    if preview:
+        out["words"] = (f"{len(undo)} change{'' if len(undo) == 1 else 's'} will be undone."
+                        + (f" {len(skipped)} will be left as {'it is' if len(skipped) == 1 else 'they are'}." if skipped else ""))
+        return 200, out
+    if done["step_id"] is None:
+        raise Refused(MANY_NOTHING, 409, "not_undoable")
+    out["words"] = (f"Undone: {len(undo)} change{'' if len(undo) == 1 else 's'}."
+                    + (f" {len(skipped)} left as {'it is' if len(skipped) == 1 else 'they are'}." if skipped else ""))
+    out["sections"] = _shown_rows(_sections(store, project))
+    return 200, out
+
+
 def _call(path, onedrive_roots, by_user, work, req):
     """Run `work(store, by_user, req)` on a store of its own, under the one lock; (status, body). A refusal and the
     store's own rule messages are 400 in plain words; a missing database, a busy one and an unusable folder are 503; any
@@ -1451,7 +1844,7 @@ def _call(path, onedrive_roots, by_user, work, req):
             finally:
                 store.close()
     except Refused as r:
-        return r.status, {"ok": False, "message": r.message, "code": r.code}
+        return r.status, {**r.extra, "ok": False, "message": r.message, "code": r.code}
     except Invalid as e:                                            # a store rule, in its plain words
         if str(e).startswith("clark's data is in use"):
             return 503, {"ok": False, "message": IN_USE, "code": "busy"}
@@ -1462,10 +1855,58 @@ def _call(path, onedrive_roots, by_user, work, req):
 
 def make_change(path, onedrive_roots=None, by_user=None):
     """The `change` the server calls for POST /api/change, for the database at `path`. `by_user` is a name or a function
-    that gives one (default: the login name, platform.login_name; Settings can override it later)."""
+    that gives one (the server passes the profile name, falling back to the login name, platform.login_name, which is also the default here)."""
     def change(req):
         return _call(path, onedrive_roots, by_user, _do_change, req)
     return change
+
+
+def make_section_image(path, onedrive_roots=None, by_user=None):
+    """The `section_image` the server calls for POST /api/section-image (#96 R1), for the database at `path` (see make_change)."""
+    def section_image(req):
+        return _call(path, onedrive_roots, by_user, _do_section_image, req)
+    return section_image
+
+
+# ── A file for a section template (#96, POST /api/section-file) ────────────────
+
+FILE_TYPES = tuple(t for t, m in section_bodies.TEMPLATES.items() if callable(getattr(m, "add_file", None)))   # the templates that hold a file
+NO_FILE_HERE = "That section can't hold a file. Add a Documents and links or One document section, then add the file there."
+
+
+def _do_section_file(store, by_user, req):
+    """Add a file that is already in the client folder to a section, as one step with one Undo (place "report"). `req` is made by
+    clark itself (section_files.py, after it copied the file), never by the page: {project, id, entry: {name, rel, bytes}}. The
+    stored body is read inside the step and the section's own template says where the file goes (its add_file); the result meets
+    the type's checker like any other body write, so the store's rules are the same as a save from the page."""
+    project, ref, entry = req.get("project"), req.get("id"), req.get("entry")
+    if not isinstance(project, str) or store.read("projects", ref=project) is None:
+        raise Refused(NO_PROJECT, 404, "project_not_found")
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    with store.step(VIA, by_user, place="report") as st:
+        rows = _sections(store, project)
+        _mine(ref, [r["id"] for r in rows], NOT_MINE)
+        row = next(r for r in rows if r["id"] == ref)
+        kind = next((t for t in FILE_TYPES if t == row["type"]), None)
+        if kind is None:
+            raise Refused(NO_FILE_HERE)
+        text = _section_body(row, row.get("body") or "")
+        try:
+            value = section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None, entry)
+        except section_bodies.Bad as e:
+            raise Refused(str(e)) from None
+        st.update("report_sections", ref, {"body": _section_body(row, section_bodies.canonical(value))})
+        apply_id = st.peek_apply_id()
+    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+
+
+def make_section_file(path, onedrive_roots=None, by_user=None):
+    """The step that adds a copied file to a section (see _do_section_file), for the database at `path`. Called by section_files.py
+    only; it is not a route of its own."""
+    def section_file(req):
+        return _call(path, onedrive_roots, by_user, _do_section_file, req)
+    return section_file
 
 
 def make_undo(path, onedrive_roots=None, by_user=None):
@@ -1473,3 +1914,260 @@ def make_undo(path, onedrive_roots=None, by_user=None):
     def undo(req):
         return _call(path, onedrive_roots, by_user, _do_undo, req)
     return undo
+
+
+# ── The people list (#115) ────────────────────────────────────────────────────
+# Portfolio level: no project in the request. One route for the six person writers, one for their Undo, one read. A person's
+# fields are checked by the store (people rules); this checks only the shape of the request, then one step, one Undo.
+PERSON_FIELDS = ("name", "email", "organisation", "role", "label", "aliases", "kind", "needs_details")
+PEOPLE_SHAPES = {"add": PERSON_FIELDS, "edit": ("id", "changes"), "rename": ("id", "name"), "merge": ("from", "into"),
+                 "archive": ("id",), "restore": ("id",)}
+PEOPLE_SOURCE = "People list"
+BAD_PERSON = "That isn't a person clark knows. Reload the page and try again."
+NO_PEOPLE_UNDO = "That step can't be undone from here."
+PERSON_ID = re.compile(r"P-\d{3}")
+
+
+def _person_value(key, value):
+    if key == "needs_details":
+        return value if isinstance(value, bool) or value in (0, 1) and type(value) is int else _refuse_person()
+    if value is None:
+        return value
+    if not isinstance(value, str) or len(value) > 2000:
+        _refuse_person()
+    return value
+
+
+def _refuse_person():
+    raise Refused("One of the person's details isn't text clark can use. Check it and try again.")
+
+
+def _person_ref(value):
+    if not isinstance(value, str) or not PERSON_ID.fullmatch(value):
+        raise Refused(BAD_PERSON, 400, "bad_person")
+    return value
+
+
+def _do_people(store, by_user, req):
+    """POST /api/people: {"op": add | edit | rename | merge | archive | restore, ...}. One step; answers the new apply_id (the Undo's
+    handle), the person's id where there is one, how many work items a rename or merge carried, and the list as it now is."""
+    if not isinstance(req, dict):
+        raise Refused(NOT_JSON_OBJECT)
+    op = req.get("op")
+    if not isinstance(op, str) or op not in PEOPLE_SHAPES:
+        raise Refused(BAD_OP)
+    allowed = ("op",) + PEOPLE_SHAPES[op]
+    for k in req:
+        if k not in allowed:
+            raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
+    ref, count = None, 0
+    with store.step("dashboard", by_user) as st:
+        if op == "add":
+            fields = {k: _person_value(k, v) for k, v in req.items() if k != "op"}
+            ref = st.add_person(source=PEOPLE_SOURCE, **fields)
+        elif op == "edit":
+            ref = _person_ref(req.get("id"))
+            ch = req.get("changes")
+            if not isinstance(ch, dict) or not ch or any(k not in PERSON_FIELDS for k in ch):
+                raise Refused(BAD_PERSON, 400, "bad_person")
+            st.edit_person(ref, {k: _person_value(k, v) for k, v in ch.items()})
+        elif op == "rename":
+            ref = _person_ref(req.get("id"))
+            count = st.rename_person(ref, _person_value("name", req.get("name")))
+        elif op == "merge":
+            ref = _person_ref(req.get("into"))
+            count = st.merge_people(_person_ref(req.get("from")), ref)
+        elif op == "archive":
+            ref = _person_ref(req.get("id"))
+            st.archive_person(ref)
+        else:
+            ref = _person_ref(req.get("id"))
+            st.restore_person(ref)
+        apply_id = st.peek_apply_id()
+    return 200, {"ok": True, "apply_id": apply_id, "id": ref, "items": count, "people": store.people(archived=None)}
+
+
+def _do_people_undo(store, by_user, req):
+    """POST /api/people/undo: {"apply_id": n}. Only a step that changed the people list; a work item's own step is the board's Undo."""
+    if not isinstance(req, dict) or set(req) != {"apply_id"}:
+        raise Refused(NO_PEOPLE_UNDO)
+    step = req["apply_id"]
+    if type(step) is not int or not 1 <= step < 2 ** 63:
+        raise Refused(NO_PEOPLE_UNDO)
+    rows = store.step_rows(step)
+    if not rows or not any(r["table"] == "people" for r in rows) or any(r["via"] != "dashboard" for r in rows):
+        raise Refused(NO_PEOPLE_UNDO)
+    try:
+        plan = store.undo_many([step], by_user, dry=True)       # the very same run, always rolled back: nothing is written yet
+        if any(x["why"] in ("already undone", "is an undo") for x in plan["skipped"]):
+            raise Refused(UNDONE, 409, "undone")
+        if plan["skipped"]:                                    # all or nothing: one row that can't go back refuses the whole undo
+            raise Refused(_people_undo_reason(store, rows, plan["skipped"]))
+        done = store.undo(step, by_user)
+        if done["skipped"]:                                    # not reachable under the lock; never leave a half-undo if it were
+            raise Refused(_people_undo_reason(store, rows, done["skipped"]))
+    except Invalid as e:
+        text = str(e)
+        if "undone already" in text or "undid an undo" in text:
+            raise Refused(UNDONE, 409, "undone") from None
+        if text.startswith("clark's data is in use"):
+            raise Refused(IN_USE, 503, "busy") from None
+        raise Refused(NO_PEOPLE_UNDO) from None
+    restored = _people_undo_counts(rows)
+    return 200, {"ok": True, "people": store.people(archived=None), "restored": restored, "message": _people_undo_words(restored)}
+
+
+def _people_undo_reason(store, rows, skipped):
+    """Plain words for an Undo that would leave something behind: what to do first. Names the person who now holds an email the
+    step freed, when that is the cause; otherwise says how many changes can't go back."""
+    other = store.live_holder_of_freed_email([r["key"] for r in rows if r["table"] == "people" and r["field"] == "email"])
+    if other:
+        return (f"This can't be undone: an email address it would put back is now used by {other}. "
+                f"Change or archive {other} first, then undo again. Nothing has been changed.")
+    n = len(skipped)
+    return (f"This can't be undone: {n} change{'s' if n != 1 else ''} can no longer be put back, because the data has changed since. "
+            "Undo the later change first, then undo again. Nothing has been changed.")
+
+
+def _people_undo_counts(rows):
+    people = {r["key"] for r in rows if r["table"] == "people"}
+    emails = {r["key"] for r in rows if r["table"] == "people" and r["field"] == "email"}
+    items = {(r["table"], r["key"]) for r in rows if r["table"] != "people"}
+    return {"people": len(people), "emails": len(emails), "items": len(items)}
+
+
+def _people_undo_words(c):
+    p = f"{c['people']} {'person' if c['people'] == 1 else 'people'}"
+    e = f", {c['emails']} email address{'' if c['emails'] == 1 else 'es'}" if c["emails"] else ""
+    i = f" and {c['items']} item{'' if c['items'] == 1 else 's'}" if c["items"] else ""
+    return f"Undone: put back {p}{e}{i}."
+
+
+def _do_people_list(store, by_user, req):
+    return 200, {"ok": True, "people": store.people(archived=None)}
+
+
+def make_people(path, onedrive_roots=None, by_user=None):
+    """The `people` seam for POST /api/people, for the database at `path` (see make_change)."""
+    def people(req):
+        return _call(path, onedrive_roots, by_user, _do_people, req)
+    return people
+
+
+def make_people_undo(path, onedrive_roots=None, by_user=None):
+    """The `people_undo` seam for POST /api/people/undo."""
+    def people_undo(req):
+        return _call(path, onedrive_roots, by_user, _do_people_undo, req)
+    return people_undo
+
+
+def make_people_list(path, onedrive_roots=None, by_user=None):
+    """The `people_list` seam for GET /api/people: everyone on the list, archived too, as the store has them."""
+    def people_list():
+        return _call(path, onedrive_roots, by_user, _do_people_list, {})
+    return people_list
+
+
+# ── ask clark's changes (#47e part 1) ─────────────────────────────────────────
+# ask clark's own modules never open the database for writing (tests/test_ask_route.py). A change they have checked comes here, to
+# make_ask_change, and goes through the SAME path as a hand edit (_do_change: the allow-list, the plain-text rule, the store's own
+# rules), with these differences, all made here and nowhere else:
+# - only a new or changed work item or milestone (ASK_KINDS, ASK_OPS): no archive, restore, delete, place or rebaseline;
+# - every step is written with route "assistant" and actor "clark", and no place;
+# - the switch is read again INSIDE the step, after BEGIN IMMEDIATE (store.ask_enabled: off when it can't say), so off writes nothing;
+# - the row before and after are read from the data inside that step, never from the request;
+# - `dry=True` (the default) runs it all in a step that is always rolled back (Store.step(dry=True)): what would be saved, saving nothing;
+# - an Apply may carry `expect`, the `before` its dry run showed: if the row is not that now, nothing is written.
+ASK_KINDS = ("actions", "raid", "decisions", "milestones")
+ASK_OPS = (NEW, UPDATE)
+# The fields ask clark may give, per kind and op: narrower than CHANGE_KINDS (no use case link, no client wording, no state, no
+# Movement, no agreed date moved: that is a rebaseline). Checked here, the one guarded chokepoint; ask_apply reads it from here.
+# A RAID item's `type` is set from the suggestion's kind (risk, issue and so on), never named by it.
+ASK_FIELDS = {
+    "actions": {NEW: ("description", "owner", "priority", "due_date", "workstream", "milestone"),
+                UPDATE: ("description", "owner", "priority", "due_date", "status", "workstream", "milestone")},
+    "raid": {NEW: ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone"),
+             UPDATE: ("description", "owner", "due_date", "status", "workstream", "milestone")},
+    "decisions": {NEW: ("decision", "made_by", "status", "date", "needed_by"),
+                  UPDATE: ("decision", "made_by", "status", "date", "needed_by")},
+    "milestones": {NEW: ("name", "owner", "baseline_date", "workstream"),
+                   UPDATE: ("forecast_date", "actual_date", "status")},
+}
+ASK_KEYS = {NEW: ("project", "kind", "op", "values"), UPDATE: ("project", "kind", "op", "id", "changes")}
+ASK_PART = {NEW: "values", UPDATE: "changes"}
+ASK_OFF = "Asking is off, so nothing was changed. Turn it on in Settings first."
+ASK_NOT_YET = "That change can't be made by asking yet. Nothing was changed. Make it yourself on the board."
+ASK_CHANGED = "That item has changed since the change was shown. Nothing was changed. Look at the change again."
+ASK_SHOWN = {t: ("id",) + tuple(dict.fromkeys(CHANGE_KINDS[t][NEW] + CHANGE_KINDS[t][UPDATE] + ("type", "status", "closed", "priority", "raised")))
+             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out)
+
+
+class _Dry(Exception):
+    """Ends a dry run's step, which the store then rolls back."""
+
+
+class _AskStore:
+    """The store as _do_change sees it for ask clark: every read is the store's own; a step is ask clark's (see above)."""
+
+    def __init__(self, store, dry, expect, table, ref):
+        self._store, self.dry, self.expect, self.table, self.ref = store, dry, expect, table, ref
+        self.before = self.after = None
+
+    def __getattr__(self, name):
+        return getattr(self._store, name)
+
+    def shown(self, ref):
+        row = self._store.read(self.table, ref=ref) if isinstance(ref, str) else None
+        return None if row is None else {k: row[k] for k in ASK_SHOWN[self.table] if k in row}
+
+    @contextmanager
+    def step(self, via, by_user, place=None, src_ref=None):
+        if via != VIA:
+            raise Invalid("not a step of a change")
+        with self._store.step(ASSISTANT, by_user, actor=ASK_ACTOR, dry=self.dry) as st:      # BEGIN IMMEDIATE
+            if self._store.ask_enabled() is not True:
+                raise Refused(ASK_OFF, 409, "asking_off")
+            self.before = self.shown(self.ref) if self.ref is not None else None
+            if self.expect is not None and self.before != self.expect:
+                raise Refused(ASK_CHANGED, 409, "changed")
+            yield st
+            made = self.ref
+            if made is None and st.peek_apply_id() is not None:
+                made = next((r["key"] for r in self._store.step_rows(st.peek_apply_id())
+                             if r["table"] == self.table and r["op"] == MADE_OP), None)
+            self.ref, self.after = made, self.shown(made)
+            if self.dry:
+                raise _Dry()
+
+
+def _do_ask(store, by_user, req, dry, expect):
+    project, kind, op, place = _shape(req)
+    if kind not in ASK_KINDS or op not in ASK_OPS or any(k not in ASK_KEYS[op] for k in req):
+        raise Refused(ASK_NOT_YET, code="not_yet")
+    part = req.get(ASK_PART[op])
+    if not isinstance(part, dict) or any(f not in ASK_FIELDS[kind][op] for f in part):
+        raise Refused(ASK_NOT_YET, code="not_yet")
+    if store.ask_enabled() is not True:
+        raise Refused(ASK_OFF, 409, "asking_off")
+    ref = req.get("id") if op == UPDATE else None
+    if op == UPDATE and not _belongs(kind, ref, project):
+        raise Refused(NO_MILESTONE if kind == "milestones" else ITEM_NOT_MINE)
+    if expect is not None and not isinstance(expect, dict):
+        raise Refused(STALE)
+    ask = _AskStore(store, dry, expect, kind, ref)
+    try:
+        _status, body = _do_change(ask, by_user, req)
+    except _Dry:
+        return 200, {"ok": True, "dry": True, "kind": kind, "ref": ask.ref, "before": ask.before, "after": ask.after}
+    apply_id = body.get("apply_id")
+    return 200, {"ok": True, "dry": False, "kind": kind, "ref": ask.ref, "apply_id": apply_id,
+                 "undoable": bool(body.get("undoable", apply_id is not None)), "before": ask.before, "after": ask.after}
+
+
+def make_ask_change(path, onedrive_roots=None, by_user=None):
+    """The one way ask clark saves (#47e): `ask_change(req, dry=True, expect=None)` takes a request in /api/change's form, for a
+    work item or milestone only. A dry run (the default) says {ok, dry, kind, ref, before, after} and saves nothing; `dry=False`
+    saves it as one step (route "assistant", actor "clark") and adds apply_id and undoable, for /api/undo."""
+    def ask_change(req, dry=True, expect=None):
+        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_ask(store, who, r, dry is not False, expect), req)
+    return ask_change

@@ -8,6 +8,10 @@ import { Minimap } from "./Minimap.jsx";
 import { scrollTargets, entries, countOf } from "../logic/minimap.js";
 import { todayIso } from "../workItems.js";
 import { slots as slotsOf } from "../logic/placement.js";
+import { emptyBody } from "../logic/emptyBody.js";
+export { emptyBody };
+import { templateFor, templateEmpty } from "../templates/index.js";
+import { rowsOf, shownRows } from "../logic/needs.js";
 
 // A section set beside the next one shares its row with it (half width each); every other section takes the full row. The rows
 // are read from ALL the sections, then the hidden ones are left out, so a pair with one half hidden shows the other full width and
@@ -15,15 +19,6 @@ import { slots as slotsOf } from "../logic/placement.js";
 export function slots(all, keep) {
   const at = slotsOf(all, keep);
   return all.filter((s) => at[s.id]).map((s) => at[s.id]);
-}
-
-// A text section's body with nothing to read (#74): no letters once tags and spaces are gone (a non-breaking space is a space) and
-// no picture. `<p></p>`, `<br>`, `&nbsp;` or spaces alone are empty. The body is the HTML publish.clean_html already cleaned; it
-// is parsed as an inert document (nothing in it runs or loads) only to read its text.
-export function emptyBody(html) {
-  if (typeof html !== "string" || !html.trim()) return true;
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return !doc.body.textContent.trim() && !doc.body.querySelector("img");
 }
 
 // Scroll so a section's top sits just under the sticky top bar (the minimap's click). Never a #link: the address is left alone.
@@ -47,9 +42,12 @@ export function Dashboard({ tools }) {
   // does not draw yet (only text bodies are drawn, #74). Rows are read from every section first (#95), so a section whose partner
   // is left out takes the full row and never pairs with the next one. The page clark serves is unchanged.
   // The file draws a text section with a body, the At a glance section when it carries tiles and the use case summary when it
-  // carries use cases (#45); the other types are left out until they are drawn.
-  const fileDraws = (s) => (s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : false);
-  const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s));
+  // carries use cases (#45), and a 'Needs from you' section that has a row to show (#121); the other types are left out until they are drawn.
+  // A section template (#96) is drawn in the file and in the served View alike only while it has something to show (its isEmpty,
+  // FR-11: View is what the client sees), so an empty template or a stub is in neither.
+  const hasNeeds = (s) => shownRows(rowsOf(s, fromFile.value)).length > 0;       // a 'Needs from you' section with no row to show is left out (a left-out row is absent)
+  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "needs" ? hasNeeds(s) : false);
+  const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s)) && !(templateFor(s.type) && templateEmpty(s, d)) && !(s.type === "needs" && !hasNeeds(s));
   const list = editing ? all : all.filter(shown);
   const places = slots(all, editing ? undefined : shown);
   const emptyWhy = editing ? "This report has no sections yet. Add the first one below." : all.length ? (fromFile.value ? "This report has no sections." : "Every section of this report is hidden. Switch to Edit to show them.") : fromFile.value ? "This report has no sections." : "This report has no sections yet. Switch to Edit to add one.";
@@ -67,7 +65,7 @@ export function Dashboard({ tools }) {
       <h1>{d.project.name}</h1>
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
       <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" ? " drop-end" : ""}`}>
-        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} onExport={!editing && !fromFile.value && tools && tools.exportExcel ? tools.exportExcel : null} />)}
+        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} onExport={!editing && !fromFile.value && tools && tools.exportExcel ? tools.exportExcel : null} />)}
       </div>
       {editing && list.length === 0 ? <tools.Add /> : null}
       <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} counts={counts} />

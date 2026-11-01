@@ -88,7 +88,7 @@ COVERED = [
      "test_publish_dialog::Dialog::test_C_result_message_and_report_bar"),
     ("#43", "Settings has the client folder field, and it fits at 900", "test_publish_dialog::Settings::test_C_settings_folder_field"),
     ("#45", "Project health takes the room the other tiles leave, and they sit at the right",
-     "test_glance_tiles::Tiles::test_project_health_is_two_tile_widths_and_the_tiles_follow_it_from_the_left"),
+     "test_glance_tiles::Tiles::test_project_health_is_two_tile_widths_and_the_tiles_fill_the_row"),
     ("#45", "Each tile's number matches the demo data and opens that list",
      "test_glance_tiles::Tiles::test_each_tile_number_is_the_list_it_opens_and_the_chips_say_what_it_counts"),
     ("#45", "Each tile says its state in words, never only a colour",
@@ -116,8 +116,8 @@ COVERED = [
 ]
 
 WITH_165 = [
-    ("#67", "In View there are no pickers, and a click on a row opens the peek",
-     "test_inline_edits::Live::test_view_has_no_pickers_and_the_row_click_opens_the_peek"),
+    ("#67", "In View there are no pickers, and a double click on a row opens the peek (a single click selects it since #195)",
+     "test_inline_edits::Live::test_view_has_no_pickers_and_a_row_double_click_opens_the_peek"),
     ("#67", "Status changes in place by click and by keyboard, one step with Undo", "test_inline_edits::Live::test_status_by_click_and_keyboard"),
     ("#67", "Priority changes in place, one step with Undo",
      "test_inline_edits::Live::test_priority_by_click_and_by_keyboard_one_step_with_undo_and_esc_leaves_it"),

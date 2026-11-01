@@ -5,11 +5,13 @@
 import { signal, computed } from "@preact/signals";
 import * as route from "../router.js";
 import { rowsOf } from "../workItems.js";
-import { decode, encode, fits } from "../filters.js";
+import { decode, encode, fits, setPublished } from "../filters.js";
+import { searchIndex } from "../clientView.js";
+import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", settings: "Settings" };
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", settings: "Settings" };
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
@@ -18,6 +20,7 @@ export const project = signal(start.project);
 export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
+export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
@@ -40,23 +43,30 @@ export const projects = signal([]);                 // [{code, name}] from GET /
 export const projectsState = signal("loading");     // loading | ready | failed
 
 export const rows = computed(() => (data.value ? rowsOf(data.value) : []));
+// The published file's search words (#69): memory only, never kept anywhere. The index is read from the file's own rows, by id.
+export const query = signal("");
+export const found = computed(() => (data.value ? searchIndex(data.value) : {}));
+export function setQuery(text) { query.value = String(text == null ? "" : text); }
 
 export const counts = computed(() => {
   const d = data.value;
   return d ? { work: d.actions.length + d.raid.length + d.decisions.length, milestones: d.milestones.length } : { work: 0, milestones: 0 };
 });
 
-const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value });
+let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
+
+const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
 // stays on the file's project and opens its first tab, as a reload of that address does.
 function apply(s) {
-  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view) };
+  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
   view.value = s.view;
   item.value = s.item;
   ms.value = s.ms;
+  uc.value = s.uc || "";
   filterText.value = s.f;
   if (s.project !== project.value) {
     project.value = s.project;
@@ -116,9 +126,30 @@ export function openWork(state) {
   go({ view: "work", project: project.value, item: "", ms: "", f: fits(state) ? encode(state) : "" });
 }
 
+/** Open one use case's own page (the Use cases page, Edit's): one new entry. `id` is the use case's database id; the address carries its reference ("1.2") when that is a clean, single key, else its id. */
+export function openUseCase(id) {
+  const d = data.value, u = d && (d.use_cases || []).find((x) => x.id === id);
+  if (!u) return;
+  go({ view: "usecases", project: project.value, item: "", ms: "", f: "", uc: ucKey(d, u) });
+}
+
+/** The use case page's way back: the list, one new entry (so Back returns to the use case). */
+// A use case address that names nothing (another project, a mistyped link; an archived use case is read first, by the Use cases page)
+// opens the list: the entry is rewritten, not added.
+export function leaveUseCase() {
+  if (!uc.value) return;
+  uc.value = "";
+  route.navigate(where(), { replace: true });
+}
+
+export function openUseCases() {
+  go({ view: "usecases", project: project.value, item: "", ms: "", f: "", uc: "" });
+}
+
 /** Open a work item's or a milestone's peek (`kind` "milestone" or "item"; left out, the project's data says which): one new entry; with a peek already open, this entry is rewritten (Previous, Next, another row). An id the loaded data doesn't have does nothing. */
 export function openPeek(id, kind) {
   const d = data.value;
+  if (!peek.value) openedF = filterText.value;           // the filters as they were when the peek opened: closing steps Back only if they still are
   const milestone = kind ? kind === "milestone" : known(d, id, true);
   if (d && !known(d, id, milestone)) return;               // with no data loaded there is nothing to check it against: open it
   go({ ...where(), item: milestone ? "" : id, ms: milestone ? id : "" }, { replace: !!peek.value });
@@ -129,7 +160,8 @@ export function openPeek(id, kind) {
 export function closePeek() {
   if (!peek.value) return;
   const rewrite = () => go({ ...where(), item: "", ms: "" }, { replace: true });
-  if (route.peekWasPushed() && route.back(rewrite)) return;       // onPop redraws
+  // Back would also take away a filter changed while the peek was open (that change rewrote this entry), so then the entry is rewritten.
+  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) return;       // onPop redraws
   rewrite();
 }
 
@@ -174,6 +206,7 @@ function published() {
 
 function openPublished(p) {
   fromFile.value = true;
+  setPublished(true);                                     // the client's seven filters, no Client filter, Earlier for a finished item
   mode.value = "view";
   if (p === "bad") { tabs.value = []; status.value = "failed"; message.value = "This report's data could not be read."; return; }
   tabs.value = VIEWS.filter((v) => p.tabs.includes(v));
@@ -241,6 +274,14 @@ const CHANGE_KNOWN = {
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
   "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
+  // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
+  "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
+  "Say what is needed.": "Say what is needed. Nothing was changed.",
+  "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
+  "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
+  "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
+  "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
+  "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";

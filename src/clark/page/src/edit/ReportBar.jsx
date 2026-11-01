@@ -3,7 +3,8 @@
 // field, the note that each change saves on its own and the drag hint. Never an input in View.
 import { useEffect } from "preact/hooks";
 import { data, project, mode } from "../stores/report.js";
-import { change } from "../stores/changes.js";
+import { change, say } from "../stores/changes.js";
+import { parseDay, problem } from "../templates/keydates.js";
 import { latest, refreshLatest } from "./publishState.js";
 import { lastLine } from "./Publish.jsx";
 
@@ -15,16 +16,17 @@ export function ReportBar() {
   const week = data.value.project.week_ending || "";
   const editing = mode.value === "edit";
   const published = lastLine(latest.value);
-  const save = (e) => {
-    const v = e.currentTarget.value;
-    if (!v || v === week) { e.currentTarget.value = week; return; }
-    change({ kind: "projects", op: "update", changes: { week_ending: v }, place: "cell" }, `Week ending changed to ${shownDate(v)}.`)
-      .then((reply) => { if (!reply) { const el = document.getElementById("week-ending"); if (el) el.value = week; } });
+  const save = (e) => {       // typed as DD-MM-YYYY, as Key dates takes it: clark's own way, never the browser's calendar
+    const el = e.currentTarget, raw = el.value.trim(), iso = parseDay(raw);
+    if (!raw || iso === week) { el.value = shownDate(week); return; }
+    if (!iso) { say("problem", problem.day + " The old week ending date was kept."); el.value = shownDate(week); return; }       // not a day: the old one comes back
+    change({ kind: "projects", op: "update", changes: { week_ending: iso }, place: "cell" }, `Week ending changed to ${shownDate(iso)}.`)
+      .then((reply) => { if (!reply) { const x = document.getElementById("week-ending"); if (x) x.value = shownDate(week); } });
   };
   return (
     <div class="rbar" id="report-bar">
       {editing ? (
-        <label class="rbar-week">Week ending <input type="date" id="week-ending" value={week} onChange={save} /></label>
+        <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" id="week-ending" key={week} defaultValue={shownDate(week)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} /></label>
       ) : (
         <span class="rbar-week" id="week-ending-text">{week ? `Week ending ${shownDate(week)}` : "No week ending date yet"}</span>
       )}

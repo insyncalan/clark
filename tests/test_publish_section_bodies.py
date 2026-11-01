@@ -21,7 +21,13 @@ SEPARATORS = MARK + "\u2028" + MARK + "\u2029"                  # refused when a
 
 
 def body(*words):
-    return json.dumps({"rows": [{"what": w, "from": w, "by": w} for w in words]})
+    """A body both content types take: for needs, rows of the shape its checker rebuilds (the text goes in `what` and `from`)."""
+    return json.dumps({"v": 1, "rows": [{"what": w, "kind": "decision", "from": w[:100], "by": "", "hidden": 0} for w in words]})
+
+
+def tbody(*words):
+    """A body the tracker takes: one group whose lines carry the words."""
+    return json.dumps({"v": 1, "groups": [{"name": "Plan", "lines": [{"text": w[:200]} for w in words]}]})
 
 
 class Published(Api):
@@ -50,14 +56,43 @@ class Published(Api):
 
 
 class Kept(Published):
-    def test_a_good_body_keeps_the_section_with_its_place_and_title_only(self):
+    def test_a_good_needs_body_keeps_its_shown_rows_and_a_tracker_body_keeps_its_groups_and_lines(self):
         needs = self.section("needs")
         tracker = self.section("tracker")
         self.write(needs, body("one"))
-        self.write(tracker, body("two"))
+        self.write(tracker, tbody("two"))
         got = self.sections()
-        self.assertEqual(got[needs], {"id": needs, "type": "needs", "title": "Needs from you", "beside": 0})
-        self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0})
+        self.assertEqual(got[needs], {"id": needs, "type": "needs", "title": "Needs from you", "beside": 0,
+                                      "rows": [{"what": "one", "kind": "decision", "from": "one", "by": ""}]})
+        self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0,
+                                        "overall": {"actual": None, "planned": None, "health": "", "note": ""},
+                                        "columns": {"tasks": False, "agents": False, "workflows": False},
+                                        "groups": [{"name": "Plan", "lines": [{"no": "", "text": "two", "start": "", "end": "", "status": "planned",
+                                                                              "weight": 0, "planned": 0, "achieved": 0, "tasks": None,
+                                                                              "agents": None, "workflows": None}]}]})
+
+    def test_a_tracker_publishes_only_what_shows_and_picks_by_name(self):
+        tracker = self.section("tracker")
+        self.write(tracker, json.dumps({"overall": {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late supplier"},
+                                        "columns": {"tasks": True}, "groups": [
+            {"name": "Empty", "lines": []},
+            {"name": "Build", "lines": [{"no": "1", "text": "Site", "start": "2030-01-05", "end": "2030-02-01", "status": "late", "weight": 500, "tasks": 4}]}]}))
+        got = self.sections()[tracker]
+        self.assertEqual([g["name"] for g in got["groups"]], ["Build"])
+        self.assertEqual(got["overall"], {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late supplier"})
+        self.assertEqual(got["columns"], {"tasks": True, "agents": False, "workflows": False})
+        self.assertEqual(got["groups"][0]["lines"][0]["start"], "05-01-2030")
+        self.assertEqual(got["groups"][0]["lines"][0]["tasks"], 4)
+        self.assertEqual(set(got), {"id", "type", "title", "beside", "overall", "columns", "groups"})
+
+    def test_a_tracker_with_no_line_is_left_out_and_a_hidden_one_too(self):
+        tracker = self.section("tracker")
+        self.write(tracker, json.dumps({"groups": [{"name": "Empty", "lines": []}]}))
+        self.assertNotIn(tracker, self.sections())
+        self.write(tracker, tbody("one"))
+        self.assertIn(tracker, self.sections())
+        self.ok("update", id=tracker, changes={"hidden": 1})
+        self.assertNotIn(tracker, self.sections())
 
     def test_an_empty_body_is_left_out(self):
         needs = self.section("needs")
@@ -87,7 +122,7 @@ class Kept(Published):
     def test_the_stored_text_is_checked_by_the_checker_of_its_type_at_publish_time(self):
         needs, tracker = self.section("needs"), self.section("tracker")
         self.write(needs, body("a"))
-        self.write(tracker, body("b"))
+        self.write(tracker, tbody("b"))
         calls = []
 
         def checker(kind):
@@ -118,7 +153,7 @@ class Kept(Published):
         self.write(first, body("one"))
         got = self.sections()
         self.assertEqual((got[first]["beside"], second in got), (0, False))        # the partner has no body: out, so the first takes the full row
-        self.write(second, body("two"))
+        self.write(second, tbody("two"))
         got = self.sections()
         self.assertEqual((got[first]["beside"], got[second]["beside"]), (1, 0))      # both in: a pair
         self.raw(second, "not json")
@@ -133,20 +168,29 @@ class Kept(Published):
 
 
 class NothingOfABodyReachesTheFile(Published):
-    def test_a_body_full_of_markup_is_not_in_the_file_in_any_spelling(self):
+    def test_a_tracker_body_full_of_markup_stays_text_in_every_field_in_any_spelling(self):
         needs, tracker = self.section("needs"), self.section("tracker")
-        self.write(needs, body(*HOSTILE))
-        self.write(tracker, json.dumps({"groups": [{"name": h, "lines": [{"text": h}]} for h in HOSTILE]}))
+        self.write(needs, body("one"))
+        hostile = [h for h in HOSTILE if h]
+        line = lambda h: {"no": h[:10], "text": h[:100], "start": "2030-01-01", "end": "2030-02-01", "status": "planned"}
+        self.write(tracker, json.dumps({"overall": {"note": hostile[0][:100], "health": "atrisk"},
+                                        "groups": [{"name": h[:80], "lines": [line(h)]} for h in hostile]}))
         baseline_scripts = self.baseline()
         text = self.file()
         self.assertEqual(len(re.findall(r'id="clark-data"', text)), 1)
         self.assertEqual(len(re.findall(r"<script\b", text)), baseline_scripts)
-        for marker in HOSTILE + [MARK, "Example team"]:
+        block = re.search(r'<script type="application/json" id="clark-data">(.*?)</script>', text, re.S).group(1)
+        for ch in "<>&\u2028\u2029":
+            self.assertNotIn(ch, block)                          # none is raw inside the data block
+        outside = text.replace(block, "")
+        for marker in hostile:
             for spelling in spellings(marker):
-                self.assertNotIn(spelling, text, marker)
-        data = self.data_block(text)
-        self.assertEqual({s["type"] for s in data["sections"] if s["id"] in (needs, tracker)}, {"needs", "tracker"})
-        self.assertNotIn("body", json.dumps([s for s in data["sections"] if s["id"] in (needs, tracker)]))
+                self.assertNotIn(spelling, outside, marker)      # nowhere in the page but as escaped data
+        entry = {s["id"]: s for s in self.data_block(text)["sections"]}[tracker]
+        self.assertEqual([g["name"] for g in entry["groups"]], [h[:80] for h in hostile])     # arrives intact, as text
+        self.assertEqual(entry["groups"][0]["lines"][0]["text"], hostile[0][:100])
+        self.assertEqual(entry["overall"]["note"], hostile[0][:100])
+        self.assertNotIn("body", entry)
 
     def baseline(self):
         return len(re.findall(r"<script\b", self.file()))
@@ -185,26 +229,26 @@ class NothingOfABodyReachesTheFile(Published):
         self.assertNotIn("clean_html(", content)
 
 
-class ThePageDoesNotBreakOnTheNewTypes(unittest.TestCase):
-    """The page needs no change in this base: the live page says 'Not shown on this page yet.' for a type it can't draw, and a
-    published file leaves that type out. Read from the page's source, so no browser is needed."""
+class ThePageDrawsNeedsAndLeavesTheTrackerQuiet(unittest.TestCase):
+    """The live page says 'Not shown on this page yet.' for a type it can't draw (the tracker, until #189), and a published file
+    leaves that type out; needs is drawn (#121). Read from the page's source, so no browser is needed."""
 
     PAGE = store_module.Path(publish.__file__).parent / "page" / "src" / "components"
 
     def test_the_live_page_has_a_quiet_line_for_every_type_it_does_not_draw(self):
         src = (self.PAGE / "Section.jsx").read_text(encoding="utf-8")
         self.assertIn('<p class="quiet">Not shown on this page yet.</p>', src)
-        self.assertNotIn("needs", src)
+        self.assertIn('section.type === "needs"', src)
         self.assertNotIn("tracker", src)
 
     def test_a_published_file_draws_no_type_it_does_not_know(self):
         src = (self.PAGE / "Dashboard.jsx").read_text(encoding="utf-8")
         line = next(l for l in src.splitlines() if "const fileDraws" in l)
         self.assertTrue(line.rstrip().endswith(": false);"), line)             # every other type: not drawn, so left out of the file
-        self.assertNotIn("needs", line)
+        self.assertIn("needs", line)
         self.assertNotIn("tracker", line)
 
-    def test_the_page_writes_no_body(self):
+    def test_the_page_writes_no_body_of_a_text_section(self):
         rich = (self.PAGE.parent / "edit" / "richSave.js").read_text(encoding="utf-8")
         self.assertIn("export const RICH_WRITES = {};", rich)
 

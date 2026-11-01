@@ -17,10 +17,11 @@ class Build(unittest.TestCase):
     def test_the_rules_text_is_fixed(self):
         text = ask.build_request("What is late?", P).text
         self.assertTrue(text.startswith(ask.RULES))
-        for line in ("Use only the passages below", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "You have no tools and no files"):
+        for line in ("Use only the passages below", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "You have no tools and no files",
+                     "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving"):
             self.assertIn(line, ask.RULES)
-        self.assertEqual(len(ask.RULES.splitlines()), 8)
-        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "5834fbebe967755708b46738cca425295eaacfea2b0d19909fe2f1e6c21b988e")      # a change to the rules is a deliberate edit of this line
+        self.assertEqual(len(ask.RULES.splitlines()), 12)
+        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "033a4e3217abe599bfdcb7fc1b4b5c458c6b0b105aebab9fb6af1d1dacdad4dd")      # a change to the rules is a deliberate edit of this line
 
     def test_passages_get_ids_in_order_and_the_question_is_carried(self):
         r = ask.build_request("What is late?", P)
@@ -41,7 +42,7 @@ class Build(unittest.TestCase):
 
     def test_a_request_holds_text_only(self):
         names = {f.name for f in dataclasses.fields(ask.Request)}
-        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns"})   # the last is a count
+        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "canary"})   # dropped_turns is a count; canary (#277) is the random marker ask_provider sets
         for bad in ("tool", "file", "path", "key", "tools", "files", "env"):
             self.assertNotIn(bad, names)
 

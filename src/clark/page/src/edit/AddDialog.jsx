@@ -4,6 +4,7 @@
 // a text node.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { mode, data } from "../stores/report.js";
+import { openHelp } from "../help/helpStore.js";
 import { ADD_SECTION_EVENT } from "./addDialog.js";
 import { addFromTemplate } from "./actions.js";
 import { KINDS, RECENT, MESSAGES, list, counts, find, available, besideState, remember, fitWords, noMatch } from "../logic/templates.js";
@@ -96,8 +97,7 @@ function Box({ after, opener, onClose }) {
   // Help opens over the page, so the box closes first and Help opens at the entry (Esc in Help comes back to the page).
   const help = (place) => {
     close();
-    const h = window.clarkPage && window.clarkPage.help;
-    if (h) setTimeout(() => h.open(place), 0);
+    setTimeout(() => openHelp(place), 0);        // straight from the help store: the served page has no test hook (#42)
   };
 
   const submit = async (e) => {

@@ -15,12 +15,17 @@ OTHER = "ZQ-HISTORY-OTHER"
 
 
 def body(word):
-    return json.dumps({"rows": [{"what": word, "from": "Example team"}]})
+    return json.dumps({"v": 1, "rows": [{"what": word, "kind": "decision", "from": "Example team", "by": "", "hidden": 0}]})
+
+
+def tracker_body(word):
+    return json.dumps({"v": 1, "groups": [{"name": "Plan", "lines": [{"text": word}]}]})
 
 
 class Shown(Api):
     def write(self, ref, word):
-        status, got = self.change(self.req("update", id=ref, changes={"body": body(word)}))
+        make = tracker_body if self.s.read(KIND, ref=ref)["type"] == "tracker" else body
+        status, got = self.change(self.req("update", id=ref, changes={"body": make(word)}))
         self.assertEqual(status, 200, got)
         return got
 

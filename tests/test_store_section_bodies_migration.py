@@ -1,8 +1,9 @@
 """The migration step that lets report_sections hold the types 'needs' and 'tracker' (the shared base for 'Needs from you' and
 'Progress tracker'; src/clark/store.py, guarded).
 
-The step is number 4, after Word's 3. Its number is written as a literal in MIGRATIONS and SCHEMA_VERSION says 4; a step that lands
-before it renumbers it (both places). The other tests read SCHEMA_VERSION and the version just before it, so they follow a renumber.
+The step is number 4, after Word's 3 and before the history offset's 5 (#123). Its number is written as a literal in MIGRATIONS; a
+step that lands before it renumbers it (there and in STEP below). The tests bring a file to the version just before this step, run
+the steps up to this one where they look at this step alone, and expect the current version after a plain open.
 
 Run: python3 dev/run_tests.py test_store_section_bodies_migration
 """
@@ -20,8 +21,9 @@ from clark import backup, changes, store as store_module
 from clark.store import Invalid, connect, migrate, open_store
 from test_store_migration import make_v1, version
 
-BEFORE = str(store_module.SCHEMA_VERSION - 1)       # the version this step brings a file from
-NOW = str(store_module.SCHEMA_VERSION)
+STEP = 4                                            # this step's number
+BEFORE = str(STEP - 1)                              # the version this step brings a file from
+NOW = str(store_module.SCHEMA_VERSION)              # the version a plain open brings a file to (this step and any later one)
 TYPES_BEFORE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
 
 
@@ -29,13 +31,20 @@ def make_before(folder):
     """A file at the version just before this step: a version-1 file brought up by the earlier steps only. Its report_sections
     has the old type CHECK. The copy that bringing it up took is removed, so tests count only their own."""
     path = make_v1(folder)
-    earlier = tuple(m for m in store_module.MIGRATIONS if m[0] < store_module.SCHEMA_VERSION)
-    with mock.patch.object(store_module, "SCHEMA_VERSION", store_module.SCHEMA_VERSION - 1), \
+    earlier = tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)
+    with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), \
             mock.patch.object(store_module, "MIGRATIONS", earlier):
         open_store(path, onedrive_roots=[]).close()
     shutil.rmtree(Path(folder) / "backups", ignore_errors=True)
     assert version(path) == BEFORE
     return path
+
+
+def to_this_step(path):
+    """Open `path` with the steps up to this one only (no later step), so a test sees what this step alone changes."""
+    with mock.patch.object(store_module, "SCHEMA_VERSION", STEP), \
+            mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] <= STEP)):
+        open_store(path, onedrive_roots=[]).close()
 
 
 def add_sections(path):
@@ -85,7 +94,8 @@ class Base(unittest.TestCase):
 class TheNumber(Base):
     def test_the_step_is_number_4_and_the_version_is_4(self):
         self.assertIn((4, store_module.migrate_section_bodies), store_module.MIGRATIONS)
-        self.assertEqual(store_module.SCHEMA_VERSION, 4)         # both written out: a step that lands first renumbers this one, on purpose, in both places
+        self.assertEqual(STEP, 4)                                # both written out: a step that lands first renumbers this one, on purpose, in both places
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, STEP)
         self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
 
     def test_the_step_is_named_for_what_it_does_not_for_its_number(self):
@@ -98,7 +108,7 @@ class TheNumber(Base):
         con = sqlite3.connect(str(path))
         before = {r[0]: r[1] for r in con.execute("SELECT name, sql FROM sqlite_master WHERE name != 'report_sections' AND name NOT LIKE 'sqlite_%'")}
         con.close()
-        open_store(path, onedrive_roots=[]).close()
+        to_this_step(path)
         con = sqlite3.connect(str(path))
         after = {r[0]: r[1] for r in con.execute("SELECT name, sql FROM sqlite_master WHERE name != 'report_sections' AND name NOT LIKE 'sqlite_%'")}
         con.close()
@@ -280,7 +290,8 @@ class Migrating(Base):
         def orphan(con):
             store_module._report_sections_allow_content_types(con)
             con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('NOP', 'NOP-S-001', 'text', 'T', 1)")
-        with mock.patch.object(store_module, "MIGRATIONS", (*store_module.MIGRATIONS[:-1], (store_module.SCHEMA_VERSION, orphan))):
+        table = tuple((n, orphan if n == STEP else step) for n, step in store_module.MIGRATIONS)
+        with mock.patch.object(store_module, "MIGRATIONS", table):
             with self.assertRaises(Invalid) as e:
                 open_store(path, onedrive_roots=[])
         self.assertEqual(str(e.exception), store_module.MIGRATE_INCONSISTENT)
@@ -290,16 +301,22 @@ class Migrating(Base):
 
 
 class FrozenText(Base):
-    def test_the_frozen_text_is_what_schema_sql_makes_today(self):
-        """Pin: while this is the newest version, the step's frozen text and schema.sql say the same. A later change to schema.sql
-        is a later step with its own frozen text, and this test then compares only against that step."""
-        statements = [st for st in store_module._statements(store_module.SCHEMA.read_text(encoding="utf-8"))
-                      if "CREATE TABLE IF NOT EXISTS report_sections (" in st]
-        self.assertEqual(len(statements), 1)
-
+    def test_the_frozen_text_is_the_later_steps_text_without_the_template_types(self):
+        """Pin: this step's frozen text names the eleven types, and is otherwise what the later section templates step (#96) makes,
+        which tests/test_store_section_templates_migration.py pins to schema.sql. A later change to report_sections is a later
+        step with its own frozen text; this one never changes."""
         def squash(text):
             return re.sub(r"\s+", " ", "\n".join(l.split("--")[0] for l in text.splitlines())).strip().rstrip(";")
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_CONTENT_TYPES), squash(statements[0]))
+
+        def types_and_rest(text):
+            text = squash(text)
+            m = re.search(r"CHECK \(type IN \(([^)]*)\)\)", text)
+            return [t.strip().strip("'") for t in m.group(1).split(",")], text[:m.start()] + text[m.end():]
+        mine, rest = types_and_rest(store_module.REPORT_SECTIONS_WITH_CONTENT_TYPES)
+        later, later_rest = types_and_rest(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES)
+        self.assertEqual(mine, list(TYPES_BEFORE) + ["needs", "tracker"])
+        self.assertEqual(later[:len(mine)], mine)
+        self.assertEqual(rest, later_rest)
 
     def test_the_step_does_not_read_the_live_schema(self):
         path = make_before(self.dir)
@@ -327,7 +344,11 @@ class UndoAcrossTheStep(Base):
     def test_steps_made_before_the_step_are_undone_after_it(self):
         """A section made, hidden, moved and deleted at the old version are each undone after the file is brought up."""
         path = make_before(self.dir)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", store_module.SCHEMA_VERSION - 1):
+        con = sqlite3.connect(str(path), isolation_level=None)       # the writer records the offset (#123, a later step); an older clark
+        con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT")   # wrote these steps without it, so the column is added for it here
+        con.close()
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), \
+                mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)):
             s = open_store(path, onedrive_roots=[])
             with s.step("dashboard", USER) as st:
                 st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})
@@ -369,19 +390,24 @@ class OtherBranchesDatabase(Base):
         old type check. The first write of a new type is a plain refusal, never a crash."""
         path = make_before(self.dir)
         con = sqlite3.connect(str(path), isolation_level=None)
-        con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (NOW,))
+        con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(STEP),))
         con.close()
-        s = open_store(path, onedrive_roots=[])
-        try:
-            self.assertEqual(version(path), NOW)
-            self.assertNotIn("'needs'", table_sql(path))
-            with s.step("dashboard", USER) as st:
-                st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})
-        finally:
-            s.close()
-        before = sections_of(path)
-        with self.assertRaises(sqlite3.IntegrityError):           # not caught by changes: the server answers it with its own 500, in plain words, no class and no text
-            changes.make_change(path, [], USER)({"project": "ZZZ", "kind": "report_sections", "op": "new", "values": {"type": "needs", "title": "Needs"}})
-        self.assertEqual(sections_of(path), before)               # nothing was written
+        # #96's later step makes the table again (which mends such a file), so this test runs with every step but that one
+        without_rebuilds = tuple((n, (lambda con: None) if f is store_module.migrate_section_templates else f)     # same numbers: no gap
+                                 for n, f in store_module.MIGRATIONS)
+        with mock.patch.object(store_module, "SCHEMA_VERSION", without_rebuilds[-1][0]), \
+                mock.patch.object(store_module, "MIGRATIONS", without_rebuilds):
+            s = open_store(path, onedrive_roots=[])                   # any later step still runs; this one is skipped
+            try:
+                self.assertEqual(version(path), str(without_rebuilds[-1][0]))
+                self.assertNotIn("'needs'", table_sql(path))
+                with s.step("dashboard", USER) as st:
+                    st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})
+            finally:
+                s.close()
+            before = sections_of(path)
+            with self.assertRaises(sqlite3.IntegrityError):           # not caught by changes: the server answers it with its own 500, in plain words, no class and no text
+                changes.make_change(path, [], USER)({"project": "ZZZ", "kind": "report_sections", "op": "new", "values": {"type": "needs", "title": "Needs"}})
+            self.assertEqual(sections_of(path), before)               # nothing was written
         from clark import server
         self.assertEqual(server.MESSAGES["server_error"], "Something went wrong, and nothing was changed. Try again, or restart clark.")

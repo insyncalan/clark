@@ -1,6 +1,7 @@
 """#123: the display rows the peek's Activity tab and the Excel History sheet share (history.rows_for_project)."""
 import re
 import unittest
+from unittest import mock
 
 from _demo import USER, DemoStore
 from clark import history
@@ -14,10 +15,7 @@ def stamp(demo, step, at, offset=None):
     con = demo.store.con
     con.execute("UPDATE change_log SET at = ? WHERE apply_id = ?", (at, step))
     con.execute("UPDATE item_events SET at = ? WHERE apply_id = ?", (at, step))
-    if offset is not None:
-        if not any(r[1] == "utc_offset" for r in con.execute("PRAGMA table_info(applies)")):
-            con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT")
-        con.execute("UPDATE applies SET utc_offset = ? WHERE apply_id = ?", (offset, step))
+    con.execute("UPDATE applies SET utc_offset = ? WHERE apply_id = ?", (offset, step))      # None: the zone was not recorded
     con.commit()
 
 
@@ -52,6 +50,11 @@ class Rows(unittest.TestCase):
         self.assertEqual(history.how_text("excel", "excel", "Excel import: plan.xlsx"), "By Excel import (plan.xlsx)")
         self.assertEqual(history.how_text("undo", "cell", None), "Undo")
         self.assertEqual(history.how_text("undo", None, None), "Undo")
+
+    def test_undo_several_is_named_on_every_row_of_the_batch(self):
+        """#239: the rows of one Undo several all say so, not just 'Undo'."""
+        self.assertEqual(history.how_text("undo", None, "Undo several"), "Undo (Undo several)")
+        self.assertEqual(history.how_text("undo", "cell", "something else"), "Undo")
 
     def test_excel_file_name_is_cleaned_and_unknown_values_are_plain(self):
         self.assertEqual(history.how_text("excel", "excel", "Excel import: C:\\x\\a  b.xlsx"), "By Excel import (a b.xlsx)")
@@ -165,14 +168,14 @@ class Rows(unittest.TestCase):
         self.assertEqual((r["when"], r["zone_note"], r["when_text"]), ("29-10-2026 02:30", "", "29-10-2026 02:30"))
         stamp(self.demo, step, "2026-10-28 22:30:00.000", "-05:30")
         self.assertEqual([x for x in self.rows() if x["field"] == "Owner"][0]["when"], "28-10-2026 17:00")
-        stamp(self.demo, step, "2026-10-28 22:30:00.000", "garbage")        # an odd stored offset is not trusted
-        self.assertEqual([x for x in self.rows() if x["field"] == "Owner"][0]["zone_note"], NO_ZONE)
+        with self.assertRaises(Exception):                                  # the schema now refuses an odd offset
+            stamp(self.demo, step, "2026-10-28 22:30:00.000", "garbage")
 
     def test_works_whether_or_not_the_offset_column_exists(self):
         self.make_action()
-        self.assertEqual(self.of("Created")[0]["zone_note"], NO_ZONE)
-        self.con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT")
-        self.assertEqual(self.of("Created")[0]["zone_note"], NO_ZONE)
+        self.assertEqual(self.of("Created")[0]["zone_note"], "")             # a step made now carries its offset
+        with mock.patch.object(history, "_has_column", return_value=False):   # a copy without the column
+            self.assertEqual(self.of("Created")[0]["zone_note"], NO_ZONE)
 
     # -- fields
     def test_plain_field_names(self):

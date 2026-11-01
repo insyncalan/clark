@@ -22,30 +22,36 @@ import sqlite3
 import unicodedata
 import uuid
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import platform, section_bodies
+from clark import freshness as fresh, people as people_rules, platform, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 4          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
+SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
+SCHEMA_VERSION = 9          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
-          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents")
+          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people")
+SETTINGS_TABLES = ("app_settings",)     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
 # clark: - promises, + use_cases, and + the report's own tables (#65, one amendment: the route admits only report_sections)
 KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "actions": ("id",), "raid": ("id",),
         "decisions": ("id",), "use_cases": ("id",), "links": ("from_item", "to_item", "kind"), "labels": ("name",),
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
-        "documents": ("project", "id")}
+        "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",),
+        "people": ("id",)}
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
     "projects": ("code", "name"),
+    "people": ("name", "source"),                              # #115
     "milestones": ("project", "name", "source"),
     "workstreams": ("project", "name", "source"),
     "actions": ("project", "description", "raised", "source"),
@@ -59,16 +65,23 @@ REQUIRED_NEW = {
     "report_sections": ("project", "type", "title"),                    # clark (#65)
     "glance_tiles": ("project", "tile"),                                # clark: its sort_order is a rule (0 is a number)
     "report_hidden": ("project", "item_id"),
+    "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
+    "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
     "documents": ("project", "title", "url"),                           # clark (#126): registered so it can be archived; see DOCUMENTS_LATER
 }
-ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")   # what Step.archive takes (#126)
+ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents", "people")   # what Step.archive takes (#126)
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
+SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
-                 "needs", "tracker")            # the eleven of schema.sql's CHECK ('needs' and 'tracker' carry content: section_bodies.py)
+                 "needs", "tracker",
+                 "textimage", "headline", "figures4", "figures3", "gallery", "table", "doclinks", "linkcard", "raid3", "raid4",
+                 "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc")
+# the twenty-nine of schema.sql's CHECK: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
+# registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = BODY_TYPES                    # a section added by hand may be deleted; the built-in ones are hidden, never deleted
 ALLOWED = {
-    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the eleven of schema.sql's CHECK
+    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): every type of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
     ("glance_tiles", "outline"): ("R", "A", "G", "N"),                  # and '' (a blank is never checked)
     ("actions", "status"): ("Open", "Delayed", "Closed", "Cancelled"),
@@ -110,7 +123,7 @@ BLANKABLE = {"decisions": ("date", "needed_by", "replaces", "reasoning", "option
              "milestones": ("state", "state_reason", "owner", "actual_date", "client_message", "description", "internal_note",
                             "movement", "workstream")}
 CLOSING = {"actions": CLOSED_STATUSES, "raid": CLOSED_STATUSES}          # statuses that set `closed`
-DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden")
+DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders")
 # the only rows a step deletes (Head ruling on #31; #65: + the report's own tables; delete_row refuses a section that isn't text)
 MAX_SECTIONS = 100                                                       # a project's sections (#65)
 TITLE_LIMIT = 120                                                        # a section's title, in characters
@@ -119,10 +132,34 @@ CANCEL_CHANGES = {"actions": {"status": "Cancelled"}, "raid": {"status": "Cancel
 
 # clark: a step's route, as item_events records it (data-model.md), and the vias it is written with. "word" (#48, Head ruling Q4): a Word import.
 ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate", "word")
-PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board")      # + board (#126)
+PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board",      # + board (#126)
+          "eye", "draft", "email", "text", "ask")                                           # + #123: with the eye, a draft, a sent email, selected text, ask clark
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
+FRESH_TABLES = ("actions", "raid", "decisions")          # #158: the items whose review dates the peek shows (milestones have none)
+
+
+def review_days_for(project_row):
+    """N, the days after which an open item counts as not reviewed in this project (#160). Today every project uses the one
+    default; a per-project setting will be read here, from the project row, so nothing else has to change."""
+    return fresh.DEFAULT_DAYS
+
+
+def attach_freshness(con, data, days, cache=None):
+    """Add `freshness` {raised, last_reviewed, days, not_reviewed} (dates YYYY-MM-DD) to each open action, risk or issue and
+    decision in `data` (#158). Closed, cancelled, made, withdrawn and archived items get none. Read only: it works from each
+    item's first and latest by-a-person history rows (history.review_events), and writes nothing."""
+    from clark import history          # history imports this module, so it is read here
+    on = today()
+    opened = [row for t in FRESH_TABLES for row in data.get(t, ()) if fresh.is_open(row)]
+    events = history.review_events(con, [row["id"] for row in opened], cache)          # only the rows freshness reads, not the whole log
+    for row in opened:
+        f = fresh.freshness(row, events[row["id"]], on, days)
+        row["freshness"] = {"raised": f["raised"], "last_reviewed": f["last_reviewed"], "days": days,
+                            "not_reviewed": f["not_reviewed"]}
+
+
 PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "use_cases")     # what publish_inputs reads, in
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
@@ -152,8 +189,12 @@ MOVE_SQL = (
 OP_MADE = "insert"                    # the log's word for a row a step made; the one place it is spelt, changes.py imports it
 SEED_VIA = "seed"                     # clark (#65): the via of the default sections a step makes (_seed_sections); an Undo never removes them
 PENDING_VIA = "revert:pending"        # an undo's rows until it knows which rows it put back
+BATCH_UNDO = "Undo several"           # #197: the src_ref of a step that undid several steps at once (Store.undo_many)
+MAX_UNDO_MANY = 100                   # #197: the most steps one batch undo takes (the page asks a second time above 25)
+# /api/undo's body is held to 1 KB by server.py: 100 step numbers of up to 7 digits fit; 8-digit numbers over about 100 steps do not
+# (the server refuses the body as too big, in plain words). Raising either limit means raising both.
 REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "links", "item_labels", "labels",
-                  "report_sections")
+                  "report_sections", "source_folders", "people")      # #115: a person is never deleted; only the Undo of the step that made them takes the row away
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
 REVERT_CREATED += ("report_hidden",)    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
@@ -179,6 +220,26 @@ def clock():
     return datetime.now(timezone.utc)
 
 
+def local_offset():
+    """The machine's offset from UTC at this moment as '+HH:MM' or '-HH:MM' (#123); a test replaces this one function. The step's
+    own clock is used, so a test that fixes the time gets the offset of that instant."""
+    off = clock().astimezone().utcoffset() or timedelta(0)
+    minutes = int(off.total_seconds() // 60)
+    sign = "+" if minutes >= 0 else "-"
+    return f"{sign}{abs(minutes) // 60:02d}:{abs(minutes) % 60:02d}"
+
+
+OFFSET_RE = r"[+-](?:(?:0[0-9]|1[0-3]):(?:00|15|30|45)|14:00)"     # a real offset (mirrors applies.utc_offset's CHECK); UTC is '+00:00', never 'Z' or '-00:00'
+
+
+def checked_offset(text):
+    """`text` when it is a real offset from UTC ('+HH:MM' or '-HH:MM', at most 14 hours, in quarter hours), else None, which the
+    history shows as "Time zone not recorded": a machine that reports an odd offset never stops a step being written."""
+    if isinstance(text, str) and re.fullmatch(OFFSET_RE, text) and text != "-00:00":
+        return text
+    return None
+
+
 def now():
     """UTC to the millisecond, so steps within one second keep their order (clark: UTC, as datetime('now') in schema.sql)."""
     return clock().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -196,7 +257,7 @@ def shown(iso):
 
 def _table(table):
     """`table` if it is one the writer knows; the only way a table name reaches SQL."""
-    if table not in TABLES:
+    if table not in TABLES and table not in SETTINGS_TABLES:
         raise Invalid(f"unknown table {table!r}")
     return table
 
@@ -320,7 +381,7 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived"})
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details"})
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -558,7 +619,39 @@ def _hidden_item(con, table, row, changed):
         raise Invalid("That isn't an item of this project.")
 
 
+def _source_folder(con, table, row, changed):
+    """clark (#47): a folder asking may read is a whole path with a place in the list, and not one clark keeps off limits."""
+    path = row.get("path")
+    if type(row.get("sort_order")) is not int:
+        raise Invalid("A folder needs its place in the list (sort_order, a whole number).")
+    if not isinstance(path, str) or not path.startswith("/") or len(path) > 1000 or any(unicodedata.category(c).startswith("C") for c in path):
+        raise Invalid("A folder is a full path on this computer, one line, starting with /.")
+    if path.rstrip("/") == "":
+        raise Invalid("The top of the disk can't be a folder for asking.")
+    if "|" in path:                                     # key_of joins (project, path) with '|', so a '|' would split the key wrongly
+        raise Invalid("A folder whose name has a | in it can't be used for asking.")
+    from clark import reach
+    file = next((r[2] for r in con.execute("PRAGMA database_list") if r[1] == "main"), "")
+    why = reach.never_inside(path, Path(file).parent if file else None)
+    if why:
+        raise Invalid(f"Asking can't read that folder: it is, or holds, a place clark keeps closed ({why}).")
+
+
 _ITEM_RULES = (_item_workstream, _project_exists, _milestone_link, _use_case_link)
+def _person_rules(con, table, row, changed):
+    """#115: a person's fields are checked and written as people.check_person gives them (trimmed, email lower-cased, aliases joined,
+    Needs details cleared by an email), against every person on the list (an email is unique, archived people included)."""
+    if "people" not in {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}:
+        raise Invalid(MIGRATE_FAILED)
+    others = [dict(r) for r in con.execute("SELECT id, name, email FROM people")]
+    clean, problems = people_rules.check_person(row, others, own_id=row.get("id"))
+    if problems:
+        raise Invalid(problems[0])
+    row.update(clean)
+    if not str(row.get("source") or "").strip():
+        raise Invalid("a person must record its source")
+
+
 ROW_RULES = {
     "actions": _ITEM_RULES,
     "raid": _ITEM_RULES,
@@ -570,9 +663,11 @@ ROW_RULES = {
     "item_labels": (_item_label,),
     "labels": (_label_name,),
     "workstreams": (_workstream_unique, _project_exists),
+    "people": (_person_rules,),
     "report_sections": (_project_exists, _section_rules),                    # clark (#65)
     "glance_tiles": (_project_exists, _tile_rules),
     "report_hidden": (_project_exists, _hidden_item),
+    "source_folders": (_project_exists, _source_folder),                     # clark (#47)
 }
 
 
@@ -773,6 +868,8 @@ def write_item(con, item, step):
         raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
     if table == "documents" and op in ("new", "update") and not reverting:    # clark (#126): no ID scheme, no url rule (doclinks) yet; only an Undo of an archive or restore writes it
         raise Invalid(DOCUMENTS_LATER)
+    if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
+        raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
     if op == "new":
         if not reverting:
@@ -947,12 +1044,22 @@ NEW_HOOKS = {"projects": _new_project, "workstreams": _new_workstream, "raid": _
              "links": _new_link}
 
 
+def next_person_id(con):
+    """#115: P-001, P-002 ...: one more than the largest number ever used, counting the people on the list (archived too) and every
+    id ever logged, so undoing a creation never frees its number. Refused past P-999 in words."""
+    ids = [r[0] for r in con.execute("SELECT id FROM people UNION SELECT item_id FROM change_log WHERE tbl = 'people'")]
+    try:
+        return people_rules.next_person_id(ids)
+    except ValueError as e:
+        raise Invalid(str(e)) from e
+
+
 def _check_new_fields(table, values, cols):
     unknown = set(values) - set(cols)
     if unknown:
         raise Invalid(f"unknown field(s) for {table}: {', '.join(sorted(map(str, unknown)))}. "
                       f"Valid: {', '.join(c for c in cols if c not in NO_EDIT)}")
-    if table in ID_PREFIX and values.get("id"):
+    if (table in ID_PREFIX or table == "people") and values.get("id"):
         raise Invalid("new items carry no ID; clark gives them one")
     missing = [f for f in REQUIRED_NEW[table] if not str(values.get(f) or "").strip()]
     if missing:
@@ -990,6 +1097,8 @@ def _insert_row(con, table, item, cols, step):
     check_row(con, table, values, set(values))
     if table in ID_PREFIX:
         values["id"] = next_id(con, table, values["project"])
+    if table == "people":
+        values["id"] = next_person_id(con)
     if "updated_at" in cols:
         values["updated_at"] = now()
     if fetch(con, table, key_of(table, values)):
@@ -1282,7 +1391,8 @@ def holds(con, table, key, changes):
         return row is None
     if row is None:
         return False
-    return not any(c["field"] in row.keys() and text(row[c["field"]]) != c["new_value"] for c in changes)
+    return not any(c["field"] in row.keys() and c["field"] != "updated_at" and text(row[c["field"]]) != c["new_value"]
+                   for c in changes)      # #197: the stamp follows every change and every undo; the fields say whether it holds
 
 
 def changed_after(con, rowid, table, key, skip=()):
@@ -1294,7 +1404,8 @@ def changed_after(con, rowid, table, key, skip=()):
     gone = reverted_rowids(con)
     for (apply_id, row, via) in con.execute(
             "SELECT c.apply_id, c.rowid, c.via FROM change_log c LEFT JOIN applies a ON a.apply_id = c.apply_id WHERE c.rowid > ? "
-            "AND a.undone_at IS NULL AND ((c.tbl = ? AND c.item_id = ?) OR c.item_id LIKE ?) ORDER BY c.rowid DESC",
+            "AND a.undone_at IS NULL AND c.field != 'updated_at' AND ((c.tbl = ? AND c.item_id = ?) OR c.item_id LIKE ?) "
+            "ORDER BY c.rowid DESC",                    # #197: a stamp is never the later change: a field row always comes with it
             (rowid, table, key, key + "|%")):
         if apply_id not in skip and row not in gone and not str(via).startswith(REVERT_VIA):
             return apply_id
@@ -1314,7 +1425,7 @@ def referred_to(con, key):
 
 def why_not(con, r, reverted, done_ids, undoing_a_revert):
     """Why a change_log row can't be put back at all, or None."""
-    if r["tbl"] not in TABLES:
+    if r["tbl"] not in TABLES and r["tbl"] not in SETTINGS_TABLES:
         return "can't be undone"
     if not undoing_a_revert and r["rowid"] in reverted:
         return "already undone"
@@ -1398,6 +1509,11 @@ def revert_group(con, apply_id, table, key, rows_, step):
             return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
         old = json.loads(r["old_value"])
         back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
+        before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
+        for x in rows_:
+            if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
+                before[x["field"]] = x["old_value"]
+        back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
         check_row(con, table, dict(back), set(back))
         _insert_sql(con, table, back)
         for f, v in back.items():
@@ -1487,10 +1603,49 @@ MIGRATE_INCONSISTENT = ("The database could not be updated because some of its r
                         "changed. Your data is as it was. Ask the clark team for help, and tell them the name of the data file.")
 
 
-# How every plain refusal of an update begins (MIGRATE_FAILED, the safety-copy refusals from backup.refusal, the plan's refusals):
-# the server shows these sentences as they are instead of "clark can't read its data".
+MIGRATE_PART_WAY = ("The database could not be updated, and it may have been left part way. The copy taken before the update "
+                    "is in the backups folder. Ask the clark team for help, and tell them the name of the data file.")
+NEWER_DATA = "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."
+
+# The lowest SQLite the migration code is written for. Stated, not enforced at run time; a test checks the steps use nothing newer.
+MIN_SQLITE = (3, 24, 0)
+
+
+# How every plain refusal of an update begins (MIGRATE_FAILED, the safety-copy refusals from backup.refusal, the plan's refusals,
+# a newer file): the server shows these sentences as they are instead of "clark can't read its data".
 MIGRATE_REFUSAL_STARTS = ("The database could not be updated", "This copy of clark cannot bring the database",
-                          "The database has a version clark does not know")
+                          "The database has a version clark does not know", "This data needs a newer clark")
+
+
+def bring_up_to_date(con, path, onedrive_roots=None):
+    """The one way an existing file is brought to SCHEMA_VERSION, so no caller can migrate without the safety copy. In order: the
+    file's version is read (a newer one is refused with NEWER_DATA, and nothing is changed or copied); the plan is checked (a gap
+    or a missing step is refused before anything is copied); a safety copy is taken in backup.make's own `migrate` family (if it
+    cannot be made, nothing runs); then `migrate` runs every step in one transaction. Any failure leaves the file as it was and
+    is said in plain words. Returns the path of the safety copy, or None when the file was already up to date."""
+    from clark import backup
+    path = Path(path)
+    row = con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()
+    if row is None or not str(row[0]).isdigit():
+        raise Invalid(f"{path.name} is a clark database with no usable version. It may be damaged.")
+    version = int(row[0])
+    if version > SCHEMA_VERSION:
+        raise Invalid(NEWER_DATA)
+    if version == SCHEMA_VERSION:
+        return None
+    migration_plan(version)
+    copy = backup.make(path, path.parent / "backups", onedrive_roots, "migrate")
+    try:
+        migrate(con)
+    except Invalid:
+        raise
+    except sqlite3.OperationalError as e:
+        raise Invalid(_migrate_words(e)) from e               # busy, a disk or file that can't be written, or neither
+    except sqlite3.IntegrityError as e:                       # a foreign key or a CHECK: the records, not the space
+        raise Invalid(MIGRATE_INCONSISTENT) from e
+    except Exception as e:                # any other fault in a step: rolled back by migrate, said in plain words
+        raise Invalid(MIGRATE_FAILED) from e
+    return copy
 
 
 def open_store(path, onedrive_roots=None):
@@ -1529,29 +1684,10 @@ def open_store(path, onedrive_roots=None):
             except BaseException:
                 con.execute("ROLLBACK")
                 raise
-        row = con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()
-        if row is None or not str(row[0]).isdigit():
-            raise Invalid(f"{path.name} is a clark database with no usable version. It may be damaged.")
-        version = int(row[0])
-        if version > SCHEMA_VERSION:
-            raise Invalid(f"This database was made by a newer clark (version {version}); update clark to open it.")
-        if version < SCHEMA_VERSION:
-            # #126: the plan is checked first, so a refused plan makes no copy. Then the safety copy of an existing older file,
-            # through backup.make's own `migrate` family. If it cannot be made the migration is refused in plain words
-            # (backup.refusal) and nothing is changed. A new database never gets here.
-            migration_plan(version)
-            backup.make(path, path.parent / "backups", onedrive_roots, "migrate")
-            try:
-                migrate(con)
-            except Invalid:
-                raise
-            except sqlite3.OperationalError as e:
-                raise Invalid(_migrate_words(e)) from e               # busy, a disk or file that can't be written, or neither
-            except sqlite3.IntegrityError as e:                       # a foreign key or a CHECK: the records, not the space
-                raise Invalid(MIGRATE_INCONSISTENT) from e
-            except Exception as e:                # any other fault in a step: rolled back by migrate, said in plain words
-                raise Invalid(MIGRATE_FAILED) from e
-        return Store(con, path, onedrive_roots)
+        copy = bring_up_to_date(con, path, onedrive_roots)
+        store = Store(con, path, onedrive_roots)
+        store.migration_backup = copy
+        return store
     except sqlite3.OperationalError as e:
         con.close()
         raise Invalid(_busy(e)) from e
@@ -1686,9 +1822,166 @@ def migrate_section_bodies(con):
     _report_sections_allow_content_types(con)
 
 
+def migrate_settings(con):
+    """The settings step (#47): the app_settings table with its one row (ask_enabled, on). The statements are schema_v6.sql's, so
+    a second run changes nothing: the table and the row are made only if missing. It changes no existing value. Runs inside the
+    caller's transaction and does not touch the version (the runner does). It is step 6 in MIGRATIONS."""
+    for statement in _statements(SCHEMA_V6.read_text(encoding="utf-8")):
+        con.execute(statement)
+
+
+# The tables of the "I sent it" record (#50, step 7), frozen here: a later change to schema.sql must not change what this step
+# builds (tests/test_store_email_sent.py pins it to what schema.sql creates today).
+EMAIL_SENT_DDL = (
+    """CREATE TABLE IF NOT EXISTS email_sent (
+  seq     INTEGER PRIMARY KEY AUTOINCREMENT,
+  project TEXT NOT NULL REFERENCES projects(code),
+  at      TEXT NOT NULL DEFAULT (datetime('now')),
+  day     TEXT NOT NULL CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  mode    TEXT NOT NULL CHECK (mode IN ('update_request','chase','decision')),
+  by_user TEXT NOT NULL
+);""",
+    """CREATE TABLE IF NOT EXISTS email_sent_items (
+  seq     INTEGER NOT NULL REFERENCES email_sent(seq),
+  item_id TEXT NOT NULL CHECK (length(item_id) BETWEEN 1 AND 13),
+  PRIMARY KEY (seq, item_id)
+);""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_update BEFORE UPDATE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_delete BEFORE DELETE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_replace BEFORE INSERT ON email_sent
+WHEN EXISTS (SELECT 1 FROM email_sent WHERE seq = NEW.seq)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_update BEFORE UPDATE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_delete BEFORE DELETE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_replace BEFORE INSERT ON email_sent_items
+WHEN EXISTS (SELECT 1 FROM email_sent_items WHERE seq = NEW.seq AND item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
+)
+
+
+def migrate_email_sent(con):
+    """Schema version 6 to 7 (#50): the two tables and the triggers of the "I sent it" record.
+    Every statement is IF NOT EXISTS, so a half-applied copy is safe. It touches no other table (item_events is not rebuilt, so every route and place a file allows stays). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    for statement in EMAIL_SENT_DDL:
+        con.execute(statement)
+
+
+# #123: applies.utc_offset and the wider places, step 5 (the next free number after Word's 3 and the section bodies' 4). Frozen: never
+# reads schema.sql. The rebuilt item_events keeps every route and place the earlier steps allow (Word's 'word' among them), so a file
+# that already holds such a row still migrates and opens.
+HISTORY_VERSION = 5
+VERSION_5_ITEM_EVENTS = """CREATE TABLE item_events_v5 (
+  event_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         TEXT NOT NULL,
+  apply_id   INTEGER REFERENCES applies(apply_id),
+  item_id    TEXT NOT NULL,
+  change     INTEGER,
+  kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
+  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate','word')),
+  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board','eye','draft','email','text','ask')),
+  origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),
+  actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),
+  src_ref    TEXT CHECK (src_ref IS NULL OR (length(src_ref) <= 300 AND instr(src_ref, char(10)) = 0)),
+  undoes     INTEGER REFERENCES item_events(event_id)
+)"""
+VERSION_5_NEW_WORDS = ("'word'", "'eye'", "'draft'", "'email'", "'text'", "'ask'")     # the table is made again unless its definition names all of these
+
+
+def migrate_to_history(con):
+    """Schema version 4 to 5 (#123): applies.utc_offset (NULL on every old row: the zone was not recorded, and +00:00 would claim
+    UTC), and item_events made again with the wider places, ids kept, sequence kept, both indexes made again. Each part is skipped
+    when it is already done. Inside the caller's transaction; the runner writes the version."""
+    if "utc_offset" not in [r[1] for r in con.execute("PRAGMA table_info(applies)")]:
+        con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT CHECK (utc_offset IS NULL OR "
+                    "(length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]' AND substr(utc_offset, 2, 2) <= '14' "
+                    "AND substr(utc_offset, 5, 2) IN ('00','15','30','45') AND (substr(utc_offset, 2, 2) < '14' OR substr(utc_offset, 5, 2) = '00') "
+                    "AND utc_offset <> '-00:00'))")
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is not None and not all(w in have[0] for w in VERSION_5_NEW_WORDS):
+        seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+        con.execute(VERSION_5_ITEM_EVENTS)
+        con.execute("INSERT INTO item_events_v5 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                    "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes FROM item_events ORDER BY event_id")
+        con.execute("DROP TABLE item_events")
+        con.execute("ALTER TABLE item_events_v5 RENAME TO item_events")
+        if seq is not None:
+            con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+            con.execute("INSERT INTO sqlite_sequence (name, seq) SELECT 'item_events', ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'item_events')", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+
+
+# #96: the eighteen section template types. The report_sections table as schema.sql makes it once a section may be of any of them,
+# frozen here (a later change to schema.sql never changes what this step makes; tests/test_store_section_templates_migration.py
+# pins it to schema.sql as it is today). It keeps every type the earlier steps allow, so a file that holds a needs or tracker
+# section still migrates and opens.
+REPORT_SECTIONS_WITH_TEMPLATE_TYPES = """CREATE TABLE IF NOT EXISTS report_sections (
+  project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
+  id      TEXT NOT NULL,
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker',
+                                         'textimage','headline','figures4','figures3','gallery','table','doclinks','linkcard','raid3','raid4',
+                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc')),
+  title   TEXT NOT NULL,
+  body    TEXT NOT NULL DEFAULT '',
+  beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
+  hidden  INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0,1)),
+  sort_order INTEGER NOT NULL,
+  PRIMARY KEY (project, id)
+)"""
+TEMPLATE_TYPE_WORDS = ("'textimage'", "'headline'", "'figures4'", "'figures3'", "'gallery'", "'table'", "'doclinks'", "'linkcard'",
+                       "'raid3'", "'raid4'", "'workitems'", "'callout'", "'imagecap'", "'quote'", "'contacts'", "'checklist'",
+                       "'keydates'", "'onedoc'")     # the table is made again unless its definition names all of these
+
+
+def _report_sections_allow_template_types(con):
+    """report_sections.type gains the eighteen section template types (#96). Made again from the frozen text above, the rows copied in
+    their order, exactly as the needs and tracker step does (nothing references this table, it has no trigger or index, and its
+    one outgoing key is kept). Only when the table's own definition does not name every template type yet, so a second run (or a
+    new database) does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_TEMPLATE_TYPES)
+        return
+    if all(w in have[0] for w in TEMPLATE_TYPE_WORDS):
+        return
+    con.execute(REPORT_SECTIONS_WITH_TEMPLATE_TYPES.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_templates (", 1))
+    con.execute("INSERT INTO report_sections_templates (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_templates RENAME TO report_sections")
+
+
+def migrate_section_templates(con):
+    """A section may be of any of the eighteen section template types (#96, the registry change that lands first): report_sections
+    is made again with the wider type CHECK. Its own step, number 8 (see SCHEMA_VERSION and MIGRATIONS); it touches no other
+    table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _report_sections_allow_template_types(con)
+
+
+OWNER_ID_TABLES = ("actions", "raid", "milestones", "workstreams", "decisions")     # #115: each gets owner_id, beside its free-text owner (workstreams.lead, decisions.made_by)
+
+
+def migrate_people(con):
+    """The people step (#115): the people table (schema_v9.sql, idempotent) first, then an optional link column beside each of the
+    five free-text owner columns (a column with a default of NULL is allowed in SQLite, and the table exists before the columns
+    point at it). It creates no people and sets every link to NULL: the owner text keeps working exactly as before, and linking
+    is a later, deliberate step. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 9 in
+    MIGRATIONS."""
+    for statement in _statements(SCHEMA_V9.read_text(encoding="utf-8")):
+        con.execute(statement)
+    for table in OWNER_ID_TABLES:
+        if "owner_id" not in columns(con, table):
+            con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN owner_id TEXT REFERENCES people(id)")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies))
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
+              (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people))
 
 
 def migration_plan(version, table=None):
@@ -1718,7 +2011,10 @@ def migrate(con, table=None):
     Foreign keys are switched OFF before the transaction begins (the pragma does nothing inside one) and back ON afterwards, also
     after a failure: item_events is made again, and with the keys on the drop of the old table refuses when an Undo row points at
     it. A row that was ALREADY dangling before the update is not the update's doing and never blocks it; only a NEW violation
-    (more than before, by table, parent and key) refuses and rolls back."""
+    (more than before, by table, parent and key) refuses and rolls back.
+
+    A step must never end the transaction (executescript, COMMIT or ROLLBACK would). One that does anyway is stopped there, and
+    the words say the file may be part way and where the safety copy is, never "nothing was changed"."""
     con.execute("PRAGMA foreign_keys = OFF")
     try:
         con.execute("BEGIN IMMEDIATE")
@@ -1730,6 +2026,8 @@ def migrate(con, table=None):
                     before = _violations(con)
                     for n, step in steps:
                         step(con)
+                        if not con.in_transaction:
+                            raise Invalid(MIGRATE_PART_WAY)
                         con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(n),))
                     if _violations(con) - before:
                         raise Invalid(MIGRATE_INCONSISTENT)
@@ -1937,7 +2235,9 @@ class Store:
         self.path = Path(path)
         self.backups_dir = self.path.parent / "backups"        # beside the database, never inside OneDrive (backup.py checks)
         self._backup_hold = None                               # set by backup.py alone, and only inside `with store.backup_once(...)`
+        self.review_cache = None                               # #251: made by the first data_for (history.ReviewCache)
         self.backup_warning = None                             # plain words when the last daily copy failed (backup.before); else None
+        self.migration_backup = None                           # the safety copy taken when this open brought the file up to date; else None
         self.device = con.execute("SELECT v FROM meta WHERE k = 'device'").fetchone()[0]
 
     def close(self):
@@ -1997,6 +2297,56 @@ class Store:
         sql = f"SELECT * FROM {_table(kind)}" + (" WHERE " + " AND ".join(where) if where else "")
         return [dict(r) for r in self.con.execute(sql, args)]
 
+    def live_holder_of_freed_email(self, person_ids):
+        """#115: read only. For people whose email a step cleared, the name of a live person who now holds that address, or None.
+        It is why an Undo of the merge can't give the address back."""
+        for pid in sorted(set(person_ids)):
+            for (mail,) in self.con.execute("SELECT old_value FROM change_log WHERE tbl = 'people' AND item_id = ? AND field = 'email' "
+                                            "ORDER BY rowid DESC", (pid,)):
+                if not mail:
+                    continue
+                other = self.con.execute("SELECT name FROM people WHERE email = ? AND id <> ? AND archived = 0", (mail, pid)).fetchone()
+                if other:
+                    return other[0]
+                break
+        return None
+
+    def people(self, archived=False):
+        """The people list (#115), read only: live people (the default), archived ones (True) or both (None), in id order. The
+        people table is made by migration step 9; a file without it (never after open_store) reads as an empty list."""
+        if archived not in (None, False, True):
+            raise Invalid("archived is None, False or True")
+        if not self.con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'people'").fetchone():
+            return []
+        where = "" if archived is None else (" WHERE archived = 1" if archived else " WHERE archived = 0")
+        return [dict(r) for r in self.con.execute("SELECT * FROM people" + where + " ORDER BY id")]
+
+    def resolve_owner(self, text):
+        """What an owner name typed on a work item points at (#115), read only. The one resolver: the same answer for the page's
+        edit, an Excel import and a teammate's file. Returns people.resolve's dict (status blank, one, many, archived or none, and
+        the ids). It never makes a person, never guesses and never matches on a fuzzy likeness."""
+        return people_rules.resolve(text, self.people(archived=None))
+
+    def plan_people_import(self, text):
+        """The plan for rows pasted into the People list's import box (#115), read only: nothing is written here. Pasted text over
+        people.TEXT_LIMIT characters or people.ROW_LIMIT rows is refused whole, in words. Each row is checked (people.check_person),
+        then set against the list: an email already on the list is a problem; a name or alias already there is marked 'same'
+        (with the ids) so the box can ask, never merged by itself. Returns {rows, problems, ok}; ok is True only with no problem."""
+        rows, problems = people_rules.parse_rows(text)
+        have = self.people(archived=None)
+        for row in rows:
+            clean = row["clean"]
+            if clean["email"]:
+                for person in have:
+                    if (person.get("email") or "") == clean["email"]:
+                        msg = f"Row {row['row']}: " + people_rules.duplicate_email(person["name"])
+                        row["problems"].append(msg)
+                        problems.append(msg)
+                        break
+            found = people_rules.resolve(clean["name"], have)
+            row["same"] = found["ids"] if found["status"] in ("one", "many", "archived") else []
+        return {"rows": rows, "problems": problems, "ok": bool(rows) and not problems}
+
     def data_for(self, code, archived="hide"):
         """One project's data for the page (#33), from its own read-only connection; None if there's no such project.
         `archived` is "hide" (live rows: today's), "only" (archived rows, for Show archived) or "show" (both) (#126). An archived
@@ -2037,6 +2387,16 @@ class Store:
             out["glance_tiles"] = [dict(r) for r in con.execute(              # #45: the tiles' place, hidden flag and outline; no archived column
                 "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                 "ORDER BY sort_order, tile", (code,))]
+            # #96: what publish keeps out, so a template's live part in the served View leaves out what the file leaves out (FR-11):
+            # the ids hidden from the report by the eye, and the label rules (as publish_inputs reads them).
+            out["report_hidden"] = [r["item_id"] for r in con.execute(
+                "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
+            out["label_rules"] = [dict(r) for r in con.execute(
+                "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
+            if self.review_cache is None:
+                from clark import history                  # history imports this module, so it is read here
+                self.review_cache = history.ReviewCache()
+            attach_freshness(con, out, review_days_for(out["project"]), self.review_cache)
             return out
         finally:
             con.close()
@@ -2165,6 +2525,97 @@ class Store:
                              "ORDER BY seq DESC LIMIT 1", (code,)).fetchone()
         return str(Path(r["local_path"]).parent) if r else None
 
+    EMAIL_MODES = ("update_request", "chase", "decision")
+    EMAIL_MAX_IDS = 50
+
+    def log_email_sent(self, code, ids, mode, day, by_user, today=None):
+        """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
+        was sent) and one `email_sent_items` row for each item asked about. Never the email's text or address. Like a publication it
+        is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
+        anything is written: a project that isn't here or is archived, a mode that isn't one of the three, no id or more than 50, an
+        id that is not a work item (action, risk or issue, decision) of this project, a day that is not a real date or is more than
+        one day ahead of today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
+        transaction. Returns the record's number."""
+        if not str(by_user or "").strip():
+            raise Invalid("A sent record needs who pressed it.")
+        if mode not in self.EMAIL_MODES:
+            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
+        if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
+            raise Invalid("Tick at least one item before you press I sent it.")
+        ids = list(dict.fromkeys(i.strip() for i in ids if i.strip()))
+        if not ids:
+            raise Invalid("Tick at least one item before you press I sent it.")
+        if len(ids) > self.EMAIL_MAX_IDS:
+            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts.")
+        try:
+            if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(day)):
+                raise ValueError
+            sent = date.fromisoformat(str(day))
+        except ValueError:
+            raise Invalid("The day the email was sent must be a real date.") from None
+        if sent < date(2020, 1, 1):
+            raise Invalid("The day the email was sent is too long ago to be right. Check the date.")
+        if sent > (today or date.today()) + timedelta(days=1):
+            raise Invalid("The day the email was sent can't be in the future.")
+        if self.con.in_transaction:
+            raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
+        try:
+            self.con.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as e:
+            raise Invalid(_busy(e)) from e
+        try:
+            row = self.con.execute("SELECT archived FROM projects WHERE code = ?", (code,)).fetchone()
+            if row is None:
+                raise Invalid("There is no project with that code.")
+            if row["archived"]:
+                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first.")
+            def ours(item):
+                return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
+                           for table in ("actions", "raid", "decisions"))
+            if not all(ours(i) for i in ids):
+                raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
+            # #258: an item the email could not have been about (left out of the report, closed, or labelled to be kept out) is refused.
+            values = list(ids)
+            if (self.con.execute(f"SELECT 1 FROM report_hidden WHERE project = ? AND item_id IN ({', '.join('?' * len(values))})",
+                                 (code, *values)).fetchone()
+                    or self.sensitive_among(values)
+                    or any(self.con.execute(f"SELECT 1 FROM {_table(t)} WHERE project = ? AND id IN ({', '.join('?' * len(values))}) "
+                                            "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
+                           for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
+                                             ("decisions", ("Withdrawn", "Withdrawn"))))):
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
+            seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
+                                   (code, str(day), mode, str(by_user).strip())).lastrowid
+            self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
+            self.con.execute("COMMIT")
+            return seq
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
+
+    def sensitive_among(self, ids):
+        """True when any of the item ids is labelled Sensitive or carries a label whose behaviour is 'exclude': the one test for
+        what may never go in an email (the sent record refuses it here)."""
+        values = list(ids)
+        if not values:
+            return False
+        return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({', '.join('?' * len(values))}) "
+                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", values).fetchone())
+
+    def email_sent_for(self, code, limit=200):
+        """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
+        from a read-only connection. Chase counts for the tone come from this (draft_email.chase_counts)."""
+        con = connect(self.path, readonly=True)
+        try:
+            out = []
+            for r in con.execute("SELECT seq, at, day, mode, by_user FROM email_sent WHERE project = ? ORDER BY seq DESC LIMIT ?",
+                                 (code, max(1, min(int(limit), 200)))):
+                ids = [x["item_id"] for x in con.execute("SELECT item_id FROM email_sent_items WHERE seq = ? ORDER BY item_id", (r["seq"],))]
+                out.append({"seq": r["seq"], "at": r["at"], "day": r["day"], "mode": r["mode"], "by_user": r["by_user"], "ids": ids})
+            return out
+        finally:
+            con.close()
+
     def undo(self, step_id, by_user, place=None):
         """Reverse step `step_id` as a new step (creaite's undo-changes). Returns {"step_id", "reversed", "skipped"}; each
         skipped row names its ref, why, and the later step that changed it (by_step) when there is one. step_id is None when
@@ -2203,6 +2654,50 @@ class Store:
                     con.execute("UPDATE applies SET undone_at = ? WHERE apply_id = ?", (now(), step_id))
             return {"step_id": new, "reversed": done, "skipped": skipped}
 
+    def undo_many(self, step_ids, by_user, dry=False):
+        """#197: reverse several steps, newest first, as ONE new step (its src_ref is BATCH_UNDO), so one Undo of it puts them all
+        back (Store.undo of a revert step). Returns Store.undo's shape; each entry also says its `step`. A step that is an undo, or
+        that has been undone already, is skipped and named, never refused. Each later step's put-back rows count as gone while an
+        earlier one is judged, so a change and the creation it followed go back together. `dry=True` is the preview: the very same
+        run, always rolled back. A step that isn't there refuses the whole request; nothing is written then."""
+        ids = sorted({int(i) for i in step_ids}, reverse=True)
+        if not ids or len(ids) > MAX_UNDO_MANY:
+            raise Invalid(f"Choose 1 to {MAX_UNDO_MANY} changes to undo.")
+        with self.step("undo", by_user, src_ref=BATCH_UNDO, dry=dry) as st:
+            con, done_all, skipped_all = self.con, [], []
+            st.via = PENDING_VIA
+            for sid in ids:
+                a = con.execute("SELECT undone_at FROM applies WHERE apply_id = ?", (sid,)).fetchone()
+                rows = [dict(r) for r in con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? ORDER BY rowid", (sid,))]
+                if a is None or not rows:
+                    raise Invalid(f"There's no step {sid} to undo.")
+                real, reverted = [r for r in rows if r["field"] not in ("note", "updated_at") and r["via"] != SEED_VIA], reverted_rowids(con)
+                why = ("is an undo" if all(str(r["via"]).startswith(REVERT_VIA) for r in rows) else
+                       "already undone" if a["undone_at"] or (real and all(r["rowid"] in reverted for r in real)) else None)
+                if why:
+                    done, skipped = [], [{"rowid": r["rowid"], "ref": r["item_id"], "field": r["field"], "why": why, "by_step": None}
+                                         for r in real]
+                else:
+                    done, skipped = revert_plan(con, rows, st, False)
+                tbl = {r["rowid"]: r["tbl"] for r in rows}
+                done_all += [dict(d, step=sid, table=tbl.get(d["rowid"])) for d in done]
+                skipped_all += [dict(x, step=sid, table=tbl.get(x["rowid"])) for x in skipped]
+                if st.peek_apply_id() is not None:      # the rows put back so far count as gone for the older steps still to come
+                    con.execute("UPDATE change_log SET via = ? WHERE apply_id = ? AND via LIKE 'revert:%'",
+                                (REVERT_VIA + ",".join(str(d["rowid"]) for d in done_all), st.peek_apply_id()))
+            return {"step_id": None if dry else st.peek_apply_id(), "reversed": done_all, "skipped": skipped_all}
+
+    def batch_undo_steps(self, apply_id):
+        """#197: the steps a batch undo (Store.undo_many) reversed, oldest first, or None when `apply_id` is not one. Read only."""
+        if not self.con.execute("SELECT 1 FROM item_events WHERE apply_id = ? AND src_ref = ? LIMIT 1", (apply_id, BATCH_UNDO)).fetchone():
+            return None
+        vias = [r[0] for r in self.con.execute("SELECT via FROM change_log WHERE apply_id = ?", (apply_id,))]
+        if not vias or not all(str(v).startswith(REVERT_VIA) for v in vias):
+            return None
+        named = {int(x) for v in vias for x in str(v)[len(REVERT_VIA):].split(",") if x.strip().isdigit()}
+        return sorted({r[0] for n in sorted(named) for r in self.con.execute(
+            "SELECT apply_id FROM change_log WHERE rowid = ?", (n,)) if r[0] is not None})
+
     def step_rows(self, apply_id):
         """What step `apply_id` wrote, read only: [{"table", "key", "field", "via", "op"}], one per change_log row, oldest first; [] for a step
         that wrote nothing or is not there. #65: so /api/undo can refuse a step that is not the report's before it asks for an
@@ -2210,9 +2705,35 @@ class Store:
         return [{"table": r["tbl"], "key": r["item_id"], "field": r["field"], "via": r["via"], "op": r["op"]} for r in self.con.execute(
             "SELECT tbl, item_id, field, via, op FROM change_log WHERE apply_id = ? ORDER BY rowid", (apply_id,))]
 
+    def step_actors(self, apply_id):
+        """Who made step `apply_id`, read only (#47e): the set of item_events actors for it ('you', 'clark'); empty when it wrote no
+        event or is not there. So /api/undo takes a step on the assistant route only when ask clark itself made it."""
+        return {r[0] for r in self.con.execute("SELECT DISTINCT actor FROM item_events WHERE apply_id = ?", (apply_id,))}
+
     def history(self, ref):
         from clark import history
         return history.history(self.con, ref)
+
+    def settings_ready(self):
+        """True when this file has the settings step's table with its one row (#47). A file without them makes the settings route
+        say so instead of failing, and asking reads as off (ASK_WHEN_MISSING)."""
+        try:
+            have = self.con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'app_settings'").fetchone()
+            return bool(have and self.con.execute("SELECT 1 FROM app_settings WHERE id = 1").fetchone())
+        except sqlite3.Error:
+            return False
+
+    def ask_enabled(self):
+        """True only while asking is on for this computer (#47): the one row's switch is 1. The server calls this before anything is
+        sent to a model. It never fails open: a file with no such table or row, a value that is not exactly 1, or any database
+        error reads as ASK_WHEN_MISSING (off). Read only."""
+        try:
+            if not self.settings_ready():
+                return ASK_WHEN_MISSING
+            row = self.con.execute("SELECT ask_enabled FROM app_settings WHERE id = 1").fetchone()
+        except sqlite3.Error:
+            return ASK_WHEN_MISSING
+        return row is not None and row[0] == 1
 
     def milestone_moves(self, code):
         """#136: the date and state history of a project's live milestones, for Movement (owner only: never published, never in
@@ -2285,6 +2806,29 @@ class Store:
         return {"project": code, "milestones": out, "truncated": truncated}
 
 
+OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by"}   # #115: the text column beside each owner_id
+
+
+def _live_person(con, ref):
+    row = fetch(con, "people", ref)
+    if row is None:
+        raise Invalid(f"{ref} is not on the people list")
+    if row["archived"]:
+        raise Invalid(f"{row['name']} is archived. Restore them first.")
+    return dict(row)
+
+
+def _repoint_owner_text(step, old_id, new_id, name):
+    """#115: every live (not archived) row that points at `old_id` gets owner_id `new_id` and the owner text `name`, in the caller's
+    step and through the one writer (each field logged). Returns how many rows changed."""
+    con, n = step.con, 0
+    for table, col in OWNER_TEXT.items():
+        for (key,) in con.execute(f"SELECT id FROM {_table(table)} WHERE owner_id = ? AND archived = 0 ORDER BY id", (old_id,)).fetchall():
+            step.update(table, key, {col: name, "owner_id": new_id})
+            n += 1
+    return n
+
+
 class Step:
     """The step being written: who, how (route, place, origin, actor), and its applies row once it has one."""
 
@@ -2305,8 +2849,8 @@ class Step:
     def apply_id(self):
         """This step's applies row, made the first time something is logged."""
         if self._apply_id is None:
-            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device) VALUES (?, '[]', ?, ?)",
-                                   (now(), self.by_user, self.store.device))
+            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device, utc_offset) VALUES (?, '[]', ?, ?, ?)",
+                                   (now(), self.by_user, self.store.device, checked_offset(local_offset())))
             self._apply_id = cur.lastrowid
         return self._apply_id
 
@@ -2344,6 +2888,47 @@ class Step:
         if note:
             item["note"] = note
         return write_item(self.con, item, self)
+
+    def add_person(self, **fields):
+        """#115: a new person on the people list (name and source needed); returns their id (P-001 ...). One undoable step."""
+        return write_item(self.con, {"table": "people", "op": "new", "values": dict(fields)}, self)
+
+    def edit_person(self, ref, changes):
+        """#115: change a person's fields. Owner text on work items is not touched: use rename_person for a new name."""
+        return self.update("people", ref, changes)
+
+    def archive_person(self, ref):
+        """#115: take a person off the lists; nothing is deleted, old items keep the name."""
+        return write_item(self.con, {"table": "people", "op": "archive", "id": ref}, self)
+
+    def restore_person(self, ref):
+        """#115: bring an archived person back."""
+        return write_item(self.con, {"table": "people", "op": "restore", "id": ref}, self)
+
+    def rename_person(self, ref, new_name):
+        """#115: a new name for a person and, in this one step, on every live work item that points at them. Returns the number of
+        items changed. Archived items keep the name they had."""
+        _live_person(self.con, ref)
+        self.update("people", ref, {"name": new_name})
+        name = fetch(self.con, "people", ref)["name"]
+        return _repoint_owner_text(self, ref, ref, name)
+
+    def merge_people(self, source, target):
+        """#115: one person into another, in one step. Live items that pointed at the source point at the target and show the
+        target's name; the source's name and aliases become the target's aliases; the source is archived and gives up its email
+        first (the target keeps its own email and never takes the source's, so one Undo can always put both back). Returns the number of items changed."""
+        if source == target:
+            raise Invalid("Choose two different people to merge.")
+        src, tgt = _live_person(self.con, source), _live_person(self.con, target)
+        aliases = people_rules.join_aliases(people_rules.aliases_of(tgt) + [src["name"]] + people_rules.aliases_of(src))
+        own_key = people_rules.name_key(tgt["name"])
+        aliases = ";".join(a for a in aliases.split(";") if people_rules.name_key(a) != own_key)
+        if src["email"]:
+            self.update("people", source, {"email": None})
+        self.update("people", target, {"aliases": aliases or None})
+        n = _repoint_owner_text(self, source, target, tgt["name"])
+        write_item(self.con, {"table": "people", "op": "archive", "id": source}, self)
+        return n
 
     def archive(self, kind, ref):
         """Hide a record (#126): nothing is deleted and its status is unchanged. One of the only two setters of `archived`."""

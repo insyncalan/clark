@@ -1,12 +1,14 @@
 // The Draft email editor (FR-44, FR-45; #50): the kind, the ticks, the preview you can edit, Copy for Outlook, Copy as text,
 // Open in mail app and I sent it. It builds nothing and saves nothing: `draft` is what the builder returned for `state`, the
-// caller asks for a new one in onChange(state) and writes the history entry that onSent(entry) is given. clark never sends mail.
+// caller asks for a new one in onChange(state) and saves the history entry that onSent(entry) is given (it answers {ok, message}). clark never sends mail.
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";
 import { MODES, LABELS, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
 export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip }) {
   const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);       // #258: I sent it is in flight; a second press does nothing until the reply
+  const inFlight = useRef(false);
   const preview = useRef(null);
   const edited = useRef(false);
   const shown = useRef("");
@@ -34,12 +36,19 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
     setNote(got.message);
     if (!got.ok && !got.blocked) selectPreview();
   };
-  const sent = () => {
+  // onSent(entry) may answer {ok: true} (saved in the history), {ok: false, message} (not saved: the note says why and nothing is
+  // marked) or nothing (a caller that does not save yet: the note says so).
+  const sent = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaving(true);
     try {
       const entry = sentEntry(draft ? draft.ids : [], state.mode, today);
-      if (onSent) onSent(entry);
-      setNote(sentWords(entry));
+      const r = onSent ? await onSent(entry) : null;
+      if (r && typeof r === "object" && r.ok === false) setNote(typeof r.message === "string" && r.message ? r.message : sentWords(entry, false, true));
+      else setNote(sentWords(entry, !!(r && typeof r === "object" && r.ok === true)));
     } catch (e) { setNote(e.message); }
+    finally { inFlight.current = false; setSaving(false); }
   };
   const keys = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (onClose) onClose(); } };
   if (!draft) {
@@ -95,7 +104,7 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
         <button type="button" class="pk-btn pri" disabled={!!problem} onClick={() => copy("outlook")}>{LABELS.copyOutlook}</button>
         <button type="button" class="pk-btn" disabled={!!problem} onClick={() => copy("text")}>{LABELS.copyText}</button>
         {link.href ? <a class="pk-btn" href={link.href}>{LABELS.mail}</a> : null}
-        <button type="button" class="pk-btn" disabled={!!problem} onClick={sent}>{LABELS.sent}</button>
+        <button type="button" class="pk-btn" disabled={!!problem || saving} onClick={sent}>{LABELS.sent}</button>
         <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button>
       </div>
     </div>

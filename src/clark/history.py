@@ -3,12 +3,13 @@ change_log joined to item_events; no proposals, chases or mentions. Reads only."
 import difflib
 import json
 import re
+import threading
 from datetime import datetime, timedelta, timezone
 
-from clark import timefmt
+from clark import freshness as fresh, timefmt
 from clark.publish import RICH
 from clark.sanitise import SanitiseError, plain_text
-from clark.store import FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
+from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
 JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
 
@@ -21,32 +22,193 @@ def touches(r, item_id):
     return item_id in (parts[:2] if r["tbl"] == "links" else parts[:1])
 
 
+ROW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
+           "a.by_user, a.undone_at, e.event_id, e.at, e.route, e.place, e.origin, e.actor, e.src_ref, e.undoes "
+           "FROM change_log c JOIN item_events e ON e.change = c.rowid LEFT JOIN applies a ON a.apply_id = c.apply_id "
+           "WHERE c.field != 'updated_at'")
+
+
+def keyed_by(key, item_id):
+    """True when a change_log key names the item the way the history query asks: the key is the ID, starts with 'ID|' or has
+    '|ID|' inside it (the same three tests as the query's SQL)."""
+    return key == item_id or key.startswith(item_id + "|") or ("|" + item_id + "|") in key
+
+
+def build_events(rows, reverted):
+    """The events for one item from its change_log rows (already in event order, already limited to the ones about it). The
+    one place an event is built, for one item or many."""
+    # a row's columns are unpacked once, in ROW_SQL's order: reading them by name 21 times a row is slow over a long log
+    undone_by = {row[18]: row[11] for row in rows if row[18] is not None}
+    events = []
+    for (rowid, tbl, item_id, field, old_value, new_value, op, via, apply_id, by_user, undone_at, event_id, at, route, place,
+         origin, actor, src_ref, undoes) in rows:
+        events.append({
+            "event_id": event_id, "at": at, "step": apply_id, "by_user": by_user, "table": tbl,
+            "ref": item_id, "field": field, "before": old_value, "after": new_value, "op": op,
+            "route": route, "place": place, "origin": origin, "actor": actor, "src_ref": src_ref,
+            "undoes": undoes,
+            "is_undo": str(via).startswith(REVERT_VIA), "undone_by": undone_by.get(event_id),
+            "in_force": not undone_at and rowid not in reverted,
+        })
+    events.reverse()
+    return events
+
+
 def history(con, item_id):
     """[event, ...] for `item_id`, newest first. Each event: event_id, at, step, by_user, table, field, before, after, op,
     route, place, origin, actor, src_ref (how it came in, such as "by Word import (plan.docx)", else None), undoes (the event it
     reverses), undone_by (the event that reversed it) and in_force (False once an undo still in force has reversed it, or its own
     step was undone)."""
-    rows = con.execute(
-        "SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
-        "a.by_user, a.undone_at, e.event_id, e.at, e.route, e.place, e.origin, e.actor, e.src_ref, e.undoes "
-        "FROM change_log c JOIN item_events e ON e.change = c.rowid LEFT JOIN applies a ON a.apply_id = c.apply_id "
-        "WHERE c.field != 'updated_at' AND (c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?) ORDER BY e.event_id",
-        (item_id, item_id + "|%", "%|" + item_id + "|%")).fetchall()
+    rows = con.execute(ROW_SQL + " AND (c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?) ORDER BY e.event_id",
+                       (item_id, item_id + "|%", "%|" + item_id + "|%")).fetchall()
     rows = [r for r in rows if touches(r, item_id)]
+    return build_events(rows, reverted_rowids(con))
+
+
+def history_many(con, ids):
+    """{id: history(con, id)} for every ID in `ids`, read in ONE pass: the undone steps are found once and the log is read once
+    (the single-item query's leading wildcard cannot use the index, so asking per item scans the whole log each time). Each
+    item's events come from the same build_events code, so the answers are the same as history()'s."""
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return {}
+    wanted = set(ids)
+    codes = sorted({i.split("-", 1)[0] for i in ids})
+    where = " AND (" + " OR ".join(["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes)) + ")"
+    args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")]
+    mine = {i: [] for i in ids}
+    for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", args):
+        key = str(r["item_id"])
+        if "|" not in key:                                  # the usual row: keyed by its own item alone
+            if key in wanted:
+                mine[key].append(r)
+            continue
+        parts = key.split("|")
+        for cand in {key, parts[0], *parts[1:-1]}:          # every ID the three tests of history()'s query could match
+            if cand in wanted and keyed_by(key, cand) and touches(r, cand):
+                mine[cand].append(r)
     reverted = reverted_rowids(con)
-    undone_by = {r["undoes"]: r["event_id"] for r in rows if r["undoes"] is not None}
-    events = []
-    for r in rows:
-        events.append({
-            "event_id": r["event_id"], "at": r["at"], "step": r["apply_id"], "by_user": r["by_user"], "table": r["tbl"],
-            "ref": r["item_id"], "field": r["field"], "before": r["old_value"], "after": r["new_value"], "op": r["op"],
-            "route": r["route"], "place": r["place"], "origin": r["origin"], "actor": r["actor"], "src_ref": r["src_ref"],
-            "undoes": r["undoes"],
-            "is_undo": str(r["via"]).startswith(REVERT_VIA), "undone_by": undone_by.get(r["event_id"]),
-            "in_force": not r["undone_at"] and r["rowid"] not in reverted,
-        })
-    events.reverse()
-    return events
+    return {i: build_events(mine[i], reverted) for i in ids}
+
+
+# #251: freshness needs only an item's first event and its latest one made by a person. So the page's read keeps just those two per
+# item (ReviewCache) and, on each call, reads only the log rows added since the last one. A change_log row is never changed once its
+# step is committed (an undo writes new rows), so what was kept stays true; a log that has shrunk or lost a row starts again.
+# The first read of an item is made by the database in one grouped pass over the project's own keys (other projects' rows are not read).
+# `at` and the event number are joined into one text that sorts the way (at, event_id) does: char(31) is below every character of a stamp.
+SORT_KEY = "e.at || char(31) || printf('%012d', e.event_id)"
+FIRST_SQL = ("SELECT c.tbl, c.item_id, min(" + SORT_KEY + ") AS found FROM change_log c JOIN item_events e ON e.change = c.rowid "
+             "WHERE c.field != 'updated_at' AND c.item_id >= ? AND c.item_id < ?@PERSON@ GROUP BY c.tbl, c.item_id")
+LAST_SQL = FIRST_SQL.replace("min(", "max(")
+PERSON_SQL = (" AND e.actor = 'you' AND e.route = 'dashboard' AND e.undoes IS NULL AND substr(c.via, 1, %d) != '%s'"
+              % (len(REVERT_VIA), REVERT_VIA))
+ENDS_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.via, e.at, e.event_id, e.route, e.actor, e.undoes FROM change_log c "
+            "JOIN item_events e ON e.change = c.rowid WHERE c.field != 'updated_at' AND c.rowid IN "
+            "(SELECT rowid FROM change_log WHERE %s)")
+NEW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.via, e.at, e.event_id, e.route, e.actor, e.undoes FROM change_log c "
+           "JOIN item_events e ON e.change = c.rowid WHERE c.field != 'updated_at' AND c.rowid > ? AND c.rowid <= ?")
+
+
+class ReviewCache:
+    """What review_events keeps between calls (a Store holds one): {id: [first event, latest person's event]} and the log's
+    newest rowid and row count when they were read."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.reset()
+
+    def reset(self):
+        self.mark = None                                   # None: nothing read yet
+        self.count = 0
+        self.events = {}
+
+
+def _event(r, bare=False):
+    """The keys freshness.freshness reads. `bare` is an event known only by its time: it has no author, so it never counts as a review."""
+    if bare:
+        return {"at": r["at"], "event_id": r["event_id"], "actor": None, "route": None, "is_undo": False, "undoes": None}
+    return {"at": r["at"], "event_id": r["event_id"], "actor": r["actor"], "route": r["route"],
+            "is_undo": str(r["via"]).startswith(REVERT_VIA), "undoes": r["undoes"]}
+
+
+def _reduce(events):
+    """Only what can still matter: the earliest event freshness can read and the latest by a person."""
+    ordered = fresh._ordered(events)
+    people = [e for e in ordered if fresh.by_person(e)]
+    return ordered[:1] + people[-1:] if ordered else []
+
+
+def _candidates(r):
+    """The ids a log row is about, as history_many reads it: a plain key is its own item; a link or label key names its items."""
+    key = str(r["item_id"])
+    if "|" not in key:
+        return [key]
+    parts = key.split("|")
+    return [c for c in {key, parts[0], *parts[1:-1]} if keyed_by(key, c) and touches(r, c)]
+
+
+def _first_reads(con, wanted, codes, mine, odd):
+    """Fill `mine` {id: events} for ids not seen before, from the database's grouped reads."""
+    for sql, person in ((FIRST_SQL, False), (LAST_SQL, True)):
+        for code in codes:
+            for table, key, found in con.execute(sql.replace("@PERSON@", PERSON_SQL if person else ""), (code + "-", code + ".")):
+                at, event_id = found.split("\x1f")
+                row = {"tbl": table, "item_id": key, "at": at, "event_id": int(event_id), "actor": "you", "route": "dashboard",
+                       "via": "", "undoes": None}
+                for cand in _candidates(row):
+                    if cand in wanted and cand in (key, key.split("|")[0]):                  # the item alone or first; the rest are read below
+                        if not fresh._has_day(at):
+                            odd.add(cand)
+                        mine[cand].append(_event(row, bare=not person))
+    where = " OR ".join(["item_id LIKE ?"] * len(codes))
+    for r in con.execute(ENDS_SQL % where, ["%|" + c + "-%" for c in codes]):
+        for cand in _candidates(r):
+            if cand in wanted and cand != str(r["item_id"]).split("|")[0]:                  # the item in the middle or at the end
+                if not fresh._has_day(r["at"]):
+                    odd.add(cand)
+                mine[cand].append(_event(r))
+
+
+def review_events(con, ids, cache=None):
+    """{id: events} for every ID in `ids`, holding only the events freshness.freshness can use (an item's first event and its
+    latest one by a person, and the same from the rows that name it inside a link's key), so freshness gives the same answer
+    as it does from history_many's full events (a test sets the two side by side). With a `cache` (a ReviewCache) the cost
+    follows the rows added since the last call, not the length of the log. An item whose first stamp freshness cannot read is
+    read whole, by history_many. Read only."""
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return {}
+    cache = cache or ReviewCache()
+    begun = not con.in_transaction
+    if begun:
+        con.execute("BEGIN")                               # one snapshot: the count, the new rows and the first reads agree
+    try:
+        with cache.lock:
+            top = con.execute("SELECT coalesce(max(rowid), 0) FROM change_log").fetchone()[0]
+            count = con.execute("SELECT count(*) FROM change_log").fetchone()[0]          # alone, the database counts pages, not rows
+            if cache.mark is not None:
+                added = con.execute("SELECT count(*) FROM change_log WHERE rowid > ?", (cache.mark,)).fetchone()[0]
+                if top < cache.mark or count != cache.count + added:
+                    cache.reset()                          # the log shrank or lost a row: nothing kept can be trusted
+            if cache.mark is not None and top > cache.mark and cache.events:
+                for r in con.execute(NEW_SQL, (cache.mark, top)):
+                    for cand in _candidates(r):
+                        if cand in cache.events:
+                            cache.events[cand] = _reduce(cache.events[cand] + [_event(r)])
+            new = [i for i in ids if i not in cache.events]
+            if new:
+                mine = {i: [] for i in new}
+                odd = set()
+                _first_reads(con, set(new), sorted({i.split("-", 1)[0] for i in new}), mine, odd)
+                if odd:
+                    mine.update(history_many(con, sorted(odd)))
+                for i in new:
+                    cache.events[i] = _reduce(mine[i])
+            cache.mark, cache.count = top, count
+            return {i: cache.events[i] for i in ids}
+    finally:
+        if begun:
+            con.execute("COMMIT")
 
 
 def original_date(con, item_id, current=None):
@@ -71,7 +233,7 @@ CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 change
 FILTERS = {"all": "All", "changes": "Changes", "comments": "Comments and updates"}      # key -> the words on the tab
 EMPTY = {"all": "No history yet.", "changes": "No changes yet.", "comments": "No comments or updates yet."}
 OTHER = "Other"                        # a place or route the list below does not know: shown plainly, never as its code
-KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment")
+KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment", "Email sent")
 UNDO_KINDS = ("Undone", "Undo undone")
 PAGE_FIELD, LEFT_OUT, PUT_BACK = "Published page", "Left out of the published page", "Put back on the published page"
 PUT_BACK_PREFIX = "put back: "          # an Undo that made a removed label or link again
@@ -80,6 +242,7 @@ PUT_BACK_PREFIX = "put back: "          # an Undo that made a removed label or l
 HOW_PEEK, HOW_TABLE, HOW_BOARD, HOW_REPORT, HOW_EYE = "In the peek", "In the table", "On the board", "In the report", "With the eye"
 HOW_EXCEL, HOW_ASK, HOW_DRAFT = "By Excel import", "By ask clark", "From a draft email"
 HOW_EMAIL, HOW_TEXT, HOW_UNDO = "By a sent email", "From selected text", "Undo"
+HOW_UNDO_MANY = "Undo (" + BATCH_UNDO + ")"      # #239: every row of one Undo several names it, so the rows read as one batch
 HOW_PLACES = {"peek": HOW_PEEK, "cell": HOW_TABLE, "bulk": HOW_TABLE, "menu": HOW_TABLE, "board": HOW_BOARD, "report": HOW_REPORT,
               "eye": HOW_EYE, "draft": HOW_DRAFT, "email": HOW_EMAIL, "text": HOW_TEXT}
 EXCEL_PREFIX = "Excel import:"
@@ -87,6 +250,7 @@ FILE_NAME_LIMIT = 60
 
 # Plain names for fields. A column listed here under a table wins; otherwise the same column under COMMON.
 COMMON = {
+    "owner_id": "Owner (linked person)",
     "name": "Name", "description": "Description", "status": "Status", "owner": "Owner", "priority": "Priority",
     "due_date": "Due date", "raised": "Raised on", "closed": "Closed on", "workstream": "Workstream", "milestone": "Milestone",
     "use_case": "Use case", "client_visible": "Shown to the client", "client_message": "Message to the client",
@@ -148,7 +312,7 @@ TITLE_LIMIT = 120
 def how_text(route, place, src_ref):
     """One of the eleven phrases for how and where a change was made. Anything else is OTHER, never the stored code."""
     if route == "undo":
-        return HOW_UNDO
+        return HOW_UNDO_MANY if src_ref == BATCH_UNDO else HOW_UNDO
     if route == "excel":
         name = re.sub(r"\s+", " ", str(src_ref or "")).strip()
         if name[:len(EXCEL_PREFIX)].lower() == EXCEL_PREFIX.lower():
@@ -377,6 +541,35 @@ def _comment_rows(con, where, params, titles):
     return out
 
 
+# What "I sent it" recorded (#50). The first key is joined from parts: the one-writer test reads a string that begins with the word
+# "update" as SQL (draft_email.py does the same).
+EMAIL_MODE_WORDS = {"".join(("up", "date_request")): "asking for updates", "chase": "chasing", "decision": "asking for a decision"}
+
+
+EMAIL_HOW = "in the Draft email"          # the History's "how" for a sent record: who, how and when (FR-43a)
+
+
+def _email_rows(con, where, params, titles):
+    """The "I sent it" records (#50) as rows: who pressed it, when, and the items asked about. Only in All: a sent record is not a
+    change and not a comment. The ids are the record's own, in order; the email's words were never stored."""
+    out = []
+    for e in con.execute("SELECT seq, at, day, mode, by_user FROM email_sent WHERE " + where + " ORDER BY seq DESC", params):
+        ids = [x["item_id"] for x in con.execute("SELECT item_id FROM email_sent_items WHERE seq = ? ORDER BY item_id", (e["seq"],))]
+        when, note = when_text(e["at"], None)
+        items = [{"id": i, "title": titles.of(i)} for i in ids]
+        words = f"Emailed {_dmy(e['day'])} ({EMAIL_MODE_WORDS.get(e['mode'], e['mode'])}) about " + ", ".join(ids)
+        out.append({"when": when, "zone_note": note, "when_text": when + " - " + note, "who": e["by_user"], "how": EMAIL_HOW,
+                    "item_id": ids[0] if ids else "", "title": items[0]["title"] if items else "", "items": items,
+                    "item": ", ".join((i["id"] + " " + i["title"]).strip() for i in items), "field": "Email sent", "from": "", "to": words,
+                    "kind": "Email sent", "table": "email_sent", "event_id": None, "step": None, "_at": e["at"], "_seq": e["seq"]})
+    return out
+
+
+def _dmy(day):
+    y, m, d = str(day).split("-")
+    return f"{d}-{m}-{y}"
+
+
 def _when_key(stamp):
     """A stored time for sorting; one that cannot be read sorts as the oldest, so a single odd comment time cannot break a view."""
     try:
@@ -392,7 +585,7 @@ def _finish(rows, kind, limit):
     if kind == "comments":
         rows = [r for r in rows if r["table"] in ("updates", "comments")]
     elif kind == "changes":
-        rows = [r for r in rows if r["table"] not in ("updates", "comments")]
+        rows = [r for r in rows if r["table"] not in ("updates", "comments", "email_sent")]
     rows.sort(key=lambda r: (_when_key(r["_at"]), r["table"] != "comments", r["_seq"]), reverse=True)
     cut = 0
     if limit is not None and len(rows) > limit:
@@ -410,7 +603,9 @@ def rows_for_project(con, code, kind="all", limit=None):
     like = (code, code + "-%", code + "|%", "%|" + code + "-%", "%|" + code)
     where = "c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ?"
     rows = _display(con, _change_rows(con, where, like), lambda r, ends: _in_project(r["tbl"], r["item_id"], code))
-    rows += _comment_rows(con, "project = ?", (code,), _Titles(con))
+    titles = _Titles(con)
+    rows += _comment_rows(con, "project = ?", (code,), titles)
+    rows += _email_rows(con, "project = ?", (code,), titles)
     return _finish(rows, kind, limit)[0]
 
 
@@ -419,7 +614,9 @@ def rows_for_item(con, item_id, kind="all", limit=None):
     where = "c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ? OR c.item_id LIKE ?"
     rows = _display(con, _change_rows(con, where, (item_id, item_id + "|%", "%|" + item_id + "|%", "%|" + item_id)),
                     lambda r, ends: item_id in ends)
-    rows += _comment_rows(con, "item_id = ?", (item_id,), _Titles(con))
+    titles = _Titles(con)
+    rows += _comment_rows(con, "item_id = ?", (item_id,), titles)
+    rows += _email_rows(con, "seq IN (SELECT seq FROM email_sent_items WHERE item_id = ?)", (item_id,), titles)
     return _finish(rows, kind, limit)[0]
 
 
