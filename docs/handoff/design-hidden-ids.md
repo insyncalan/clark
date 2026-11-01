@@ -14,5 +14,8 @@ The eye sends the page's existing change, kind `report_hidden`, op `new` (leave 
 ## What the published file never carries
 The published file is made from `publish_inputs`, which leaves the hidden rows out before anything is written. `tests/test_milestones_eye.py` publishes a project with a left-out milestone and checks the file holds neither its name nor the eye, the mark or `report_hidden`.
 
+## Known limits
+The left-out mark is in the list only; the timeline and the Calendar show no mark for a left-out milestone. The eye's name changes with the state ("Leave out of..." / "Include in..."), so it has no aria-pressed.
+
 ## Also in this change
 The progress figure on each milestone row is text with a hidden bar picture, clamped to 0 to 100, and "Not set" when there is no number (`tests/test_milestones_dashboard.py`).

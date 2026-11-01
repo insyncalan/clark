@@ -44,10 +44,11 @@ export const inPair = (id) => rows(list()).some((r) => r.length === 2 && r.some(
 // The eye on a milestone row: leave it out of the published page (`hide`) or put it back. One change, one Undo; a second press on
 // the same row while the first is on its way is ignored, so the same change is never sent twice.
 const eyeBusy = new Set();
-export function setMsHidden(id, hide) {
+export function setMsHidden(id, hide, name) {
   if (eyeBusy.has(id)) return Promise.resolve(null);
   eyeBusy.add(id);
-  const words = hide ? "Milestone left out of the published page." : "Milestone included in the published page.";
+  const what = name ? String(name) : "Milestone";
+  const words = hide ? `${what} left out of the published page.` : `${what} included in the published page.`;
   return change({ kind: "report_hidden", op: hide ? "new" : "delete", id, place: "report" }, words).finally(() => eyeBusy.delete(id));
 }
 

@@ -40,7 +40,7 @@ SEE = """((root) => {
                                                   tagShown: !!tag && tag.getBoundingClientRect().width > 0, listItem: r.tagName === 'LI'};
     if (eye) {
       const er = eye.getBoundingClientRect(), cr = cells.getBoundingClientRect();
-      Object.assign(out, {name: eye.getAttribute('aria-label'), pressed: eye.getAttribute('aria-pressed'), tag2: eye.tagName, type: eye.type,
+      Object.assign(out, {name: eye.getAttribute('aria-label'), pressed: eye.classList.contains('is-left') ? 'true' : 'false', ariaPressed: eye.getAttribute('aria-pressed'), tag2: eye.tagName, type: eye.type,
                           w: er.width, h: er.height, inside: er.left >= rr.left - 1 && er.right <= rr.right + 1 && er.top >= rr.top - 1 && er.bottom <= rr.bottom + 1,
                           apart: er.left >= cr.right - 1, tabStop: eye.tabIndex >= 0, inCells: cells.contains(eye), icon: eye.querySelector('svg').getAttribute('data-icn'),
                           ink: ratio(px(getComputedStyle(eye).color), back(eye))});
@@ -133,7 +133,8 @@ class Editor(unittest.TestCase):
             self.assertTrue(r["hasEye"], f"{label} {ident}: a button on the row")
             self.assertEqual((r["tag2"], r["type"]), ("BUTTON", "button"), f"{label} {ident}: a real button")
             self.assertEqual(r["name"], eye_name(False, NAMES[ident]), f"{label} {ident}: it names what it does and the milestone")
-            self.assertEqual(r["pressed"], "false", f"{label} {ident}: not pressed until the milestone is left out")
+            self.assertEqual(r["pressed"], "false", f"{label} {ident}: not marked until the milestone is left out")
+            self.assertIsNone(r["ariaPressed"], f"{label} {ident}: the name changes, so there is no aria-pressed to say it twice")
             self.assertGreaterEqual(min(r["w"], r["h"]), 24, f"{label} {ident}: a target of 24 px at least")
             self.assertTrue(r["inside"] and r["apart"], f"{label} {ident}: inside its row, beside the cells")
             self.assertFalse(r["inCells"], f"{label} {ident}: not a control inside another control")
@@ -169,6 +170,7 @@ class Editor(unittest.TestCase):
                     r = by["ABC-M-002"]
                     self.assertEqual((r["tag"], r["tagShown"]), (LEFT_OUT, True), "the words, not colour alone")
                     self.assertEqual((r["pressed"], r["icon"], r["name"]), ("true", "eyeoff", eye_name(True, "Training done")))
+                    self.assertIsNone(r["ariaPressed"], "the name says it; aria-pressed would say it twice")
                     self.assertGreaterEqual(r["ink"], 3)
                     for other in ("ABC-M-001", "ABC-M-003"):
                         self.assertEqual((by[other]["tag"], by[other]["pressed"], by[other]["icon"]), (None, "false", "eye"), other)
@@ -189,7 +191,7 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.left_out(), ["ABC-M-002"])
             now = self.seen(".secs")["ABC-M-002"]
             self.assertEqual((now["tag"], now["pressed"], now["name"]), (LEFT_OUT, "true", eye_name(True, "Training done")))
-            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "Milestone left out of the published page.")
+            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "Training done left out of the published page.")
             self.assertEqual(self.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "one Undo")
             self.js("document.querySelector('.toast [data-undo]').click()")
             self.until("!document.querySelector(\"[data-ms='ABC-M-002'] .tag.hid\")", "Undo put it back at once")
@@ -206,7 +208,7 @@ class Editor(unittest.TestCase):
             self.until("!document.querySelector(\"[data-ms='ABC-M-003'] .tag.hid\")", "the row is included again")
             self.assertEqual(self.sent_changes(), [{"project": "ABC", "kind": "report_hidden", "op": "delete", "id": "ABC-M-003", "place": "report"}])
             self.assertEqual(self.left_out(), [])
-            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "Milestone included in the published page.")
+            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "Handover included in the published page.")
             self.js("document.querySelector('.toast [data-undo]').click()")
             self.until("!!document.querySelector(\"[data-ms='ABC-M-003'] .tag.hid\")", "Undo left it out again")
             self.assertEqual(self.left_out(), ["ABC-M-003"])

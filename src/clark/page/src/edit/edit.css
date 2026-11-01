@@ -447,7 +447,7 @@ textarea.tpl-field { resize: vertical; }
 
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
-.ms-eye[aria-pressed="true"] { color: var(--status-blue-text); }
+.ms-eye.is-left { color: var(--status-blue-text); }
 
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
