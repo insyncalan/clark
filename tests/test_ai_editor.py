@@ -33,7 +33,11 @@ INSIDE = """(()=>{const e=document.querySelector(%s); if(!e) return false; const
 EDITOR = "document.querySelector('.rt .ProseMirror')"
 
 
-class Editor(unittest.TestCase):
+class EditorTests:
+    """Every test below runs four times: 1400 and 900 px wide, light and dark (the classes made after this one)."""
+    WIDTH = 1400
+    THEME = "light"
+
     @classmethod
     def setUpClass(cls):
         cls.h = AiEditorHarness(chrome).__enter__()
@@ -46,8 +50,8 @@ class Editor(unittest.TestCase):
         h = self.h
         h.ev("window.unmount()")
         h.ev("for (const k of Object.keys(window.opts)) delete window.opts[k]; window.client.calls.length = 0")
-        h.resize(1400)
-        h.theme("light")
+        h.resize(self.WIDTH)
+        h.theme(self.THEME)
 
     # ---- helpers
     def names(self):
@@ -356,17 +360,11 @@ class Editor(unittest.TestCase):
 
     def test_the_greyed_state_is_text_at_4_5_to_1(self):
         h = self.h
-        for theme in ("light", "dark"):
-            for width in (1400, 900):
-                with self.subTest(theme=theme, width=width):
-                    h.ev("window.unmount()")
-                    h.theme(theme)
-                    h.resize(width)
-                    h.ev("window.opts.state = 'not_signed_in'")
-                    self.open_list_by_key()
-                    self.assertGreaterEqual(h.ev(CONTRAST % "'.rt-ai-line'"), 4.5)
-                    self.assertGreaterEqual(h.ev(CONTRAST % "'[data-ai=shorter]'"), 4.5)
-                    self.assertGreaterEqual(h.ev(CONTRAST % "'.rt-ai-h'"), 4.5)
+        h.ev("window.opts.state = 'not_signed_in'")
+        self.open_list_by_key()
+        self.assertGreaterEqual(h.ev(CONTRAST % "'.rt-ai-line'"), 4.5)
+        self.assertGreaterEqual(h.ev(CONTRAST % "'[data-ai=shorter]'"), 4.5)
+        self.assertGreaterEqual(h.ev(CONTRAST % "'.rt-ai-h'"), 4.5)
 
     # ---- Make into
     def test_make_into_makes_one_item_with_no_ai_call(self):
@@ -393,37 +391,60 @@ class Editor(unittest.TestCase):
         self.open_list_by_key(noMake=True)
         self.assertFalse(any(n.startswith("Make this") for n in self.names()))
 
+    # ---- sharing Esc with the ask panel
+    def test_esc_closes_only_the_list_when_the_ask_panel_is_shut(self):
+        h = self.h
+        self.open_list_by_key()
+        self.assertFalse(h.ev("window.ask.isOpen()"))
+        h.key("Escape", 0, "Escape", 27)
+        self.assertTrue(h.until("!document.querySelector('.rt-ai-list')"))
+        self.assertTrue(self.in_editor(), "focus is back in the editor")
+        self.assertEqual(h.ev("window.ended"), 0, "the field stays open")
+        self.assertFalse(h.ev("window.ask.isOpen()"), "Esc did not open or touch the panel")
+
+    def test_esc_closes_only_the_panel_when_focus_is_in_the_panel(self):
+        h = self.h
+        h.open(f"<p>{TEXT}</p>")
+        h.ev("window.ask.open()")
+        self.assertTrue(h.until("!!document.querySelector('#ask-panel') && document.querySelector('#ask-panel').contains(document.activeElement)"))
+        ended = h.ev("window.ended")                                  # a field closes by itself when focus goes to the panel
+        h.key("Escape", 0, "Escape", 27)
+        self.assertTrue(h.until("!document.querySelector('#ask-panel')"))
+        self.assertFalse(h.ev("window.ask.isOpen()"))
+        self.assertEqual(h.ev("window.ended"), ended, "Esc in the panel did not end the field a second time")
+        self.assertFalse(h.ev("!!document.querySelector('.rt-ai-list')"))
+
     # ---- inside the window
     def test_the_bubble_and_the_list_stay_inside_the_window(self):
         h = self.h
         long = "".join(f"<p>{TEXT} {TEXT}</p>" for _ in range(6))
-        for theme in ("light", "dark"):
-            for width in (1400, 900):
-                with self.subTest(theme=theme, width=width):
-                    h.ev("window.unmount()")
-                    h.theme(theme)
-                    h.resize(width)
-                    h.open(long)
-                    for a, b in ((1, 12), (5, 60)):
-                        h.select(a, b)
-                        self.assertTrue(h.until("!!document.querySelector('.rt-bubble .rt-ai')"))
-                        self.assertTrue(h.ev(INSIDE % "'.rt-bubble'"), "the bubble is inside the window")
-                        h.ev("document.querySelector('.rt-bubble .rt-ai').click()")
-                        self.assertTrue(h.until("!!document.querySelector('.rt-ai-list')"))
-                        self.assertTrue(h.ev(INSIDE % "'.rt-ai-list'"), "the list is inside the window")
-                        h.key("Escape", 0, "Escape", 27)
-                    h.ev("document.querySelector('.rt-bar .rt-ai').click()")
-                    self.assertTrue(h.until("!!document.querySelector('.rt-ai-list')"))
-                    self.assertTrue(h.ev(INSIDE % "'.rt-ai-list'"), "the list opened from the toolbar is inside the window")
-                    h.key("Escape", 0, "Escape", 27)
-                    h.select(1, 30)
-                    self.alt_slash()
-                    self.assertTrue(h.until("!!document.querySelector('.rt-ai-list')"))
-                    self.assertTrue(h.ev(INSIDE % "'.rt-ai-list'"))
-                    h.ev("document.querySelector('[data-ai=custom]').click()")
-                    self.assertTrue(h.until("!!document.querySelector('.rt-ai-ask')"))
-                    self.assertTrue(h.ev(INSIDE % "'.rt-ai-list'"))
-                    h.key("Escape", 0, "Escape", 27)
+        h.open(long)
+        for a, b in ((1, 12), (5, 60)):
+            h.select(a, b)
+            self.assertTrue(h.until("!!document.querySelector('.rt-bubble .rt-ai')"))
+            self.assertTrue(h.ev(INSIDE % "'.rt-bubble'"), "the bubble is inside the window")
+            h.ev("document.querySelector('.rt-bubble .rt-ai').click()")
+            self.assertTrue(h.until("!!document.querySelector('.rt-ai-list')"))
+            self.assertTrue(h.ev(INSIDE % "'.rt-ai-list'"), "the list is inside the window")
+            h.key("Escape", 0, "Escape", 27)
+        h.ev("document.querySelector('.rt-bar .rt-ai').click()")
+        self.assertTrue(h.until("!!document.querySelector('.rt-ai-list')"))
+        self.assertTrue(h.ev(INSIDE % "'.rt-ai-list'"), "the list opened from the toolbar is inside the window")
+        h.key("Escape", 0, "Escape", 27)
+        h.select(1, 30)
+        self.alt_slash()
+        self.assertTrue(h.until("!!document.querySelector('.rt-ai-list')"))
+        self.assertTrue(h.ev(INSIDE % "'.rt-ai-list'"))
+        h.ev("document.querySelector('[data-ai=custom]').click()")
+        self.assertTrue(h.until("!!document.querySelector('.rt-ai-ask')"))
+        self.assertTrue(h.ev(INSIDE % "'.rt-ai-list'"))
+        h.key("Escape", 0, "Escape", 27)
+
+
+for _theme in ("light", "dark"):
+    for _width in (1400, 900):
+        _name = f"Editor{_width}{_theme.title()}"
+        globals()[_name] = type(_name, (EditorTests, unittest.TestCase), {"WIDTH": _width, "THEME": _theme})
 
 
 class MakeIntoRequest(unittest.TestCase):

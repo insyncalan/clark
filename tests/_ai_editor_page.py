@@ -3,6 +3,7 @@
 The page offers:
   mount(value, cfg)   draws RichText for `value`; cfg {place, noMake}; window.made has every Make into call as [kind, text],
                       window.saves / window.ended as in _rich_page, window.opts the fake provider's settings, window.client the fake
+  window.ask          the real ask panel (open, close, isOpen) with its real Esc key, to see the two share Esc
   window.MI           the Make into request builder (logic/makeInto.js)
 Nothing here signs in to anything or sends anything anywhere. Fictional text only.
 """
@@ -22,12 +23,17 @@ ENTRY = """import { render } from "preact";
 import { RichText } from %(rich)s;
 import { stubAiClient } from %(client)s;
 import { makeIntoRequest, makeIntoDone } from %(make)s;
+import { AskPanel } from %(panel)s;
+import { installAskKeys, openPanel, closePanel, panelOpen } from %(panelstate)s;
 window.opts = {};
 window.client = stubAiClient(window.opts);
 window.MI = { makeIntoRequest, makeIntoDone };
 window.saves = []; window.ended = 0; window.made = [];
 const root = document.getElementById("root");
 window.unmount = () => render(null, root);
+window.ask = { open: openPanel, close: closePanel, isOpen: () => panelOpen.value };
+installAskKeys();
+render(<AskPanel />, document.getElementById("ask-root"));
 window.mount = (value, cfg) => {
   cfg = cfg || {};
   render(null, root);
@@ -43,7 +49,8 @@ window.mount = (value, cfg) => {
 def bundle(tmp):
     q = lambda *p: json.dumps(str(PAGE_SRC.joinpath(*p)))  # noqa: E731
     entry = Path(tmp) / "entry.jsx"
-    entry.write_text(ENTRY % {"rich": q("edit", "RichText.jsx"), "client": q("edit", "aiClient.js"), "make": q("logic", "makeInto.js")},
+    entry.write_text(ENTRY % {"rich": q("edit", "RichText.jsx"), "client": q("edit", "aiClient.js"), "make": q("logic", "makeInto.js"),
+                     "panel": q("edit", "AskPanel.jsx"), "panelstate": q("edit", "askPanelState.js")},
                      encoding="utf-8")
     out = Path(tmp) / "aied.js"
     args = ["--bundle", "--format=iife", "--target=es2020", "--tsconfig-raw={}", "--loader:.jsx=jsx", *build_page.preact_flags(),
@@ -60,7 +67,7 @@ class AiEditorHarness(Harness):
         (tmp / "aied.js").write_text(bundle(tmp), encoding="utf-8")
         css = build_page.page_css(build_page.ENTRY)
         (tmp / "page.html").write_text(f"<!doctype html><meta charset=utf-8><style>{css}</style>"
-                                       "<body><p id=outside tabindex=0>Outside the field.</p><div id=root></div>"
+                                       "<body><p id=outside tabindex=0>Outside the field.</p><div id=root></div><div id=ask-root></div>"
                                        "<script src=aied.js></script></body>", encoding="utf-8")
         self.chrome = self.launch()
         self.cdp = self.chrome.__enter__()

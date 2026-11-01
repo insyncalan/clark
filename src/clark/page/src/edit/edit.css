@@ -152,5 +152,5 @@
 .rt-ai-list .rt-opt[aria-disabled="true"] { color: var(--text-muted); cursor: default; }
 .rt-ai-list .rt-opt[aria-disabled="true"]:hover { background: transparent; }
 .rt-ai-list .rt-opt:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; background: var(--grey-100); }
-.rt-ai-ask { box-sizing: border-box; width: calc(100% - 1rem); min-width: 16rem; height: 2rem; margin: .25rem .5rem; padding: 0 .5rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.rt-ai-ask { box-sizing: border-box; width: calc(100% - var(--space-4)); min-width: 16rem; height: var(--space-6); margin: var(--space-1) var(--space-2); padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
 .rt-ai-ask:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
