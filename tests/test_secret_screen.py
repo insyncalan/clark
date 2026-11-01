@@ -171,8 +171,84 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_a_letters_only_quoted_password_is_refused(self):
+        word = "orange" + "bicycle"
+        for q1, q2 in (('"', '"'), ("'", "'"), ("`", "`"), ("\u201c", "\u201d"), ("\u2018", "\u2019")):
+            for lead in ("password: ", "pwd=", "passphrase: ", "secret: ", "pw = ", "the password is ", "The wifi password was ", "password "):
+                with self.subTest(lead + q1):
+                    self.assertTrue(secret_screen.looks_like_secret(lead + q1 + word + q2))
+        self.assertTrue(secret_screen.looks_like_secret("Notes.\nPassword: \"" + "swordfish" + "\" (shared)"))
+
+    def test_a_short_or_unquoted_word_after_a_password_word_is_not_refused(self):
+        for text in ('password "ok"', 'the password "must" be long', "password: reset", "the password policy is reviewed each year",
+                     'the token "refresh" is renewed', 'a "required" field', 'pass `revert` to the call', 'password: "two words here"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_near_misses_of_the_quoted_letters_rule_pass(self):
+        """The key word must start a word, a bare secret needs a connector, the two quotes must be one pair, and a config's own
+        placeholder values are not passwords."""
+        for text in ('password "abcde"', "Secretary 'Harrington'", 'secrets: "inherit"', 'the secret "ingredient"', 'password: "string"',
+                     'click "Forgot password" "Submit"', "the password is 'orangebicycle\"", 'secret "orangebicycle"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_a_prefixed_or_suffixed_key_word_with_a_quoted_letters_value_is_refused(self):
+        """The commonest config shapes: a prefix such as DB_ or client_, camel case, and a suffix that still names the secret."""
+        word = "orange" + "bicycle"
+        for key in ("DB_PASSWORD=", "client_secret: ", "db_password: ", "userPassword: ", "mysql_pwd=", "admin_pw: ", "api_secret=",
+                    "secret_key: ", "clientSecret = ", "DB_PASSWORD_PROD=", "password_new: ", '"db_password": '):
+            with self.subTest(key):
+                self.assertTrue(secret_screen.looks_like_secret(key + '"' + word + '"'))
+                self.assertTrue(secret_screen.looks_like_secret(key + "'" + word + "'"))
+
+    def test_the_false_refusals_of_ordinary_text_pass(self):
+        """A word that only starts with a key word, a setting about a secret, a heading, and another language's word are not secrets."""
+        for text in ("Secretary 'Clinton' arrived", 'the secret "ingredient"', 'password: "string"', 'secretName: "postgres"', 'secrets: "inherit"',
+                     'secreto "abierto"', 'password_auth: "enabled"', 'Subject: Password "Expired"', 'password_hint: "favourite"',
+                     'passwords: "abcdefgh"', 'secretary: "Harrington"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_a_letters_only_value_in_another_alphabet_of_letters_is_refused(self):
+        self.assertTrue(secret_screen.looks_like_secret('password is "contrase\u00f1a"'))
+
+    def test_six_letters_are_refused_and_five_are_not(self):
+        self.assertTrue(secret_screen.looks_like_secret('password "abcdef"'))
+        self.assertFalse(secret_screen.looks_like_secret('password "abcde"'))
+        self.assertTrue(secret_screen.looks_like_secret('the secret is "orangebicycle"'))
+        self.assertTrue(secret_screen.looks_like_secret('"password": "orangebicycle"'))
+
     def test_the_address_shape_still_finds_an_address(self):
         self.assertTrue(secret_screen.looks_like_secret("see s3://user:" + PW + "@host/x"))
+
+    def test_encoded_and_other_language_forms_are_caught(self):
+        import base64
+        import urllib.parse
+        line = "pass" + "word=" + PW
+        for name, text in (("base64", base64.b64encode(line.encode()).decode()),
+                           ("url-encoded", "q=" + urllib.parse.quote(line, safe="")),
+                           ("url-encoded and quoted", urllib.parse.quote("pass" + 'word: "' + PW + '"', safe="")),
+                           ("German", "Pass" + "wort: " + PW), ("German quoted", "Kenn" + 'wort = "' + PW + '"'),
+                           ("French", "mot de " + "passe : " + PW), ("Spanish", "contra" + "seña: " + PW),
+                           ("Russian", "пар" + "оль: " + PW), ("Arabic", "كلمة " + "المرور: " + PW),
+                           ("short secret key", "SECRET" + "_KEY=" + "ab12cd34ef56gh7")):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.looks_like_secret("Notes.\n" + text + "\nMore notes."))
+
+    def test_a_secret_in_a_file_name_is_caught(self):
+        for name in ("notes-pass" + "word-" + PW.replace("-", "") + ".txt", "pass" + "word=" + PW + ".md"):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.name_looks_like_secret("saved/" + name))
+        for name in ("pass" + "word-reset-2026.docx", "Q4 plan v2.docx", "token_policy.md", "secret santa list.txt"):
+            with self.subTest(name):
+                self.assertFalse(secret_screen.name_looks_like_secret("saved/" + name))
+
+    def test_forms_not_screened_on_purpose_stay_clean(self):
+        for text in ("The token: 2026 plan covers three workstreams.", "Mot de " + "passe oublié ? Cliquez ici.",
+                     "100% done, 50%25 left", "token: ab12cd34 ef56gh78", "secret: ab12cd"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
 
 
 class FromFolders(tp.Folders):
@@ -192,6 +268,12 @@ class FromFolders(tp.Folders):
         got = self.run_it()
         self.assertEqual(got.passages, ())
         self.assertEqual(sorted(got.secret_labels), ["saved/split.docx", "saved/w.docx"])
+
+    def test_a_file_whose_name_holds_a_secret_is_left_out(self):
+        self.put(self.box, "notes-pass" + "word-" + PW.replace("-", "") + ".txt", "ZQ-NAME the plan is fine")
+        got = self.run_it()
+        self.assertNotIn("ZQ-NAME", self.text_of(got))
+        self.assertEqual(got.safety, 1)
 
     def test_a_normal_file_is_unchanged(self):
         self.put(self.box, "a.md", "ZQ-A Release 2.5.1 on 31-10-2026; token: 2026 plan.")

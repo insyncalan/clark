@@ -25,7 +25,7 @@ export function say(kind, text, undo = null, code = project.value) {
     const at = undoable.findIndex((s) => s.step === undo);
     if (at >= 0) undoable.splice(at, 1);
     undoable.push({ step: undo, code });
-    if (undoable.length > MAX_KEPT) undoable.shift();
+    if (undoable.length > MAX_KEPT) { const gone = undoable.shift(); linked.delete(gone.step); }   // a step that can no longer be undone leaves the pairing too
   }
   clearTimeout(timer);
   const id = ++counter;
@@ -156,16 +156,18 @@ export function undo(applyId, code = project.value) {
   if (at >= 0) undoable.splice(at, 1);
   return enqueue(async () => {
     const earlier = linked.get(applyId);
+    linked.delete(applyId);          // the pair is resolved by this Undo, whatever it does: a failure offers no Undo for this step again
     let r = await sendUndo(code, applyId);
     if (!r.ok) { say("problem", earlier ? `${r.message} The section was not removed.` : r.message); return null; }
     redraw(code, r.reply);
     undone.value++;
     if (earlier) {
-      linked.delete(applyId);
       const e = await sendUndo(code, earlier);
       if (!e.ok) {
-        await readAgain(code, "The change was undone");
-        say("problem", `The row was put back as it was, but the new section could not be removed. ${e.message}`, earlier, code);
+        // The page shows what clark holds: the first step is undone (read again below), the section is still there. If the page
+        // could not be read again, the toast says so as well, because what is drawn may be behind.
+        const fresh = await readAgain(code, "The change was undone");
+        say("problem", `The section above was put back as it was, but the new section could not be removed.${fresh ? "" : " The page could not be refreshed, so reload it to see what was kept."} ${e.message}`, earlier, code);
         return r.reply;
       }
       redraw(code, e.reply);
