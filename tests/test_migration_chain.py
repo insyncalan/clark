@@ -350,7 +350,7 @@ class UndoAfterAnUpdate(Base):
 
     def test_undo_puts_the_copy_back_and_reads_the_same_rows_and_keeps_the_newer_file(self):
         path, name, before = self.updated()
-        done = backup.restore_before_update(path, name, confirmed=True)
+        done = backup.restore_before_update(path, name, confirmed=True, onedrive_roots=[])
         self.assertEqual(done["said"], "Changes made since the update will be lost.")
         for t, had in before.items():
             self.assertEqual(rows(path, t), had, t)
@@ -367,7 +367,7 @@ class UndoAfterAnUpdate(Base):
         try:
             running.execute("SELECT count(*) FROM projects").fetchone()
             with self.assertRaises(Invalid) as caught:
-                backup.restore_before_update(path, name, confirmed=True)
+                backup.restore_before_update(path, name, confirmed=True, onedrive_roots=[])
         finally:
             running.close()
         self.assertIn("Nothing was changed", str(caught.exception))
@@ -378,7 +378,7 @@ class UndoAfterAnUpdate(Base):
         before = dump(path)
         (self.dir / "backups" / name).unlink()
         with self.assertRaises(Invalid) as caught:
-            backup.restore_before_update(path, name, confirmed=True)
+            backup.restore_before_update(path, name, confirmed=True, onedrive_roots=[])
         self.assertEqual(str(caught.exception), backup.UPDATE_GONE)
         self.assertEqual(dump(path), before)
 
@@ -386,11 +386,11 @@ class UndoAfterAnUpdate(Base):
         path, _, _ = self.updated()
         daily = backup.make(path, self.dir / "backups", [], "daily")
         with self.assertRaises(Invalid) as caught:
-            backup.restore_before_update(path, daily.name, confirmed=True)
+            backup.restore_before_update(path, daily.name, confirmed=True, onedrive_roots=[])
         self.assertIn("is not a copy taken before an update", str(caught.exception))
         for odd in ("", "../clark.db", "clark.db"):
             with self.assertRaises(Invalid):
-                backup.restore_before_update(path, odd, confirmed=True)
+                backup.restore_before_update(path, odd, confirmed=True, onedrive_roots=[])
 
     def test_a_migrate_copy_is_not_pushed_out_by_daily_copies(self):
         path, name, _ = self.updated()
