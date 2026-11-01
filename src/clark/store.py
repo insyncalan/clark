@@ -32,7 +32,7 @@ from clark.order import GAP
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 7          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 8          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#120): publications.number, one counter per project (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -199,6 +199,13 @@ REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "r
 
 class Invalid(Exception):
     """A change breaks a rule; the message is shown to the person."""
+
+
+NUMBER_TAKEN = "Another publication was made at the same moment, so this one was not saved. Publish again."
+
+
+class NumberTaken(Invalid):
+    """log_publication found that another publication took the number first (#120); nothing was recorded."""
 
 
 class Unfinished(Invalid):
@@ -1861,10 +1868,57 @@ def migrate_to_history(con):
     con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
 
 
+# `publications` as schema.sql makes it once each publication has its number (#120, step 8), frozen here: a later change to schema.sql
+# must not change what this step builds (tests/test_store_publications.py pins it to what schema.sql creates today).
+PUBLICATIONS_NUMBERED = """CREATE TABLE publications_v8 (
+  seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+  project     TEXT NOT NULL REFERENCES projects(code),
+  at          TEXT NOT NULL DEFAULT (datetime('now')),
+  week_ending TEXT,
+  local_path  TEXT NOT NULL,
+  client_path TEXT,
+  word        INTEGER NOT NULL DEFAULT 0 CHECK (word IN (0,1)),
+  file_sha256 TEXT NOT NULL,
+  checks      TEXT NOT NULL CHECK (checks IN ('passed','not needed')),
+  by_user     TEXT NOT NULL,
+  number      INTEGER NOT NULL CHECK (number >= 1),
+  UNIQUE (project, number)
+)"""
+PUBLICATION_TRIGGERS = (
+    """CREATE TRIGGER IF NOT EXISTS publications_no_delete BEFORE DELETE ON publications
+BEGIN SELECT RAISE(ABORT, 'a publication is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF number, project, word, file_sha256, by_user ON publications
+BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file hash and publisher never change'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS publications_never_replaced BEFORE INSERT ON publications
+WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number) OR seq = NEW.seq)
+BEGIN SELECT RAISE(ABORT, 'a publication is never replaced'); END;""",
+)
+
+
+def migrate_publication_numbers(con):
+    """Schema version 7 to 8 (#120): every publication gets its number, 1, 2, 3 ... within its project in the order they were made
+    (`at`, then `seq`), whatever their kind, so a Word copy keeps its place in the one counter. `publications` is made again with the
+    column (SQLite cannot add a NOT NULL column with no default), the rows copied with their seq (and so the sequence) kept, and the
+    three triggers made. No window function is used (no SQLite minimum is stated). Skipped when the table already has the column,
+    so a second run (or a new database) changes nothing but makes any missing trigger. Runs inside the caller's transaction and does
+    not touch the version (the runner does)."""
+    if "number" not in [r[1] for r in con.execute("PRAGMA table_info(publications)")]:
+        con.execute(PUBLICATIONS_NUMBERED)
+        con.execute(
+            "INSERT INTO publications_v8 (seq, project, at, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number) "
+            "SELECT p.seq, p.project, p.at, p.week_ending, p.local_path, p.client_path, p.word, p.file_sha256, p.checks, p.by_user, "
+            "(SELECT count(*) FROM publications q WHERE q.project = p.project AND (q.at < p.at OR (q.at = p.at AND q.seq <= p.seq))) "
+            "FROM publications p ORDER BY p.seq")
+        con.execute("DROP TABLE publications")
+        con.execute("ALTER TABLE publications_v8 RENAME TO publications")
+    for statement in PUBLICATION_TRIGGERS:
+        con.execute(statement)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
-              (7, migrate_email_sent))
+              (7, migrate_email_sent), (8, migrate_publication_numbers))
 
 
 def migration_plan(version, table=None):
@@ -2281,13 +2335,19 @@ class Store:
         finally:
             con.close()
 
-    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0):
+    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0, number=None):
         """Record one published file: a `publications` row with the file's SHA-256, and nothing else. No change_log,
         no step and no write to any other table: a publication is a record of a file, not an edit (#39; Head ruling,
         28-10-2026), so Undo never meets it. The folder to offer next time is read back from the latest publication
         (`last_publish_folder`), not kept as a field of the project. `client_path` (#43) is the verified copy in the client
         folder, given only when To client was ticked and the copy read back with the same SHA-256; it is the same file, so it
-        is never the Local path. `word` is 1 for a Word report (#48, Head ruling Q2: one row for the Word file, with its own SHA-256, beside the web page's). Returns the publication's number."""
+        is never the Local path. `word` is 1 for a Word report (#48, Head ruling Q2: one row for the Word file, with its own SHA-256, beside the web page's).
+
+        #120: the row also has its `number`: max + 1 for the project, taken in this same transaction as the insert (so two publishes
+        cannot take one number), never reused (a publication is never deleted) and shared by every kind, Local only included. When the
+        caller put a `number` in the file it wrote (from `next_publication`), that number must still be the next one or nothing is
+        written and NumberTaken is raised, so the caller takes its files back. Returns the publication's seq; `number_of(seq)` reads
+        its number."""
         if not str(by_user or "").strip():
             raise Invalid("a publication needs who made it (by_user)")
         if not re.fullmatch(r"[0-9a-f]{64}", str(sha256 or "")):
@@ -2319,15 +2379,28 @@ class Store:
         try:
             if not self.con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone():
                 raise Invalid(f"project {code} isn't here")
+            nxt = self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
+            if number is not None and (type(number) is not int or number != nxt):
+                raise NumberTaken(NUMBER_TAKEN)
             cur = self.con.execute(
-                "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?)",
-                (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip()))
+                "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?, ?)",
+                (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip(), nxt))
             self.con.execute("COMMIT")
             return cur.lastrowid
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
+
+    def next_publication(self, code):
+        """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
+        log_publication refuses if it is no longer the next one. Every row counts, whatever its kind. Read-only."""
+        return self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
+
+    def number_of(self, seq):
+        """The publication number of the `publications` row `seq` (#120), or None. Read-only."""
+        r = self.con.execute("SELECT number FROM publications WHERE seq = ?", (seq,)).fetchone()
+        return r["number"] if r else None
 
     def latest_publication(self, code):
         """The project's latest publication for the report bar (#43): {"at", "to_client"} (when, and whether a verified copy went
