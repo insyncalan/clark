@@ -967,3 +967,15 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+
+/* G2 RAID cards (#96): three or four cards across, each a work item and the words chosen for it. Tokens only, so dark follows. */
+.raid-cards { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.raid-n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.raid-card { min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.raid-card p { margin: 0 0 var(--space-1); }
+.raid-top { font-size: var(--size-small); color: var(--text-muted); }
+.raid-kind { font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.raid-title { font-weight: var(--weight-medium); color: var(--heading); }
+.raid-meta { font-size: var(--size-small); color: var(--text-muted); }
+.raid-text { margin-top: var(--space-2); color: var(--text); }

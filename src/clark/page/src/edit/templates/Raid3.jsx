@@ -1,5 +1,6 @@
-// RAID cards, three (#96), store type "raid3": its Edit part. STUB: the labelled empty state (stub.jsx). Its builder fills this file:
-// fill in place, each committed save one change() (one step, one Undo, place "report"). Given { section, tools }.
-import { editStub } from "./stub.jsx";
+// RAID cards, three (#96), store type "raid3": its Edit part. Up to three cards, each a work item and where its text comes from;
+// every committed choice is one change() (one step, one Undo, place "report"). Given { section, tools }. The shared part is ./raidEdit.jsx.
+import { RaidEdit } from "./raidEdit.jsx";
+import { SIZES } from "../../templates/raid.js";
 
-export const Edit = editStub();
+export const Edit = ({ section }) => <RaidEdit section={section} size={SIZES.raid3} />;
