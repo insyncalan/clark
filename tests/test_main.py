@@ -421,12 +421,12 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["brand_picture", "change", "data_for", "err", "movement", "out", "page_html", "port", "profile", "projects", "publisher", "safety", "undo", "use_cases",
+        self.assertEqual(sorted(call), ["brand_picture", "change", "data_for", "draft", "err", "movement", "out", "page_html", "port", "profile", "projects", "publisher", "safety", "undo", "use_cases",
                                         "word_export", "word_import"])      # #48: + the two Word routes
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
         self.assertTrue(callable(call["word_import"]) and callable(call["word_export"]))
         self.assertTrue(callable(call["safety"].listing) and callable(call["safety"].preview) and callable(call["safety"].restore))
-        self.assertTrue(callable(call["projects"]))
+        self.assertTrue(callable(call["projects"]) and callable(call["draft"]))
         self.assertEqual(call["port"], 8123)
         self.assertEqual(call["data_for"].__name__, "data_for")
         self.assertIs(call["page_html"], launcher.page.page_html)

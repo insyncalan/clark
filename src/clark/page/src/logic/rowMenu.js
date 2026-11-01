@@ -3,14 +3,13 @@
 // is still listed, with the reason under it in words, so a person who uses the keys can read why (a greyed entry can't be focused).
 import { statusChoices, tableOf, changeFor, quickDates, addDays } from "../edit/itemEdit.js";
 import { ownerOf, showDate } from "../workItems.js";
+import { buildOptions } from "./draftEmail.js";
 
 export const TITLE_OF = { actions: "description", raid: "description", decisions: "decision" };
 const TITLE_LIMIT = 200;                         // clark/changes.py: a title is at most this many characters
 export const VIEW_ONLY = "Switch to Edit to change this.";
-export const EYE_LATER = "Showing or hiding an item for the client from here comes with a later release.";
 
-export const NEEDS_PEOPLE = "Draft email needs the People list (coming with #115).";
-export const NOT_CONNECTED = "Draft email will open from here in a later release.";
+export const NO_PEOPLE = "The To line is left empty: there is no People list to take the address from yet.";
 
 /** Where a person's email address is kept: the project's people (data.people, #115), found by the owner's id, never the name
  *  (two people can share a name, docs/handoff/design-115-people-table.md). "" when there is no id, no such person or no address.
@@ -22,14 +21,37 @@ export function emailOf(data, ownerId) {
   return p && typeof p.email === "string" ? p.email.trim() : "";
 }
 
-/** The Draft email entry: {name, reason, to}. It is always greyed for now: the editor (DraftEmail.jsx) is given an email that the
- *  builder (clark/draft_email.py) makes, and the page has no route to it. `reason` says why; `to` is the address found by id. */
+/** The Draft email entry: {name, reason, to, disabled}. It opens the Draft email dialog with a draft the server builds for this one
+ *  item (GET /api/draft); nothing is sent. Only an item with no owner is greyed. `to` is the address found by owner id on the People
+ *  list (#115), "" until that exists, and then the To line is left empty for the person to type: `reason` says so. */
 export function draftEntry(row, data) {
   const o = ownerOf(row.owner);
-  if (!o.initials) return { name: "Draft email to the owner", reason: "This item has no owner yet, so there is no one to write to.", to: "" };
+  if (!o.initials) return { name: "Draft email to the owner", reason: "This item has no owner yet, so there is no one to write to.", to: "", disabled: true };
   const to = emailOf(data, row.owner_id);
-  const reason = !(data && Array.isArray(data.people)) ? NEEDS_PEOPLE : to ? NOT_CONNECTED : `${o.text} has no email on the People list.`;
-  return { name: `Draft email to ${o.text}`, reason, to };
+  const reason = !(data && Array.isArray(data.people)) ? NO_PEOPLE : to ? "" : `${o.text} has no email on the People list, so the To line is left empty.`;
+  return { name: `Draft email to ${o.text}`, reason, to, disabled: false };
+}
+
+/** What the Show / Hide entry asks for: one change to the item's own eye, with the words the toast says and says after an Undo.
+ *  The name follows the item: a client-visible item offers Hide from the client, a hidden one Show to the client. */
+export function eyeChange(row) {
+  const on = !!row.client, value = on ? 0 : 1;
+  return {
+    name: on ? "Hide from the client" : "Show to the client",
+    table: tableOf(row), id: row.id, changes: { client_visible: value },
+    words: on ? `${row.id} is hidden from the client.` : `${row.id} is shown to the client.`,
+    back: on ? `${row.id} is shown to the client again.` : `${row.id} is hidden from the client again.`,
+  };
+}
+
+/** The query the Draft email asks the server with, from the dialog's state (logic/draftEmail.js buildOptions): the kind, whether the one
+ *  item is ticked ("none" when not), the reply-by day, what it holds up and whether the latest update goes in. */
+export function draftParams(state, id) {
+  const o = buildOptions(state);
+  const p = { mode: o.mode, picked: o.picked.includes(id) ? id : "none", include_update: o.include_update ? "1" : "0" };
+  if (o.reply_by) p.reply_by = o.reply_by;
+  if (o.unblocks) p.unblocks = o.unblocks;
+  return p;
 }
 
 /** The statuses the Change status list offers (the same as the Status cell's picker), without the one the item has. */

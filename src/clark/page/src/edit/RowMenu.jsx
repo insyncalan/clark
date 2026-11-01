@@ -1,5 +1,5 @@
 // The right-click menu on a work item (#97): a row of the table or a card of the board, by a right click, the menu key or Shift+F10.
-// Draft email to the owner (listed but greyed, with its reason, until #115), the peek, Change status, Move due date and Change owner (each a short list), Copy link, Copy ID,
+// Draft email to the owner (opens the Draft email dialog over a draft clark builds for this one item, GET /api/draft: nothing is sent, and the To line is left empty until the People list, #115), the peek, Change status, Move due date and Change owner (each a short list), Show to or Hide from the client, Copy link, Copy ID,
 // Duplicate and Archive. Each entry does what its button elsewhere does: a change is one step with Undo in the toast (the cells'
 // own words and requests, itemEdit.js), Archive is clark's archive step (never a delete, FR-43c). What each entry offers is in
 // ../logic/rowMenu.js. An entry that can't be used is listed with its reason under it. In View the changes are listed but greyed.
@@ -10,16 +10,19 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, mode, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
 import { changeCell, changeRecord, say } from "../stores/changes.js";
+import { getDraft } from "../api.js";
+import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
-import { draftEntry, statusList, dueList, ownerList, duplicateRequest, rawOf, pickChange, linkFor, VIEW_ONLY, EYE_LATER } from "../logic/rowMenu.js";
+import { draftEntry, eyeChange, draftParams, statusList, dueList, ownerList, duplicateRequest, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
 
 const ROW = "tr[data-id], article.bcard";
+const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
 const state = signal(null);                    // null, or { id, x, y, level: "" | "status" | "due" | "owner", pick: bool, from: the element to give focus back to }
 
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
@@ -85,14 +88,14 @@ function entries(row, level, edit, d, today) {
     return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
       ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : []), { id: "sep", sep: true }, back];
   }
-  const edits = (id, name) => ({ id, name, sub: true, disabled: !edit, why: edit ? "" : "rm-why-view" });
+  const edits = (id, name) => ({ id, name, sub: id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
-    { id: "draft", name: dr.name, line: dr.reason, disabled: true },
+    { id: "draft", name: dr.name, line: dr.reason, disabled: dr.disabled },
     { id: "peek", name: "Open the peek" },
     { id: "sep1", sep: true },
     ...(edit ? [] : [{ id: "lab1", lab: why, dom: "rm-why-view" }]),
     edits("status", "Change status"), edits("due", "Move due date"), edits("owner", "Change owner"),
-    { id: "eye", name: row.client ? "Hide from the client" : "Show to the client", line: EYE_LATER, disabled: true },
+    edits("eye", eyeChange(row).name),
     { id: "sep2", sep: true },
     { id: "link", name: "Copy link to this item" }, { id: "copyid", name: "Copy ID" },
     { id: "sep3", sep: true },
@@ -133,6 +136,20 @@ function Panel({ s }) {
     if (id.startsWith("s:")) return change("status", id.slice(2));
     if (id.startsWith("o:")) return change("owner", id.slice(2));
     if (id.startsWith("d:")) return change("due", id.slice(2));
+    if (id === "eye") {
+      const c = eyeChange(row);
+      close("pick");
+      return changeCell(c.table, c.id, c.changes, { text: c.words, back: c.back }).then(() => refocus(row.id));
+    }
+    if (id === "draft") {
+      const from = s.from, code = project.value;
+      close("pick");
+      return getDraft(code, row.id).then((r) => {
+        if (!r.ok) { say("note", r.message); refocus(row.id); return; }
+        if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
+        draftOpen.value = { id: row.id, items: r.reply.items, state: r.reply.state, draft: r.reply.draft, today: r.reply.today, from, n: 0 };
+      });
+    }
     if (id === "peek") { close("pick"); openCard(row.id); return undefined; }
     if (id === "link") { close("pick"); copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); return undefined; }
     if (id === "copyid") { close("pick"); copied(row.id, `${row.id} copied.`); return undefined; }
@@ -160,7 +177,7 @@ function Panel({ s }) {
         {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
           <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
             aria-haspopup={it.sub ? "menu" : undefined} aria-disabled={it.disabled ? "true" : undefined}
-            aria-describedby={it.disabled && (it.line || it.why) ? (it.why || "rm-why-" + it.id) : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
+            aria-describedby={(it.disabled || it.id === "draft") && (it.line || it.why) ? (it.why || "rm-why-" + it.id) : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
             <span class="rm-t"><b>{it.id === "back" ? "‹ Back" : it.name}</b>{it.line ? <small id={"rm-why-" + it.id}>{it.line}</small> : null}</span>
             {it.sub ? <Icon name="right" cls="rm-go" /> : null}
           </button>
@@ -175,8 +192,54 @@ function Panel({ s }) {
   );
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const BEHIND = ["#main", ".top"];                // made inert while the Draft email is open
+
+// The Draft email over the page (modal: focus stays inside, Esc closes, focus goes back to the row). It holds the draft the server built;
+// each change in the dialog (the kind, the ticks, the options) asks for a new one, and the last answer wins. It sends and saves nothing.
+function DraftHost({ d }) {
+  const root = useRef(null), asked = useRef(0);
+  const close = () => {
+    const from = d.from, id = d.id;
+    draftOpen.value = null;
+    setTimeout(() => { if (from && from.isConnected) from.focus({ preventScroll: true }); else refocus(id); }, 0);
+  };
+  useEffect(() => {
+    const first = root.current && root.current.querySelector("input, button");
+    if (first) first.focus();
+    const held = BEHIND.map((q) => document.querySelector(q)).filter(Boolean);
+    held.forEach((el) => el.setAttribute("inert", ""));
+    return () => held.forEach((el) => el.removeAttribute("inert"));
+  }, []);
+  useEffect(() => { if (!data.value || !itemRows.value.some((r) => r.id === d.id)) draftOpen.value = null; }, [itemRows.value]);   // the item went
+  const onChange = (next) => {
+    const n = ++asked.current;
+    draftOpen.value = { ...draftOpen.value, state: next };           // the ticks and options show at once; the email follows
+    getDraft(project.value, d.id, draftParams(next, d.id)).then((r) => {
+      if (n !== asked.current || !draftOpen.value) return;
+      if (!r.ok) { say("note", r.message); return; }
+      draftOpen.value = { ...draftOpen.value, state: r.reply.state, draft: r.reply.draft, items: r.reply.items };
+    });
+  };
+  const keys = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
+    if (e.key !== "Tab" || !root.current) return;
+    const all = Array.from(root.current.querySelectorAll(FOCUSABLE));
+    if (!all.length) return;
+    const first = all[0], last = all[all.length - 1];
+    if (!root.current.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  return (
+    <div class="ad-scrim" data-draft-email={d.id} ref={root} onKeyDown={keys} onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} />
+    </div>
+  );
+}
+
 export function RowMenu() {
   useOpeners();
-  const s = state.value;
-  return s ? <Panel s={s} /> : null;
+  const s = state.value, d = draftOpen.value;
+  return <>{s ? <Panel s={s} /> : null}{d ? <DraftHost key={d.id} d={d} /> : null}</>;
 }

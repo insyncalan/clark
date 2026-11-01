@@ -387,12 +387,13 @@ class Picker(Base):
         self.assertIn(f"{b} was changed later", out["words"])
         self.assertIn(f"{a} is hidden from the client again", out["words"])
 
-    def test_an_undo_is_not_offered_for_a_step_that_only_turned_a_client_flag_on(self):
+    def test_an_undo_is_not_offered_for_a_step_that_only_turned_a_client_flag_on_from_another_route(self):
         a = self.demo.action()
         with self.s.step("dashboard", USER) as st:
             st.update("actions", a, {"client_visible": 0})
-        step = self.demo.update("actions", a, {"client_visible": 1})
-        status, out = self.back(step)
+        with self.s.step("excel", USER) as st:               # #97: from the page the eye is a work item's own field (test_changes_item_eye), so only another route's step is refused
+            st.update("actions", a, {"client_visible": 1})
+        status, out = self.back(self.demo.last_step())
         self.assertEqual((status, out["message"]), (400, changes.NO_UNDO))
 
     def test_a_picker_step_cannot_be_undone_from_another_project(self):

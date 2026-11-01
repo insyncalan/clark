@@ -13,6 +13,9 @@ import unittest
 
 from _paths import ROOT, SRC
 
+from _demo import USER
+from clark import draft_read, publish
+
 from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click, need_chrome  # noqa: E402
 from test_work_items import bundled, page_target  # noqa: E402
@@ -62,14 +65,16 @@ class Rules(unittest.TestCase):
 
     ACTION = {"id": "ABC-A-001", "kind": "action", "owner": "Ada Quillfeather", "status": "Open", "priority": "High", "due_date": "2026-11-02"}
 
-    def test_draft_email_is_greyed_with_a_reason_and_finds_an_address_by_owner_id_never_the_name(self):
+    def test_draft_email_opens_with_the_to_line_empty_and_finds_an_address_by_owner_id_never_the_name(self):
         row = json.dumps(self.ACTION)
         self.assertEqual(self.js(f"RM.draftEntry({row}, {{}})"),
-                         {"name": "Draft email to Ada Quillfeather", "reason": "Draft email needs the People list (coming with #115).", "to": ""})
+                         {"name": "Draft email to Ada Quillfeather", "disabled": False, "to": "",
+                          "reason": "The To line is left empty: there is no People list to take the address from yet."})
         # Today's rows have no id link: a person with the same name is never used (two people can share a name).
         same_name = json.dumps({"people": [{"id": "P-001", "name": "Ada Quillfeather", "email": "ada@example.com"}]})
         self.assertEqual(self.js(f"RM.draftEntry({row}, {same_name})"),
-                         {"name": "Draft email to Ada Quillfeather", "reason": "Ada Quillfeather has no email on the People list.", "to": ""})
+                         {"name": "Draft email to Ada Quillfeather", "disabled": False, "to": "",
+                          "reason": "Ada Quillfeather has no email on the People list, so the To line is left empty."})
         self.assertEqual(self.js(f"RM.emailOf({same_name}, 'Ada Quillfeather')"), "")
         self.assertEqual(self.js(f"RM.emailOf({same_name}, '')"), "")
         self.assertEqual(self.js(f"RM.emailOf({same_name}, 'P-001')"), "ada@example.com")
@@ -79,12 +84,30 @@ class Rules(unittest.TestCase):
                                      {"id": "P-002", "name": "Ada Quillfeather", "email": " two@example.com "}]})
         got = self.js(f"RM.draftEntry({linked}, {two})")
         self.assertEqual(got["to"], "two@example.com", "the id picks the person")
-        self.assertTrue(got["reason"], "still greyed: the dialog has no route to the builder yet")
+        self.assertEqual((got["reason"], got["disabled"]), ("", False), "nothing to explain once the address is known")
         for owner in ("TBC", None, ""):
             none = json.dumps({**self.ACTION, "owner": owner})
             got = self.js(f"RM.draftEntry({none}, {same_name})")
-            self.assertEqual((got["name"], got["to"]), ("Draft email to the owner", ""))
+            self.assertEqual((got["name"], got["to"], got["disabled"]), ("Draft email to the owner", "", True))
             self.assertIn("no owner", got["reason"])
+
+    def test_the_eye_is_one_change_to_the_items_own_flag_and_the_name_and_words_follow_the_item(self):
+        shown = json.dumps({**self.ACTION, "client": True})
+        self.assertEqual(self.js(f"RM.eyeChange({shown})"),
+                         {"name": "Hide from the client", "table": "actions", "id": "ABC-A-001", "changes": {"client_visible": 0},
+                          "words": "ABC-A-001 is hidden from the client.", "back": "ABC-A-001 is shown to the client again."})
+        hidden = json.dumps({**self.ACTION, "kind": "risk", "id": "ABC-002", "client": False})
+        got = self.js(f"RM.eyeChange({hidden})")
+        self.assertEqual((got["name"], got["table"], got["changes"], got["words"], got["back"]),
+                         ("Show to the client", "raid", {"client_visible": 1}, "ABC-002 is shown to the client.", "ABC-002 is hidden from the client again."))
+
+    def test_the_draft_is_asked_for_with_the_dialogs_own_state(self):
+        st = {"mode": "chase", "picked": ["ABC-A-001"], "replyBy": "2026-11-20", "unblocks": " the go-live ", "includeUpdate": True}
+        self.assertEqual(self.js(f"RM.draftParams({json.dumps(st)}, 'ABC-A-001')"),
+                         {"mode": "chase", "picked": "ABC-A-001", "include_update": "1", "reply_by": "2026-11-20", "unblocks": "the go-live"})
+        none = {"mode": "update_request", "picked": [], "replyBy": "", "unblocks": "", "includeUpdate": False}
+        self.assertEqual(self.js(f"RM.draftParams({json.dumps(none)}, 'ABC-A-001')"),
+                         {"mode": "update_request", "picked": "none", "include_update": "0"})
 
     def test_the_lists_offer_what_the_cells_offer_without_what_the_item_has(self):
         row = json.dumps(self.ACTION)
@@ -126,6 +149,11 @@ class Menu(board.Base):
     TABLE = "tr[data-id='%s']"
     CARD = "article[data-id='%s'] .bc-main"
 
+    def setUp(self):
+        super().setUp()
+        who = type("Who", (), {"who": lambda self: "Sam Example", "own_domains": lambda self: []})()      # the sender's name, no own domains
+        self.s.httpd.draft = draft_read.make_read(lambda code: publish.read_inputs(self.store, code), who, lambda: f"{TODAY} 09:00")
+
     def open_menu(self, cdp, sid, selector):
         right_click(cdp, sid, selector)
         self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
@@ -146,18 +174,18 @@ class Menu(board.Base):
             self.assertEqual([e[1] for e in got], ["Draft email to Sara Khan", "Open the peek", "Change status", "Move due date", "Change owner",
                                                    "Hide from the client", "Copy link to this item", "Copy ID", "Duplicate", "Archive"])
             by = {e[0]: e for e in got}
-            self.assertEqual(by["draft"][2:], [True, "Draft email needs the People list (coming with #115)."], "greyed, with the reason in words")
-            self.assertTrue(by["eye"][2] and by["eye"][3], "the eye says why it is greyed")
-            self.assertFalse(any(by[k][2] for k in ("peek", "status", "due", "owner", "link", "copyid", "dup", "archive")))
-            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "peek", "focus is on the first entry that can be used")
+            self.assertEqual(by["draft"][2:], [False, "The To line is left empty: there is no People list to take the address from yet."],
+                             "open, with the To line's reason in words")
+            self.assertFalse(any(by[k][2] for k in ("draft", "eye", "peek", "status", "due", "owner", "link", "copyid", "dup", "archive")))
+            self.assertEqual(by["eye"][3], "", "the eye has nothing to explain in Edit")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft", "focus is on the first entry that can be used")
             box = cdp.js("(() => { const b = document.querySelector('.rowmenu').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()", sid)
             self.assertTrue(box[0] >= 0 and box[1] >= 0 and box[2] <= 1400 and box[3] <= 900, box)
             self.assertFalse(cdp.js("!!document.querySelector('.cpop')", sid))
             self.assertEqual(self.steps(), before)
-            # A greyed entry is described by its reason line, so a screen reader can read why.
+            # The Draft email's line is read with it, so a screen reader hears that the To line is empty.
             why = cdp.js("(() => { const b = document.querySelector('.rowmenu [data-rm=draft]'); const d = document.getElementById(b.getAttribute('aria-describedby')); return d ? d.textContent : null; })()", sid)
-            self.assertEqual(why, "Draft email needs the People list (coming with #115).")
-            self.assertTrue(cdp.js("(() => { const b = document.querySelector('.rowmenu [data-rm=eye]'); const d = document.getElementById(b.getAttribute('aria-describedby')); return !!(d && d.textContent); })()", sid))
+            self.assertEqual(why, "The To line is left empty: there is no People list to take the address from yet.")
             # The menu items have a real focus ring: 2 px, a colour, not none.
             key(cdp, sid, "ArrowDown")                       # a key moved focus, so :focus-visible applies
             ring = cdp.js("(() => { const c = getComputedStyle(document.activeElement); return [c.outlineStyle, c.outlineWidth, c.outlineColor]; })()", sid)
@@ -215,11 +243,12 @@ class Menu(board.Base):
             self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu key opens it")
             first = cdp.js("document.activeElement.dataset.rm", sid)
             key(cdp, sid, "ArrowDown")
-            self.assertEqual((first, cdp.js("document.activeElement.dataset.rm", sid)), ("peek", "status"))
+            self.assertEqual((first, cdp.js("document.activeElement.dataset.rm", sid)), ("draft", "peek"))
             key(cdp, sid, "End")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "archive")
             key(cdp, sid, "Home")
-            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "peek")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft")
+            key(cdp, sid, "ArrowDown")                                  # Open the peek
             key(cdp, sid, "ArrowDown")                                  # Change status
             key(cdp, sid, "ArrowRight")                                 # opens its list
             self.until(cdp, sid, "document.querySelector('.rowmenu [role=menu]').getAttribute('aria-label').startsWith('Change status')")
@@ -230,6 +259,7 @@ class Menu(board.Base):
             key(cdp, sid, "End")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "archive")
             key(cdp, sid, "Home")
+            key(cdp, sid, "ArrowDown")
             key(cdp, sid, "Enter")                                      # Open the peek
             self.until(cdp, sid, f"location.hash.includes('item={a}')", "Enter on Open the peek")
             self.shut(cdp, sid)
@@ -339,10 +369,12 @@ class Menu(board.Base):
             a, before = self.id_of("Order the laptops"), self.steps()
             self.open_menu(cdp, sid, self.TABLE % a)
             by = {e[0]: e for e in self.entries(cdp, sid)}
-            for k in ("status", "due", "owner", "dup", "archive"):
+            for k in ("status", "due", "owner", "eye", "dup", "archive"):
                 self.assertTrue(by[k][2], k)
-            for k in ("peek", "link", "copyid"):
+            for k in ("draft", "peek", "link", "copyid"):
                 self.assertFalse(by[k][2], k)
+            click(cdp, sid, "[data-rm=eye]")
+            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu')", sid), "a greyed eye does nothing")
             self.assertIn("Switch to Edit to change this.", cdp.js("document.querySelector('.rowmenu').textContent", sid))
             click(cdp, sid, "[data-rm=archive]")
             self.assertTrue(cdp.js("!!document.querySelector('.rowmenu')", sid), "a greyed entry does nothing")
@@ -350,6 +382,95 @@ class Menu(board.Base):
             click(cdp, sid, "[data-rm=peek]")
             self.until(cdp, sid, f"location.hash.includes('item={a}')")
             self.shut(cdp, sid)
+
+    def test_show_and_hide_flip_the_items_flag_in_one_step_with_one_undo_and_the_label_follows(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before = self.id_of("Send the invitations"), self.steps()
+            self.assertEqual(self.row(a)["client_visible"], 1)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            self.assertIn("Hide from the client", [e[1] for e in self.entries(cdp, sid)])
+            click(cdp, sid, "[data-rm=eye]")
+            t = self.wait_toast(cdp, sid, "done")
+            self.assertEqual((t["text"], t["undo"]), (f"{a} is hidden from the client.", True))
+            self.assertEqual((self.row(a)["client_visible"], self.steps()), (0, before + 1), "one step")
+            self.assertEqual(self.sent[-1][1]["changes"], {"client_visible": 0})
+            self.assertEqual(self.sent[-1][1]["kind"], "actions")
+            self.shut(cdp, sid)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            self.assertIn("Show to the client", [e[1] for e in self.entries(cdp, sid)], "the label follows the item")
+            key(cdp, sid, "Escape")
+            self.shut(cdp, sid)
+            click(cdp, sid, "[data-undo]")
+            self.until(cdp, sid, "/shown to the client again/.test(document.querySelector('.toast').textContent)", "the Undo's words")
+            self.assertEqual(self.row(a)["client_visible"], 1)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            self.assertIn("Hide from the client", [e[1] for e in self.entries(cdp, sid)])
+            key(cdp, sid, "Escape")
+            self.shut(cdp, sid)
+            hidden = self.id_of("Book the training room")                  # a hidden one is shown by the same entry
+            self.open_menu(cdp, sid, self.TABLE % hidden)
+            click(cdp, sid, "[data-rm=eye]")
+            self.until(cdp, sid, f"document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('{hidden} is shown to the client.')", "the toast")
+            self.assertEqual(self.row(hidden)["client_visible"], 1)
+
+    def test_draft_email_opens_the_dialog_with_the_items_subject_and_sends_and_saves_nothing(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before, sent = self.id_of("Order the laptops"), self.steps(), len(self.sent)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            self.shut(cdp, sid)
+            self.assertEqual(cdp.js("document.querySelector('.de').getAttribute('role')", sid), "dialog")
+            meta = cdp.js("[...document.querySelectorAll('.de-meta dt, .de-meta dd')].map(e => e.textContent)", sid)
+            self.assertEqual(meta[0:2], ["To", "No address yet. Add one in your mail app."], "the To line is empty, for the person to type")
+            self.assertEqual(meta[2], "Subject")
+            self.assertIn(a, meta[3])
+            self.assertIn("Example Programme", meta[3])
+            self.assertIn("Order the laptops", cdp.js("document.querySelector('.de-preview').textContent", sid))
+            self.assertTrue(cdp.js("document.querySelector('.de').contains(document.activeElement)", sid), "focus is in the dialog")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.de-kinds input')].map(i => i.value)", sid), ["update_request", "chase", "decision"])
+            # a change in the dialog asks for a new draft; it is still only a draft
+            click(cdp, sid, ".de-kinds input[value=decision]")
+            self.until(cdp, sid, "/Decision/.test(document.querySelector('.de-meta').textContent)", "the other kind of email")
+            self.assertTrue(cdp.js("/^mailto:\\?subject=/.test(document.querySelector('.de a.pk-btn').getAttribute('href'))", sid), "a plain mail link with no address")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
+            self.assertEqual(cdp.js("document.activeElement.dataset.id", sid), a, "focus is back on the row")
+            self.assertEqual((self.steps(), len(self.sent)), (before, sent), "nothing was changed, saved or sent")
+            self.assertFalse(cdp.js("document.querySelector('#main, .top').hasAttribute('inert')", sid))
+
+    def test_draft_email_for_an_item_with_no_owner_stays_greyed_with_its_reason(self):
+        with chrome() as cdp:
+            a = self.id_of("Order the laptops")
+            with self.store.step("dashboard", USER) as st:
+                st.update("actions", a, {"owner": "TBC"})
+            sid = self.visit(cdp)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            by = {e[0]: e for e in self.entries(cdp, sid)}
+            self.assertEqual(by["draft"][1:3], ["Draft email to the owner", True])
+            self.assertIn("no owner", by["draft"][3])
+
+    def test_draft_email_in_view_still_opens(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp, edit=False)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email, which changes nothing")
+
+    def test_a_missing_item_says_so_in_words(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            with self.store.step("dashboard", USER) as st:
+                st.archive("actions", a)                                  # gone from the database, still on the page until it reads again
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            t = self.wait_toast(cdp, sid, "note")
+            self.assertIn("no such item", t["text"])
+            self.assertFalse(cdp.js("!!document.querySelector('[data-draft-email]')", sid))
 
     def test_on_the_board_and_in_full_screen(self):
         with chrome() as cdp:

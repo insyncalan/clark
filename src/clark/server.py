@@ -71,6 +71,9 @@ MESSAGES = {
                          "named cover.jpg, cover.png or cover.webp, then reload the page.",
     "bad_project_code": "Use a project code of 3 to 7 capital letters or digits.",
     "project_not_found": "There is no project with that code. Check the code in the address, or choose a project from the list.",     # = changes.NO_PROJECT (a test keeps the two equal)
+    "bad_item": "Use an item ID such as ABC-A-001, ABC-002 or ABC-D-003.",
+    "item_not_found": "There is no such item in this project. It may have been archived. Close this and choose another item.",
+    "bad_draft": "That email option could not be read. Close the Draft email and open it again.",
     "bad_archived": "That way of showing archived records isn't available. Reload the page and try again.",
     "server_error": "Something went wrong, and nothing was changed. Try again, or restart clark.",
     "no_backups": "Backups can't be shown right now. Restart clark the usual way and try again.",
@@ -85,6 +88,8 @@ ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
+ITEM_ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[AD]-)?[0-9]{3}")      # an action, a RAID item or a decision (#97: the items an email can be about)
+DRAFT_OPTIONS = ("mode", "picked", "reply_by", "unblocks", "include_update")      # what GET /api/draft may carry besides project and item
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
 # creaite SECURITY_HEADERS (BL-212). clark: Cache-Control is sent from end_headers too, so every reply carries it once.
@@ -396,6 +401,36 @@ def movement_route(handler):
     return handler.send(200, {"ok": True, "project": code, "movement": view})
 
 
+def draft_route(handler):
+    """GET /api/draft?project=<CODE>&item=<ID>[&mode=&picked=&reply_by=&unblocks=&include_update=] (#97): the Draft email of the
+    right-click menu, read only. It sends nothing, makes nothing and writes nothing. The one project and the one item are checked for
+    their shape (400), any other parameter is 400 and none may be given twice, no body is accepted (400), a missing project or item
+    is 404. The `draft` seam (draft_read.make_read) finds the item inside that project only and answers with client-safe fields; it
+    refuses an option it cannot read in plain words (400, code bad_draft). Without the seam the route is not there (404)."""
+    read = getattr(handler.server, "draft", None)
+    if read is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    if set(query) - {"project", "item", *DRAFT_OPTIONS} or any(len(v) != 1 for v in query.values()):
+        return handler.send(400, error_body("bad_draft"))
+    code = (query.get("project") or [""])[0]
+    if not PROJECT_CODE.fullmatch(code):
+        return handler.send(400, error_body("bad_project_code"))
+    item = (query.get("item") or [""])[0]
+    if not ITEM_ID.fullmatch(item):
+        return handler.send(400, error_body("bad_item"))
+    opts = {k: query[k][0] for k in DRAFT_OPTIONS if k in query}
+    try:
+        got = read(code, item, opts)
+    except LookupError as e:
+        return handler.send(404, error_body("project_not_found" if e.args and e.args[0] == "project" else "item_not_found"))
+    except ValueError as e:
+        return handler.send(400, {"ok": False, "message": str(e), "code": "bad_draft"})
+    return handler.send(200, {"ok": True, "project": code, **got})
+
+
 ARCHIVED_VIEWS = ("hide", "show", "only")          # what ?archived= may be on /api/data (#126); never passed on unchecked
 PROJECT_LIST_LIMIT = 500
 PROJECT_NAME_LIMIT = 200
@@ -624,7 +659,7 @@ def profile_route(method):
 
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
-              "/api/movement": movement_route, "/api/profile": profile_route("get")}
+              "/api/movement": movement_route, "/api/profile": profile_route("get"), "/api/draft": draft_route}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
@@ -812,7 +847,7 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None, draft=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -822,6 +857,7 @@ class LocalServer(ThreadingHTTPServer):
         self.page_html = page_html or placeholder_html
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
         self.movement = movement              # store.milestone_moves (#136): the owner-only Movement read; None: no such route
+        self.draft = draft                    # draft(code, item, options) -> the Draft email of one item (#97, draft_read.make_read); None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
         self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
@@ -857,14 +893,14 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None, draft=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile,
-                            word_import=word_import, word_export=word_export)
+                            word_import=word_import, word_export=word_export, draft=draft)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

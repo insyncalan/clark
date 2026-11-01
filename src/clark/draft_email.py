@@ -423,7 +423,7 @@ def _what(item):
 def _lines(item, include_update):
     """The extra muted lines under an item: a risk's response, the latest update."""
     out = []
-    if item.get("kind") == "raid":
+    if item.get("kind") == "raid" and "response" in item:     # #97: the menu's read never carries a response (a working note), and then no line says one is missing
         out.append("Response: " + (str(item.get("response") or "").strip() or "none recorded yet"))
     update = str(item.get(LATEST) or "").strip()
     if include_update and update:
