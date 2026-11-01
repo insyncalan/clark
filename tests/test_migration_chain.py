@@ -22,7 +22,8 @@ from test_store_migration import make_v1, version
 
 SRC = ROOT / "src" / "clark"
 FROZEN = {"schema_v2.sql": "baa137b0aad47bee9ddb4fb3ca98084a4e4f1d5dce51cf03e7cd74bd8262b960",
-          "schema_v6.sql": "1929544493e9aee5efef288f62f68d4989f23e76d403b1fb0d97873ea208b732"}     # each step's frozen tables, by file: pinned, never changed
+          "schema_v6.sql": "1929544493e9aee5efef288f62f68d4989f23e76d403b1fb0d97873ea208b732",
+          "schema_v9.sql": "d242f863f160e5a960d3734f0b2233c7cf18d24242ccf995e46d5118c2920909"}     # each step's frozen tables, by file: pinned, never changed
 
 
 def dump(path):
