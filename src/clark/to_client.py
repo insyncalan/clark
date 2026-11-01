@@ -33,7 +33,7 @@ from clark import platform, publish
 SETTING = "projects.publish_client"      # where the folder is kept (docs/handoff/data-model.md): an absolute path on this computer
 CHOICES = ("number", "rename", "overwrite", "cancel")
 KIND = "client"                          # the kind of publication this module logs
-ALLOWED_KEYS = ("project", "to_client", "on_clash", "new_name", "confirmed")
+ALLOWED_KEYS = ("project", "to_client", "on_clash", "new_name", "confirmed", "section_style")
 MIN_PREFIX = 2                           # a name that has to be shortened keeps at least this much of the code
 EXT = ".html"
 
@@ -448,6 +448,15 @@ class RealFs:
     def remove(self, path):
         os.unlink(path)
 
+    def make_folder(self, path):
+        """Make the one folder `path` (its parent must be there), as a section template's files folder (#96, "Report files" in the
+        client folder). False if something is already called that; nothing is replaced."""
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            return False
+        return True
+
     def stale_parts(self, folder, older_than=600):
         """The half-written temporary files an earlier publish left if clark was stopped part-way (`.NAME.html.PID.HEX.part`
         beside the copy, which OneDrive would upload): only files of exactly that shape, at least `older_than` seconds old."""
@@ -760,7 +769,8 @@ def send_to_client(fs, *, saved_folder, data, project, at, week_ending, today, d
 # ===== The request =====
 def validate_request(body, saved_client_folder):
     """The publish request's body, checked. Returns {status: 200, to_client} or {status: 400, message}. Only `project`,
-    `to_client` (exactly true or false when given), `on_clash`, `new_name` and `confirmed` may be sent: a request never names a
+    `to_client` (exactly true or false when given), `on_clash`, `new_name`, `confirmed` and `section_style` (one of the four section
+    styles, else Slim gaps) may be sent: a request never names a
     folder or a file, and the client folder is always the one saved in Settings. An Overwrite (`on_clash: "overwrite"`) is
     allowed only with `"confirmed": true`, the boolean itself: missing, false, "true" and 1 are all refused, so a script
     can't pass for the dialog's confirm step. The answer carries `confirmed` (True only for that exact value)."""

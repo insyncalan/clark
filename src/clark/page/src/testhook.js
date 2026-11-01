@@ -1,5 +1,6 @@
 // The browser tests' way into the page (#63, #42): window.clarkPage. Only the test build (main-test.jsx) imports this file, so
 // neither the served page nor a published file carries it. `tools` is what Edit adds; Help (#82) is among them.
+import { workSelection } from "./stores/selection.js";
 import { show, openPeek, closePeek, setProject, setFilters, peek, project, f } from "./stores/report.js";
 import { workSelection } from "./stores/selection.js";
 

@@ -25,14 +25,14 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import platform, section_bodies
+from clark import freshness as fresh, platform, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 7          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 8          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -70,11 +70,15 @@ ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
-                 "needs", "tracker")            # the eleven of schema.sql's CHECK ('needs' and 'tracker' carry content: section_bodies.py)
+                 "needs", "tracker",
+                 "textimage", "headline", "figures4", "figures3", "gallery", "table", "doclinks", "linkcard", "raid3", "raid4",
+                 "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc")
+# the twenty-nine of schema.sql's CHECK: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
+# registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = BODY_TYPES                    # a section added by hand may be deleted; the built-in ones are hidden, never deleted
 ALLOWED = {
-    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the eleven of schema.sql's CHECK
+    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): every type of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
     ("glance_tiles", "outline"): ("R", "A", "G", "N"),                  # and '' (a blank is never checked)
     ("actions", "status"): ("Open", "Delayed", "Closed", "Cancelled"),
@@ -130,6 +134,29 @@ PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
+FRESH_TABLES = ("actions", "raid", "decisions")          # #158: the items whose review dates the peek shows (milestones have none)
+
+
+def review_days_for(project_row):
+    """N, the days after which an open item counts as not reviewed in this project (#160). Today every project uses the one
+    default; a per-project setting will be read here, from the project row, so nothing else has to change."""
+    return fresh.DEFAULT_DAYS
+
+
+def attach_freshness(con, data, days):
+    """Add `freshness` {raised, last_reviewed, days, not_reviewed} (dates YYYY-MM-DD) to each open action, risk or issue and
+    decision in `data` (#158). Closed, cancelled, made, withdrawn and archived items get none. Read only: it works from each
+    item's history, read in one pass, and writes nothing."""
+    from clark import history          # history imports this module, so it is read here
+    on = today()
+    opened = [row for t in FRESH_TABLES for row in data.get(t, ()) if fresh.is_open(row)]
+    events = history.history_many(con, [row["id"] for row in opened])          # one pass over the log, not one per item
+    for row in opened:
+        f = fresh.freshness(row, events[row["id"]], on, days)
+        row["freshness"] = {"raised": f["raised"], "last_reviewed": f["last_reviewed"], "days": days,
+                            "not_reviewed": f["not_reviewed"]}
+
+
 PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "use_cases")     # what publish_inputs reads, in
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
@@ -159,6 +186,10 @@ MOVE_SQL = (
 OP_MADE = "insert"                    # the log's word for a row a step made; the one place it is spelt, changes.py imports it
 SEED_VIA = "seed"                     # clark (#65): the via of the default sections a step makes (_seed_sections); an Undo never removes them
 PENDING_VIA = "revert:pending"        # an undo's rows until it knows which rows it put back
+BATCH_UNDO = "Undo several"           # #197: the src_ref of a step that undid several steps at once (Store.undo_many)
+MAX_UNDO_MANY = 100                   # #197: the most steps one batch undo takes (the page asks a second time above 25)
+# /api/undo's body is held to 1 KB by server.py: 100 step numbers of up to 7 digits fit; 8-digit numbers over about 100 steps do not
+# (the server refuses the body as too big, in plain words). Raising either limit means raising both.
 REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "links", "item_labels", "labels",
                   "report_sections", "source_folders")
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
@@ -1330,7 +1361,8 @@ def holds(con, table, key, changes):
         return row is None
     if row is None:
         return False
-    return not any(c["field"] in row.keys() and text(row[c["field"]]) != c["new_value"] for c in changes)
+    return not any(c["field"] in row.keys() and c["field"] != "updated_at" and text(row[c["field"]]) != c["new_value"]
+                   for c in changes)      # #197: the stamp follows every change and every undo; the fields say whether it holds
 
 
 def changed_after(con, rowid, table, key, skip=()):
@@ -1342,7 +1374,8 @@ def changed_after(con, rowid, table, key, skip=()):
     gone = reverted_rowids(con)
     for (apply_id, row, via) in con.execute(
             "SELECT c.apply_id, c.rowid, c.via FROM change_log c LEFT JOIN applies a ON a.apply_id = c.apply_id WHERE c.rowid > ? "
-            "AND a.undone_at IS NULL AND ((c.tbl = ? AND c.item_id = ?) OR c.item_id LIKE ?) ORDER BY c.rowid DESC",
+            "AND a.undone_at IS NULL AND c.field != 'updated_at' AND ((c.tbl = ? AND c.item_id = ?) OR c.item_id LIKE ?) "
+            "ORDER BY c.rowid DESC",                    # #197: a stamp is never the later change: a field row always comes with it
             (rowid, table, key, key + "|%")):
         if apply_id not in skip and row not in gone and not str(via).startswith(REVERT_VIA):
             return apply_id
@@ -1446,6 +1479,11 @@ def revert_group(con, apply_id, table, key, rows_, step):
             return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
         old = json.loads(r["old_value"])
         back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
+        before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
+        for x in rows_:
+            if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
+                before[x["field"]] = x["old_value"]
+        back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
         check_row(con, table, dict(back), set(back))
         _insert_sql(con, table, back)
         for f, v in back.items():
@@ -1827,10 +1865,57 @@ def migrate_to_history(con):
     con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
 
 
+# #96: the eighteen section template types. The report_sections table as schema.sql makes it once a section may be of any of them,
+# frozen here (a later change to schema.sql never changes what this step makes; tests/test_store_section_templates_migration.py
+# pins it to schema.sql as it is today). It keeps every type the earlier steps allow, so a file that holds a needs or tracker
+# section still migrates and opens.
+REPORT_SECTIONS_WITH_TEMPLATE_TYPES = """CREATE TABLE IF NOT EXISTS report_sections (
+  project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
+  id      TEXT NOT NULL,
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker',
+                                         'textimage','headline','figures4','figures3','gallery','table','doclinks','linkcard','raid3','raid4',
+                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc')),
+  title   TEXT NOT NULL,
+  body    TEXT NOT NULL DEFAULT '',
+  beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
+  hidden  INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0,1)),
+  sort_order INTEGER NOT NULL,
+  PRIMARY KEY (project, id)
+)"""
+TEMPLATE_TYPE_WORDS = ("'textimage'", "'headline'", "'figures4'", "'figures3'", "'gallery'", "'table'", "'doclinks'", "'linkcard'",
+                       "'raid3'", "'raid4'", "'workitems'", "'callout'", "'imagecap'", "'quote'", "'contacts'", "'checklist'",
+                       "'keydates'", "'onedoc'")     # the table is made again unless its definition names all of these
+
+
+def _report_sections_allow_template_types(con):
+    """report_sections.type gains the eighteen section template types (#96). Made again from the frozen text above, the rows copied in
+    their order, exactly as the needs and tracker step does (nothing references this table, it has no trigger or index, and its
+    one outgoing key is kept). Only when the table's own definition does not name every template type yet, so a second run (or a
+    new database) does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_TEMPLATE_TYPES)
+        return
+    if all(w in have[0] for w in TEMPLATE_TYPE_WORDS):
+        return
+    con.execute(REPORT_SECTIONS_WITH_TEMPLATE_TYPES.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_templates (", 1))
+    con.execute("INSERT INTO report_sections_templates (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_templates RENAME TO report_sections")
+
+
+def migrate_section_templates(con):
+    """A section may be of any of the eighteen section template types (#96, the registry change that lands first): report_sections
+    is made again with the wider type CHECK. Its own step, number 8 (see SCHEMA_VERSION and MIGRATIONS); it touches no other
+    table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _report_sections_allow_template_types(con)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
-              (7, migrate_email_sent))
+              (7, migrate_email_sent), (8, migrate_section_templates))
 
 
 def migration_plan(version, table=None):
@@ -2179,6 +2264,13 @@ class Store:
             out["glance_tiles"] = [dict(r) for r in con.execute(              # #45: the tiles' place, hidden flag and outline; no archived column
                 "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                 "ORDER BY sort_order, tile", (code,))]
+            # #96: what publish keeps out, so a template's live part in the served View leaves out what the file leaves out (FR-11):
+            # the ids hidden from the report by the eye, and the label rules (as publish_inputs reads them).
+            out["report_hidden"] = [r["item_id"] for r in con.execute(
+                "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
+            out["label_rules"] = [dict(r) for r in con.execute(
+                "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
+            attach_freshness(con, out, review_days_for(out["project"]))
             return out
         finally:
             con.close()
@@ -2414,6 +2506,50 @@ class Store:
                 if undoing_a_revert and done:        # the change this undo reversed is in force again
                     con.execute("UPDATE applies SET undone_at = ? WHERE apply_id = ?", (now(), step_id))
             return {"step_id": new, "reversed": done, "skipped": skipped}
+
+    def undo_many(self, step_ids, by_user, dry=False):
+        """#197: reverse several steps, newest first, as ONE new step (its src_ref is BATCH_UNDO), so one Undo of it puts them all
+        back (Store.undo of a revert step). Returns Store.undo's shape; each entry also says its `step`. A step that is an undo, or
+        that has been undone already, is skipped and named, never refused. Each later step's put-back rows count as gone while an
+        earlier one is judged, so a change and the creation it followed go back together. `dry=True` is the preview: the very same
+        run, always rolled back. A step that isn't there refuses the whole request; nothing is written then."""
+        ids = sorted({int(i) for i in step_ids}, reverse=True)
+        if not ids or len(ids) > MAX_UNDO_MANY:
+            raise Invalid(f"Choose 1 to {MAX_UNDO_MANY} changes to undo.")
+        with self.step("undo", by_user, src_ref=BATCH_UNDO, dry=dry) as st:
+            con, done_all, skipped_all = self.con, [], []
+            st.via = PENDING_VIA
+            for sid in ids:
+                a = con.execute("SELECT undone_at FROM applies WHERE apply_id = ?", (sid,)).fetchone()
+                rows = [dict(r) for r in con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? ORDER BY rowid", (sid,))]
+                if a is None or not rows:
+                    raise Invalid(f"There's no step {sid} to undo.")
+                real, reverted = [r for r in rows if r["field"] not in ("note", "updated_at") and r["via"] != SEED_VIA], reverted_rowids(con)
+                why = ("is an undo" if all(str(r["via"]).startswith(REVERT_VIA) for r in rows) else
+                       "already undone" if a["undone_at"] or (real and all(r["rowid"] in reverted for r in real)) else None)
+                if why:
+                    done, skipped = [], [{"rowid": r["rowid"], "ref": r["item_id"], "field": r["field"], "why": why, "by_step": None}
+                                         for r in real]
+                else:
+                    done, skipped = revert_plan(con, rows, st, False)
+                tbl = {r["rowid"]: r["tbl"] for r in rows}
+                done_all += [dict(d, step=sid, table=tbl.get(d["rowid"])) for d in done]
+                skipped_all += [dict(x, step=sid, table=tbl.get(x["rowid"])) for x in skipped]
+                if st.peek_apply_id() is not None:      # the rows put back so far count as gone for the older steps still to come
+                    con.execute("UPDATE change_log SET via = ? WHERE apply_id = ? AND via LIKE 'revert:%'",
+                                (REVERT_VIA + ",".join(str(d["rowid"]) for d in done_all), st.peek_apply_id()))
+            return {"step_id": None if dry else st.peek_apply_id(), "reversed": done_all, "skipped": skipped_all}
+
+    def batch_undo_steps(self, apply_id):
+        """#197: the steps a batch undo (Store.undo_many) reversed, oldest first, or None when `apply_id` is not one. Read only."""
+        if not self.con.execute("SELECT 1 FROM item_events WHERE apply_id = ? AND src_ref = ? LIMIT 1", (apply_id, BATCH_UNDO)).fetchone():
+            return None
+        vias = [r[0] for r in self.con.execute("SELECT via FROM change_log WHERE apply_id = ?", (apply_id,))]
+        if not vias or not all(str(v).startswith(REVERT_VIA) for v in vias):
+            return None
+        named = {int(x) for v in vias for x in str(v)[len(REVERT_VIA):].split(",") if x.strip().isdigit()}
+        return sorted({r[0] for n in sorted(named) for r in self.con.execute(
+            "SELECT apply_id FROM change_log WHERE rowid = ?", (n,)) if r[0] is not None})
 
     def step_rows(self, apply_id):
         """What step `apply_id` wrote, read only: [{"table", "key", "field", "via", "op"}], one per change_log row, oldest first; [] for a step

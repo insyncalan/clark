@@ -1,5 +1,6 @@
 // Selecting several items (#195): the rules, as plain functions with no DOM, no signals and no clock. A selection is
 //   { ids: [...], anchor: id | null, cursor: id | null, all: false }
+// (and, during a run of Shift+Up or Shift+Down, `base`: the ids picked before the run began)
 // `ids` keeps the order things were added; `anchor` is where a Shift range starts; `cursor` is the row or card that has the
 // keyboard; `all` is true after "Select all N matching", when the selection follows the filters (it holds every item the
 // filters show, collapsed groups too) until the person picks by hand again.
@@ -38,7 +39,7 @@ export function click(st, id, { add = false, range = false } = {}, order = []) {
 export function toggle(st, id) { return click(st, id, { add: true }); }
 
 /** The cursor moved without a change to what is picked (an arrow key, a focus). */
-export function moveCursor(st, id) { return { ...st, cursor: id }; }
+export function moveCursor(st, id) { const next = { ...st, cursor: id }; if (id !== st.cursor) delete next.base; return next; }
 
 /** Shift+Up (`step` -1) or Shift+Down (+1): move the cursor one row and select from the anchor to it. Returns the new
  *  selection; its `cursor` is the row to focus. At either end the cursor stays where it is. */
@@ -47,11 +48,17 @@ export function extend(st, step, order) {
   const at = st.cursor != null && order.includes(st.cursor) ? st.cursor : order[0];
   const i = order.indexOf(at), j = Math.max(0, Math.min(order.length - 1, i + step)), to = order[j];
   const from = st.anchor != null && order.includes(st.anchor) && st.ids.includes(st.anchor) ? st.anchor : at;
-  return make(rangeOf(order, from, to), from, to);
+  // `base` is what was picked before this run of Shift+arrows began (a Cmd or Ctrl pick, say): the range is added to it, so it
+  // is kept, and the arrow back toward the anchor drops only the rows the range added. Any other change ends the run.
+  // When a run starts, what the last click or Shift+click already selected (the run from the anchor to the cursor) is not
+  // "before the run": it is dropped from the base, so Shift+Up after a Shift+click shrinks that range.
+  const base = st.base || st.ids.filter((id) => !rangeOf(order, st.anchor, st.cursor).includes(id));
+  return { ...make(base.concat(rangeOf(order, from, to)), from, to), base };
 }
 
 /** Cmd or Ctrl+A: every row drawn. */
-export function selectAll(st, order) { return make(order, order[0], st.cursor != null ? st.cursor : order[0]); }
+// Select all is one run from the first row to the cursor, so nothing counts as picked before it (`base` is empty).
+export function selectAll(st, order) { return { ...make(order, order[0], st.cursor != null ? st.cursor : order[0]), base: [] }; }
 
 /** A group's tick box: "checked" when every one of its drawn rows is picked, "mixed" when some are, else "unchecked". */
 export function groupState(st, groupIds) {

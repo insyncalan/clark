@@ -16,7 +16,8 @@ from _paths import SRC
 from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_sizes import DATA, published_page  # noqa: E402
 from test_page import navigate  # noqa: E402
-from test_work_board_page import Base, FIXED  # noqa: E402
+import _testpage as testpage  # noqa: E402
+from test_work_board_page import Base as PageBase, FIXED  # noqa: E402
 from test_work_filters import click, where  # noqa: E402
 from test_work_items import bundled  # noqa: E402
 
@@ -43,6 +44,14 @@ def tap(cdp, sid, selector, mods=0, count=1):
     for n in range(1, count + 1):
         m("mousePressed", n, button="left", buttons=1)
         m("mouseReleased", n, button="left", buttons=0)
+
+
+class Base(PageBase):
+    """The served page carries no window.clarkPage, so these tests load the test page, which adds it (the hook the peek tests use)."""
+
+    def setUp(self):
+        super().setUp()
+        self.s.httpd.page_html = lambda: testpage.html()
 
 
 class Rules(unittest.TestCase):
@@ -102,6 +111,22 @@ class Rules(unittest.TestCase):
                         " const c = [s.ids, s.cursor]; s = SEL.extend(s, -1, O); return [a, b, c, [s.ids, s.cursor]];")
         self.assertEqual(got, [[["A", "E"], "E"], [["A", "E", "B"], "B"], [["C", "A"], "C"], [["C", "A"], "C"]],
                          "down twice, then up past the anchor; at the top it stays")
+
+    def test_shift_arrows_add_to_what_was_picked_and_shrink_back_to_it(self):
+        got = self.run_(self.ORDER + "let s = SEL.click(E, 'C', {}, O); s = SEL.click(s, 'E', {add: true}, O);"
+                        " s = SEL.extend(s, 1, O); const a = [...s.ids].sort(); s = SEL.extend(s, 1, O); const b = [...s.ids].sort();"
+                        " s = SEL.extend(s, -1, O); const c = [...s.ids].sort(); s = SEL.extend(s, -1, O); const d = [...s.ids].sort();"
+                        " s = SEL.click(s, 'A', {add: true}, O); return [a, b, c, d, s.base === undefined];")
+        self.assertEqual(got, [["B", "C", "E"], ["B", "C", "D", "E"], ["B", "C", "E"], ["C", "E"], True],
+                         "the Cmd picks stay, the range comes and goes with the arrows, and any other pick ends the run")
+
+    def test_shift_arrow_after_a_shift_click_or_select_all_shrinks_that_range(self):
+        got = self.run_(self.ORDER + "let s = SEL.click(E, 'C', {}, O); s = SEL.click(s, 'B', {range: true}, O);"
+                        " s = SEL.extend(s, -1, O); const a = [...s.ids].sort(); const b = s.cursor;"
+                        " let t = SEL.selectAll(SEL.click(E, 'E', {}, O), O); t = SEL.extend(t, -1, O);"
+                        " return [a, b, [...t.ids].sort(), t.cursor];")
+        self.assertEqual(got, [["A", "C", "E"], "E", ["A", "C"], "A"],
+                         "Shift+Up after a Shift click shrinks the range; after Select all the run is first row to the cursor")
 
     def test_space_toggles_and_select_all_takes_every_drawn_row(self):
         got = self.run_(self.ORDER + "let s = SEL.toggle(E, 'B'); s = SEL.toggle(s, 'D'); const a = s.ids; s = SEL.toggle(s, 'B');"
@@ -367,6 +392,83 @@ class Page(Base):
             self.until(cdp, sid, "!document.querySelector('.ddmenu')", "Esc closed the menu")
             self.assertEqual(len(self.picked(cdp, sid)), 2, "and left the selection")
 
+    def test_esc_with_help_open_closes_help_and_keeps_the_selection(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[0]))
+            tap(cdp, sid, self.rsel(rows[1]), MOD)
+            cdp.js("document.activeElement.blur()", sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "?", "text": "?", "code": "Slash", "windowsVirtualKeyCode": 191, "modifiers": SHIFT}, sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "?", "code": "Slash", "windowsVirtualKeyCode": 191, "modifiers": SHIFT}, sid)
+            self.until(cdp, sid, "clarkPage.help.isOpen()", "Help opened")
+            press(cdp, sid, "Escape")
+            self.until(cdp, sid, "!clarkPage.help.isOpen()", "Esc closed Help")
+            self.assertEqual(len(self.picked(cdp, sid)), 2, "and left the selection")
+
+    def test_esc_with_the_ask_panel_open_closes_it_first_and_keeps_the_selection(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[0]))
+            tap(cdp, sid, self.rsel(rows[1]), MOD)
+            cdp.js("document.activeElement.blur()", sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "text": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
+            self.until(cdp, sid, "!!document.querySelector('#ask-panel')", "the ask panel opened")
+            press(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#ask-panel')", "one Esc closed the panel")
+            self.assertEqual(len(self.picked(cdp, sid)), 2, "and left the selection")
+            cdp.js("document.activeElement && document.activeElement.blur()", sid)
+            press(cdp, sid, "Escape")
+            self.until(cdp, sid, "clarkPage.selected().length === 0", "the next Esc cleared the selection")
+
+    def test_esc_in_an_edit_cell_menu_closes_the_menu_and_keeps_the_selection(self):
+        for field in ("status", "priority"):
+            with self.subTest(field=field), chrome() as cdp:
+                sid = self.load(cdp)
+                rows = cdp.js(self.ROWS, sid)
+                tap(cdp, sid, self.rsel(rows[0]))
+                tap(cdp, sid, self.rsel(rows[1]), MOD)
+                cell = next(r for r in rows if cdp.js(f"!!document.querySelector(\"tr[data-id='{r}'] [data-cell$=':{field}']\")", sid))
+                tap(cdp, sid, f"#work-list tr[data-id='{cell}'] [data-cell$=':{field}']")
+                self.until(cdp, sid, "!!document.querySelector('.cpop')", "the cell menu")
+                press(cdp, sid, "Escape")
+                self.until(cdp, sid, "!document.querySelector('.cpop')", "Esc closed the menu")
+                self.assertEqual(len(self.picked(cdp, sid)), 2, "and left the selection")
+
+    def test_shift_arrows_keep_earlier_picks_in_the_browser(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[0]))
+            tap(cdp, sid, self.rsel(rows[2]), MOD)
+            press(cdp, sid, "ArrowDown", SHIFT)
+            self.assertEqual(sorted(self.picked(cdp, sid)), sorted([rows[0], rows[2], rows[3]]), "the range is added to a and c")
+            press(cdp, sid, "ArrowUp", SHIFT)
+            self.assertEqual(sorted(self.picked(cdp, sid)), sorted([rows[0], rows[2]]), "back toward the anchor drops only what it added")
+
+    def test_shift_arrow_after_a_shift_click_starts_from_the_clicked_row(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[1]))
+            tap(cdp, sid, self.rsel(rows[3]), SHIFT)
+            self.assertEqual(cdp.js("document.activeElement.dataset.id", sid), rows[3], "the keyboard is on the clicked row")
+            press(cdp, sid, "ArrowDown", SHIFT)
+            self.assertEqual(self.picked(cdp, sid), rows[1:5], "the range goes on from the clicked row")
+            self.assertEqual(cdp.js("String(getSelection())", sid), "", "and no text is selected")
+
+    def test_shift_up_after_a_shift_click_shrinks_the_range_in_the_browser(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[1]))
+            tap(cdp, sid, self.rsel(rows[4]), SHIFT)
+            self.assertEqual(self.picked(cdp, sid), rows[1:5])
+            press(cdp, sid, "ArrowUp", SHIFT)
+            self.assertEqual(self.picked(cdp, sid), rows[1:4], "Shift+Up takes the last row of the range back")
+
     def test_shown_not_only_by_colour_and_told_to_a_screen_reader(self):
         with chrome() as cdp:
             sid = self.load(cdp)
@@ -405,8 +507,7 @@ class Page(Base):
             tap(cdp, sid, self.rsel(rows[3]), SHIFT)
             order = cdp.js("[...document.querySelectorAll('#work-list a, #work-list button, #work-list input, #work-list [tabindex]')]"
                            ".filter(e => e.tabIndex >= 0 && !e.disabled && !e.closest('tr.grp')).map(e => e.id || (e.matches('tr') ? 'row' : e.className))", sid)
-            self.assertEqual(order[0], "sel-all", order)          # #196: the bar's change buttons come between, then the X
-            self.assertEqual(order[order.index("sel-clear") - 1], "sb-a", order)
+            self.assertEqual(order[:2], ["sel-all", "sel-clear"], order)
             self.assertLess(order.index("sel-clear"), order.index("row"), "the bar comes before the table")
             self.assertEqual(order.count("row"), 1, "the table is one tab stop")
 
@@ -460,7 +561,8 @@ class PublishedFile(unittest.TestCase):
             cdp.js("document.querySelector('#work tr[data-id]').focus()", sid)
             press(cdp, sid, "ArrowDown", SHIFT)
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.id", sid) == rows[1]), "Shift+Down moved to the next row")
-            self.assertEqual(cdp.js("document.querySelectorAll('#work [aria-selected=true]').length", sid), 0, "and selected nothing")
+            # the published page carries no test hook: a row that could be chosen would say so with aria-selected, and none does
+            self.assertEqual(cdp.js("document.querySelectorAll('#work tr[aria-selected]').length", sid), 0, "and selected nothing")
 
 
 class OnTheBoard(Base):

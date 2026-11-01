@@ -53,7 +53,7 @@ class DataForTiles(Base):
     def test_nothing_else_in_data_for_changed(self):
         got = self.s.data_for("ABC")
         self.assertEqual(sorted(got), sorted(["project", *publish.KINDS, "workstreams", "links", "labels", "report_sections",
-                                              "glance_tiles"]))
+                                              "glance_tiles", "report_hidden", "label_rules"]))
         self.assertIsNone(self.s.data_for("NOPE"))
 
     def test_a_missing_project_still_answers_none(self):
