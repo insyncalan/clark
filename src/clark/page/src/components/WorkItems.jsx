@@ -1,7 +1,9 @@
 // The Work items list (#36, read only; #64a filters and Add): one project's actions, risks, issues, assumptions, dependencies and
 // decisions from GET /api/data, one flat table: type, item, owner, due date in words, priority, status. The list rules are in
 // ../workItems.js, the filter rules in ../filters.js. A filter change redraws the list region and the switches' words only.
-// In Edit (#80), the Owner, Due, Priority and Status cells change in place (tools.Cell, edit/cells/): each opens its own picker.
+// The Owner, Due, Priority and Status cells change in place (#80; tools.Cell, edit/cells/): each opens its own picker, in View as in
+// Edit (the prototype's table has no Edit/View split; the owner's ruling on gap B-9). The page clark serves has them; a published
+// file is passed no tools, so it has none. The eye, Duplicate, Archive and Add stay in Edit.
 // A click on the row anywhere else opens the item's peek, in View and in Edit.
 // The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (in
 // Edit, from a cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
@@ -11,7 +13,7 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, fromFile, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -191,7 +193,7 @@ function List({ Board, Cell, Bulk }) {
 export function WorkItems({ tools }) {
   useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const d = data.value, plan = addPlan(filterState.value.type), Board = tools && tools.Board;
-  const Cell = tools && tools.Cell && mode.value === "edit" && !fromFile.value ? tools.Cell : null;
+  const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
   const board = !!Board && work.value.view === "board";
   return (
     <section class="frame work" id="work">

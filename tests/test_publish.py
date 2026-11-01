@@ -1057,6 +1057,20 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("window.violations", sid), [], "the policy blocked nothing the page needed, "
                              "with no style-src-attr")
 
+    def test_C_the_published_work_table_has_no_editable_cells(self):
+        # the owner's ruling on gap B-9 lets the page clark serves change owner, due, priority and status in View; a client's copy
+        # is passed no Edit parts (view.jsx), so its table is read only, at 1400 and 900
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.draw(cdp, width=width)
+                cdp.js("document.querySelector('[data-view=work]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0), "the rows drew")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work [data-cell], #work .cell-pick, #work [data-pop], #work [data-edit-only], #work td button, #work td input, #work td select').length", sid), 0,
+                                 "no editable cell, no button or box in a row")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('.toasts, [data-undo]')].length", sid), 0, "no change toast, no Undo")
+                cdp.js("document.querySelector('#work tbody tr[data-id] .c-owner').click()", sid)
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-pop], [role=menu], [role=listbox]').length", sid), 0, "a click on the owner opens no picker")
+
     def test_C_no_request_leaves_the_file(self):
         with chrome() as cdp:
             sid = self.draw(cdp)

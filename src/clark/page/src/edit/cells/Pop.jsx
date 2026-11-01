@@ -4,6 +4,7 @@
 // panels"; #91, #92). Esc closes it and leaves the value as it was, with focus back on the control; so does a click outside it.
 // Tab closes it too, and focus carries on from the control. The key never reaches anything behind it (the peek's own Esc).
 import { useLayoutEffect, useRef } from "preact/hooks";
+import { mode } from "../../stores/report.js";
 
 export function Pop({ anchor, label, role = "dialog", cls = "", onClose, children }) {
   const box = useRef(null);
@@ -42,7 +43,7 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
     else if (e.key === "Enter") e.stopPropagation();      // the row behind never takes an Enter meant for the panel
   };
   return (
-    <div class={`cpop ${cls}`} ref={box} role={role} aria-label={label} data-edit-only data-pop style="left:-10000px;top:0"
+    <div class={`cpop ${cls}`} ref={box} role={role} aria-label={label} {...(mode.value === "edit" ? { "data-edit-only": "" } : {})} data-pop style="left:-10000px;top:0"
       onKeyDown={keys} onClick={(e) => e.stopPropagation()}>
       {children}
     </div>

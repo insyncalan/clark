@@ -6,7 +6,7 @@
 import { useEffect } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { Menu } from "../components/Menu.jsx";
-import { data, tabs, show, project, mode } from "../stores/report.js";
+import { data, tabs, show, project } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
@@ -30,8 +30,8 @@ function say(kind, text) {
 }
 const closeNote = () => { clearTimeout(noteTimer); note.value = null; };
 
-// The note itself. There is one live region on the page: in Edit it is the change toast's (Toast.jsx shows this note in it, so
-// the two never sit on top of each other), and in View, where there is no change toast, the menu has its own.
+// The note itself. There is one live region on the page, in View and in Edit: the change toast's (Toast.jsx shows this note in it, so
+// the two never sit on top of each other).
 export function MenuNote() {
   const n = note.value;
   return n ? (
@@ -107,7 +107,6 @@ export function ProfileMenu() {
   return (
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
-      {mode.value === "edit" ? null : <div class="toasts" role="status" aria-live="polite"><MenuNote /></div>}
     </>
   );
 }

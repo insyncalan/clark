@@ -1,4 +1,5 @@
-// #80: a Work items table cell (owner, due, priority, status) that changes in place, in Edit only. The cell's own content is a
+// #80: a Work items table cell (owner, due, priority, status) that changes in place, in View as in Edit (the owner's ruling on gap B-9;
+// a published file is passed no tools, so it has none). The cell's own content is a
 // button; a click, Enter or Space opens that field's picker (Alt+Down too; a plain Down moves to the next row, WorkItems.jsx). A pick is one change through clark (one step,
 // with Undo in the toast); Esc or a click away leaves it as it was. The button stops its click there, so a click on a cell
 // never opens the peek; a click anywhere else on the row still does. One picker is open at a time. The Status cell shows the
@@ -6,7 +7,7 @@
 // tooltip says it is set from impact and likelihood (a decision has none, and shows a dash).
 import { signal } from "@preact/signals";
 import { useRef } from "preact/hooks";
-import { data } from "../../stores/report.js";
+import { data, mode } from "../../stores/report.js";
 import { changeCell, say } from "../../stores/changes.js";
 import { workSelection } from "../../stores/selection.js";
 import { itemRows } from "../../stores/work.js";
@@ -46,6 +47,7 @@ export function Cell({ row, field, said, children }) {
   const pick = (value) => {
     // #196: on a row that is one of two or more selected, the pick changes that field of every selected row, and says so first.
     const chosen = workSelection.ids.value, plan = chosen.length >= 2 ? cellPlan(row.id, field, itemRows.value.filter((r) => chosen.includes(r.id))) : null;
+    if (plan && mode.value !== "edit") { close(true); say("note", "Switch to Edit to change several at once. Clear the selection to change only this one."); return ""; }   // the bulk bar is Edit's: View changes the one row
     if (plan && plan.why) { if (field === "owner") return plan.why; close(true); say("note", plan.why); return ""; }
     if (plan) {
       if (field === "owner" && !String(value == null ? "" : value).trim()) return "An owner can't be blank. Type a name, or TBC if no one is known yet.";
@@ -67,7 +69,7 @@ export function Cell({ row, field, said, children }) {
   };
   return (
     <>
-      <button type="button" class="cell-pick" ref={button} tabIndex={-1} data-edit-only data-cell={k} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
+      <button type="button" class="cell-pick" ref={button} tabIndex={-1} {...(mode.value === "edit" ? { "data-edit-only": "" } : {})} data-cell={k} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
         aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change`}
         onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}><span class="cell-val">{children}</span></button>
       {open ? <Picker row={row} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onClose={close} /> : null}

@@ -1,6 +1,7 @@
-// What the last change did, with Undo while there is a step to undo (Edit only). The wrapper is always there in Edit, so a
+// What the last change did, with Undo while there is a step to undo. The wrapper is always there, so a
 // screen reader hears each new message; an error stays until it is dismissed or the next change. The profile menu's note (what
-// Preview or Export did) is shown in this same region in Edit, so the page has one live region (#147).
+// Preview or Export did) is shown in this same region, so the page has one live region (#147). In View the table's four cells
+// (owner, due, priority, status) change things too, so it is here in View as well; it is marked as an Edit part only in Edit.
 import { useEffect } from "preact/hooks";
 import { mode } from "../stores/report.js";
 import { toast, dismiss, undo } from "../stores/changes.js";
@@ -12,10 +13,9 @@ export function Toast() {
     document.addEventListener("keydown", undoKey);
     return () => document.removeEventListener("keydown", undoKey);
   }, []);
-  if (mode.value !== "edit") return null;
   const t = toast.value;
   return (
-    <div class="toasts" data-edit-only role="status" aria-live="polite">
+    <div class="toasts" {...(mode.value === "edit" ? { "data-edit-only": "" } : {})} role="status" aria-live="polite">
       {t ? (
         <div class={`toast ${t.kind}`} key={t.id} data-kind={t.kind} role={t.kind === "problem" ? "alert" : undefined}>
           <span class="toast-text">{t.text}</span>

@@ -707,7 +707,7 @@
      ],
      [
       "p",
-      "A single click on a work item row, outside its fields, opens it in the peek. In Edit, every part of the row changes in place."
+      "A single click on a work item row, outside its fields, opens it in the peek. Owner, Due, Priority and Status change in place, in View as in Edit."
      ],
      [
       "p",

@@ -13,12 +13,14 @@ import contextlib
 import json
 import re
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from _demo import USER
+from _editor_checks import edit_elements
 from _paths import SRC
 import _testpage as testpage
 
@@ -304,11 +306,15 @@ class Live(unittest.TestCase):
         self.assertFalse(text.lower().startswith("clark"), text)
         self.assertNotIn("Ask clark", text)
 
-    def test_view_has_no_pickers_and_a_row_double_click_opens_the_peek(self):
+    def test_view_has_the_four_cells_and_a_row_double_click_opens_the_peek(self):
+        # the owner's ruling on gap B-9: the table's owner, due, priority and status cells change in View as in Edit
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-cell], [data-pop], .cell-pick').length", sid), 0, "View changes nothing")
+                self.assertEqual(cdp.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')", sid), "true", "this is View")
+                self.assertEqual(cdp.js("[...document.querySelectorAll(\"tr[data-id='TUL-A-001'] [data-cell]\")].map(b => b.dataset.cell)", sid),
+                                 ["TUL-A-001:owner", "TUL-A-001:due", "TUL-A-001:priority", "TUL-A-001:status"], "View has the four cells")
+                self.assertEqual([e for e in edit_elements(cdp, sid) if "data-edit-only" in e], [], "and View still has no Edit part: the cells are View's own")
                 dblclick(cdp, sid, "tr[data-id='TUL-A-001'] .t")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-A-001')", "a double click on a row opens the item's peek (its address)")
                 self.assertEqual(cdp.js("clarkPage.peek()", sid), {"kind": "item", "id": "TUL-A-001"})
@@ -317,6 +323,101 @@ class Live(unittest.TestCase):
                 cdp.js("document.querySelector(\"tr[data-id='TUL-007']\").focus()", sid)
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-007')", "Enter on a row opens its peek")
+
+    def test_in_view_each_of_the_four_cells_opens_its_picker_and_saves_with_undo(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                before = self.steps()
+                # owner
+                cell = "[data-cell='TUL-A-001:owner']"
+                click(cdp, sid, cell)
+                self.until(cdp, sid, "!!document.querySelector('[data-pop] input.cp-in')", "View: the owner picker opened")
+                self.assertEqual(cdp.js("document.querySelector('[data-pop]').hasAttribute('data-edit-only')", sid), False, "a View panel is not marked as an Edit part")
+                cdp.call("Input.insertText", {"text": "Zelda Quince"}, sid)
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "View: saved, with Undo in the toast")
+                self.assertEqual(self.row("actions", "TUL-A-001")["owner"], "Zelda Quince")
+                self.changed_once(before, "owner in View")
+                self.assertEqual(self.toast(cdp, sid), "Owner of TUL-A-001 changed to Zelda Quince.")
+                self.assertEqual(cdp.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')", sid), "true", "still View")
+                self.undo(cdp, sid, "owner in View", "Owner of TUL-A-001 is back to Ada Quillfeather.")
+                self.assertEqual(self.row("actions", "TUL-A-001")["owner"], "Ada Quillfeather")
+                # due
+                cell = "[data-cell='TUL-A-001:due']"
+                before = self.steps()
+                click(cdp, sid, cell)
+                self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", "View: the date picker opened")
+                click(cdp, sid, "[data-pop] [data-quick='2026-10-29']")
+                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "View: the date saved, with Undo")
+                self.assertEqual(self.row("actions", "TUL-A-001")["due_date"], "2026-10-29")
+                self.changed_once(before, "due in View")
+                self.undo(cdp, sid, "due in View", "Due date of TUL-A-001 is back to 02-11-2026.")
+                self.assertEqual(self.row("actions", "TUL-A-001")["due_date"], "2026-11-02")
+                # priority
+                cell = "[data-cell='TUL-A-001:priority']"
+                before = self.steps()
+                click(cdp, sid, cell)
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "View: the priority menu opened")
+                click(cdp, sid, "[data-pop] [data-value=Low]")
+                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "View: the priority saved, with Undo")
+                self.assertEqual(self.row("actions", "TUL-A-001")["priority"], "Low")
+                self.changed_once(before, "priority in View")
+                self.undo(cdp, sid, "priority in View")
+                self.assertEqual(self.row("actions", "TUL-A-001")["priority"], "Urgent")
+                # status
+                cell = "[data-cell='TUL-007:status']"
+                before = self.steps()
+                click(cdp, sid, cell)
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "View: the status menu opened")
+                click(cdp, sid, "[data-pop] [data-value=Closed]")
+                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "View: the status saved, with Undo")
+                self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
+                self.changed_once(before, "status in View")
+                self.undo(cdp, sid, "status in View", "Status of TUL-007 is back to Open.")
+                self.assertEqual(self.row("raid", "TUL-007")["status"], "Open")
+                # Esc leaves it as it was, by keyboard, in View too
+                n = len(self.sent)
+                cdp.js("document.querySelector(\"[data-cell='TUL-A-001:priority']\").focus()", sid)
+                key(cdp, sid, " ")
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "View: Space opens it")
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "View: one Esc closes it")
+                self.assertEqual(len(self.sent), n, "nothing was sent")
+
+    def test_in_view_only_the_four_cells_change_things_and_the_rest_stays_in_edit(self):
+        # Edit-only, still: the eye, Duplicate, Archive, Add's boxes, the board's Move to, and a change to several rows at once
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                buttons = cdp.js("[...document.querySelectorAll('#work tbody tr[data-id] button')].map(b => b.dataset.cell ? b.dataset.cell.split(':')[1] : (b.className || b.textContent))", sid)
+                self.assertTrue(buttons and set(buttons) == {"owner", "due", "priority", "status"},
+                                f"a row's only controls in View are the four cells (no eye, Duplicate or Archive): {sorted(set(buttons))}")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work [data-eye], #work [data-weye], #work [data-archive], #work [data-duplicate], #work [data-edit-only]').length", sid), 0)
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-bulk], [data-bulk-menu]').length", sid), 0, "no several-at-once bar until rows are picked")
+                # two rows picked: a cell pick would change both (the bar's job, which is Edit's), so View says so and sends nothing
+                for ref, mods in (("TUL-A-001", 0), ("TUL-007", 4 if sys.platform == "darwin" else 2)):      # a click picks, Cmd (Ctrl elsewhere) and a click adds
+                    box = cdp.js(f"(() => {{ const b = document.querySelector(\"tr[data-id='{ref}'] .c-item\").getBoundingClientRect(); return [b.x + 8, b.y + b.height / 2]; }})()", sid)
+                    for kind in ("mousePressed", "mouseReleased"):
+                        cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": box[0], "y": box[1], "button": "left", "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 1, "modifiers": mods}, sid)
+                self.until(cdp, sid, "document.querySelectorAll('#work tr.picked').length === 2", "two rows are picked")
+                n = len(self.sent)
+                click(cdp, sid, "[data-cell='TUL-A-001:priority']")
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
+                click(cdp, sid, "[data-pop] [data-value=Low]")
+                self.until(cdp, sid, "(document.querySelector('.toast-text') || {}).textContent === 'Switch to Edit to change several at once. Clear the selection to change only this one.'", "View says where several at once are changed")
+                self.assertEqual((len(self.sent), self.row("actions", "TUL-A-001")["priority"]), (n, "Urgent"), "nothing was sent")
+                self.assertEqual(cdp.js("!!document.querySelector('.bask')", sid), False, "no question in View")
+
+    def test_in_view_the_board_has_no_cells_and_no_move_menu(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                click(cdp, sid, "[data-layout=board]")
+                self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board drew")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work-board .bc-move, #work-board [data-cell].cell-pick, #work-board [data-edit-only]').length", sid), 0,
+                                 "the board's cards show owner, due and status but change nothing in View")
+                self.assertIn("Switch to Edit to move cards.", cdp.js("document.querySelector('.lanebar').textContent", sid))
 
     def test_the_table_is_one_tab_stop_and_the_arrows_move_inside_it(self):
         # the rows are one tab stop; a group heading's open/shut button (#68) is a control of its own, so it is left out here
