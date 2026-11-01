@@ -16,13 +16,19 @@ const itemSteps = new Map();             // the steps that changed a work item (
 
 export function say(kind, text, undo = null, code = project.value) {
   clearTimeout(timer);
+  forget(toast.value);
   const id = ++counter;
   toast.value = { id, kind, text, undo, code };
-  if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
+  if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) { forget(toast.value); toast.value = null; } }, 20000);
 }
 
-export function dismiss() {
+// A toast that is gone can no longer be undone, so the link it held (changeThen) is let go.
+function forget(t) { if (t && t.undo) linked.delete(t.undo); }
+
+// `keepLink`: the Undo button closes the toast and then undoes, so the link must stay for that Undo.
+export function dismiss(keepLink = false) {
   clearTimeout(timer);
+  if (!keepLink) forget(toast.value);
   toast.value = null;
 }
 
@@ -133,7 +139,7 @@ export function undo(applyId, code = project.value) {
       const e = await sendUndo(code, earlier);
       if (!e.ok) {
         await readAgain(code, "The change was undone");
-        say("problem", `The row was put back as it was, but the new section could not be removed. ${e.message}`, earlier, code);
+        say("problem", `The new section is still there, and it now sits beside the section above. Undo removes it. ${e.message}`, earlier, code);
         return r.reply;
       }
       redraw(code, e.reply);

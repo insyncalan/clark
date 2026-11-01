@@ -638,6 +638,27 @@ class Box(Base):
             self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "stopped after the first Undo failed")
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12)
 
+    def test_if_the_second_undo_fails_the_toast_says_where_the_new_section_is(self):
+        self.stale_flag_on_the_last_section()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-011")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            seen = []
+            def second_fails(req):
+                if req.get("apply_id") is None:
+                    return self.real_change(req)
+                seen.append(req["apply_id"])
+                return self.real_undo(req) if len(seen) == 1 else (400, {"ok": False, "message": "x", "code": "refused"})
+            self.failure = second_fails
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says the second Undo failed")
+            self.assertTrue(p.toast().startswith("The new section is still there, and it now sits beside the section above. Undo removes it."), p.toast())
+            self.assertNotIn("put back as it was", p.toast())
+            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12)
+
     def test_the_plain_add_is_one_step_and_one_undo(self):
         with chrome() as cdp:
             p = self.visit(cdp)

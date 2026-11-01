@@ -13,8 +13,8 @@ export function Toast() {
       {t ? (
         <div class={`toast ${t.kind}`} key={t.id} data-kind={t.kind} role={t.kind === "problem" ? "alert" : undefined}>
           <span class="toast-text">{t.text}</span>
-          {t.undo ? <button type="button" class="toast-btn" data-undo onClick={() => { dismiss(); undo(t.undo, t.code); }}>Undo</button> : null}
-          <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={dismiss}>Close</button>
+          {t.undo ? <button type="button" class="toast-btn" data-undo onClick={() => { dismiss(true); undo(t.undo, t.code); }}>Undo</button> : null}
+          <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={() => dismiss()}>Close</button>
         </div>
       ) : null}
       <MenuNote />
