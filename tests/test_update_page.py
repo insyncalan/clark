@@ -27,7 +27,7 @@ DEMO = ROOT / "tests" / "fixtures" / "update_demo.jsx"
 PAGE_PY = SRC / "clark" / "page"
 
 STATUS = {"ok": True, "version": "0.3.0", "installed": "Version 0.3.0, released 20-10-2026.", "blocked": None,
-          "update": {"version": "0.3.1", "label": "Review 0.3.1"}, "line": None, "last": None, "notice": None, "installing": False}
+          "available": {"version": "0.3.1", "label": "Review 0.3.1"}, "line": None, "last": None, "notice": None, "installing": False}
 REVIEW = {"heading": "Version 0.3.0 → 0.3.1. Released 27-10-2026.", "notes": "Fixes a typo.\nAdds a thing.\n",
           "notes_text": "Fixes a typo.\nAdds a thing.\n",
           "replaced": {"label": "Replaced (1 file)", "names": ["src/clark/__init__.py"]},
@@ -182,13 +182,13 @@ class Card(InBrowser):
         self.assertEqual(self.text("#update-installed"), "Version 0.3.0, released 20-10-2026.")
         self.assertEqual(self.text("[data-review]"), "Review 0.3.1")
         self.assertEqual(self.text("[data-choose]"), "Choose zip…")
-        self.replies(status=OK({**STATUS, "update": None, "line": "Up to date."}))
+        self.replies(status=OK({**STATUS, "available": None, "line": "Up to date."}))
         self.mount()
         self.assertFalse(self.present("[data-review]"))
         self.assertEqual(self.text("#update-line"), "Up to date.")
 
     def test_a_copy_that_cannot_update_itself_says_why_and_offers_nothing(self):
-        self.replies(status=OK({**STATUS, "update": None, "blocked": updates.MESSAGES["git"]}))
+        self.replies(status=OK({**STATUS, "available": None, "blocked": updates.MESSAGES["git"]}))
         self.mount()
         self.assertEqual(self.text("#update-blocked"), updates.MESSAGES["git"])
         self.assertFalse(self.present("[data-review]") or self.present("[data-choose]"))
@@ -253,7 +253,7 @@ class Card(InBrowser):
         self.assertEqual(0, self.val("T.reloads"))
 
     def test_undo_is_arm_then_confirm_and_changed_data_offers_the_app_and_settings_only(self):
-        last = {**STATUS, "update": None, "line": "Up to date.", "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}}
+        last = {**STATUS, "available": None, "line": "Up to date.", "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}}
         self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": up.ARMED_FULL.format(to="0.3.0")}),
                      undo=OK({"ok": True, "restart": True, "message": up.UNDOING.format(to="0.3.0")}))
         self.mount()

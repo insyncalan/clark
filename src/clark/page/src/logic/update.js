@@ -63,7 +63,7 @@ export function statusView(s) {
   return {
     installed: text(s.installed, 200),
     blocked: s.blocked ? text(s.blocked, 600) : "",
-    review: s.update && typeof s.update.label === "string" ? text(s.update.label, 40) : "",
+    review: s.available && typeof s.available.label === "string" ? text(s.available.label, 40) : "",
     line: s.line ? text(s.line, 200) : "",
     last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200) : "",
     notice: s.notice ? text(s.notice, 600) : "",

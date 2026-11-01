@@ -170,7 +170,7 @@ def space_needed(app_dir, db_path, release=None):
     return 2 * (old + new + db) + SPACE_MARGIN
 
 
-def back_up(app_dir, data_dir, db_path, stamp, from_version, to_version, plan_=None, kind="update", free=None, fault=None):
+def back_up(app_dir, data_dir, db_path, stamp, from_version, to_version, plan_=None, kind="install", free=None, fault=None):
     """Make the backup set and return its folder. Raises InstallError ("space" or "backup") and leaves nothing behind."""
     app, data = Path(app_dir), Path(data_dir)
     root = platform.private_folder(data / UPDATES)
@@ -374,7 +374,7 @@ def hand_over(data_dir, app_dir, staging, stamp, from_version, to_version, insta
 def last_update(data_dir):
     """The newest backup set of an update (not an undo) that went in: (folder, record), or None. A set whose update stopped
     before it was installed (the old version was kept) is not one."""
-    found = [(f, r) for f, r in sets(data_dir) if r.get("kind") == "update" and r.get("installed") is True]
+    found = [(f, r) for f, r in sets(data_dir) if r.get("kind") == "install" and r.get("installed") is True]
     return found[-1] if found else None
 
 

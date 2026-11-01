@@ -73,7 +73,7 @@ class StatusTest(Rig):
         status, body = self.up.status()
         self.assertEqual(200, status)
         self.assertEqual("Version 0.3.0, released 27-10-2026.", body["installed"])
-        self.assertEqual({"version": "0.3.1", "label": "Review 0.3.1"}, body["update"])
+        self.assertEqual({"version": "0.3.1", "label": "Review 0.3.1"}, body["available"])
         self.assertIsNone(body["line"])
         self.assertIsNone(body["blocked"])
 
@@ -81,13 +81,13 @@ class StatusTest(Rig):
         os.unlink(self.download)
         make_zip(self.downloads, version="0.2.0")
         self.assertEqual("Up to date.", self.up.status()[1]["line"])
-        self.assertIsNone(self.up.status()[1]["update"])
+        self.assertIsNone(self.up.status()[1]["available"])
 
     def test_a_copy_that_runs_from_its_source_says_so_and_offers_nothing(self):
         (self.app / ".git").mkdir()
         body = self.up.status()[1]
         self.assertEqual(updates.MESSAGES["git"], body["blocked"])
-        self.assertIsNone(body["update"])
+        self.assertIsNone(body["available"])
         status, said = self.up.review({"from": "downloads"})
         self.assertEqual((409, "blocked"), (status, said["code"]))
 

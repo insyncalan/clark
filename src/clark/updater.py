@@ -161,7 +161,7 @@ class Updater:
         if notice is not None:
             self._drop(NOTICE)                        # said once
         body = {"ok": True, "version": self.version, "installed": installed, "blocked": blocked,
-                "update": {"version": newer, "label": f"Review {newer}"} if newer else None,
+                "available": {"version": newer, "label": f"Review {newer}"} if newer else None,
                 "line": None if blocked or newer else UP_TO_DATE,
                 "last": None, "notice": notice.get("message") if notice and isinstance(notice.get("message"), str) else None,
                 "installing": self._installing}
@@ -201,8 +201,8 @@ class Updater:
             release = ui.read_taken(kept, digest, self.system, self.version, self.schema, reinstall=reinstall)
             plan = updates.plan(release, self.app)
         except updates.UpdateError as e:
-            LOG.info("update refused: %s", e.key)
-            LOG.debug("update refused: %s", e.detail)
+            LOG.info("an update was refused: %s", e.key)
+            LOG.debug("an update was refused: %s", e.detail)
             return reply(409, e.key, e.message, again=e.key in ("same", "older"))
         rid = secrets.token_urlsafe(18)
         self.reviewed = {"id": rid, "path": kept, "digest": digest, "reinstall": reinstall, "at": self.clock(), "to": release.version}
@@ -234,7 +234,7 @@ class Updater:
                 release = ui.read_taken(held["path"], held["digest"], self.system, self.version, self.schema, held["reinstall"])
                 plan = updates.plan(release, self.app)
                 backup_dir = ui.back_up(self.app, self.data, self.db, stamp, self.version, release.version, plan)
-                self._write(PENDING, {"kind": "update", "stamp": stamp, "set": backup_dir.name, "to": release.version})
+                self._write(PENDING, {"kind": "install", "stamp": stamp, "set": backup_dir.name, "to": release.version})
                 staging = ui.stage(release, self.app, stamp)
                 ui.first_check(staging, self.python)
                 self._hand_over(staging, stamp, self.version, release.version, backup_dir)
@@ -256,8 +256,8 @@ class Updater:
         ui.remove_staging(self.app, stamp)
         self._drop(PENDING)
         self._installing = False
-        LOG.info("update stopped before it began: %s", error.key)
-        LOG.debug("update stopped before it began: %s", error.detail)
+        LOG.info("an update stopped before it began: %s", error.key)
+        LOG.debug("an update stopped before it began: %s", error.detail)
         return reply(409, error.key, error.message)
 
     # --- POST /api/update/arm-undo and /api/update/undo ---
@@ -323,7 +323,7 @@ class Updater:
             sets = self.data / ui.UPDATES
             if result.get("stamp") == pending.get("stamp") and result.get("status") == "installed":
                 try:
-                    if pending.get("kind") == "update" and ui.SET_RE.match(str(pending.get("set"))):
+                    if pending.get("kind") == "install" and ui.SET_RE.match(str(pending.get("set"))):
                         ui.note_installed(sets / pending["set"], self.db)
                         message = INSTALLED.format(to=pending.get("to"))
                     elif pending.get("kind") == "undo" and ui.SET_RE.match(str(pending.get("set"))):

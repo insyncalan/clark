@@ -149,7 +149,7 @@ class BackUpTest(Base):
         self.assertEqual((self.data / settings.FILE).read_bytes(), (folder / settings.FILE).read_bytes())
         copy = store.check_copy(folder / "clark.db")
         record = json.loads((folder / "update.json").read_text(encoding="utf-8"))
-        self.assertEqual(("update", "0.3.0", "0.3.1", False, None), (record["kind"], record["from"], record["to"], record["undone"],
+        self.assertEqual(("install", "0.3.0", "0.3.1", False, None), (record["kind"], record["from"], record["to"], record["undone"],
                                                                      record["db_after"]))
         self.assertEqual(copy["db_id"], record["db_before"]["db_id"])
         self.assertEqual(sorted(files), sorted(record["app_files"]))
@@ -433,7 +433,7 @@ class PruneTest(Base):
         for n in range(5):
             folder = self.data / "updates" / f"2026110{n}T120000Z-0.3.{n}-to-0.3.{n + 1}"
             folder.mkdir()
-            h.write_json(folder / "update.json", {"kind": "update"})
+            h.write_json(folder / "update.json", {"kind": "install"})
         (self.data / "updates" / "not-ours").mkdir()
         releases = self.data / "releases"
         releases.mkdir()
@@ -453,7 +453,7 @@ class PruneTest(Base):
         for n in range(5):
             folder = self.data / "updates" / f"2026110{n}T120000Z-0.3.{n}-to-0.3.{n + 1}"
             folder.mkdir()
-            h.write_json(folder / "update.json", {"kind": "update"})
+            h.write_json(folder / "update.json", {"kind": "install"})
         self.assertEqual([], ui.prune(self.data, "0.3.0", SYSTEM))
 
 
