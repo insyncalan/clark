@@ -162,6 +162,24 @@ class Writing(Base):
         self.assertLess(len(text), 400 + 200)
         self.assertNotIn("n=39", text)
 
+    def test_the_last_tenth_is_kept_for_warnings_and_errors(self):
+        """#234: ordinary lines that fill the day's file never push out a later fault; the file still stops at the limit."""
+        with mock.patch.object(clog, "MAX_BYTES", 2000):
+            for n in range(100):
+                self.log.info("server", "change saved", n=n)
+            self.log.error("server", "route failed")
+            self.log.info("server", "change saved", n=999)
+            text = self.text()
+            self.assertEqual(text.count(clog.FULL_NOTICE), 1)
+            self.assertIn("ERROR server       route failed", text)
+            self.assertNotIn("n=999", text)
+            self.assertEqual([e["message"] for e in self.log.errors()], ["route failed"])
+            for _ in range(100):
+                self.log.error("server", "route failed")
+            text = self.text()
+        self.assertEqual(text.count(clog.LAST_NOTICE), 1)
+        self.assertLess(len(text.encode("utf-8")), 2000 + 200)
+
     def test_a_read_only_folder_never_breaks_clark(self):
         if os.geteuid() == 0:
             self.skipTest("root ignores folder permissions")
@@ -389,7 +407,7 @@ class Words(Base):
                                  "have finished.")
         self.log.error("server", "route failed")
         report = diagnostics.build(self.log, "0.4.0", now=self.clock.at)
-        for text in (notice, report, clog.FULL_NOTICE):
+        for text in (notice, report, clog.FULL_NOTICE, clog.LAST_NOTICE):
             self.assertIsNone(self.BANNED.search(text), text)
         for line in report.splitlines():
             self.assertFalse(line.lower().startswith("clark"), line)
@@ -609,8 +627,8 @@ class CountNames(Base):
 
 
 class PathsNotBuiltYet(Base):
-    """One test per path where a person's content enters clark. None of them calls the log yet (peek, ask clark and Word
-    import are not built, and the page-error route, the Settings controls and `install` are not wired in), so each waits.
+    """One test per path where a person's content enters clark. Word import runs its real path (word_import.stage, which
+    logs nothing today); peek and ask clark have no path that takes a person's text yet, so those two wait.
     When the path exists, remove the skip: plant the markers where the person's text goes, run the path at both levels
     and check no marker reaches a file."""
 
@@ -622,17 +640,30 @@ class PathsNotBuiltYet(Base):
         for marker in MARKERS:
             self.assertNotIn(marker.lower(), text, marker)
 
-    @unittest.skip("peek is not built yet: add the markers to a peeked item's title and note, open the peek, and run this")
+    @unittest.skip("peek has no component yet (#42): add the markers to a peeked item's title and note, open the peek, and run this")
     def test_peek_logs_no_content(self):
         self.check(lambda: None)
 
-    @unittest.skip("ask clark is not built yet: plant the markers in a question and in the answer, ask, and run this")
+    @unittest.skip("ask clark has no route yet (edit_ai.py holds only the text core): plant the markers in a question and in the answer, ask, and run this")
     def test_ask_clark_logs_no_content(self):
         self.check(lambda: None)
 
-    @unittest.skip("Word import is not built yet: plant the markers in a document's text and file name, import it, and run this")
     def test_word_import_logs_no_content(self):
-        self.check(lambda: None)
+        """Word import's real path (word_import.stage) with the markers in the file name and in a table's cells."""
+        from clark import word_import
+        handler = clog.install(self.log, "clark")
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        blocks = [{"kind": "heading", "level": 1, "text": "Actions"},
+                  {"kind": "table", "rows": [["Action", "Owner", "Due"], [f"Send {MARKERS[1]} {MARKERS[2]}", MARKERS[0], "30-10-2026"]]}]
+
+        def run():
+            try:
+                word_import.stage(blocks, f"{MARKERS[5]}.docx", "2026-10-29")
+            except Exception:
+                logging.getLogger("clark.word_import").exception("import ended")      # a refusal is fine; only the log matters
+            self.log.info("word", "import read", blocks=len(blocks))
+        self.check(run)
+        self.assertIn("import read", self.text())
 
 
 if __name__ == "__main__":

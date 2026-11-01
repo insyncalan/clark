@@ -5,6 +5,7 @@ import { App } from "./components/App.jsx";
 
 export function boot(tools) {
   if (tools && tools.help) tools.help.installKeys();
+  if (tools && tools.pageErrors) tools.pageErrors();        // page faults reach the log through the server (#110); a published file has none
   if (tools && tools.askPanel) tools.askPanel.installKeys();
   render(<App tools={tools} />, document.getElementById("app"));
   document.documentElement.dataset.ready = "1";
