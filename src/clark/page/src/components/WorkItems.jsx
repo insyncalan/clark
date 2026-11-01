@@ -197,8 +197,16 @@ export function WorkItems({ tools }) {
     <section class="frame work" id="work">
       <p class="crumbs">{d.project.name}</p>
       <div class="head">
-        <h1>Work items</h1>
-        {tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} /> : null}   {/* a published file is read only: no Add (#204) */}
+        <div>
+          <h1>Work items</h1>
+          <p class="intro muted" id="work-intro">{tools ? "Select an item to open it beside the list. Items marked Shown to client appear on the published page." : "Select an item to open it beside the list."}</p>
+        </div>
+        {tools ? (
+          <div class="hacts">
+            {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
+            <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} />   {/* a published file is read only: no Add (#204) */}
+          </div>
+        ) : null}
       </div>
       <p class="muted note" role="status" id="work-note">{filterNote.value || asked.value}</p>
       <p class="sr" role="status" aria-live="polite" id="work-live">{announce.value}</p>

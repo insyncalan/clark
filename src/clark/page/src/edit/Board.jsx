@@ -16,6 +16,7 @@ import { workSelection as pickSel } from "../stores/selection.js";
 import { ownClick, noTextRange, pickClick, pickOpen, pickKeys } from "../components/pick.js";
 
 const TONED = ["status", "due", "priority"];             // the groups whose columns carry their state's colour
+const TYPE_LETTER = { action: "A", risk: "R", issue: "I", assumption: "S", dependency: "P", decision: "D" };   // the card's badge; its full word is the badge's accessible name
 const LANE_WORDS = { workstream: "Workstream", type: "Type" };
 
 // The peek is #42's. Until it claims this, a click on a card puts the item in the address (the router's `item`) and tells the page.
@@ -47,7 +48,7 @@ function Card({ card, editing, selected, picked, dragging, ask, menu, onOpen, on
           if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); onOpen(card.id); return; }
           pickKeys(e, card.id, focusCard);
         }}>
-        <div class="bc-top"><span class={`type ${card.typeClass}`}>{card.type}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
+        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
         <div class="bc-title">{picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}{card.title}</div>
         <div class="bc-foot">
           {card.initials ? <span class="av" title={card.owner} aria-hidden="true">{card.initials}</span> : null}

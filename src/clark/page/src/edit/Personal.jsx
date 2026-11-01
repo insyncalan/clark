@@ -76,7 +76,7 @@ function AboutYou() {
 export function Personal() {
   return (
     <section class="frame personal" id="personal" aria-labelledby="personal-h">
-      <h2 id="personal-h">Personal</h2>
+      <h2 id="personal-h" tabIndex={-1}>Personal</h2>
       <p class="muted">These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.</p>
       <fieldset class="styles secstyles" role="radiogroup" data-secstyles>
         <legend>Dashboard sections</legend>

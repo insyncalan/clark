@@ -68,6 +68,7 @@ main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .fig textarea.hreason.needs { border-color: var(--status-amber); }
 .fig textarea.hreason:focus-visible, .pillbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; font-size: 13px; }
+.glance-hint { margin: 8px 2px 0; font-size: var(--size-small); color: var(--text-muted); }
 .glance .fig.go { cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
 .glance .fig.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
 .glance .fig.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -228,6 +229,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .head h1 { margin-bottom: 0; }
+.hacts { display: flex; align-items: center; gap: 8px; }
 .note { margin: 8px 0 0; font-size: 13px; }
 .note:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -584,7 +586,7 @@ table.items.grouped tr.grp th { padding: 10px 4px 6px; border-top: 1px solid var
 .col-body { display: flex; flex-direction: column; gap: 8px; padding: 8px; min-height: 64px; }
 .col-body .none { margin: 8px 4px; font-size: 13px; }
 .bwrap { position: relative; }
-.bcard { position: relative; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px; }
+.bcard { position: relative; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); box-shadow: var(--shadow); padding: 7px 10px; }
 .board[data-editing="1"] .bcard { cursor: grab; user-select: none; -webkit-user-select: none; }
 .bcard.sel { border-color: var(--brand-blue); }
 .bcard.picked { border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), var(--shadow); background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
@@ -598,17 +600,17 @@ table.items.grouped tr.grp th { padding: 10px 4px 6px; border-top: 1px solid var
 .bcard.done .bc-title { color: var(--text-muted); }
 .bc-main { cursor: pointer; border-radius: var(--radius-sm); }
 .bc-main:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.bc-top { display: flex; align-items: center; gap: 8px; padding-right: 28px; }
+.bc-top { display: flex; align-items: center; gap: 6px; padding-right: 28px; }
+.type.tl { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0; font-size: var(--size-small); font-weight: 600; line-height: 1; }
 .bc-id { font-size: 13px; color: var(--text-muted); }
 .eye { display: inline-flex; color: var(--status-blue-text); }
 .eye .i { width: 16px; height: 16px; }
-.bc-title { margin: 6px 0 8px; font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.bc-title { margin: 4px 0 6px; font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .bc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .bc-foot .due-l { display: inline; }
 .bc-foot .pill { margin-left: auto; }
-.bmv { position: absolute; top: 6px; right: 6px; }
-.bc-move { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; opacity: .35; }
-.bcard:hover .bc-move, .bcard:focus-within .bc-move, .bc-move[aria-expanded="true"] { opacity: 1; }
+.bmv { position: absolute; top: 4px; right: 6px; }
+.bc-move { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
 .bc-move:hover { background: var(--grey-100); color: var(--text); }
 .bc-move:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .bc-move .i { width: 16px; height: 16px; }
@@ -834,6 +836,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-prog { display: flex; align-items: center; gap: 8px; font-size: var(--size-small); }
 .pbar { flex: 1; height: 6px; border-radius: 3px; background: var(--grey-100); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--brand-blue); }
 .msl-all { display: inline-block; margin: 8px 0 0 4px; }
+.msl-det { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; margin: 6px 0 2px; font-size: var(--size-small); color: var(--text-muted); cursor: pointer; border-radius: 4px; }
+.msl-det:hover { color: var(--text); } .msl-det:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.msl-det .i { transition: transform var(--dur-instant) var(--ease-out); } .msl-det[aria-expanded="false"] .i { transform: rotate(-90deg); }
 .cal-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding-right: 210px; flex-wrap: wrap; }
 .cal-t { font-weight: var(--weight-medium); margin-left: 8px; color: var(--heading); }
 .cal-dow, .cal-g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -919,6 +924,12 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: 16px; }
+.set-head p { margin: 0; }
+.set-nav { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.set-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
+.set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
+.set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
+.setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .folder-now { overflow-wrap: anywhere; }
@@ -1056,6 +1067,10 @@ html[data-secstyle="card"] .secs { padding: 4px 20px 12px; border: 1px solid var
 /* type: Montserrat extra-bold for headings and figures, Inter for text, tracked capitals for the small line above a title */
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; }
+/* Work items: the project name above the title is plain (not tracked capitals), and one intro line sits under the title */
+#work .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }
+#work .head h1 { margin: 0; }
+#work .intro { margin: 4px 0 0; font-size: var(--size-small); }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: 600; }
 .tab, .proj { font-family: var(--font-label); font-weight: 500; }
 
@@ -1272,3 +1287,17 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-val .i { width: 16px; height: 16px; }
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
+
+/* The work item rows of Risks and issues, Open actions and Decisions (A-D5): a state pill, the item, who and when, the ID.
+   A list, not a table, so it stays one column at laptop widths and nothing pushes the page sideways. */
+.wl { list-style: none; margin: 8px 0; padding: 0; }
+.wl-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; padding: 9px 0; border-top: 1px solid var(--grey-100); }
+.wl-row:first-child { border-top: 0; }
+.wl-state { min-width: 0; }
+.wl-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wl-title { overflow-wrap: anywhere; color: var(--text); }
+.wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
+.wl-meta .av { width: 22px; height: 22px; font-size: var(--size-small); }
+.wl-meta .late { color: var(--status-red-text); }
+.wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
+.wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }

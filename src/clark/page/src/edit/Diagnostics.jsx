@@ -72,7 +72,7 @@ export function Diagnostics() {
   const level = info && info.level;
   return (
     <section class="frame setting" id="diagnostics">
-      <h2>Logs and diagnostics</h2>
+      <h2 id="diagnostics-h" tabIndex={-1}>Logs and diagnostics</h2>
       <p class="muted">The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.</p>
       <div class="row" role="group" aria-label="Logging detail">
         <button type="button" class={"btn" + (level === "normal" ? " pri" : "")} data-level="normal" aria-pressed={level === "normal"} onClick={() => choose("normal")} disabled={busy || !info}>Normal</button>

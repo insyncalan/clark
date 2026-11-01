@@ -46,6 +46,7 @@ export function Glance({ tools }) {
   const Wrap = editing ? tools.glance.Cell : Cell;
   const order = list.map((t) => t.key);
   return (
+    <>
     <div class="glance" data-glance>
       {list.map((t, i) => (
         <Wrap key={t.key} tile={t} order={order} index={i}>
@@ -53,5 +54,7 @@ export function Glance({ tools }) {
         </Wrap>
       ))}
     </div>
+    {editing ? <tools.glance.Hint /> : null}
+    </>
   );
 }
