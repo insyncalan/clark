@@ -374,7 +374,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      profile=who,
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store)),
-                     safety=safety.Safety(store.path, roots), logs=logs,
+                    safety=safety.Safety(store.path, roots), logs=logs,
+                    brand_picture=page.brand_picture,
                      **handlers)
         LOG.info("stopped with code %d", done)
         if done == 0:
