@@ -258,7 +258,7 @@ class Launch(unittest.TestCase):
         kw = f.kw()
         kw["open_window"] = lambda u, c: (_ for _ in ()).throw(pl.PlatformError("Chrome could not be started, so clark's window did not open."))
         self.assertEqual(launch.launch(8800, self.folder, **kw), 1)
-        self.assertEqual(f.said[-1], "Chrome could not be started, so clark's window did not open. clark is still running. To use it, open this address in your browser: http://127.0.0.1:8800/")
+        self.assertEqual(f.said[-1], "Chrome could not be started, so clark's window did not open. The clark server is still running. To use it, open this address in your browser: http://127.0.0.1:8800/")
 
     def test_the_address_is_always_127_0_0_1(self):
         self.assertEqual(launch.address(8766), "http://127.0.0.1:8766/")

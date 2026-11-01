@@ -151,7 +151,7 @@ def open_clark(url, say, environ, find_chrome, open_window, open_browser):
             open_browser(url)
             say("Chrome wasn't found, so clark opened in your default browser. Install Chrome to give clark its own window.")
     except platform.PlatformError as e:
-        say(f"{e} clark is still running. To use it, open this address in your browser: {url}")
+        say(f"{e} The clark server is still running. To use it, open this address in your browser: {url}")
         return 1
     return 0
 
