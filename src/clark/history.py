@@ -119,6 +119,7 @@ FIELD_NAMES = {
     "updates": {"health": "Health", "summary": "Summary", "key_changes": "Key changes"},
 }
 REMOVED_NAME = "Removed"
+CONTENT_FIELD, CONTENT_CHANGED = "Content", "Changed"    # a section's body (a needs or tracker list, kept as JSON) is never shown, before or after: only that it changed
 THING = {"links": "Link", "item_labels": "Label", "labels": "Label", "report_sections": "Section", "glance_tiles": "Tile",
          "report_hidden": "Hidden item", "saved_views": "Saved view", "documents": "Document", "source_folders": "Folder",
          "projects": "Project", "milestones": "Milestone", "workstreams": "Workstream", "actions": "Action", "raid": "RAID item",
@@ -213,7 +214,8 @@ def _unpack(old, table=""):
         return old
     if not isinstance(data, dict):
         return old
-    return ", ".join(f"{field_name('', k)}: {'' if v is None else shown_value(table, k, v)}" for k, v in data.items() if k != "updated_at")
+    return ", ".join(f"{field_name('', k)}: {'' if v is None else shown_value(table, k, v)}" for k, v in data.items()
+                     if k != "updated_at" and not (table == "report_sections" and k == "body"))      # a removed section's content is not unpacked into the row
 
 
 class _Titles:
@@ -318,6 +320,8 @@ def _display(con, rows, keep):
             fold, kind = (r["apply_id"], r["tbl"], r["item_id"]), (undo_kind if undo else "Created")
             if hidden and not undo:
                 kind = "Changed"
+        elif r["tbl"] == "report_sections" and field_key == "body":      # content, never shown raw as 'Text': only that it changed
+            kind, before, after, field = (undo_kind if undo else "Changed"), "", CONTENT_CHANGED, CONTENT_FIELD
         elif undo:
             kind, before, after = undo_kind, shown_value(r["tbl"], field_key, before), shown_value(r["tbl"], field_key, after)
         else:

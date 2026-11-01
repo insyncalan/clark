@@ -12,6 +12,7 @@ import unittest
 import zipfile
 import zlib
 from pathlib import Path
+from unittest import mock
 from xml.etree import ElementTree as ET
 
 import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
@@ -21,6 +22,8 @@ from openpyxl import load_workbook
 from clark import excel, excel_picture as pic
 from clark import excel_cover as cover
 from clark import excel_import as xi
+
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
 
 PROJECT = {"code": "DEMO", "name": "Harbour Lights upgrade", "current_state": "<p>Under way.</p>", "internal_notes": "", "health_reason": ""}
 STAMP = "Exported 01-06-2030 20:30"
@@ -189,6 +192,9 @@ class InTheWorkbook(unittest.TestCase):
 
     def test_the_same_data_and_clock_give_the_same_bytes_and_dates(self):
         (self.brand / "logo.png").write_bytes(self.png)
+        held = mock.patch.object(excel, "new_export_id", lambda: FIXED_ID)       # the id is random: held still, as the clock is
+        held.start()
+        self.addCleanup(held.stop)
         z = self.export()
         first = self.path.read_bytes()
         self.assertEqual({i.date_time for i in z.infolist()}, {excel.ZIP_TIME})
