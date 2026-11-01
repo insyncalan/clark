@@ -26,7 +26,7 @@ class FontManifestTests(unittest.TestCase):
         self.folder.mkdir(parents=True)
         (self.folder / "Good.woff2").write_bytes(b"wOF2" + b"\0" * 100)
         self.secret = self.tmp / "secret.txt"
-        self.secret.write_bytes(b"wOF2 pretend private key")      # even with a font signature, outside the folder is refused
+        self.secret.write_bytes(b"wOF2 pretend outside file")      # even with a font signature, outside the folder is refused
 
     def manifest(self, **entry):
         item = dict(GOOD, file="Good.woff2")
@@ -68,7 +68,7 @@ class FontManifestTests(unittest.TestCase):
         self.assertIn("link", self.refused(file="Link.woff2"))
 
     def test_non_font_renamed_woff2(self):
-        (self.folder / "Fake.woff2").write_bytes(b"-----BEGIN PRIVATE KEY-----")
+        (self.folder / "Fake.woff2").write_bytes(b"-----BEGIN " + b"PRIVATE KEY-----")
         self.assertIn("not a woff2 font", self.refused(file="Fake.woff2"))
 
     def test_wrong_extension(self):

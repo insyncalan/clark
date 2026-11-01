@@ -28,6 +28,7 @@ nothing can be written into the CSS. Anything else stops the build with FontMani
 page is written.
 """
 import base64
+import hashlib
 import json
 import os
 import re
@@ -70,6 +71,13 @@ class FontManifestError(ValueError):
     """A font manifest entry was refused (#236); the message names the manifest and the entry, never a resolved path."""
 
 
+class VendorManifestError(ValueError):
+    """A module entry in vendor/preact/manifest.json was refused (#236); the message names the manifest and entry, never a resolved path."""
+
+
+MODULE_SPEC = re.compile(r"[a-z@][a-z0-9@/._-]{0,100}")       # goes onto an esbuild command line: no space, '=', quote or leading '-'
+SHA256 = re.compile(r"[0-9a-f]{64}")
+MAX_MODULE_BYTES = 4 * 1024 * 1024
 MAX_FONT_BYTES = 512 * 1024         # one woff2 file; the vendored ones are about 20 KB each
 WOFF2_MAGIC = b"wOF2"
 FONT_FILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.woff2")
@@ -102,11 +110,61 @@ def help_content_path(held=True):
     return out
 
 
+def vendor_modules(vendor=None):
+    """[(specifier, absolute path)] for the modules in vendor/preact/manifest.json, sorted. The manifest is data (#236): a module's
+    path must be one of the manifest's own fingerprinted "files" entries, a plain relative path that stays inside the vendor
+    folder (no link out), a regular file whose sha256 matches; the specifier must match MODULE_SPEC. Anything else raises
+    VendorManifestError naming the manifest and the entry."""
+    vendor = VENDOR if vendor is None else vendor
+    name = _manifest_name(vendor)
+    try:
+        data = json.loads((vendor / "manifest.json").read_text(encoding="utf-8"))
+        modules, files = data["modules"], data["files"]
+    except (OSError, ValueError, KeyError, TypeError):
+        raise VendorManifestError(f"{name}: cannot be read as a vendor manifest ('modules' and 'files')") from None
+    if not isinstance(modules, dict) or not isinstance(files, dict):
+        raise VendorManifestError(f"{name}: 'modules' and 'files' must both be objects")
+    home = os.path.realpath(vendor)
+    out = []
+    for i, (spec, path) in enumerate(sorted(modules.items()), 1):
+        where = f"{name}, module {i}"
+        if not isinstance(spec, str) or not MODULE_SPEC.fullmatch(spec):
+            raise VendorManifestError(f"{where}: the specifier is not an allowed name (lower-case letters, digits, '@', '/', '.', '_', '-')")
+        where += f" ({spec})"
+        if not isinstance(path, str) or not path:
+            raise VendorManifestError(f"{where}: the path is missing or is not a name")
+        if os.path.isabs(path) or path.startswith(("/", "\\")) or re.match(r"[A-Za-z]:", path):
+            raise VendorManifestError(f"{where}: the path is absolute; it must be a file listed under 'files'")
+        if ".." in re.split(r"[/\\]", path):
+            raise VendorManifestError(f"{where}: the path climbs out of the vendor folder with '..'")
+        want = files.get(path)
+        if not isinstance(want, str):
+            raise VendorManifestError(f"{where}: the path is not one of the manifest's 'files' entries")
+        if not SHA256.fullmatch(want):
+            raise VendorManifestError(f"{where}: the file's fingerprint in 'files' is not a sha256")
+        real = os.path.realpath(os.path.join(home, path))
+        if real != os.path.join(home, os.path.normpath(path)):
+            raise VendorManifestError(f"{where}: the path is or passes through a link, or leaves the vendor folder")
+        try:
+            st = os.stat(real)
+        except OSError:
+            raise VendorManifestError(f"{where}: the file is not there") from None
+        if not stat.S_ISREG(st.st_mode):
+            raise VendorManifestError(f"{where}: the file is not a regular file")
+        if st.st_size > MAX_MODULE_BYTES:
+            raise VendorManifestError(f"{where}: the file is too big for a module")
+        with open(real, "rb") as fh:
+            body = fh.read(MAX_MODULE_BYTES + 1)
+        if len(body) > MAX_MODULE_BYTES or hashlib.sha256(body).hexdigest() != want:
+            raise VendorManifestError(f"{where}: the file does not match its sha256 in 'files'")
+        out.append((spec, real))
+    return out
+
+
 def preact_flags(held=True):
     """JSX through esbuild (the automatic runtime, from Preact), each library specifier mapped to its vendored file, and Help's words."""
-    modules = json.loads((VENDOR / "manifest.json").read_text(encoding="utf-8"))["modules"]
     return ["--jsx=automatic", "--jsx-import-source=preact", "--loader:.jsx=jsx",
-            *(f"--alias:{spec}={VENDOR / path}" for spec, path in sorted(modules.items())),
+            *(f"--alias:{spec}={path}" for spec, path in vendor_modules()),
             f"--alias:tiptap={VENDOR_TIPTAP / 'tiptap.module.js'}",      # the editor (#66); only the Edit entry imports it
             f"--alias:clark-help-content={help_content_path(held)}"]
 
@@ -233,8 +291,8 @@ def pages():
 
 def main(argv):
     try:
-        made = pages()          # every page is made before any is written, so a refused font leaves the committed pages alone
-    except FontManifestError as e:
+        made = pages()          # every page is made before any is written, so a refused font or module leaves the committed pages alone
+    except (FontManifestError, VendorManifestError) as e:
         print(f"build refused: {e}", file=sys.stderr)
         return 1
     if "--check" in argv:
