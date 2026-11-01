@@ -62,3 +62,19 @@
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
+
+/* #96 G3 Work items list (workitems): the Edit part (the filter and the live preview). Tokens only. */
+.wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 16px; margin: 4px 0 10px; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.wil-f { min-width: 0; margin: 0; padding: 0; border: 0; }
+.wil-f legend { padding: 0; margin-bottom: 4px; font-size: var(--size-small); color: var(--text-muted); font-weight: var(--weight-medium); }
+.wil-opts { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.wil-opts label { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; color: var(--text); font-size: 14px; cursor: pointer; }
+.wil-opts input:focus-visible, .wil-sel select:focus-visible, .wil-sel input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-sel { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.wil-sel span { font-size: var(--size-small); color: var(--text-muted); font-weight: var(--weight-medium); }
+.wil-sel select, .wil-sel input { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; }
+.wil-capf { grid-column: 1 / -1; }
+.wil-none { margin: 8px 0; padding: 10px 12px; border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: 14px; }
+.wil-live tbody tr, .wil-live li { cursor: pointer; }
+.wil-live tbody tr:hover, .wil-live li:hover { background: var(--grey-50); }
+.wil-live tbody tr:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
