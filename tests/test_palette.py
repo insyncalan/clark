@@ -142,7 +142,7 @@ class Results(Base):
             kinds = [r[0] for r in p.rows()]
             self.assertEqual(kinds[:6], ["Command"] * 6)
             self.assertEqual(p.rows()[0][1], "Publish…")
-            self.assertEqual([r[1] for r in p.rows() if r[0] == "Page"], ["Dashboard", "Work items", "Milestones", "Use cases"])     # the Use cases page (#157) is a tab of the Edit page
+            self.assertEqual([r[1] for r in p.rows() if r[0] == "Page"], ["Dashboard", "Work items", "Milestones", "Use cases", "Client Requested Report View"])     # the Use cases page (#157) is a tab of the Edit page; the client report (#192) after it
             self.assertEqual([r[1] for r in p.rows() if r[0] == "Project"], ["Example Programme", "Second Programme"])
             p.find("a-001")
             self.assertEqual([r[:2] for r in p.rows()], [["Action", "Agree the cut-over plan"]])

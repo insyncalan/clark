@@ -2,7 +2,7 @@
 // Dashboard, Work items and Milestones, in the same frame and the same section look. The sections come in one fixed order:
 // Overall progress, Progress by plan, the delivery template's place (#190, on hold), Highlights and Planned for next week
 // (a half-width pair), Risks, delays and items to watch. Each section's body is its own file under clientreport/, so one part
-// can be replaced (Parker's Progress tracker, #189) without touching the others.
+// can be replaced (the Progress tracker, #189) without touching the others.
 // The page is drawn in View and in Edit; it is the live page only: a published file's tab list does not carry it (publish.py).
 import { data, asAt, fromFile } from "../stores/report.js";
 import { showDate, todayIso } from "../workItems.js";

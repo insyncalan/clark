@@ -1,7 +1,7 @@
 // Client Requested Report View (#192): Progress by plan. The plan lines are the project's milestones, in groups by workstream. Each
 // group has a table (number, description, end date, status word with its mark, planned, achieved with a small bar) and its total.
 // A line behind plan shows "▼n" and says "n points behind plan" to a screen reader; colour is never the only signal.
-// This file and Overall.jsx are the boundary Parker's Progress tracker (#189) can replace: they draw only what progress() returns.
+// This file and Overall.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
 import { data, fromFile } from "../../stores/report.js";
 import { showDate } from "../../workItems.js";
 import { progress, behindWords } from "../../logic/clientReport.js";

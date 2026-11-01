@@ -1234,12 +1234,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-small); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 
-/* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
-.pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.pk-val .i { width: 16px; height: 16px; }
-.ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
-.ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
-
 /* ===== Client Requested Report View (item 192). Tokens only; shared by the live page and, if it is ever published, the file. ===== */
 .client-report h1 { margin-bottom: 4px; }
 .cr-cover { margin: 0; font-size: var(--size-small); color: var(--text-muted); }
@@ -1294,3 +1288,10 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 @media (max-width: 900px) { .cr-wl .wl-row { grid-template-columns: 88px minmax(0, 1fr); } .cr-wl .wl-id { grid-column: 2; padding-top: 0; } }
 /* The delivery template's place (item 190, on hold): a plain marked block. */
 .cr-placeholder { margin: 8px 0; padding: 12px 16px; border: 1px dashed var(--grey-300); border-radius: var(--radius); background: var(--surface-muted); }
+
+/* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
+.pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pk-val .i { width: 16px; height: 16px; }
+.ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
+.ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
+

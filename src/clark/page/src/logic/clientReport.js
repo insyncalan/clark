@@ -1,7 +1,7 @@
 // Client Requested Report View (#192): the figures for Overall progress and Progress by plan, worked out from the milestones the
 // project already has. Plain functions, no DOM, no signals and no clock (the status date is passed in).
 //
-// THE BOUNDARY: components/clientreport/Overall.jsx and Plans.jsx draw only what `progress()` returns, so Parker's Progress tracker
+// THE BOUNDARY: components/clientreport/Overall.jsx and Plans.jsx draw only what `progress()` returns, so the Progress tracker
 // (#189, typed weight, planned and achieved) can replace those two files by returning the same shape:
 //   { overall: { actual, planned } | null, groups: [{ name, lines: [Line], total: { actual, planned } }] }
 //   Line = { id, no, text, end (YYYY-MM-DD or null), word, colour, mark, planned, achieved (0 to 100 or null), behind (0 to 100) }

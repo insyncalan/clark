@@ -172,7 +172,7 @@ class Drawn(unittest.TestCase):
         self.addCleanup(s.close)
         return s.port
 
-    def open(self, cdp, port, code="TUL"):
+    def open_page(self, cdp, port, code="TUL"):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
@@ -194,7 +194,7 @@ class Drawn(unittest.TestCase):
     def run_view(self, edit):
         port = self.serve()
         with chrome() as cdp:
-            sid = self.open(cdp, port)
+            sid = self.open_page(cdp, port)
             if edit:
                 cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)), "Edit is on")
@@ -214,7 +214,7 @@ class Drawn(unittest.TestCase):
     def test_the_figures_the_demo_gives(self):
         port = self.serve()
         with chrome() as cdp:
-            sid = self.open(cdp, port)
+            sid = self.open_page(cdp, port)
             text = lambda q: cdp.js(f"document.querySelector('{q}').textContent", sid)  # noqa: E731
             self.assertEqual(cdp.js("document.querySelector('#clientreport h1').textContent", sid), "Tulip Records Migration")
             self.assertRegex(text(".cr-cover"), r"^WEEKLY PROGRESS SNAPSHOT · Status as at \d{2}-\d{2}-\d{4}( · for .+)?$")
@@ -232,7 +232,7 @@ class Drawn(unittest.TestCase):
     def test_the_tab_keeps_its_full_name_wide_and_a_short_one_when_narrow(self):
         port = self.serve()
         with chrome() as cdp:
-            sid = self.open(cdp, port)
+            sid = self.open_page(cdp, port)
             tab = "[...document.querySelectorAll('.tab')].find(t => t.dataset.view === 'clientreport')"
             self.assertEqual(cdp.js(f"{tab}.innerText", sid), "Client Requested Report View")
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
@@ -246,7 +246,7 @@ class Drawn(unittest.TestCase):
         s = Running(data_for=lambda code: data, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         with chrome() as cdp:
-            sid = self.open(cdp, s.port)
+            sid = self.open_page(cdp, s.port)
             self.assertEqual(cdp.js("[...document.querySelectorAll('[data-fig=actual] .v, [data-fig=planned] .v')].map(e => e.textContent)", sid), ["Not set", "Not set"])
             self.assertEqual(cdp.js("document.querySelectorAll('[data-bar], [data-gap], [data-line]').length", sid), 0, "no bar, no gap line, no lines")
             self.assertEqual(cdp.js("!!document.querySelector('[data-no-lines]')", sid), True)

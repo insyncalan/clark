@@ -1,7 +1,7 @@
 // Client Requested Report View (#192): Overall progress. The project's health and reason, Actual and Planned as two figures, and a bar
 // filled to Actual with a marker at Planned. Every figure is worked out in logic/clientReport.js from the milestones; what each means
 // is said on the page, and "Not set" is shown when there is nothing to measure (never an invented number).
-// This file and Plans.jsx are the boundary Parker's Progress tracker (#189) can replace: they draw only what progress() returns.
+// This file and Plans.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
 import { data, fromFile } from "../../stores/report.js";
 import { HEALTH_WORDS } from "../../glanceTiles.js";
 import { showDate } from "../../workItems.js";
