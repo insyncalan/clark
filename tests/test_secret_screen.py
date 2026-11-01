@@ -185,6 +185,20 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_near_misses_of_the_quoted_letters_rule_pass(self):
+        """The key word must start a word, a bare secret needs a connector, the two quotes must be one pair, and a config's own
+        placeholder values are not passwords."""
+        for text in ('password "abcde"', "Secretary 'Harrington'", 'secrets: "inherit"', 'the secret "ingredient"', 'password: "string"',
+                     'click "Forgot password" "Submit"', "the password is 'orangebicycle\"", 'secret "orangebicycle"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_six_letters_are_refused_and_five_are_not(self):
+        self.assertTrue(secret_screen.looks_like_secret('password "abcdef"'))
+        self.assertFalse(secret_screen.looks_like_secret('password "abcde"'))
+        self.assertTrue(secret_screen.looks_like_secret('the secret is "orangebicycle"'))
+        self.assertTrue(secret_screen.looks_like_secret('"password": "orangebicycle"'))
+
     def test_the_address_shape_still_finds_an_address(self):
         self.assertTrue(secret_screen.looks_like_secret("see s3://user:" + PW + "@host/x"))
 

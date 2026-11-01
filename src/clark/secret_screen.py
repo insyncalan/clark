@@ -55,9 +55,16 @@ HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?privat
 # Sunshine2026"): a key word, is or was, then a mixed value of 8 or more characters.
 QUOTED_PHRASE = r"""(?i)""" + _PW + r"""\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([^"\n]{8,80})"|'([^'\n]{8,80})')"""
 PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|secret)\b)["']?[ \t]{1,3}(?:is|was)[ \t]{1,3}["'(]?([^\s"'`$<>{}()\[\],;]{8,})"""
-# A quoted value of 6 or more letters right after a key word (#243): `the password is "<letters>"`. Quotes: double, single, backtick, curly.
-LETTER_QUOTED = (r"""(?i)(?:passw(?:or)?d|pwd|passcode|passphrase|secret|(?<![A-Za-z])pw(?![A-Za-z]))\w{0,40}["'`\u201c\u201d\u2018\u2019]?"""
-                 r"""[ \t]{0,20}(?:[:=]|\b(?:is|was)\b)?[ \t]{0,20}["'`\u201c\u201d\u2018\u2019][A-Za-z]{6,}["'`\u201c\u201d\u2018\u2019]""")
+# A quoted value of 6 or more letters right after a key word (#243): `the password is "<letters>"`. The key word starts a word (so
+# "Secretary" is not one); "secret" counts only as a whole word followed by `:`, `=`, is or was ("secrets: ..." and `the secret
+# "ingredient"` pass); a quote straight after the key word counts only before `:` or `=` (a JSON key), so two separate quoted strings
+# such as `click "Forgot password" "Submit"` do not join. The value sits in one matching pair (double, single, backtick, curly or
+# typographic single) with letters only between. A few schema and placeholder words are what a config puts there, not a password.
+_QS = r"""["'`\u201c\u201d\u2018\u2019]"""
+_PAIR = (r"""(?:"[A-Za-z]{6,}"|'[A-Za-z]{6,}'|`[A-Za-z]{6,}`|\u201c[A-Za-z]{6,}\u201d|\u2018[A-Za-z]{6,}\u2019)""")
+_PLACEHOLDER = r"""(?!["'`\u201c\u2018](?:string|text|password|secret|hidden|required|optional|none|null|true|false|inherit)["'`\u201d\u2019])"""
+LETTER_QUOTED = (r"""(?i)\b(?:""" + r"""(?:passw(?:or)?d|pwd|passcode|passphrase|pw(?![A-Za-z]))\w{0,40}(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{0,20}(?:\b(?:is|was)\b)?)"""
+                 r"""|secret""" + r"""(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{1,20}\b(?:is|was)\b))[ \t]{0,20}""" + _PLACEHOLDER + _PAIR)
 # Known gaps, kept as Tech Debt: an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only and
 # a bare 40-character hex string with no key word are not caught; guessing them would drop too many ordinary files.
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
