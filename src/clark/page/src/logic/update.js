@@ -16,7 +16,7 @@ export const WORDS = {
 // The refusals whose sentence comes from the server (each names a version, a system or a reason in words it checked itself).
 export const SERVER_SAYS = ["name", "source", "system", "unreadable", "damaged", "incomplete", "unsafe", "older", "same", "min_from",
   "newer_data", "installed", "noversion", "folder", "git", "norecord", "link", "readonly", "toodeep", "blocked", "space", "backup", "staging", "first_check",
-  "helper", "no_update", "undone", "data_changed", "backup_damaged"];
+  "helper", "no_update", "undone", "data_changed", "backup_damaged", "data_gone", "data_restore"];
 export const GENERIC = "That didn't work, and nothing was changed. Try again, or restart clark.";
 export const NOT_ANSWERING = "Nothing is answering. Check that the window clark runs in is still open, then reload the page.";
 export const STALE = "This page is out of date because clark was restarted. Reload the page and try again.";
