@@ -745,6 +745,37 @@ def finish_restore(path):
     marker.unlink(missing_ok=True)
 
 
+UPDATE_LOST = "Changes made since the update will be lost."
+UPDATE_ASK = f"{UPDATE_LOST} Nothing was changed yet. Confirm to put your data back as it was before the update."
+UPDATE_GONE = ("The copy of your data taken before the update is no longer there, so your data was not put back. Nothing was "
+               "changed. Choose a backup to restore instead, or ask for help.")
+UPDATE_NOT_COPY = "{name} is not a copy taken before an update, so it was not put back. Nothing was changed."
+
+
+def restore_before_update(path, name, confirmed=False, folder=None, onedrive_roots=None):
+    """Undo the data side of an update: put back the safety copy `name` that the update's migration took (a `migrate` copy, see
+    store.bring_up_to_date), over the newer database at `path`. An older clark cannot open newer data, so this runs before the
+    older clark is started, never after; a database still open in a running clark is refused (restore_path's lock and its
+    open check), and nothing is changed.
+
+    Until `confirmed` is True it changes nothing and raises Invalid(UPDATE_ASK), which says that changes made since the update
+    will be lost: the caller shows that and asks. The restore itself is restore_path's: the copy is written beside the database
+    and checked, the newer database is copied first and then moved aside whole into backups/replaced-<UTC>/ (kept, never
+    deleted, so it can be got back), and only then is the copy moved into place. Returns restore_path's result plus "said":
+    UPDATE_LOST."""
+    path = Path(path)
+    folder = Path(folder) if folder is not None else path.parent / "backups"
+    found = NAME.fullmatch(str(name or ""))
+    if found is None or found.group(2) != "migrate":
+        raise Invalid(UPDATE_NOT_COPY.format(name=name))
+    if not (folder / name).is_file():
+        raise Invalid(UPDATE_GONE)
+    if confirmed is not True:
+        raise Invalid(UPDATE_ASK)
+    done = restore_path(path, name, folder, onedrive_roots)
+    return {**done, "said": UPDATE_LOST}
+
+
 def restore_into(folder, name, backups_dir, onedrive_roots=None):
     """Put the backup `name` from `backups_dir` into a fresh folder as clark.db (which must not exist or be empty); the path.
     This is also the way to open a backup of a different database, and how a test reads a backup."""
