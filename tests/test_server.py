@@ -115,7 +115,10 @@ class Running:
                 conn.putheader("Host", host)
             for k, v in (headers.items() if hasattr(headers, "items") else headers or ()):      # a list of pairs may repeat a name
                 conn.putheader(k, v)
-            conn.endheaders(body)
+            try:
+                conn.endheaders(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass                      # a request over its limit is refused from its length before all of it is sent; the answer is still there to read
             r = conn.getresponse()
             return r.status, r.msg, r.read()
         finally:
