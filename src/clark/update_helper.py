@@ -45,13 +45,20 @@ import http.client
 import importlib.util
 import json
 import os
+import re
 import shutil
 import signal
 import socket
+import sqlite3
 import stat
 import sys
 import time
 from pathlib import Path
+
+try:
+    import fcntl                       # macOS and Linux; where there is none, the restore's in-use probe alone guards it
+except ImportError:
+    fcntl = None
 
 MARKER_NAME = ".installing.json"
 PLATFORM_COPY = "clark_platform.py"
@@ -76,6 +83,17 @@ REPLACE_FIRST_WAIT = 0.05
 LOCKED = {errno.EACCES, errno.EPERM, errno.EBUSY}
 SPACE_MARGIN = 1024 * 1024
 
+# The way back for the data (#280). These mirror backup.py (NAME, ASIDE, RESTORING, MARKER, LOCK_SUFFIX), which this file cannot import;
+# tests/test_update_rollback_data.py keeps the two alike and proves that both put back the same files.
+DB_NAME = "clark.db"
+BACKUPS = "backups"
+MIGRATE_COPY = re.compile(r"clark-([0-9]{8}T[0-9]{6}Z)-migrate(?:-([0-9]+))?\.db")
+RESTORING = ".restoring"
+RESTORE_MARKER = ".restoring.json"
+LOCK_SUFFIX = ".restore.lock"
+SIDES = ("", "-wal", "-shm", "-journal")
+COPY_SLACK = 2.0                       # seconds: a file time may be rounded down by the disk
+
 # Exit codes of main(): installed or nothing to do; rolled back; not everything could be put back; still running.
 OK, ROLLED_BACK, NOT_RESTORED, BUSY = 0, 1, 2, 3
 
@@ -94,6 +112,11 @@ MESSAGES = {
     "generic": "Try again. If it keeps happening, send the file {log} to the clark team.",
     "not_restored": "The update didn't install, and not everything could be put back yet. Your projects and settings are safe. "
                     "Open clark again to finish putting it back. If that doesn't work, send the file {log} to the clark team.",
+    "rolled_back_data": "The update didn't install, and version {from_} has been restored with your data as it was before the "
+                        "update. {why}",
+    "data_pending": "The update didn't install, and version {from_} has been restored. Your data was not put back automatically "
+                    "because {why}. Your data is safe, but it is in the newer layout, so version {from_} can't open it yet. "
+                    "Install the update again and choose Undo update to put it back, or send the file {log} to the clark team.",
     "finished": "The last update stopped part way, so the old version was put back. Your projects and settings are safe. "
                 "You can try the update again from Settings.",
     "busy": "An update is still being installed. Wait a minute, then open clark again.",
@@ -371,6 +394,7 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
     from clark import updates                # the names come from files on disk: '', '..' and absolute names are refused
     updates.check_record_names(old)
     updates.check_record_names(new)
+    state = read_db_state(Path(data_dir) / DB_NAME) or {}          # a read-only look; no database, or one that can't be read: no data step later
     shipped = sorted(set(old["files"]) | set(new["files"]) | {MANIFEST})
     names = order_entries({rel.split("/")[0] for rel in shipped})
     entries = [{"name": n, "had_old": os.path.lexists(app / n), "in_new": os.path.lexists(staging / n)} for n in names]
@@ -380,6 +404,7 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
         "entries": entries, "shipped": shipped, "new_files": {r: row for r, row in new["files"].items()},
         "manifest_sha": sha256_of(staging / MANIFEST), "before": hash_tree(app, names), "server_pid": server_pid, "port": port,
         "mark_header": mark_header, "mark": mark, "phase": "staged", "helper_pid": None, "new_pid": None, "done": [],
+        "schema_before": state.get("schema"), "db_id_before": state.get("db_id"), "started_at": time.time(),
     }
     updates_dir(data_dir).mkdir(parents=True, exist_ok=True)
     marker["helper_dir"] = str(copy_helper(data_dir, stamp))
@@ -418,6 +443,256 @@ def read_result(data_dir):
         return read_json(updates_dir(data_dir) / RESULT_NAME)
     except (OSError, ValueError):
         return None
+
+
+# --- the data's way back (#280) ---------------------------------------------------------------------------------------
+
+class Refused(Exception):
+    """The data could not be put back, and was left as it is. `key` picks the reason a person reads (REASONS)."""
+
+    def __init__(self, key, text=""):
+        self.key = key
+        super().__init__(text or key)
+
+
+REASONS = {
+    "running": "the new version was still running",
+    "busy": "another program was using it",
+    "no_copy": "the copy of your data kept from before the update couldn't be found",
+    "bad_copy": "the copy of your data kept from before the update didn't pass its checks",
+    "mismatch": "the copy of your data kept from before the update belongs to a different version",
+    "stopped": "something stopped it part way",
+    "unchecked": "the copy that was put back didn't pass its final check, so it was taken out again",
+}
+
+
+def read_db_state(path, readonly=False):
+    """{"schema": int, "db_id": str or None} from the database's meta table, or None when there is no file, it can't be read or it
+    has no usable version. Changes nothing (query_only). `readonly` opens the file with no power to write at all (a backup copy)."""
+    path = Path(path)
+    if not path.is_file():
+        return None
+    try:
+        if readonly:
+            con = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+        else:
+            con = sqlite3.connect(str(path), timeout=5)
+            con.execute("PRAGMA query_only = ON")
+    except sqlite3.Error:
+        return None
+    try:
+        return meta_state(con)
+    finally:
+        con.close()
+
+
+def meta_state(con):
+    """read_db_state's answer from a connection that is already open (the restore reads the file it holds through its own probe)."""
+    try:
+        meta = {k: v for k, v in con.execute("SELECT k, v FROM meta")}
+    except sqlite3.Error:
+        return None
+    version = str(meta.get("schema_version", ""))
+    return {"schema": int(version), "db_id": meta.get("db_id")} if version.isdigit() else None
+
+
+def table_stats(con):
+    """{table: (rows, highest rowid)} for every table of the file: what is compared to tell whether anything was added or changed."""
+    stats = {}
+    for (name,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").fetchall():
+        quoted = '"' + name.replace('"', '""') + '"'
+        count = con.execute(f"SELECT count(*) FROM {quoted}").fetchone()[0]
+        try:
+            top = con.execute(f"SELECT max(rowid) FROM {quoted}").fetchone()[0]
+        except sqlite3.OperationalError:            # a table without a rowid
+            top = None
+        stats[name] = (count, top)
+    return stats
+
+
+def check_copy_file(path, schema, db_id):
+    """Open `path` read-only and check it is the whole database to put back (backup.check_copy's checks, plus the schema and the
+    identity this update recorded). Returns its table_stats. Refused("bad_copy") when it is damaged, Refused("mismatch") when it is
+    another database or another version."""
+    try:
+        con = sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+    except (sqlite3.Error, OSError) as e:
+        raise Refused("bad_copy", f"{type(e).__name__}") from e
+    try:
+        if con.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or con.execute("PRAGMA foreign_key_check").fetchall():
+            raise Refused("bad_copy", "the check found damage")
+        meta = {k: v for k, v in con.execute("SELECT k, v FROM meta")}
+        if str(meta.get("schema_version", "")) != str(schema) or (db_id and meta.get("db_id") != db_id):
+            raise Refused("mismatch", "the copy is another version or another database")
+        return table_stats(con)
+    except sqlite3.Error as e:
+        raise Refused("bad_copy", f"{type(e).__name__}") from e
+    finally:
+        con.close()
+
+
+def migrate_copies(backups, started_at):
+    """The `migrate` copies in the backups folder made since the update began, newest first: [Path]. Only exact names, ordinary files
+    that aren't links (backup.valid_name's rule), never one an earlier update took."""
+    found = []
+    try:
+        names = os.listdir(backups)
+    except OSError:
+        return found
+    for name in names:
+        m = MIGRATE_COPY.fullmatch(name)
+        path = Path(backups) / name
+        try:
+            st = os.lstat(path)
+        except OSError:
+            continue
+        if m and stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and st.st_mtime >= (started_at or 0) - COPY_SLACK:
+            found.append((m.group(1), int(m.group(2) or 1), path))
+    return [p for _, _, p in sorted(found, reverse=True)]
+
+
+def take_restore_lock(db):
+    """backup._take_restore_lock: the restore lock, exclusively and without waiting; the open file (keep it open), or None where
+    there is no fcntl. Refused("busy") when a restore or a reader holds it."""
+    if fcntl is None:
+        return None
+    try:
+        held = open(str(db) + LOCK_SUFFIX, "ab")
+    except OSError:
+        return None
+    try:
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        held.close()
+        raise Refused("busy", "the restore lock is held")
+    return held
+
+
+def probe_not_in_use(db):
+    """store.in_use: open the database with no wait and take its lock for ourselves, so nothing else can open it until the
+    returned connection is closed. Refused("busy") when something has it open. A file that is not a database passes."""
+    try:
+        probe = sqlite3.connect(str(db), timeout=0, isolation_level=None)
+    except sqlite3.Error as e:
+        raise Refused("busy", "can't be opened") from e
+    try:
+        probe.execute("PRAGMA locking_mode = EXCLUSIVE")
+        probe.execute("SELECT count(*) FROM sqlite_master").fetchone()
+        return probe
+    except sqlite3.OperationalError as e:
+        probe.close()
+        raise Refused("busy", "locked or can't be opened") from e
+    except sqlite3.DatabaseError:
+        return probe
+
+
+def new_aside(backups, now=None):
+    """backup._new_aside: a new, private `replaced-<UTC>` folder (a number after it if that name is taken)."""
+    base = "replaced-" + stamp_of(now)
+    n = 1
+    while True:
+        aside = Path(backups) / (base if n == 1 else f"{base}-{n}")
+        try:
+            os.mkdir(aside, 0o700)
+            return aside
+        except FileExistsError:
+            n += 1
+
+
+def put_back_database(db, copy, schema, db_id, live_stats, say=None):
+    """Put the database `copy` back over `db`, which must not be in use. The rules are backup._restore_path's: the copy is written
+    beside the database as `<db>.restoring` and checked BEFORE anything is moved; the database and its -wal, -shm and -journal then
+    move, whole and together, into `backups/replaced-<UTC>/` (kept, never deleted); the copy goes in with one os.replace; a note
+    (`<db>.restoring.json`) is there between the first move and the last, so a stop in between is finished by the old version's own
+    start (backup.finish_restore) or by this function. The restored file is then opened read-only and checked again, and if it fails
+    that check it is taken out and the aside put back. Returns (the aside folder, whether the replaced database held anything the
+    copy does not). Raises Refused; the database is then where it was."""
+    db, backups = Path(db), Path(db).parent / BACKUPS
+    restoring = db.with_name(db.name + RESTORING)
+    marker = db.with_name(db.name + RESTORE_MARKER)
+    for stale in (restoring, marker):
+        stale.unlink(missing_ok=True)
+    try:
+        fd = os.open(str(restoring), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as dst, open(copy, "rb") as src:
+            shutil.copyfileobj(src, dst)
+            dst.flush()
+            os.fsync(dst.fileno())
+        copy_stats = check_copy_file(restoring, schema, db_id)      # checked as written, before anything is moved
+        aside = new_aside(backups)
+    except Refused:
+        restoring.unlink(missing_ok=True)
+        raise
+    except OSError as e:
+        restoring.unlink(missing_ok=True)
+        raise Refused("stopped", f"{type(e).__name__}: {e}") from e
+    changed = any(live_stats.get(t) != v for t, v in copy_stats.items()) if live_stats is not None else True
+    moved = []
+    try:
+        write_json(marker, {"aside": aside.name})
+        for side in SIDES:
+            source = Path(str(db) + side)
+            if os.path.lexists(source):
+                os.rename(source, aside / source.name)
+                moved.append(source)
+        os.replace(restoring, db)
+    except OSError as e:
+        if db.exists() and not restoring.exists() and moved:
+            pass                                 # the copy is in and the old one is aside: finished
+        else:                                    # put back whatever was moved; the database is where it was
+            for source in moved:
+                with_suppressed(os.rename, aside / source.name, source)
+            restoring.unlink(missing_ok=True)
+            marker.unlink(missing_ok=True)
+            with_suppressed(aside.rmdir)
+            raise Refused("stopped", f"{type(e).__name__}: {e}") from e
+    marker.unlink(missing_ok=True)
+    try:                                         # the final check, on the file now in place
+        state = read_db_state(db, readonly=True)
+        if state is None or state["schema"] != schema or (db_id and state["db_id"] != db_id):
+            raise Refused("unchecked", "the restored file reports another version")
+        con = sqlite3.connect(f"{db.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+        try:
+            if con.execute("PRAGMA quick_check").fetchone()[0] != "ok" or table_stats(con) != copy_stats:
+                raise Refused("unchecked", "the restored file differs from the copy")
+        finally:
+            con.close()
+    except (Refused, sqlite3.Error) as e:        # take the restored file out again and put the replaced one back
+        failed = aside / (db.name + ".failed")
+        with_suppressed(os.rename, db, failed)
+        for source in moved:
+            with_suppressed(os.rename, aside / source.name, source)
+        if isinstance(e, Refused):
+            raise
+        raise Refused("unchecked", f"{type(e).__name__}") from e
+    return aside, changed
+
+
+def with_suppressed(action, *args):
+    try:
+        action(*args)
+    except OSError:
+        pass
+
+
+def finish_put_back(db):
+    """backup.finish_restore for this file: a put-back that stopped between the first move and the last (the note is there and the
+    database is not) is finished by moving the checked copy into place. True if it did. Nothing else is ever touched."""
+    db = Path(db)
+    restoring, marker = db.with_name(db.name + RESTORING), db.with_name(db.name + RESTORE_MARKER)
+    if db.exists() or not marker.exists() or not restoring.is_file():
+        return False
+    try:
+        aside = db.parent / BACKUPS / read_json(marker)["aside"]
+        for side in SIDES[1:]:                   # a left-over sidecar beside the restored copy would be replayed into it
+            stray = Path(str(db) + side)
+            if os.path.lexists(stray) and aside.is_dir():
+                os.rename(stray, aside / stray.name)
+        os.replace(restoring, db)
+        marker.unlink(missing_ok=True)
+    except (OSError, ValueError, KeyError):
+        return False
+    return True
 
 
 # --- the helper -------------------------------------------------------------------------------------------------------
@@ -488,6 +763,9 @@ class Run:
     def result(self, status, message, step=""):
         doc = {"status": status, "from": self.m["from"], "to": self.m["to"], "stamp": self.m["stamp"], "message": message,
                "step": step, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        found = self.m.get("data_restore")
+        if isinstance(found, dict):
+            doc["data"] = found.get("status")             # "restored" or "pending": the page can tell the two apart
         try:
             write_json(updates_dir(self.data) / RESULT_NAME, doc)
         except OSError:
@@ -628,6 +906,99 @@ class Run:
         if self.m.get("new_pid"):
             self.seams.stop_process(self.m["new_pid"], self.m.get("new_ident"))
 
+    def r_restore_data(self):
+        """Put the database back as it was before the update, if the new version migrated it (#280). It runs after the new server
+        was stopped and before the old one is started, because the old version refuses data in a newer layout. A migration is one
+        transaction, so stopping the new server in the middle of one leaves either the old layout or the new, and this step
+        works from whichever it finds; that is what makes stopping a slow migration safe. Does nothing when the layout is still
+        the one recorded at the start (no migration ran, or this step already ran), so running it again is harmless. It never
+        raises for a refusal: the old files are put back anyway and the reason is kept for the person (data_restore)."""
+        before = self.m.get("schema_before")
+        db = self.data / DB_NAME
+        if not isinstance(before, int):
+            return                                       # there was no readable database at the start: nothing to compare with
+        if finish_put_back(db):                          # an earlier run stopped between its first move and its last
+            self.save(data_restore=self.restored(db, before, None, True))
+            return
+        live = read_db_state(db)
+        if live is None or live["schema"] <= before:
+            return                                       # no migration ran, or the data is already back (or can't be read: left alone)
+        copy = None
+        try:
+            if not self.seams.process_gone(self.m.get("new_pid")):
+                raise Refused("running", "the new server is still running")
+            held = take_restore_lock(db)
+            try:
+                probe = probe_not_in_use(db)
+                try:
+                    live = meta_state(probe)             # looked at again with the file held (through the probe: it holds the lock)
+                    if live is None or live["schema"] <= before:
+                        return
+                    if self.m.get("db_id_before") and live["db_id"] != self.m["db_id_before"]:
+                        raise Refused("mismatch", "the data belongs to another database")
+                    copy = self.find_copy(before)
+                    stats = table_stats(probe) if probe is not None else None
+                    aside, changed = put_back_database(db, copy, before, self.m.get("db_id_before"), stats)
+                finally:
+                    if probe is not None:
+                        probe.close()
+            finally:
+                if held is not None:
+                    held.close()
+        except Refused as e:
+            self.keep_pending(e, live["schema"], copy)
+            return
+        except (OSError, sqlite3.Error) as e:
+            self.keep_pending(Refused("stopped", f"{type(e).__name__}: {e}"), live["schema"], copy)
+            return
+        self.save(data_restore=self.restored(db, before, aside, changed))
+
+    def find_copy(self, before):
+        """The safety copy the new version's migration took: the newest `migrate` copy made since this update began that passes
+        check_copy_file for the recorded layout and database. Refused("no_copy") when there is none; the reason of the newest copy
+        that was found and failed its checks otherwise."""
+        copies = migrate_copies(self.data / BACKUPS, self.m.get("started_at"))
+        if not copies:
+            raise Refused("no_copy", "no migrate copy since the update began")
+        problem = None
+        for path in copies:
+            try:
+                check_copy_file(path, before, self.m.get("db_id_before"))
+                return path
+            except Refused as e:
+                problem = problem or e
+        raise problem
+
+    def restored(self, db, before, aside, changed):
+        return {"status": "restored", "aside": aside.name if aside else None, "changed": bool(changed), "schema": before}
+
+    def keep_pending(self, error, live_schema, copy):
+        """The data was left as it is: remember the plain reason, and record on the update's backup set that putting the data back
+        is waiting, with the copy that was found (or none), so Settings offers Undo update (update_install.last_update)."""
+        self.log("rollback:data", False, 0, f"{error.key}: {error}")
+        self.save(data_restore={"status": "pending", "reason": REASONS.get(error.key, REASONS["stopped"]), "key": error.key})
+        folder = self.m.get("backup_dir")
+        record_file = Path(folder) / "update.json" if folder else None
+        try:
+            record = read_json(record_file)
+            record["migration"] = {"backup": copy.name if copy else None, "from": self.m["schema_before"], "to": live_schema}
+            record["data_restore_pending"] = {"reason": REASONS.get(error.key, REASONS["stopped"])}
+            write_json(record_file, record)
+        except (OSError, ValueError, TypeError, AttributeError):
+            pass                                         # the message still says what to do; the log has the reason
+
+    def data_words(self, message):
+        """The sentence for a way back that touched the data (or tried to), else `message` unchanged."""
+        found = self.m.get("data_restore")
+        if not isinstance(found, dict):
+            return message
+        if found.get("status") == "restored":
+            where = f"the folder {found['aside']} of clark's backups" if found.get("aside") else "clark's backups folder"
+            why = (f"Changes made in the last few seconds are kept in {where}, in case you need them." if found.get("changed")
+                   else f"Nothing had been added or changed since the update. The newer data file is kept in {where}.")
+            return self.message("rolled_back_data", why)
+        return self.message("data_pending", found.get("reason", REASONS["stopped"]))
+
     def r_verify(self):
         names = [e["name"] for e in self.m["entries"]]
         now = hash_tree(self.app, names)
@@ -647,6 +1018,7 @@ class Run:
     def backward(self):
         self.save(phase="rolling_back")
         self.step("rollback:stop_new", self.r_stop_new)
+        self.step("rollback:data", self.r_restore_data)        # after the new server has stopped, before the old one starts
         for e in reversed(self.m["entries"]):
             self.step(f"rollback:{e['name']}", lambda e=e: self.back_entry(e))
         self.step("rollback:verify", self.r_verify)
@@ -690,7 +1062,7 @@ def rollback_and_report(run, key, text, restart=True, finished=False):
         run.marker_file.unlink()
     except OSError:
         pass
-    message = run.message("finished") if finished else explain(run, key)
+    message = run.data_words(run.message("finished") if finished else explain(run, key))
     result = run.result("rolled_back", message, step)
     run.log("rolled_back", True, 0, text)
     if restart:
