@@ -413,5 +413,16 @@ class Request(Base):
                     self.assertNotIn(jargon, words.lower())
 
 
+class MemoryOnlyList(unittest.TestCase):
+    """#241: the page's undo list is memory only and says so (tests/test_undo_key.py drives the real page for the same words)."""
+
+    def test_the_memory_only_list_is_said_plainly(self):
+        from pathlib import Path
+        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/stores/changes.js").read_text(encoding="utf-8")
+        self.assertIn("Nothing to undo since this page was opened. Older changes are in Activity.", src)
+        self.assertIn('say("note", NOTHING_TO_UNDO)', src)      # the empty-list path says it
+        self.assertEqual(src.count("Nothing to undo"), 1)      # one place holds the words
+
+
 if __name__ == "__main__":
     unittest.main()
