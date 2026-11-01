@@ -42,7 +42,7 @@ class Build(unittest.TestCase):
 
     def test_a_request_holds_text_only(self):
         names = {f.name for f in dataclasses.fields(ask.Request)}
-        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "system"})   # dropped_turns is a count; system is the caller's fixed rules text ("" = ask clark's own)
+        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "system", "canary"})   # dropped_turns is a count; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets
         for bad in ("tool", "file", "path", "key", "tools", "files", "env"):
             self.assertNotIn(bad, names)
 

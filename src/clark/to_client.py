@@ -33,7 +33,7 @@ from clark import platform, publish
 SETTING = "projects.publish_client"      # where the folder is kept (docs/handoff/data-model.md): an absolute path on this computer
 CHOICES = ("number", "rename", "overwrite", "cancel")
 KIND = "client"                          # the kind of publication this module logs
-ALLOWED_KEYS = ("project", "to_client", "on_clash", "new_name", "confirmed")
+ALLOWED_KEYS = ("project", "to_client", "on_clash", "new_name", "confirmed", "section_style")
 MIN_PREFIX = 2                           # a name that has to be shortened keeps at least this much of the code
 EXT = ".html"
 
@@ -87,6 +87,7 @@ MESSAGES.update({
     "name_ends_badly": "A file name can't end with a dot or a space. Type another name.",
     # the request
     "to_client_flag": "Something went wrong with the To client choice. Nothing was published. Restart clark and try again.",
+    "unknown_section_style": "“{value}” isn't a section style clark has. Choose one of: {allowed}. Nothing was published.",
     "confirmed_flag": "Something went wrong with the overwrite confirmation. Nothing was published. Restart clark and try again.",
     "overwrite_unconfirmed": "Overwriting needs your confirmation. Nothing was published. Restart clark and try again.",
     "names_a_folder": "Something went wrong with the folder choice. Nothing was published. Restart clark and try again.",
@@ -448,6 +449,15 @@ class RealFs:
     def remove(self, path):
         os.unlink(path)
 
+    def make_folder(self, path):
+        """Make the one folder `path` (its parent must be there), as a section template's files folder (#96, "Report files" in the
+        client folder). False if something is already called that; nothing is replaced."""
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            return False
+        return True
+
     def stale_parts(self, folder, older_than=600):
         """The half-written temporary files an earlier publish left if clark was stopped part-way (`.NAME.html.PID.HEX.part`
         beside the copy, which OneDrive would upload): only files of exactly that shape, at least `older_than` seconds old."""
@@ -760,7 +770,8 @@ def send_to_client(fs, *, saved_folder, data, project, at, week_ending, today, d
 # ===== The request =====
 def validate_request(body, saved_client_folder):
     """The publish request's body, checked. Returns {status: 200, to_client} or {status: 400, message}. Only `project`,
-    `to_client` (exactly true or false when given), `on_clash`, `new_name` and `confirmed` may be sent: a request never names a
+    `to_client` (exactly true or false when given), `on_clash`, `new_name`, `confirmed` and `section_style` (one of the four section
+    styles; any other word is refused by name, and nothing is published) may be sent: a request never names a
     folder or a file, and the client folder is always the one saved in Settings. An Overwrite (`on_clash: "overwrite"`) is
     allowed only with `"confirmed": true`, the boolean itself: missing, false, "true" and 1 are all refused, so a script
     can't pass for the dialog's confirm step. The answer carries `confirmed` (True only for that exact value)."""
@@ -778,6 +789,9 @@ def validate_request(body, saved_client_folder):
     confirmed = body.get("confirmed") is True
     if "project" in body and not isinstance(body["project"], str):
         return {"status": 400, "message": MESSAGES["bad_project"]}
+    if body.get("section_style") is not None and body["section_style"] not in publish.STYLES:
+        named = body["section_style"] if isinstance(body["section_style"], str) else "that value"
+        return {"status": 400, "message": MESSAGES["unknown_section_style"].format(value=named, allowed=", ".join(publish.STYLES))}
     if body.get("on_clash") is not None and body["on_clash"] not in CHOICES:
         return {"status": 400, "message": MESSAGES["unknown_choice"]}
     if body.get("new_name") is not None and not isinstance(body["new_name"], str):

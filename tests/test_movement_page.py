@@ -287,6 +287,9 @@ class Block(Base):
             self.open_movement(p)
             p.js("document.querySelector('#mv-move').click()")
             p.until("!!document.querySelector('.mvm-form')", "the form opened")
+            # The form takes focus after the next frame, not when it is drawn. A key pressed before then goes to the page, not
+            # the form, and on a slow runner that frame can come later than the next command.
+            p.until("document.activeElement.id === 'mv-to'", "focus went to the first field")
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('.mvm-form')", "Escape closed it")
             p.until("document.activeElement.id === 'mv-move'", "focus is back on Move")
