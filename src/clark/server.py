@@ -101,6 +101,9 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
+# #247, #273: no tracker-only limit is needed. A section's content, tracker or not, is read up to SECTION_BODY_LIMIT, which is above the widest
+# tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it gets the
+# general words. /api/change is small. tests/test_tracker_route.py pins this over the real route.
 CHANGE_BODY_LIMIT = 16 * 1024                   # a change is a few short fields; a section's content goes to /api/section-body
 SECTION_BODY_LIMIT = 2 * 64 * 1024 + 4 * 1024   # #96, #273: twice the largest section content (64 KB; the body is a string inside the request, so each quote and backslash is escaped twice) plus 4 KB; a test ties it to the registry
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
