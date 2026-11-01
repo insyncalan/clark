@@ -312,7 +312,7 @@ html:not([data-secstyle="card"]) .frame.report { padding: 4px 28px 0; background
 .sec-body blockquote { margin: 0 0 10px; padding-left: 12px; border-left: 3px solid var(--grey-200); }
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
 .sec.is-hidden { border-style: dashed; }
-.sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h { opacity: .65; }      /* the title and body dim; the square and the tag keep their strength */
+.sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h { opacity: .75; }      /* the title and body dim; the square and the tag keep their strength */
 .tag.hid { flex: none; }
 .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }
 .secs.drop-end { box-shadow: 0 3px 0 var(--brand-cyan); }
@@ -851,6 +851,7 @@ html[data-secstyle="card"] .secs { padding: 4px 20px 12px; border: 1px solid var
 html[data-secstyle="card"] .sec { --sec-px: 0px; padding: 12px 0 4px; background: transparent; border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; box-shadow: none; }
 html[data-secstyle="card"] .sec.is-hidden { border-top-style: dashed; }
 html[data-secstyle="card"] .secs > .sec:first-child { border-top: 0; }
+html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }      /* the flat sections keep the drag drop-line */
 
 /* The rich editor (#66). Colours from the tokens only, so dark mode follows. The editor adds no <style> of its own (injectCSS is
    false), so the rules ProseMirror needs are here. */

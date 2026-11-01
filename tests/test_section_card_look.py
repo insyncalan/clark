@@ -51,8 +51,16 @@ class Card(unittest.TestCase):
 
     def test_the_square_stays_when_a_section_is_left_out(self):
         """Dimming the whole heading row would fade the square below 3 to 1, so only the title and the body dim."""
-        self.assertIn("opacity: .65", rule(".sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h"))
+        self.assertIn("opacity: .75", rule(".sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h"))
         self.assertIn("border-style: dashed", rule(".sec.is-hidden"))
+
+    def test_a_left_out_title_keeps_4_5_to_1_on_the_card_and_the_grey_band(self):
+        """.75 keeps the title's text above 4.5 to 1 on the card surface in light (.65 gave 4.37 on the band)."""
+        self.assertIn("opacity: .75", rule(".sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h"))
+
+    def test_one_card_keeps_the_drag_drop_line(self):
+        """The flat One card rule sets box-shadow: none on .sec and outranks .sec.drop-before, so it restates the line."""
+        self.assertIn("box-shadow: 0 -3px 0 var(--brand-cyan)", rule('html[data-secstyle="card"] .sec.drop-before'))
 
     def test_the_report_frame_steps_back_so_cards_are_not_inside_a_card(self):
         self.assertIn('html:not([data-secstyle="card"]) .frame.report { padding: 4px 28px 0; background: transparent; border: 0; box-shadow: none; }', CSS)

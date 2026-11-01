@@ -371,7 +371,7 @@ html:not([data-secstyle="card"]) .frame.report { padding: 4px 28px 0; background
 .sec-body blockquote { margin: 0 0 10px; padding-left: 12px; border-left: 3px solid var(--grey-200); }
 
 .sec.is-hidden { border-style: dashed; }
-.sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h { opacity: .65; }      
+.sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h { opacity: .75; }      
 .tag.hid { flex: none; }
 .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }
 .secs.drop-end { box-shadow: 0 3px 0 var(--brand-cyan); }
@@ -899,6 +899,7 @@ html[data-secstyle="card"] .secs { padding: 4px 20px 12px; border: 1px solid var
 html[data-secstyle="card"] .sec { --sec-px: 0px; padding: 12px 0 4px; background: transparent; border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; box-shadow: none; }
 html[data-secstyle="card"] .sec.is-hidden { border-top-style: dashed; }
 html[data-secstyle="card"] .secs > .sec:first-child { border-top: 0; }
+html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }      
 
 
 .rt { position: relative; margin: 8px 0; border: 1px solid var(--grey-300); border-radius: var(--radius-lg); background: var(--surface); }
