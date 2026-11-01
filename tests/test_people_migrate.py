@@ -116,11 +116,11 @@ class PeopleStep(Base):
 
 
 class InTheOrderedTable(Base):
-    """The step as entry 8 of the real table, and what a new file looks like beside an upgraded one."""
+    """The step as entry 9 of the real table, and what a new file looks like beside an upgraded one."""
 
-    def test_the_step_is_registered_as_8_and_the_version_matches(self):
+    def test_the_step_is_registered_as_9_and_the_version_matches(self):
         self.assertIn((9, store_module.migrate_people), store_module.MIGRATIONS)
-        self.assertEqual(store_module.SCHEMA_VERSION, 8)
+        self.assertEqual(store_module.SCHEMA_VERSION, 9)
         self.assertEqual(max(n for n, _ in store_module.MIGRATIONS), store_module.SCHEMA_VERSION)
 
     def test_a_version_1_file_with_data_moves_up_to_the_current_version(self):
