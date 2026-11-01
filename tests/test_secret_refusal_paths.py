@@ -25,11 +25,6 @@ from clark import ai_menu as am, ask, server as sv
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
 SAMPLES = {**{"a " + k: v for k, v in REFUSED.items()}, **{"b " + k: v for k, v in ATTACKS.items()}}
-# FINDING (#253): the question path screens with ask.looks_like_secret (ask.py:96), a narrower list than secret_screen (which the
-# selection path uses). These kinds are NOT refused in a question today and so reach the provider; they are kept out of the "is
-# refused" tests and listed in the expected-failure test below, which turns into an unexpected success when the gap is closed.
-QUESTION_GAPS = {"github classic", "github oauth", "github server", "json password", "json api key", "table cell",
-                 "table header column", "csv column", "pw colon", "stripe live", "env line", "pass key", "quoted passphrase"}
 
 
 def secret_part(name, sample):
@@ -77,27 +72,16 @@ class QuestionRoute(route_base.Base):
 
     def test_each_kind_in_the_question_is_refused_and_nothing_is_sent(self):
         for name, sample in SAMPLES.items():
-            if name[2:] in QUESTION_GAPS:
-                continue
             with self.subTest(name):
                 self.refused(name, sample, q="Please use this: " + sample + " to check the plan")
         self.assertEqual(self.provider.sent, [])
 
     def test_each_kind_in_an_earlier_turn_is_refused_and_nothing_is_sent(self):
         for name, sample in SAMPLES.items():
-            if name[2:] in QUESTION_GAPS:
-                continue
             with self.subTest(name):
                 earlier = [{"role": "user", "text": "Note: " + sample}, {"role": "assistant", "text": "Noted."}]
                 self.refused(name, sample, earlier=earlier)
         self.assertEqual(self.provider.sent, [])
-
-    @unittest.expectedFailure
-    def test_FINDING_the_kinds_the_selection_screen_refuses_are_also_refused_in_a_question(self):
-        for name, sample in SAMPLES.items():
-            if name[2:] in QUESTION_GAPS:
-                with self.subTest(name):
-                    self.refused(name, sample, q="Please use this: " + sample + " to check the plan")
 
     def test_the_refusal_is_the_plain_words(self):
         got = self.refused("anthropic", REFUSED["anthropic"], q="key " + REFUSED["anthropic"])
