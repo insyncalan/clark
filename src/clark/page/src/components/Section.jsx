@@ -12,6 +12,8 @@
 // is ever added here.
 import { dropAt, fromFile, data } from "../stores/report.js";
 import { templateFor } from "../templates/index.js";
+import { ItemRows } from "./ItemRows.jsx";
+import { KINDS } from "../logic/sectionRows.js";
 import { anchorId } from "../logic/minimap.js";
 import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
@@ -46,6 +48,7 @@ export function Section({ section, index, count, slot, anchor, tools, onExport }
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
         : fromFile.value && section.type === "text"
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
+        : KINDS[section.type] ? <ItemRows type={section.type} />          // risks and issues, actions, decisions: their rows (A-D5)
         : <p class="quiet">Not shown on this page yet.</p>}
     </article>
   );
