@@ -182,14 +182,16 @@ class Publishing(TextBody):
         for never in ("ZQ-HIDDEN-WORDS", "ZQ_RAN", "onerror", "onclick", "javascript:", "avascript:"):
             self.assertNotIn(never, text, never)
 
-    def test_the_published_body_is_the_stored_text_for_what_the_editor_writes(self):
+    def test_the_published_body_is_the_stored_text_for_the_everyday_formatting(self):
+        # Not yet the same for a checklist box (the file drops it) and an http: link (the file keeps the words, not the address): the
+        # publish build still has its own cleaner (publish.clean_html, #39), not sanitise.clean_html. That is publish.py's change, not this one.
         body = ('<h2>Heading</h2><p>A <strong>bold</strong> and <em>soft</em> and <s>struck</s> line<br>next</p>'
                 '<ul><li>one</li><li>two</li></ul><ol><li>first</li></ol><blockquote><p>quoted</p></blockquote><hr>'
                 '<p>See <a href="https://example.com/a" rel="noopener noreferrer">the notes</a></p>')
         self.assertEqual(sanitise.clean_html(body), body, "the sample is already clean, so it is what the editor writes")
         self.write(SUMMARY, body)
         published = publish.clean_html(self.stored(SUMMARY))
-        self.assertEqual(published, self.stored(SUMMARY), "the file draws the saved text exactly as View does")
+        self.assertEqual(published, self.stored(SUMMARY), "the file draws the saved text as View does")
 
 
 class Seam(unittest.TestCase):
