@@ -411,6 +411,14 @@ class Saving(ServerTest):
         status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 2048 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
+    def test_the_change_route_limit_is_two_largest_sections_plus_4_kb(self):
+        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; a separate /api/section-body route is the later fix (Tech Debt)
+        from clark import section_bodies
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, 135168)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
+
     def test_change_and_undo_limits_and_415(self):
         running = self.seams()
         self.addCleanup(running.close)
