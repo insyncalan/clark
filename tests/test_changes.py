@@ -942,9 +942,9 @@ class ByUser(Api):
                          "Someone Else")
 
 
-ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description"},
-               "raid": {"status", "workstream", "owner", "due_date", "milestone", "use_case", "description"},
-               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision"}}      # #67: + the title
+ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "client_message"},
+               "raid": {"status", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message"},
+               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_message"}}      # #67: + the title; the report rows: + the client wording
 
 
 class Items(Api):
@@ -1164,8 +1164,25 @@ class Items(Api):
         self.assertEqual(changes.NO_ARCHIVE, "An item can't be archived by editing its details. Archiving isn't available from the page yet. Ask the clark team if you need an item hidden now.")
         self.assertEqual(self.s.read("actions", ref=self.a)["archived"], 0)
 
+    def test_the_client_wording_of_a_work_item_is_changed_in_place_by_the_report_rows_and_undone(self):
+        """A-D5: the report rows draw only the client's wording, so Edit changes that wording (client_message) in place: plain
+        text of 200 characters at most, never blank, one step and one Undo; the team's own text (description) is untouched."""
+        for kind, ref, title in (("actions", self.a, "description"), ("raid", self.r, "description"), ("decisions", self.d, "decision")):
+            with self.subTest(kind=kind):
+                before = self.s.read(kind, ref=ref)
+                body = self.go(kind, ref, client_message="What the client reads")
+                self.assertNotIn("client_message", body["item"], "the wording is never said back in a reply, as a title is not")
+                row = self.s.read(kind, ref=ref)
+                self.assertEqual((row["client_message"], row[title]), ("What the client reads", before[title]), "the team's own text is untouched")
+                self.no(self.item(kind, ref, client_message=""), changes.ITEM_VALUE_WORDS)
+                self.no(self.item(kind, ref, client_message="x" * 201), changes.ITEM_VALUE_WORDS)
+                self.no(self.item(kind, ref, client_message="two\nlines"), changes.ITEM_TEXT_WORDS)
+                status, undone = self.undone(body["apply_id"])
+                self.assertEqual(status, 200, undone)
+                self.assertEqual(self.s.read(kind, ref=ref)["client_message"], before["client_message"])
+
     def test_unknown_and_never_fields_are_refused(self):
-        self.no(self.item("actions", self.a, client_message="x"), "The field 'client_message' can't be set here.")
+        self.no(self.item("actions", self.a, latest_update="x"), "The field 'latest_update' can't be set here.")
         self.no(self.item("actions", self.a, client_visible=0), "The field 'client_visible' can't be set here.")
         self.no(self.item("actions", self.a, closed="2026-10-02"), "The field 'closed' can't be set here.")
         self.no(self.item("actions", self.a, project="XYZ"), "The field 'project' can't be set here.")

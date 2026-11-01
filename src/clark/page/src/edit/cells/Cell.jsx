@@ -34,14 +34,14 @@ function refocus(k) {
   }, 0);
 }
 
-export function Cell({ row, field, said, children }) {
+export function Cell({ row, field, said, keep, children }) {
   const button = useRef(null);
   if (!canPick(row, field)) {
     const why = whyFixed(row, field);                       // a RAID item's priority: say why a click does nothing
     return why ? <span class="cell-fixed" data-fixed={`${row.id}:${field}`} title={why}>{children}</span> : children;
   }
   const k = key(row, field), open = openCell.value === k, Picker = PICKERS[field];
-  if (field === "status") { const p = statusPill(row); children = <span class={`pill ${p.class}`}>{p.text}</span>; }   // the picker's own word
+  if (field === "status" && !keep) { const p = statusPill(row); children = <span class={`pill ${p.class}`}>{p.text}</span>; }   // the picker's own word; `keep`: the report rows (ItemRowsEdit) keep the pill they were given (Overdue, Red, ...)
   const close = (back) => { if (openCell.value === k) openCell.value = ""; if (back && button.current) button.current.focus(); };
   const pick = (value) => {
     // #196: on a row that is one of two or more selected, the pick changes that field of every selected row, and says so first.

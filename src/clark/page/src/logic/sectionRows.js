@@ -1,7 +1,8 @@
 // The rows of the Risks and issues, Open actions and Decisions sections (prototype parity A-D5): plain functions, no DOM, no clock.
 // They read only the rows the page already holds (data from /api/data, or a published file's own block, where the build has
 // already dropped every row a client may not read). `today` is passed in: the publish date in a file, the clock on the page clark serves.
-import { isOpen, dayNumber, sortRows, pillOf, colourOf } from "../workItems.js";
+import { isOpen, dayNumber, sortRows, pillOf } from "../workItems.js";
+import { rulesFor, keptRows } from "./publishable.js";
 
 export const KINDS = { raid: ["risk", "issue"], actions: ["action"], decisions: ["decision"] };
 const RECENT = 14;                                                             // a decision made in the last 14 days is still shown
@@ -29,14 +30,22 @@ export function dateWord(row) {
   return row.kind === "action" ? "Due" : "Review by";
 }
 
-// The pill a client reads on a row, in the client's words: "Late" on an action past its date (the help note says the published
-// page reads Overdue as Late), the priority word on a risk or issue (as the row carries it: Urgent, High, Medium or Low) and no
-// pill at all when it has none.
+// The status pill on a row, as the prototype draws it (core.js C.look): a risk or issue reads Red, Amber or Green (its priority's
+// colour), an action Overdue, Delayed, Due soon or Open, a decision Pending, Made or Withdrawn; a closed one reads its status.
+// The same words as the Work items list (workItems.pillOf), so a row says one thing wherever it is read.
 export function clientPill(row, today) {
-  if (row.kind === "risk" || row.kind === "issue") {
-    const c = colourOf(row.priority);
-    return c.colour ? { text: row.priority, class: c.class } : null;
-  }
-  const pill = pillOf(row, today);
-  return pill.text === "Overdue" ? { ...pill, text: "Late" } : pill;
+  return pillOf(row, today);
+}
+
+// The ids the report leaves out (taken off with the eye), from the page's data: the page clark serves holds the list, a published
+// file holds none (the build has already dropped those rows).
+export function hiddenIds(data) {
+  return ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h);
+}
+
+// The rows of a kind that the report would publish, by id, from the page's data: what publish keeps (logic/publishable.js), so what
+// View and Edit draw is what the client reads. The report's own section visibility is left out of it: this section is one of them.
+export function keptIds(data) {
+  const rules = rulesFor({ code: data && data.project && data.project.code, hidden: hiddenIds(data), labelRules: data && data.label_rules, labels: data && data.labels, sections: [] });
+  return new Set(["actions", "raid", "decisions"].flatMap((k) => keptRows(data, k, rules).map((r) => r.id)));
 }

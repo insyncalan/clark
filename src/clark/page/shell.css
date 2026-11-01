@@ -1301,3 +1301,18 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.wl-id { display: inline-flex; align-items: center; gap: 4px; }
+.idl { all: unset; box-sizing: border-box; padding: 2px 4px; margin: -2px -4px; border-radius: var(--radius-sm); color: var(--status-blue-text); cursor: pointer; }
+.idl:hover { text-decoration: underline; text-underline-offset: 2px; }
+.idl:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.wl-row.wl-open { cursor: pointer; }
+.wl-row.wl-open:hover { background: var(--grey-50); }
+.wl-add { padding: 9px 0; border-top: 1px solid var(--grey-100); }
+.wl-add .add-in { width: 100%; min-height: 32px; padding: 4px 10px; border: 1px dashed var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.wl-add .add-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-style: solid; }
+.wl-title .cell-ce { display: inline-block; min-width: 4ch; max-width: 100%; border-radius: var(--radius-sm); box-shadow: inset 0 -1px 0 var(--grey-300); }
+.wl-title .cell-ce:hover { background: var(--grey-100); }
+.wl-title .cell-ce:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.item-rows-edit .note { color: var(--text-muted); }
+.item-rows-edit .add-from { display: inline-block; margin-top: 6px; }
+.item-rows-edit .picker { margin-top: 10px; }
