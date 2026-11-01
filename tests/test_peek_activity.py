@@ -20,7 +20,7 @@ from test_dark_contrast import dark_blocks, ratio  # noqa: E402
 import test_peek as tp  # noqa: E402
 from test_peek import key  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import click  # noqa: E402
+from test_work_filters import click, dblclick  # noqa: E402
 
 SRC = ROOT / "src" / "clark" / "page" / "src"
 TOKENS = ROOT / "src" / "clark" / "brand" / "tokens.css"
@@ -122,12 +122,12 @@ class ActivityBrowser(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 s, sid = self.load_page(cdp, width)
                 ids = self.ids_on_page(cdp, sid)
-                click(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
+                dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
                 self.assertFalse(cdp.js("!!document.querySelector('#peek [role=tablist],[data-activity]')", sid), "no tabs in View")
                 key(cdp, sid, "Escape")
                 self.edit_mode(cdp, sid)
-                click(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
+                dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
                 click(cdp, sid, "[data-pk-tab=activity]")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-activity-row]').length", sid) > 0))
@@ -163,18 +163,18 @@ class ActivityBrowser(unittest.TestCase):
                     cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": theme}]}, sid)
                     ids = self.ids_on_page(cdp, sid)
                     one = f"#work tbody tr[data-id='{ids[0]}'] .c-item"
-                    click(cdp, sid, one)                                    # open in View, close with Esc, at once into Edit
+                    dblclick(cdp, sid, one)                                    # open in View, close with Esc, at once into Edit
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
                     key(cdp, sid, "Escape")
                     self.edit_mode(cdp, sid)
-                    click(cdp, sid, one)
+                    dblclick(cdp, sid, one)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
                     click(cdp, sid, "[data-pk-tab=activity]")
                     self.peek_stays(cdp, sid, ids[0])
                     # in Edit, Esc and the same row clicked again at once (the same address within 400 ms): still open
                     key(cdp, sid, "Escape")
                     self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid), 2))
-                    click(cdp, sid, one)
+                    dblclick(cdp, sid, one)
                     self.peek_stays(cdp, sid, ids[0], rows=False)
                     # Back closes it, Forward brings it back with its Activity tab
                     cdp.js("history.back()", sid)
