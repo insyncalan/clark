@@ -287,6 +287,7 @@ TRACKER_DATE = f"A date must be a real day between {NEEDS_YEARS[0]} and {NEEDS_Y
 TRACKER_DATE_ORDER = "A line can't end before it starts."
 TRACKER_STATUS = "Choose Planned, In progress, Completed or Late."
 TRACKER_PERCENT = "A percentage must be a number from 0 to 100."
+TRACKER_TOTAL = "The lines' weight, planned and achieved figures can each add up to 100% at most."
 TRACKER_COUNT = f"A count must be a whole number from 0 to {TRACKER_COUNT_MAX}, or empty."
 
 
@@ -383,6 +384,9 @@ def _checked_tracker(value, rules):
             raise Bad(TRACKER_TOO_MANY_LINES)
         checked_groups.append({"name": _tracker_text(group["name"], rules, TRACKER_NAME_MAX, TRACKER_NAME_LONG, TRACKER_NAME_MISSING),
                                "lines": [_checked_tracker_line(line, rules) for line in lines]})
+    for key in ("weight", "planned", "achieved"):          # the reading is "shares of the whole" (logic/tracker.js): no total can pass the whole
+        if sum(line[key] for group in checked_groups for line in group["lines"]) > TRACKER_TENTHS[1]:
+            raise Bad(TRACKER_TOTAL)
     return {"v": TRACKER_VERSION, "overall": checked_overall, "columns": {k: columns.get(k, False) for k in TRACKER_COLUMNS},
             "groups": checked_groups}
 
