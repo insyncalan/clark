@@ -491,13 +491,52 @@ class Scan(unittest.TestCase):
                  "eXIf": png_with_text(b"eXIf", b"MM\0*\0\0\0\x08"),
                  "private chunk": png_with_text(b"prVt", b"secret"),
                  "unknown chunk": png_with_text(b"ZZZZ", b"x"),
-                 "chunk longer than the file": head + struct.pack(">I", 999) + b"gAMA"}
+                 "chunk longer than the file": head + struct.pack(">I", 999) + b"gAMA" + b"\0" * 16}
         for label, data in cases.items():
             with self.subTest(label):
                 r = self.repo()
                 r.write("img/a.png", data, "wb")
                 r.commit("add")
                 self.refused(r, "not a well-formed one, or has data after its end")
+
+    def test_a_chunk_longer_than_the_file_is_stopped_before_its_check_value_is_read(self):
+        # Refusing it is not enough to prove the bounds check (the later checks refuse it too), so watch for the CRC being computed.
+        head = b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+        data = head + struct.pack(">I", 4) + b"gAMA" + b"\0" * 4          # says 4, but the 4 check bytes are not there
+        crc = mock.Mock(wraps=zlib.crc32)
+        with mock.patch.object(ci_scan.zlib, "crc32", crc):
+            self.assertFalse(ci_scan._png_ok(data))
+        self.assertEqual(crc.call_count, 1, "only the IHDR chunk may be checked; the cut-off one must stop at the bounds check")
+
+    def test_each_png_chunk_type_has_its_own_size_limit(self):
+        head = b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 3, 0, 0, 0))
+        tail = _chunk(b"IDAT", zlib.compress(b"\0\0")) + _chunk(b"IEND", b"")
+        wrong = [(b"PLTE", 4), (b"PLTE", 771), (b"tRNS", 257), (b"gAMA", 3), (b"gAMA", 5), (b"cHRM", 31), (b"cHRM", 33),
+                 (b"sRGB", 0), (b"sRGB", 2), (b"iCCP", 65537), (b"pHYs", 8), (b"pHYs", 10), (b"bKGD", 0), (b"bKGD", 7)]
+        for kind, n in wrong:
+            with self.subTest("%s of %d bytes" % (kind.decode(), n)):
+                r = self.repo()
+                r.write("img/a.png", head + _chunk(kind, b"\0" * n) + tail, "wb")
+                r.commit("add")
+                self.refused(r, "not a well-formed one, or has data after its end")
+        for label, bad in (("IHDR of 12 bytes", _chunk(b"IHDR", b"\0" * 12)), ("IHDR of 14 bytes", _chunk(b"IHDR", b"\0" * 14))):
+            with self.subTest(label):
+                r = self.repo()
+                r.write("img/a.png", b"\x89PNG\r\n\x1a\n" + bad + tail, "wb")
+                r.commit("add")
+                self.refused(r, "not a well-formed one, or has data after its end")
+        with self.subTest("IEND with data"):
+            r = self.repo()
+            r.write("img/a.png", head + _chunk(b"IDAT", zlib.compress(b"\0\0")) + _chunk(b"IEND", b"\0"), "wb")
+            r.commit("add")
+            self.refused(r, "not a well-formed one, or has data after its end")
+
+    def test_the_picture_data_chunk_is_held_to_the_file_size_limit(self):
+        data = png()
+        self.assertTrue(ci_scan._png_ok(data))
+        self.assertEqual(ci_scan.PNG_CHUNK_SIZES[b"IDAT"][1], pp.MAX_BYTES)
+        with mock.patch.dict(ci_scan.PNG_CHUNK_SIZES, {b"IDAT": (0, 4)}):
+            self.assertFalse(ci_scan._png_ok(data))
 
     def test_a_png_with_every_listed_chunk_passes(self):
         head = b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 3, 0, 0, 0))
