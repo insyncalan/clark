@@ -185,6 +185,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
 @media (max-width: 900px) { table.items .c-type { width: 116px; } table.items .c-due { width: 134px; } }
+/* A Type badge is one word and stays on one line: never "Dependenc / y". Above the phone layout only (there the cell is a card and the word may wrap). */
+@media (min-width: 641px) { table.items .type { white-space: nowrap; overflow-wrap: normal; } }
 
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
