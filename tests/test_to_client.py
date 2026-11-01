@@ -831,6 +831,21 @@ class TheRequest(unittest.TestCase):
                 self.assertIs(got["to_client"], value)
         self.assertEqual(tc.validate_request({"project": "PUB"}, CLIENT), {"status": 200, "to_client": False, "confirmed": False})
 
+    def test_each_section_style_is_accepted(self):
+        for style in publish.STYLES:
+            self.assertEqual(tc.validate_request({"project": "PUB", "section_style": style}, CLIENT),
+                             {"status": 200, "to_client": False, "confirmed": False}, style)
+        self.assertEqual(tc.validate_request({"project": "PUB", "section_style": None}, CLIENT)["status"], 200)
+
+    def test_an_unknown_section_style_is_refused_and_named(self):
+        got = tc.validate_request({"project": "PUB", "section_style": "fancy"}, CLIENT)
+        self.assertEqual(got["status"], 400)
+        self.assertIn("“fancy”", got["message"])
+        for style in publish.STYLES:
+            self.assertIn(style, got["message"])
+        for junk in ("", "Slim", "slim ", 3, True, ["slim"], {}):
+            self.assertEqual(tc.validate_request({"project": "PUB", "section_style": junk}, CLIENT)["status"], 400, repr(junk))
+
     def test_a_request_never_names_a_folder_or_a_file(self):
         for key in ("client_folder", "folder", "path", "file", "file_name", "dest", "client_path"):
             got = tc.validate_request({"project": "PUB", "to_client": True, key: "/tmp/x"}, CLIENT)

@@ -711,7 +711,7 @@
      ],
      [
       "p",
-      "At the right edge, **On this page** is a quiet line for each section; the current one is longer and darker, and a warm one needs a look. Point at it, or tab to it, for the list with counts (late, red, slipped, flagged, pending) and **Back to top**."
+      "At the right edge, **On this page** is a quiet line for each section; the current one is longer and darker, and a warm one needs a look. Point at it, or tab to it, for the list with counts (late, red, slipped, flagged, pending) and **Back to top**. In a narrow window the lines become an **On this page** button at the bottom right; press it for the same list."
      ]
     ]
    },
@@ -929,7 +929,7 @@
        ],
        [
         "Grey headers",
-        "Slim gaps, and each section title in a grey band."
+        "Slim gaps, and each section title in a grey band, like the Work items groups."
        ],
        [
         "One card",
@@ -1396,7 +1396,7 @@
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
-       "**Work items**: actions, risks and issues, and decisions shown to the client, with a search box.",
+       "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
        "A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.",
        "A tile opens the Work items tab. A use case row opens its detail."
@@ -1714,6 +1714,14 @@
    [
     "[[Esc]] with a selection",
     "Work items, with no menu or box open: clear the selection"
+   ],
+   [
+    "[[O]] [[S]] [[P]] [[T]] [[C]]",
+    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box"
+   ],
+   [
+    "[[Shift+F10]]",
+    "Work items, on a row or card: open the menu of changes for it, or for the selection. The Menu key and a right-click open it too"
    ],
    [
     "[[Mod+K]]",

@@ -168,7 +168,7 @@ class AskService:
         reply = ask.ask_provider(self.provider, request, codes=(code,), exists=lambda ref: ref in facts,
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
-            return 200, {"ok": False, "code": "no_answer", "message": reply.message}
+            return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns),
                              left_out_note(data.left_out + found.left_out), *folder_notes(found)) if n]
         folder_ids = {pid for pid, _label in request.passages[len(data.passages):]}
