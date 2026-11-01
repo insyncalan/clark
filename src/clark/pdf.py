@@ -508,6 +508,81 @@ def _start_piped(chrome, profile, popen):
     return proc, (cmd_w, ans_r)
 
 
+CLEAN_NAME = "clark"            # the only Creator and Producer a PDF made here carries
+CLEAN_TITLE = "Report"          # the Title when the page has none
+CANNOT_CLEAN = "The PDF could not be made clean of details about this computer. Try again; if it keeps happening, leave the PDF box unticked."
+
+
+def title_of(html_text):
+    """The page's <title> as plain text (tags dropped, entities read), or CLEAN_TITLE."""
+    import html as _html
+    m = re.search(r"<title[^>]*>(.*?)</title>", html_text, re.S | re.I)
+    text = " ".join(_html.unescape(re.sub(r"<[^>]*>", "", m.group(1))).split()) if m else ""
+    return text[:200] or CLEAN_TITLE
+
+
+def _pdf_string(text):
+    """`text` as a PDF string: plain ASCII in brackets, anything else as UTF-16 in hex."""
+    if all(32 <= ord(c) < 127 for c in text):
+        return "(" + text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") + ")"
+    return "<FEFF" + text.encode("utf-16-be").hex().upper() + ">"
+
+
+def scrub(data, title=CLEAN_TITLE):
+    """`data` (a PDF as Chrome writes it: one classic cross-reference table) with its details made neutral: the Info
+    dictionary is replaced by a new one that holds only Title, Creator and Producer ("clark"), the trailer keeps only Size, Root
+    and Info (no ID), and any XMP metadata stream is emptied and no longer pointed at. Every object is copied byte for byte
+    otherwise, and the cross-reference table is written again. Raises PdfError if the file is not of that shape."""
+    try:
+        start = int(re.findall(rb"startxref\s+(\d+)", data)[-1])
+        head = re.compile(rb"xref\r?\n0 (\d+)\r?\n").match(data, start)
+        count = int(head.group(1))
+        rows = [data[head.end() + 20 * i: head.end() + 20 * (i + 1)] for i in range(count)]
+        trailer = data[head.end() + 20 * count:]
+        size = int(re.search(rb"/Size\s+(\d+)", trailer).group(1))
+        root = int(re.search(rb"/Root\s+(\d+)\s+0\s+R", trailer).group(1))
+        info = re.search(rb"/Info\s+(\d+)\s+0\s+R", trailer)
+        if size != count or any(len(r) != 20 or not re.fullmatch(rb"\d{10} \d{5} [nf][ \r\n]{2}", r) for r in rows):
+            raise ValueError("an unusual cross-reference table")
+        offsets = {i: int(r[:10]) for i, r in enumerate(rows) if r[17:18] == b"n" and i}
+        order = sorted(offsets.items(), key=lambda kv: kv[1])
+        first = order[0][1]
+        ends = [o for _, o in order[1:]] + [start]
+        body = {}
+        for (num, off), end in zip(order, ends):
+            chunk = data[off:end]
+            if not chunk.startswith(b"%d 0 obj" % num) or not chunk.rstrip().endswith(b"endobj"):
+                raise ValueError("an object out of place")
+            body[num] = chunk
+        gone = set()
+        for num, chunk in body.items():
+            dictionary = chunk.split(b"stream", 1)[0]
+            if re.search(rb"/Type\s*/Metadata\b|/Subtype\s*/XML\b", dictionary):
+                gone.add(num)
+        for num in gone:
+            body[num] = b"%d 0 obj\nnull\nendobj\n" % num
+        for num, chunk in list(body.items()):
+            dictionary, mark, rest = chunk.partition(b"stream")
+            cleaned = re.sub(rb"/Metadata\s+\d+\s+0\s+R", b"", dictionary)
+            if cleaned != dictionary:
+                body[num] = cleaned + mark + rest
+        info_num = int(info.group(1)) if info else size
+        body[info_num] = ("%d 0 obj\n<</Title %s/Creator (%s)/Producer (%s)>>\nendobj\n" % (
+            info_num, _pdf_string(title), CLEAN_NAME, CLEAN_NAME)).encode("ascii")
+        total = max(size, info_num + 1)
+        out, at = [data[:first]], len(data[:first])
+        table = [b"0000000000 65535 f \n"] + [b"0000000000 00000 f \n"] * (total - 1)
+        for num in sorted(body):
+            table[num] = b"%010d 00000 n \n" % at
+            out.append(body[num])
+            at += len(body[num])
+        out.append(b"xref\n0 %d\n" % total + b"".join(table))
+        out.append(b"trailer\n<</Size %d\n/Root %d 0 R\n/Info %d 0 R>>\nstartxref\n%d\n%%%%EOF\n" % (total, root, info_num, at))
+        return b"".join(out)
+    except (AttributeError, IndexError, ValueError, KeyError, UnicodeError) as e:
+        raise PdfError(CANNOT_CLEAN) from e
+
+
 def make_pdf(page, out, orientation="portrait", chrome=None, timeout=TIMEOUT, popen=None, footer_left="", stack=True):
     """Print the page file `page` to the PDF file `out` (A4, backgrounds on, a footer with `footer_left` on the left, which
     is optional, and "Page X of Y" on the right). Returns `out`. Raises PdfError in plain words if Chrome is missing, runs
@@ -544,6 +619,7 @@ def make_pdf(page, out, orientation="portrait", chrome=None, timeout=TIMEOUT, po
             data = _print_with_flag(chrome, work, copy, popen, max(deadline - time.monotonic(), 1), footer_left)
         if not data.startswith(b"%PDF"):
             raise PdfError(FAILED)
+        data = scrub(data, title_of(Path(page).read_text(encoding="utf-8")))          # nothing about this computer or its browser
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(data)
         return out

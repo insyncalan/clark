@@ -738,5 +738,127 @@ class TheSecondReview(unittest.TestCase):
                 self.assertEqual(rig.everything_written(), [])
 
 
+
+# ===== The PDF carries nothing about this computer or its browser =====
+LEAKS = ("Mozilla", "AppleWebKit", "Chrome", "Macintosh", "Intel", "HeadlessChrome", "Skia", "Gecko", "KHTML", "Safari")
+ALLOWED_INFO = {"Title", "Creator", "Producer"}
+
+
+def streams_of(data):
+    """The raw PDF and every stream of it, inflated where it is Flate, as text to search."""
+    found = [data.decode("latin-1")]
+    for _num, (head, raw) in pdftext.objects(data).items():
+        found.append(head.decode("latin-1"))
+        if raw is not None:
+            found.append(raw.decode("latin-1"))
+    return found
+
+
+def info_of(data):
+    """{key: value text} of the Info dictionary the trailer points at, read the plain way."""
+    trailer = data[data.rfind(b"trailer"):]
+    num = int(re.search(rb"/Info\s+(\d+)\s+0\s+R", trailer).group(1))
+    body = re.search(rb"(?<![0-9])%d\s+0\s+obj(.*?)endobj" % num, data, re.S).group(1)
+    return {m.group(1).decode(): m.group(2) for m in re.finditer(rb"/([A-Za-z]+)\s*(\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f]*>|[^/>\s]+)", body)}
+
+
+def build_pdf(objects, root=1, info=None, extra_trailer=b""):
+    """A PDF by hand from {number: object body}, with a true cross-reference table."""
+    out, at, offsets = b"%PDF-1.4\n%\xd3\xeb\xe9\xe1\n", None, {}
+    for num in sorted(objects):
+        offsets[num] = len(out)
+        out += b"%d 0 obj\n%s\nendobj\n" % (num, objects[num])
+    size = max(objects) + 1
+    start = len(out)
+    table = b"0000000000 65535 f \n" + b"".join(b"%010d 00000 n \n" % offsets[n] if n in offsets else b"0000000000 00000 f \n" for n in range(1, size))
+    trailer = b"<</Size %d\n/Root %d 0 R\n%s%s>>" % (size, root, b"/Info %d 0 R\n" % info if info else b"", extra_trailer)
+    return out + b"xref\n0 %d\n" % size + table + b"trailer\n" + trailer + b"\nstartxref\n%d\n%%%%EOF\n" % start
+
+
+class PdfDetailsAreNeutral(unittest.TestCase):
+    PAGE = "<html><head><title>Weekly &amp; report</title></head><body><h1>Harbour plan</h1><p>Some text.</p></body></html>"
+
+    def printed(self, d):
+        chrome = chrome_path()
+        self.assertTrue(chrome, "Chrome is needed: set CLARK_CHROME or put google-chrome on the PATH")
+        page = Path(d) / "page.html"
+        page.write_text(self.PAGE, encoding="utf-8")
+        return pdf.make_pdf(page, Path(d) / "out.pdf", chrome=chrome, footer_left="Published 01-01-2026").read_bytes()
+
+    def check_clean(self, data):
+        for where in streams_of(data):
+            for leak in LEAKS:
+                self.assertNotIn(leak.casefold(), where.casefold(), f"{leak} is in the PDF")
+        self.assertNotIn(b"/Metadata", data)
+        self.assertNotIn(b"/ID", data[data.rfind(b"trailer"):])
+        got = info_of(data)
+        self.assertEqual(set(got), ALLOWED_INFO, "the Info dictionary holds only what is allowed")
+        self.assertEqual((got["Creator"], got["Producer"]), (b"(clark)", b"(clark)"))
+        self.assertEqual(got["Title"], b"(Weekly & report)")
+        text = pdftext.text_of(data)                  # and it still reads, so the table and the objects are in order
+        self.assertIn("Harbour plan", text)
+        starts = [int(m.group(1)) for m in re.finditer(rb"(\d{10}) 00000 n", data)]
+        self.assertTrue(starts)
+        for off in starts:
+            self.assertRegex(data[off:off + 12], rb"^\d+ 0 obj")
+        self.assertTrue(data[int(re.findall(rb"startxref\s+(\d+)", data)[-1]):].startswith(b"xref"))
+
+    def test_real_chrome_pdf_has_no_details_about_this_computer(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.check_clean(self.printed(d))
+
+    def test_real_chrome_unscrubbed_pdf_does_have_them(self):
+        """The reason for the step: without it Chrome's own PDF carries the browser's name and the computer's kind."""
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(pdf, "scrub", lambda data, title="": data):
+            raw = self.printed(d)
+        self.assertTrue(any(leak in "".join(streams_of(raw)) for leak in LEAKS))
+
+    def test_the_published_pdf_in_both_places_is_clean(self):
+        chrome = chrome_path()
+        self.assertTrue(chrome)
+        rig = Rig(self)
+        status, got = rig.publish(to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        for path in (rig.local / "chosen.pdf", rig.client / PDF_WANTED):
+            data = path.read_bytes()
+            for where in streams_of(data):
+                for leak in LEAKS:
+                    self.assertNotIn(leak.casefold(), where.casefold(), f"{leak} is in {path.name}")
+            self.assertEqual(set(info_of(data)), ALLOWED_INFO)
+            self.assertNotIn(b"/Metadata", data)
+
+    def test_xmp_metadata_is_emptied_and_unpointed(self):
+        xmp = b"<</Type /Metadata /Subtype /XML /Length 40>>\nstream\n<x:xmpmeta>Mozilla/5.0 HeadlessChrome</x:xmpmeta>\nendstream"
+        data = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R /Metadata 4 0 R>>",
+                          2: b"<</Type /Pages /Kids [] /Count 0>>",
+                          3: b"<</Creator (Mozilla/5.0 Macintosh) /Producer (Skia/PDF) /Author (Someone) /CreationDate (D:20261101)>>",
+                          4: xmp}, root=1, info=3, extra_trailer=b"/ID [<00><00>]\n")
+        out = pdf.scrub(data, "A title")
+        for leak in ("Mozilla", "HeadlessChrome", "Macintosh", "Skia", "Someone", "xmpmeta", "CreationDate", "/ID"):
+            self.assertNotIn(leak.encode(), out, leak)
+        self.assertNotIn(b"/Metadata", out)
+        self.assertEqual(set(info_of(out)), ALLOWED_INFO)
+        self.assertEqual(info_of(out)["Title"], b"(A title)")
+        offsets = [int(m.group(1)) for m in re.finditer(rb"(\d{10}) 00000 n", out)]
+        self.assertEqual(len(offsets), 4)
+        for num, off in zip((1, 2, 3, 4), offsets):
+            self.assertTrue(out[off:].startswith(b"%d 0 obj" % num), num)
+
+    def test_a_title_is_written_safely_and_a_missing_one_is_neutral(self):
+        base = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>", 3: b"<</Creator (x)>>"}, info=3)
+        self.assertEqual(info_of(pdf.scrub(base, "a (b) \\ c"))["Title"], b"(a \\(b\\) \\\\ c)")
+        self.assertTrue(info_of(pdf.scrub(base, "Caf\u00e9"))["Title"].startswith(b"<FEFF"))
+        self.assertEqual(pdf.title_of("<p>no title</p>"), pdf.CLEAN_TITLE)
+        self.assertEqual(pdf.title_of("<title> A &amp;\n B </title>"), "A & B")
+        no_info = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>"})
+        self.assertEqual(set(info_of(pdf.scrub(no_info, "T"))), ALLOWED_INFO, "an Info dictionary is added when there was none")
+
+    def test_a_file_of_an_unusual_shape_is_refused_in_plain_words(self):
+        for bad in (b"%PDF-1.4\nnothing here", b"%PDF-1.7\nstartxref\n5\n%%EOF", b""):
+            with self.assertRaises(pdf.PdfError) as caught:
+                pdf.scrub(bad)
+            self.assertEqual(str(caught.exception), pdf.CANNOT_CLEAN)
+
+
 if __name__ == "__main__":
     unittest.main()
