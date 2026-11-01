@@ -3,6 +3,7 @@
 // (The eye that hides a row from the published report is Edit only and comes with #67's write.)
 import { useState } from "preact/hooks";
 import { MsMark } from "./MsMark.jsx";
+import { isChanged, WORD } from "../stores/changed.js";
 import { showDate, railRows, railWord, RAIL } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
 
@@ -28,11 +29,11 @@ export function MsList({ rows, place, open, internalTag }) {
       <ul class="msl">
         {shown.map((r) => (
           // The li stays a list item; in the editor the button is its child (role and keys), so the list keeps its semantics.
-          <li class={`msl-row${r.clientVisible ? "" : " out"}${open ? "" : " plain"}`} key={r.id} data-ms={r.id}>
+          <li class={`msl-row${r.clientVisible ? "" : " out"}${open ? "" : " plain"}${isChanged(r.id) ? " changed" : ""}`} key={r.id} data-ms={r.id} data-changed={isChanged(r.id) ? "1" : undefined}>
             <span class={`node c-${r.colour}${r.state === "Achieved" ? " fill" : ""}`} />
             <div class="msl-cells" {...(open ? { tabindex: "0", role: "button", "aria-label": `${r.name}, ${r.word}`, onClick: () => open(r.id), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(r.id); } } } : {})}>
               <span class="msl-date"><When r={r} /></span>
-              <span class="msl-name">{r.name}{internalTag && !r.clientVisible ? <> <span class="tag">Internal only</span></> : null}</span>
+              <span class="msl-name">{r.name}{isChanged(r.id) ? <> <span class="tag chg">{WORD}</span></> : null}{internalTag && !r.clientVisible ? <> <span class="tag">Internal only</span></> : null}</span>
               <span class={`mst c-${r.colour}`}><MsMark name={r.mark} />{r.word}</span>
               <span class="msl-prog" title="Progress">{r.percent === null || r.percent === undefined ? <span class="muted">Not set</span> : <><span class="pbar"><i style={{ width: `${r.percent}%` }} /></span><span class="num">{r.percent}%</span></>}</span>
             </div>

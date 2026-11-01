@@ -28,7 +28,7 @@ a { color: var(--status-blue-text); }
 .tab[aria-selected="true"]::after { transform: scaleX(1); }
 
 /* One page frame for every view: the page's 1280 px less its padding (1232 px), so the Dashboard is as wide as Work items. */
-main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
+main { position: relative; max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .frame { width: 100%; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 24px 28px; }
 .frame h1 { margin: 0 0 12px; font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
@@ -1030,3 +1030,86 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+
+/* Loading placeholder: still grey blocks in the shape of the screen, with no shimmer. Shown only after a short wait (Views.jsx). */
+.skel { display: block; background: var(--grey-100); border-radius: var(--radius-sm); }
+.skel-title { width: min(280px, 60%); height: 28px; margin-bottom: 16px; }
+.skel-line { height: 14px; width: 100%; }
+.skel-line.wide { width: 100%; }
+.skel-line.half { width: 40%; }
+.skel-tiles { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.skel-tile { width: 160px; max-width: 100%; height: 64px; }
+.skel-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) 96px 80px; gap: 12px; align-items: center; padding: 14px 0; border-top: 1px solid var(--grey-100); }
+.skel-row.one { grid-template-columns: minmax(0, 1fr); }
+.skel-sec { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid var(--grey-200); }
+@media (max-width: 900px) { .skel-row { grid-template-columns: 56px minmax(0, 1fr) 64px; } .skel-row > :nth-child(4) { display: none; } }
+@media (forced-colors: active) { .skel { border: 1px solid CanvasText; } }
+
+/* Changed rows: a tint, a bar on the left edge and the word "Changed", all still and paint only (no margin, padding or border), so
+   nothing shifts. The mark reads the same without motion or colour: the word and the bar are there. */
+.tag.chg { flex: none; background: var(--status-amber-tint); color: var(--status-amber-text); border: 1px solid var(--status-amber); }
+.sec.is-changed { background: var(--status-amber-tint); box-shadow: inset 4px 0 0 var(--status-amber); }
+table.items tr.changed td { background: var(--status-amber-tint); }
+table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-amber); }
+.msl-row.changed { background: var(--status-amber-tint); box-shadow: inset 4px 0 0 var(--status-amber); }
+@media (forced-colors: active) { .sec.is-changed, .msl-row.changed, table.items tr.changed td:first-child { outline: 2px solid CanvasText; outline-offset: -2px; } }
+
+/* Publish progress: a ring while it works and a tick when it is done, both drawn still here. The ring has one quarter in a
+   stronger colour so a still ring still reads as working. */
+.pub-spin { display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border: 2px solid var(--grey-300); border-top-color: var(--brand-blue); border-radius: 50%; }
+.pub-tick { display: inline-block; width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px; color: var(--status-green-text); }
+.pub-tick path { stroke-dasharray: 20; stroke-dashoffset: 0; }
+@media (forced-colors: active) { .pub-spin { border-color: CanvasText; border-top-color: Highlight; } }
+
+/* The first-time hint beside the section handle: plain words, there with or without the pulse. */
+.sec-ctl.hint { opacity: 1; z-index: 20; }
+.sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: 4px 8px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
+
+/* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
+   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
+   loops except the publish ring while it works, only the --dur and --ease tokens are used, and nothing waits for it: the elements
+   stay live while it runs. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) {
+    /* the placeholder fades out as the screen arrives */
+    .skel-leave { position: absolute; left: 24px; right: 24px; top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+    /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
+    .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
+    /* the peek slides in on opening and its body fades in as Previous or Next steps on */
+    .peek { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
+    .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
+    .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
+    .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
+    .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-state) var(--ease-enter) 1; }
+    /* the health badge and reason settle when health changes */
+    .hrow.settle { animation: m-settle var(--dur-state) var(--ease-enter) 1; }
+    /* the timeline and calendar swap: the new view rises 4 px and fades in */
+    .msv-swap { animation: m-rise var(--dur-state) var(--ease-enter) 1; }
+    /* the section handle shows itself once: the grip and + pulse over 700 ms */
+    .sec-ctl.hint .handle, .sec-ctl.hint .plus { animation: m-pulse var(--dur-enter) var(--ease-out) 1; }
+    /* the count line and the switches' counts fade in when a filter changes */
+    #work-count, .wbar em.num { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* the Add a section preview cross-fades as the selection moves; cards lift on hover on fine pointers */
+    .ad-prev > * { animation: m-in var(--dur-state) var(--ease-enter) 1; }
+    /* publish: a ring turning while it works, then the tick is drawn once */
+    .pub-spin { animation: m-spin var(--dur-enter) linear infinite; }
+    .pub-tick path { stroke-dashoffset: 20; animation: m-draw var(--dur-state) var(--ease-out) forwards; }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+    :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  }
+  @keyframes m-spin { to { transform: rotate(360deg); } }
+  @keyframes m-draw { to { stroke-dashoffset: 0; } }
+  @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
+  @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
+  @keyframes m-outline { from { opacity: 0; transform: scale(.97); } }
+  @keyframes m-out { to { opacity: 0; } }
+  @keyframes m-in { from { opacity: 0; } }
+  @keyframes m-slide { from { opacity: 0; transform: translateX(24px); } }
+  @keyframes m-rise { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes m-pulse { 50% { transform: scale(1.35); background: var(--brand-blue-tint); } }
+  @keyframes m-settle { from { opacity: .35; } }
+  @keyframes m-glow { from { background-color: color-mix(in srgb, var(--status-amber) 40%, var(--status-amber-tint)); } }
+}

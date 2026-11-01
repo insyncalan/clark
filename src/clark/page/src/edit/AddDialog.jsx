@@ -153,7 +153,7 @@ function Box({ after, opener, onClose }) {
               );
             })}
           </fieldset>
-          <section class="ad-prev" aria-label="About this template">
+          <section class="ad-prev" aria-label="About this template" key={current ? current.id : "none"}>
             {current ? (
               <>
                 <h3 aria-live="polite">{current.name}</h3>

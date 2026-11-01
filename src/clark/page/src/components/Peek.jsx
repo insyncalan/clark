@@ -128,11 +128,13 @@ export function Peek({ tools }) {
       </div>
       <h2 class="pk-title">{title}</h2>
       {Tabs ? <Tabs /> : null}
+      <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
           {row ? <ItemFields row={row} editing={editing} /> : <MilestoneFields m={m} />}
         </div>}
       {Words && wordsOpen.value && row ? <Words key={row.id} row={row} /> : null}
+      </div>
     </aside>
   );
 }

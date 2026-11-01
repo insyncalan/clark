@@ -176,6 +176,11 @@ function published() {
   } catch (e) { return "bad"; }
 }
 
+/** True when the page is a published file: it has its data in it and never waits for a server, so it never shows a loading placeholder. */
+export function isFile() {
+  return published() !== null;
+}
+
 function openPublished(p) {
   fromFile.value = true;
   mode.value = "view";

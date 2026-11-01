@@ -2,6 +2,8 @@
 // View removes, never hides: it draws only the sections that show (a hidden one is dropped) and renders no edit component at all,
 // so there is no input, text area, select, editable text, grip, menu or Add in the page. Edit (a page clark serves, with
 // `tools` from edit/) draws every section, a hidden one dimmed, with those parts. A published file passes no tools and is never Edit.
+import { useEffect } from "preact/hooks";
+import { armHint } from "../stores/motion.js";
 import { data, mode, fromFile, dropAt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
@@ -59,6 +61,8 @@ export function Dashboard({ tools }) {
   for (const e of entries(list)) anchors[e.id] = e.anchor;      // one anchor per section, shared with the minimap
   const counts = {};
   for (const s of list) { const c = countOf(s, d, todayIso(), fromFile.value); if (c) counts[s.id] = c; }
+  const first = editing && list.length ? list[0].id : null;
+  useEffect(() => { if (first) armHint(first); }, [first]);      // the first time in Edit, the handle of the first section pulses once and says what it does
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
   return (
     <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
