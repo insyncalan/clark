@@ -5,6 +5,7 @@ import { App } from "./components/App.jsx";
 
 export function boot(tools) {
   if (tools && tools.help) tools.help.installKeys();
+  if (tools && tools.askPanel) tools.askPanel.installKeys();
   render(<App tools={tools} />, document.getElementById("app"));
   document.documentElement.dataset.ready = "1";
   // The server puts this run's token in a data block after this script, and a published file (#39) has its data in one: read
