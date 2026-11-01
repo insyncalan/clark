@@ -798,8 +798,10 @@ class UseCaseDone(RoundTrip):
     def test_a_status_that_is_not_one_of_the_four_is_still_refused(self):
         edit(self.path, "Use cases", self.demo.use_case, Status="Finished")
         p = self.read()
-        self.assertTrue(p.problems, "a word the store does not allow is a problem, not a change")
-        self.assertEqual(self.s.read("use_cases", ref=self.demo.use_case)["status"], "On track")
+        self.assertEqual([c.problem for c in p.changes], ["Status must be one of On track, Flag, High risk, Done (got 'Finished')"])
+        p.accept_all()
+        xi.apply_import(self.s, p, USER, state_path=self.state)
+        self.assertEqual(self.s.read("use_cases", ref=self.demo.use_case)["status"], "On track", "a change with a problem is not applied")
 
 
 class RichText(RoundTrip):
