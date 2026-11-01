@@ -118,6 +118,9 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
         return 1
     if seen == OURS:
         say("It is already running. Opening its window.")
+    elif platform.data_lock_held(folder):       # clark is open on this folder but on another port: no second one is started
+        say(platform.ALREADY_OPEN)
+        return 1
     else:
         say("Starting clark...")
         log = folder / LOG_NAME

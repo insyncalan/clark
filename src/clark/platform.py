@@ -23,6 +23,11 @@ import threading
 import time
 from pathlib import Path
 
+try:
+    import fcntl               # the Mac's and Linux's file lock; there is none on Windows
+except ImportError:
+    fcntl = None
+
 MAC = "darwin"
 WINDOWS = "win32"
 MAX_PATH = 260                  # Windows' default limit on a whole path, counted with its ending NUL
@@ -180,6 +185,60 @@ def private_file(path):
     fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)       # the umask can only remove bits
     os.close(fd)
     return Path(path)
+
+
+# One clark to a data folder
+
+LOCK_NAME = ".clark-lock"       # in the data folder; empty, and never written to
+ALREADY_OPEN = "clark is already open on this folder. Use that window, or close it first."
+_HELD_LOCKS = {}                # data folder -> the open lock file; kept open for as long as this clark runs
+
+
+def _lock_file(folder):
+    fd = os.open(str(Path(folder) / LOCK_NAME), os.O_RDONLY | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(fd)
+        raise
+    return fd
+
+
+def hold_data_lock(folder):
+    """Take the lock on `folder` for as long as this process lives, or raise PlatformError(ALREADY_OPEN) if another clark has
+    it. The system drops the lock when the process ends, however it ends, so a crash leaves nothing stale. Where there is no
+    file lock (Windows, not built yet) nothing is checked."""
+    key = str(Path(folder).resolve())
+    if fcntl is None:
+        return
+    if key in _HELD_LOCKS:
+        raise PlatformError(ALREADY_OPEN)
+    try:
+        _HELD_LOCKS[key] = _lock_file(folder)
+    except BlockingIOError:
+        raise PlatformError(ALREADY_OPEN) from None
+    except OSError as e:
+        if e.errno in (errno.EAGAIN, errno.EACCES):
+            raise PlatformError(ALREADY_OPEN) from None
+        raise PlatformError("clark can't check whether it is already open on this folder. Check you may save files there, then try again.") from None
+
+
+def release_data_lock(folder):
+    """Let go of the lock this process holds on `folder` (a clean stop; the system does it anyway at exit)."""
+    fd = _HELD_LOCKS.pop(str(Path(folder).resolve()), None)
+    if fd is not None:
+        os.close(fd)
+
+
+def data_lock_held(folder):
+    """True when another clark holds the lock on `folder`; nothing is kept. False when there is no lock to check."""
+    if fcntl is None or not (Path(folder) / LOCK_NAME).exists():
+        return False
+    try:
+        os.close(_lock_file(folder))
+    except OSError:
+        return True
+    return False
 
 
 # Opening files and the system's own dialogs
