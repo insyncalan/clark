@@ -106,9 +106,9 @@ class Repo:
         self.git("add", "-A")
         self.git("commit", "-q", "-m", msg, email=email)
 
-    def scan(self, fork=False):
+    def scan(self, fork=False, head=None):
         out = io.StringIO()
-        argv = ["--repo", self.path, "--base", self.base] + (["--fork"] if fork else [])
+        argv = ["--repo", self.path, "--base", self.base] + (["--head", head] if head else []) + (["--fork"] if fork else [])
         with contextlib.redirect_stdout(out):
             rc = ci_scan.main(argv)
         return rc, out.getvalue()
@@ -384,6 +384,31 @@ class Scan(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertIn("3 commit(s) checked", out)
 
+    def pull_request(self, branch_email=NOREPLY, merge_email="someone@example.org"):
+        """A branch off the base, then a synthetic merge of it into the base authored by someone else, as GitHub makes one."""
+        r = self.repo()
+        r.git("checkout", "-q", "-b", "pr")
+        r.write("a.md", "x\n")
+        r.commit("add", email=branch_email)
+        pr_head = r.git("rev-parse", "HEAD").strip()
+        r.git("checkout", "-q", "--detach", r.base)
+        r.git("merge", "--no-ff", "-q", "pr", "-m", "Merge pull request", email=merge_email)
+        return r, pr_head
+
+    def test_a_pull_request_is_scanned_at_its_own_head_not_at_the_synthetic_merge(self):
+        r, pr_head = self.pull_request()
+        self.refused(r, "not GitHub no-reply addresses", absent=("someone@example.org",))      # head = the merge commit: refused
+        rc, out = r.scan(head=pr_head)                                                       # head = the pull request's own
+        self.assertEqual(rc, 0, out)
+        self.assertIn("1 commit(s) checked", out)
+
+    def test_a_bad_address_on_the_pull_requests_own_commit_is_still_refused(self):
+        r, pr_head = self.pull_request(branch_email="someone@example.org")
+        rc, out = r.scan(head=pr_head)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("not GitHub no-reply addresses", out)
+        self.assertNotIn("someone@example.org", out)
+
     # --- addresses and trailers ---------------------------------------------------------------------------------------------
 
     def test_a_listed_word_in_an_address_is_refused_and_not_printed(self):
@@ -552,6 +577,13 @@ class Workflow(unittest.TestCase):
         version = re.search(r'python-version: "([^"]+)"', self.text).group(1)
         self.assertNotIn("x", version, "pin the version, do not track the newest")
         self.assertRegex(version, r"^3\.\d+(\.\d+)?$")
+
+    def test_a_pull_request_is_scanned_at_its_own_head_from_where_it_left_the_base(self):
+        self.assertIn("PR_HEAD: ${{ github.event.pull_request.head.sha || '' }}", self.text)
+        self.assertIn('HEAD_SHA="${PR_HEAD:-HEAD}"', self.text)
+        self.assertIn('git -C pr merge-base "$BASE" "$PR_HEAD"', self.text)
+        self.assertIn('--base "$BASE" --head "$HEAD_SHA"', self.text)
+        self.assertNotIn("--head HEAD", self.text)
 
     def test_the_header_says_what_the_scan_does_not_stop(self):
         head = self.raw.split("\nname: Scan", 1)[0]
