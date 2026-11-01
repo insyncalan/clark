@@ -101,7 +101,7 @@ class Held(unittest.TestCase):
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "at-a-glance", "layouts", "work-items", "status-words", "picker",
                           "milestone-states", "excel", "dates-and-ids", "using-help", "keys", "icons"])
         self.assertEqual(s["start"]["parts"], [])
-        self.assertEqual(len(s["reference"]["keys"]), 31 - len(LATER["keys"]))
+        self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
@@ -115,7 +115,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 30, 31))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 30, 33))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -165,7 +165,7 @@ class AgainstThePage(unittest.TestCase):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
         self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
                                 "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
-                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[Mod+K]]"])
+                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]"])
 
 
 class NeverDelete(unittest.TestCase):
