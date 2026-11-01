@@ -1,6 +1,5 @@
-// The page's one way to ask for an AI suggestion (#72). Slice 2 has only this STUB: canned replies, no network, nothing sent anywhere.
-// The real client (one fetch to the server's route, a stop signal, one fixed error line for any failure) replaces it in slice 4/5 with
-// the same two methods:
+// The page's one way to ask for an AI suggestion (#72). Two clients with the same methods: the STUB (canned replies, no network, for
+// tests) and realAiClient below (one fetch to the server's route, a stop signal, one fixed error line for any failure):
 //   status()                     -> "ready" | "off" | "not_signed_in" | "busy"   (the card does not ask unless it is "ready")
 //   suggest(request, signal)     -> Promise of {html, notes: [string], changes: [{op: "same"|"del"|"add", text}]}; rejects on a
 //                                   failure, and with an AbortError when the signal stops it
@@ -55,4 +54,58 @@ export function stubAiClient(opts = {}) {
     },
   };
   return client;
+}
+
+// ---------------------------------------------------------------------------------------------------------------- the real client
+export const AI_FAILED_LINE = "No suggestion came back. Try again.";
+const STATES = ["ready", "off", "not_signed_in", "busy"];
+
+// The server's three routes: GET /api/ai/status, POST /api/ai/suggest and POST /api/ai/stop. `token` gives the page's token for the
+// X-Clark-Token header (passed in, so this file reads nothing of the page's own state); `fetchFn` is a seam for tests. Nothing is kept
+// in the browser. The same two methods as the stub, plus refresh() (ask the server for the state and its plain line; resolves to the
+// state) and line() (that line, "" until the server has answered). Until it has answered, or if it cannot be reached, AI reads as off
+// (nothing is sent on a guess). A failure of any kind rejects with one Error holding the fixed line; the card has its own words.
+export function realAiClient({ token, fetchFn } = {}) {
+  const send = (method, path, body, signal) => (fetchFn || fetch)(path, {
+    method, signal, cache: "no-store",
+    headers: Object.assign({ "X-Clark-Token": token ? token() : "" }, body === undefined ? {} : { "Content-Type": "application/json" }),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  let state = "off", words = "";
+  return {
+    status: () => state,
+    line: () => words,
+    async refresh() {
+      try {
+        const r = await send("GET", "/api/ai/status");
+        const b = await r.json().catch(() => null);
+        if (r.status === 200 && b && b.ok === true && STATES.includes(b.state)) { state = b.state; words = typeof b.line === "string" ? b.line : ""; }
+        else { state = "off"; words = ""; }
+      } catch (e) { state = "off"; words = ""; }
+      return state;
+    },
+    async suggest(request, signal) {
+      const stopped = () => Object.assign(new Error("stopped"), { name: "AbortError" });
+      if (signal && signal.aborted) throw stopped();
+      const ctl = new AbortController();
+      const onAbort = () => { ctl.abort(); send("POST", "/api/ai/stop", {}).catch(() => {}); };      // the stop route ends the run on the server
+      if (signal) signal.addEventListener("abort", onAbort, { once: true });
+      try {
+        const body = { option: request.option, place: request.place, text: request.text, instruction: request.instruction || "" };
+        const r = await send("POST", "/api/ai/suggest", body, ctl.signal);
+        const b = await r.json().catch(() => null);
+        if (signal && signal.aborted) throw stopped();
+        if (r.status === 200 && b && b.ok === true && typeof b.html === "string") {
+          return { html: b.html, notes: Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [], changes: Array.isArray(b.changes) ? b.changes : [] };
+        }
+        if (b && (b.code === "off" || b.code === "not_signed_in")) state = b.code;
+        throw new Error(AI_FAILED_LINE);
+      } catch (e) {
+        if (e && e.name === "AbortError") throw stopped();
+        throw new Error(AI_FAILED_LINE);
+      } finally {
+        if (signal) signal.removeEventListener("abort", onAbort);
+      }
+    },
+  };
 }

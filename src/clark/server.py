@@ -95,7 +95,7 @@ BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
-                     "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
+                     "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
                      "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
@@ -749,14 +749,15 @@ def app_settings_route(method):
     return route
 
 
-def ask_route(method):
+def ask_route(method, attr="ask"):
     """POST /api/ask, GET /api/ask/status and POST /api/ask/stop (#47): a question about the open project, whether asking can
     answer, and Stop. The server's `ask` (ask_service.AskService) answers (status, body): it reads the switch from the store before
     anything is sent, so nothing leaves while asking is off; without one there is nothing to ask: not found. The token, the Host,
     the Origin, JSON only and the length are checked before this runs; no model code is in this module. #47e: POST
-    /api/ask/change/dry and /apply hand the dry run and Apply of a suggested change to the same service, which never asks a model."""
+    /api/ask/change/dry and /apply hand the dry run and Apply of a suggested change to the same service, which never asks a model.
+    #72: the AI routes (/api/ai/suggest, /status, /stop) go the same way to the server's `ai` (ai_service.AiService)."""
     def route(handler, *req):
-        service = getattr(handler.server, "ask", None)
+        service = getattr(handler.server, attr, None)
         if service is None:
             return handler.send(404, error_body("not_found"))
         status, body = getattr(service, method)(*req)
@@ -802,13 +803,14 @@ def profile_route(method):
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/diagnostics": logs_route("diagnostics")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
+                "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
                 "/api/profile": profile_route("save"), "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
@@ -1011,7 +1013,7 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
-                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None):
+                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1033,6 +1035,7 @@ class LocalServer(ThreadingHTTPServer):
         self.ask_folders = ask_folders        # ask_folders.AskFolders (#47); None: the folder routes answer 404
         self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
         self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
+        self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -1065,7 +1068,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
-          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None):
+          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -1073,7 +1076,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
-                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask)
+                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
