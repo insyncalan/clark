@@ -120,6 +120,35 @@ class ClientPageFilters(unittest.TestCase):
                 self.assertNotIn("Hidden", cdp.js(f"document.querySelector('#fbox-{field}').textContent", sid))
                 self.click(cdp, sid, f'[data-fb="{field}"]')
 
+    def test_the_due_buckets_follow_the_files_day_not_the_viewers_clock(self):
+        # The file was published at TODAY (2026-10-28). A client opens it much later: Overdue and Due in 7 days still read as at TODAY.
+        late = ("(() => { const R = Date, at = new R('2027-06-01T12:00:00'), off = at - R.now();"
+                " class D extends R { constructor(...a) { a.length ? super(...a) : super(R.now() + off); } static now() { return R.now() + off; } }"
+                " window.Date = D; })();")
+        got = {}
+        for name, fake in (("true clock", False), ("late clock", True)):
+            with chrome() as cdp:
+                sid = page_target(cdp)
+                cdp.call("Page.enable", {}, sid)
+                if fake:
+                    cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": late}, sid)
+                cdp.call("Page.navigate", {"url": self.path.as_uri() + "#work"}, sid)
+                self.settle(cdp, sid, "!!document.querySelector('#work-list')")
+                if fake:
+                    self.assertEqual(cdp.js("new Date().getFullYear()", sid), 2027, "the viewer's clock is a later year")
+                for value in ("overdue", "soon"):
+                    self.tick(cdp, sid, "due", value)
+                    self.settle(cdp, sid, "!!document.querySelector('[data-chip=due]')")
+                    got[(name, value)] = sorted(self.ids(cdp, sid))
+                    self.assertTrue(cdp.js(f"(() => {{ const i = [...document.querySelectorAll('#fbox-due input[type=checkbox]')].find(x => x.value === {json.dumps(value)}); if (!i) return false; i.click(); return true; }})()", sid))
+                    self.settle(cdp, sid, "!document.querySelector('[data-chip=due]')")
+                    self.click(cdp, sid, '[data-fb="due"]')
+                    self.settle(cdp, sid, "!document.querySelector('#fbox-due')")
+        self.assertIn("PUB-A-101", got[("true clock", "overdue")])
+        self.assertIn("PUB-A-102", got[("true clock", "soon")])
+        self.assertEqual(got[("late clock", "overdue")], got[("true clock", "overdue")])
+        self.assertEqual(got[("late clock", "soon")], got[("true clock", "soon")])
+
     def test_each_control_works(self):
         for width, scheme in VARIANTS:
             with self.subTest(width=width, scheme=scheme), chrome() as cdp:

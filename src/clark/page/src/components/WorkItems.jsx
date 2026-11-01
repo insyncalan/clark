@@ -11,7 +11,7 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery } from "../stores/report.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -156,7 +156,7 @@ function SearchBox() {
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
 function List({ Board, Cell }) {
-  const st = filterState.value, today = todayIso();
+  const st = filterState.value, today = fromFile.value && asAt.value ? asAt.value : todayIso();
   const filtered = applyFilters(itemRows.value, st, today);
   const cs = chips(st);
   const words = query.value.trim() !== "", canClearAll = canClear(st) || words;
