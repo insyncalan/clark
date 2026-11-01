@@ -201,8 +201,15 @@ class Look(Base):
             self.assertEqual(p.js("document.querySelector('#ask-log #ask-work')"), None, "the working line is not in the chat")
             self.assertAlmostEqual(p.js("document.querySelector('#ask-work').getBoundingClientRect().top"), row_top, delta=1)
             self.assertEqual(p.js("(function(){var r=document.querySelector('.ask-form').getBoundingClientRect();return [r.top, r.height];})()"), before)
-            self.assertIsNone(p.js("document.querySelector('#ask-work').getAttribute('role')"), "the working line is not a live region of its own: the status line announces the work once")
+            self.assertIsNone(p.js("document.querySelector('#ask-work').getAttribute('role')"), "the working line is not a live region of its own: the status line announces the work once (read below)")
             self.assertEqual(p.js("document.querySelector('#ask-quip').getAttribute('aria-hidden')"), "true", "the changing quip is not read out each time")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Working", "the status line says the work is going on")
+            self.assertEqual(p.js("document.querySelector('#ask-status').getAttribute('role')"), "status")
+            self.assertEqual(p.js("document.querySelector('#ask-status').getAttribute('aria-live')"), "polite")
+            self.assertEqual(p.js("!!document.querySelector('#ask-work').closest('[role=status], [role=log], [role=alert], [aria-live]')"), False, "the working line is in no live region")
+            self.assertEqual(p.js("[].filter.call(document.querySelectorAll('#ask-panel [role=status], #ask-panel [role=log], #ask-panel [aria-live]'), "
+                                  "function(e){return /Working/.test(e.textContent);}).map(function(e){return e.id;})"), ["ask-status"],
+                             "exactly one live region announces the work, once")
             for width in (1400, 900):
                 for theme in ("light", "dark"):
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
@@ -239,6 +246,7 @@ class Look(Base):
             self.assertEqual(p.js("document.querySelector('#ask-off').firstChild.textContent.trim()"), "Asking is off. Turn it on in Settings.")
             p.js("document.querySelector('#ask-off a').click()")
             p.until("document.querySelector('#ask-panel') === null && !!document.querySelector('#ask-settings')", "Settings, with the Asking card")
+            p.until("!!document.activeElement && document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#ask-settings')", "focus on the Asking card's heading")
 
 
 class Strings(Base):

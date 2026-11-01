@@ -119,7 +119,7 @@ export function AskPanel() {
         <button type="button" class="btn sm" id="ask-close" onClick={closePanel}>{W.CLOSE}</button>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
-        {state === "checking" ? W.CHECKING_LINE : state === "off" ? null : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
+        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "off" ? null : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
       </p>
       {state === "off" || state === "checking" ? (
         <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
@@ -139,7 +139,6 @@ export function AskPanel() {
         <p class="ask-work" id="ask-work">
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
           <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
-          <span class="ask-sr">{W.WORKING}</span>
         </p>
       ) : state === "ready" ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
