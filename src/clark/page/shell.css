@@ -805,6 +805,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-prog { display: flex; align-items: center; gap: 8px; font-size: var(--size-small); }
 .pbar { flex: 1; height: 6px; border-radius: 3px; background: var(--grey-100); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--brand-blue); }
 .msl-all { display: inline-block; margin: 8px 0 0 4px; }
+.msl-det { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; margin: 6px 0 2px; font-size: var(--size-small); color: var(--text-muted); cursor: pointer; border-radius: 4px; }
+.msl-det:hover { color: var(--text); } .msl-det:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.msl-det .i { transition: transform var(--dur-instant) var(--ease-out); } .msl-det[aria-expanded="false"] .i { transform: rotate(-90deg); }
 .cal-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding-right: 210px; flex-wrap: wrap; }
 .cal-t { font-weight: var(--weight-medium); margin-left: 8px; color: var(--heading); }
 .cal-dow, .cal-g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
