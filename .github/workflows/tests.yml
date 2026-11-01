@@ -90,7 +90,7 @@ jobs:
     if: (startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')
     name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
