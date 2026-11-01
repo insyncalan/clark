@@ -11,15 +11,17 @@ from unittest import mock
 
 from _paths import SRC
 from clark import section_bodies as sb
+from clark.section_kinds import TYPES as TEMPLATE_TYPES
 from clark.store import BODY_RULES
 
-TYPES = ("needs", "tracker")
+TYPES = ("needs", "tracker") + TEMPLATE_TYPES      # #96: the section templates are in the registry too (section_kinds/)
 
 
 def check(kind, body):
     return sb.check(kind, body, BODY_RULES)
 
 
+PURE_LIBRARY = ("base64", "binascii", "re")      # #96: standard library parts that read no file and no database
 class Generic(unittest.TestCase):
     """The tests of the generic layer (shape, limits, canonical text) hand a type's content in whatever form they like, so the
     needs checker (its own tests are in test_needs_content.py) is put aside for them: it takes any content that passed the generic check."""
@@ -40,12 +42,16 @@ class Registry(unittest.TestCase):
 
     def test_the_module_is_pure_and_imports_nothing_from_clark(self):
         tree = ast.parse((SRC / "clark" / "section_bodies.py").read_text(encoding="utf-8"))
-        names = [a.name for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
-                 for a in ([n] if isinstance(n, ast.ImportFrom) else n.names)]
+        names = [a.name for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names]
         self.assertTrue(all(isinstance(n, str) for n in names))
         modules = {n.module or "" for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)} | \
                   {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
-        self.assertEqual(modules, {"json", "unicodedata"})
+        self.assertEqual(modules, {"json", "unicodedata", "clark.section_kinds", "clark.section_kinds.base"})
+        for f in sorted((SRC / "clark" / "section_kinds").glob("*.py")):      # #96: the registry it imports is pure too
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+            used = {n.module or "" for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)} | \
+                   {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+            self.assertTrue(all(m.startswith("clark.section_kinds") or m in PURE_LIBRARY for m in used), (f.name, used))
 
     def test_a_type_with_no_checker_has_no_content(self):
         for kind in ("text", "raid", "docs", "other"):
@@ -60,7 +66,7 @@ class Registry(unittest.TestCase):
             return {"mine": 1}
         with mock.patch.dict(sb.CHECKERS, {"needs": mine}):
             self.assertEqual(check("needs", '{"a":1}'), '{"mine":1}')              # what is stored is what the checker handed back
-            self.assertEqual(check("tracker", '{"a":1}'), '{"a":1}')               # the other type is untouched
+            self.assertEqual(check("tracker", '{"groups":[]}'), check("tracker", '{}'))      # the other type is untouched: its own checker rebuilds it
         self.assertEqual(seen, [("mine", {"a": 1})])
 
     def test_a_checker_can_refuse_in_its_own_words_and_a_checker_that_returns_a_string_is_a_fault(self):
@@ -74,9 +80,16 @@ class Registry(unittest.TestCase):
             with self.assertRaises(sb.Bad):
                 check("needs", '{"a":1}')
 
-    def test_the_tracker_publishes_nothing_of_its_content_yet_and_needs_publishes_only_its_shown_rows(self):
-        self.assertEqual(sb.published("tracker", {"rows": [{"what": "<script>"}]}), {})
+    def test_the_tracker_publishes_only_its_checked_groups_and_lines_and_needs_only_its_shown_rows(self):
+        self.assertEqual(sb.published("tracker", {"rows": [{"what": "<script>"}]}), None)
         self.assertIsNone(sb.published("needs", {"rows": [{"what": "<script>"}]}), "a row without the checked shape is not published")
+        from clark import section_kinds
+        from clark.section_kinds import base
+        for kind in TEMPLATE_TYPES:                    # #96: a template stub is left out of the file altogether
+            if section_kinds.REGISTRY[kind].READY:     # a built template answers for itself (its own tests); every one is built now
+                continue
+            self.assertIsNone(sb.published(kind, {"rows": [{"what": "<script>"}]}))
+        self.assertIsNone(base.stub_published({"rows": [{"what": "<script>"}]}, base.Context()), "the stub contract publishes nothing")
 
 
 class Canonical(Generic):
@@ -86,7 +99,7 @@ class Canonical(Generic):
         self.assertEqual(check("needs", got), got)                                  # saving it again changes nothing
 
     def test_a_list_is_content_too(self):
-        self.assertEqual(check("tracker", '[1, 2]'), "[1,2]")
+        self.assertEqual(check("needs", '[1, 2]'), "[1,2]")
 
     def test_nothing_is_empty_content(self):
         for kind in TYPES:

@@ -485,7 +485,7 @@ class Published(Setup):
 class PublishedPage(unittest.TestCase):
     def test_page_view_html_holds_nothing_that_only_the_owner_has(self):
         text = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Slim gaps"):
+        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Dashboard sections", "Slim gaps"):
             self.assertNotIn(owner_only, text, owner_only)
 
 

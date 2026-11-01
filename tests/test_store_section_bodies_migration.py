@@ -301,16 +301,22 @@ class Migrating(Base):
 
 
 class FrozenText(Base):
-    def test_the_frozen_text_is_what_schema_sql_makes_today(self):
-        """Pin: while this is the newest version, the step's frozen text and schema.sql say the same. A later change to schema.sql
-        is a later step with its own frozen text, and this test then compares only against that step."""
-        statements = [st for st in store_module._statements(store_module.SCHEMA.read_text(encoding="utf-8"))
-                      if "CREATE TABLE IF NOT EXISTS report_sections (" in st]
-        self.assertEqual(len(statements), 1)
-
+    def test_the_frozen_text_is_the_later_steps_text_without_the_template_types(self):
+        """Pin: this step's frozen text names the eleven types, and is otherwise what the later section templates step (#96) makes,
+        which tests/test_store_section_templates_migration.py pins to schema.sql. A later change to report_sections is a later
+        step with its own frozen text; this one never changes."""
         def squash(text):
             return re.sub(r"\s+", " ", "\n".join(l.split("--")[0] for l in text.splitlines())).strip().rstrip(";")
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_CONTENT_TYPES), squash(statements[0]))
+
+        def types_and_rest(text):
+            text = squash(text)
+            m = re.search(r"CHECK \(type IN \(([^)]*)\)\)", text)
+            return [t.strip().strip("'") for t in m.group(1).split(",")], text[:m.start()] + text[m.end():]
+        mine, rest = types_and_rest(store_module.REPORT_SECTIONS_WITH_CONTENT_TYPES)
+        later, later_rest = types_and_rest(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES)
+        self.assertEqual(mine, list(TYPES_BEFORE) + ["needs", "tracker"])
+        self.assertEqual(later[:len(mine)], mine)
+        self.assertEqual(rest, later_rest)
 
     def test_the_step_does_not_read_the_live_schema(self):
         path = make_before(self.dir)
@@ -386,17 +392,22 @@ class OtherBranchesDatabase(Base):
         con = sqlite3.connect(str(path), isolation_level=None)
         con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(STEP),))
         con.close()
-        s = open_store(path, onedrive_roots=[])                   # any later step still runs; this one is skipped
-        try:
-            self.assertEqual(version(path), NOW)
-            self.assertNotIn("'needs'", table_sql(path))
-            with s.step("dashboard", USER) as st:
-                st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})
-        finally:
-            s.close()
-        before = sections_of(path)
-        with self.assertRaises(sqlite3.IntegrityError):           # not caught by changes: the server answers it with its own 500, in plain words, no class and no text
-            changes.make_change(path, [], USER)({"project": "ZZZ", "kind": "report_sections", "op": "new", "values": {"type": "needs", "title": "Needs"}})
-        self.assertEqual(sections_of(path), before)               # nothing was written
+        # #96's later step makes the table again (which mends such a file), so this test runs with every step but that one
+        without_rebuilds = tuple((n, (lambda con: None) if f is store_module.migrate_section_templates else f)     # same numbers: no gap
+                                 for n, f in store_module.MIGRATIONS)
+        with mock.patch.object(store_module, "SCHEMA_VERSION", without_rebuilds[-1][0]), \
+                mock.patch.object(store_module, "MIGRATIONS", without_rebuilds):
+            s = open_store(path, onedrive_roots=[])                   # any later step still runs; this one is skipped
+            try:
+                self.assertEqual(version(path), str(without_rebuilds[-1][0]))
+                self.assertNotIn("'needs'", table_sql(path))
+                with s.step("dashboard", USER) as st:
+                    st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})
+            finally:
+                s.close()
+            before = sections_of(path)
+            with self.assertRaises(sqlite3.IntegrityError):           # not caught by changes: the server answers it with its own 500, in plain words, no class and no text
+                changes.make_change(path, [], USER)({"project": "ZZZ", "kind": "report_sections", "op": "new", "values": {"type": "needs", "title": "Needs"}})
+            self.assertEqual(sections_of(path), before)               # nothing was written
         from clark import server
         self.assertEqual(server.MESSAGES["server_error"], "Something went wrong, and nothing was changed. Try again, or restart clark.")

@@ -191,7 +191,7 @@ class Published(unittest.TestCase):
         self.assertEqual(json.dumps(value), before)
 
     def test_the_tracker_is_untouched(self):
-        self.assertEqual(sb.published("tracker", {"rows": [row()]}), {})
+        self.assertEqual(sb.published("tracker", {"rows": [row()]}), None)      # a tracker with nothing to publish is left out; needs content is not read as a tracker
 
 
 class Route(Api):

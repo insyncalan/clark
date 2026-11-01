@@ -175,8 +175,8 @@ class PageGate(unittest.TestCase):
             js("document.querySelector('.ProseMirror').cxed.editor.commands.insertContent('New words'); true")
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
                                                 "modifiers": 4 if js("/Mac/.test(navigator.platform)") else 2}, sid)
-            self.assertTrue(wait(lambda: any(r.get("changes", {}).get("body") for r in self.sent), 10), "the change was sent")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('.toast')"), 10))
+            self.assertTrue(wait(lambda: any(r.get("changes", {}).get("body") for r in self.sent), 30), "the change was sent")  # a bounded poll: the hosted macOS runner can take longer than 10 s
+            self.assertTrue(wait(lambda: js("!!document.querySelector('.toast')"), 30))
             self.assertTrue(js("!!document.querySelector('.ProseMirror')"), "the field stays open")
             self.assertNotIn("Traceback", js("document.querySelector('.toast-text').textContent"))
 

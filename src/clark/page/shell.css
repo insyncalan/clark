@@ -3,6 +3,7 @@
    tests/test_font.py fails if one is). */
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
+html[data-mode="view"] { scrollbar-gutter: stable; }          /* a drawn (Linux, Windows) scrollbar comes and goes with the list's length: its room is always kept, so the centred page never shifts; View only, the editor's menus are sized to the whole window */
 body { margin: 0; background: var(--grey-50); color: var(--text); font: var(--weight-light) var(--size-body)/var(--leading) var(--font); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 a { color: var(--status-blue-text); }
@@ -111,6 +112,23 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc-top { all: unset; box-sizing: border-box; display: block; width: 100%; margin-top: 6px; padding: 7px 8px; border-top: 1px solid var(--grey-100); font-size: var(--size-small); color: var(--text-muted); cursor: pointer; }
 .toc-top:hover { color: var(--text); }
 .toc-top:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* At 900 px and narrower the rail gives way to an "On this page" button at the bottom right of the window, which opens the same list
+   above it (the narrow contents button). The button is the rail's own button, so the keys and the focus rules are the same. Drawn on both pages (the
+   editor and a published file). It sits clear of the toasts (bottom left); the page keeps 72 px free under its last line (main, above). */
+.toc-ico, .toc-lbl { display: none; }
+@media (max-width: 900px) {
+  .toc { right: var(--space-4); bottom: var(--space-4); top: auto; transform: none; }
+  .toc-lines { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3); border: 1px solid var(--grey-700); border-radius: 999px; background: var(--surface); color: var(--text); font-size: var(--size-small); box-shadow: var(--shadow); }
+  /* The fade is on the hover state only, so switching between light and dark never animates the button from white. */
+  .toc-lines:hover, .toc.open .toc-lines { background: var(--grey-100); transition: background-color var(--dur-instant) var(--ease-out); }
+  .toc.open .toc-lines { opacity: 1; }
+  .toc-lines i { display: none; }
+  .toc-ico, .toc-lbl { display: inline-block; }
+  .toc-card { right: 0; top: auto; bottom: calc(100% + var(--space-2)); width: min(290px, calc(100vw - 32px)); max-height: calc(100vh - var(--topbar) - 96px); overflow-y: auto; transform: translateY(8px); }
+  .toc.open .toc-card { transform: none; }
+  .toc li button { min-height: 32px; }
+}
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) { .toc-card, .toc.open .toc-card { transition: none; transform: none; } .toc-lines { transition: none; } }
 
 /* The project-record picker (FR-16, #67): one panel, never wider than its place. */
 .picker { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(560px, 90vh); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
@@ -380,7 +398,7 @@ table.needs .n-over { margin-left: 2px; }
 @media (hover: none) { .sec-ctl { opacity: 1; } }
 /* At 900 px and below the frame's side padding is only 16 px, so the control would hang outside the card (issue 139). In Edit the section keeps
    room for it inside its own padding (32 px: the 24 px control and a 4 px gap each side); the box itself, its left edge and width, do not change. */
-@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; } }
+@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: .75; } }      /* in the padding it is clear at rest (issue 130, point 2), in both themes */
 @media (prefers-reduced-motion: reduce) { .sec-ctl { transition: none; } }      /* after the rule above, so it wins */
 .sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 4px; margin: 0 -4px; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }
@@ -503,6 +521,8 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 
 /* Work items: Group by, the table or board icon switch, grouped table headings (#68). Tokens only. */
 .vctl { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.vctl .search input { box-sizing: border-box; width: 220px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; }
+.vctl .search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .btn.gb { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; }
 .btn.gb .i { width: 14px; height: 14px; }
 .seg.icons button, .bib { all: unset; box-sizing: border-box; position: relative; display: inline-grid; place-items: center; width: 34px; height: 32px; cursor: pointer; color: var(--text-muted); }
@@ -875,6 +895,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pub-msg .error { color: var(--status-red-text); }
 .pub-msg .success { color: var(--status-green-text); }
 .pub-msg .info, .pub-msg .note { color: var(--text-muted); }
+/* Publish (issue 130, point 4): a spinner while it works, then a tick with the success line. With reduced motion the ring stays still. */
+.pub-msg .working { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.spin { flex: none; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
+@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin 900ms linear infinite; } }
+@keyframes pub-spin { to { transform: rotate(360deg); } }
+.pub-msg .success { display: flex; align-items: center; gap: 8px; }
+.pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
+.pub-tick .i { width: 11px; height: 11px; stroke-width: 3; }
 .dlg-f { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .btn.pri { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .btn.pri:disabled { opacity: .55; cursor: default; }
@@ -927,6 +955,30 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .styles legend { padding: 0; margin-bottom: 6px; font-size: var(--size-small); color: var(--text-muted); }
 .stylepick { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .stylepick input { accent-color: var(--brand-blue); width: 16px; height: 16px; margin-top: 3px; }
+/* The section style as four picture cards: each is a label holding a real radio (kept in the page for the keyboard and screen readers,
+   drawn over the whole card, see through), a small drawing of the layout made of the tokens, the name and one line. Selected = a 2 px
+   --brand-blue edge and a tick, never colour alone. Edges are --grey-700 (3:1 or more on the card and on the page, light and dark). */
+.styles.secstyles { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.styles.secstyles legend { grid-column: 1 / -1; }
+.secpick { position: relative; display: block; cursor: pointer; }
+.secpick input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.secpick-card { position: relative; display: grid; gap: 4px; align-content: start; height: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--grey-700); border-radius: var(--radius-lg); background: var(--surface); transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
+.secpick:hover .secpick-card { border-color: var(--text); }
+.secpick input:checked + .secpick-card { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
+.secpick input:focus-visible + .secpick-card { outline: 2px solid var(--brand-blue); outline-offset: 3px; }
+.secpick-card b { font-weight: var(--weight-medium); color: var(--text); }
+.secpick-card small { color: var(--text-muted); font-size: var(--size-small); }
+.secpick-pic { display: grid; height: 74px; box-sizing: border-box; padding: 8px; gap: 4px; margin-bottom: 6px; border-radius: 6px; background: var(--grey-100); grid-template-rows: 12px 1fr 1fr; }
+.secpick-pic i { display: block; border-radius: 3px; background: var(--surface); border: 1px solid var(--grey-700); }
+.secpick-pic i:first-child { background: var(--heading); border: 0; }
+.sk-roomy .secpick-pic { gap: 8px; }
+.sk-grey .secpick-pic i:nth-child(n+2) { background: linear-gradient(var(--grey-300) 0 5px, var(--surface) 5px); }
+.sk-card .secpick-pic { gap: 0; }
+.sk-card .secpick-pic i:nth-child(2) { border-radius: 3px 3px 0 0; }
+.sk-card .secpick-pic i:nth-child(3) { border-top: 0; border-radius: 0 0 3px 3px; }
+.secpick-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; }
+.secpick-tick { display: none; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand-blue); color: var(--text-on-brand); }
+.secpick input:checked + .secpick-card .secpick-tick { display: grid; }
 .fld { display: grid; gap: 4px; margin: 0 0 12px; max-width: 420px; }
 .fld label { font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); }
 .fld input { min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
@@ -1053,3 +1105,154 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+.pk-stale { margin: 0 0 8px; }
+.pk-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-small); }
+
+/* G5 typed notes (#96): Callout, Quote, Contacts, Table, as the report and the published file draw them. Tokens only. */
+.tpl-callout { margin: 8px 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); background: var(--surface-muted); color: var(--text); overflow-wrap: anywhere; }
+.tpl-callout.tone-info { border-left-color: var(--status-blue); }
+.tpl-callout.tone-decision { border-left-color: var(--status-amber); }
+.tpl-callout.tone-warning { border-left-color: var(--status-red); }
+.tpl-callout-tone { margin: 0 0 var(--space-1); font-size: var(--size-small); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.tone-info .tpl-callout-tone { color: var(--status-blue-text); }
+.tone-decision .tpl-callout-tone { color: var(--status-amber-text); }
+.tone-warning .tpl-callout-tone { color: var(--status-red-text); }
+.tpl-callout-h { margin: 0 0 var(--space-1); font-weight: var(--weight-medium); color: var(--heading); }
+.tpl-callout-p { margin: 0 0 var(--space-2); }
+.tpl-callout-p:last-child { margin-bottom: 0; }
+.tpl-quote { margin: 8px 0; padding: 0 0 0 var(--space-4); border-left: 3px solid var(--brand-blue); min-width: 0; overflow-wrap: anywhere; }
+.tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
+.tpl-quote-q p { margin: 0; }
+.tpl-quote-by { margin-top: var(--space-2); font-size: var(--size-small); color: var(--text-muted); }
+.tpl-contacts { list-style: none; margin: 8px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
+.tpl-contact { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.tpl-contact-name { font-weight: var(--weight-medium); color: var(--heading); }
+.tpl-contact-role { font-size: var(--size-small); color: var(--text-muted); }
+.tpl-contact-line { font-size: var(--size-small); }
+.tpl-contact-line a { color: var(--link); }
+.tpl-table-wrap { margin: 8px 0; max-width: 100%; overflow-x: auto; }
+.tpl-table { width: 100%; border-collapse: collapse; font-size: var(--size-body); }
+.tpl-table caption { caption-side: bottom; padding-top: var(--space-2); text-align: left; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-table th, .tpl-table td { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.tpl-table th { background: var(--surface-muted); color: var(--heading); font-weight: var(--weight-medium); }
+
+/* Section templates, G4 Dates and lists (#96): Key dates and Checklist. Tokens only; status is always in words as well as colour. */
+.tpl-dates { margin: 8px 0; padding: 0; list-style: none; }
+.tpl-dates-row { display: grid; grid-template-columns: minmax(96px, max-content) minmax(0, 1fr) auto; align-items: baseline; gap: 4px 14px; padding: 8px 0; border-top: 1px solid var(--grey-200); }
+.tpl-dates-row:first-child { border-top: 0; }
+.tpl-dates-day { font-weight: var(--weight-medium); color: var(--heading); font-variant-numeric: tabular-nums; }
+.tpl-dates-label { min-width: 0; overflow-wrap: anywhere; color: var(--text); }
+.tpl-dates-words { font-size: var(--size-small); color: var(--text-muted); }
+.tpl-dates-row.is-late .tpl-dates-words { color: var(--status-red-text); font-weight: var(--weight-medium); }
+.tpl-dates-row.is-risk .tpl-dates-words { color: var(--status-amber-text); font-weight: var(--weight-medium); }
+.tpl-check { margin: 8px 0; }
+.tpl-check-count { margin: 0 0 6px; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-check-list { margin: 0; padding: 0; list-style: none; }
+.tpl-check-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: baseline; gap: 4px 10px; padding: 6px 0; border-top: 1px solid var(--grey-200); }
+.tpl-check-row:first-child { border-top: 0; }
+.tpl-check-box { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 2px solid var(--grey-500); border-radius: 4px; background: var(--surface); color: var(--status-green-text); font-size: 13px; line-height: 1; font-weight: var(--weight-semibold); }
+.tpl-check-row.is-done .tpl-check-box { border-color: var(--status-green); background: var(--status-green-tint); }
+.tpl-check-text { min-width: 0; overflow-wrap: anywhere; color: var(--text); }
+.tpl-check-row.is-done .tpl-check-text { color: var(--text-muted); text-decoration: line-through; }
+.tpl-check-state { font-size: var(--size-small); color: var(--text-muted); }
+.tpl-check-row.is-done .tpl-check-state { color: var(--status-green-text); }
+
+/* #96 G1 Key figures (figures4, figures3) */
+.tpl-figs { display: grid; gap: 12px; margin-top: 12px; }
+.tpl-figs.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tpl-figs.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tpl-figs .fig { min-width: 0; overflow-wrap: anywhere; }
+.slot-left .tpl-figs.n4, .slot-right .tpl-figs.n4, .slot-left .tpl-slots.n4, .slot-right .tpl-slots.n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.slot-left .tpl-figs.n3, .slot-right .tpl-figs.n3, .slot-left .tpl-slots.n3, .slot-right .tpl-slots.n3 { grid-template-columns: 1fr; }
+.tpl-slots { display: grid; gap: 12px; margin-top: 12px; }
+.tpl-slots.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tpl-slots.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tpl-slot { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; padding: 8px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); }
+.tpl-slot legend { padding: 0 4px; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-slot label { display: flex; flex-direction: column; gap: 2px; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-slot input, .tpl-slot select { min-height: 32px; min-width: 0; padding: 4px 8px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-slot input:focus-visible, .tpl-slot select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* G2 RAID cards (#96): three or four cards across, each a work item and the words chosen for it. Tokens only, so dark follows. */
+.raid-cards { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.raid-n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.raid-card { min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.raid-card p { margin: 0 0 var(--space-1); }
+.raid-top { font-size: var(--size-small); color: var(--text-muted); }
+.raid-kind { font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.raid-title { font-weight: var(--weight-medium); color: var(--heading); }
+.raid-meta { font-size: var(--size-small); color: var(--text-muted); }
+.raid-text { margin-top: var(--space-2); color: var(--text); }
+
+/* #96 G3 Work items list (workitems): the view part. Full width draws the table, half width the two-line rows; tokens only. */
+.wil { min-width: 0; }
+.wil-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; margin-top: 4px; }
+.wil-table th { text-align: left; font-weight: 400; font-size: 13px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); padding: 6px 8px; border-top: 1px solid var(--grey-200); }
+.wil-table td { padding: 8px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; color: var(--text); }
+.wil-table th:first-child, .wil-table td:first-child { padding-left: 2px; }
+.wil-table .wil-c-type { width: 116px; }
+.wil-table .wil-c-id { width: 108px; }
+.wil-table .wil-c-owner { width: 150px; }
+.wil-table .wil-c-due { width: 128px; }
+.wil-table .wil-c-status { width: 120px; }
+.wil-table .wil-c-workstream { width: 140px; }
+.wil-table .type { white-space: nowrap; }
+.wil-lines { margin: 4px 0 0; padding: 0; list-style: none; }
+.wil-lines li { display: flex; flex-direction: column; gap: 2px; padding: 8px 2px; border-top: 1px solid var(--grey-100); }
+.wil-t { color: var(--text); overflow-wrap: anywhere; }
+.wil-m { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+.wil-cap { margin: 8px 0 0; font-size: var(--size-small); color: var(--text-muted); }
+.sec.slot-full .wil-lines, .sec.slot-left .wil-table, .sec.slot-right .wil-table { display: none; }
+@media (max-width: 1100px) {
+  .wil-table .wil-c-workstream, .wil-table .wil-c-owner { width: 120px; }
+}
+
+/* Pictures group (#96): Text and image, Image with caption, Image gallery, Headline band. View and the published file; tokens only. */
+.tpl-fig { margin: 0; min-width: 0; }
+.tpl-fig img { display: block; width: 100%; height: auto; max-height: 520px; object-fit: contain; border-radius: var(--radius); background: var(--surface-muted); }
+.tpl-fig figcaption { margin-top: var(--space-2); font-size: var(--size-small); color: var(--text-muted); }
+.tpl-ti { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.tpl-ti.pic-left { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.tpl-ti.pic-left .tpl-fig { order: -1; }
+.tpl-ti.no-pic { grid-template-columns: minmax(0, 1fr); }
+.tpl-words p { margin: 0 0 var(--space-3); color: var(--text); line-height: var(--leading); }
+.tpl-words p:last-child { margin-bottom: 0; }
+.slot-left .tpl-ti, .slot-right .tpl-ti, .slot-left .tpl-band.has-pic, .slot-right .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
+.slot-left .tpl-ti .tpl-fig, .slot-right .tpl-ti .tpl-fig { order: 0; }
+.tpl-gal { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.tpl-gal.n-1 { grid-template-columns: minmax(0, 1fr); }
+.tpl-gal.n-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tpl-gal .tpl-fig img { aspect-ratio: 4 / 3; object-fit: cover; max-height: none; }
+.tpl-band { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-5) var(--space-6); border-radius: var(--radius-lg); background: var(--brand-navy); color: var(--text-on-brand); }
+.tpl-band.has-pic { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.tpl-band-words { margin: 0; font-family: var(--font-head); font-size: var(--size-h2); font-weight: var(--weight-semibold); line-height: 1.25; color: var(--text-on-brand); }
+.tpl-band-btn { display: inline-flex; align-items: center; min-height: 36px; margin-top: var(--space-4); padding: 0 var(--space-4); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-weight: var(--weight-medium); text-decoration: none; }
+.tpl-band-btn:hover { background: var(--grey-100); }
+.tpl-band-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tpl-band .tpl-fig img { max-height: 240px; background: transparent; }
+@media (max-width: 900px) {
+  .tpl-ti, .tpl-ti.pic-left, .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
+  .tpl-ti.pic-left .tpl-fig { order: 0; }
+  .tpl-gal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* #96 G7 Files and links templates (Documents and links, One document, Link preview): view parts. Tokens only, so dark mode follows. */
+.tpl-dl { list-style: none; margin: var(--space-2) 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.tpl-dl-i, .tpl-od-file { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.tpl-badge { flex: none; min-width: 3.5em; padding: 2px var(--space-2); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--text); font-size: var(--size-small); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-align: center; text-transform: uppercase; }
+.tpl-main { display: flex; flex-direction: column; min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.tpl-name { color: var(--text); font-weight: var(--weight-medium); }
+a.tpl-name, .tpl-lc-title a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.tpl-facts { color: var(--text-muted); font-size: var(--size-small); }
+.tpl-od-text, .tpl-lc-text { margin: var(--space-2) 0 0; color: var(--text); overflow-wrap: anywhere; }
+.tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-left: 4px solid var(--brand-blue); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-small); overflow-wrap: anywhere; }
+.tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+
+/* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
+.pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pk-val .i { width: 16px; height: 16px; }
+.ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
+.ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
