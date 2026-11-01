@@ -80,13 +80,19 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 MAX_MODULE_BYTES = 4 * 1024 * 1024
 MAX_FONT_BYTES = 512 * 1024         # one woff2 file; the vendored ones are about 20 KB each
 WOFF2_MAGIC = b"wOF2"
+SHOWABLE_NAME = re.compile(r"[^\x00-\x1f\x7f/\\:]{1,60}")      # a file name safe to show in a refusal: printable, no path separator
 FONT_FILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.woff2")
-FONT_FIELDS = (                     # (field, the shape it must match in full): nothing else can reach the CSS
-    ("family", re.compile(r"[A-Za-z0-9][A-Za-z0-9 _-]{0,63}")),
-    ("style", re.compile(r"normal|italic")),
-    ("weight", re.compile(r"[1-9]00")),
-    ("unicode_range", re.compile(r"U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?(, U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?)*")),
+FONT_FIELDS = (                     # (field, the shape it must match in full, what it must be): nothing else can reach the CSS
+    ("family", re.compile(r"[A-Za-z0-9][A-Za-z0-9 _-]{0,63}"),
+     "family is missing or has characters that are not allowed (use letters, digits, space, '_' and '-')"),
+    ("style", re.compile(r"normal|italic"), "style must be normal or italic"),
+    ("weight", re.compile(r"[1-9]00"), "weight must be 100, 200 ... 900"),
+    ("unicode_range", re.compile(r"U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?(, U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?)*"),
+     "unicode_range is missing or is not a list of ranges such as U+0000-00FF"),
 )
+FONT_SUBSET = re.compile(r"[a-z][a-z0-9-]{0,31}")      # optional ("latin"); it is checked but not used in the CSS
+FONT_KEYS = frozenset(name for name, _, _ in FONT_FIELDS) | {"file", "subset"}      # a key outside these is refused (#263)
+MANIFEST_KEYS = frozenset({"fonts", "files", "package"})       # "files" and "package" are the record of where the fonts came from
 
 
 HELP = SRC / "help"
@@ -198,37 +204,47 @@ def _manifest_name(folder):
         return f"{folder.name}/manifest.json"
 
 
+def _shown_key(key):
+    """A manifest key as it can be shown in a refusal: quoted if it is plain printable text, else a general word (never an echo of odd text)."""
+    return f"'{key}'" if isinstance(key, str) and SHOWABLE_NAME.fullmatch(key) else "a key with unusual characters"
+
+
 def font_bytes(folder, name, where):
     """The bytes of the font file `name` from `folder`'s manifest, or FontManifestError in plain words naming `where`."""
     if not isinstance(name, str) or not name:
-        raise FontManifestError(f"{where}: the file is missing or is not a name")
+        raise FontManifestError(f"{where}: the 'file' setting is empty or is not text; set it to the font's file name, for example Inter-Regular.woff2")
     if os.path.isabs(name) or name.startswith(("/", "\\")) or re.match(r"[A-Za-z]:", name):
         raise FontManifestError(f"{where}: the file is an absolute path; it must be a file name inside the font's own folder")
     if ".." in re.split(r"[/\\]", name):
-        raise FontManifestError(f"{where}: the file climbs out of the font's folder with '..'")
+        raise FontManifestError(f"{where}: the file name contains '..', which points outside the font's folder; use only the file name, with no folders in it")
     if "/" in name or "\\" in name:
         raise FontManifestError(f"{where}: the file is in a sub-folder; it must sit in the font's own folder")
     if not FONT_FILE.fullmatch(name):
-        raise FontManifestError(f"{where}: the file is not a woff2 font name (letters, digits, '.', '_', '-', ending .woff2)")
+        raise FontManifestError(f"{where}: the file name must end in .woff2 and use only letters, digits, '.', '_' and '-'; rename the file and set 'file' to the new name")
     home = os.path.realpath(folder)
-    real = os.path.realpath(os.path.join(home, name))
+    path = os.path.join(home, name)
+    real = os.path.realpath(path)
     if os.path.dirname(real) != home or not Path(real).is_relative_to(home):
-        raise FontManifestError(f"{where}: the file is a link that leads outside the font's own folder")
+        raise FontManifestError(f"{where}: the file is a shortcut (symbolic link) to something outside the font's own folder; "
+                                f"copy the real font file into that folder and point 'file' at the copy")
     try:
         st = os.stat(real)
     except OSError:
-        raise FontManifestError(f"{where}: the file is not there") from None
+        raise FontManifestError(f"{where}: no file with that name is in the font's folder; add the font file or correct the name in 'file'") from None
+    if os.path.islink(path):         # a link that stays in the folder is refused too: the file read must be the file named
+        raise FontManifestError(f"{where}: the file is a shortcut (symbolic link), even to a file in the same folder; "
+                                f"copy the real font file into the folder and point 'file' at the copy")
     if not stat.S_ISREG(st.st_mode):
-        raise FontManifestError(f"{where}: the file is not a regular file")
-    too_big = f"{where}: the file is bigger than {MAX_FONT_BYTES // 1024} KB, too big for a font"
+        raise FontManifestError(f"{where}: the name points at a folder or another kind of item, not a font file; point 'file' at the .woff2 file")
     if st.st_size > MAX_FONT_BYTES:
-        raise FontManifestError(too_big)
+        raise FontManifestError(f"{where}: the file is bigger than {MAX_FONT_BYTES // 1024} KB; use a smaller or trimmed (subset) version of the font")
     with open(real, "rb") as fh:
         data = fh.read(MAX_FONT_BYTES + 1)       # a file that grows after the stat is still capped
     if len(data) > MAX_FONT_BYTES:
-        raise FontManifestError(too_big)
+        raise FontManifestError(f"{where}: the file changed size while the build was reading it and is now over {MAX_FONT_BYTES // 1024} KB; "
+                                f"run the build again, and if it repeats, replace the file with a smaller one")
     if not data.startswith(WOFF2_MAGIC):
-        raise FontManifestError(f"{where}: the file is not a woff2 font (it does not start with the woff2 signature)")
+        raise FontManifestError(f"{where}: the file is not a woff2 font (it may be another kind of file renamed to .woff2); replace it with the original font file")
     return data
 
 
@@ -239,20 +255,40 @@ def font_css(folders=None):
     for folder in (FONTS if folders is None else folders):
         manifest = _manifest_name(folder)
         try:
-            fonts = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))["fonts"]
-        except (OSError, ValueError, KeyError, TypeError):
-            raise FontManifestError(f"{manifest}: cannot be read as a font manifest (a 'fonts' list)") from None
+            text = (folder / "manifest.json").read_text(encoding="utf-8")
+        except OSError:
+            raise FontManifestError(f"{manifest} is missing or cannot be opened") from None
+        except ValueError:
+            raise FontManifestError(f"{manifest} is not valid JSON (check commas and quotes)") from None
+        try:
+            data = json.loads(text)
+        except ValueError:
+            raise FontManifestError(f"{manifest} is not valid JSON (check commas and quotes)") from None
+        if not isinstance(data, dict):
+            raise FontManifestError(f"{manifest} must be one block of settings, written with {{ }} braces, with a 'fonts' list inside")
+        for key in data:
+            if key not in MANIFEST_KEYS:
+                raise FontManifestError(f"{manifest}: {_shown_key(key)} is not a setting a font manifest has (allowed: files, fonts, package); remove it or correct its spelling")
+        if "fonts" not in data:
+            raise FontManifestError(f"{manifest} has no 'fonts' list")
+        fonts = data["fonts"]
         if not isinstance(fonts, list):
-            raise FontManifestError(f"{manifest}: 'fonts' is not a list")
+            raise FontManifestError(f"'fonts' in {manifest} must be a list of fonts, written with [ ] brackets")
         for i, f in enumerate(fonts, 1):
-            label = f.get("file") if isinstance(f, dict) else None
-            where = f"{manifest}, font {i}" + (f" ({label!r})" if isinstance(label, str) and FONT_FILE.fullmatch(label) else "")
             if not isinstance(f, dict):
-                raise FontManifestError(f"{where}: the entry is not an object")
-            for field, shape in FONT_FIELDS:
+                raise FontManifestError(f"{manifest}, font {i} is not a block of settings; each font needs family, style, weight, unicode_range and file")
+            label = f.get("file")
+            shown = label if isinstance(label, str) and SHOWABLE_NAME.fullmatch(label) else ""     # a typo'd name is named too; a path is never echoed
+            where = f"{manifest}, font {i}" + (f" ({shown!r})" if shown else "")
+            for key in f:
+                if key not in FONT_KEYS:
+                    raise FontManifestError(f"{where}: {_shown_key(key)} is not a setting a font has (allowed: {', '.join(sorted(FONT_KEYS))}); remove it or correct its spelling")
+            for field, shape, rule in FONT_FIELDS:
                 value = f.get(field)
                 if not isinstance(value, str) or not shape.fullmatch(value):
-                    raise FontManifestError(f"{where}: {field} is not an allowed value")
+                    raise FontManifestError(f"{where}: {rule}")
+            if "subset" in f and not (isinstance(f["subset"], str) and FONT_SUBSET.fullmatch(f["subset"])):
+                raise FontManifestError(f"{where}: subset must be a short lower-case name such as latin")
             data = base64.b64encode(font_bytes(folder, f.get("file"), where)).decode("ascii")
             rules.append(f"@font-face {{ font-family: \"{f['family']}\"; font-style: {f['style']}; font-weight: {f['weight']}; "
                          f"font-display: swap; src: url(data:font/woff2;base64,{data}) format(\"woff2\"); "
