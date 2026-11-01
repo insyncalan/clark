@@ -52,8 +52,8 @@ export function MsCalendar({ rows, today, open, place, client }) {
   // The scale is remembered per place, as the Timeline / Calendar choice is; a published file remembers nothing.
   const [scale, setScale] = useState(() => { const s = client || !place ? null : recall(`msv.calv.${place}`, null); return SCALE_KEYS.includes(s) ? s : "month"; });
   const chips = calendarChips(rows);
-  // Where to open when today is out of range: the earliest dated mark, else the start of this year.
-  const home = () => inRange(today) ? today : (markDates(rows).sort()[0] || `${new Date().getFullYear()}-01-01`);
+  // Where to open when today is out of range: the earliest dated mark, else the start of the year of `today` (the clock is read once, in workItems.js).
+  const home = () => inRange(today) ? today : (markDates(rows).sort()[0] || `${String(today).slice(0, 4)}-01-01`);
   const [at, setAt] = useState(home);        // any day inside the period shown
   const [far, setFar] = useState(false);
   const [moved, setMoved] = useState(false);   // true once the person has changed the period, so it is announced then and not on load
