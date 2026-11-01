@@ -1,5 +1,6 @@
 """#253: the v0.3 release line "A key or a password typed into a question, or inside the text you selected, is refused before
-anything is sent", proved in code instead of by a hand check.
+anything is sent", proved in code instead of by a hand check. (#312: the released wording overstates the second half, because there
+is no live selection route yet; any later notes should say only "typed into a question".)
 
 The question path is driven through the REAL server and the REAL /api/ask route (a real store, a real HTTP request) with a fake
 provider that records every call. The selected-text path has no server route on main (see SelectionHasNoRoute), so it is driven
