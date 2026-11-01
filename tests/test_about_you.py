@@ -259,8 +259,106 @@ class AboutYou(Base):
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
             self.handled(p, "Sam Lee")
 
+    # ── the toast and Undo (#429) ───────────────────────────────────────────
+
+    def toast_is(self, p, text):
+        p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === {json.dumps(text)}", f"the toast says {text}")
+
+    def has_undo(self, p):
+        return p.js("!!document.querySelector('.toast [data-undo]')")
+
+    def test_C_saving_the_name_or_the_email_says_so_with_undo_and_a_second_save_of_the_same_words_says_nothing(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            self.assertTrue(self.has_undo(p), "Undo is offered")
+            self.type_into(p, "email", "sam@example.test")
+            self.toast_is(p, "Email saved.")
+            self.assertTrue(self.has_undo(p))
+            p.js("document.querySelector('[data-dismiss]').click()")
+            p.until("!document.querySelector('.toast')", "the toast went")
+            self.type_into(p, "email", "sam@example.test")           # the same words again: nothing changed
+            self.handled(p, "Sam Lee", "sam@example.test")
+            time.sleep(0.3)
+            self.assertIsNone(p.js("document.querySelector('.toast')"), "nothing changed, so nothing is said")
+
+    def test_C_undo_puts_the_old_value_back_in_the_box_the_menu_and_the_store(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")
+            self.type_into(p, "name", "Sam Lee Two")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Sam Lee Two")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee Two")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.handled(p, "Sam Lee")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee", "the box has the old name")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "clark has the old name")
+            self.assertFalse(self.has_undo(p), "the Undo is used up")
+
+    def test_C_undo_of_the_first_name_empties_the_box_and_the_menu_asks_for_a_name_again(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Sam Lee")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.handled(p, "", "")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "")
+            self.assertEqual(self.saved().get("profile_name", ""), "")
+
+    def test_C_a_refused_save_shows_no_toast_and_no_undo(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "N" * 61)
+            p.until("document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the refusal shows")
+            time.sleep(0.3)
+            self.assertIsNone(p.js("document.querySelector('.toast')"), "a refusal is said under the box, not in a toast")
+            self.assertEqual(self.saved().get("profile_name", ""), "")
+
+    def test_C_typing_again_after_a_save_takes_the_undo_away_and_nothing_goes_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")
+            self.type_into(p, "name", "Sam Lee Two")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Sam Lee Two")
+            self.type_into(p, "name", "Sam Lee Three", leave="none")
+            p.until("!document.querySelector('.toast [data-undo]')", "the Undo is gone once the person has typed again")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee Three", "what was typed stays")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee Two")
+
+    def test_C_a_late_read_does_not_make_a_save_of_the_stored_words_look_like_a_change(self):
+        """Nothing is offered for a save until clark has said what it holds: a first save never turns the stored words into an 'old value'."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")
+            p.js("location.reload()")
+            p.until("!!document.querySelector('#profile-btn')", "the page again")
+            self.open_settings(p)
+            p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box follows what clark holds")
+            self.type_into(p, "name", "Sam Lee")                      # the stored words, saved again
+            self.handled(p, "Sam Lee")
+            time.sleep(0.3)
+            self.assertIsNone(p.js("document.querySelector('.toast')"))
+
 
 class Source(unittest.TestCase):
+    def test_the_toast_words_are_pinned(self):
+        text = (PAGE_SRC / "edit" / "aboutYouToast.js").read_text(encoding="utf-8")
+        for words in ('"Name saved."', '"Email saved."'):
+            self.assertIn(words, text)
+
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
         for words in ("<legend>About you</legend>", '"Your name"', '"Your email"', NAME_LINE, EMAIL_LINE):
