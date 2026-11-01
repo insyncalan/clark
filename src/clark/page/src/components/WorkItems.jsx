@@ -172,7 +172,7 @@ function PublishedList({ Board, Cell, Bulk }) {
     <div id="work-list">
       {selecting() ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
       {Bulk ? <Bulk.Layer /> : null}
-      <div class="factive">
+      <div class="factive pub">
         <span id="work-count" class="num">{countText(filtered.length, st.mode)}</span>
         {cs.map((c) => (
           <span class="fchip" key={c.field} data-chip={c.field}>{c.text}

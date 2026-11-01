@@ -206,7 +206,38 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .note:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .i { width: 14px; height: 14px; flex: none; }
+.fbox { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 260px; max-height: 340px; overflow: auto; padding: 8px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: 14px; }
+.fbox.right { left: auto; right: 0; }
+.fbox .isnot { display: flex; gap: 4px; padding: 0 12px 6px; }
+.fbox .isnot button { all: unset; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: 13px; color: var(--text-muted); }
+.fbox .isnot button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.fbox .isnot button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fbox .fact { display: flex; gap: 6px; padding: 0 12px 6px; border-bottom: 1px solid var(--grey-100); margin-bottom: 4px; }
+.fbox label { display: flex; align-items: center; gap: 10px; padding: 6px 12px; cursor: pointer; }
+.fbox label:hover { background: var(--grey-50); }
+.fbox label .c { margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
 .btn.sm { padding: 2px 10px; font-size: 13px; min-height: 24px; }
+/* The published file keeps the older filter bar and its chips (#69); the line is the app's only (#153). */
+.wbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.seg button { all: unset; box-sizing: border-box; padding: 6px 12px; min-height: 32px; font-size: 14px; cursor: pointer; color: var(--text); }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button:hover { background: var(--grey-50); }
+.seg button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: 500; }
+.seg button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.seg em { font-style: normal; color: var(--text-muted); margin-left: 4px; }
+.seg button[aria-pressed="true"] em { color: inherit; }
+.fbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 10px; }
+.fl { font-size: 13px; color: var(--text-muted); margin-right: 2px; }
+.fwrap { position: relative; display: inline-block; }
+.fbtn { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; min-height: 28px; border: 1px solid transparent; border-radius: var(--radius-pill); background: transparent; cursor: pointer; font-size: 13px; color: var(--text-muted); }
+.fbtn:hover, .fbtn[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }
+.fbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fbtn.on { color: var(--status-blue-text); }
+.fbtn.on::after { content: ""; position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-blue); }
+.factive.pub { margin: 14px 0 4px; }
+.factive.pub .fchip { padding: 2px 4px 2px 10px; }
+.factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
 .fline-wrap { margin-top: 12px; }
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
@@ -256,6 +287,13 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
 @media (max-width: 640px) {
   .fkey { display: none; }
+  .wbar { gap: 8px; }
+  .wbar .seg { display: flex; flex: 1 1 100%; max-width: 100%; }
+  .wbar .seg button { flex: 1 1 0; min-width: 0; padding: 4px 6px; min-height: 32px; font-size: 13px; text-align: center; }
+  .fbar { gap: 4px; }
+  .fbtn { padding: 2px 8px; min-height: 28px; }
+  .fbox { width: min(260px, calc(100vw - 48px)); }
+  .fbox .isnot button { min-height: 24px; display: inline-flex; align-items: center; }
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: 4px; }
   .top .divider { display: none; }
