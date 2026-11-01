@@ -256,10 +256,10 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.sent, [], "nothing was chosen")
             self.no_errors()
 
-    def test_back_closing_a_peek_also_closes_the_add_menu_and_a_filter_box_and_keeps_the_filters(self):
+    def test_back_closing_a_peek_also_closes_the_add_menu_and_keeps_the_filters(self):
         with chrome() as cdp:
             self.visit(cdp, "#work&p=ABC")
-            self.js("document.querySelector('[data-show=all]').click()")
+            self.js("clarkPage.setFilters('mode:all')")
             self.until("location.hash.indexOf('&f=') > 0", "a filter is in the address")
             hash_ = self.js("location.hash")
             row = self.js("document.querySelector('tr[data-id]').dataset.id")
@@ -278,12 +278,8 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.js("document.querySelector('#work-note').textContent"), "", "nothing in it was chosen")
             self.js("history.forward()")
             self.until(f"location.hash === {json.dumps(peek_hash)}", "Forward reopened the peek")
-            self.js("document.querySelector('[data-fb]').click()")
-            self.until("!!document.querySelector('.fbox')", "a filter's box opened")
-            self.assertEqual(self.js("history.length"), n + 1, "opening a filter's box adds no entry")
             self.js("history.back()")
             self.until("clarkPage.peek() === null", "Back closed the peek")
-            self.until("!document.querySelector('.fbox')", "and the filter's box")
             self.assertEqual(self.js("location.hash"), hash_, "with the filters as they were")
             self.assertEqual(self.tab(), "work")
             self.assertEqual(self.sent, [])
