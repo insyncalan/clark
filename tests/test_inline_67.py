@@ -29,6 +29,11 @@ def size(cdp, p, width, height=600):
     cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False}, p.sid)
 
 
+def open_list(p, width):
+    """Open the contents list the way a person does at that width: the rail opens on focus at 1400; at 900 it is a button and a click opens it."""
+    p.js("document.querySelector('.toc-lines').click()" if width <= 900 else "document.querySelector('.toc-lines').focus()")
+
+
 class Minimap(Base):
     LISTED = "[...document.querySelectorAll('.toc li button')].map(b => b.dataset.id)"
 
@@ -69,13 +74,15 @@ class Minimap(Base):
                 size(cdp, p, w)
                 p.js("window.scrollTo(0, 0)")
                 before = p.js("[location.hash, history.length]")
-                p.js("document.querySelector('.toc-lines').focus()")
-                p.until("document.querySelector('.toc').classList.contains('open')", "the list opened on focus")
+                open_list(p, w)
+                p.until("document.querySelector('.toc').classList.contains('open')", "the list opened")
                 for ref in ("ABC-S-008", "ABC-S-011", "ABC-S-004"):
                     p.js(f"document.querySelector('.toc li button[data-id=\"{ref}\"]').click()")
                     p.until(f"(function(){{var t=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect().top;"
                             f"return t >= {TOP}.bottom - 1 && t < window.innerHeight;}})()", f"{ref} is in view at {w}")
-                    p.js("document.querySelector('.toc-lines').focus()")
+                    p.until("!document.querySelector('.toc').classList.contains('open')", "a jump closes the list")
+                    open_list(p, w)
+                    p.until("document.querySelector('.toc').classList.contains('open')", "and it opens again")
                 self.assertEqual(p.js("[location.hash, history.length]"), before, "the address and history are left alone")
 
     def test_keys_open_and_close_it_and_a_hidden_list_cannot_be_tabbed_into(self):
@@ -111,7 +118,7 @@ class Minimap(Base):
                 p.js(f"document.documentElement.dataset.theme = '{scheme}'")      # the page follows data-theme, not the emulated media
                 for w in SIZES:
                     size(cdp, p, w)
-                    p.js("document.querySelector('.toc-lines').focus()")
+                    open_list(p, w)
                     p.until("document.querySelector('.toc').classList.contains('open') && getComputedStyle(document.querySelector('.toc-card')).opacity === '1'", "open")
                     box = p.js("(function(){var r=document.querySelector('.toc-card').getBoundingClientRect();"
                                "return [r.left >= 0, r.right <= window.innerWidth, r.top >= 0, r.bottom <= window.innerHeight,"
@@ -197,7 +204,7 @@ class Published(unittest.TestCase):
             self.assertEqual(edit_elements(cdp, sid), [])
             cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 400, "deviceScaleFactor": 1, "mobile": False}, sid)
-            cdp.js("document.querySelector('.toc-lines').focus()", sid)
+            cdp.js("document.querySelector('.toc-lines').click()", sid)         # at 900 it is the "On this page" button
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('.toc').classList.contains('open')", sid)), "it opens in a file")
             cdp.js("document.querySelector('.toc li button:last-child, .toc li:last-child button').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("window.scrollY > 0", sid)), "the file scrolled to the section")

@@ -683,7 +683,7 @@
      ],
      [
       "p",
-      "At the right edge, **On this page** is a quiet line for each section; the current one is longer and darker, and a warm one needs a look. Point at it, or tab to it, for the list with counts (late, red, slipped, flagged, pending) and **Back to top**."
+      "At the right edge, **On this page** is a quiet line for each section; the current one is longer and darker, and a warm one needs a look. Point at it, or tab to it, for the list with counts (late, red, slipped, flagged, pending) and **Back to top**. In a narrow window the lines become an **On this page** button at the bottom right; press it for the same list."
      ]
     ]
    },
