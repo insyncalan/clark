@@ -108,7 +108,7 @@ class Page(Base):
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-planned]")), "50%")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-health]")), "At risk")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-behind]")), "5 points behind plan")
-            self.assertEqual(p.js(self.text_of(ref, "[data-tr-weights]")), "Weights add up to 94%")
+            self.assertEqual(p.js(self.count(ref, "[data-tr-weights]")), 0, "the weights note is for the author: View never shows it")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-group] caption")), "Foundations")
             self.assertEqual(p.js("[..." + self.many(ref, "th.t-what, thead th") + "].slice(0, 8).map(e => e.textContent)"),
                              ["No.", "Description", "Start", "End", "Status", "Weight", "Planned", "Achieved"])
@@ -123,6 +123,58 @@ class Page(Base):
             self.assertEqual(total[1][:4], ["Total", "44%", "20%", "20%"])
             self.assertEqual(edit_elements(cdp, p.sid), [], "View has no field, button or edit part")
             self.assertEqual(p.js(self.count(ref, "button, input, select, textarea, a")), 0)
+
+    def test_view_overall_is_three_tiles_a_labelled_bar_and_a_scale(self):
+        """#451 rows 49 and 50, as the approved weekly-snapshot design draws them."""
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            tiles = p.js("[..." + self.many(ref, "[data-tr-tile]") + "].map(t => t.textContent.replace(/\\s+/g, ' ').trim())")
+            self.assertEqual(len(tiles), 3)
+            self.assertEqual(tiles[0], "Project health At risk 5 points behind plan Supplier slipped a week")
+            self.assertEqual(tiles[1], "Actual 45% of the whole project")
+            self.assertRegex(tiles[2], r"^Planned 50% by \d{2}-\d{2}-\d{4}$")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-mark-label]")), "Planned 50%")
+            self.assertEqual(p.js("[..." + self.many(ref, "[data-tr-scale] span") + "].map(e => e.textContent)"), ["0%", "100%"])
+            self.assertEqual(p.js(self.one(ref, "[data-tr-scale]") + ".getAttribute('aria-hidden')"), "true")
+            self.assertEqual(p.js(self.one(ref, ".tr-mark") + ".style.left"), "50%")
+            self.assertEqual(p.js(self.one(ref, ".tr-fill") + ".style.width"), "45%")
+
+    def test_view_achieved_column_has_a_bar_the_figure_and_the_red_chip(self):
+        """#451 row 51: a bar in each line's Achieved cell; the red chip only on the line behind plan; the total row has no bar."""
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertEqual(p.js(self.count(ref, "[data-tr-line] .tr-pbar")), 3)
+            self.assertEqual(p.js(self.count(ref, "[data-tr-total] .tr-pbar")), 0)
+            self.assertEqual(p.js(self.one(ref, "[data-tr-line='1'] .tr-pbar i") + ".style.width"), "17%", "50 of a 300 weight")
+            self.assertEqual(p.js(self.one(ref, "[data-tr-line='0'] .tr-pbar i") + ".style.width"), "100%")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-line='1'] .t-ach b")), "5%")
+            self.assertEqual(p.js(self.count(ref, "[data-tr-line] .tr-behind")), 1)
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-line='1'] .tr-behind [aria-hidden]")), "\u25bc 5")
+            self.assertEqual(p.js(self.one(ref, "[data-tr-line='1'] .tr-pbar") + ".getAttribute('aria-hidden')"), "true", "the figure says it; the bar is a picture")
+            self.assertNotEqual(p.js("getComputedStyle(" + self.one(ref, "[data-tr-line='1'] .tr-behind") + ").backgroundColor"), "rgba(0, 0, 0, 0)", "the chip is filled")
+
+    def test_the_weights_note_is_in_edit_for_the_author_and_not_in_view(self):
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertEqual(p.js(self.count(ref, "[data-tr-weights]")), 0)
+            p.edit()
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-weights]")), "Weights add up to 94%")
+
+    def test_the_new_overall_parts_fit_at_1400_and_900_in_light_and_dark(self):
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for scheme in ("light", "dark"):
+                for width in (1400, 900):
+                    self.resize(cdp, p, width, scheme)
+                    where = " at " + str(width) + " in " + scheme
+                    self.assertEqual(self.overflow(p, ref), [], "nothing leaves the section" + where)
+                    self.assertTrue(p.js("[..." + self.many(ref, "[data-tr-tile]") + "].every(t => t.getBoundingClientRect().width > 80)"), "tiles have room" + where)
+                    self.assertTrue(p.js(self.one(ref, "[data-tr-mark-label]") + ".getBoundingClientRect().left >= " + self.one(ref, "[data-tr-bar]") + ".getBoundingClientRect().left - 1"), "the label stays over the bar" + where)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
 
     def test_view_half_is_the_bar_and_a_short_list_with_no_dates(self):
         ref = self.make(BODY, after="ABC-S-005", beside=1)
@@ -418,6 +470,21 @@ class Source(unittest.TestCase):
         served = (PAGE / "page.html").read_text(encoding="utf-8")
         for marker in ("tracker-edit", "data-line-form", "data-add-group"):
             self.assertIn(marker, served, marker)
+
+    def test_a_published_file_has_nothing_internal_in_the_tracker(self):
+        """#451 item 6: the weights note and every author instruction stay out of View and the published file."""
+        view = (PAGE / "page-view.html").read_text(encoding="utf-8")
+        for words in ("Weights add up", "data-tr-weights", "weightsNote", "Nothing was changed"):
+            self.assertNotIn(words, view, words)
+        text = (PAGE / "src" / "components" / "Tracker.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("weightsNote", text, "only Edit may draw the weights note")
+        for marker in ("data-tr-tile", "data-tr-mark-label", "data-tr-scale", "tr-pbar", "of the whole project"):
+            self.assertIn(marker, view, marker)
+
+    def test_the_page_view_reads_the_publish_date_for_the_planned_tile(self):
+        text = (PAGE / "src" / "components" / "Tracker.jsx").read_text(encoding="utf-8")
+        self.assertIn("asAt", text)
+        self.assertIn("todayIso", text)
 
     def test_every_word_of_the_stores_tracker_checker_has_its_plain_words_on_the_page(self):
         text = (PAGE / "src" / "stores" / "report.js").read_text(encoding="utf-8")

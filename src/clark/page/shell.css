@@ -371,17 +371,29 @@ table.needs .n-over { margin-left: 2px; }
 /* 'Progress tracker' (item 189): the overall bar, then each group of lines. Only tokens; "behind plan" is never colour alone (▼ and words). */
 .sec-tracker { margin: 8px 0 8px; min-width: 0; }
 .tr-overall { margin: 0 0 16px; }
-.tr-figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 28px; }
-.tr-fig { display: flex; flex-direction: column; }
+.tr-tiles { display: flex; flex-wrap: wrap; gap: 12px; }
+.tr-tile { flex: 1 1 150px; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 16px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.tr-tile-health { flex: 2 1 260px; }
 .tr-k { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
 .tr-v { font-family: var(--font-head); font-size: 34px; line-height: 1.1; color: var(--heading); }
-.tr-health { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-bottom: 4px; }
+.tr-d { font-size: 14px; color: var(--text-muted); }
+.tr-hrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 4px; min-width: 0; }
+.tr-reason { color: var(--text); font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 .tr-note { color: var(--text); font-size: 14px; }
-.tr-bar { position: relative; height: 14px; margin: 10px 0 4px; border-radius: 999px; background: var(--grey-100); overflow: visible; }
-.tr-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--brand-blue); min-width: 0; }
-.tr-mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--text); }
-.tr-behindline { margin: 4px 0 0; font-size: 14px; color: var(--status-red-text); }
-.tr-behind { margin-left: 6px; font-size: 13px; color: var(--status-red-text); white-space: nowrap; }
+.tr-barw { margin: 36px 0 0; }
+.tr-bar { position: relative; height: 16px; border-radius: 999px; background: var(--grey-200); overflow: visible; }
+.tr-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: linear-gradient(90deg, var(--data-1), var(--data-2)); min-width: 0; }
+.tr-mark { position: absolute; top: -6px; bottom: -6px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--heading); }
+.tr-mark-label { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px; font-size: 13px; font-weight: var(--weight-medium); white-space: nowrap; color: var(--heading); }
+.tr-mark-label.tr-edge-start { left: 0; transform: none; }
+.tr-mark-label.tr-edge-end { left: auto; right: 0; transform: none; }
+.tr-scale { display: flex; justify-content: space-between; margin-top: 6px; font-size: 13px; color: var(--text-muted); }
+.tr-behindline { color: var(--status-red-text); }
+.tr-behind { margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--status-red-tint); font-size: 13px; font-weight: var(--weight-medium); color: var(--status-red-text); white-space: nowrap; }
+.tr-ach { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; max-width: 100%; }
+.tr-ach b { font-weight: var(--weight-medium); min-width: 34px; text-align: right; }
+.tr-pbar { flex: 0 0 48px; height: 8px; border-radius: 999px; background: var(--grey-200); overflow: hidden; }
+.tr-pbar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--data-1), var(--data-2)); }
 .pill.v { background: var(--grey-100); color: var(--text); }
 .pill.v::before { background: var(--data-1); }
 table.tracker { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; margin: 0 0 18px; }
@@ -393,6 +405,7 @@ table.tracker .t-no { width: 6%; }
 table.tracker .t-date { width: 11%; }
 table.tracker .t-status { width: 13%; }
 table.tracker .t-n { width: 9%; text-align: right; }
+table.tracker .t-ach { width: 17%; }
 table.tracker .t-count { width: 8%; }
 table.tracker tr.tr-total th, table.tracker tr.tr-total td { border-top: 1px solid var(--grey-300); color: var(--heading); font-weight: var(--weight-medium); text-transform: none; letter-spacing: 0; font-size: 14px; }
 table.tracker tr.tr-none td { text-align: left; }
@@ -404,10 +417,12 @@ table.tracker tr.tr-none td { text-align: left; }
 .tr-weights { margin: 4px 0 0; }
 @media (max-width: 900px) {
   table.tracker .t-n { width: 14%; }
+  table.tracker .t-ach { width: 27%; }
+  .tr-pbar { flex-basis: 36px; }
   table.tracker .t-status { width: 20%; }
   table.tracker .t-no { width: 8%; }
 }
-@media print { .tr-bar, .tr-fill, .tr-mark { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
+@media print { .tr-bar, .tr-fill, .tr-mark, .tr-pbar, .tr-pbar i, .tr-behind, .tr-tile { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
 
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
 .sec.is-hidden { border-top-style: dashed; }

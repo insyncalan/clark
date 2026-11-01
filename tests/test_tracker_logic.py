@@ -129,14 +129,14 @@ class Totals(unittest.TestCase):
         self.assertEqual(self.k("behindWords(0)"), "")
 
     def test_a_weights_note_appears_only_when_they_do_not_add_up(self):
-        self.assertEqual(self.totals()["weightsNote"], "Weights add up to 94%")
+        self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals())), "Weights add up to 94%")
         self.assertEqual(self.totals()["weights"], 940)
         whole = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 600, 0, 0), line("Two", 400, 0, 0)]}]}
-        self.assertEqual(self.totals(whole)["weightsNote"], "")
+        self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals(whole))), "")
         half = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 945, 0, 0)]}]}
-        self.assertEqual(self.totals(half)["weightsNote"], "Weights add up to 94.5%")
+        self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals(half))), "Weights add up to 94.5%")
         empty = {**TRACKER, "groups": [{"name": "Nothing yet", "lines": []}]}
-        self.assertEqual(self.totals(empty)["weightsNote"], "")
+        self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals(empty))), "")
 
     def test_with_no_lines_the_typed_overall_stands_and_nothing_typed_is_empty(self):
         typed = {**TRACKER, "overall": {**TRACKER["overall"], "actual": 400, "planned": 500}, "groups": []}
@@ -281,6 +281,25 @@ class Totals(unittest.TestCase):
             self.assertEqual(self.k(f"totalProblem({lit(over)})"), words, field)
         exact = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 600, 600, 600), line("Two", 400, 400, 400)]}]}
         self.assertEqual(self.k(f"totalProblem({lit(exact)})"), "")
+
+    def test_a_lines_bar_is_its_achieved_share_of_its_weight_in_whole_percent(self):
+        """#451 row 51: the Achieved bar. 5 achieved of a 10 weight is half; never past the whole; a line with no weight is empty until something is achieved."""
+        self.assertEqual(self.k("lineFill(%s)" % lit(line("a", 100, 100, 50))), 50)
+        self.assertEqual(self.k("lineFill(%s)" % lit(line("a", 300, 100, 50))), 17)
+        self.assertEqual(self.k("lineFill(%s)" % lit(line("a", 100, 100, 100))), 100)
+        self.assertEqual(self.k("lineFill(%s)" % lit(line("a", 50, 50, 80))), 100)
+        self.assertEqual(self.k("lineFill(%s)" % lit(line("a", 0, 0, 0))), 0)
+        self.assertEqual(self.k("lineFill(%s)" % lit(line("a", 0, 0, 20))), 100)
+
+    def test_the_overall_tiles_and_scale_have_their_words(self):
+        """#451 rows 49 and 50: the tile captions and the scale ends, as plain words."""
+        self.assertEqual(self.k("WORDS.actualOf"), "of the whole project")
+        self.assertEqual(self.k("WORDS.plannedBy"), "by")
+        self.assertEqual(self.k("WORDS.healthTile"), "Project health")
+        self.assertEqual((self.k("WORDS.scaleStart"), self.k("WORDS.scaleEnd")), ("0%", "100%"))
+
+    def test_the_planned_label_leans_in_at_the_ends_of_the_bar(self):
+        self.assertEqual([self.k("markEdge(%d)" % t) for t in (0, 100, 101, 500, 899, 900, 1000)], ["start", "start", "", "", "", "end", "end"])
 
     def test_every_word_is_plain_and_none_starts_with_the_product_name(self):
         words = [w for w in self.k("ALL_WORDS()") if w.strip()]
