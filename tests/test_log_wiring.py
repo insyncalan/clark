@@ -220,7 +220,7 @@ class SettingsRoutes(Rig):
         except TypeError as e:
             self.log.exception(area, message, e)
 
-    # one entry of each kind and the sentence the owner approved for it (Romanoff's table on PR 213, 01-11-2026)
+    # one entry of each kind and the sentence the owner approved for it (#295)
     KINDS = [
         ("server", "POST /api/change failed", "Saving a change did not work."),
         ("server", "POST /api/undo failed", "Saving a change did not work."),
