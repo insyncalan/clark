@@ -313,7 +313,7 @@ class Stop(Base):
         self.provider.stop = mock.Mock(return_value=True)
         status, got = self.s.api("POST", "/api/ask/stop", {})
         self.assertEqual((status, got["stopped"]), (200, True))
-        self.provider.stop.assert_called_once_with()
+        self.provider.stop.assert_called_once_with(owner=self.s.httpd.ask.owner)
 
 
 SETTINGS_WRITER = "ask_folders.py"      # the Settings entry's folder list: it saves through the store's one writer (store.step)

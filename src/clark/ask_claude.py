@@ -271,6 +271,8 @@ class ClaudeCommand(ask.Provider):
         self.env = env if env is not None else child_env()
         self.lock = threading.Lock()           # one run at a time
         self.stop_event = threading.Event()
+        self.guard = threading.Lock()          # #284: a run is registered, and Stop looks at it and ends it, only under this
+        self.owner = None                      # who asked for the run now going (ask.Request.owner), set and cleared under the guard
         self.checked = {}                      # (path, size, mtime, inode, device) -> the version and flag check, once per file
         self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
@@ -358,10 +360,16 @@ class ClaudeCommand(ask.Provider):
         return isinstance(system, str) and len(system) <= MAX_SYSTEM and system in (ask.RULES, ai_menu.SUGGEST_RULES)
 
     def ask(self, request):
-        if not self.lock.acquire(blocking=False):
-            return ask.Failure(BUSY)
-        try:
+        with self.guard:                       # #284: registering the run and clearing stop state are one step Stop cannot split
+            if not self.lock.acquire(blocking=False):
+                return ask.Failure(BUSY)
+            self.owner = getattr(request, "owner", None)
             self.stop_event.clear()
+            cancel = getattr(request, "cancel", None)
+            cancelled = cancel is not None and cancel.is_set()   # a Stop that came before this point, for this run
+        try:
+            if cancelled:
+                return ask.Failure(ask.STOPPED)
             system = getattr(request, "system", "")
             if system == "":
                 system = None
@@ -372,11 +380,15 @@ class ClaudeCommand(ask.Provider):
                 return ask.Failure(why)
             return self.answer(path, self.envelope(request.text), request.canary, system)
         finally:
-            self.lock.release()
+            with self.guard:
+                self.owner = None
+                self.lock.release()
 
-    def stop(self):
-        """Stop the question being answered, if there is one (its whole process group ends). True when one was running."""
-        running = self.lock.locked()
-        if running:
-            self.stop_event.set()
-        return running
+    def stop(self, owner=None):
+        """Stop the question being answered, if there is one (its whole process group ends). True when one was running. With
+        `owner`, only a run that owner asked for (#284: one service's Stop never ends the other's run)."""
+        with self.guard:
+            running = self.lock.locked() and (owner is None or owner is self.owner)
+            if running:
+                self.stop_event.set()
+            return running
