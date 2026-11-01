@@ -401,6 +401,47 @@ class StartedByTheLauncher(unittest.TestCase):
             self.assertIn(route, log.routes)
 
 
+class RealServerFailures(Rig):
+    """#295: the plain Errors list for a failure the real server logs. The log is the launcher's own (start_log: its routes, its
+    Bridge on the clark loggers), and each fault is raised inside a real route handler, so the line in the log is the one
+    `LOG.exception("%s %s failed", method, path)` writes, scrubbed by the Bridge, not one a test wrote by hand."""
+
+    def setUp(self):
+        def broken(*args, **kwargs):
+            raise RuntimeError("the store broke")
+        self.tmp = Path(tempfile.mkdtemp(prefix="clark-wiring-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        (self.tmp / "data").mkdir()
+        self.log, handler, self.logs = launcher.start_log(self.tmp / "data", lambda: [], scratch=self.tmp)
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        self.httpd = sv.LocalServer((sv.HOST, 0), page_html=page.page_html, logs=self.logs, data_for=broken, change=broken,
+                                    projects=lambda: [])
+        self.httpd.handle_error = lambda *a: None
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        self.addCleanup(self.stop)
+
+    def whats(self):
+        return sorted(e["what"] for e in self.api("GET", "/api/diagnostics")[1]["errors"])
+
+    def test_a_failed_save_says_saving_a_change_did_not_work(self):
+        self.assertEqual(self.api("POST", "/api/change", {"x": 1})[0], 500)
+        self.assertIn("ERROR server       POST /api/change failed", self.text())
+        self.assertEqual(self.whats(), ["Saving a change did not work."])
+
+    def test_a_failed_read_says_loading_part_of_the_page_did_not_work(self):
+        self.assertEqual(self.api("GET", "/api/data?project=ABC")[0], 500)
+        self.assertIn("ERROR server       GET /api/data failed", self.text())
+        self.assertEqual(self.whats(), ["Loading part of the page did not work."])
+
+    def test_a_failed_route_the_log_was_not_given_is_scrubbed_and_says_something_did_not_work(self):
+        self.assertNotIn(sv.HERE_ROUTE, self.log.routes)        # the launcher does not name it, so the Bridge writes its length only
+        with mock.patch.object(sv, "mark_here", side_effect=RuntimeError("broke")):
+            self.assertEqual(self.api("POST", sv.HERE_ROUTE, {})[0], 500)
+        self.assertNotIn(sv.HERE_ROUTE, self.text())
+        self.assertIn("ERROR server       POST <text, 9 characters> failed", self.text())
+        self.assertEqual(self.whats(), ["Something did not work."])
+
+
 class Settings(Rig):
     """Settings > Logs and diagnostics in the real page, at 1400 and 900 px, in the light and the dark colour scheme."""
 

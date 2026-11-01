@@ -22,7 +22,8 @@ READ_DID_NOT_WORK = "Loading part of the page did not work."
 PAGE_DID_NOT_WORK = "Part of the page stopped working."
 STORE_DID_NOT_WORK = "Reading or saving your project data did not work."
 SOMETHING_DID_NOT_WORK = "Something did not work."
-A_REQUEST_FAILED = re.compile(r"^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (\S+) failed")
+# The methods the server can log: it answers GET, POST and OPTIONS (do_GET, do_POST, do_OPTIONS); HEAD stays as the standard read verb.
+A_REQUEST_FAILED = re.compile(r"^(GET|POST|HEAD|OPTIONS) (\S+) failed")
 READS = ("GET", "HEAD", "OPTIONS")
 # The routes a failed write on means "Saving a change did not work.", by name as the approved table lists them. The table's
 # projects, use cases, milestones and movement rows are reads only on the server (no write route), so a write to them cannot fail.
