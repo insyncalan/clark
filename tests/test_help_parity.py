@@ -1,4 +1,4 @@
-"""Help against the prototype (clark-plan v0.9, "Help: entries still missing"): every Help entry of the prototype is shown, held for a
+"""Help against the prototype (v0.9, "Help: entries still missing"): every Help entry of the prototype is shown, held for a
 reason, replaced by an entry of the build, or waiting for a feature that is not on the page; and what is shown names only what the page has.
 
 Run: python3 dev/run_tests.py test_help_parity
