@@ -1,6 +1,7 @@
 """Set up the merge driver for the built page files in THIS clone (#229; development only).
 
 Run once per clone, and again after merge_page.py changes: python3 dev/tools/install_merge_driver.py
+Remove it again: python3 dev/tools/install_merge_driver.py --uninstall
 
 Git does not carry driver settings in the repository, so each clone needs this one command. It does three things:
   1. copies dev/tools/merge_page.py to <git common dir>/clark-merge/ (the clone's .git, shared by all its work trees and outside
@@ -14,9 +15,13 @@ The entry that uses the driver is in .gitattributes. If the driver cannot finish
 failed merge is always visible.
 
 READ THIS FIRST: the driver builds the page from the merged sources by running the MERGED branch's own dev/tools/build_page.py
-(with the esbuild.py and src/clark/*.py it imports), with your rights, during the merge and before you have read the change. A
-bad change to those files spreads through the driver. Before merging a branch you do not trust, check
-git diff HEAD...<branch> -- dev/tools src/clark, or do not set the driver up. Undo: git config --local --remove-section merge.clark-page
+(with the esbuild.py and src/clark/*.py it imports, and the pinned esbuild program in dev/.cache), with your rights, during the
+merge and before you have read the change. So the driver refuses, with conflict markers and a plain sentence, whenever the merge
+changes dev/tools or a src/clark Python file relative to your HEAD; then you read the change and run python3 dev/tools/build_page.py.
+Before merging a branch you do not know, check: git diff HEAD...<branch> -- dev/tools src/clark
+Undo: python3 dev/tools/install_merge_driver.py --uninstall, or by hand:
+  git config --unset merge.clark-page.driver ; git config --unset merge.clark-page.name ; rm -r <git-common-dir>/clark-merge
+The driver runs once per commit for a rebase or cherry-pick, and once for a squash merge.
 """
 import shlex
 import shutil
@@ -31,6 +36,14 @@ SCRIPT = Path(__file__).resolve().parent / "merge_page.py"
 
 def git(*args):
     return subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True)
+
+
+def uninstall(common):
+    for key in (f"merge.{NAME}.driver", f"merge.{NAME}.name"):
+        git("config", "--local", "--unset", key)                 # a key that is not set is fine: the aim is that neither is
+    shutil.rmtree((ROOT / common).resolve() / "clark-merge", ignore_errors=True)
+    print(f"Merge driver '{NAME}' removed for {ROOT}: both settings unset and the clark-merge folder deleted.")
+    return 0
 
 
 def main():
@@ -48,6 +61,8 @@ def main():
     if not common:
         print("Could not find the git folder: nothing changed.", file=sys.stderr)
         return 2
+    if "--uninstall" in sys.argv[1:]:
+        return uninstall(common)
     target_dir = (ROOT / common).resolve() / "clark-merge"
     commit = git("rev-parse", "HEAD").stdout.strip() or "unknown"
     if git("status", "--porcelain", "--", "dev/tools/merge_page.py").stdout.strip():
@@ -79,7 +94,9 @@ def main():
             return 1
     print(f"Merge driver '{NAME}' set up for {ROOT}: copy at {copy}, from commit {commit}.\n"
           "A copy in .git does not update with git pull: run this command again after merge_page.py changes.\n"
-          "Note: the rebuild runs the merged branch's own dev/tools/build_page.py, so read a change to dev/tools and src/clark before merging a branch you do not trust.")
+          "Note: the rebuild runs the merged branch's own dev/tools/build_page.py and the esbuild in dev/.cache, so the driver refuses (with markers) when a merge changes dev/tools or src/clark Python files; "
+          "before merging a branch you do not know, run: git diff HEAD...BRANCH -- dev/tools src/clark\n"
+          "To remove the driver: python3 dev/tools/install_merge_driver.py --uninstall")
     return 0
 
 

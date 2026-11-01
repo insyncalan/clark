@@ -17,10 +17,16 @@ Where it runs from: install_merge_driver.py copies this one file to <git common 
 branch without this file cannot break it) with a file SOURCE-COMMIT beside it, and the line "installed from commit ..." is
 printed to stderr every run, so a stale copy shows. It needs only the Python standard library.
 
-TRUST: the rebuild runs the MERGED branch's own dev/tools/build_page.py (and the esbuild.py and src/clark/*.py it imports), with
-your rights, during the merge and before you have read the change. A bad change to those files therefore spreads through the
-driver. Before you merge a branch you do not trust, look at what it changes under dev/tools and src/clark
-(git diff HEAD...<branch> -- dev/tools src/clark); if you have not read it, do not merge with the driver set up.
+TRUST: the rebuild runs the MERGED branch's own dev/tools/build_page.py (and the esbuild.py and src/clark/*.py it imports), and
+that code runs the pinned esbuild program kept in dev/.cache, with your rights, during the merge and before you have read the
+change. To keep that from spreading, the driver REFUSES to run the merged tree's build code whenever the merge changes anything
+under dev/tools or any src/clark Python file relative to your HEAD: it writes conflict markers and says why on stderr, and you
+read the change, then run python3 dev/tools/build_page.py yourself. A branch that only changes page sources and the built pages
+still resolves by itself. Before merging a branch you do not know, look at what it changes:
+    git diff HEAD...<branch> -- dev/tools src/clark
+UNDO (remove the driver): python3 dev/tools/install_merge_driver.py --uninstall, or by hand:
+    git config --unset merge.clark-page.driver ; git config --unset merge.clark-page.name ; rm -r <git-common-dir>/clark-merge
+A rebase or cherry-pick runs the driver once per commit it replays; a squash merge runs it once.
 """
 import io
 import os
@@ -74,13 +80,33 @@ def merged_tree(theirs):
     return lines[0] if all(x in PAGES for x in conflicted) else None
 
 
+def unpack(data, into):
+    """Extract a tar into `into`, refusing a member that is a link or a device, or whose real path leaves `into`. Python 3.12+
+    also gets tarfile's own "data" filter; older Pythons rely on the check alone."""
+    target = os.path.realpath(into)
+    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+        for m in tar.getmembers():
+            where = os.path.realpath(os.path.join(target, m.name))
+            if m.issym() or m.islnk() or m.isdev() or os.path.commonpath([target, where]) != target:
+                raise ValueError(f"the merged tree holds an unsafe entry ({m.name}): not unpacked")
+        if hasattr(tarfile, "data_filter"):
+            tar.extractall(into, filter="data")
+        else:
+            tar.extractall(into)
+
+
+def changes_build_code(tree):
+    """True when the merged `tree` differs from HEAD in the code the rebuild would run: dev/tools, or a Python file in src/clark."""
+    r = git("diff", "--quiet", "HEAD", tree, "--", "dev/tools", ":(glob)src/clark/**/*.py")
+    return r.returncode != 0
+
+
 def rebuilt(tree, name, into):
     """Unpack `tree` into `into`, run its build_page.py there, return the bytes of the page `name`."""
     archive = git("archive", "--format=tar", tree)
     if archive.returncode != 0:
         return None
-    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-        tar.extractall(into)
+    unpack(archive.stdout, into)
     cache = ROOT / "dev" / ".cache"               # the pinned esbuild is kept once per clone, not once per merge
     cache.mkdir(parents=True, exist_ok=True)
     (Path(into) / "dev" / ".cache").symlink_to(cache, target_is_directory=True)
@@ -133,6 +159,10 @@ def merge(mine, theirs_file, path):
     tree = merged_tree(theirs) if theirs else None
     if tree is None:
         return 1, "the sources conflict, or this is not a merge it can read: resolve them, then run python3 dev/tools/build_page.py"
+    if changes_build_code(tree):
+        return 1, ("this merge changes the build code (dev/tools or src/clark Python files), and the driver will not run code from the "
+                   "branch being merged: read the change (git diff HEAD...<branch> -- dev/tools src/clark), then run "
+                   "python3 dev/tools/build_page.py")
     with tempfile.TemporaryDirectory(prefix="clark-merge-page-") as tmp:
         data = rebuilt(tree, Path(path).name, tmp)
     if data is None:

@@ -226,6 +226,92 @@ class MergeDriverTests(unittest.TestCase):
         self.assertEqual(run(loose, sys.executable, "install_merge_driver.py", check=False).returncode, 2)
         self.assertFalse((Path(self.tmp.name) / "loose" / ".git").exists())
 
+    def test_a_branch_that_changes_the_build_code_is_not_run_during_the_merge(self):
+        self.branch("one", "Icon.jsx", '\nglobalThis.mergeProbeOne = "one";\n')
+        run(self.repo, "git", "checkout", "-q", "-b", "evil", "main")
+        probe = Path(self.tmp.name) / "ran-branch-code"
+        add_line(self.repo, "Menu.jsx", '\nglobalThis.mergeProbeTwo = "two";\n')
+        run(self.repo, sys.executable, "dev/tools/build_page.py")                 # built before the tools change, so the probe never runs here
+        tools = self.repo / "dev" / "tools" / "build_page.py"
+        tools.write_text(f"open({str(probe)!r}, 'w').close()\n" + tools.read_text(encoding="utf-8"), encoding="utf-8")
+        run(self.repo, "git", "commit", "-q", "-am", "evil")
+        run(self.repo, "git", "checkout", "-q", "one")
+        self.installed()
+        r = run(self.repo, "git", "merge", "--no-edit", "evil", check=False)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertFalse(probe.exists(), "the merged branch's build code ran")
+        self.assertIn("will not run code from the branch being merged", r.stderr + r.stdout)
+        self.assert_markers()
+
+    def test_a_branch_that_changes_only_page_sources_still_resolves_by_itself(self):
+        self.two_branches()
+        self.installed()
+        self.assertEqual(run(self.repo, "git", "merge", "--no-edit", "two", check=False).returncode, 0)
+
+    def test_unpack_refuses_a_path_that_leaves_the_folder_and_any_link(self):
+        import importlib.util
+        import io
+        import tarfile
+        spec = importlib.util.spec_from_file_location("merge_page_under_test", ROOT / "dev" / "tools" / "merge_page.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        for kind in ("escape", "symlink", "hardlink"):
+            buf = io.BytesIO()
+            with tarfile.open(fileobj=buf, mode="w") as tar:
+                m = tarfile.TarInfo({"escape": "../x", "symlink": "link", "hardlink": "hard"}[kind])
+                if kind == "escape":
+                    m.size = 1
+                    tar.addfile(m, io.BytesIO(b"x"))
+                else:
+                    m.type = tarfile.SYMTYPE if kind == "symlink" else tarfile.LNKTYPE
+                    m.linkname = "/etc/passwd" if kind == "symlink" else "target"
+                    tar.addfile(m)
+            into = Path(self.tmp.name) / ("out-" + kind)
+            into.mkdir()
+            with self.assertRaises(ValueError):
+                mod.unpack(buf.getvalue(), str(into))
+            self.assertEqual(list(into.iterdir()), [])
+            self.assertFalse((into.parent / "x").exists())
+        good = io.BytesIO()
+        with tarfile.open(fileobj=good, mode="w") as tar:
+            m = tarfile.TarInfo("a/b.txt")
+            m.size = 2
+            tar.addfile(m, io.BytesIO(b"ok"))
+        into = Path(self.tmp.name) / "out-good"
+        into.mkdir()
+        mod.unpack(good.getvalue(), str(into))
+        self.assertEqual((into / "a" / "b.txt").read_bytes(), b"ok")
+
+    def test_uninstall_removes_both_settings_and_the_copy(self):
+        folder = self.installed()
+        run(self.repo, sys.executable, "dev/tools/install_merge_driver.py", "--uninstall")
+        self.assertFalse(folder.exists())
+        for key in ("driver", "name"):
+            self.assertNotEqual(run(self.repo, "git", "config", "--local", "--get", f"merge.clark-page.{key}", check=False).returncode, 0)
+        run(self.repo, sys.executable, "dev/tools/install_merge_driver.py", "--uninstall")      # again: nothing left, still fine
+
+    def test_cherry_pick_rebase_and_squash_never_lose_a_page_silently(self):
+        self.two_branches()
+        self.installed()
+        tip = run(self.repo, "git", "rev-parse", "two").stdout.strip()
+        # cherry-pick and rebase: assert what really happens, either a good merged page or a conflict with markers, never ours alone
+        for how in (("cherry-pick", tip), ("rebase", "two")):
+            run(self.repo, "git", "checkout", "-q", "-B", "work-" + how[0], "one")
+            r = run(self.repo, "git", *how, check=False)
+            for p in PAGES:
+                text = (self.repo / p).read_text(encoding="utf-8")
+                if r.returncode == 0:
+                    self.assertTrue(b"mergeProbeOne" in text.encode() and b"mergeProbeTwo" in text.encode(), how)
+                else:
+                    self.assertIn("<<<<<<< ", text, how)
+            run(self.repo, "git", how[0], "--abort", check=False)
+            run(self.repo, "git", "reset", "-q", "--hard")
+        run(self.repo, "git", "checkout", "-q", "-B", "work-squash", "one")
+        run(self.repo, "git", "merge", "--squash", "two")
+        for p in PAGES:
+            text = (self.repo / p).read_text(encoding="utf-8")
+            self.assertTrue("mergeProbeOne" in text and "mergeProbeTwo" in text and "<<<<<<<" not in text, p)
+
     def test_the_gitattributes_entry_names_the_driver_for_both_pages(self):
         text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
         for p in PAGES:
