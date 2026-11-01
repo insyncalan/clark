@@ -167,6 +167,7 @@ class Base(unittest.TestCase):
         self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
                          change=self.seam(self.real_change, "change"), undo=self.seam(self.real_undo, "undo"))
         self.addCleanup(self.s.close)
+        self.s.httpd.section_body = self.body_seam(changes.make_section_body(self.store.path, [], USER))
         quiet = mock.patch.object(sv.LOG, "disabled", True)               # a fault on purpose is logged by the server
         quiet.start()
         self.addCleanup(quiet.stop)
@@ -176,6 +177,21 @@ class Base(unittest.TestCase):
             self.sent.append((which, req))
             if self.failure is not None:
                 got = self.failure(req)
+                if isinstance(got, BaseException):
+                    raise got
+                return got
+            return real(req)
+        return call
+
+    def body_seam(self, real):
+        """POST /api/section-body (#273): a section's content. It is recorded as the update of `body` it stands for, so a test reads
+        self.sent and fails the same way for it as for any other change; a refusal on purpose (self.failure) sees that update too."""
+        def call(req):
+            as_change = {"project": req.get("project"), "kind": "report_sections", "op": "update", "id": req.get("id"),
+                         "changes": {"body": req.get("body")}, **({"place": req["place"]} if "place" in req else {})}
+            self.sent.append(("change", as_change))
+            if self.failure is not None:
+                got = self.failure(as_change)
                 if isinstance(got, BaseException):
                     raise got
                 return got

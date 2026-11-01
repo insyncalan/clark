@@ -103,9 +103,9 @@ class PythonSide(unittest.TestCase):
                 self.assertTrue(callable(m.check) and callable(m.published))
 
     def test_a_template_saved_through_the_change_route_fits_its_limit(self):
-        """The route's body limit is above the largest content (with room for the request around it and its escaping)."""
+        """The section-body route's limit (#273) is above the largest content (with room for the request around it and its escaping)."""
         biggest = max(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_kinds.REGISTRY.values())   # a picture template's words; its pictures come by their own route
-        limit = sv.ROUTE_BODY_LIMITS["/api/change"]
+        limit = sv.ROUTE_BODY_LIMITS["/api/section-body"]
         self.assertEqual(limit, 2 * biggest + 4 * 1024)
         # worst case: a stored body of quotes and backslashes, escaped once in the stored text and again as a string in the request
         stored = '"\\' * (biggest // 2)
@@ -121,11 +121,12 @@ class PythonSide(unittest.TestCase):
             return 200, {"ok": True}
         running = Running(change=change, undo=lambda req: (200, {"ok": True}))
         self.addCleanup(running.close)
+        running.httpd.section_body = change
         fits = head.replace(b'"pad": ""', b'"pad": "' + b"x" * pad + b'"')
         self.assertEqual(len(fits), limit)
-        self.assertEqual(running.api("POST", "/api/change", fits)[0], 200)
+        self.assertEqual(running.api("POST", "/api/section-body", fits)[0], 200)
         self.assertEqual(calls[0]["changes"]["body"], stored)
-        self.assertEqual(running.api("POST", "/api/change", fits + b" ")[0], 400, "one past the limit is refused")
+        self.assertEqual(running.api("POST", "/api/section-body", fits + b" ")[0], 400, "one past the limit is refused")
 
     def test_a_stub_publishes_nothing_whatever_its_body_holds(self):
         ctx = base.Context({"actions": [{"id": "ABC-A-001", "description": "Fictional"}]}, "2030-01-15")

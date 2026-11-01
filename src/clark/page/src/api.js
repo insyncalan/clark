@@ -51,7 +51,11 @@ async function postItem(path, body) {
 
 // `req` is the change's own parts: op, id, values, changes, before, after, place (see clark/changes.py). `kind` is report_sections
 // unless the request says otherwise (#45: glance_tiles and projects reply with tiles or the project, not the sections).
-export const sendChange = (project, req) => post("/api/change", { project, kind: KIND, ...req }, !req.kind || req.kind === KIND ? hasSections : () => true);
+// A section's content (an update whose only change is `body`) goes to /api/section-body (#273), which takes the larger request; /api/change is small.
+const isBodyEdit = (req) => (!req.kind || req.kind === KIND) && req.op === "update" && !!req.changes && typeof req.changes === "object" && Object.keys(req.changes).length === 1 && "body" in req.changes;
+export const sendChange = (project, req) => isBodyEdit(req)
+  ? post("/api/section-body", { project, id: req.id, body: req.changes.body, ...(req.place === undefined ? {} : { place: req.place }) })
+  : post("/api/change", { project, kind: KIND, ...req }, !req.kind || req.kind === KIND ? hasSections : () => true);
 export const sendUndo = (project, applyId) => post("/api/undo", { project, apply_id: applyId });
 
 // Undo several (the Activity tab): `steps` are the steps of the rows chosen. A preview changes nothing; a run is one new change that
