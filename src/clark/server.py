@@ -104,8 +104,18 @@ WORD_FILE_MB = 25                      # the largest Word file clark reads (docx
 # #247, #273: no tracker-only limit is needed. A section's content, tracker or not, is read up to SECTION_BODY_LIMIT, which is above the widest
 # tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it gets the
 # general words. /api/change is small. tests/test_tracker_route.py pins this over the real route.
-CHANGE_BODY_LIMIT = 16 * 1024                   # a change is a few short fields; a section's content goes to /api/section-body
-SECTION_BODY_LIMIT = 2 * 64 * 1024 + 4 * 1024   # #96, #273: twice the largest section content (64 KB; the body is a string inside the request, so each quote and backslash is escaped twice) plus 4 KB; a test ties it to the registry
+SECTION_BODY_MAX = 64 * 1024           # #378: the largest section content a request carries (the registry's biggest; a test keeps the two equal)
+ESCAPE_FACTOR = 2                      # the body is a string inside the request, so each quote and backslash is escaped twice: at worst twice the bytes
+REQUEST_ENVELOPE = 4 * 1024            # the request around the body: its project, id, place and the rest
+CHANGE_BODY_MAX = 16 * 1024            # #273: a change is a few short fields; a section's content goes to /api/section-body
+
+
+def change_body_limit(body_max=SECTION_BODY_MAX):
+    return ESCAPE_FACTOR * body_max + REQUEST_ENVELOPE
+
+
+SECTION_BODY_LIMIT = change_body_limit()   # #96, #273, #378: 132 KB today, for POST /api/section-body; moves with the three constants above, never with a bare number
+CHANGE_BODY_LIMIT = CHANGE_BODY_MAX        # #273: 16 KB for POST /api/change
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,

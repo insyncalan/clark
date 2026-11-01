@@ -489,7 +489,6 @@ def _do_section_image(store, by_user, req):
 
 # ── A section's content (POST /api/section-body, Tech Debt #273) ──────────────
 BODY_KEYS = ("project", "id", "body", "place")
-BODY_NOT_TEXT = "Send the section's content as text."
 
 
 def _do_section_body(store, by_user, req):

@@ -145,6 +145,15 @@ class Refusals(Route):
             with self.subTest(request=request):
                 self.refused_write(request, words)
 
+    def test_the_not_text_words_are_the_ones_the_change_route_has_always_said(self):
+        words = "A section's content must be sent as text."
+        self.assertEqual(changes.BODY_NOT_TEXT, words)
+        ref = self.make()
+        status, got = self.change(self.req("update", id=ref, changes={"body": {"v": 1}}))
+        self.assertEqual((status, got["message"]), (400, words))
+        status, got = self.section_body({"project": "ABC", "id": ref, "body": {"v": 1}})
+        self.assertEqual((status, got["message"]), (400, words))
+
     def test_a_project_that_is_not_there_is_404(self):
         status, got = self.section_body({"project": "ZZZ", "id": "ZZZ-S-001", "body": ""})
         self.assertEqual((status, got["code"]), (404, "project_not_found"))

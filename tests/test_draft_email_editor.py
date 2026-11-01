@@ -348,6 +348,25 @@ class Component(InBrowser):
         self.settle()
         self.assertEqual(self.text(".de-note"), "That could not be saved to the history, so nothing was marked as sent. Try again.")
 
+    def test_i_sent_it_pressed_twice_while_one_is_in_flight_sends_one_and_is_disabled_until_the_reply(self):
+        # #258: a second press does nothing until the reply
+        click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()"
+        disabled = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').disabled"
+        self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
+        self.js("T.reply = new Promise((ok) => { T.finish = () => ok({ok: true}); })")
+        self.js(click)
+        self.js(click)
+        self.settle()
+        self.assertEqual(self.val("T.sent.length"), 1)
+        self.assertTrue(self.val(disabled))
+        self.js(click)
+        self.settle()
+        self.assertEqual(self.val("T.sent.length"), 1)
+        self.js("T.finish()")
+        self.settle()
+        self.assertFalse(self.val(disabled))
+        self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
+
     def test_no_address_says_what_to_do_not_a_dash(self):
         self.mount(state(), draft(picked=["ABC-A-001"], email=""))
         self.assertIn("No address yet. Add one in your mail app.", self.text(".de-meta"))
