@@ -1,4 +1,4 @@
-"""The update helper (#109, step 6): src/clark/update_helper.py.
+"""The update helper: src/clark/update_helper.py.
 
 Builds a fake app folder, a staged new version and a data folder in a temporary place, and runs the helper with its platform
 seams faked. A fault is injected at EVERY step point (before and after each step, including each single rename and each step of

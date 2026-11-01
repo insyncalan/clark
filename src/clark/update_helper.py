@@ -1,4 +1,4 @@
-"""The update helper (#109, step 6): swaps clark's own files for the new version's, and puts the old ones back if anything fails.
+"""The update helper: swaps clark's own files for the new version's, and puts the old ones back if anything fails.
 
 Standard library only, Python 3.9. It imports nothing from clark (the one lazy exception, in begin(), is the caller's own
 check and runs inside the server), because begin() copies it into `<data>/updates/helper-<stamp>/` and it runs from there while
