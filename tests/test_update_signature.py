@@ -336,7 +336,7 @@ class ShippedKeyTest(unittest.TestCase):
         self.assertEqual(32, len(key))
         if key == updates.PLACEHOLDER_KEY:
             return
-        # AFTER `sign_release.py keygen` (Alan, offline): add here a pin of hashlib.sha256(key).hexdigest() to the digest
+        # AFTER `sign_release.py keygen` (the owner, offline): add here a pin of hashlib.sha256(key).hexdigest() to the digest
         # published in that release's notes, so a swapped key fails this test. Until then, the shape rules below are all we can hold.
         self.assertNotIn(key, (sg.TEST_PUBLIC, sg.OTHER_PUBLIC) + tuple(bytes.fromhex(v[1]) for v in VECTORS))
         self.assertIsNotNone(ev.decode(key), "the pinned key is not a point on the curve")
