@@ -237,7 +237,9 @@ class UndoKey(unittest.TestCase):
         real_post = sv.Handler.do_POST
 
         def post(handler):
-            posts.append(handler.path.split("?")[0])
+            path = handler.path.split("?")[0]
+            if path != sv.HERE_ROUTE:                     # the page's "still here" every few seconds carries no changes
+                posts.append(path)
             return real_post(handler)
         with mock.patch.object(sv.Handler, "do_POST", post), chrome() as cdp:
             sid = self.open_page(cdp, 1400)
