@@ -796,6 +796,8 @@ def ask_route(method):
         if service is None:
             return handler.send(404, error_body("not_found"))
         status, body = getattr(service, method)(*req)
+        if method == "ask" and isinstance(body, dict) and body.get("held") is True:
+            LOG.warning("question answer dropped, it held the private marker")     # #277: a fixed line; no reply, no marker
         return handler.send(status, body)
     return route
 

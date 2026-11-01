@@ -138,11 +138,12 @@ def child_env(home=None, user=None):
     return env
 
 
-def arguments(path):
-    """The command line for one run: the fixed flags, the fixed rules as the system prompt, and nothing the person typed."""
+def arguments(path, canary=""):
+    """The command line for one run: the fixed flags, the fixed rules as the system prompt (with this request's canary, #277),
+    and nothing the person typed."""
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
-            "--max-budget-usd", MAX_BUDGET_USD, "--system-prompt", ask.RULES]
+            "--max-budget-usd", MAX_BUDGET_USD, "--system-prompt", ask.system_prompt(canary)]
 
 
 def roots_for(home=None):
@@ -333,9 +334,9 @@ class ClaudeCommand(ask.Provider):
         return {"connected": path is not None, "why": words}
 
     # ----- one question -----
-    def answer(self, path, text):
+    def answer(self, path, text, canary=""):
         """Send `text` to the command at `path` (already checked) and read its answer: the reply text, or an ask.Failure."""
-        status, out, _code = run(arguments(path), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
+        status, out, _code = run(arguments(path, canary), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
         if status == "stopped":
             return ask.Failure(ask.STOPPED)
         if status == "slow":
@@ -355,7 +356,7 @@ class ClaudeCommand(ask.Provider):
             path, why = self.usable(reuse=True)
             if path is None:
                 return ask.Failure(why)
-            return self.answer(path, self.envelope(request.text))
+            return self.answer(path, self.envelope(request.text), request.canary)
         finally:
             self.lock.release()
 
