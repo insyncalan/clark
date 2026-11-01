@@ -31,7 +31,9 @@ def size(cdp, p, width, height=600):
 
 def open_list(p, width):
     """Open the contents list the way a person does at that width: the rail opens on focus at 1400; at 900 it is a button and a click opens it."""
-    p.js("document.querySelector('.toc-lines').click()" if width <= 900 else "document.querySelector('.toc-lines').focus()")
+    act = "click()" if width <= 900 else "focus()"
+    # Only when it is shut: at 900 a click on an open list would shut it (the list can still be open from the width before).
+    p.js(f"(function(){{if (!document.querySelector('.toc').classList.contains('open')) document.querySelector('.toc-lines').{act};}})()")
 
 
 class Minimap(Base):
@@ -120,10 +122,12 @@ class Minimap(Base):
                     size(cdp, p, w)
                     open_list(p, w)
                     p.until("document.querySelector('.toc').classList.contains('open') && getComputedStyle(document.querySelector('.toc-card')).opacity === '1'", "open")
-                    box = p.js("(function(){var r=document.querySelector('.toc-card').getBoundingClientRect();"
-                               "return [r.left >= 0, r.right <= window.innerWidth, r.top >= 0, r.bottom <= window.innerHeight,"
-                               "document.documentElement.scrollWidth <= window.innerWidth];})()")
-                    self.assertEqual(box, [True] * 5, f"{scheme} {w}")
+                    fit = ("(function(){var r=document.querySelector('.toc-card').getBoundingClientRect();"
+                           "return [r.left >= 0, r.right <= window.innerWidth, r.top >= 0, r.bottom <= window.innerHeight,"
+                           "document.documentElement.scrollWidth <= window.innerWidth];})()")
+                    # The list can still be sliding into its place after the width changed (it was open at the width before): wait for it to settle.
+                    p.until(f"{fit}.every(Boolean)", f"{scheme} {w}: settled inside the window")
+                    self.assertEqual(p.js(fit), [True] * 5, f"{scheme} {w}")
 
     def test_the_current_section_mark_can_be_seen_against_the_page_in_both_colours(self):
         with chrome() as cdp:

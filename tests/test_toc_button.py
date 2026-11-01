@@ -54,6 +54,7 @@ class TocButton(Base):
     def test_at_900_escape_closes_it_and_the_focus_is_back_on_the_button(self):
         with chrome() as cdp:
             p = self.at(cdp, 900)
+            p.js(f"{BTN}.focus()")                 # a click from a person puts the focus on the button; a scripted click does not
             p.js(f"{BTN}.click()")
             p.until(OPEN, "open")
             p.key("ArrowDown", code="ArrowDown", vk=40)
@@ -79,8 +80,9 @@ class TocButton(Base):
             p = self.at(cdp, 900)
             p.js(f"{BTN}.click()")
             p.until(OPEN, "open")
-            p.js("document.querySelector('h1').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))")
-            p.until(f"!{OPEN}", "a click elsewhere shuts it")
+            # The page's listener is added just after it opens; press again on each poll until it has taken effect.
+            p.until("(document.querySelector('h1').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true})), "
+                    f"!{OPEN})", "a click elsewhere shuts it")
 
     def test_at_900_the_open_list_and_button_fit_in_both_colours(self):
         with chrome() as cdp:
