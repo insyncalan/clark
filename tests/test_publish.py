@@ -1093,8 +1093,8 @@ class RealBrowser(unittest.TestCase):
             tiles = cdp.js("[...document.querySelectorAll('.glance .fig')].map(n => n.dataset.fig)", sid)     # #45: the counts are the At a glance tiles
             cdp.js("document.querySelector('[data-view=work]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work')", sid)))
-            cdp.js("document.querySelector('.fline .fchip button').click()", sid)         # the list starts on is:open (#64a, #153); taking that chip off lists every kept row
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0))
+            cdp.js("document.querySelector('[data-show=all]').click()", sid)             # the list starts on Open (#64a); All lists every kept row
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-show=all]').getAttribute('aria-pressed')", sid) == "true"))
             work = cdp.js("document.querySelector('#work').textContent", sid)
             cdp.js("document.querySelector('[data-view=milestones]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones')", sid)))
@@ -1115,8 +1115,8 @@ class RealBrowser(unittest.TestCase):
             sid = self.draw(cdp)
             cdp.js("document.querySelector('[data-view=work]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work')", sid)))
-            cdp.js("document.querySelector('.fline .fchip button').click()", sid)         # the list starts on is:open (#64a, #153); taking that chip off lists every kept row
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0))
+            cdp.js("document.querySelector('[data-show=all]').click()", sid)             # the list starts on Open (#64a); All lists every kept row
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-show=all]').getAttribute('aria-pressed')", sid) == "true"))
             work = cdp.js("document.querySelector('#work').textContent", sid)
         self.assertEqual(len(work_ids), 5)
         for item in work_ids:
