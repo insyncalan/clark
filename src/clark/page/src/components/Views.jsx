@@ -21,7 +21,8 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
-const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Safety", "Backups", "safety-h"]];
+const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
+  ["Safety", "Backups", "safety-h"], ["AskSettings", "Asking", "ask-settings-h"]];
 
 function goToCard(headId) {
   const head = document.getElementById(headId);
@@ -35,7 +36,7 @@ function SettingsHead({ cards }) {
   return (
     <section class="frame set-head">
       <h1>Settings</h1>
-      <p class="muted">Where reports are published, how clark looks for you, and your backups. More settings are still to come.</p>
+      <p class="muted">Where reports are published, how clark looks for you, the log, your backups and asking Claude.</p>
       {cards.length ? (
         <nav aria-label="Settings sections">
           <ul class="set-nav">{cards.map(([, name, headId]) => <li key={headId}><button type="button" class="set-chip" onClick={() => goToCard(headId)}>{name}</button></li>)}</ul>

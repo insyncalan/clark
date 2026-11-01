@@ -15,8 +15,8 @@ from test_server import chrome
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
-HELP = "Where reports are published, how clark looks for you, and your backups. More settings are still to come."
-CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Backups", "safety-h")]
+HELP = "Where reports are published, how clark looks for you, the log, your backups and asking Claude."
+CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Logs and diagnostics", "diagnostics-h"), ("Backups", "safety-h"), ("Asking", "ask-settings-h")]
 
 
 def ratio(a, b):
@@ -63,7 +63,7 @@ class Head(Base):
                     for name, head_id in CARDS:
                         self.assertEqual(p.js(f"document.getElementById('{head_id}').textContent"), name, "a chip says what its card's heading says")
                         self.assertEqual(p.js(f"document.getElementById('{head_id}').getAttribute('tabindex')"), "-1")
-                    for gone in ("Profile", "AI", "Projects", "People", "Asking", "Published reports", "Data", "Version", "Diagnostics"):
+                    for gone in ("Profile", "AI", "Projects", "People", "Client folder", "Published reports", "Data", "Version"):
                         self.assertNotIn(gone, self.chips(p), f"no chip for {gone}: there is no such card")
                     self.assertNotIn("Settings are not ready yet.", p.js("document.querySelector('main').innerText"))
 
