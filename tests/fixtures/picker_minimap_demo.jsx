@@ -14,7 +14,7 @@ window.T = T;
 const BAR = 48;
 
 // A page of tall sections under a sticky bar, with the minimap beside it. `sections` as in report_sections.
-T.mountMinimap = (sections, hiddenSections, noOnJump) => {
+T.mountMinimap = (sections, hiddenSections, noOnJump, counts) => {
   const root = document.getElementById("root");
   root.innerHTML = '<div id="bar" style="position:sticky;top:0;height:48px;background:var(--brand-navy);color:var(--white);z-index:30">bar</div><div id="page" style="padding-bottom:100vh"></div><div id="mm"></div><button id="after">after</button>';
   const page = document.getElementById("page");
@@ -34,7 +34,7 @@ T.mountMinimap = (sections, hiddenSections, noOnJump) => {
     const top = minimap.scrollTargets([{ id, top: document.getElementById(e.anchor).getBoundingClientRect().top + window.scrollY }], BAR)[id];
     window.scrollTo(0, top);
   };
-  render(<Minimap sections={sections} hiddenSections={hiddenSections} stickyHeight={BAR} onJump={noOnJump ? undefined : onJump} />, document.getElementById("mm"));
+  render(<Minimap sections={sections} hiddenSections={hiddenSections} stickyHeight={BAR} onJump={noOnJump ? undefined : onJump} counts={counts} />, document.getElementById("mm"));
 };
 
 T.mountPicker = (data, hiddenIds, onPage) => {
