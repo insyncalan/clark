@@ -76,7 +76,7 @@ class Flows(unittest.TestCase):
         self.h.theme(theme)
         self.h.ev("window.applied.length = 0; window.exits.length = 0; window.client.calls.length = 0")
 
-    def open(self, place, option, text, instruction=""):
+    def open_flow(self, place, option, text, instruction=""):
         h = self.h
         h.card(place=place, option=option, text=text, instruction=instruction)
         self.assertTrue(h.until("document.querySelector('.aic').dataset.state === 'ready'"), h.state())
@@ -92,7 +92,7 @@ class Flows(unittest.TestCase):
                 instruction = LINE if option == "custom" else ""
                 with self.subTest(width=width, theme=theme, place=place, option=option):
                     self.look(width, theme)
-                    self.open(place, option, text, instruction)
+                    self.open_flow(place, option, text, instruction)
                     self.assertEqual(self.h.ev("window.client.calls.length"), 1)
                     self.assertEqual(self.request(), {"option": option, "place": place, "text": text, "instruction": instruction})
                     self.assertNotRegex(json.dumps(self.request()), r"Falcon|Harbour|Lindqvist|AC-104|tool")
@@ -108,7 +108,7 @@ class Flows(unittest.TestCase):
                     self.assertEqual(self.h.ev("window.client.calls.length"), 1)                  # Accept asks nothing more
 
     def test_ask_sends_its_one_line_and_names_the_card_with_it(self):
-        self.open("current", "custom", TEXT, LINE)
+        self.open_flow("current", "custom", TEXT, LINE)
         self.assertEqual(self.request()["instruction"], LINE)
         self.assertEqual(self.h.ev("document.querySelector('.aic-h').textContent"), LINE)
 
@@ -135,7 +135,7 @@ class Flows(unittest.TestCase):
         for width, theme in LOOKS:
             with self.subTest(width=width, theme=theme):
                 self.look(width, theme)
-                self.open("current", "shorter", TEXT)
+                self.open_flow("current", "shorter", TEXT)
                 self.h.ev(button("Discard") + ".click()")
                 self.assertEqual(self.h.ev("window.applied.length"), 0)
                 self.assertEqual(self.h.ev("window.exits"), ["discard"])
@@ -148,7 +148,7 @@ class Flows(unittest.TestCase):
             with self.subTest(width=width, theme=theme):
                 self.look(width, theme)
                 self.h.ev("window.opts.reply = () => ({text: 'First answer for Friday.'})")
-                self.open("current", "rewrite", TEXT)
+                self.open_flow("current", "rewrite", TEXT)
                 self.assertEqual(self.h.ev("document.querySelector('.aic-text').textContent.trim()"), "First answer for Friday.")
                 self.h.ev("window.opts.reply = () => ({text: 'Second answer for Friday.'})")
                 self.h.ev(button("Try again") + ".click()")
@@ -179,7 +179,7 @@ class Flows(unittest.TestCase):
             with self.subTest(width=width, theme=theme):
                 self.look(width, theme)
                 self.h.ev("window.opts.reply = () => ({text: 'The supplier confirmed delivery on Friday and asked us to keep the room booked.'})")
-                self.open("current", "rewrite", TEXT)
+                self.open_flow("current", "rewrite", TEXT)
                 self.assertEqual(self.diff(), [])                                       # closed until asked for
                 self.h.ev(button("Show changes") + ".click()")
                 self.assertEqual(self.diff(), [["span", "The supplier confirmed"], ["del", "the"], ["span", "delivery"],
@@ -191,7 +191,7 @@ class Flows(unittest.TestCase):
 
     def test_show_changes_for_a_reply_that_is_the_same_words(self):
         self.h.ev("window.opts.reply = (r) => ({text: r.text, changes: []})")
-        self.open("current", "rewrite", TEXT)
+        self.open_flow("current", "rewrite", TEXT)
         self.h.ev(button("Show changes") + ".click()")
         self.assertEqual(self.h.ev("document.querySelector('.aic-diff').textContent.trim()"), "The suggestion is the same words as the text.")
 
@@ -199,7 +199,7 @@ class Flows(unittest.TestCase):
         for width, theme in LOOKS:
             with self.subTest(width=width, theme=theme):
                 self.look(width, theme)
-                self.open("current", "custom", TEXT, LINE + ", and keep it brief about the room as well please")
+                self.open_flow("current", "custom", TEXT, LINE + ", and keep it brief about the room as well please")
                 self.h.ev(button("Show changes") + ".click()")
                 box = self.h.ev("(()=>{const r=document.querySelector('.aic').getBoundingClientRect();"
                                 "return [r.left, r.right, innerWidth, document.documentElement.scrollWidth];})()")
