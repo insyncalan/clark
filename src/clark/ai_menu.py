@@ -29,7 +29,7 @@ import unicodedata
 from collections import Counter
 from urllib.parse import unquote
 
-from clark import edit_ai, sanitise, secret_screen
+from clark import ask, edit_ai, sanitise, secret_screen
 from clark.edit_ai import Refused
 
 MAX_TEXT = 12000            # characters of selected text
@@ -207,7 +207,7 @@ def _hidden_set(text):
             or unicodedata.category(c) == "Cf"}
 
 
-SECRET_MESSAGE = "That looks like a password or a key, so it wasn't sent. Take it out and try again."
+SECRET_MESSAGE = f"That {ask.LOOKS_LIKE}, so it wasn't sent. Take it out of the text and try again."
 
 
 def _secret(text):

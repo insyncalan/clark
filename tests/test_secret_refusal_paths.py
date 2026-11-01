@@ -21,7 +21,7 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 import test_ask_route as route_base
 from test_ai_key_refusal import ATTACKS, REFUSED, SECRET_PART, TEXT
 from test_ai_menu import FakeProvider
-from clark import ai_menu as am, ask, server as sv
+from clark import ai_menu as am, ask, secret_screen, server as sv
 
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
@@ -152,6 +152,21 @@ class EveryRouteThatSendsText(unittest.TestCase):
     def test_the_server_has_no_route_for_the_selection(self):
         routes = set(sv.GET_ROUTES) | set(sv.POST_ROUTES)
         self.assertEqual({r for r in routes if "suggest" in r or "edit" in r or r.startswith("/api/ai")}, set())
+
+
+class OneWordingForEveryLooksLikeAPasswordNote(unittest.TestCase):
+    """#406: the notes that say "looks like a password" use one phrase, held once in `ask.LOOKS_LIKE`."""
+
+    def test_all_three_notes_carry_the_one_phrase(self):
+        self.assertEqual(ask.LOOKS_LIKE, "looks like a password or a key")
+        what = ask.LOOKS_LIKE.removeprefix("looks like ")
+        # the notes that stop a send carry the phrase whole
+        for note in (ask.SECRET, ask.SECRET_EARLIER, am.SECRET_MESSAGE):
+            self.assertIn(ask.LOOKS_LIKE, note)
+        # the saved-folder note reads "looks like it holds ...", so it carries what the phrase names
+        self.assertIn(what, secret_screen.REASON)
+        for note in (ask.SECRET, ask.SECRET_EARLIER, am.SECRET_MESSAGE, secret_screen.REASON, secret_screen.NEXT_STEP):
+            self.assertNotIn("secret", note.lower())
 
 
 if __name__ == "__main__":

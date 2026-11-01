@@ -18,8 +18,8 @@ import re
 
 from clark import ask, edit_ai
 
-REASON = "looks like it holds a secret"
-NEXT_STEP = "Remove the secret from the file or move it out of the saved folder."
+REASON = "looks like it holds a password or a key"
+NEXT_STEP = "Take it out of the file, or remove the file from the saved folder, then ask again."
 MAX_RUNS = 20000                     # different base64-looking runs looked at in one file; more than this counts as a hit
 MAX_ROWS = 400                       # rows under a table header looked at for a secret column
 MAX_HEADER = 2000                    # characters: a longer line is not read as a table header

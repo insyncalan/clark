@@ -228,8 +228,8 @@ class OnTheRoute(tp.OnTheRoute):
         self.assertNotIn("ZQ-CREDS", text)
         note = [n for n in got["notes"] if "creds.txt" in n]
         self.assertEqual(len(note), 1, got["notes"])
-        self.assertIn("looks like it holds a secret", note[0])
-        self.assertIn("Remove the secret from the file or move it out of the saved folder.", note[0])
+        self.assertIn("looks like it holds a password or a key", note[0])
+        self.assertIn("Take it out of the file, or remove the file from the saved folder, then ask again.", note[0])
         self.assertGreaterEqual(got["left_out_for_safety"], 2)
         for blob in (json.dumps(got), "\n".join(logs.output)):
             self.assertNotIn(PW, blob)

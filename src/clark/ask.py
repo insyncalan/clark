@@ -30,8 +30,9 @@ MAX_REQUEST = 70000         # the whole text: rules, question, earlier turns and
 TOO_LONG = f"That question is too long. It can be {MAX_QUESTION:,} characters at most. Make it shorter and ask again."
 CHAT_TOO_LONG = "This chat has got too long. Start a new chat and ask again."
 EMPTY = "Type a question first."
-SECRET = "That looks like a password. It was not sent. Take it out and ask again."
-SECRET_EARLIER = "An earlier message looks like it holds a password. Start a new chat and ask again."
+LOOKS_LIKE = "looks like a password or a key"   # the one phrase every "looks like a password" note uses (ai_menu and secret_screen too)
+SECRET = f"Your question {LOOKS_LIKE}, so it wasn't sent. Take it out and ask again."
+SECRET_EARLIER = f"An earlier message in this chat {LOOKS_LIKE}, so nothing was sent. Start a new chat and ask again."
 TOO_MUCH = "That needs too much text to send. Ask a narrower question."
 BAD_INPUT = "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark."
 
