@@ -1,5 +1,5 @@
 """#115: the people rules and plain words (src/clark/people.py): the email rule, the matching key and resolver, a person's fields,
-the import box, the prompts and history lines, and the staged change from anyone but the owner (Alan's Q3 answer).
+the import box, the prompts and history lines, and the staged change from anyone but the owner (the owner's answer to question 3).
 
 Run: python3 dev/run_tests.py test_people
 Fictional people only (RULES: no real names). No database: people.py takes plain values.
@@ -184,6 +184,9 @@ class ImportBox(unittest.TestCase):
         self.assertEqual(people.parse_rows("  \n")[1], ["Paste at least one row."])
         many = "\n".join(f"P{i}\tp{i}@x.example" for i in range(people.ROW_LIMIT + 1))
         self.assertTrue(people.parse_rows(many)[1][0].startswith("That is more than"))
+        huge = "Sam Reed\t" + "x" * (people.TEXT_LIMIT + 1)
+        self.assertEqual(people.parse_rows(huge)[0], [])
+        self.assertTrue(people.parse_rows(huge)[1][0].startswith("That is too much text"))
 
     def test_formula_like_text_is_kept_as_text_not_run(self):
         rows, _ = people.parse_rows("=HYPERLINK(\"x\")\ta@x.example\n")
@@ -242,25 +245,25 @@ class Words(unittest.TestCase):
 
     def test_history_lines_say_who_what_where_when(self):
         at = "2026-10-29 14:05:09"
-        self.assertEqual(people.history_line("rename", "Sam Reed", "Alan Example", at, new="Sam Reid", items=14, projects=3),
-                         "Sam Reed renamed to Sam Reid. Made by Alan Example, on the People list, 29-10-2026 at 14:05. "
+        self.assertEqual(people.history_line("rename", "Sam Reed", "Jo Example", at, new="Sam Reid", items=14, projects=3),
+                         "Sam Reed renamed to Sam Reid. Made by Jo Example, on the People list, 29-10-2026 at 14:05. "
                          "14 items in 3 projects now show Sam Reid.")
-        self.assertEqual(people.history_line("merge", "Sam Reed", "Alan Example", at, new="Sam Reid", items=14, aliases=2),
-                         "Sam Reed merged into Sam Reid. Made by Alan Example, on the People list, 29-10-2026 at 14:05. "
+        self.assertEqual(people.history_line("merge", "Sam Reed", "Jo Example", at, new="Sam Reid", items=14, aliases=2),
+                         "Sam Reed merged into Sam Reid. Made by Jo Example, on the People list, 29-10-2026 at 14:05. "
                          "14 items now show Sam Reid; 2 aliases moved.")
-        self.assertEqual(people.history_line("archive", "Sam Reed", "Alan Example", at),
-                         "Sam Reed archived. Made by Alan Example, on the People list, 29-10-2026 at 14:05. Old items keep the name.")
-        self.assertEqual(people.history_line("restore", "Sam Reed", "Alan Example", at),
-                         "Sam Reed restored. Made by Alan Example, on the People list, 29-10-2026 at 14:05.")
-        self.assertEqual(people.history_line("undo-rename", "Sam Reed", "Alan Example", at),
-                         "Rename of Sam Reed undone. Made by Alan Example, on the People list, 29-10-2026 at 14:05.")
+        self.assertEqual(people.history_line("archive", "Sam Reed", "Jo Example", at),
+                         "Sam Reed archived. Made by Jo Example, on the People list, 29-10-2026 at 14:05. Old items keep the name.")
+        self.assertEqual(people.history_line("restore", "Sam Reed", "Jo Example", at),
+                         "Sam Reed restored. Made by Jo Example, on the People list, 29-10-2026 at 14:05.")
+        self.assertEqual(people.history_line("undo-rename", "Sam Reed", "Jo Example", at),
+                         "Rename of Sam Reed undone. Made by Jo Example, on the People list, 29-10-2026 at 14:05.")
         with self.assertRaises(ValueError):
             people.history_line("nonsense", "A", "B", at)
 
     def test_owner_line_on_an_item(self):
         at = "2026-10-29 14:05"
-        self.assertEqual(people.owner_line("Sam Reed", "Sam Reid", "Alan Example", at),
-                         "Owner changed from Sam Reed to Sam Reid because the person was renamed. Made by Alan Example, on the People list, 29-10-2026 at 14:05.")
+        self.assertEqual(people.owner_line("Sam Reed", "Sam Reid", "Jo Example", at),
+                         "Owner changed from Sam Reed to Sam Reid because the person was renamed. Made by Jo Example, on the People list, 29-10-2026 at 14:05.")
         self.assertIn("because Sam Reed was merged into Sam Reid.", people.owner_line("Sam Reed", "Sam Reid", "A", at, "merged", "Sam Reid"))
 
     def test_stamp(self):
@@ -269,13 +272,13 @@ class Words(unittest.TestCase):
 
 
 class StagedChange(unittest.TestCase):
-    """Alan's Q3 answer (29-10-2026): a people change from anyone but the owner is staged and shown to the owner."""
+    """the owner's answer to question 3 (29-10-2026): a people change from anyone but the owner is staged and shown to the owner."""
 
     def test_only_the_owner_applies_directly(self):
-        self.assertTrue(people.may_apply_directly("Alan Example", "Alan Example"))
-        self.assertFalse(people.may_apply_directly("Sara Teammate", "Alan Example"))
+        self.assertTrue(people.may_apply_directly("Jo Example", "Jo Example"))
+        self.assertFalse(people.may_apply_directly("Sara Teammate", "Jo Example"))
         self.assertFalse(people.may_apply_directly("", ""))
-        self.assertFalse(people.may_apply_directly(None, "Alan Example"))
+        self.assertFalse(people.may_apply_directly(None, "Jo Example"))
 
     def test_the_staged_line_says_who_what_and_from_to(self):
         self.assertEqual(people.staged_line("Sara Teammate", "Sam Reed", "email", "sam@x.example", "sam.reed@x.example"),
@@ -288,12 +291,12 @@ class StagedChange(unittest.TestCase):
         self.assertEqual(people.staged_buttons(), ("Accept", "Reject"))
 
     def test_the_history_says_who_proposed_who_accepted_how_and_when(self):
-        line = people.accepted_line("Sara Teammate", "Alan Example", "on the People list", "2026-10-29 15:40",
+        line = people.accepted_line("Sara Teammate", "Jo Example", "on the People list", "2026-10-29 15:40",
                                     what="Sam Reed's email from a@x.example to b@x.example")
-        self.assertEqual(line, "Sara Teammate proposed Sam Reed's email from a@x.example to b@x.example; Alan Example accepted it "
+        self.assertEqual(line, "Sara Teammate proposed Sam Reed's email from a@x.example to b@x.example; Jo Example accepted it "
                                "on the People list, 29-10-2026 at 15:40.")
-        rej = people.accepted_line("Sara Teammate", "Alan Example", "in a teammate's changes file", "2026-10-29 15:41", rejected=True)
-        self.assertEqual(rej, "Sara Teammate proposed it; Alan Example rejected it in a teammate's changes file, 29-10-2026 at 15:41.")
+        rej = people.accepted_line("Sara Teammate", "Jo Example", "in a teammate's changes file", "2026-10-29 15:41", rejected=True)
+        self.assertEqual(rej, "Sara Teammate proposed it; Jo Example rejected it in a teammate's changes file, 29-10-2026 at 15:41.")
 
 
 class Source(unittest.TestCase):

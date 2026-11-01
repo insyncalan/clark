@@ -1,7 +1,7 @@
 """People (#115): the rules and the plain words for the people list, as code with no database (BRD FR-43a, FR-43c, FR-99b).
 
-The design note is docs/handoff/design-115-people-table.md on branch team-lang-115-people (b8c1647); Alan's six answers are in
-clark-plan #115 (all yes, 29-10-2026). This module reads nothing and writes nothing: the store takes a person's fields, the
+The design note is docs/handoff/design-115-people-table.md; the owner's six answers are in
+plan item #115 (all yes, 29-10-2026). This module reads nothing and writes nothing: the store takes a person's fields, the
 people already on the list and a name as plain values, and gets back a verdict or a sentence. Standard library only.
 
 What is here:
@@ -30,6 +30,7 @@ ID_SHAPE = re.compile(r"\AP-(\d{3})\Z")
 ID_LIMIT = 999
 EMAIL_BAD = set(" ,;<>()[]\"'\\?#%`")
 ROW_LIMIT = 500                   # the most rows one import box takes at once
+TEXT_LIMIT = 200000               # the most characters one import box takes at once (checked before the text is read as rows)
 
 EMAIL_REFUSED = ("That email can't be used: it holds more than one address or a character that isn't allowed. "
                  "Check the address and try again.")
@@ -213,6 +214,8 @@ def parse_rows(text):
     raw = str(text or "")
     if not raw.strip():
         return [], ["Paste at least one row."]
+    if len(raw) > TEXT_LIMIT:
+        return [], [f"That is too much text to import at once. Paste at most {ROW_LIMIT} rows at a time."]
     dialect = csv.excel_tab if raw.count("\t") >= raw.count(",") else csv.excel
     lines = [r for r in csv.reader(io.StringIO(raw), dialect) if any(c.strip() for c in r)]
     order = list(COLUMNS)
@@ -391,7 +394,7 @@ def owner_line(old, new, by, at, why="renamed", target=None):
     return f"Owner changed from {old} to {new} because {reason}. {_made(by, at)}"
 
 
-# ---- a change from anyone but the owner (Alan's answer to Q3): staged, never applied ------------------------------------
+# ---- a change from anyone but the owner (the owner's answer to question 3): staged, never applied ------------------------------------
 
 STAGED_FIELDS = ("name", "email", "organisation", "role", "label", "aliases", "kind")
 FIELD_WORDS = {"name": "name", "email": "email", "organisation": "organisation", "role": "role", "label": "label",
