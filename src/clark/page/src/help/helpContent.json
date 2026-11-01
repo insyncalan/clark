@@ -247,10 +247,10 @@
     "go": "dashboard+edit",
     "s": [
      "In Edit, press the health pill on the **Project health** tile and choose **On track**, **At risk** or **Off track**.",
-     "Write why in the box beside it, in a line or two. It saves when you leave the box, or with [[Mod+Enter]]; [[Esc]] puts the old reason back.",
-     "The tile’s outline takes the health’s colour."
-    ],
-    "n": "The check in ask clark warns you when the health says On track but a milestone has slipped, or when the reason is missing."
+     "Write why in the box beside it, in a line or two. It saves when you leave the box; [[Esc]] puts the old reason back.",
+     "A change of health needs a reason: without one, nothing is changed.",
+     "The tile takes the health’s colour."
+    ]
    },
    {
     "id": "check-the-report",
@@ -541,15 +541,15 @@
     "id": "handle-a-slipped-milestone",
     "g": "Milestones",
     "t": "Deal with a slipped milestone",
-    "w": "Milestones › Movement",
+    "w": "Milestones › Movement, in Edit",
     "go": "milestones",
     "s": [
-     "On **Milestones**, press **Movement**. It is for you and the team: it is never published.",
-     "The first line says how many open milestones are behind, and which is furthest behind.",
-     "Each row has a track: a diamond for the original date (when it was rebaselined), a bar for the agreed date, the forecast mark, a red line for the distance past agreed, and today. At the right, the days late and whether it was rebaselined.",
-     "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
-     "Then decide: **Hold** (notes that the agreed date stays), **Rebaseline** (the agreed date moves to the expected date; the original is kept), **Add a recovery action** or **Escalate to steering**. The last two add a linked action or decision and open it.",
-     "Write an **Internal note**. It saves when you leave the box and is never published."
+     "On **Milestones**, switch to Edit. **Movement** is the block under the list. It is for you and the team: it is never published.",
+     "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
+     "Each open milestone has a row, the furthest behind first: its state, its agreed date, a line that marks the agreed date, the forecast and today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or press [[Up]] or [[Down]], to choose it.",
+     "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
+     "Under **Decide what to do**, choose **Hold: keep the forecast, agreed date unchanged**, or **Move the agreed date**. A move asks for **New agreed date (DD-MM-YYYY)**, **Who agreed it**, a **Reason** and a **Source**, and says what will happen before you press **Move the agreed date**. **Keep the date** closes it with no change. A milestone that has not slipped cannot be moved.",
+     "Each choice changes the record at once and has its own **Undo**. A move keeps the original date and records a decision."
     ]
    },
    {
@@ -728,12 +728,8 @@
       ],
       [
        [
-        "Current state",
-        "Where the project stands, in your words."
-       ],
-       [
         "At a glance",
-        "Project health with its reason, and the count tiles. See [At a glance](#ref-at-a-glance)."
+        "Project health with its reason, and the count tiles."
        ],
        [
         "Use case summary",
@@ -741,27 +737,15 @@
        ],
        [
         "Milestones",
-        "The timeline or calendar, the legend and the details list."
+        "The timeline or calendar, the legend and the list of milestones."
        ],
        [
         "Summary, This week, Next week",
         "Text sections. This week and Next week sit side by side to start with; any section can sit beside another."
        ],
        [
-        "Risks and issues",
-        "Open risks and issues on the page: colour, title, owner, review date, priority and response."
-       ],
-       [
-        "Open actions",
-        "Open actions on the page, with the due date and how late or soon."
-       ],
-       [
-        "Decisions",
-        "Pending decisions, and any dated in the last 14 days."
-       ],
-       [
-        "Supporting documents",
-        "Links to the week’s papers."
+        "Needs from you",
+        "Added from a template: what you need from the client, as rows you add yourself. Left out of the published page when no row is shown. See [Needs from you](#ref-needs-from-you)."
        ]
       ]
      ],
@@ -859,6 +843,42 @@
         "Half or full"
        ]
       ]
+     ]
+    ]
+   },
+   {
+    "id": "needs-from-you",
+    "g": "Screens",
+    "t": "Needs from you",
+    "w": "Dashboard › Edit › Add a section",
+    "b": [
+     [
+      "p",
+      "A section for what you need from the client: a decision, information or a date. Add it in Edit from the **Add a section** box. You add its rows yourself with **Add a row**; each says what is needed, who it is from and the day it is needed by, and is marked as a decision, information or a date."
+     ],
+     [
+      "p",
+      "A row past its date shows the word **Overdue**, so it does not rely on colour. **Leave out** keeps a row in Edit but off the published page. On the published page the section is a table, and it is left out altogether when no row is shown. See [Ask the client for what you need](#howto-ask-for-what-you-need)."
+     ]
+    ]
+   },
+   {
+    "id": "freshness",
+    "g": "Working with items",
+    "t": "Freshness: raised, last reviewed, not reviewed",
+    "b": [
+     [
+      "ul",
+      [
+       "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
+       "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
+       "**Not reviewed in 14 days**: a chip in the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
+       "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. In the filter line, **is:quiet** and **is:incomplete** do the same. Freshness is offered once some item has a date it can count from."
+      ]
+     ],
+     [
+      "p",
+      "Nothing is stored for this: it is worked out from the history every time."
      ]
     ]
    },
@@ -1031,22 +1051,15 @@
    {
     "id": "milestones-page",
     "g": "Screens",
-    "t": "Milestones: Plan and Movement",
+    "t": "Milestones and Movement",
     "b": [
      [
       "p",
-      "The line under the heading names the last milestone, its agreed date and any later expected date, and how many are achieved and to come."
-     ],
-     [
-      "ul",
-      [
-       "**Plan**: every milestone, internal ones too, on the timeline or calendar, with the legend and the details list.",
-       "**Movement**: the open milestones against their original, agreed and forecast dates, with the days late, what changed and what to do. Never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
-      ]
+      "The Milestones screen shows every milestone, internal ones too. Switch between **Timeline** and **Calendar** at the top right. The **Legend** and the list of milestones are below; a milestone that is not shown to the client has the tag **Internal only**."
      ],
      [
       "p",
-      "On the Dashboard, the Milestones section shows only the milestones visible to the client. In Edit, the eye in the details takes one off the page, and **+ Add a milestone from your project record** brings it back."
+      "In Edit, **Movement** is under the list: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
      ]
     ]
    },
@@ -1478,15 +1491,15 @@
     "id": "diagnostics",
     "g": "Settings and data",
     "t": "Diagnostics and logs",
-    "w": "Settings › Diagnostics",
+    "w": "Settings › Logs and diagnostics",
     "b": [
      [
       "ul",
       [
-       "**Log level**: **Normal** keeps a line for what clark did and for every error. **Debug** adds detail for fixing a problem. Switch back to Normal when you are done; Settings reminds you after a week.",
-       "Logs hold only counts, IDs and times, never your report text, names, emails or keys. The log keeps one file a day (5 MB at most) for 7 days; **Open the folder** shows it.",
-       "**Copy diagnostics** puts a plain-text report on the clipboard: the version, browser, system, log level, counts, safe settings and the last 20 log lines. It never holds a name, email, project name or report text, so it can go in a chat.",
-       "**Errors in the last 7 days** lists what went wrong, or says None."
+       "**Normal** records what clark did and every warning and error. **Debug** adds more detail, for finding a fault. When Debug has been on for more than a week, Settings says so and suggests switching back to Normal.",
+       "The log holds only counts, times, item IDs and which part of clark was used. It never holds report text, names, email addresses or notes, and nothing is sent anywhere. Each day has its own file, 5 MB at most; today and the six days before it are kept. **Open folder** shows them.",
+       "**Copy diagnostics** puts a plain-text report on the clipboard: the version, the system, the log level, a few safe settings, counts, the errors of the last 7 days and the last 200 log lines. It never holds a name, email address, project name or report text, so it can go in a message.",
+       "**Errors in the last 7 days** lists what went wrong, how many times and when last, or says None."
       ]
      ]
     ]

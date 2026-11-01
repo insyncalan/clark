@@ -29,7 +29,7 @@ SHOWN = """(() => {
   return { content: H.content, places: H.placeIds(), tabs: Object.fromEntries(H.TABS.map((t) => [t.key, H.tabList(t.key)])),
     index: idx.map((e) => e.id), links: H.linksIn(), keys: H.keysList(false).length, jobs: H.jobs().length,
     where: { held: H.placeOf("howto-publish-the-report", "reference"), kept: H.placeOf("ref-keys", "start"), heldRef: H.placeOf("ref-peek", "start"), startPart: H.placeOf("start-jobs", "reference") },
-    q: Object.fromEntries(["peek", "publish", "keys", "undo", "sneak", "ask clark"].map((q) => [q, H.search(idx, q).map((x) => x.id)])) };
+    q: Object.fromEntries(["peek", "publish", "keys", "undo", "sneak", "ask clark", "movement", "diagnostics"].map((q) => [q, H.search(idx, q).map((x) => x.id)])) };
 })()"""
 
 PROBE = """(() => {
@@ -119,7 +119,7 @@ class Logic(unittest.TestCase):
     def test_reference_lists_every_section_under_its_group(self):
         lst = self.r["lists"]["reference"]
         self.assertEqual([g["group"] for g in lst], CONTENT["reference"]["groups"])
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 30)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 32)
         self.assertTrue(all(e["place"].startswith("ref-") for g in lst for e in g["entries"]))
 
     def test_start_here_lists_its_seven_parts_and_an_unknown_tab_lists_nothing(self):
@@ -156,7 +156,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 28 + 30)
+        self.assertEqual(len(p), 7 + 28 + 32)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -288,16 +288,21 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        SEC = ["howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "ref-section-templates", "ref-keys"]
+        SEC = ["howto-set-the-health", "howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
+               "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-milestones-page", "ref-diagnostics", "ref-keys"]
         self.assertEqual(s["places"], SEC)
         self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:4])
-        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], SEC[4:])
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:6])
+        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
+                         ["ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-milestones-page", "ref-freshness", "ref-diagnostics", "ref-keys"])      # by group: Screens, Working with items, Settings and data, Keys and icons
         self.assertEqual(s["index"], SEC)
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "howto-add-a-section-from-a-template", "ref-keys"], ["work", "dashboard+edit"]))
-        for q in ("peek", "sneak"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match
-            self.assertEqual(s["q"][q], [], q)
-        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need"], "only the Needs from you task, which says a row left out is not on the published page; no Publish entry is shown")
+        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-keys"], ["dashboard+edit", "work", "milestones"]))
+        self.assertEqual(s["q"]["sneak"], [], "no Sneak peek entry is shown")      # "ask clark" is left out: the board entry says \"clark remembers\", which the search reads as a match
+        self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
+        self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
+        self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
+        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-milestones-page"],
+                         "only entries that say what is or is not on the published page; no Publish entry is shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):

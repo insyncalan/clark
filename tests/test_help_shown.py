@@ -97,17 +97,17 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "section-templates", "needs-from-you", "freshness", "milestones-page", "diagnostics", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
-        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
+        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 30, 33))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 32, 33))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -150,7 +150,8 @@ class AgainstThePage(unittest.TestCase):
         # 66 again on the merge with ask clark's panel (#47a) and the palette's command for it (measured on the merged tree)
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
-        self.assertGreaterEqual(len(names), 60)
+        # 56 once the Movement, health and Report sections entries were written in the page's own words (their bold names are now on the page): 60 before
+        self.assertGreaterEqual(len(names), 56)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
