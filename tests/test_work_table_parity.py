@@ -84,16 +84,16 @@ class Source(unittest.TestCase):
         src = json.loads((PAGE / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
         sections = {x["id"]: x for x in src["reference"]["sections"]}
         key = next(b for b in sections["status-words"]["b"] if b[0] == "tbl" and b[1][0] == "Letter")
-        rows = {r[0]: r[1] for r in key[3]}
+        rows = {r[0]: r[1] for r in key[2]}
         self.assertEqual({k: v.split(" (")[0] for k, v in rows.items()},
                          {"A": "Action", "R": "Risk", "I": "Issue", "D": "Decision", "S": "Assumption", "P": "Dependency"})
         for k in ("S", "P"):
             self.assertIn("waits for the owner", rows[k], f"{k} is not final yet and Help says so")
         table = next(b for b in sections["work-items"]["b"] if b[0] == "tbl" and b[1][0] == "Table column")
-        eye = next(r for r in table[3] if r[0].startswith("The eye"))[1]
+        eye = next(r for r in table[2] if r[0].startswith("The eye"))[1]
         for phrase in ("In View it is a mark only", "in Edit", "client flag", "hidden list", "Sensitive"):
             self.assertIn(phrase, eye)
-        item = next(r for r in table[3] if r[0] == "Item")[1]
+        item = next(r for r in table[2] if r[0] == "Item")[1]
         self.assertNotIn("point at it", item, "a keyboard user cannot reach a tooltip; the key is in Help")
         raw = (PAGE / "src" / "help" / "helpContent.json").read_bytes()
         self.assertTrue(raw.endswith(b"}\n"), "helpContent.json keeps its final newline")
