@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS use_cases (
   project       TEXT NOT NULL REFERENCES projects(code),
   ref           TEXT NOT NULL DEFAULT '',     -- the project's own reference as shown, e.g. "1.1" or "1.3 and 1.7"
   title         TEXT NOT NULL,
-  status        TEXT NOT NULL CHECK (status IN ('On track','Flag','High risk')),
+  status        TEXT NOT NULL CHECK (status IN ('On track','Flag','High risk','Done')),     -- Done since #412, by its own migration step
   headline      TEXT NOT NULL DEFAULT '',
   standing      TEXT NOT NULL DEFAULT '',     -- HTML
   sort_order    INTEGER NOT NULL DEFAULT 0,

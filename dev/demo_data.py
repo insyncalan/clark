@@ -209,7 +209,7 @@ def mossgrove(d):
                         week_ending=d(-2), layout="spine"),
         "workstreams": [("Sign-in", GWENDOLEN), ("Payments", HAMISH), ("Mobile", DORIAN)],
         "use_cases": [
-            dict(ref="1", title=UC_MOSS[0], status="On track", headline="Single sign-in live for the pilot",
+            dict(ref="1", title=UC_MOSS[0], status="Done", headline="Single sign-in live for the pilot",
                  standing="<p>300 pilot customers use one login for every service.</p>"),
             dict(ref="2", title=UC_MOSS[1], status="Flag", headline="Card payments failing for one bank",
                  standing="<p>One bank rejects test payments. The provider is looking at it.</p>"),
