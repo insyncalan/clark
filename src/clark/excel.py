@@ -823,9 +823,10 @@ COVER_FONT = OFFICE_FONT
 
 
 def _cover_cell(value):
-    """Cover text as a cell holds it: the same cell_text and escape_text as the data (the cell itself is made text by
-    protect_text_cell), so no cell can be a formula or hold a character XML can't."""
-    return escape_text(cell_text(excel_cover.cut(value)))
+    """Cover text as a cell holds it: the same cell_text as the data (the cell itself is made text by protect_text_cell, which
+    is what keeps text starting = + - @ from being a formula), so no cell can be a formula or hold a character XML can't. No
+    escape_text: the import never reads the Cover, so text that starts '= needs no extra apostrophe."""
+    return cell_text(excel_cover.cut(value))
 
 
 def _cover_font(**kw):

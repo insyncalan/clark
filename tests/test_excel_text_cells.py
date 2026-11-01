@@ -1,4 +1,4 @@
-"""#85: text that starts like a formula is a text cell, shown exactly as typed (no apostrophe), and never a formula. Fictional data only.
+"""#351 (and #85, which began it): text that starts like a formula is a text cell, shown exactly as typed (no apostrophe), and never a formula. Fictional data only.
 
 The cell is stored as a string (an inline string in the XML, never <f>), and, when the text starts with = + - @ TAB or a line
 break, its style carries quotePrefix, which Excel shows with no apostrophe and which keeps a later edit of the cell text.
@@ -243,6 +243,39 @@ class TheCover(unittest.TestCase):
                     self.assertEqual((seen[want].data_type, seen[want].quotePrefix), ("s", True), want)
                 self.assertNotIn(b"<f>", b"".join(v for n, v in parts(path).items() if "worksheets/sheet" in n))
                 self.assertGreater(ws.max_row, 1)
+
+
+    def test_cover_text_that_starts_with_an_apostrophe_and_a_formula_character_gets_no_extra_apostrophe(self):
+        project = {"name": "'=Name", "current_state": "<p>'+Now.</p>"}
+        wb = Workbook()
+        path = Path(tempfile.mkdtemp(prefix="clark-text-cells-")) / "cover.xlsx"
+        self.addCleanup(shutil.rmtree, path.parent, True)
+        excel.write_cover(wb, cover.lines(project, [{"type": "current", "title": "'=Section"}], [], datetime(2030, 6, 1, 9, 0)))
+        wb.save(path)
+        seen = {c.value for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
+        for want in ("'=Name", "'=Section", "'+Now."):
+            self.assertIn(want, seen)
+        self.assertFalse([v for v in seen if isinstance(v, str) and v.startswith("''")])
+
+
+class TheHistorySheet(unittest.TestCase):
+    def test_history_text_that_starts_like_a_formula_is_a_string_with_the_quote_prefix(self):
+        keys = [key for _, key, _ in excel.HISTORY_COLUMNS]
+        rows = [{k: lead + k for k in keys} for lead in ("=", "+", "-", "@", "\t")]
+        view = {"footnote": "=Note", "rows": rows, "closing": "-Closing", "empty": ""}
+        wb = Workbook()
+        path = Path(tempfile.mkdtemp(prefix="clark-text-cells-")) / "history.xlsx"
+        self.addCleanup(shutil.rmtree, path.parent, True)
+        excel.write_history(wb, view)
+        wb.save(path)
+        cells = [c for row in load_workbook(path)[excel.HISTORY_NAME].iter_rows(min_row=3) for c in row if c.value]
+        self.assertTrue(cells)
+        for c in cells:
+            self.assertEqual((c.data_type, c.quotePrefix), ("s", True), c.value)
+        note = load_workbook(path)[excel.HISTORY_NAME]["A1"]      # the fixed note comes first, so it has no quote prefix
+        self.assertEqual((note.data_type, note.quotePrefix), ("s", False))
+        self.assertNotIn(b"<f>", b"".join(v for n, v in parts(path).items() if "worksheets/sheet" in n))
+        self.assertEqual(xml_cell(path, excel.HISTORY_NAME, "A3")[0], "inlineStr")
 
 
 class RoundTrip(unittest.TestCase):
