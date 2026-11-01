@@ -409,13 +409,16 @@ class RealBrowser(unittest.TestCase):
                     self.assertEqual(cdp.js("[...document.querySelectorAll('.cal-d[data-d][tabindex=\"0\"]')].map(d => d.dataset.d)", sid), [TODAY], "one day is the tab stop: today")
                     self.assertEqual(cdp.js("document.querySelectorAll('.cal-d[data-d]:not([tabindex=\"0\"])').length === document.querySelectorAll('.cal-d[data-d]').length - 1", sid), True)
                     cdp.js("document.querySelector('[data-cal=\"0\"]').focus()", sid)
-                    for _ in range(12):                                # real Tabs: the next stop after the bar is the day, and it shows a ring
-                        if self.on_day(cdp, sid):
+                    stops = []
+                    for _ in range(12):                                # real Tabs: a chip is a button, so it is a stop too (as in the prototype); the only day that is one is today
+                        if self.on_day(cdp, sid) == TODAY:
                             break
                         for kind in ("rawKeyDown", "keyUp"):
                             cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9}, sid)
                         time.sleep(0.05)
-                    self.assertEqual(self.on_day(cdp, sid), TODAY, "Tab from the bar lands on today")
+                        stops.append(self.on_day(cdp, sid))
+                    self.assertEqual(self.on_day(cdp, sid), TODAY, "Tabbing on from the bar lands on today")
+                    self.assertTrue(all(s.startswith("chip:") for s in stops[:-1] if s), f"between the bar and today the only calendar stops are chips, not other days: {stops}")
                     ring = cdp.js("(() => { const s = getComputedStyle(document.activeElement); return [document.activeElement.matches(':focus-visible'), s.outlineStyle, parseFloat(s.outlineWidth)]; })()", sid)
                     self.assertTrue(ring[0]); self.assertEqual(ring[1], "solid"); self.assertGreaterEqual(ring[2], 2)
                     for key, want in (("ArrowRight", "2026-10-29"), ("ArrowLeft", TODAY), ("ArrowUp", "2026-10-21"), ("ArrowDown", TODAY)):
