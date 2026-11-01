@@ -186,7 +186,7 @@
   const textOf = h => String(h || '').replace(/<[^>]*>/g, '').trim();
   const secText = (p, id, re) => { const s = p.report.sections.find(x => x.id === id) || p.report.sections.find(x => x.type === 'text' && re.test(x.title)); return s && !s.hidden && textOf(s.html) ? s : null; };
   const secH = (id, title) => `<section class="sec cr-sec" id="sec-cr-${id}" data-sec="cr-${id}"><h2 class="st"><span>${title}</span><span class="sp"></span></h2>`;
-  const riskRow = r => { const x = r.x, owner = x.owner || '', back = x.due ? `${r.word === 'Monitor' ? 'Review' : 'Back on track by'} ${D.fd(x.due)}` : '', esc2 = x.priority === 'Urgent' ? 'Yes' : 'No', resp = C.plain(x.update || '');
+  const riskRow = r => { const x = r.x, owner = x.owner || '', back = x.due ? `${r.word === 'Monitor' ? 'Review by' : 'Back on track by'} ${D.fd(x.due)}` : '', esc2 = x.priority === 'Urgent' ? 'Yes' : 'No', resp = C.plain(x.update || '');
     return `<li class="wl-row" data-cr-risk="${esc(x.id)}" data-word="${r.word}"><span class="wl-state"><span class="pill ${RISK_WORD[r.word]}">${r.word}</span></span><span class="wl-main"><span class="wl-title">${esc(!x.clientText ? x.title : C.plain(x.clientText))}</span>
       <span class="wl-meta">${owner ? `<span class="av">${C.initials(owner)}</span>${esc(owner)}<span class="dot">·</span>` : ''}${back ? `<span>${back}</span><span class="dot">·</span>` : ''}<span>Escalate: ${esc2}</span></span>${resp ? `<span class="wl-resp">${esc(resp)}</span>` : ''}</span><span class="wl-id"><span class="idl">${esc(x.id)}</span></span></li>`; };
   /* the page body: the same in the editor and in the published tab. Anything with nothing to show is left out. */
