@@ -23,6 +23,9 @@ Routes:
 - POST /api/preview      Preview (#147): builds the page as publish would, in memory; answers a one-visit address (publish_flow.py)
 - GET  /preview          ?id=<from /api/preview>: that page, once, local only (a new tab cannot send the token header)
 - GET  /api/export       ?project=<CODE>: the project's workbook as a download named <CODE>-<date>.xlsx (publish_flow.py)
+- GET  /api/publications ?project=<CODE>: the newest 10 publications with number, time, where and who (#443; past_reports.py); no path, no hash
+- GET  /api/past-report  ?project=<CODE>&number=<N>: checks that publication's kept copy and answers a one-visit address (#443)
+- GET  /past             ?id=<from /api/past-report>: that kept page as it was published, once, local only (#443)
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
@@ -514,6 +517,57 @@ def milestones_route(handler):
     return handler.send(200, {"ok": True, "project": code, **body})
 
 
+PAST_ROUTE = "/past"
+PUBLICATION_NUMBER = re.compile(r"[1-9][0-9]{0,5}")           # a whole number from 1 to 999999, as the kept copies' names allow
+
+
+def past_route(method):
+    """GET /api/publications?project=<CODE> and GET /api/past-report?project=<CODE>&number=<N> (#443): the Published reports list and
+    Open. The server's `past` (past_reports.PastReports) answers (status, body); without one the routes are not there (404). The token,
+    the Host and the Origin are checked before this runs, as for every GET under /api/. No body is accepted (400); each parameter
+    once and nothing else, a code of the stored shape and a plain whole number (400). Nothing from the request is used as a path:
+    the seam makes a kept copy's name from the code and the number, and reads nothing else. No path and no hash is in a reply."""
+    def route(handler):
+        seam = getattr(handler.server, "past", None)
+        if seam is None:
+            return handler.send(404, error_body("not_found"))
+        if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+            return handler.send(400, error_body("bad_request"))
+        query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+        want = {"project"} if method == "listing" else {"project", "number"}
+        if set(query) != want or any(len(v) != 1 for v in query.values()):
+            return handler.send(400, error_body("bad_request"))
+        code = query["project"][0]
+        if not PROJECT_CODE.fullmatch(code):
+            return handler.send(400, error_body("bad_project_code"))
+        if method == "listing":
+            status, body = seam.listing(code)
+        else:
+            number = query["number"][0]
+            if not PUBLICATION_NUMBER.fullmatch(number):
+                return handler.send(400, error_body("bad_request"))
+            status, body = seam.visit(code, int(number))
+        return handler.send(status, body)
+    return route
+
+
+def past_page_route(handler):
+    """GET /past?id=: a kept page, once (#443). A new tab can't send the token, so the address itself is the one-visit secret (made by
+    GET /api/past-report); the Host and Origin checks are as everywhere, the id is the one parameter, and what is sent is the kept
+    file's own bytes, checked against its SHA-256 when the address was made. Nothing is written and no path is read from the request."""
+    seam = getattr(handler.server, "past", None)
+    if seam is None or not csp_local(handler):
+        return handler.send(404 if seam is None else 403, error_body("not_found" if seam is None else "not_allowed"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    given = query.get("id") or [""]
+    if set(query) != {"id"} or len(given) != 1:
+        return handler.send(404, error_body("not_found"))
+    body = seam.take(given[0])
+    if body is None:
+        return handler.send(404, error_body("not_found"))
+    return handler.send(200, body, "text/html")
+
+
 ARCHIVED_VIEWS = ("hide", "show", "only")          # what ?archived= may be on /api/data (#126); never passed on unchecked
 PROJECT_LIST_LIMIT = 500
 PROJECT_NAME_LIMIT = 200
@@ -847,7 +901,8 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"),
-              "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/diagnostics": logs_route("diagnostics")}
+              "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/diagnostics": logs_route("diagnostics"),
+              "/api/publications": past_route("listing"), "/api/past-report": past_route("open")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
@@ -1010,6 +1065,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.run_route(open_route, route)
         if route == PREVIEW_ROUTE:
             return self.run_route(preview_page_route)
+        if route == PAST_ROUTE:
+            return self.run_route(past_page_route)
         if route.startswith(BRAND_PREFIX) and route[len(BRAND_PREFIX):] in BRAND_PICTURES:
             return self.run_route(brand_picture_route, route[len(BRAND_PREFIX):])
         api = GET_ROUTES.get(route)
@@ -1060,7 +1117,7 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
-                 people=None, people_undo=None, people_list=None, section_image=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, past=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1084,6 +1141,7 @@ class LocalServer(ThreadingHTTPServer):
         self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
         self.people, self.people_undo, self.people_list = people, people_undo, people_list      # #115: the person writers, their Undo and the list; None: saving off (503) or not found (404)
         self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
+        self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -1117,7 +1175,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
-          people=None, people_undo=None, people_list=None, section_image=None):
+          people=None, people_undo=None, people_list=None, section_image=None, past=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -1126,7 +1184,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

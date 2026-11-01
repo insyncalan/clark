@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -403,6 +403,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
                      activity=activity_read.make_read(store.path, store.data_for),
+                     past=past_reports.PastReports(store.path),
                      brand_picture=page.brand_picture,
                      **handlers)
         LOG.info("stopped with code %d", done)

@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import freshness as fresh, people as people_rules, platform, section_bodies
+from clark import freshness as fresh, people as people_rules, platform, published_copies, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -2570,10 +2570,26 @@ class Store:
                 "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?, ?)",
                 (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip(), nxt))
             self.con.execute("COMMIT")
-            return cur.lastrowid
+            seq = cur.lastrowid
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
+        if not word:
+            self.keep_copy(code, nxt, path, sha256)
+        return seq
+
+    def keep_copy(self, code, number, source, sha256):
+        """#443 (from #342): keep a copy of a web page's file in clark's own `published-copies` folder, beside this database, once the
+        publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
+        holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
+        best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
+        True when a copy was written. A Word file is not kept (its row has no page to open)."""
+        if str(self.path) == ":memory:":
+            return False
+        try:
+            return published_copies.keep(self.path.parent, code, number, source, sha256)
+        except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
+            return False
 
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
