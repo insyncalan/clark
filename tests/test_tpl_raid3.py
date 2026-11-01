@@ -290,7 +290,7 @@ class PageSide(PageBase):
             self.assertEqual(len([s for s in self.sent if s[0] == "change"]), 1, "one choice, one request")
             stored = json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])
             self.assertEqual(stored["cards"], [{"id": ids["risk"], "source": "client"}])
-            options = self.arr(p, f"[...document.querySelectorAll({json.dumps(sel + " option")})].map(o => o.textContent)")
+            options = self.arr(p, "[...document.querySelectorAll(" + json.dumps(sel + " option") + ")].map(o => o.textContent)")
             self.assertTrue(any("left out of the published page" in o and "Hidden rig" in o for o in options), "an item that does not publish says so")
             self.assertEqual(len(options), len(set(options)))
             self.assertFalse(any(ids["risk"] in o for o in self.arr(p, f"[...document.querySelectorAll('[data-id={json.dumps(sec)}] select[aria-label=\"Card 2 item\"] option')].map(o => o.textContent)")), "an item is on one card only")
