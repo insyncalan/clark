@@ -183,19 +183,47 @@ class Results(Base):
             self.assertEqual(p.active(), names[0], "Down from the last wraps to the first")
             for _ in range(len(names)):
                 p.key("ArrowDown", 0, "ArrowDown", 40)
-                self.assertNotEqual(p.active(), "Dark mode", "the disabled result is passed over")
+                self.assertNotEqual(p.js("document.querySelector('#palette .pal-row.on').getAttribute('aria-disabled')"), "true", "a result that cannot run is passed over")
 
     def test_a_result_that_cannot_run_says_why_and_does_nothing(self):
         with chrome() as cdp:
-            p = self.visit(cdp)
+            p = Pg(self, cdp, navigate(cdp, self.s.port, "#dashboard&p=NOSUCH"))
+            p.until("document.documentElement.dataset.ready === '1'", "the page drew")
+            p.until("document.body.innerText.length > 20", "the page has words")
             p.show()
-            p.find("dark")
-            row = p.js("[document.querySelector('#palette .pal-row').getAttribute('aria-disabled'), document.querySelector('#palette .pal-why').textContent]")
-            self.assertEqual(row[0], "true")
-            self.assertIn("light or dark setting of your computer", row[1])
+            p.find("publish")
+            p.until("document.querySelector('#palette .pal-row') && document.querySelector('#palette .pal-row').getAttribute('aria-disabled') === 'true'", "Publish cannot run without a project")
+            self.assertIn("Open a project first", p.js("document.querySelector('#palette .pal-why').textContent"))
             p.key("Enter", 0, "Enter", 13)
             self.assertTrue(p.js("!!document.querySelector('#palette[open]')"), "Enter on it leaves the palette open")
             self.assertEqual(p.js("document.querySelector('#palette .pal-row').getAttribute('aria-selected')"), "false")
+
+    def test_the_appearance_commands_use_the_real_setting(self):
+        """Light, Dark and System each change the page's own appearance (the one Settings and the profile menu set), say which is in use, and a reload keeps it."""
+        theme = {"light": "none", "dark": "dark", "system": "auto"}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.show()
+            p.find("appearance")
+            self.assertEqual([r[1] for r in p.rows()], ["Appearance: System", "Appearance: Light", "Appearance: Dark"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#palette .pal-row')].map(e => !!e.querySelector('.pal-more.muted:not(.num)') && /In use/.test(e.textContent))"), [True, False, False], "System is in use first")
+            p.key("Escape", 0, "Escape", 27)
+            for mode in ("dark", "light", "system", "dark"):
+                p.show()
+                p.find("appearance: " + mode)
+                self.assertEqual(p.active(), "Appearance: " + mode.capitalize())
+                p.key("Enter", 0, "Enter", 13)
+                p.until("!document.querySelector('#palette')", "the palette closed")
+                p.until(f"(document.documentElement.dataset.theme || 'none') === {theme[mode]!r}", f"{mode} applied")
+                self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), mode)
+                self.assertTrue(p.js("document.activeElement !== null"), "focus is back in the page")
+                p.show()
+                p.find("appearance")
+                self.assertEqual(p.js("[...document.querySelectorAll('#palette .pal-row')].filter(e => /In use/.test(e.textContent)).map(e => e.querySelector('.pal-label').textContent)"),
+                                 ["Appearance: " + mode.capitalize()], "the one in use says so")
+                p.key("Escape", 0, "Escape", 27)
+            p.js("location.reload()")
+            p.until("!!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'", "Dark again after a reload")
 
     def test_an_item_hidden_from_the_project_is_not_offered(self):
         """The page only holds what the server gave it, and the palette searches that and nothing else."""
@@ -288,18 +316,13 @@ class Looks(Base):
 class Published(unittest.TestCase):
     def test_the_published_page_has_no_palette(self):
         view = (page.PAGE.parent / "page-view.html").read_text(encoding="utf-8")
-        for needle in ("Search commands, pages", "pal-row", "palette-q", "Go to or do", "light or dark setting of your computer"):
+        for needle in ("Search commands, pages", "pal-row", "palette-q", "Go to or do", "Appearance: Dark"):
             self.assertNotIn(needle, view)
         self.assertIn("palette-q", page.PAGE.read_text(encoding="utf-8"))
 
-    def test_the_dark_reason_does_not_start_with_the_product_name(self):
-        text = (PAGE_SRC / "edit" / "palette.js").read_text(encoding="utf-8")
-        why = re.search(r'DARK_WHY = "([^"]+)"', text).group(1)
-        self.assertFalse(why.lower().startswith("clark"), why)
-
     def test_the_words_are_plain(self):
         text = (PAGE_SRC / "edit" / "Palette.jsx").read_text(encoding="utf-8") + (PAGE_SRC / "edit" / "palette.js").read_text(encoding="utf-8")
-        for s in re.findall(r'(?:placeholder|aria-label|DARK_WHY =|NEED_PROJECT =)\s*=?\s*"([^"]+)"', text) + re.findall(r">([A-Z][^<{]{12,})<", text):
+        for s in re.findall(r'(?:placeholder|aria-label|NEED_PROJECT =)\s*=?\s*"([^"]+)"', text) + re.findall(r">([A-Z][^<{]{12,})<", text):
             self.assertIsNone(NEVER.search(s), s)
 
 

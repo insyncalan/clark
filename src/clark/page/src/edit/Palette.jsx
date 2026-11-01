@@ -90,6 +90,7 @@ function Box() {
             <span class="pal-label">{r.label}</span>
             {r.more ? <span class="pal-more muted num">{r.more}</span> : null}
             {r.current ? <span class="pal-more muted">You are here</span> : null}
+            {r.now ? <span class="pal-more muted">In use</span> : null}
             {r.disabled ? <span class="pal-why muted">{r.disabled}</span> : null}
           </li>
         ))}

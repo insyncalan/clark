@@ -4,6 +4,7 @@
 // command that changes anything calls the very function the existing button or menu entry calls (profile menu, Publish).
 import { signal } from "@preact/signals";
 import { data, tabs, TITLES, project, projects, view, rows, show, setProject, openPeek, fromFile, status } from "../stores/report.js";
+import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { KIND_WORDS } from "../workItems.js";
 import { openPublish } from "./Publish.jsx";
 import { preview, exportExcel } from "./ProfileMenu.jsx";
@@ -11,7 +12,7 @@ import { openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
 
 export const paletteOpen = signal(false);
 export const MOST_ITEMS = 8;          // work items shown at most, so a short word does not fill the box
-export const DARK_WHY = "Dark mode follows the light or dark setting of your computer. Change it there.";
+const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };       // the same words as Settings › Personal and the profile menu
 const NEED_PROJECT = "Open a project first.";
 
 const lower = (s) => String(s == null ? "" : s).toLowerCase();
@@ -27,8 +28,8 @@ function commands() {
     { key: "export", label: "Export to Excel", more: "workbook download xlsx", why, run: () => exportExcel() },
     { key: "settings", label: "Settings", more: "options folder client", why: tabs.value.includes("settings") ? "" : "Settings is not available on this page.", run: () => show("settings") },
     { key: "help", label: "Help", more: "keys shortcuts how", why: "", run: () => openHelp() },
-    { key: "dark", label: "Dark mode", more: "light theme look", why: DARK_WHY, run: () => {} },
-  ].map((c) => ({ id: "cmd-" + c.key, kind: "Command", label: c.label, more: c.more, disabled: c.why, run: c.run }));
+    ...MODES.map((m) => ({ key: "look-" + m, label: "Appearance: " + LOOK_WORDS[m], more: "theme look colour", why: "", now: appearance.value === m, run: () => setAppearance(m) })),
+  ].map((c) => ({ id: "cmd-" + c.key, kind: "Command", label: c.label, more: c.more, disabled: c.why, now: !!c.now, run: c.run }));
 }
 
 function pages() {
