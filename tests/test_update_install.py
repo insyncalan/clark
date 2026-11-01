@@ -221,8 +221,9 @@ class StageTest(Base):
     def test_an_unsafe_name_is_never_written(self):
         release = self.taken()
         release.files["../outside.txt"] = release.files["README.md"]
-        with self.assertRaises(ui.InstallError):
+        with self.assertRaises(ui.InstallError) as said:
             ui.stage(release, self.app, STAMP)
+        self.assertIn("unsafe name", said.exception.detail, "refused by its name, before anything is read")
         self.assertFalse((self.app.parent / "outside.txt").exists())
 
 
@@ -392,6 +393,26 @@ class UndoTest(Base):
             ui.stage_undo(backup_dir, self.app, UNDO_STAMP)
         self.assertEqual("backup_damaged", said.exception.key)
         self.assertFalse((self.app / f".clark-update-{UNDO_STAMP}").exists())
+
+    def test_a_kept_record_that_disagrees_with_the_kept_files_is_refused(self):
+        backup_dir, _, _ = install(self)
+        record = ui.read_set(backup_dir)
+        record["app_files"]["README.md"] = "0" * 64
+        h.write_json(backup_dir / "update.json", record)
+        with self.assertRaises(ui.InstallError) as said:
+            ui.stage_undo(backup_dir, self.app, UNDO_STAMP)
+        self.assertEqual("backup_damaged", said.exception.key)
+
+    def test_a_link_in_the_kept_copy_is_refused(self):
+        backup_dir, _, _ = install(self)
+        kept = backup_dir / "app" / "README.md"
+        real = self.root / "elsewhere.md"
+        real.write_bytes(kept.read_bytes())
+        kept.unlink()
+        os.symlink(real, kept)
+        with self.assertRaises(ui.InstallError) as said:
+            ui.stage_undo(backup_dir, self.app, UNDO_STAMP)
+        self.assertEqual("backup_damaged", said.exception.key)
 
     def test_no_update_to_undo(self):
         with self.assertRaises(ui.InstallError) as said:
