@@ -21,6 +21,8 @@ class HoldsIgnoreUpdatedAt(unittest.TestCase):
         self.changes = [dict(r) for r in self.con.execute(
             "SELECT rowid, field, new_value FROM change_log WHERE apply_id = ? AND field IN ('status', 'updated_at')", (self.step,))]
         self.rowid = max(r["rowid"] for r in self.changes)
+        self.assertIn("updated_at", {r["field"] for r in self.changes},     # #355: if the stamp row is not kept, the hold tests below
+                      "the step's own rows include its stamp, so holds has a stamp to compare")   # could never fail on it
 
     def test_baseline_holds_and_nothing_later(self):
         self.assertTrue(sm.holds(self.con, "actions", self.ref, self.changes))
@@ -42,6 +44,25 @@ class HoldsIgnoreUpdatedAt(unittest.TestCase):
         later = self.demo.update("actions", self.ref, {"description": "Rewrite the cut-over plan"})
         self.assertTrue(sm.holds(self.con, "actions", self.ref, self.changes))
         self.assertEqual(sm.changed_after(self.con, self.rowid, "actions", self.ref), later)
+
+    def test_a_real_undo_goes_ahead_when_only_the_stamp_has_moved(self):
+        """#355: through Store.undo, not just holds and changed_after: a stamp that moved on its own does not stop the undo."""
+        self.con.execute("UPDATE actions SET updated_at = ? WHERE id = ?", ("2031-01-01T00:00:00", self.ref))
+        self.con.commit()
+        with self.demo.store.step("dashboard", "Demo User") as st:
+            sm.log(st.con, st, "actions", self.ref, "updated_at", "2031-01-01T00:00:00", "2031-01-02T00:00:00", "update")
+        done = self.demo.store.undo(self.step, "Demo User")
+        self.assertEqual(done["skipped"], [], "nothing is left as it is")
+        self.assertIn("status", {e["field"] for e in done["reversed"]})
+        self.assertNotEqual(sm.fetch(self.con, "actions", self.ref)["status"], "Delayed")
+
+    def test_a_real_undo_leaves_a_field_that_a_real_later_change_moved(self):
+        """#355: the other half through Store.undo: a real later change to the same field is not undone over."""
+        self.demo.update("actions", self.ref, {"status": "Closed"})
+        done = self.demo.store.undo(self.step, "Demo User")
+        self.assertEqual(done["reversed"], [], "nothing is put back")
+        self.assertIn("status", {e["field"] for e in done["skipped"]})
+        self.assertEqual(sm.fetch(self.con, "actions", self.ref)["status"], "Closed")
 
 
 if __name__ == "__main__":
