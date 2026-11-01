@@ -38,10 +38,13 @@ main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .tile .n { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
 .tile .l { font-size: var(--size-small); color: var(--text-muted); }
 /* A tile is neutral, with a thin outline in its status colour that fades out from the bottom-left corner. The
-   outline is drawn on ::after under a mask, so the text and its contrast are those of the neutral tile. A tile is 190 px; Project
-   health is two tile widths and the gap between them. */
-.tcell { position: relative; display: flex; flex: 0 0 190px; min-width: 0; }
-.tcell.health { flex: 0 0 392px; }
+   outline is drawn on ::after under a mask, so the text and its contrast are those of the neutral tile. The tiles fill the row
+   (A-D14): each tile takes an equal share of it, Project health takes two shares and the gap between them (its basis is the gap, its
+   grow is 2), and a lone tile or two fill it. A tile never goes under 140 px (its figure and word stay whole at 13 px), so
+   four tiles still sit on one line at 900 px, even in Edit with its 32 px gutter and a 15 px scroll bar (3 x 140 + 292 + 3 x 12 =
+   748 px of the 787 px left there; View leaves 834 px). A long label may wrap to two lines. In Edit the grip and the eye take the right of the label line (below), so at 900 px a long label wraps to two or three. */
+.tcell { position: relative; display: flex; flex: 1 1 0; min-width: 140px; }
+.tcell.health { flex: 2 1 12px; min-width: 292px; }   /* 12px: the gap above; 292 = 2 x 140 + 12 */
 .fig { position: relative; display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 12px 16px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); font: inherit; text-align: left; color: inherit; }
 .fig::after { content: ""; position: absolute; inset: -1px; border: 2px solid transparent; border-radius: inherit; pointer-events: none; -webkit-mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); }
 .fig.rag-g::after { border-color: var(--status-green); } .fig.rag-a::after { border-color: var(--status-amber); } .fig.rag-r::after { border-color: var(--status-red); }
@@ -77,6 +80,12 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .tgrip:focus-visible, .teye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: var(--grey-100); padding-bottom: 54px; }   /* room under the figures for the tag at the bottom (two lines at 190 px), so it never sits over the chip or the detail */   /* not opacity: that dims the text below 4.5:1 */
 .thid { position: absolute; left: 12px; bottom: 6px; z-index: 2; }
+/* In Edit the grip and the eye sit in a tile's top right corner (4 + 24 + 2 + 24 = 54 px from its edge). The label line keeps clear of them:
+   the 54 px less the tile's border and padding (17 px) and a 4 px gap is 41 px, so a long label wraps rather than runs under a control.
+   A hidden tile has its tag (up to two lines, 41 px, 6 px off the bottom) at the bottom, so it keeps 54 px under its last line. Both are Edit only; View and the published page do not change. */
+#report[data-mode="edit"] .glance { --tile-ctl: 41px; --tile-tag: 54px; }
+#report[data-mode="edit"] .glance .fig .k { padding-right: var(--tile-ctl); }
+#report[data-mode="edit"] .glance .tcell.is-hidden .fig { padding-bottom: var(--tile-tag); }
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
 .tilemenu { top: 30px; right: auto; left: 0; }
@@ -112,6 +121,23 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc-top { all: unset; box-sizing: border-box; display: block; width: 100%; margin-top: 6px; padding: 7px 8px; border-top: 1px solid var(--grey-100); font-size: var(--size-small); color: var(--text-muted); cursor: pointer; }
 .toc-top:hover { color: var(--text); }
 .toc-top:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* At 900 px and narrower the rail gives way to an "On this page" button at the bottom right of the window, which opens the same list
+   above it (the narrow contents button). The button is the rail's own button, so the keys and the focus rules are the same. Drawn on both pages (the
+   editor and a published file). It sits clear of the toasts (bottom left); the page keeps 72 px free under its last line (main, above). */
+.toc-ico, .toc-lbl { display: none; }
+@media (max-width: 900px) {
+  .toc { right: var(--space-4); bottom: var(--space-4); top: auto; transform: none; }
+  .toc-lines { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3); border: 1px solid var(--grey-700); border-radius: 999px; background: var(--surface); color: var(--text); font-size: var(--size-small); box-shadow: var(--shadow); }
+  /* The fade is on the hover state only, so switching between light and dark never animates the button from white. */
+  .toc-lines:hover, .toc.open .toc-lines { background: var(--grey-100); transition: background-color var(--dur-instant) var(--ease-out); }
+  .toc.open .toc-lines { opacity: 1; }
+  .toc-lines i { display: none; }
+  .toc-ico, .toc-lbl { display: inline-block; }
+  .toc-card { right: 0; top: auto; bottom: calc(100% + var(--space-2)); width: min(290px, calc(100vw - 32px)); max-height: calc(100vh - var(--topbar) - 96px); overflow-y: auto; transform: translateY(8px); }
+  .toc.open .toc-card { transform: none; }
+  .toc li button { min-height: 32px; }
+}
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) { .toc-card, .toc.open .toc-card { transition: none; transform: none; } .toc-lines { transition: none; } }
 
 /* The project-record picker (FR-16, #67): one panel, never wider than its place. */
 .picker { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(560px, 90vh); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
@@ -1235,6 +1261,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-small); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 
+/* The Use Cases tab of a published file (view only): each use case is a closed row that opens in place. */
+.ucp { border-top: 1px solid var(--grey-100); }
+.ucp summary { cursor: pointer; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.ucp-title { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
+.ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
+.ucp-body h2 { margin: 14px 0 4px; font-size: 15px; font-weight: var(--weight-medium); color: var(--heading); }
+.ucp-headline { margin: 0 0 8px; }
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pk-val .i { width: 16px; height: 16px; }

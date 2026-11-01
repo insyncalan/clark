@@ -3,11 +3,13 @@
 This module is pure: it opens no file, no database, no network and no process, and it names no model provider (the one provider
 module does that). It builds text and reads text.
 
-THE REQUEST. `build_request(question, passages, earlier=())` is the one place a request is made: a fixed rules text, the question,
-the earlier turns of the chat and the chosen passages, each with an ID (P1, P2 ...). A request holds text only: there is no tool,
-no file, no path and no key to put in it. The same question and passages give the same `Request.text` whichever provider is used;
-a provider may only wrap that text in its own envelope. Hidden characters in the question or a passage are carried as they are and
-counted (`edit_ai.hidden_count`); `edit_ai.normal` is used to DETECT only, never to rewrite what is sent or shown.
+THE REQUEST. `build_request(question, passages, earlier=())` is the one place a request is made: the question, the earlier turns
+of the chat and the chosen passages, each with an ID (P1, P2 ...). The fixed rules text is not in it: it goes in the system prompt
+(`system_prompt`), so the CITE and CHANGE marker lines the reply reader acts on are never in the text a passage sits in. A request
+holds text only: there is no tool, no file, no path and no key to put in it. The same question and passages give the same
+`Request.text` whichever provider is used; a provider may only wrap that text in its own envelope. Hidden characters in the question
+or a passage are carried as they are and counted (`edit_ai.hidden_count`); `edit_ai.normal` is used to DETECT only, never to rewrite
+what is sent or shown.
 """
 import json
 import math
@@ -25,7 +27,7 @@ MAX_TURN = 4000
 MAX_PASSAGES = 60
 MAX_PASSAGE = 4000          # one passage is a paragraph or two (about 1,200 characters in the plan); this is the hard ceiling
 MAX_LABEL = 200
-MAX_REQUEST = 70000         # the whole text: rules, question, earlier turns and passages
+MAX_REQUEST = 70000         # the whole text: question, earlier turns and passages
 
 TOO_LONG = f"That question is too long. It can be {MAX_QUESTION:,} characters at most. Make it shorter and ask again."
 CHAT_TOO_LONG = "This chat has got too long. Start a new chat and ask again."
@@ -112,6 +114,13 @@ def looks_like_secret(text):
     return False
 
 
+def _secret(text):
+    """The ask path's screen: this module's own check or `secret_screen`, the one screen the rest of clark uses (imported here, not at
+    the top, because `secret_screen` imports this module). Either one refusing is a refusal."""
+    from clark import secret_screen
+    return looks_like_secret(text) or secret_screen.looks_like_secret(text)
+
+
 def _words_joined(run):
     """Whether a long run is only words (and numbers) joined by - _ or /, like a document name or a web address path: every part is
     all letters, all digits, or (at most two of them) a short code such as Q3 or v2. A random key has mostly mixed parts."""
@@ -173,9 +182,9 @@ def build_request(question, passages, earlier=()):
         turns.append((turn[0], turn[1]))
     if len(turns) > MAX_EARLIER_TURNS or any(len(t) > MAX_TURN for _r, t in turns):
         raise AskRefused(CHAT_TOO_LONG)
-    if looks_like_secret(question):
+    if _secret(question):
         raise AskRefused(SECRET)
-    if any(r == "user" and looks_like_secret(t) for r, t in turns):
+    if any(r == "user" and _secret(t) for r, t in turns):
         raise AskRefused(SECRET_EARLIER)
     chosen = []
     for p in passages or ():
@@ -202,7 +211,7 @@ def build_request(question, passages, earlier=()):
 def _assemble(question, turns, chosen):
     """The request text, the (id, label) pairs and the hidden counts, for these turns and passages."""
     fence = _fence([question] + [t for _r, t in turns] + [t for _l, t in chosen] + [l for l, _t in chosen])
-    parts = [RULES, "", "QUESTION", fence, question, fence]
+    parts = ["QUESTION", fence, question, fence]       # no rules here: they are the system prompt, and hold the CITE and CHANGE lines
     if turns:
         parts += ["", "EARLIER IN THIS CHAT"]
         for role, text in turns:
