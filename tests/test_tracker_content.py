@@ -271,7 +271,7 @@ class Size(unittest.TestCase):
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         self.assertEqual(sv.CHANGE_BODY_LIMIT, 16 * 1024)
         self.assertLessEqual(sv.CHANGE_BODY_LIMIT, sv.BODY_LIMIT)
-        for route, limit in (("/api/undo", 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
+        for route, limit in (("/api/undo", 4 * 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
 
 

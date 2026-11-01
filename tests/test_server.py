@@ -301,7 +301,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/sneak/read"], sv.sneak_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 4 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
@@ -405,13 +405,13 @@ class Saving(ServerTest):
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
         self.assertIn("Shorten a line or remove some lines", got["message"])
         self.assertFalse(got["message"].startswith("clark"))
-        status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 2048 + b'"}')
+        status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 4096 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
     def test_change_and_undo_limits_and_415(self):
         running = self.seams()
         self.addCleanup(running.close)
-        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 1024)):
+        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 4 * 1024)):
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(limit + 1)}
             status, _, data = running.ask("POST", route, over, b"{}")
             self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"), route)       # refused from its length
