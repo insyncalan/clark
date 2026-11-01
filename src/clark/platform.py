@@ -5,6 +5,8 @@ ensure when we build for mac we make allowances for the future"). Only the Mac b
 raises NotBuiltYet. No other module may start a program, call osascript or ctypes, or name a system folder: a source test
 (tests/test_platform_source.py) fails if one does. See docs/handoff/portability-and-sharing.md.
 
+Known gap: Windows has no data-folder lock yet (hold_data_lock checks nothing there), so two clarks can open one folder.
+
 Standard library only, Python 3.9.
 """
 import errno
