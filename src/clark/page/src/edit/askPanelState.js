@@ -71,6 +71,10 @@ export function closePanel() {
   const back = opener;
   opener = null;
   setTimeout(() => {
+    // Only when focus is still lost (on the page itself, or in the panel on its way out): if something took it in the meantime
+    // (a peek that opened, a button the click outside landed on), it stays there.
+    const at = document.activeElement, p = document.getElementById("ask-panel");
+    if (at && at !== document.body && at !== document.documentElement && !(p && p.contains(at))) return;
     if (back && back.isConnected && typeof back.focus === "function") back.focus();
     else { const m = document.getElementById("main"); if (m) { m.setAttribute("tabindex", "-1"); m.focus({ preventScroll: true }); } }
   }, 0);
