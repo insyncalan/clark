@@ -84,7 +84,8 @@ class Seed(Base):
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(ELEVEN))
         self.assertTrue(all(s["type"] in NINE for s in default_sections.DEFAULT_SECTIONS))
-        self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker"})      # the nine of the starting report, and the two that carry content
+        from clark.section_kinds import TYPES as TEMPLATE_TYPES
+        self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
 
     def test_data_for_gives_the_sections_in_order_with_their_own_query(self):
         data = self.s.data_for("ABC")
@@ -98,6 +99,36 @@ class Seed(Base):
         ids = [r["id"] for r in self.s.data_for("ABC")["report_sections"]]
         self.assertEqual(ids.index(a) + 1, ids.index(b))                  # same sort_order: the lower id first
         self.assertEqual(ids, [r["id"] for r in self.sections()])
+
+
+class DataForRules(Base):
+    """#96: the served page gets what publish keeps out, read as publish_inputs reads it, so a template's live part in View leaves
+    out what the published file leaves out."""
+
+    def test_data_for_carries_the_hidden_ids_and_the_label_rules(self):
+        data = self.s.data_for("ABC")
+        self.assertEqual(data["report_hidden"], [])
+        before = {r["name"] for r in data["label_rules"]}
+        hide = self.demo.action(description="Fictional hidden action")
+        self.demo.action(description="Fictional shown action")
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_hidden", {"project": "ABC", "item_id": hide})
+            st.create("labels", {"name": "Fictional board only", "behaviour": "exclude", "default_choice": "include"})
+        data = self.s.data_for("ABC")
+        self.assertEqual(data["report_hidden"], [hide], "a list of ids, as the page parts read it")
+        rule = next(r for r in data["label_rules"] if r["name"] == "Fictional board only")
+        self.assertEqual(rule, {"name": "Fictional board only", "behaviour": "exclude", "default_choice": "include"})
+        self.assertEqual({r["name"] for r in data["label_rules"]} - before, {"Fictional board only"})
+        inputs = self.s.publish_inputs("ABC", {"projects": ["code"], **{t: ["id"] for t in store_module.PUBLISH_TABLES}})
+        self.assertEqual(data["report_hidden"], sorted(inputs["hidden"]), "the same ids publish leaves out")
+        self.assertEqual(sorted(data["label_rules"], key=lambda r: r["name"]), sorted(inputs["label_rules"], key=lambda r: r["name"]))
+
+    def test_the_hidden_ids_are_this_projects_only(self):
+        hide = self.demo.action(description="Fictional hidden action")
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_hidden", {"project": "ABC", "item_id": hide})
+        self.assertEqual(self.s.data_for("ABC")["report_hidden"], [hide])
+        self.assertIsNone(self.s.data_for("XYZ"))
 
 
 class Tables(Base):
