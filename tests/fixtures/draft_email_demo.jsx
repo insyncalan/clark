@@ -5,7 +5,7 @@ import { render } from "preact";
 import * as logic from "@src/logic/draftEmail.js";
 import { DraftEmail } from "@src/components/DraftEmail.jsx";
 
-const T = { logic, changed: [], sent: [], closed: 0, clips: [], refuse: false };
+const T = { logic, changed: [], sent: [], closed: 0, clips: [], refuse: false, reply: undefined };
 window.T = T;
 
 T.mountEditor = (items, state, draft, today) => {
@@ -17,5 +17,5 @@ T.mountEditor = (items, state, draft, today) => {
     return Promise.resolve();
   };
   render(<DraftEmail items={items} state={state} draft={draft} today={today} clip={clip}
-    onChange={(s) => T.changed.push(s)} onSent={(e) => T.sent.push(e)} onClose={() => { T.closed += 1; }} />, document.getElementById("de"));
+    onChange={(s) => T.changed.push(s)} onSent={(e) => { T.sent.push(e); return T.reply; }} onClose={() => { T.closed += 1; }} />, document.getElementById("de"));
 };

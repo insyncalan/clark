@@ -1,7 +1,7 @@
 """#47: the settings migration step (store.migrate_settings, src/clark/schema_v6.sql), guarded: the ask switch's one row.
 
 Run: python3 dev/run_tests.py test_settings_migrate
-The step is wired as step 6 (the next free number after main's 5; a step that lands later takes 7). SettingsStep calls it directly;
+The step is wired as step 6 (after main's 5); the sent record (#50) is step 7, after it. SettingsStep calls it directly;
 InTheOrderedTable goes through open_store. Every test starts from a version-5 file, as the release before this step left it. Fictional data only.
 """
 import shutil
@@ -119,7 +119,7 @@ class InTheOrderedTable(Base):
         projects = [tuple(r) for r in self.con.execute("SELECT code, name, active, archived, layout, health FROM projects ORDER BY code")]
         open_store(self.path, onedrive_roots=[]).close()
         self.assertEqual(self.version(), str(store_module.SCHEMA_VERSION))
-        self.assertEqual(self.version(), str(STEP))
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, STEP)          # this step, and any later one (#50 is 7)
         self.assertEqual({t: [tuple(r) for r in self.con.execute(f"SELECT * FROM {t} ORDER BY 1")] for t in ("milestones", "actions")}, before)
         self.assertEqual([tuple(r) for r in self.con.execute("SELECT code, name, active, archived, layout, health FROM projects ORDER BY code")], projects)
         self.assertEqual(self.con.execute("SELECT ask_enabled FROM app_settings").fetchone()[0], 1)
@@ -138,14 +138,14 @@ class InTheOrderedTable(Base):
         self.assertEqual((self.con.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall(),
                           [tuple(r) for r in self.con.execute("SELECT * FROM app_settings")], [tuple(r) for r in self.con.execute("SELECT * FROM projects")]), before)
 
-    def test_a_version_1_file_moves_up_through_every_step_to_6(self):
+    def test_a_version_1_file_moves_up_through_every_step_to_the_current_version(self):
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, folder, True)
         path = make_v1(folder)
         open_store(path, onedrive_roots=[]).close()
         c = sqlite3.connect(str(path))
         self.addCleanup(c.close)
-        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(STEP))
+        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
         self.assertEqual(c.execute("SELECT ask_enabled FROM app_settings").fetchone()[0], 1)
 
     def test_the_table_has_no_gap_and_the_runner_refuses_one(self):
@@ -163,7 +163,7 @@ class InTheOrderedTable(Base):
             with self.assertRaises(Invalid) as caught:
                 open_store(self.path, onedrive_roots=[])
         self.assertIn("newer clark", str(caught.exception))
-        self.assertEqual(self.version(), str(STEP))
+        self.assertEqual(self.version(), str(store_module.SCHEMA_VERSION))
 
     def test_a_failure_in_the_step_rolls_everything_back(self):
         def breaks(con):
