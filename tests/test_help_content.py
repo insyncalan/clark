@@ -289,6 +289,16 @@ class LowWordsRound(unittest.TestCase):
         self.assertIn("The check in ask clark warns you when", self.ALL)
         self.assertFalse([s for _, s in words() if re.match(r"(?i)ask clark[’']s\b", s.strip())])
 
+    def test_the_section_style_lines_are_the_ones_settings_shows(self):
+        """Help and Settings > Personal give the same four lines for the four styles, and they are the prototype's Settings words."""
+        table = next(b for sec in SECTIONS if sec["id"] == "layouts" for b in sec["b"] if b[0] == "tbl")
+        proto = (PROTO / "views.js").read_text(encoding="utf-8")
+        card = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Personal.jsx").read_text(encoding="utf-8")
+        self.assertEqual(len(table[2]), 4)
+        for name, line in table[2]:
+            self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
+            self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
+
 
 if __name__ == "__main__":
     unittest.main()
