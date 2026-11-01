@@ -1,8 +1,8 @@
-// RAID cards, four (#96), store type "raid4": its view part. STUB: READY is false and it draws nothing (stub.js). Its builder fills this
-// file, its Edit part (edit/templates/Raid4.jsx), src/clark/section_kinds/raid4.py and tests/test_tpl_raid4.py, and nothing shared.
-// View: text nodes only, never dangerouslySetInnerHTML; links, pictures, files and dates through ./safe.js; live rows only those
-// logic/publishable.js keeps. isEmpty(section, data): true leaves the section out of the served View and the published file.
-import { viewStub } from "./stub.js";
+// RAID cards, four (#96), store type "raid4": its view part. The same as three across with room for a fourth card; the drawing is
+// shared (./RaidCards.jsx). View: text nodes only; isEmpty(section, data) true leaves the section out of View and the file.
+import { RaidView, isEmptyCards } from "./RaidCards.jsx";
+import { SIZES } from "./raid.js";
 
-export const READY = false;
-export const { View, isEmpty } = viewStub();
+export const READY = true;
+export const View = ({ section, data }) => <RaidView section={section} data={data} size={SIZES.raid4} />;
+export const isEmpty = (section, data) => isEmptyCards(section, data, SIZES.raid4);

@@ -133,3 +133,13 @@ textarea.tpl-field { resize: vertical; }
 .tple-typed { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; }
 .tple-cap { font-size: var(--size-small); color: var(--text-muted); }
 .tple-in:disabled { opacity: .6; }
+
+/* G2 RAID cards, Edit (#96): one row of controls per card. Tokens only; a visible focus ring on every control. */
+.rce-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.rce-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.rce-f { display: grid; gap: 2px; min-width: 0; }
+.rce-f span { font-size: var(--size-small); color: var(--text-muted); }
+.rce-f select, .rce-f input { min-height: 32px; min-width: 0; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.rce-f select:focus-visible, .rce-f input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rce-what, .rce-note { grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; }
+.rce-first { margin: 0 0 var(--space-3); }

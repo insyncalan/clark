@@ -1,11 +1,17 @@
-"""RAID cards, four (F9, #96): the content of a section of type 'raid4'. STUB: READY is False, the content is checked only by
-the generic walls, and nothing of it is ever published. Its builder fills this file (and page/src/templates/ and
-tests/test_tpl_raid4.py) and nothing shared: see base.py for the contract.
+"""RAID cards, four (F9, #96): the content of a section of type 'raid4', four shorter cards across. The same content and rules as
+three across (raid3.py: a card is a work item's id and where its words come from); only the number of cards differs.
 """
-from clark.section_kinds.base import STUB_LIMIT, stub_check, stub_published
+from clark.section_kinds import raid3
 
-READY = False
-LIMIT = STUB_LIMIT
+READY = True
+SIZE = 4
+LIMIT = raid3.LIMIT
 EMPTY = ""
-check = stub_check
-published = stub_published
+
+
+def check(value, rules):
+    return raid3._check(value, rules, SIZE)
+
+
+def published(value, ctx):
+    return raid3._published(value, ctx, SIZE)
