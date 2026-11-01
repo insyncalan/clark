@@ -155,9 +155,9 @@ class Workflow(unittest.TestCase):
         self.assertIn("test_no_real_names.py", out)
         self.assertIn("test_app_files.py", out)               # the reuse record's rows (docs/REUSE-FROM-CREAITE.md)
 
-    def test_one_shard_per_python_to_start_with(self):
+    def test_one_shard_per_python_on_linux_and_two_on_macos(self):
         self.assertEqual(set(re.findall(r"shard: (\d+), shards: (\d+)", self.jobs["tests"])), {("1", "1")})
-        self.assertIn("shard 1/1", self.jobs["macos"])
+        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", self.jobs["macos"])), {("1", "2"), ("2", "2")})
 
     def test_macos_on_release_branches_and_by_hand_and_required_there(self):
         mac = self.jobs["macos"]
@@ -167,8 +167,10 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("--quick", mac)
         self.assertNotIn("continue-on-error", mac)
         self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
-        self.assertIn("name: macos-latest \u00b7 Python 3.x \u00b7 shard 1/1", mac)      # static: no unresolved ${{ matrix }} when skipped
-        self.assertNotIn("matrix", mac)
+        self.assertIn("name: macos-latest \u00b7 Python 3.x \u00b7 shard ${{ matrix.shard }}/${{ matrix.shards }}", mac)
+        self.assertIn("fail-fast: false", mac)
+        self.assertIn("SHARD: ${{ matrix.shard }}", mac)
+        self.assertIn("SHARDS: ${{ matrix.shards }}", mac)
 
     def test_chrome_is_found_as_creaite_finds_it(self):
         for job in ("tests", "macos"):
