@@ -6,6 +6,8 @@
     python3 dev/tools/ci_poller.py --repo OWNER/NAME --trusted-authors LOGIN --once --post           # tests each untested PR once
     python3 dev/tools/ci_poller.py --repo OWNER/NAME --trusted-authors LOGIN --loop --every 60 --post  # the service
 
+Deployed alone (e.g. /opt/ci/ci_poller.py)? Copy dev/tools/run_support.py beside it: the Chrome check uses it.
+
 Safety: --repo has no default (a repository rename must never re-aim the poller) and --trusted-authors is required for a real
 repository (a PR's code runs as the poller's user, so only PRs by the listed GitHub logins are tested; any other is skipped).
 Only --local (a rehearsal, nothing goes to GitHub) may omit --trusted-authors.
@@ -44,6 +46,12 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    import run_support                # a redeploy of this file must copy run_support.py beside it
+except ImportError:
+    sys.exit("ci_poller: run_support.py must sit beside ci_poller.py (copy dev/tools/run_support.py there)")
 
 CONTEXT = "tower/tests"
 CLAIM_MINUTES = 30                    # a `pending` from another runner counts for this long, then the PR is tried again
@@ -178,12 +186,31 @@ def find_chrome():
     return next((c for c in CHROME_CANDIDATES if os.access(c, os.X_OK)), "")
 
 
-def chrome_starts(chrome):
+def chrome_starts(chrome, settle=3.0):
+    """True when `chrome`, started the way the tests start it (run_support.chrome_command and start_chrome: both keychain flags,
+    a throwaway profile), is still running after `settle` seconds; the profile is removed afterwards."""
+    profile = tempfile.mkdtemp(prefix=run_support.PROFILE_PREFIX)
+    to_r, to_w = os.pipe()
+    from_r, from_w = os.pipe()
+    proc = None
     try:
-        proc = subprocess.run([chrome, "--headless=new", "--use-mock-keychain", "--password-store=basic", "--disable-gpu", "--dump-dom", "about:blank"], capture_output=True, timeout=60)
-    except (OSError, subprocess.TimeoutExpired):
+        proc = run_support.start_chrome(run_support.chrome_command(chrome, profile), to_r, from_w)
+        try:
+            proc.wait(settle)
+        except subprocess.TimeoutExpired:
+            return True                      # still running: it started
+        return False                         # it exited by itself
+    except (OSError, ValueError):
         return False
-    return proc.returncode == 0
+    finally:
+        if proc is not None:
+            run_support.stop_chrome(proc)
+        for fd in (to_r, to_w, from_r, from_w):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        run_support.remove_profile(profile)
 
 
 def clean_env(home, chrome=""):
