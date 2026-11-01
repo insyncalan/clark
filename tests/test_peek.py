@@ -656,7 +656,7 @@ class PublishedList(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.documentElement.dataset.ready", sid) == "1"))
                 cdp.js("document.querySelector('[data-view=work]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-                self.assertEqual(cdp.js("document.querySelector('#work').textContent.includes('Shown to client')", sid), False)
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .tag.cl').length", sid), 0)       # the tag, not the Work items intro line, which names the mark
 
 
 def pub_block(data):

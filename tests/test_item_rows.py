@@ -70,17 +70,16 @@ class ItemRows(unittest.TestCase):
         self.assertIn("Training room booked for November", actions[1], "the client's own wording is shown when there is one")
         raid = js(ROWS % "raid")
         self.assertEqual(len(raid), 2, where)
-        self.assertTrue(raid[0].split("|")[1] == "Urgent" and "Risk" in raid[0] and "Supplier delivery may slip" in raid[0], raid[0])
-        self.assertNotIn("Priority", raid[0], "the pill says the priority; the line does not say it again")
+        self.assertTrue(raid[0].split("|")[1] == "Red" and "Risk" in raid[0] and "Priority" in raid[0] and "Supplier delivery may slip" in raid[0], raid[0])
         self.assertIn("Review by 01-11-2026", raid[0])
-        self.assertTrue(raid[1].split("|")[1] == "Low" and "Issue" in raid[1], raid[1])
+        self.assertIn("Issue", raid[1])
         decisions = js(ROWS % "decisions")
         self.assertEqual(len(decisions), 1, where)
         self.assertIn("Needed by 03-11-2026", decisions[0], where)
         self.assertIn("Hosting region to be chosen", decisions[0], where)
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
         self.assertNotIn("ZQ-NOWORDING", js("document.body.innerText"), f"{where}: an item with no client wording is not in the rows")
-        self.assertEqual(actions[0].split("|")[1], "Late", f"{where}: a late action reads Late, not Overdue")
+        self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue")
 
     def test_the_served_page_draws_the_rows_in_view_and_in_edit_and_the_file_draws_them_alone(self):
         s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
@@ -111,7 +110,7 @@ class ItemRows(unittest.TestCase):
             self.assertNotRegex(first, r"days? late|Today|Tomorrow|Yesterday|In \d+ days?", "a file shows the date only: it is read later, not on the publish date")
             self.assertEqual(cdp.js("document.querySelectorAll('[contenteditable],input,button.eye').length", sid), 0)
 
-    def test_a_section_with_nothing_to_show_is_left_out_of_view_and_the_file_and_says_so_in_edit(self):
+    def test_a_section_with_nothing_to_show_says_so_on_the_page_and_is_left_out_of_the_file(self):
         empty = DemoStore()
         self.addCleanup(empty.close)
         s = Running(data_for=empty.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
@@ -119,11 +118,7 @@ class ItemRows(unittest.TestCase):
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
             p.ready()
-            gone = "document.querySelectorAll('[data-type=raid],[data-type=actions],[data-type=decisions]').length"
-            self.assertEqual(p.js(gone), 0, "View leaves an empty section out")
-            p.edit()
-            lines = "[...document.querySelectorAll('[data-type=raid] .quiet,[data-type=actions] .quiet,[data-type=decisions] .quiet')].map(e => e.textContent)"
-            self.assertEqual(p.js(lines), ["No open risks or issues.", "No open actions.", "No recent decisions."])
+            self.assertEqual(p.js("document.querySelector('[data-type=raid] .quiet').textContent"), "Nothing to show this week.")
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(empty.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)

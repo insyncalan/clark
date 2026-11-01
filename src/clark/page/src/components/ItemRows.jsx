@@ -4,11 +4,10 @@
 // wording; an item without any is left out, never shown with the team's own text. Putting an item on the page or taking it off is a
 // later change (Edit).
 import { data, rows as allRows, fromFile, asAt } from "../stores/report.js";
-import { dueCell, ownerOf, showDate, todayIso, dueField } from "../workItems.js";
-import { sectionRows, dateWord, clientPill } from "../logic/sectionRows.js";
+import { pillOf, dueCell, ownerOf, showDate, todayIso, dueField } from "../workItems.js";
+import { sectionRows, dateWord } from "../logic/sectionRows.js";
 
-// What an empty section says in Edit, one line for each; View and a published file leave an empty section out.
-const NOTHING = { raid: "No open risks or issues.", actions: "No open actions.", decisions: "No recent decisions." };
+const NOTHING = "Nothing to show this week.";
 
 // The client's own wording for an item, by ID (the page's rows hold the item's text only).
 function wordings(d) {
@@ -27,12 +26,12 @@ export function rowsFor(type) {
 }
 
 function Row({ row, today, words, inFile }) {
-  const pill = clientPill(row, today), due = dueCell(row, today), who = ownerOf(row.owner), date = dueField(row);
+  const pill = pillOf(row, today), due = dueCell(row, today), who = ownerOf(row.owner), date = dueField(row);
   const title = words[row.id];
   const risk = row.kind === "risk" || row.kind === "issue";
   return (
     <li class="wl-row" data-id={row.id} data-kind={row.kind}>
-      <span class="wl-state">{pill ? <span class={`pill ${pill.class}`}>{pill.text}</span> : null}</span>
+      <span class="wl-state"><span class={`pill ${pill.class}`}>{pill.text}</span></span>
       <span class="wl-main">
         <span class="wl-title">{risk ? <span class="tag">{row.kind === "issue" ? "Issue" : "Risk"}</span> : null}{risk ? " " : ""}{title}</span>
         <span class="wl-meta">
@@ -41,6 +40,7 @@ function Row({ row, today, words, inFile }) {
           <span class="dot" aria-hidden="true">{"·"}</span>
           <span class="num">{date ? `${dateWord(row)} ${showDate(date)}` : "No date"}</span>
           {row.kind === "action" && due.words && !inFile ? <span class={due.tone ? "late" : ""}>{due.words}</span> : null}
+          {risk && row.priority ? <span class="prio">{`Priority ${row.priority}`}</span> : null}
         </span>
       </span>
       <span class="wl-id num">{row.id}</span>
@@ -50,6 +50,6 @@ function Row({ row, today, words, inFile }) {
 
 export function ItemRows({ type }) {
   const list = rowsFor(type), today = todayOf(), words = wordings(data.value);
-  if (!list.length) return <p class="quiet">{NOTHING[type]}</p>;       // only Edit draws an empty section (Dashboard leaves it out of View and a file)
+  if (!list.length) return <p class="quiet">{NOTHING}</p>;
   return <ul class="wl">{list.map((r) => <Row key={r.id} row={r} today={today} words={words} inFile={fromFile.value} />)}</ul>;
 }

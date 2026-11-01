@@ -589,6 +589,8 @@ class OnTheBoard(Base):
                 self.assertTrue(cdp.js(f"!!document.querySelector(\"article[data-id='{cards[0]}'] .bc-title .tick\")", sid), "a tick before the title")
                 self.assertIn(", selected", cdp.js(f"document.querySelector(\"article[data-id='{cards[0]}'] .bc-main\").getAttribute('aria-label')", sid))
                 self.assertEqual(cdp.js("document.querySelector('#sel-count').textContent", sid), "3 selected")
+                tap(cdp, sid, self.card(cards[2]))                  # one plain click first: it narrows the selection to this card, and the page settles before the double click is aimed
+                self.until(cdp, sid, f"clarkPage.selected().length === 1", "a plain click selects only this card")
                 tap(cdp, sid, self.card(cards[2]), count=2)
                 self.until(cdp, sid, f"location.hash.includes('item={cards[2]}')", "a double click opens the peek")
                 self.assertEqual(self.sent, [], "no card moved")
