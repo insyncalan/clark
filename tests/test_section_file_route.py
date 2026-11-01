@@ -136,6 +136,18 @@ class Route(unittest.TestCase):
         self.assertEqual(body["file"]["name"], "Q3 plan- final-.pdf")
         self.assertEqual(doclinks.file_name(body["file"]["name"]), "Q3 plan- final-.pdf")
 
+    def test_a_hidden_device_name_is_not_left_as_a_device_name(self):
+        for odd in (".CON.pdf", "..nul.txt", ". Com1.pdf", ".aux"):
+            ref = self.section()
+            f = self.src / odd
+            f.write_bytes(PDF)
+            self.chosen = [f]
+            status, body = self.attach(ref)
+            self.assertEqual(status, 200, body)
+            stem = body["file"]["name"].split(".")[0].rstrip(" ").upper()
+            self.assertNotIn(stem, platform.RESERVED_NAMES, body["file"]["name"])
+            self.assertFalse(body["file"]["name"].startswith("."))
+
     def test_one_document_takes_the_file_in_place_of_the_last_one(self):
         ref = self.section("onedoc", "Fictional document")
         self.change({"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "place": "report",
@@ -176,6 +188,19 @@ class Route(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(self.files(), [], "the copy this request made is gone")
         self.assertIn(self.s.read("report_sections", ref=ref)["body"], ("", None))
+
+    def test_a_replaced_file_is_left_alone_when_the_step_fails(self):
+        ref = self.section()
+        target = self.client / "Report files" / "Plan v2.pdf"
+
+        def fails(req):
+            target.unlink()
+            target.write_bytes(b"someone else's, put there since")
+            return 400, {"ok": False, "code": "refused", "message": "That content is too long to save."}
+        self.pub.add_section_file = fails
+        status, body = self.attach(ref)
+        self.assertEqual(status, 400)
+        self.assertEqual(target.read_bytes(), b"someone else's, put there since")
 
     # ── refusals before the dialog ─────────────────────────────────────────
 

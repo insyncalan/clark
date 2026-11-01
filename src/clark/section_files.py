@@ -177,15 +177,24 @@ def _files_folder(pub, client):
     return folder
 
 
+def _identity(pub, path):
+    """Which file `path` is, as the disk says right after this request wrote it; None if it cannot be read."""
+    try:
+        return pub.fs.identity(str(path))
+    except (OSError, AttributeError):
+        return None
+
+
 def _copy(pub, folder, real, data):
     """Step 5's copy: the name the file is saved under in `folder` (it is used where it is when it is already there)."""
     if Path(pub.fs.realpath(str(real.parent))) == Path(pub.fs.realpath(str(folder))):
         try:
-            return file_name(real.name), False
+            return file_name(real.name), False, None
         except section_bodies.Bad:
             raise Refused("no_name") from None
     try:
-        name = platform.safe_name(real.name, folder=folder).lstrip(". ") or "untitled"
+        name = platform.safe_name(real.name.lstrip(". ") or "untitled", folder=folder)     # no leading dot first, so a device name is seen as one
+        name = platform.safe_name(name.lstrip(". "), folder=folder)       # and the whole name checked again after all stripping
         name = file_name(name)
     except (platform.PlatformError, section_bodies.Bad):
         raise Refused("no_name") from None
@@ -193,7 +202,7 @@ def _copy(pub, folder, real, data):
         candidate = name if n == 1 else platform.safe_name(numbered(name, n), folder=folder)
         try:
             if pub.fs.write_file(str(folder / candidate), data, replaces=False):
-                return candidate, True
+                return candidate, True, _identity(pub, folder / candidate)
         except (OSError, platform.PlatformError):
             raise Refused("copy_failed") from None
     raise Refused("names_taken")
@@ -219,7 +228,7 @@ def attach(pub, body):
                 return 200, {"ok": True, "cancelled": True}
             real, data = _source(pub, chosen)
             folder = _files_folder(pub, client)
-            name, copied = _copy(pub, folder, real, data)
+            name, copied, made = _copy(pub, folder, real, data)
         except Refused as r:
             return fail(r)
         except Invalid:
@@ -227,7 +236,7 @@ def attach(pub, body):
         entry = {"name": name, "rel": f"{FILES_FOLDER}/{name}", "bytes": len(data)}
         status, reply = pub.add_section_file({"project": code, "id": ref, "entry": entry})
         if status != 200:
-            if copied:
+            if copied and made is not None and _identity(pub, folder / name) == made:
                 try:
                     pub.fs.remove(str(folder / name))          # the copy this request made a moment ago, and nothing else
                 except OSError:
