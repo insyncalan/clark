@@ -82,6 +82,27 @@ class HistoryMany(unittest.TestCase):
         finally:
             demo.close()
 
+    def test_an_id_with_no_hyphen_is_read_as_history_reads_it(self):
+        """The batch narrows the log by each ID's code (the part before its first hyphen); an ID with no hyphen has none."""
+        from clark import history, store
+        demo = DemoStore()
+        try:
+            s = demo.store
+            a = demo.action()
+            with s.step("dashboard", USER) as st:
+                store.log(s.con, st, "actions", "PLAIN", "status", "Open", "Closed", "update")
+                store.log(s.con, st, "links", "PLAIN|" + a + "|relates", "kind", None, "relates", "insert")
+                store.log(s.con, st, "links", a + "|PLAIN|relates", "kind", None, "relates", "insert")
+            ids = ["PLAIN", a, "NOHYPHEN"]
+            many = history.history_many(s.con, ids)
+            self.assertEqual(len(many["PLAIN"]), 3)
+            self.assertEqual(many["NOHYPHEN"], [])
+            for i in ids:
+                with self.subTest(item=i):
+                    self.assertEqual(many[i], history.history(s.con, i))
+        finally:
+            demo.close()
+
 
 if __name__ == "__main__":
     unittest.main()
