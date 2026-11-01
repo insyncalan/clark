@@ -388,6 +388,35 @@ class Sent(unittest.TestCase):
         (row,) = self.store.email_sent_for("ABC")
         self.assertEqual((row["seq"], row["by_user"], row["mode"], row["day"], row["ids"]), (body["seq"], "Sam Lee", "chase", self.DAY, sorted([self.a, self.b])))
 
+    def test_the_same_record_while_one_is_being_written_is_refused_not_written_twice(self):
+        # #258: an in-flight guard in the seam (the page also disables the button until the reply).
+        import threading
+        started, release = threading.Event(), threading.Event()
+        real = feed._call
+        calls = []
+
+        def slow(*a, **k):
+            calls.append(1)
+            started.set()
+            release.wait(5)
+            return real(*a, **k)
+        results = []
+        feed._call = slow
+        self.addCleanup(setattr, feed, "_call", real)
+        t = threading.Thread(target=lambda: results.append(self.seam(self.good())))
+        t.start()
+        self.assertTrue(started.wait(5))
+        status, body = self.seam(self.good(ids=[self.b, self.a]))          # the same ids in another order
+        self.assertEqual((status, body["code"] if "code" in body else body.get("error")), (409, "already_recording"), body)
+        self.assertEqual(body["message"], feed.BUSY_SENT)
+        self.assertNotIn(self.a, body["message"])
+        release.set()
+        t.join(5)
+        self.assertEqual(results[0][0], 200)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(self.store.email_sent_for("ABC")), 1)
+        self.assertEqual(self.seam(self.good())[0], 200, "once the first is done the guard is released")
+
     def test_every_refusal_writes_nothing(self):
         before = self.fingerprint()
         bad = [self.good(extra="x"), self.good(text="Hello Dana, please send the plan"), self.good(email="dana@partner.test"),

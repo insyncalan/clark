@@ -2523,6 +2523,8 @@ class Store:
             sent = date.fromisoformat(str(day))
         except ValueError:
             raise Invalid("The day the email was sent must be a real date.") from None
+        if sent < date(2020, 1, 1):
+            raise Invalid("The day the email was sent is too long ago to be right. Check the date.")
         if sent > (today or date.today()) + timedelta(days=1):
             raise Invalid("The day the email was sent can't be in the future.")
         if self.con.in_transaction:
@@ -2542,6 +2544,15 @@ class Store:
                            for table in ("actions", "raid", "decisions"))
             if not all(ours(i) for i in ids):
                 raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
+            # #258: an item the email could not have been about (left out of the report, closed, or labelled to be kept out) is refused.
+            marks = ",".join("?" * len(ids))
+            if (self.con.execute(f"SELECT 1 FROM report_hidden WHERE project = ? AND item_id IN ({marks})", (code, *ids)).fetchone()
+                    or self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({marks}) "
+                                        "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", ids).fetchone()
+                    or any(self.con.execute(f"SELECT 1 FROM {t} WHERE project = ? AND id IN ({marks}) AND (archived = 1 OR status IN ({q}))",
+                                            (code, *ids)).fetchone()
+                           for t, q in (("actions", "'Closed','Cancelled'"), ("raid", "'Closed','Cancelled'"), ("decisions", "'Withdrawn'")))):
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])

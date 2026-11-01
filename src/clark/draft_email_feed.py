@@ -24,6 +24,7 @@ counts as outside, so internal items start unticked). `chased(code)` (how often 
 records (chase_counts_of); it is empty with none. Standard library only, Python 3.9.
 """
 import re
+import threading
 import unicodedata
 from datetime import datetime
 
@@ -191,6 +192,7 @@ def chase_counts_of(records):
 # ---- "I sent it" (#50 item 5): the seam of POST /api/draft-email/sent -----------------------------------------------------------
 SENT_KEYS = ("project", "ids", "mode", "day")
 MAX_SENT = 50                                      # the ids one record can hold (Store.EMAIL_MAX_IDS)
+BUSY_SENT = "That is already being recorded. Wait a moment and look at the history before you press again."
 BAD_SENT = "That could not be recorded. Reload the page and try again."
 
 
@@ -201,6 +203,8 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
     `by_user` (the login name unless one is given), never from the request. The store checks the rest (the project, that each id is
     one of its work items, the day) and writes one record in one transaction (Store.log_email_sent); nothing else is written.
     Answer: {"ok": true, "seq": n}, or a refusal in plain words."""
+    gate, in_flight = threading.Lock(), set()           # #258: the same record while one is being written is refused, not written twice
+
     def work(store, who, req):
         seq = store.log_email_sent(req["project"], req["ids"], req["mode"], req["day"], who, today=today() if callable(today) else today)
         return 200, {"ok": True, "seq": seq}
@@ -217,5 +221,14 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
             return refuse(400, "bad_pick", BAD_PICK)
         if not isinstance(day, str) or not DAY.fullmatch(day) or not _day(day):
             return refuse(400, "bad_date", BAD_DATE)
-        return _call(path, onedrive_roots, by_user, work, {"project": code, "ids": ids, "mode": mode, "day": day})
+        key = (code, tuple(sorted(set(ids))), mode, day)
+        with gate:
+            if key in in_flight:
+                return refuse(409, "already_recording", BUSY_SENT)
+            in_flight.add(key)
+        try:
+            return _call(path, onedrive_roots, by_user, work, {"project": code, "ids": ids, "mode": mode, "day": day})
+        finally:
+            with gate:
+                in_flight.discard(key)
     return seam
