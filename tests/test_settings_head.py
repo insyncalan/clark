@@ -1,7 +1,7 @@
 """The Settings head: the title, a line of help and one chip for each card on the page, in a real browser at 1400 and 900 px, light and
 dark. Run: python3 dev/run_tests.py test_settings_head
 
-What is asserted: the title and the help line; a chip for each card that is on the page (Client folder, Personal, Backups) and none
+What is asserted: the title and the help line; a chip for each card that is on the page (Publishing, Personal, Backups) and none
 for a card that is not; a click scrolls the card into view and moves focus to its heading; the keyboard does the same (Tab to a chip,
 Enter); the chips wrap and the page has no sideways scroll; each chip is at least 24 px high and wide; the chip text is at least 13 px
 and 4.5:1 on its ground; the focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
@@ -16,7 +16,7 @@ from test_server import chrome
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, and your backups. More settings are still to come."
-CARDS = [("Client folder", "client-folder-h"), ("Personal", "personal-h"), ("Backups", "safety-h")]
+CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Backups", "safety-h")]
 
 
 def ratio(a, b):
@@ -63,7 +63,7 @@ class Head(Base):
                     for name, head_id in CARDS:
                         self.assertEqual(p.js(f"document.getElementById('{head_id}').textContent"), name, "a chip says what its card's heading says")
                         self.assertEqual(p.js(f"document.getElementById('{head_id}').getAttribute('tabindex')"), "-1")
-                    for gone in ("Profile", "AI", "Projects", "People", "Asking", "Publishing", "Published reports", "Data", "Version", "Diagnostics"):
+                    for gone in ("Profile", "AI", "Projects", "People", "Asking", "Published reports", "Data", "Version", "Diagnostics"):
                         self.assertNotIn(gone, self.chips(p), f"no chip for {gone}: there is no such card")
                     self.assertNotIn("Settings are not ready yet.", p.js("document.querySelector('main').innerText"))
 

@@ -21,7 +21,7 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
-const CARDS = [["ClientFolder", "Client folder", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Safety", "Backups", "safety-h"]];
+const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Safety", "Backups", "safety-h"]];
 
 function goToCard(headId) {
   const head = document.getElementById(headId);

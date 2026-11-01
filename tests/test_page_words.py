@@ -165,8 +165,10 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, and your backups. More settings are still to come.",
-                                  "Client folder", "Personal", "Backups",      # the chips: one for each card below, in the order they are on the page
-                                  "Client folder",      # #43: the client folder card
+                                  "Publishing", "Personal", "Backups",      # the chips: one for each card below, in the order they are on the page
+                                  "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
+                                  "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
+                                  "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder",
