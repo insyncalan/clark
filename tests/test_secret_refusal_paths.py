@@ -13,7 +13,6 @@ Run: python3 dev/run_tests.py test_secret_refusal_paths
 import inspect
 import logging
 import re
-import types
 import unittest
 from pathlib import Path
 
@@ -22,7 +21,7 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 import test_ask_route as route_base
 from test_ai_key_refusal import ATTACKS, REFUSED, SECRET_PART, TEXT
 from test_ai_menu import FakeProvider
-from clark import ai_menu as am, ask, ask_service, secret_screen, server as sv
+from clark import ai_menu as am, ask, ask_passages, ask_service, secret_screen, server as sv
 
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
@@ -156,27 +155,37 @@ class EveryRouteThatSendsText(unittest.TestCase):
 
 
 class OneWordingForEveryLooksLikeAPasswordNote(unittest.TestCase):
-    """#406: the notes that say "looks like a password" use one phrase, held once in `ask.LOOKS_LIKE`."""
+    """#406: every note that says "looks like a password or a key" uses the phrase held once in `ask.LOOKS_LIKE`, then says what
+    happened, then gives one next step, and the product name never starts a clause."""
 
-    def test_all_three_notes_carry_the_one_phrase(self):
+    def folder_note(self):
+        found = ask_passages.FolderData(safety=1, secret_labels=("saved/keys.txt",))     # the real type, so every field folder_notes reads is there
+        return [n for n in ask_service.folder_notes(found) if n.startswith("saved/keys.txt")][0]
+
+    def test_every_note_follows_the_rules(self):
         self.assertEqual(ask.LOOKS_LIKE, "looks like a password or a key")
-        what = ask.LOOKS_LIKE.removeprefix("looks like ")
-        # the notes that stop a send carry the phrase whole
-        for note in (ask.SECRET, ask.SECRET_EARLIER, am.SECRET_MESSAGE):
-            self.assertIn(ask.LOOKS_LIKE, note)
-        # the saved-folder note reads "looks like it holds ...", so it carries what the phrase names
-        self.assertIn(what, secret_screen.REASON)
-        for note in (ask.SECRET, ask.SECRET_EARLIER, am.SECRET_MESSAGE, secret_screen.REASON, secret_screen.NEXT_STEP):
-            self.assertNotIn("secret", note.lower())
+        self.assertIs(am.SECRET_MESSAGE, ask.SECRET)
+        folder = self.folder_note()
+        # (note, what happened, how the next step starts)
+        cases = ((ask.SECRET, "so it wasn't sent", "Take it out"),
+                 (ask.SECRET_EARLIER, "so this chat can't be sent", "Start a new chat"),
+                 (folder, "so it was left out", "Take it out"))
+        for note, happened, step in cases:
+            with self.subTest(note=note):
+                self.assertIn(ask.LOOKS_LIKE, note)
+                self.assertIn(happened, note)
+                self.assertLess(note.index(ask.LOOKS_LIKE), note.index(happened))
+                self.assertTrue(note.split(". ")[-1].startswith(step), note)
+                self.assertNotIn("secret", note.lower())
+                self.assertIsNone(re.search(r"[,.;:] clark|^clark", note, re.IGNORECASE), note)
 
-    def test_the_saved_folder_note_says_the_answer_may_be_missing_something(self):
-        found = types.SimpleNamespace(safety=1, secret_labels=("saved/keys.txt",), pdf=0, other=0)
-        line = [n for n in ask_service.folder_notes(found) if n.startswith("saved/keys.txt")][0]
-        self.assertEqual(line, "saved/keys.txt looks like it holds a password or a key, so clark left it out and the answer may be "
-                               "missing something. " + secret_screen.NEXT_STEP)
-        self.assertIn(ask.LOOKS_LIKE.removeprefix("looks like "), line)
-        self.assertIn("the answer may be missing something", line)
-        self.assertNotIn("secret", line.lower())
+    def test_the_exact_words(self):
+        self.assertEqual(ask.SECRET, "That looks like a password or a key, so it wasn't sent. Take it out and try again.")
+        self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like a password or a key, so this chat can't be sent. "
+                                             "Start a new chat and try again.")
+        self.assertEqual(self.folder_note(), "saved/keys.txt holds text that looks like a password or a key, so it was left out and "
+                                             "the answer may be missing something. Take it out of the file, or remove the file from "
+                                             "the saved folder, then ask again.")
 
 
 if __name__ == "__main__":

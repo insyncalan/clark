@@ -207,7 +207,7 @@ def _hidden_set(text):
             or unicodedata.category(c) == "Cf"}
 
 
-SECRET_MESSAGE = f"That {ask.LOOKS_LIKE}, so it wasn't sent. Take it out of the text and try again."
+SECRET_MESSAGE = ask.SECRET        # one note for the typed question and the selected text
 
 
 def _secret(text):

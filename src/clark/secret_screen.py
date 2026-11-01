@@ -18,7 +18,7 @@ import re
 
 from clark import ask, edit_ai
 
-REASON = "looks like it holds a password or a key"
+REASON = f"holds text that {ask.LOOKS_LIKE}"
 NEXT_STEP = "Take it out of the file, or remove the file from the saved folder, then ask again."
 MAX_RUNS = 20000                     # different base64-looking runs looked at in one file; more than this counts as a hit
 MAX_ROWS = 400                       # rows under a table header looked at for a secret column
@@ -168,7 +168,7 @@ def _one(text):
 
 
 def looks_like_secret(text):
-    """Whether `text` looks like it holds a secret. Never raises, never keeps or returns what matched; text that cannot be
+    """Whether `text` looks like a password or a key. Never raises, never keeps or returns what matched; text that cannot be
     read as a string counts as a hit. Read as it is, as the client check sees it (hidden characters and look-alike letters
     undone) and with line breaks taken out of each."""
     if not isinstance(text, str):
