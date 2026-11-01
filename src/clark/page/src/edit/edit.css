@@ -62,3 +62,22 @@
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
+
+/* The use case summary in Edit (A-D12): the bar is a row of controls, not one button. */
+.ucbar-edit { cursor: default; }
+.ucbar-edit:hover { background: transparent; }
+.ucrow.open > .ucbar-edit { background: var(--grey-100); }
+.ucopen { all: unset; box-sizing: border-box; justify-self: start; min-height: 24px; padding: 2px 8px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; white-space: nowrap; }
+.ucopen:hover { border-color: var(--grey-500, var(--text-muted)); }
+.ucopen:focus-visible, .ucstatus:focus-visible, .ucedit-text:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ucedit-text { display: block; text-align: left; min-width: 0; padding: 2px 4px; margin: 0 -4px; border: 1px solid transparent; border-radius: var(--radius-sm); font: inherit; background: transparent; overflow-wrap: anywhere; cursor: text; }
+.ucedit-text:hover { border-color: var(--grey-300); }
+.ucedit-text.uctitle { font-weight: var(--weight-medium); color: var(--heading); }
+.ucedit-text.uchead { color: var(--text-muted); }
+input.ucedit-text { width: 100%; box-sizing: border-box; text-overflow: ellipsis; }
+.ucedit-text::placeholder { color: var(--text-muted); opacity: 1; }
+.ucstatus { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); cursor: pointer; }
+.ucstatus:hover { border-color: var(--text-muted); background: var(--grey-100); }
+.ucstatus svg { width: 14px; height: 14px; }
+.ucstatus-wrap { display: inline-block; }
+@media (max-width: 900px) { .ucstatus { padding: 2px 4px; gap: 4px; } }
