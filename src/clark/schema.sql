@@ -244,7 +244,9 @@ CREATE TABLE IF NOT EXISTS use_cases (
 CREATE TABLE IF NOT EXISTS report_sections (
   project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
   id      TEXT NOT NULL,
-  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker')),
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker',
+                                         'textimage','headline','figures4','figures3','gallery','table','doclinks','linkcard','raid3','raid4',
+                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc')),
   title   TEXT NOT NULL,
   body    TEXT NOT NULL DEFAULT '',
   beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
@@ -389,8 +391,8 @@ INSERT OR IGNORE INTO app_settings (id) VALUES (1);
 
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);   -- schema_version, created_at, device, db_id, role (owner|teammate), share_folder; on a teammate's copy base_db_id, base_seq, base_apply_id
 
--- #115: people belong to the portfolio, not one project. A person is archived, never deleted. Version 8's migrate_people makes the
--- same table and the five owner_id links on a file made before it (schema_v8.sql, frozen); tests pin the two together.
+-- #115: people belong to the portfolio, not one project. A person is archived, never deleted. Version 9's migrate_people makes the
+-- same table and the five owner_id links on a file made before it (schema_v9.sql, frozen); tests pin the two together.
 CREATE TABLE IF NOT EXISTS people (
   id            TEXT PRIMARY KEY CHECK (id GLOB 'P-[0-9][0-9][0-9]'),
   name          TEXT NOT NULL CHECK (length(trim(name)) > 0),

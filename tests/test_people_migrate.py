@@ -1,4 +1,4 @@
-"""#115: the people migration step (store.migrate_people, src/clark/schema_v8.sql), guarded.
+"""#115: the people migration step (store.migrate_people, src/clark/schema_v9.sql), guarded.
 
 Run: python3 dev/run_tests.py test_people_migrate
 The step is entry 8 of MIGRATIONS (the number is set finally at merge). Fictional data only.
@@ -119,7 +119,7 @@ class InTheOrderedTable(Base):
     """The step as entry 8 of the real table, and what a new file looks like beside an upgraded one."""
 
     def test_the_step_is_registered_as_8_and_the_version_matches(self):
-        self.assertIn((8, store_module.migrate_people), store_module.MIGRATIONS)
+        self.assertIn((9, store_module.migrate_people), store_module.MIGRATIONS)
         self.assertEqual(store_module.SCHEMA_VERSION, 8)
         self.assertEqual(max(n for n, _ in store_module.MIGRATIONS), store_module.SCHEMA_VERSION)
 
@@ -137,19 +137,19 @@ class InTheOrderedTable(Base):
         self.assertEqual(c.execute("SELECT owner, owner_id FROM actions").fetchone(), ("Sam Reed", None))
         self.assertEqual(c.execute("SELECT count(*) FROM people").fetchone()[0], 0)
 
-    def test_a_version_7_file_moves_to_8_and_a_second_open_changes_nothing(self):
+    def test_a_version_8_file_moves_to_9_and_a_second_open_changes_nothing(self):
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, folder, True)
         path = make_v1(folder)
-        before7 = tuple(m for m in store_module.MIGRATIONS if m[0] < 8)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 7), mock.patch.object(store_module, "MIGRATIONS", before7):
+        before8 = tuple(m for m in store_module.MIGRATIONS if m[0] < 9)
+        with mock.patch.object(store_module, "SCHEMA_VERSION", 8), mock.patch.object(store_module, "MIGRATIONS", before8):
             open_store(path, onedrive_roots=[]).close()
         c = connect(path)
         self.addCleanup(c.close)
-        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "7")
+        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "8")
         self.assertNotIn("people", [r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type = 'table'")])
         open_store(path, onedrive_roots=[]).close()
-        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "8")
+        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "9")
         after = c.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall()
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(c.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall(), after)
@@ -166,7 +166,7 @@ class InTheOrderedTable(Base):
             self.assertEqual(mine, theirs, table)
 
     def test_an_older_clark_refuses_the_newer_file(self):
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 7), mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] < 8)):
+        with mock.patch.object(store_module, "SCHEMA_VERSION", 8), mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] < 9)):
             with self.assertRaises(Invalid) as caught:
                 open_store(self.path, onedrive_roots=[])
         self.assertTrue(str(caught.exception))
@@ -179,7 +179,7 @@ class InTheOrderedTable(Base):
         def breaks(con):
             store_module.migrate_people(con)
             raise sqlite3.IntegrityError("boom")
-        table = tuple(m for m in store_module.MIGRATIONS if m[0] < 8) + ((8, breaks),)
+        table = tuple(m for m in store_module.MIGRATIONS if m[0] < 9) + ((9, breaks),)
         with mock.patch.object(store_module, "MIGRATIONS", table):
             with self.assertRaises(Invalid):
                 open_store(path, onedrive_roots=[])

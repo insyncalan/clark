@@ -358,6 +358,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         who = profile_settings.Profile(store.path.parent)          # #180: the name typed in Settings, else the login name, is the name on each change
         handlers = {"change": change or changes.make_change(store.path, roots, who.who),
                     "undo": undo or changes.make_undo(store.path, roots, who.who),
+                    "section_image": changes.make_section_image(store.path, roots, who.who),    # #96 R1
                     "sneak": sneak.make_read(store.data_for),
                     "people": changes.make_people(store.path, roots, who.who),
                     "people_undo": changes.make_people_undo(store.path, roots, who.who),

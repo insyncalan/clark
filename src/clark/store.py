@@ -31,9 +31,9 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_V8 = Path(__file__).with_name("schema_v8.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
+SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 8          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#115): the people table and owner_id (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 9          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -73,11 +73,15 @@ ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
-                 "needs", "tracker")            # the eleven of schema.sql's CHECK ('needs' and 'tracker' carry content: section_bodies.py)
+                 "needs", "tracker",
+                 "textimage", "headline", "figures4", "figures3", "gallery", "table", "doclinks", "linkcard", "raid3", "raid4",
+                 "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc")
+# the twenty-nine of schema.sql's CHECK: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
+# registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = BODY_TYPES                    # a section added by hand may be deleted; the built-in ones are hidden, never deleted
 ALLOWED = {
-    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the eleven of schema.sql's CHECK
+    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): every type of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
     ("glance_tiles", "outline"): ("R", "A", "G", "N"),                  # and '' (a blank is never checked)
     ("actions", "status"): ("Open", "Delayed", "Closed", "Cancelled"),
@@ -1891,6 +1895,53 @@ def migrate_to_history(con):
     con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
 
 
+# #96: the eighteen section template types. The report_sections table as schema.sql makes it once a section may be of any of them,
+# frozen here (a later change to schema.sql never changes what this step makes; tests/test_store_section_templates_migration.py
+# pins it to schema.sql as it is today). It keeps every type the earlier steps allow, so a file that holds a needs or tracker
+# section still migrates and opens.
+REPORT_SECTIONS_WITH_TEMPLATE_TYPES = """CREATE TABLE IF NOT EXISTS report_sections (
+  project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
+  id      TEXT NOT NULL,
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker',
+                                         'textimage','headline','figures4','figures3','gallery','table','doclinks','linkcard','raid3','raid4',
+                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc')),
+  title   TEXT NOT NULL,
+  body    TEXT NOT NULL DEFAULT '',
+  beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
+  hidden  INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0,1)),
+  sort_order INTEGER NOT NULL,
+  PRIMARY KEY (project, id)
+)"""
+TEMPLATE_TYPE_WORDS = ("'textimage'", "'headline'", "'figures4'", "'figures3'", "'gallery'", "'table'", "'doclinks'", "'linkcard'",
+                       "'raid3'", "'raid4'", "'workitems'", "'callout'", "'imagecap'", "'quote'", "'contacts'", "'checklist'",
+                       "'keydates'", "'onedoc'")     # the table is made again unless its definition names all of these
+
+
+def _report_sections_allow_template_types(con):
+    """report_sections.type gains the eighteen section template types (#96). Made again from the frozen text above, the rows copied in
+    their order, exactly as the needs and tracker step does (nothing references this table, it has no trigger or index, and its
+    one outgoing key is kept). Only when the table's own definition does not name every template type yet, so a second run (or a
+    new database) does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_TEMPLATE_TYPES)
+        return
+    if all(w in have[0] for w in TEMPLATE_TYPE_WORDS):
+        return
+    con.execute(REPORT_SECTIONS_WITH_TEMPLATE_TYPES.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_templates (", 1))
+    con.execute("INSERT INTO report_sections_templates (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_templates RENAME TO report_sections")
+
+
+def migrate_section_templates(con):
+    """A section may be of any of the eighteen section template types (#96, the registry change that lands first): report_sections
+    is made again with the wider type CHECK. Its own step, number 8 (see SCHEMA_VERSION and MIGRATIONS); it touches no other
+    table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _report_sections_allow_template_types(con)
+
+
 OWNER_ID_TABLES = ("actions", "raid", "milestones", "workstreams", "decisions")     # #115: each gets owner_id, beside its free-text owner (workstreams.lead, decisions.made_by)
 
 
@@ -1898,9 +1949,9 @@ def migrate_people(con):
     """The people step (#115): the people table (schema_v4.sql, idempotent) first, then an optional link column beside each of the
     five free-text owner columns (a column with a default of NULL is allowed in SQLite, and the table exists before the columns
     point at it). It creates no people and sets every link to NULL: the owner text keeps working exactly as before, and linking
-    is a later, deliberate step. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 8 in
-    MIGRATIONS (the number is set finally at merge)."""
-    for statement in _statements(SCHEMA_V8.read_text(encoding="utf-8")):
+    is a later, deliberate step. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 9 in
+    MIGRATIONS."""
+    for statement in _statements(SCHEMA_V9.read_text(encoding="utf-8")):
         con.execute(statement)
     for table in OWNER_ID_TABLES:
         if "owner_id" not in columns(con, table):
@@ -1910,7 +1961,7 @@ def migrate_people(con):
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
-              (7, migrate_email_sent), (8, migrate_people))
+              (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people))
 
 
 def migration_plan(version, table=None):
@@ -2221,7 +2272,7 @@ class Store:
 
     def people(self, archived=False):
         """The people list (#115), read only: live people (the default), archived ones (True) or both (None), in id order. The
-        people table is made by migration step 8; a file without it (never after open_store) reads as an empty list."""
+        people table is made by migration step 9; a file without it (never after open_store) reads as an empty list."""
         if archived not in (None, False, True):
             raise Invalid("archived is None, False or True")
         if not self.con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'people'").fetchone():
@@ -2295,6 +2346,12 @@ class Store:
             out["glance_tiles"] = [dict(r) for r in con.execute(              # #45: the tiles' place, hidden flag and outline; no archived column
                 "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                 "ORDER BY sort_order, tile", (code,))]
+            # #96: what publish keeps out, so a template's live part in the served View leaves out what the file leaves out (FR-11):
+            # the ids hidden from the report by the eye, and the label rules (as publish_inputs reads them).
+            out["report_hidden"] = [r["item_id"] for r in con.execute(
+                "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
+            out["label_rules"] = [dict(r) for r in con.execute(
+                "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
             attach_freshness(con, out, review_days_for(out["project"]))
             return out
         finally:
