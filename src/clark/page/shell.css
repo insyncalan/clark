@@ -985,6 +985,10 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 
 /* the home banner: a still picture a person's own look may set (--art-home, --art-home-height); empty and flat by default */
 .frame.empty::before { content: ""; display: block; height: var(--art-home-height); background: var(--art-home) center / contain no-repeat; }
+.setting h3 { margin: 16px 0 6px; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
+.ask-folders { margin: 8px 0 0; padding: 0; list-style: none; }
+.ask-folders li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+#ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
 .ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: var(--space-6) var(--space-4); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }
 .ad:focus { outline: none; }
