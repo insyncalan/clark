@@ -17,7 +17,7 @@ from html.parser import HTMLParser
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 from clark import sanitise
 from clark.sanitise import MAX_CHARS, MAX_DEPTH, SanitiseError, clean_html, plain_text
-from _growth import assert_growth
+from _growth import GROWTH_STEP, assert_growth
 
 TAGS = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"}
 VOID = {"br", "hr", "input"}
@@ -747,8 +747,8 @@ class Limits(Base):
 
     def test_pathological_inputs_stay_fast(self):
         """Each of these, at the longest length allowed, made the old Python 3.9 html.parser rescan for minutes. The old check was a
-        wall-clock limit (1.5 s a shape, 15 s in all); each shape is now judged by the growth in CPU time from half the longest length to the
-        longest (growth_ratio), and the cleaner must still refuse it or leave nothing the audit finds, at both sizes."""
+        wall-clock limit (1.5 s a shape, 15 s in all); each shape is now judged by the growth in CPU time from a quarter of the longest length to the
+        longest (growth_ratio, a step of four), and the cleaner must still refuse it or leave nothing the audit finds, at both sizes."""
         def shapes(n):
             return {
                 "open tags": "<a " * (n // 3), "open comments": "<!--" * (n // 4), "open marked sections": "<![CDATA[" * (n // 9),
@@ -767,7 +767,7 @@ class Limits(Base):
             }
 
         # Only the cleaner is timed: both sizes of every shape are built first, and the audit runs after the timing, on the last output.
-        sizes = (MAX_CHARS // 2, MAX_CHARS)
+        sizes = (MAX_CHARS // GROWTH_STEP, MAX_CHARS)
         built = {size: shapes(size) for size in sizes}
         for label in built[MAX_CHARS]:
             outputs = {}
@@ -778,7 +778,7 @@ class Limits(Base):
                     outputs[size] = clean_html(source)
                 except SanitiseError:
                     outputs[size] = None                                         # refused: fine, and fast
-            assert_growth(self, work, MAX_CHARS // 2, label, tries=5)
+            assert_growth(self, work, MAX_CHARS // GROWTH_STEP, label, tries=5)
             for size in sizes:
                 if outputs[size] is not None:
                     self.assertEqual(audit(outputs[size]), [], "%s at %d" % (label, size))

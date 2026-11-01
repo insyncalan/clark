@@ -106,7 +106,7 @@ class Budget(unittest.TestCase):
         self.assertEqual(publish.outside_addresses(BIG_HTML), [])
 
     # The old check was a wall-clock limit (process_time under 5 s per shape); a loaded runner took 6.2 s. The refusal itself is still
-    # asserted for every shape at both sizes. What is judged is the growth from n to 2n in CPU time: the budget stops the scan, so the cost
+    # asserted for every shape at both sizes. What is judged is the growth from n to 4n in CPU time: the budget stops the scan, so the cost
     # must not keep climbing with the size of the text (the shapes and the larger sizes are the old ones).
     OLD_LIMIT_SECONDS = 5   # kept as documentation, no longer asserted
     SHAPES = {

@@ -184,7 +184,7 @@ class Gaps(unittest.TestCase):
                  "<!-- <img src=//x.invalid> -->")
 
     def test_the_new_scans_are_linear(self):
-        # The old check was a wall-clock limit (3 s for 30,000 repeats); it is now the growth from 30,000 to 60,000 repeats in CPU time.
+        # The old check was a wall-clock limit (3 s for 30,000 repeats); it is now the growth from 30,000 to 120,000 repeats in CPU time.
         for name, make in (("open tags", lambda n: "<a " * n), ("open quotes", lambda n: '<a b="' * n),
                            ("entities", lambda n: '<img src="' + "&#47;" * (2 * n) + 'x">'),
                            ("comment openers in style", lambda n: "<style>" + "/*" * n + "</style>"),
