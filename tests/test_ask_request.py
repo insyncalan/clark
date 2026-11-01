@@ -16,7 +16,7 @@ P = [ask.Passage("notes/plan.md", "The go-live is planned for March."), ask.Pass
 class Build(unittest.TestCase):
     def test_the_rules_text_is_fixed(self):
         text = ask.build_request("What is late?", P).text
-        self.assertTrue(text.startswith(ask.RULES))
+        self.assertNotIn(ask.RULES, text, "the rules are the system prompt, not part of the request text (#278)")
         for line in ("Use only the passages below", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "You have no tools and no files",
                      "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving"):
             self.assertIn(line, ask.RULES)
@@ -42,7 +42,7 @@ class Build(unittest.TestCase):
 
     def test_a_request_holds_text_only(self):
         names = {f.name for f in dataclasses.fields(ask.Request)}
-        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "canary"})   # dropped_turns and left_out_secret are counts, kept is positions; canary (#277) is the random marker ask_provider sets
+        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "system", "canary"})   # dropped_turns and left_out_secret are counts, kept is positions; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets
         for bad in ("tool", "file", "path", "key", "tools", "files", "env"):
             self.assertNotIn(bad, names)
 
