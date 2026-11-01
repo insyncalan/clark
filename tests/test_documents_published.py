@@ -67,7 +67,8 @@ class Published(unittest.TestCase):
 
 class Absent(Published):
     def test_hidden_archived_and_refused_documents_never_reach_the_file(self):
-        baseline = self.addresses(self.text())
+        first = self.text()
+        baseline, api_before = self.addresses(first), first.count("/api/")
         shown = self.plant("ZQ-SHOWN-TITLE", "https://shown.example.com/minutes", kind="Minutes", date="2030-01-03")
         mail = self.plant("ZQ-MAIL-TITLE", "mailto:pmo@example.com", kind="Plan", date=None)
         hidden = self.plant("ZQ-HIDDEN-TITLE", "https://zq-hidden.example.com/secret", kind="Slides", date="2031-07-07")
@@ -90,7 +91,7 @@ class Absent(Published):
         self.assertNotIn(shown, text, "a document's id is not carried")
         self.assertNotIn(mail, text)
         self.assertEqual(publish.outside_addresses(text), [], "nothing in the markup reaches outside")
-        self.assertNotIn("/api/", text)
+        self.assertEqual(text.count("/api/"), api_before, "the documents add no /api/ text (the view page's own count is unchanged)")
         self.assertNotIn("data-doc-", text)
 
     def test_a_hidden_documents_section_carries_no_document(self):
