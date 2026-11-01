@@ -6,6 +6,7 @@ export const CONFIRM_ABOVE = 25;            // above this a second confirm is as
 
 export const WHY_COMMENT = "A comment has nothing to undo.";
 export const WHY_UNDO = "This was an undo, so it can't be chosen here. Undo it from the message after it.";
+export const WHY_EXCEL = "This came in by Excel import, so it can't be undone from here.";
 export const WHY_NO_STEP = "This change can't be undone from here.";
 
 /** "" when the row can be chosen, else the words that say why not. */
@@ -13,6 +14,7 @@ export function whyNot(r) {
   if (!r) return WHY_NO_STEP;
   if (r.kind === "Comment") return WHY_COMMENT;
   if (/undone$/i.test(String(r.kind || ""))) return WHY_UNDO;
+  if (/^by excel import/i.test(String(r.how || ""))) return WHY_EXCEL;
   if (!Number.isInteger(r.step) || r.step < 1) return WHY_NO_STEP;
   return "";
 }

@@ -226,6 +226,14 @@ class Tab(unittest.TestCase):
             self.assertIn(words, src)
         self.assertNotRegex(src, r"#\d+")
 
+    def test_an_excel_import_row_cannot_be_chosen_and_says_why_before_the_tick(self):      # #240
+        src = (SRC / "edit" / "activityUndo.js").read_text(encoding="utf-8")
+        self.assertIn("This came in by Excel import, so it can't be undone from here.", src)
+        self.assertRegex(src, r'/\^by excel import/i\.test\(String\(r\.how')
+        self.assertLess(src.index("return WHY_EXCEL;"), src.index("!Number.isInteger(r.step)"))
+        row = (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
+        self.assertIn("whyNot(r)", row)             # the tab asks the rule for every row, so the tick is withheld and the words shown
+
 
 if __name__ == "__main__":
     unittest.main()
