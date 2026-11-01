@@ -3,7 +3,8 @@
 // one Undo, place "cell"). Given { section, tools }.
 import { useState } from "preact/hooks";
 import { data } from "../../stores/report.js";
-import { change, say } from "../../stores/changes.js";
+import { say } from "../../stores/changes.js";
+import { useList } from "./useList.js";
 import { rowsOf } from "../../workItems.js";
 import { itemsOf, bodyOf, MAX_ITEMS, TEXT_MAX, problem } from "../../templates/checklist.js";
 
@@ -16,31 +17,33 @@ export function Edit({ section }) {
   const d = data.value || {};
   const work = rowsOf(d);
   const byId = new Map(work.map((r) => [r.id, r]));
-  const save = (next, words) => change({ op: "update", id: section.id, changes: { body: bodyOf(next) }, place: "cell" }, words).then((r) => { if (!r) setTick(tick + 1); return r; });
+  const list = useList(section, items);
+  const save = (make, words) => list.put(make, bodyOf, words).then((r) => { if (!r) setTick(tick + 1); return r; });
   const full = () => { if (items.length >= MAX_ITEMS) { say("problem", problem.full); return true; } return false; };
   const linked = new Set(items.filter((i) => typeof i.item === "string").map((i) => i.item));
   const offer = work.filter((r) => !linked.has(r.id) && !["Cancelled", "Withdrawn"].includes(r.status));
 
   const retext = (n, el) => {
-    const old = items[n], text = el.value.trim();
+    const old = list.latest()[n], text = el.value.trim();
+    if (!old) return;
     if (text === old.text) return;
     if (!text || Array.from(text).length > TEXT_MAX) { say("problem", problem.text); el.value = old.text; return; }
-    save(items.map((x, i) => (i === n ? { text, done: x.done } : x)), "Line changed.");
+    save((cur) => cur.map((x, i) => (i === n ? { text, done: x.done } : x)), "Line changed.");
   };
-  const toggle = (n, on) => save(items.map((x, i) => (i === n ? { text: x.text, done: on ? 1 : 0 } : x)), on ? "Line ticked." : "Line unticked.");
-  const remove = (n) => save(items.filter((_, i) => i !== n), "Line removed.");
+  const toggle = (n, on) => save((cur) => cur.map((x, i) => (i === n ? { text: x.text, done: on ? 1 : 0 } : x)), on ? "Line ticked." : "Line unticked.");
+  const remove = (n) => save((cur) => cur.filter((_, i) => i !== n), "Line removed.");
   const link = (e) => {
     const id = e.currentTarget.value;
     e.currentTarget.value = "";
     if (!id || full()) return;
-    save([...items, { item: id }], "Work item linked.");
+    save((cur) => [...cur, { item: id }], "Work item linked.");
   };
   const addTyped = (e) => {
     e.preventDefault();
     const form = e.currentTarget, text = form.elements.text.value.trim();
     if (full()) return;
     if (!text || Array.from(text).length > TEXT_MAX) { say("problem", problem.text); form.elements.text.focus(); return; }
-    save([...items, { text, done: 0 }], "Line added.").then((r) => { if (r) form.reset(); });
+    save((cur) => [...cur, { text, done: 0 }], "Line added.").then((r) => { if (r) form.reset(); });
   };
 
   return (

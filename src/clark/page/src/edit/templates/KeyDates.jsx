@@ -3,7 +3,8 @@
 // Given { section, tools }.
 import { useState } from "preact/hooks";
 import { data } from "../../stores/report.js";
-import { change, say } from "../../stores/changes.js";
+import { say } from "../../stores/changes.js";
+import { useList } from "./useList.js";
 import { todayIso } from "../../logic/milestones.js";
 import { itemsOf, bodyOf, linesOf, showDay, parseDay, MAX_ITEMS, LABEL_MAX, problem } from "../../templates/keydates.js";
 import { dateWords } from "../../templates/safe.js";
@@ -15,7 +16,8 @@ export function Edit({ section }) {
   const items = itemsOf(section);
   const d = data.value || {};
   const shown = new Set(linesOf(section, d, { fromFile: false, today: todayIso() }).map((l) => l.key));
-  const save = (next, words) => change({ op: "update", id: section.id, changes: { body: bodyOf(next) }, place: "cell" }, words).then((r) => { if (!r) setTick(tick + 1); return r; });
+  const list = useList(section, items);
+  const save = (make, words) => list.put(make, bodyOf, words).then((r) => { if (!r) setTick(tick + 1); return r; });
   const full = () => { if (items.length >= MAX_ITEMS) { say("problem", problem.full); return true; } return false; };
   const used = new Set(items.filter((i) => typeof i.milestone === "string").map((i) => i.milestone));
   const offer = (d.milestones || []).filter((m) => !m.archived && m.status !== "Cancelled" && !used.has(m.id));
@@ -24,24 +26,25 @@ export function Edit({ section }) {
 
   const longLabel = (t) => !t || Array.from(t).length > LABEL_MAX;
   const edit = (n, field, el) => {
-    const old = items[n], raw = el.value.trim();
+    const old = list.latest()[n], raw = el.value.trim();
+    if (!old) return;
     if (field === "label") {
       if (raw === old.label) return;
       if (longLabel(raw)) { say("problem", problem.label); el.value = old.label; return; }
-      save(items.map((x, i) => (i === n ? { label: raw, date: old.date } : x)), "Date changed.");
+      save((cur) => cur.map((x, i) => (i === n ? { label: raw, date: old.date } : x)), "Date changed.");
       return;
     }
     const day = parseDay(raw);
     if (day === old.date) { el.value = dateWords(old.date); return; }
     if (!day) { say("problem", problem.day); el.value = dateWords(old.date); return; }
-    save(items.map((x, i) => (i === n ? { label: old.label, date: day } : x)), "Date changed.");
+    save((cur) => cur.map((x, i) => (i === n ? { label: old.label, date: day } : x)), "Date changed.");
   };
-  const remove = (n) => save(items.filter((_, i) => i !== n), "Date removed.");
+  const remove = (n) => save((cur) => cur.filter((_, i) => i !== n), "Date removed.");
   const addMilestone = (e) => {
     const id = e.currentTarget.value;
     e.currentTarget.value = "";
     if (!id || full()) return;
-    save([...items, { milestone: id }], "Milestone date added.");
+    save((cur) => [...cur, { milestone: id }], "Milestone date added.");
   };
   const addTyped = (e) => {
     e.preventDefault();
@@ -49,7 +52,7 @@ export function Edit({ section }) {
     if (full()) return;
     if (longLabel(label)) { say("problem", problem.label); form.elements.label.focus(); return; }
     if (!day) { say("problem", problem.day); form.elements.date.focus(); return; }
-    save([...items, { label, date: day }], "Date added.").then((r) => { if (r) form.reset(); });
+    save((cur) => [...cur, { label, date: day }], "Date added.").then((r) => { if (r) form.reset(); });
   };
 
   return (

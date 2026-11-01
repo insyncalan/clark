@@ -338,6 +338,21 @@ class InThePage(Base):
             p.js(f"document.querySelector('{sec} button[aria-label=\"Remove Book the venue\"]').click()")
             self.assertTrue(wait(lambda: not any(i.get("text") == "Book the venue" for i in self.stored()), 10))
 
+    def test_a_blur_save_then_a_quick_remove_keeps_both_changes(self):
+        import time
+        self.failure = lambda req: (time.sleep(1.0), self.real_change(req))[1]               # every save lands a second late
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.edit()
+            sec = f'[data-id="{self.ref}"]'
+            p.until(f"!!document.querySelector('{sec} input[aria-label=\"Checklist line\"]')", "the list")
+            self.fill(p, f"{sec} input[aria-label='Checklist line']", "Send the final plan")
+            p.js(f"document.querySelector('{sec} input[aria-label=\"Checklist line\"]').blur()")
+            p.js(f"document.querySelector('{sec} button[aria-label=\"Remove Book the venue\"]').click()")      # before the first save has landed
+            self.assertTrue(wait(lambda: len([r for w, r in self.sent if w == "change" and r.get("op") == "update"]) == 2, 10), "two saves")
+            self.assertTrue(wait(lambda: not any(i.get("text") == "Book the venue" for i in self.stored()) and line("Send the final plan", 1) in self.stored(), 10),
+                            f"the words and the removal both stayed: {self.stored()}")
+
     def test_edit_is_reachable_by_keyboard(self):
         with chrome() as cdp:
             p = self.page(cdp)
