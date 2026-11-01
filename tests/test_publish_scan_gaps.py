@@ -7,8 +7,10 @@ check_brand refuse. The controls: the real file, the three pinned icon links, an
 """
 import base64
 import sys
+import tempfile
 import time
 import unittest
+from pathlib import Path
 
 from _paths import ROOT, SRC, TOOLS  # noqa: F401
 
@@ -304,6 +306,50 @@ class StyleJoin(unittest.TestCase):
 
     def test_two_clean_styles_stay_clean(self):
         self.assertEqual(publish.outside_addresses('<style>"</style><style>a{color:red}</style>'), [])
+
+
+class BrandPictures(unittest.TestCase):
+    """#321: check_brand refuses a picture in style text whether it is named by address (url(x.png)) or embedded as data
+    (url(data:image/...)), except clark's own logo rule and an embedded font. outside_addresses is unchanged: an embedded image is no
+    address, so only the brand check, and the page build that runs it, refuse."""
+
+    def style(self, css):
+        return "<style>" + css + "</style>"
+
+    def test_a_picture_by_address_is_refused(self):
+        for css in ("a{background:url(x.png)}", "a{background:URL( 'x.png' )}", 'a{background:image-set("x.png" 1x)}'):
+            with self.assertRaises(PublishError, msg=css):
+                publish.check_brand(self.style(css))
+
+    def test_a_picture_as_data_is_refused_in_every_spelling(self):
+        for css in ("a{background:url(data:image/png;base64,AAAA)}", 'a{background:url("data:image/gif;base64,AAAA")}',
+                    "a{background:URL( 'DATA:image/jpeg;base64,AAAA' )}", 'a{background:image-set("data:image/png;base64,AAAA" 1x)}',
+                    "a{list-style-image:url(data:image/webp;base64,AAAA)}", "a::before{content:url(data:image/svg+xml;base64,AAAA)}",
+                    "a{background:\\75rl(d\\61ta:image/png;base64,AAAA)}", "a{background:u/**/rl(data:image/png;base64,AAAA)}",
+                    "a{background:url(data:text/html;base64,AAAA)}",
+                    ".logo-icon{background-image:url(data:image/png;base64,AAAA)}", ".logo-icon{background-image:url(data:image/svg+xml;base64,AAAA);color:red}",
+                    ".card{background-image:url(data:image/svg+xml;base64,AAAA)}"):
+            with self.assertRaises(PublishError, msg=css):
+                publish.check_brand(self.style(css))
+
+    def test_a_picture_as_data_in_a_second_style_or_a_spliced_page_is_refused(self):
+        with self.assertRaises(PublishError):
+            publish.check_brand(self.style("a{color:red}") + self.style("b{background:url(data:image/png;base64,AAAA)}"))
+        with self.assertRaises(PublishError):
+            publish.check_brand(spliced(self.style("a{background:url(data:image/png;base64,AAAA)}")))
+
+    def test_the_logo_rule_and_an_embedded_font_pass(self):
+        publish.check_brand(real())
+        publish.check_brand(self.style('.logo-icon { background-image: url("data:image/svg+xml;base64,PHN2Zz4="); }'))
+        publish.check_brand(self.style("@font-face{font-family:X;src:url(data:font/woff2;base64,AAAA) format('woff2')}"))
+        publish.check_brand(self.style('a{color:red}a[href^="x"]{background:none}'))
+
+    def test_a_brand_with_a_picture_as_data_stops_the_build(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        (Path(tmp.name) / "tokens.css").write_text("a { background: url(data:image/png;base64,AAAA); }", encoding="utf-8")
+        with self.assertRaisesRegex(PublishError, "embeds a picture"):
+            made(branding=tmp.name)
 
 
 if __name__ == "__main__":

@@ -429,9 +429,25 @@ FOREIGN = re.compile(r"<svg(?=[\t\n\f\r />])|<math(?=[\t\n\f\r />])|<!\[CDATA\["
 FOREIGN_FOUND = "an svg, math or CDATA section"
 
 
+# #321: the one picture the page's own style may embed as data is clark's named logo, which build_page.py writes as exactly this
+# rule. Every other data: value in style text has to be a font; a picture there (a card's background, a list marker, an
+# image-set) is refused, so the page's cards stay plain CSS and text.
+LOGO_RULE = re.compile(r"\.logo-icon\s*\{\s*background-image:\s*url\(\s*[\"']?data:image/svg\+xml;base64,[A-Za-z0-9+/=]+[\"']?\s*\)\s*;?\s*\}", re.I)
+DATA_NOT_FONT = re.compile(r"data:(?!font/)", re.I)
+
+
+def _picture_as_data(css):
+    """True if style text embeds anything but a font as data, apart from the logo rule. Read as a browser reads it (css_plain)."""
+    if "\\" not in css and "data:" not in css.lower():
+        return False                                    # no escape and no data: in it: nothing to find
+    return bool(DATA_NOT_FONT.search(LOGO_RULE.sub("", css_plain(css))))
+
+
 def check_brand(page_text):
     """Refuse a brand that reaches outside the file: an @import, or a url() that isn't data:. A font has to be embedded in
-    tokens.css as data. (The policy would block it too, but a report with a missing font is refused, not published.)"""
+    tokens.css as data. (The policy would block it too, but a report with a missing font is refused, not published.) Also
+    (#321) refuse a picture embedded as data in a style, other than the logo: a data: image is no address, but it would put a
+    picture on a card, and only a test of the published cards would have caught it."""
     if FOREIGN.search(page_text):
         raise PublishError("The brand's tokens.css, or the page, has a drawing or formula section, which the check for "
                            "addresses outside the file cannot read: take it out.")
@@ -449,6 +465,9 @@ def check_brand(page_text):
         if ADDRESS_FOUND in found:
             raise PublishError("The brand's tokens.css names a font or image by address, which would reach outside the "
                                "file: embed the font in tokens.css instead.")
+    if any(_picture_as_data(css) for css in styles):
+        raise PublishError("The brand's tokens.css, or the page, embeds a picture in its style, which the page's cards do not "
+                           "use: embed only the font in tokens.css.")
 
 
 # The block data_block() writes, and only where render() puts it: straight before the last </body>, on a line of its own. Its
