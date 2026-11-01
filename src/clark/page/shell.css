@@ -1305,6 +1305,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-small); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 
+/* The Use Cases tab of a published file (view only): each use case is a closed row that opens in place. */
+.ucp { border-top: 1px solid var(--grey-100); }
+.ucp summary { cursor: pointer; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.ucp-title { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
+.ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
+.ucp-body h2 { margin: 14px 0 4px; font-size: 15px; font-weight: var(--weight-medium); color: var(--heading); }
+.ucp-headline { margin: 0 0 8px; }
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pk-val .i { width: 16px; height: 16px; }
