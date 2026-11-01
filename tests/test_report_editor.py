@@ -238,9 +238,12 @@ class Modes(Base):
             self.assertEqual(p.js("document.querySelector('main').innerHTML"), before, "typing in View changes nothing")
             self.assertEqual(edit_elements(cdp, p.sid), [])
             self.assertEqual(self.sent, [])
-            # At a glance, the use case summary (#45) and the milestones section (#44, its own block and its own words when empty)
-            # are drawn; every type still not drawn says the one plain line
-            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases'].includes(s.dataset.type))"
+            # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
+            # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
+            # drawn says the one plain line
+            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current'].includes(s.dataset.type))"
+            texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
+            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "View: one plain line, the same for every type")
@@ -251,6 +254,7 @@ class Modes(Base):
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
                 self.assertEqual(len([f for f in found if what in f]), 11, what)
             self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "Edit: the same line")
+            self.assertEqual(p.js(texts), [QUIET] * 4, "Edit: the four text sections keep the old line (their editor is a later item)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
