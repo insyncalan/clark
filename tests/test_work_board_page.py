@@ -20,7 +20,6 @@ from test_board import make_data  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_filters import click, dblclick, hover, key, need_chrome, where  # noqa: E402
 from test_work_items import page_target  # noqa: E402
-import _testpage as testpage  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 TODAY = "2026-10-29"
@@ -45,7 +44,7 @@ class Base(unittest.TestCase):
                 self.sent.append((which, req))
                 return real(req)
             return call
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
+        self.s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(__import__("tempfile").mkdtemp()),
                          change=seam(change, "change"), undo=seam(undo, "undo"))
         self.addCleanup(self.s.close)
         self.addCleanup(self.demo.close)
