@@ -330,11 +330,28 @@ class OnTheRealStore(unittest.TestCase):
         got = self.ask(owner="Dana Hart", email=self.OUT)
         self.assertFalse({self.hidden, self.sensitive} & {i["id"] for i in got["items"]})
 
-    def test_a_sensitive_row_may_go_to_an_own_address_but_a_hidden_one_never_does(self):
+    def test_a_sensitive_row_is_absent_for_an_outside_address(self):
+        got = self.ask(email=self.OUT)
+        self.assertNotIn(self.sensitive, {i["id"] for i in got["items"]})
+        self.assertNotIn("supplier terms", json.dumps(got["draft"]))
+
+    def test_a_sensitive_row_is_absent_for_an_inside_colleague_and_a_hidden_one_too(self):
         got = self.ask(email=INSIDE)
         offered = {i["id"] for i in got["items"]}
-        self.assertIn(self.sensitive, offered)
+        self.assertNotIn(self.sensitive, offered)
+        self.assertNotIn(self.sensitive, got["picked"])
         self.assertNotIn(self.hidden, offered)
+        self.assertNotIn("supplier terms", json.dumps(got["draft"]))
+        self.assertIn(self.plain, offered)                                              # a plain item still appears
+
+    def test_a_request_naming_a_sensitive_id_is_refused_in_fixed_words_and_nothing_is_written(self):
+        before = self.fingerprint()
+        for email in (self.OUT, INSIDE):
+            for ask in ({"item": self.sensitive}, {"picked": [self.plain, self.sensitive]}):
+                status, body = self.seam({"project": "ABC", "email": email, **ask})
+                self.assertEqual((status, body["code"], body["message"]), (400, "not_for_email", feed.NOT_FOR_EMAIL))
+                self.assertNotIn(self.sensitive, body["message"])
+        self.assertEqual(self.fingerprint(), before)
 
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:
@@ -387,6 +404,35 @@ class Sent(unittest.TestCase):
         self.assertEqual((status, body["ok"]), (200, True), body)
         (row,) = self.store.email_sent_for("ABC")
         self.assertEqual((row["seq"], row["by_user"], row["mode"], row["day"], row["ids"]), (body["seq"], "Sam Lee", "chase", self.DAY, sorted([self.a, self.b])))
+
+    def test_the_same_record_while_one_is_being_written_is_refused_not_written_twice(self):
+        # #258: an in-flight guard in the seam (the page also disables the button until the reply).
+        import threading
+        started, release = threading.Event(), threading.Event()
+        real = feed._call
+        calls = []
+
+        def slow(*a, **k):
+            calls.append(1)
+            started.set()
+            release.wait(5)
+            return real(*a, **k)
+        results = []
+        feed._call = slow
+        self.addCleanup(setattr, feed, "_call", real)
+        t = threading.Thread(target=lambda: results.append(self.seam(self.good())))
+        t.start()
+        self.assertTrue(started.wait(5))
+        status, body = self.seam(self.good(ids=[self.b, self.a]))          # the same ids in another order
+        self.assertEqual((status, body["code"] if "code" in body else body.get("error")), (409, "already_recording"), body)
+        self.assertEqual(body["message"], feed.BUSY_SENT)
+        self.assertNotIn(self.a, body["message"])
+        release.set()
+        t.join(5)
+        self.assertEqual(results[0][0], 200)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(self.store.email_sent_for("ABC")), 1)
+        self.assertEqual(self.seam(self.good())[0], 200, "once the first is done the guard is released")
 
     def test_every_refusal_writes_nothing(self):
         before = self.fingerprint()
