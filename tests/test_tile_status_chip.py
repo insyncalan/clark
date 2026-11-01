@@ -27,7 +27,8 @@ class Source(unittest.TestCase):
         chip = rule(self.css, ".fig .tw")
         self.assertIn("border: 1px solid currentColor", chip, "the edge is the text colour, so it keeps the text's contrast")
         self.assertIn("border-radius: var(--radius-sm)", chip)
-        self.assertIn("font-size: var(--size-small)", chip, "13 px, not smaller")
+        # the 13 px caption size (var(--size-caption)): the former 13 px places use it, not the 14 px small size
+        self.assertIn("font-size: var(--size-caption)", chip, "13 px, not smaller")
         self.assertNotIn("align-self", chip, "the chip is placed by its row (beside the figure), not on a line of its own")
         self.assertNotIn("background", chip, "no fill over the tile")
         for rag, token in (("g", "green"), ("a", "amber"), ("r", "red")):
@@ -54,7 +55,7 @@ class Source(unittest.TestCase):
     def test_both_built_pages_carry_the_css_and_the_markup(self):
         for name in ("page.html", "page-view.html"):
             text = (PAGE / name).read_text(encoding="utf-8")
-            self.assertIn("border: 1px solid currentColor; border-radius: var(--radius-sm); font-size: var(--size-small); font-weight: var(--weight-medium)", text, name)
+            self.assertIn("border: 1px solid currentColor; border-radius: var(--radius-sm); font-size: var(--size-caption); font-weight: var(--weight-medium)", text, name)
             self.assertIn(".fig.rag-r .tw { color: var(--status-red-text); }", text, name)
             self.assertIn('class:"tw","aria-hidden":"true"', text, name)
 
