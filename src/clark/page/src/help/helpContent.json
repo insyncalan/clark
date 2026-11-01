@@ -503,7 +503,7 @@
     "s": [
      "The **Timeline** scrolls sideways. The arrows move along it and **Today** comes back. Drag its bottom edge to zoom in or out; **Reset** puts it back.",
      "A slipped milestone keeps its mark on the agreed date, with a dashed ring where it is now expected and a dashed line between them.",
-     "The two icons at the top right switch between **Timeline** and **Calendar**. Your choice is kept.",
+     "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. Your choice is kept.",
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
      "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
