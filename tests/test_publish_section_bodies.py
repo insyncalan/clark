@@ -56,7 +56,7 @@ class Published(Api):
 
 
 class Kept(Published):
-    def test_a_good_needs_body_keeps_its_shown_rows_and_a_tracker_body_keeps_its_place_and_title_only(self):
+    def test_a_good_needs_body_keeps_its_shown_rows_and_a_tracker_body_keeps_its_groups_and_lines(self):
         needs = self.section("needs")
         tracker = self.section("tracker")
         self.write(needs, body("one"))
@@ -64,7 +64,35 @@ class Kept(Published):
         got = self.sections()
         self.assertEqual(got[needs], {"id": needs, "type": "needs", "title": "Needs from you", "beside": 0,
                                       "rows": [{"what": "one", "kind": "decision", "from": "one", "by": ""}]})
-        self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0})
+        self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0,
+                                        "overall": {"actual": None, "planned": None, "health": "", "note": ""},
+                                        "columns": {"tasks": False, "agents": False, "workflows": False},
+                                        "groups": [{"name": "Plan", "lines": [{"no": "", "text": "two", "start": "", "end": "", "status": "planned",
+                                                                              "weight": 0, "planned": 0, "achieved": 0, "tasks": None,
+                                                                              "agents": None, "workflows": None}]}]})
+
+    def test_a_tracker_publishes_only_what_shows_and_picks_by_name(self):
+        tracker = self.section("tracker")
+        self.write(tracker, json.dumps({"overall": {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late supplier"},
+                                        "columns": {"tasks": True}, "groups": [
+            {"name": "Empty", "lines": []},
+            {"name": "Build", "lines": [{"no": "1", "text": "Site", "start": "2030-01-05", "end": "2030-02-01", "status": "late", "weight": 500, "tasks": 4}]}]}))
+        got = self.sections()[tracker]
+        self.assertEqual([g["name"] for g in got["groups"]], ["Build"])
+        self.assertEqual(got["overall"], {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late supplier"})
+        self.assertEqual(got["columns"], {"tasks": True, "agents": False, "workflows": False})
+        self.assertEqual(got["groups"][0]["lines"][0]["start"], "05-01-2030")
+        self.assertEqual(got["groups"][0]["lines"][0]["tasks"], 4)
+        self.assertEqual(set(got), {"id", "type", "title", "beside", "overall", "columns", "groups"})
+
+    def test_a_tracker_with_no_line_is_left_out_and_a_hidden_one_too(self):
+        tracker = self.section("tracker")
+        self.write(tracker, json.dumps({"groups": [{"name": "Empty", "lines": []}]}))
+        self.assertNotIn(tracker, self.sections())
+        self.write(tracker, tbody("one"))
+        self.assertIn(tracker, self.sections())
+        self.ok("update", id=tracker, changes={"hidden": 1})
+        self.assertNotIn(tracker, self.sections())
 
     def test_an_empty_body_is_left_out(self):
         needs = self.section("needs")
@@ -140,20 +168,29 @@ class Kept(Published):
 
 
 class NothingOfABodyReachesTheFile(Published):
-    def test_a_tracker_body_full_of_markup_is_not_in_the_file_in_any_spelling(self):
+    def test_a_tracker_body_full_of_markup_stays_text_in_every_field_in_any_spelling(self):
         needs, tracker = self.section("needs"), self.section("tracker")
         self.write(needs, body("one"))
-        self.write(tracker, json.dumps({"groups": [{"name": h, "lines": [{"text": h}]} for h in HOSTILE]}))
+        hostile = [h for h in HOSTILE if h]
+        line = lambda h: {"no": h[:10], "text": h[:100], "start": "2030-01-01", "end": "2030-02-01", "status": "planned"}
+        self.write(tracker, json.dumps({"overall": {"note": hostile[0][:100], "health": "atrisk"},
+                                        "groups": [{"name": h[:80], "lines": [line(h)]} for h in hostile]}))
         baseline_scripts = self.baseline()
         text = self.file()
         self.assertEqual(len(re.findall(r'id="clark-data"', text)), 1)
         self.assertEqual(len(re.findall(r"<script\b", text)), baseline_scripts)
-        for marker in HOSTILE + [MARK, "Example team"]:
+        block = re.search(r'<script type="application/json" id="clark-data">(.*?)</script>', text, re.S).group(1)
+        for ch in "<>&\u2028\u2029":
+            self.assertNotIn(ch, block)                          # none is raw inside the data block
+        outside = text.replace(block, "")
+        for marker in hostile:
             for spelling in spellings(marker):
-                self.assertNotIn(spelling, text, marker)         # the tracker's content is not published yet; needs holds only "one"
-        data = self.data_block(text)
-        self.assertEqual({s["type"] for s in data["sections"] if s["id"] in (needs, tracker)}, {"needs", "tracker"})
-        self.assertNotIn("body", json.dumps([s for s in data["sections"] if s["id"] in (needs, tracker)]))      # a needs row is published as rows, never as a body
+                self.assertNotIn(spelling, outside, marker)      # nowhere in the page but as escaped data
+        entry = {s["id"]: s for s in self.data_block(text)["sections"]}[tracker]
+        self.assertEqual([g["name"] for g in entry["groups"]], [h[:80] for h in hostile])     # arrives intact, as text
+        self.assertEqual(entry["groups"][0]["lines"][0]["text"], hostile[0][:100])
+        self.assertEqual(entry["overall"]["note"], hostile[0][:100])
+        self.assertNotIn("body", entry)
 
     def baseline(self):
         return len(re.findall(r"<script\b", self.file()))

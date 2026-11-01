@@ -402,13 +402,53 @@ def check(kind, body, rules):
     return text
 
 
+def _day_shown(day):
+    return f"{day[8:]}-{day[5:7]}-{day[:4]}" if isinstance(day, str) and _real_day(day) is not None else ""
+
+
+def _published_tracker_line(line):
+    """One published line, picked by name, or None when it does not have the checked shape."""
+    if type(line) is not dict or not isinstance(line.get("text"), str) or line.get("status") not in TRACKER_STATUSES:
+        return None
+    out = {"no": line.get("no") if isinstance(line.get("no"), str) else "", "text": line["text"],
+           "start": _day_shown(line.get("start")), "end": _day_shown(line.get("end")), "status": line["status"]}
+    for name in ("weight", "planned", "achieved") + TRACKER_COLUMNS:
+        n = line.get(name)
+        out[name] = n if type(n) is int else None
+    return out
+
+
+def _published_tracker(value):
+    if type(value) is not dict or type(value.get("groups")) is not list:
+        return None
+    groups = []
+    for g in value["groups"]:
+        if type(g) is not dict or not isinstance(g.get("name"), str) or type(g.get("lines")) is not list:
+            continue
+        lines = [x for x in (_published_tracker_line(l) for l in g["lines"]) if x]
+        if lines:
+            groups.append({"name": g["name"], "lines": lines})
+    if not groups:
+        return None
+    o, cols = value.get("overall"), value.get("columns")
+    o = o if type(o) is dict else {}
+    cols = cols if type(cols) is dict else {}
+    return {"overall": {"actual": o.get("actual") if type(o.get("actual")) is int else None,
+                        "planned": o.get("planned") if type(o.get("planned")) is int else None,
+                        "health": o.get("health") if o.get("health") in TRACKER_HEALTH else "",
+                        "note": o.get("note") if isinstance(o.get("note"), str) else ""},
+            "columns": {k: cols.get(k) is True for k in TRACKER_COLUMNS}, "groups": groups}
+
+
 def published(kind, value):
     """What the published file carries of a checked body, as a dict merged into the section's entry; None leaves the section
     out ('an empty template stays out').
     needs (#121): {"rows": [{"what", "kind", "from", "by"}]}, the rows that show (a hidden row is absent, not marked), `by` written
     DD-MM-YYYY; None when no row shows. Fields are picked by name, never copied whole, and text only.
-    tracker: nothing of the content is published yet, so the section keeps its place and title only (#189 adds its table)."""
+    tracker (#189): {"overall", "columns", "groups"}: each group that has at least one line shows, with its lines (a group with no line is
+    absent), each field picked by name and kept as the checked text, a whole number of tenths or a count, dates written DD-MM-YYYY;
+    None when no group has a line. Totals are never published: the page works them out."""
     if kind == NEEDS:
         rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
         return {"rows": rows} if rows else None
-    return {}
+    return _published_tracker(value)

@@ -228,8 +228,14 @@ class Shape(unittest.TestCase):
                 for jargon in ("JSON", "json", "schema", "parse", "NaN"):
                     self.assertNotIn(jargon, words)
 
-    def test_the_tracker_still_publishes_nothing_of_its_content(self):
-        self.assertEqual(sb.published("tracker", json.loads(check(DEMO))), {})
+    def test_the_tracker_publishes_its_lines_by_name_and_leaves_an_empty_one_out(self):
+        got = sb.published("tracker", json.loads(check(DEMO)))
+        self.assertEqual(set(got), {"overall", "columns", "groups"})
+        self.assertEqual([g["name"] for g in got["groups"]], ["Build"])           # Launch has no line, so it stays out
+        self.assertEqual(len(got["groups"][0]["lines"]), 2)
+        self.assertEqual(got["groups"][0]["lines"][0]["start"], "01-01-2030")
+        self.assertIsNone(sb.published("tracker", json.loads(check({"groups": [{"name": "Empty", "lines": []}]}))))
+        self.assertIsNone(sb.published("tracker", "not a body"))
 
     def test_the_checker_is_the_registered_one_and_a_needs_body_is_not_a_tracker(self):
         self.assertIs(sb.CHECKERS["tracker"], sb._checked_tracker)
