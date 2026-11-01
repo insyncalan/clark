@@ -7,15 +7,15 @@ const DAY = 86400000;
 const NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const weekday = (iso) => new Date(dayNumber(iso) * DAY).getUTCDay();         // 0 Sunday .. 6 Saturday
 
-/** The next Friday that is not before `today` (today itself when it is a Friday). */
-export function fridayFrom(today) { return addDays(today, (5 - weekday(today) + 7) % 7); }
+/** The coming Friday after today: this week's, or on a Friday itself the next one (a move never stays on today). */
+export function fridayFrom(today) { const f = addDays(today, (5 - weekday(today) + 7) % 7); return f === today ? addDays(today, 7) : f; }
 
 const fix = (label, iso, dated = true) => ({ label: dated ? `${label} ${showDate(iso)}` : label, iso });
 
 /**
  * The warning for a row, or null. {tone: "late" | "weekend", text, fixes: [{label, iso}]}. Only an open row with a real due date
  * has one. A late action says how late; a date on a Saturday or Sunday says so and offers the Friday before and the Monday after
- * (for a late action the moves are to the next Friday and a week on, so a move never lands in the past).
+ * (for a late action the moves are to the coming Friday and a week on, so a move never lands in the past).
  */
 export function warningFor(row, today) {
   const iso = dueField(row), a = dayNumber(iso), t = dayNumber(today);

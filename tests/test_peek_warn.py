@@ -50,8 +50,8 @@ class Rules(unittest.TestCase):
         w = self.warn(self.action("2026-10-27"))
         self.assertEqual(w["text"], "1 day overdue (due 27-10-2026)")
 
-    def test_friday_is_never_before_today(self):
-        for today, friday in (("2026-10-28", "2026-10-30"), ("2026-10-30", "2026-10-30"), ("2026-10-31", "2026-11-06"), ("2026-11-01", "2026-11-06"), ("2026-11-02", "2026-11-06")):
+    def test_friday_is_after_today_and_on_a_friday_the_next_one(self):
+        for today, friday in (("2026-10-28", "2026-10-30"), ("2026-10-30", "2026-11-06"), ("2026-10-31", "2026-11-06"), ("2026-11-01", "2026-11-06"), ("2026-11-02", "2026-11-06")):
             with self.subTest(today=today):
                 self.assertEqual(self.warn(self.action("2026-10-01"), today)["fixes"][0]["iso"], friday)
         self.assertEqual(self.warn(self.action("2026-10-01"), "2026-10-30")["fixes"][1]["iso"], "2026-11-06", "a week on is seven days from today")
@@ -121,13 +121,14 @@ class Page(unittest.TestCase):
                 from test_peek import key
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!document.querySelector('#peek [data-pk-warn]')", "the bar is gone once the date is right")
-                self.assertTrue(wait(lambda: self.row("actions", "TUL-A-002")["due_date"] == "2026-10-30", 20), "the store has the new date")
-                self.changed_once(before, "Move to Friday")
+                self.until(cdp, sid, "!!document.querySelector('.toasts [data-undo]')", "the toast with Undo is up", 20)
                 self.assertEqual(self.toast(cdp, sid), "Due date of TUL-A-002 changed to 30-10-2026.")
+                self.assertEqual(self.row("actions", "TUL-A-002")["due_date"], "2026-10-30", "the store has the new date")
+                self.changed_once(before, "Move to Friday")
                 self.assertEqual(cdp.js("document.querySelectorAll('.toasts[aria-live=polite]').length", sid), 1, "one polite live region on the page")
                 self.assertEqual(cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid), True, "focus goes to the close button, not to nothing")
                 self.undo(cdp, sid, "Move to Friday", "Due date of TUL-A-002 is back to 22-10-2026.")
-                self.assertTrue(wait(lambda: self.row("actions", "TUL-A-002")["due_date"] == "2026-10-22", 20), "Undo put the date back")
+                self.assertEqual(self.row("actions", "TUL-A-002")["due_date"], "2026-10-22", "Undo put the date back")
                 self.until(cdp, sid, "!!document.querySelector('#peek [data-pk-warn]')", "after Undo the warning is back")
 
     def test_move_a_week_on_is_seven_days_from_today(self):
