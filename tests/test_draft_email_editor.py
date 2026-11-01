@@ -331,6 +331,23 @@ class Component(InBrowser):
         self.settle()
         self.assertEqual(self.text(".de-note"), "Marked as sent for 1 item on 13-10-2026. It is not saved to the history yet.")
 
+    def test_i_sent_it_says_it_is_saved_when_the_history_has_it_and_marks_nothing_when_it_could_not(self):
+        click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()"
+        self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
+        self.js("T.reply = {ok: true}")
+        self.js(click)
+        self.settle()
+        self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
+        self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
+        self.js("T.reply = {ok: false, message: 'One of the ticked items is not in this project. Reload the page and tick again.'}")
+        self.js(click)
+        self.settle()
+        self.assertEqual(self.text(".de-note"), "One of the ticked items is not in this project. Reload the page and tick again.")
+        self.js("T.reply = {ok: false}")
+        self.js(click)
+        self.settle()
+        self.assertEqual(self.text(".de-note"), "That could not be saved to the history, so nothing was marked as sent. Try again.")
+
     def test_no_address_says_what_to_do_not_a_dash(self):
         self.mount(state(), draft(picked=["ABC-A-001"], email=""))
         self.assertIn("No address yet. Add one in your mail app.", self.text(".de-meta"))

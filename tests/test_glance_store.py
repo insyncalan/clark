@@ -196,7 +196,7 @@ class SeedTiles(Base):
     def test_the_seed_widens_nothing_an_undo_may_remove(self):
         self.assertNotIn("glance_tiles", store_module.REVERT_CREATED)
         self.assertEqual(store_module.DELETED_ON_CANCEL, ("links", "item_labels", "labels", "report_sections", "glance_tiles",
-                                                           "report_hidden"))
+                                                           "report_hidden", "source_folders"))
 
     def test_an_unknown_project_is_refused(self):
         with self.assertRaises(Invalid):

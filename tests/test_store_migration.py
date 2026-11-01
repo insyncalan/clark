@@ -634,7 +634,7 @@ class AnyFaultAndPlanFirst(unittest.TestCase):
         self.assertEqual(version(path), "1")
 
     def test_an_empty_table_is_refused_once_the_version_is_above_1(self):
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 3):
+        with mock.patch.object(store_module, "SCHEMA_VERSION", 4):
             with self.assertRaises(Invalid) as caught:
                 store_module.migration_plan(1, ())
         self.assertIn("is missing a step. Install the latest clark, then try again.", str(caught.exception))
@@ -643,7 +643,7 @@ class AnyFaultAndPlanFirst(unittest.TestCase):
 
     def test_a_bumped_version_with_no_steps_does_not_hand_back_an_unmigrated_file(self):
         path = make_v1(self.dir)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 3), mock.patch.object(store_module, "MIGRATIONS", ()):
+        with mock.patch.object(store_module, "SCHEMA_VERSION", 4), mock.patch.object(store_module, "MIGRATIONS", ()):
             with self.assertRaises(Invalid):
                 open_store(path, onedrive_roots=[])
         self.assertEqual(version(path), "1")
