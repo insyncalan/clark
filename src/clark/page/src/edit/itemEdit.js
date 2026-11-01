@@ -55,8 +55,10 @@ export function statusPill(row) {
 // Red is High impact with Medium likelihood (High priority), Amber Medium and Medium, Green Low and Low.
 export const RATINGS = { Red: { impact: "High", likelihood: "Medium" }, Amber: { impact: "Medium", likelihood: "Medium" }, Green: { impact: "Low", likelihood: "Low" } };
 
-/** The Rating section of a risk's or issue's status picker: the three colours, or none for any other kind of item. */
-export function ratingChoices(row) { return tableOf(row) === "raid" ? Object.keys(RATINGS) : []; }
+/** The Rating section of an open risk's or issue's status picker: the three colours, or none for any other item (an assumption,
+ * a dependency, a closed or cancelled one), as clark/changes.py refuses. */
+export function ratingChoices(row) { return RATED.includes(row.kind) && row.status === "Open" ? Object.keys(RATINGS) : []; }
+const RATED = ["risk", "issue"];
 
 /** The field a pick belongs to: the picker's Rating entries are sent as `rating:Red`, `rating:Amber` or `rating:Green`. */
 export function pickField(field, value) { return field === "status" && /^rating:/.test(String(value)) ? "rating" : field; }
@@ -125,7 +127,7 @@ export function changeFor(row, field, value, today) {
   }
   if (field === "rating") {
     const word = String(value).replace(/^rating:/, "");
-    if (tableOf(row) !== "raid" || !RATINGS[word]) return { error: "Only a risk or an issue has a rating. Pick Red, Amber or Green." };
+    if (!ratingChoices(row).length || !RATINGS[word]) return { error: "Only a risk or an issue has a rating. Pick Red, Amber or Green." };
     const now = colourOf(row.priority);
     if (now.word === word) return null;
     return { changes: { ...RATINGS[word] }, words: `${row.id} rated ${word}.`, back: `${row.id} is back to ${now.word}.` };
