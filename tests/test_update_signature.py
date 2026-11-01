@@ -254,10 +254,13 @@ class ParsedVersionTest(SignedBase):
                 self.refuses(path, "damaged")
 
     def test_a_manifest_version_that_differs_from_the_file_name_is_refused_for_the_same_version_too(self):
-        for named, inside in (("0.3.0", "0.3.1"), ("0.3.0", "0.3.00"), ("0.3.0", "0.3"), ("0.3.1", "0.3.0")):
+        """Built so that only the name check can refuse it: the top folder, the manifest and the version inside the files all
+        agree with each other, are plain X.Y.Z, and are signed; only the file name says another version."""
+        for named, inside in (("0.4.1", "0.4.0"), ("0.4.0", "0.4.1"), ("0.3.0", "0.3.1"), ("0.3.1", "0.3.0")):
             with self.subTest(named=named, inside=inside):
-                path = make_zip(self.fresh(), version=named, manifest=lambda doc, v=inside: doc.update(version=v))
-                self.refuses(path, "damaged", installed="0.3.0", reinstall=True)
+                path = make_zip(self.fresh(), version=inside, name=f"clark-{named}-mac.zip")
+                err = self.refuses(path, "damaged", installed="0.3.0", reinstall=True)
+                self.assertIn(f"manifest {inside}, name {named}", err.detail)
 
     def test_two_differently_built_files_of_one_version_signed_by_the_one_key_are_both_accepted(self):
         """Accepted on purpose, no action: the key holder decides what counts as the release; the signature does not pick one build."""
