@@ -5,6 +5,9 @@ const ICONS = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
+  sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+  chevleft: '<path d="m15 18-6-6 6-6"/>',
+  chevright: '<path d="m9 18 6-6-6-6"/>',
   left: '<path d="m15 6-6 6 6 6"/>',
   right: '<path d="m9 6 6 6-6 6"/>',
   tline: '<path d="M3 12h18"/><circle cx="7" cy="12" r="2"/><circle cx="15" cy="12" r="2"/><path d="M7 8V6M15 8V6"/>',
@@ -17,6 +20,7 @@ const ICONS = {
   dots: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   eyeoff: '<path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.8 9.8 0 0 0 4.2-.9M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  dl: '<path d="M12 4v10M8 10l4 4 4-4M5 19h14"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
 };
 const SHAPES = new Set(["path", "circle", "rect", "line", "polyline", "polygon", "ellipse"]);

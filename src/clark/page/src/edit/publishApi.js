@@ -28,8 +28,8 @@ export function words(r, what) {
   const b = r.body;
   if (KNOWN.includes(r.status) && b && typeof b.code === "string" && /^[a-z_]+$/.test(b.code) && typeof b.message === "string" && b.message) return b.message;
   if (r.status === 0 || r.status === 403) return plain(r.status, b);
-  if (r.status === 503) return `clark could not ${what} just now. Wait a moment and try again.`;
-  return `clark hit a problem while it was working. ${what === "publish" ? "Some of the report may have been saved: check the folders before you publish again." : "Nothing was changed."} If it happens again, restart clark.`;
+  if (r.status === 503) return `Could not ${what} just now. Wait a moment and try again.`;
+  return `Something went wrong while this was working. ${what === "publish" ? "Some of the report may have been saved: check the folders before you publish again." : "Nothing was changed."} If it happens again, restart clark.`;
 }
 
 // The workbook (#147): {status, body, blob, name}. A download is a file, so the answer is read as a file when it is one and as
@@ -48,3 +48,13 @@ export async function exportRequest(project) {
     return { status: 0, body: null, blob: null, name: "" };
   }
 }
+// The folders asking may read (#47): GET /api/ask-folders?project= and POST /api/ask-folders {project, action: "add" | "remove",
+// path}; "choose" opens the system's folder window on the server (no path from the page). The server checks a folder and saves it; a server without this route answers 404, which the page says in plain words.
+export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
+export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
+export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
+
+// Asking's on/off switch for this computer (#47), kept in the database. GET /api/ask-enabled answers {ok, ask_enabled, saved}; POST
+// takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
+export const askEnabledRead = () => call("GET", "/api/ask-enabled");
+export const askEnabledChange = (enabled) => call("POST", "/api/ask-enabled", { enabled });

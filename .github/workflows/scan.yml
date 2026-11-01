@@ -1,0 +1,81 @@
+# The CI scan (0.2.1): every pull request, and every push to main, is checked for the problems the publishing tool guards
+# against, BEFORE it can merge: a listed word (people, private repos, hosting), a secret, a file over 5 MB, a link or an
+# archive or an unlisted binary, a private-only path, a commit address that is not a GitHub no-reply address, and a change to
+# the workflows or to the scan itself. It reuses dev/tools/publish_public.py through dev/tools/ci_scan.py and prints only
+# counts, kinds and file numbers, never a matched word.
+#
+# OFF until switched on: the job runs only where the repository variable CLARK_PUBLIC_SCAN is "true" (Settings > Secrets and
+# variables > Actions > Variables). Set it in the public repository only. To switch it off, set it to anything else or delete it.
+# Then make the check "Scan" required in the branch rules.
+# While the variable is unset, the job is SKIPPED, and GitHub counts a skipped job as passing a required check: until the
+# variable is "true", "Scan" protects nothing.
+#
+# Safety: `pull_request`, never `pull_request_target` (a fork's code never runs with this repository's token or secrets);
+# read-only permissions; no secrets; every action pinned to a full commit SHA (the tag is in the comment after it); one run per
+# pull request at a time. The scan program is run from the BASE branch's files (the second checkout), so a pull request cannot
+# change the program that judges it; the pull request's own files are only read, never run.
+#
+# What this does NOT stop: a pull request can edit THIS file (drop the "if", point SCAN at pr/, rename the job) or add another
+# job also named Scan, because GitHub runs a pull request's workflow files as the pull request has them. So the branch rules
+# must require a maintainer's review for any change under .github/** (.github/CODEOWNERS lists the guarded files; "Require review
+# from Code Owners" must be switched on in the branch rules, or use a ruleset with the same effect). Where the scan does run, it
+# refuses such a change from a fork outright.
+name: Scan
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # A newer push to the SAME pull request replaces an older run. A push to main never cancels or replaces another run: each
+  # has its own group (its commit), so no commit on main goes unscanned.
+  group: scan-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scan:
+    name: Scan
+    if: vars.CLARK_PUBLIC_SCAN == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: trusted
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          # Pinned, not "3.x": the scan's own behaviour must not change on the day a new Python ships.
+          # Raise it in a reviewed change, after the tests pass on the new one.
+          python-version: "3.12"
+
+      - name: Scan the change
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # '1' only for a pull request whose head is in another repository (also when that repository was deleted); a push is not a fork.
+          # A pull request is scanned at its OWN head, not at GitHub's synthetic merge commit (which GitHub authors with the
+          # pull request author's personal address, so every real pull request would be refused). A push is scanned at HEAD.
+          PR_HEAD: ${{ github.event.pull_request.head.sha || '' }}
+          CI_SCAN_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '1' || '' }}
+        run: |
+          # A first push of a branch has no "before" (all zeros): scan against the commit before it.
+          case "$BASE" in ""|0000000000000000000000000000000000000000) BASE="$(git -C pr rev-parse HEAD~1)";; esac
+          # For a pull request, start where its branch left the base: only the commits its author made are read.
+          HEAD_SHA="${PR_HEAD:-HEAD}"
+          if [ -n "$PR_HEAD" ]; then BASE="$(git -C pr merge-base "$BASE" "$PR_HEAD")" || exit 1; fi
+          # The scan program always comes from the BASE branch. If the base has none, stop: a pull request's own copy is never run.
+          # (The variable is only set after the scan is on the base branch, so this is not reached in normal use.)
+          SCAN=trusted/dev/tools/ci_scan.py
+          if [ ! -f "$SCAN" ]; then echo "CI scan stopped: the base branch has no scan program, so this change cannot be checked. Merge the scan first."; exit 1; fi
+          python3 -I "$SCAN" --repo pr --base "$BASE" --head "$HEAD_SHA"

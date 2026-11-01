@@ -144,7 +144,11 @@ class Health(Setup):
             self.assertIsNone(before["health_reason"])
             p.js("document.querySelector('#health-pill').click()")
             p.until("!!document.querySelector('#health-menu')", "the pick menu opened (not a cycle)")
-            self.assertEqual(p.js("[...document.querySelectorAll('#health-menu [role=menuitem]')].map(b => b.textContent)"), ["On track", "At risk", "Off track"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#health-menu [role=menuitemradio]')].map(b => b.textContent)"), ["On track", "At risk", "Off track"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#health-menu [role=menuitemradio]')].map(b => b.getAttribute('aria-checked'))"), ["true", "false", "false"],
+                             "the one in use is marked checked")
+            self.assertEqual(p.js("[...document.querySelectorAll('#health-menu .hpill')].map(b => b.className.replace('hpill ', ''))"), ["g", "a", "r"], "each word is a coloured pill")
+            self.assertEqual(p.js("document.querySelectorAll('#health-menu svg[data-icn=check]').length"), 1, "one check mark shape, on the one in use")
             p.js("document.querySelector('#health-menu [data-kind=\"At risk\"]').click()")
             p.until("document.activeElement && document.activeElement.hasAttribute('data-reason')", "the reason box took focus")
             time.sleep(0.4)
@@ -159,6 +163,24 @@ class Health(Setup):
             now = self.project()
             self.assertEqual((now["health"], now["health_reason"]), ("On track", None), "Undo put the health and the reason back together")
             self.assertEqual(p.js("document.querySelector('[data-fig=health] .pill').textContent"), "On track")
+
+    def test_the_menu_keys_and_the_filled_pill(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            fill = p.js("(() => { const b = getComputedStyle(document.querySelector('#health-pill')); return [b.textTransform, b.borderTopLeftRadius, b.backgroundColor, document.querySelectorAll('#health-pill svg').length]; })()")
+            self.assertEqual(fill[0], "uppercase")
+            self.assertEqual(fill[1], "4px", "a block, not a round pill")
+            self.assertNotEqual(fill[2], "rgba(0, 0, 0, 0)", "the pill is filled")
+            self.assertEqual(fill[3], 0, "no chevron")
+            p.js("document.querySelector('#health-pill').focus()")
+            p.js("document.querySelector('#health-pill').dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', bubbles: true}))")
+            p.until("!!document.querySelector('#health-menu')", "Down opened the menu")
+            p.js("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', bubbles: true}))")
+            self.assertEqual(p.js("document.activeElement.getAttribute('data-kind')"), "At risk", "Down moves to the next pill")
+            p.js("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+            p.until("!document.querySelector('#health-menu')", "Esc closed the menu")
+            p.until("document.activeElement && document.activeElement.id === 'health-pill'", "focus went back to the pill")   # the menu hands focus back a moment after it closes
 
     def test_a_pick_leaving_the_box_empty_changes_nothing(self):
         with chrome() as cdp:

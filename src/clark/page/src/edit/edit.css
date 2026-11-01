@@ -73,3 +73,147 @@ table.items td.c-pick { text-align: center; vertical-align: middle; }
 .handbar #hand-go[aria-disabled="true"] { opacity: .55; cursor: default; }
 @media (max-width: 900px) { .handbar .hb-to { flex: 1 1 100%; } .handbar .hb-to input { flex: 1; width: auto; } }
 @media (max-width: 720px) { table.items td.c-pick, table.items th.c-pick { display: block; grid-column: 1 / 4; text-align: left; } }
+
+/* The peek's Details and Activity tabs (#42): Edit only. */
+.pk-tabs { display: flex; gap: 4px; margin: 4px 0 8px; border-bottom: 1px solid var(--grey-200); }
+.pk-tab { min-height: 32px; padding: 4px 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-small); cursor: pointer; }
+.pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
+.pk-tab:focus-visible, .pk-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pa-list { list-style: none; margin: 0; padding: 0; }
+.pa-row { padding: 8px 0; border-top: 1px solid var(--grey-100); }
+.pa-meta { margin: 0; font-size: var(--size-small); color: var(--text-muted); }
+.pa-who { color: var(--text); font-weight: var(--weight-medium); }
+.pa-what { margin: 2px 0 0; color: var(--text); overflow-wrap: anywhere; }
+.pa-kind, .pa-f { color: var(--text-muted); }
+.pa-from, .pa-what del { color: var(--text-muted); text-decoration: line-through; }
+.pa-what ins { color: var(--status-green-text); text-decoration: underline; }
+.pa-none { padding: 12px 0; margin: 0; }
+
+/* The ask panel (#47a, look #214): full height on the right, over the page. A light panel with a soft wash (the prototype's "Wash" look): a
+   dark head, a glow of the brand blue rising from the bottom, your questions as blue bubbles, answers as plain text, the suggestions as ONE
+   row that scrolls sideways, and while it works the working line takes that row's place so the box never moves. Tokens only, so light and
+   dark both follow. --ask-edge is the edge of a control that sits on the glow: 3:1 against the glow and against the control. */
+.ask-panel { --ask-edge: color-mix(in srgb, var(--grey-700) 85%, var(--surface)); position: fixed; top: 0; right: 0; bottom: 0; z-index: 45; display: flex; flex-direction: column; max-width: 90%; isolation: isolate; color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: -12px 0 40px color-mix(in srgb, var(--brand-navy) 16%, transparent);
+  background: radial-gradient(95% 48% at 100% 100%, color-mix(in srgb, var(--brand-blue) 24%, transparent), transparent 72%), radial-gradient(75% 40% at 0% 96%, color-mix(in srgb, var(--brand-blue) 12%, transparent), transparent 72%), var(--surface); }
+.ask-panel:focus { outline: none; }
+/* the grip: 24 px to take hold of, a thin line to see (a short handle at rest, a full line on hover or focus) */
+.ask-grip { position: absolute; left: -12px; top: 0; bottom: 0; width: 24px; z-index: 2; cursor: col-resize; touch-action: none; }
+.ask-grip::before { content: ""; position: absolute; left: 10px; top: 50%; width: 4px; height: 40px; margin-top: -20px; border-radius: 2px; background: var(--grey-700); transition: background-color var(--dur-instant) var(--ease-out); }
+.ask-grip::after { content: ""; position: absolute; left: 11px; top: 0; bottom: 0; width: 2px; background: var(--brand-blue); opacity: 0; transition: opacity var(--dur-instant) var(--ease-out); }
+.ask-grip:hover::before, .ask-grip:focus-visible::before { background: var(--brand-blue); }
+.ask-grip:hover::after, .ask-grip:focus-visible::after { opacity: 1; }
+.ask-grip:focus-visible { outline: none; }
+/* the head: dark, with the person's own cover picture fading in from the right when the look has one (--image-cover is none otherwise) */
+.ask-head { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none; height: 60px; padding: 0 14px 0 20px; color: var(--white); background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }
+.ask-head::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--image-cover) center top / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .9; }
+.ask-head h2 { margin: 0; font-size: 18px; font-weight: var(--weight-medium); letter-spacing: .01em; color: var(--white); }
+.ask-head .btn { background: transparent; color: var(--white); border-color: color-mix(in srgb, var(--white) 70%, transparent); }
+.ask-head .btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); border-color: var(--white); }
+.ask-head .btn:focus-visible { outline-color: var(--white); }
+/* the status line, with a green dot; it takes no room while it has nothing to say (it stays in the page for a reader that announces it) */
+.ask-status { flex: none; display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 20px; font-size: var(--size-small); color: var(--text-muted); background: color-mix(in srgb, var(--grey-50) 80%, transparent); border-bottom: 1px solid var(--grey-200); }
+.ask-status::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--status-green); }
+.ask-status:empty { padding: 0; height: 0; border: 0; overflow: hidden; }
+.ask-status:empty::before { display: none; }
+/* off, or not set up: one amber line with the link to the card */
+.ask-off { flex: none; margin: 0; padding: 10px 20px; font-size: 14px; color: var(--status-amber-text); background: var(--status-amber-tint); border-bottom: 1px solid var(--grey-200); }
+.ask-off a { display: inline-flex; align-items: center; min-height: 24px; color: inherit; font-weight: var(--weight-medium); text-decoration: underline; }
+.ask-panel a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 20px 12px; }
+.ask-turn { position: relative; max-width: 100%; font-size: var(--size-body); animation: ask-in 320ms var(--ease-enter); }
+.ask-turn.user { align-self: flex-end; max-width: 84%; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: var(--brand-blue); color: var(--text-on-brand); }
+.ask-turn.user .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" is for a reader that announces; the bubble says it already */
+.ask-turn.problem { padding-left: 12px; border-left: 3px solid var(--status-amber); }
+.ask-who { margin-bottom: 2px; font-size: var(--size-small); color: var(--text-muted); }
+.ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+@keyframes ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* the suggestions: ONE row, faded at the right edge, scrolling sideways; the working line has the same height and takes their place */
+.ask-pills, .ask-work { flex: none; box-sizing: border-box; min-height: 46px; padding: 6px 20px 10px; }
+.ask-pills { scroll-padding-inline-end: 28px; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, var(--black) calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, var(--black) calc(100% - 28px), transparent); }
+.ask-pills::-webkit-scrollbar { display: none; }
+.ask-pills button { flex: none; min-height: 28px; padding: 3px 12px; white-space: nowrap; font: inherit; font-size: var(--size-small); line-height: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--ask-edge); border-radius: var(--radius-pill); cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
+.ask-pills button:hover { background: var(--brand-blue-tint); border-color: var(--brand-blue); }
+.ask-pills button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-work { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--size-small); font-style: italic; color: var(--text-muted); animation: ask-in 220ms var(--ease-enter); }
+.ask-quip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-dots { display: inline-flex; flex: none; gap: 3px; }
+.ask-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--grey-700); animation: ask-dot 1s var(--ease-toggle) infinite; }
+.ask-dots i:nth-child(2) { animation-delay: 150ms; } .ask-dots i:nth-child(3) { animation-delay: 300ms; }
+@keyframes ask-dot { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .ask-turn, .ask-work { animation: none; } .ask-dots i { animation: none; opacity: .6; } .ask-grip::before, .ask-grip::after, .ask-pills button, .ask-form textarea { transition: none; } }
+.ask-sent { flex: none; margin: 0; padding: 0 20px 8px; font-size: var(--size-small); line-height: 1.45; color: var(--text-muted); }
+.ask-note { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-small); color: var(--text-muted); }
+.ask-note:empty { padding: 0; height: 0; overflow: hidden; }
+.ask-form { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--grey-200); }
+.ask-form textarea { width: 100%; box-sizing: border-box; min-height: 56px; max-height: 140px; padding: 10px 14px; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); resize: vertical; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+.ask-form textarea::placeholder { color: var(--text-muted); opacity: 1; }
+.ask-form textarea:focus-visible { background: var(--surface); border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), 0 0 0 5px color-mix(in srgb, var(--brand-blue) 20%, transparent); }
+.ask-form textarea:disabled { opacity: .7; }
+.ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* #47e: a suggested change in the ask panel */
+.ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.ask-passage { margin: 0; padding: 6px 10px; border-left: 3px solid var(--grey-300); background: var(--surface); }
+.ask-passage figcaption { font-size: var(--size-small); overflow-wrap: anywhere; }
+.ask-passage blockquote { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--size-small); }
+.ask-change { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); }
+.ask-change-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.ask-diff { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--size-small); }
+.ask-diff th, .ask-diff td { padding: 3px 6px; text-align: left; vertical-align: top; border-top: 1px solid var(--grey-200); overflow-wrap: anywhere; }
+.ask-diff thead th { border-top: 0; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ask-diff td[data-after] { font-weight: var(--weight-medium); }
+.ask-confirm { display: flex; flex-direction: column; gap: 6px; }
+.ask-confirm p, .ask-change-line, .ask-refused { margin: 0; }
+.ask-confirm label { display: flex; gap: 8px; align-items: flex-start; }
+.ask-change-actions { display: flex; justify-content: flex-end; }
+.ask-change-line.problem, .ask-refused { color: var(--text); border-left: 3px solid var(--status-amber); padding-left: 8px; }
+.ask-change-line:focus-visible, .ask-change button:focus-visible, .ask-confirm input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+/* 'Needs from you' in Edit: the row's own buttons sit under its date; a row being edited is a row of fields; a row left out of the
+   published page is dashed and tagged, never dimmed (dimming lowers the text's contrast). */
+.needs-edit .n-acts { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.needs-edit .n-date { display: inline-block; }
+.needs-edit tr.n-left td { border-top-style: dashed; background: var(--grey-50); }
+.needs-edit tr.n-left td .tag.hid { margin-left: 4px; }
+.needs-edit .n-f { display: block; margin: 0 0 6px; }
+.needs-edit .n-f input, .needs-edit .n-f select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.needs-edit .n-f input:focus-visible, .needs-edit .n-f select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.needs-edit tr.n-form td { background: var(--grey-50); }
+.needs-edit .n-err { margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
+.needs-edit .n-add { margin: 8px 0 4px; }
+.needs-edit .btn:disabled { color: var(--text-muted); cursor: default; }
+
+/* The command palette (#198), Edit parts only: a modal box with one search box and the results under it. */
+.pal { width: min(620px, calc(100% - 32px)); margin-top: 10vh; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; }
+.pal[open] { display: flex; }
+.pal-q { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.pal-q input { width: 100%; min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.pal-q input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pal-list { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+.pal-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-height: 32px; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+.pal-row.on { background: var(--grey-100); outline: 1px solid var(--grey-300); }
+.pal-row.off { cursor: default; }
+.pal-row.off .pal-label, .pal-row.off .pal-kind { color: var(--text-muted); }
+.pal-kind { flex: none; min-width: 78px; font-size: var(--size-small); color: var(--text-muted); }
+.pal-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.pal-more, .pal-why { font-size: var(--size-small); }
+.pal-why { flex-basis: 100%; padding-left: 88px; }
+.pal-none { margin: 0; padding: 14px 16px; }
+/* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
+.aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
+.aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }
+.aic-h:focus-visible, .aic-btn:focus-visible, .aic-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.aic-say { margin: 0 0 .5rem; color: var(--text-muted); font-size: var(--size-small); display: flex; align-items: center; gap: .5rem; }
+.aic-dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--text-muted); animation: aic-pulse var(--dur-enter) var(--ease-out) infinite alternate; }
+@keyframes aic-pulse { from { opacity: .3; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .aic-dot { animation: none; } }
+.aic-text { margin: 0 0 .5rem; }
+.aic-text > :first-child { margin-top: 0; }
+.aic-notes { margin: 0 0 .5rem; color: var(--text-muted); font-size: var(--size-small); }
+.aic-notes-h { margin: 0; font-weight: var(--weight-medium); }
+.aic-notes ul { margin: .125rem 0 0; padding-left: 1.125rem; }
+.aic-diff { margin: 0 0 .5rem; padding: .5rem; border: 1px solid var(--border); border-radius: var(--radius); }
+.aic-diff del { text-decoration: line-through; color: var(--text-muted); }
+.aic-diff ins { text-decoration: underline; }
+.aic-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
+.aic-btn:hover { background: var(--grey-100); }
+.aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }

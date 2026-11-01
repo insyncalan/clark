@@ -19,6 +19,7 @@ from unittest import mock
 from _demo import USER, DemoStore
 from _editor_checks import edit_elements
 from _paths import SRC, TOOLS
+import _testpage as testpage
 
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
@@ -163,7 +164,7 @@ class Base(unittest.TestCase):
         self.real_undo = changes.make_undo(self.store.path, [], USER)
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING),
+        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
                          change=self.seam(self.real_change, "change"), undo=self.seam(self.real_undo, "undo"))
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)               # a fault on purpose is logged by the server
@@ -255,7 +256,7 @@ class Modes(Base):
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
 
     def test_a_report_with_no_sections_shows_none_and_does_not_crash(self):
-        s = Running(data_for=DATA.get, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        s = Running(data_for=DATA.get, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
@@ -267,9 +268,14 @@ class Modes(Base):
             self.assertEqual(p.js("document.querySelectorAll('[data-add]').length"), 1, "an empty report can still get its first section")
             p.js("window.posts = []; var f = window.fetch; window.fetch = function (u, o) { window.posts.push(String(o && o.body)); return f.apply(this, arguments); };")
             p.js("document.querySelector('[data-add]').click()")
-            self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "with nothing claiming the request, the button asks for a plain text section")
+            # The Add a section box (#96) claims the request, so the button opens it; its Add section then makes a plain text section at the end.
+            # (The fallback for a page with no box is tested at the "not claimed" toast below.)
+            p.until("!!document.querySelector('[role=dialog]')", "the button opens the Add a section box")
+            self.assertEqual(p.js("window.posts.length"), 0, "opening sends nothing")
+            p.js("document.querySelector('button[data-place]').click()")
+            self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "Add section asks for a plain text section")
             sent = json.loads(p.js("window.posts[0]"))
-            self.assertEqual(sent.get("values"), {"type": "text"})
+            self.assertEqual(sent.get("values"), {"type": "text", "title": "New section"})
             self.assertIsNone(sent.get("after"), "at the end")
 
 
@@ -788,7 +794,7 @@ class Sections(Base):
 
 class Failures(Base):
     """Every failure says plain words and nothing the server said; nothing is drawn that was not saved."""
-    STALE = "clark was restarted after you opened this page. Reload the page and try again."
+    STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again."
 
     def shown_problem(self, p, words):
         p.until(f"!!document.querySelector('.toast.problem') && document.querySelector('.toast-text').textContent === {json.dumps(words)}",
@@ -814,14 +820,14 @@ class Failures(Base):
             p.edit()
             self.failure = lambda req: (400, {"ok": False, "message": SECRET, "code": "refused"})
             p.menu("ABC-S-002", "up")
-            self.shown_problem(p, "clark could not make that change, and nothing was changed. Reload the page and try again.")
+            self.shown_problem(p, "That change could not be made, and nothing was changed. Reload the page and try again.")
             self.assertEqual(p.ids(), IDS)
             self.failure = lambda req: (400, {"ok": False, "message": "Your page is out of date. Reload it, then try again.", "code": "refused"})
             p.menu("ABC-S-002", "up")
             self.shown_problem(p, "The report has changed since you opened it, and nothing was changed. Reload the page and try again.")
 
     def test_a_500_and_a_fault(self):
-        words = "clark hit a problem saving that, and nothing was changed. Try again. If it happens again, restart clark."
+        words = "A problem came up saving that, and nothing was changed. Try again. If it happens again, restart clark."
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
@@ -844,7 +850,7 @@ class Failures(Base):
             p.edit()
             self.failure = lambda req: (503, {"ok": False, "message": SECRET})
             p.menu("ABC-S-002", "up")
-            self.shown_problem(p, "clark could not save just now, and nothing was changed. Wait a moment and try again. "
+            self.shown_problem(p, "That could not be saved just now, and nothing was changed. Wait a moment and try again. "
                                   "If it keeps happening, restart clark.")
             self.failure = lambda req: (409, {"ok": False, "message": "That step has been undone already."})
             p.js("document.querySelector('[data-dismiss]').click()")
@@ -858,7 +864,7 @@ class Failures(Base):
             self.s.close()                                                        # clark's window was closed
             self.addCleanup(lambda: None)
             p.menu("ABC-S-002", "up")
-            self.shown_problem(p, "clark has stopped. It stops by itself after a while with nothing open. Start it again from clark.command.")
+            self.shown_problem(p, "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command.")
             self.assertEqual(p.ids(), IDS)
 
     def test_changes_go_out_one_at_a_time(self):
@@ -1145,6 +1151,8 @@ class Gutter(Base):
             p.edit()
             self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "006 and 007 are a pair")
             p.js("document.querySelector('[data-id=\"ABC-S-006\"] [data-add]').click()")      # the + of the pair's first half
+            p.until("!!document.querySelector('button[data-place]') && !document.querySelector('button[data-place]').disabled", "the box opened with Text chosen")
+            p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12", "a plain text section was added")
             new = [i for i in p.ids() if i not in IDS][0]
             ids = p.ids()

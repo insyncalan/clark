@@ -46,6 +46,8 @@ export const counts = computed(() => {
   return d ? { work: d.actions.length + d.raid.length + d.decisions.length, milestones: d.milestones.length } : { work: 0, milestones: 0 };
 });
 
+let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
+
 const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
@@ -119,6 +121,7 @@ export function openWork(state) {
 /** Open a work item's or a milestone's peek (`kind` "milestone" or "item"; left out, the project's data says which): one new entry; with a peek already open, this entry is rewritten (Previous, Next, another row). An id the loaded data doesn't have does nothing. */
 export function openPeek(id, kind) {
   const d = data.value;
+  if (!peek.value) openedF = filterText.value;           // the filters as they were when the peek opened: closing steps Back only if they still are
   const milestone = kind ? kind === "milestone" : known(d, id, true);
   if (d && !known(d, id, milestone)) return;               // with no data loaded there is nothing to check it against: open it
   go({ ...where(), item: milestone ? "" : id, ms: milestone ? id : "" }, { replace: !!peek.value });
@@ -129,7 +132,8 @@ export function openPeek(id, kind) {
 export function closePeek() {
   if (!peek.value) return;
   const rewrite = () => go({ ...where(), item: "", ms: "" }, { replace: true });
-  if (route.peekWasPushed() && route.back(rewrite)) return;       // onPop redraws
+  // Back would also take away a filter changed while the peek was open (that change rewrote this entry), so then the entry is rewritten.
+  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) return;       // onPop redraws
   rewrite();
 }
 
@@ -195,13 +199,13 @@ let reading = 0;                                       // the newest read wins w
 // What the page says when clark could not give the data. The page never shows the server's own text, because it might be a
 // program's error name or a technical phrase: it looks the server's message up here by the HTTP status, and a message it does not
 // know (or none at all) gets the plain fallback for that status. Every line says what to do next. A status of 0 is "no answer".
-const READ_FAILED = "clark could not read this project. Reload the page. If it happens again, restart clark.";
-const STALE = "clark was restarted after you opened this page. Reload the page and try again.";
+const READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark.";
+const STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again.";
 const BAD_CODE = "Use a project code of 3 to 7 capital letters or digits.";
 const NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list.";
-const NOT_ACCEPTED = "clark did not accept that request. Reload the page.";
+const NOT_ACCEPTED = "That request was not accepted. Reload the page.";
 const ALLOWED = {
-  400: { fallback: "clark could not read that request. Reload the page.",
+  400: { fallback: "That request could not be read. Reload the page.",
          known: { [BAD_CODE]: BAD_CODE } },
   403: { fallback: NOT_ACCEPTED,
          known: { "Not allowed": NOT_ACCEPTED, [NOT_ACCEPTED]: NOT_ACCEPTED, [STALE]: STALE,
@@ -209,8 +213,8 @@ const ALLOWED = {
   404: { fallback: "Check the project's code.",
          known: { [NO_PROJECT]: NO_PROJECT,
                   "There is no project with that code.": NO_PROJECT } },
-  500: { fallback: "clark hit a problem reading this project. Reload the page. If it happens again, restart clark.", known: {} },
-  0: { fallback: "clark has stopped. It stops by itself after a while with nothing open. Start it again from clark.command.", known: {} },
+  500: { fallback: "A problem came up reading this project. Reload the page. If it happens again, restart clark.", known: {} },
+  0: { fallback: "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command.", known: {} },
 };
 export function plain(code, body) {
   const row = ALLOWED[code];
@@ -223,7 +227,7 @@ export function plain(code, body) {
 // What the page says when a change or an undo (api.js) failed, by the same rule as plain(): the status picks the words, and a
 // message from the server is used only to pick one of these, never shown. Each says that nothing was changed (or what is
 // still true) and what to do next.
-const CHANGE_FAILED = "clark could not make that change, and nothing was changed. Reload the page and try again.";
+const CHANGE_FAILED = "That change could not be made, and nothing was changed. Reload the page and try again.";
 const CHANGE_KNOWN = {
   "Your page is out of date. Reload it, then try again.": "The report has changed since you opened it, and nothing was changed. Reload the page and try again.",
   "That section isn't in this project.": "That section is no longer in this report, and nothing was changed. Reload the page.",
@@ -241,19 +245,27 @@ const CHANGE_KNOWN = {
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
   "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
+  // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
+  "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
+  "Say what is needed.": "Say what is needed. Nothing was changed.",
+  "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
+  "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
+  "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
+  "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
+  "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";
   const known = Object.prototype.hasOwnProperty.call(CHANGE_KNOWN, said) ? CHANGE_KNOWN[said] : "";
   if (code === 400 || code === 409) return known || CHANGE_FAILED;
   if (code === 403 || code === 0) return plain(code, body);
-  if (code === 404) return "clark could not find this project, and nothing was changed. Check the code in the address, then reload the page.";
-  if (code === 500) return "clark hit a problem saving that, and nothing was changed. Try again. If it happens again, restart clark.";
-  if (code === 503) return "clark could not save just now, and nothing was changed. Wait a moment and try again. If it keeps happening, restart clark.";
+  if (code === 404) return "This project could not be found, and nothing was changed. Check the code in the address, then reload the page.";
+  if (code === 500) return "A problem came up saving that, and nothing was changed. Try again. If it happens again, restart clark.";
+  if (code === 503) return "That could not be saved just now, and nothing was changed. Wait a moment and try again. If it keeps happening, restart clark.";
   return CHANGE_FAILED;
 }
 
-const LIST_FAILED = "clark could not read the list of projects. Reload the page. If it happens again, restart clark.";
+const LIST_FAILED = "The list of projects could not be read. Reload the page. If it happens again, restart clark.";
 // The list's own words, picked by status like plain(): a refusal or no answer says what plain() says; anything else is LIST_FAILED.
 function plainList(code, body) {
   return code === 0 || code === 400 || code === 403 ? plain(code, body) : LIST_FAILED;

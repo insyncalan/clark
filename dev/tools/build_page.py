@@ -20,9 +20,19 @@ hashes only, so an external script file would be blocked: #33).
 The fonts are Inter and Montserrat (vendor/fonts/inter/ and vendor/fonts/montserrat/, SIL Open Font License, not from creaite). Their woff2 files go in as base64
 `data:` URIs in @font-face rules at the top of that first <style> (the policy allows `font-src 'self' data:`), so the page
 stays one file and loads nothing from the internet. The rules are written from each font folder's manifest.json.
+
+A manifest is data, and the build trusts nothing in it (#236): each entry's file must be a plain woff2 file name inside that
+font's own folder (no absolute path, no '..', no sub-folder, no symlink that leads out), a regular file that starts with the
+woff2 signature and is no bigger than MAX_FONT_BYTES; family, style, weight and unicode_range must match strict shapes, so
+nothing can be written into the CSS. Anything else stops the build with FontManifestError naming the manifest entry, and no
+page is written.
 """
 import base64
+import hashlib
 import json
+import os
+import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -57,6 +67,28 @@ class BuildError(RuntimeError):
     """esbuild refused the source (a syntax error, a missing import or file); the message is esbuild's."""
 
 
+class FontManifestError(ValueError):
+    """A font manifest entry was refused (#236); the message names the manifest and the entry, never a resolved path."""
+
+
+class VendorManifestError(ValueError):
+    """A module entry in vendor/preact/manifest.json was refused (#236); the message names the manifest and entry, never a resolved path."""
+
+
+MODULE_SPEC = re.compile(r"[a-z@][a-z0-9@/._-]{0,100}")       # goes onto an esbuild command line: no space, '=', quote or leading '-'
+SHA256 = re.compile(r"[0-9a-f]{64}")
+MAX_MODULE_BYTES = 4 * 1024 * 1024
+MAX_FONT_BYTES = 512 * 1024         # one woff2 file; the vendored ones are about 20 KB each
+WOFF2_MAGIC = b"wOF2"
+FONT_FILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.woff2")
+FONT_FIELDS = (                     # (field, the shape it must match in full): nothing else can reach the CSS
+    ("family", re.compile(r"[A-Za-z0-9][A-Za-z0-9 _-]{0,63}")),
+    ("style", re.compile(r"normal|italic")),
+    ("weight", re.compile(r"[1-9]00")),
+    ("unicode_range", re.compile(r"U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?(, U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?)*")),
+)
+
+
 HELP = SRC / "help"
 SHOWN_DIR = HELP / "shown"      # made by the build, git-ignored: inside src, so the bundle still takes nothing from outside it
 
@@ -78,11 +110,61 @@ def help_content_path(held=True):
     return out
 
 
+def vendor_modules(vendor=None):
+    """[(specifier, absolute path)] for the modules in vendor/preact/manifest.json, sorted. The manifest is data (#236): a module's
+    path must be one of the manifest's own fingerprinted "files" entries, a plain relative path that stays inside the vendor
+    folder (no link out), a regular file whose sha256 matches; the specifier must match MODULE_SPEC. Anything else raises
+    VendorManifestError naming the manifest and the entry."""
+    vendor = VENDOR if vendor is None else vendor
+    name = _manifest_name(vendor)
+    try:
+        data = json.loads((vendor / "manifest.json").read_text(encoding="utf-8"))
+        modules, files = data["modules"], data["files"]
+    except (OSError, ValueError, KeyError, TypeError):
+        raise VendorManifestError(f"{name}: cannot be read as a vendor manifest ('modules' and 'files')") from None
+    if not isinstance(modules, dict) or not isinstance(files, dict):
+        raise VendorManifestError(f"{name}: 'modules' and 'files' must both be objects")
+    home = os.path.realpath(vendor)
+    out = []
+    for i, (spec, path) in enumerate(sorted(modules.items()), 1):
+        where = f"{name}, module {i}"
+        if not isinstance(spec, str) or not MODULE_SPEC.fullmatch(spec):
+            raise VendorManifestError(f"{where}: the specifier is not an allowed name (lower-case letters, digits, '@', '/', '.', '_', '-')")
+        where += f" ({spec})"
+        if not isinstance(path, str) or not path:
+            raise VendorManifestError(f"{where}: the path is missing or is not a name")
+        if os.path.isabs(path) or path.startswith(("/", "\\")) or re.match(r"[A-Za-z]:", path):
+            raise VendorManifestError(f"{where}: the path is absolute; it must be a file listed under 'files'")
+        if ".." in re.split(r"[/\\]", path):
+            raise VendorManifestError(f"{where}: the path climbs out of the vendor folder with '..'")
+        want = files.get(path)
+        if not isinstance(want, str):
+            raise VendorManifestError(f"{where}: the path is not one of the manifest's 'files' entries")
+        if not SHA256.fullmatch(want):
+            raise VendorManifestError(f"{where}: the file's fingerprint in 'files' is not a sha256")
+        real = os.path.realpath(os.path.join(home, path))
+        if real != os.path.join(home, os.path.normpath(path)):
+            raise VendorManifestError(f"{where}: the path is or passes through a link, or leaves the vendor folder")
+        try:
+            st = os.stat(real)
+        except OSError:
+            raise VendorManifestError(f"{where}: the file is not there") from None
+        if not stat.S_ISREG(st.st_mode):
+            raise VendorManifestError(f"{where}: the file is not a regular file")
+        if st.st_size > MAX_MODULE_BYTES:
+            raise VendorManifestError(f"{where}: the file is too big for a module")
+        with open(real, "rb") as fh:
+            body = fh.read(MAX_MODULE_BYTES + 1)
+        if len(body) > MAX_MODULE_BYTES or hashlib.sha256(body).hexdigest() != want:
+            raise VendorManifestError(f"{where}: the file does not match its sha256 in 'files'")
+        out.append((spec, real))
+    return out
+
+
 def preact_flags(held=True):
     """JSX through esbuild (the automatic runtime, from Preact), each library specifier mapped to its vendored file, and Help's words."""
-    modules = json.loads((VENDOR / "manifest.json").read_text(encoding="utf-8"))["modules"]
     return ["--jsx=automatic", "--jsx-import-source=preact", "--loader:.jsx=jsx",
-            *(f"--alias:{spec}={VENDOR / path}" for spec, path in sorted(modules.items())),
+            *(f"--alias:{spec}={path}" for spec, path in vendor_modules()),
             f"--alias:tiptap={VENDOR_TIPTAP / 'tiptap.module.js'}",      # the editor (#66); only the Edit entry imports it
             f"--alias:clark-help-content={help_content_path(held)}"]
 
@@ -109,12 +191,69 @@ def icon_links():
     return "".join(page.icon_link(rel, mime, base64.b64encode((ASSETS / name).read_bytes()).decode("ascii")) for rel, mime, name in ICONS)
 
 
-def font_css():
-    """One @font-face per vendored font file, the woff2 inlined as a base64 data: URI (the same files give the same bytes)."""
+def _manifest_name(folder):
+    try:
+        return str((folder / "manifest.json").relative_to(ROOT))
+    except ValueError:
+        return f"{folder.name}/manifest.json"
+
+
+def font_bytes(folder, name, where):
+    """The bytes of the font file `name` from `folder`'s manifest, or FontManifestError in plain words naming `where`."""
+    if not isinstance(name, str) or not name:
+        raise FontManifestError(f"{where}: the file is missing or is not a name")
+    if os.path.isabs(name) or name.startswith(("/", "\\")) or re.match(r"[A-Za-z]:", name):
+        raise FontManifestError(f"{where}: the file is an absolute path; it must be a file name inside the font's own folder")
+    if ".." in re.split(r"[/\\]", name):
+        raise FontManifestError(f"{where}: the file climbs out of the font's folder with '..'")
+    if "/" in name or "\\" in name:
+        raise FontManifestError(f"{where}: the file is in a sub-folder; it must sit in the font's own folder")
+    if not FONT_FILE.fullmatch(name):
+        raise FontManifestError(f"{where}: the file is not a woff2 font name (letters, digits, '.', '_', '-', ending .woff2)")
+    home = os.path.realpath(folder)
+    real = os.path.realpath(os.path.join(home, name))
+    if os.path.dirname(real) != home or not Path(real).is_relative_to(home):
+        raise FontManifestError(f"{where}: the file is a link that leads outside the font's own folder")
+    try:
+        st = os.stat(real)
+    except OSError:
+        raise FontManifestError(f"{where}: the file is not there") from None
+    if not stat.S_ISREG(st.st_mode):
+        raise FontManifestError(f"{where}: the file is not a regular file")
+    too_big = f"{where}: the file is bigger than {MAX_FONT_BYTES // 1024} KB, too big for a font"
+    if st.st_size > MAX_FONT_BYTES:
+        raise FontManifestError(too_big)
+    with open(real, "rb") as fh:
+        data = fh.read(MAX_FONT_BYTES + 1)       # a file that grows after the stat is still capped
+    if len(data) > MAX_FONT_BYTES:
+        raise FontManifestError(too_big)
+    if not data.startswith(WOFF2_MAGIC):
+        raise FontManifestError(f"{where}: the file is not a woff2 font (it does not start with the woff2 signature)")
+    return data
+
+
+def font_css(folders=None):
+    """One @font-face per vendored font file, the woff2 inlined as a base64 data: URI (the same files give the same bytes).
+    Every entry is checked first (#236); a refused one raises FontManifestError. `folders` defaults to FONTS."""
     rules = []
-    for folder in FONTS:
-        for f in json.loads((folder / "manifest.json").read_text(encoding="utf-8"))["fonts"]:
-            data = base64.b64encode((folder / f["file"]).read_bytes()).decode("ascii")
+    for folder in (FONTS if folders is None else folders):
+        manifest = _manifest_name(folder)
+        try:
+            fonts = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))["fonts"]
+        except (OSError, ValueError, KeyError, TypeError):
+            raise FontManifestError(f"{manifest}: cannot be read as a font manifest (a 'fonts' list)") from None
+        if not isinstance(fonts, list):
+            raise FontManifestError(f"{manifest}: 'fonts' is not a list")
+        for i, f in enumerate(fonts, 1):
+            label = f.get("file") if isinstance(f, dict) else None
+            where = f"{manifest}, font {i}" + (f" ({label!r})" if isinstance(label, str) and FONT_FILE.fullmatch(label) else "")
+            if not isinstance(f, dict):
+                raise FontManifestError(f"{where}: the entry is not an object")
+            for field, shape in FONT_FIELDS:
+                value = f.get(field)
+                if not isinstance(value, str) or not shape.fullmatch(value):
+                    raise FontManifestError(f"{where}: {field} is not an allowed value")
+            data = base64.b64encode(font_bytes(folder, f.get("file"), where)).decode("ascii")
             rules.append(f"@font-face {{ font-family: \"{f['family']}\"; font-style: {f['style']}; font-weight: {f['weight']}; "
                          f"font-display: swap; src: url(data:font/woff2;base64,{data}) format(\"woff2\"); "
                          f"unicode-range: {f['unicode_range']}; }}\n")
@@ -122,13 +261,14 @@ def font_css():
 
 
 EDIT_CSS = SRC / "edit" / "edit.css"       # styles of the Edit parts only (#136): in the served page, never in the published one
+EDIT_ENTRIES = (ENTRY, "main-test.jsx")   # the served page and the browser tests' copy of it (served sources plus a test hook)
 
 
 def page_css(entry=ENTRY_VIEW):
     """The CSS the page inlines: the font, the demo brand's tokens and the shell's own styles; for the served page (entry main.jsx)
-    also the Edit parts' (edit/edit.css), so a published file holds none of their class names."""
+    and its test copy (main-test.jsx) also the Edit parts' (edit/edit.css), so a published file holds none of their class names."""
     css = font_css() + TOKENS.read_text(encoding="utf-8") + (PAGE / "shell.css").read_text(encoding="utf-8")
-    if entry == ENTRY:
+    if entry in EDIT_ENTRIES:
         css += EDIT_CSS.read_text(encoding="utf-8")
     return strip_css_comments(css)             # the built page carries no comment: a source comment can name a person
 
@@ -151,7 +291,11 @@ def pages():
 
 
 def main(argv):
-    made = pages()
+    try:
+        made = pages()          # every page is made before any is written, so a refused font or module leaves the committed pages alone
+    except (FontManifestError, VendorManifestError) as e:
+        print(f"build refused: {e}", file=sys.stderr)
+        return 1
     if "--check" in argv:
         stale = [f for f, text in made if (f.read_text(encoding="utf-8") if f.exists() else "") != text]
         for f in stale:
@@ -161,7 +305,7 @@ def main(argv):
         print("page.html and page-view.html are up to date")
         return 0
     for f, text in made:
-        f.write_text(text, encoding="utf-8", newline="\n")
+        f.write_bytes(text.encode("utf-8"))      # bytes, so no newline translation and it works on Python 3.9
         print(f"wrote {f.relative_to(ROOT)} ({len(text):,} bytes)")
     return 0
 

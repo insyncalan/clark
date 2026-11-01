@@ -1,27 +1,23 @@
-"""The colours of the Excel export (#85a): a fixed table, copied from the demo design tokens (tokens.css, BRD FR-110), so the
-workbook reads like the page. Red, amber and green are the tokens' status colours: a light fill with dark text of the same
-hue, as the page's pills (4.5:1 or better, checked by a test). A brand with its own tokens.css gets this demo set until the
-workbook reads the tokens at export (a later change); nothing here is read from data.
+"""The colours of the Excel export (#85a): a table read from the committed design tokens (tokens.css, BRD FR-110) when clark starts,
+so the workbook reads like the page. Red, amber and green are the tokens' status colours: a light fill with dark text of the same
+hue, as the page's pills (4.5:1 or better, checked by a test). A brand with its own tokens.css gets the committed set until the
+workbook reads the brand's tokens at export (a later change); nothing here is read from data.
 
-Only fixed literals, written as static cell fills at export. No formulas and no conditional-formatting rules, so a workbook
+Only fixed values, written as static cell fills at export. No formulas and no conditional-formatting rules, so a workbook
 carries no `<f>` element and a cell's value is never changed by its colour.
 """
 from datetime import date
 
-# Token name -> hex (no #). From src/clark/brand/tokens.css on team-a-35-page-shell.
-TOKENS = {
-    "brand-navy": "14233A",
-    "white": "FFFFFF",
-    "brand-blue": "3B5BDB",
-    "grey-50": "F3F5F8",
-    "grey-100": "E9EBEE",
-    "grey-700": "5A6270",
-    "brand-blue-tint": "EDF1FF",
-    "status-blue-text": "2A4FE0",
-    "status-green-tint": "DCEFE9", "status-green-text": "0B654E",
-    "status-amber-tint": "F7EBDA", "status-amber-text": "8A5200",
-    "status-red-tint": "F6E1DE", "status-red-text": "A3301F", "status-red": "BE3A2B",
-}
+from clark import look
+
+# Token name -> hex (no #): the light values of the committed look (src/clark/brand/tokens.css), read by look.py when clark starts, so the
+# workbook and the Word file read like the page and a change to the look reaches them with no edit here. Only the names are listed.
+TOKEN_NAMES = (
+    "brand-navy", "brand-ink", "white", "brand-blue", "grey-50", "grey-100", "grey-300", "grey-700", "brand-blue-tint",
+    "status-blue-text", "status-green-tint", "status-green-text", "status-amber-tint", "status-amber-text",
+    "status-red-tint", "status-red-text", "status-red",
+)
+TOKENS = {name: look.colour(name) for name in TOKEN_NAMES}
 
 # Colour name -> (fill token, text token). The names are what the value tables below use.
 COLOURS = {

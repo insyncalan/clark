@@ -76,8 +76,10 @@ class Allowed(Api):
         sections = set(store_module.columns(self.s.con, KIND))
         self.assertTrue(set(changes.SHOWN) <= sections - {"body"} | {"id"})
         self.assertNotIn("body", changes.SHOWN)
-        for never in ("project", "id", "sort_order", "body"):
+        for never in ("project", "id", "sort_order"):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
+        self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
+                         [(KIND, "update")])             # a body is written by one request only: a section's update, and then only for a needs or tracker section
         self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover"})      # #196: + bulk; #199: + handover
 
     def test_the_route_admits_only_the_approved_kinds(self):
@@ -119,15 +121,15 @@ class Refusals(Api):
         self.refused(self.req("new", values={"id": "ABC-S-099"}), "The field 'id' can't be set here.")
         self.refused(self.req("new", values={"hidden": 1}), "The field 'hidden' can't be set here.")
         self.refused(self.req("new", values={"body": "x"}), "The field 'body' can't be set here.")
-        self.refused(self.req("new", values={"type": "raid"}), changes.ONLY_TEXT)
-        self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.ONLY_TEXT)
-        self.refused(self.req("new", values={"type": ["text"]}), changes.ONLY_TEXT)
+        self.refused(self.req("new", values={"type": "raid"}), changes.NEW_TYPE_WORDS)
+        self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
+        self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", id="ABC-S-001"), "That change doesn't take 'id'.")
         self.refused(self.req("new", changes={"title": "x"}), "That change doesn't take 'changes'.")
         self.refused(self.req("new", before="ABC-S-001"), "That change doesn't take 'before'.")
         self.refused(self.req("update", id="ABC-S-005", values={"title": "x"}), "That change doesn't take 'values'.")
         self.refused(self.req("update", id="ABC-S-005", changes={"sort_order": 1}), "The field 'sort_order' can't be set here.")
-        self.refused(self.req("update", id="ABC-S-005", changes={"body": "x"}), "The field 'body' can't be set here.")
+        self.refused(self.req("update", id="ABC-S-005", changes={"body": "x"}), changes.NO_BODY_HERE)         # a text section's body write stays closed
         self.refused(self.req("update", id="ABC-S-005", changes={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("update", id="ABC-S-005", changes={}), "Say what to change.")
         self.refused(self.req("update", id="ABC-S-005"), "Say what to change.")
@@ -500,7 +502,7 @@ class Steps(Api):
         self.refused(self.req("new"), "A report can have at most 100 sections.")
 
     def test_delete_only_a_text_section(self):
-        self.refused(self.req("delete", id="ABC-S-001"), "Only a text section can be deleted; hide the others.")
+        self.refused(self.req("delete", id="ABC-S-001"), "Only a text, needs or tracker section can be deleted; hide the others.")
         self.assertEqual(self.ok("delete", id="ABC-S-005")["ref"], "ABC-S-005")
         self.assertNotIn("Summary", self.titles())
 
@@ -536,7 +538,7 @@ class Steps(Api):
         self.ok("update", id="ABC-S-001", changes={"beside": 1})           # S-002 is the second half of S-001; it is not a text section
         before, snap = self.beside_now(), self.snapshot()
         self.assertEqual(before["ABC-S-001"], 1)
-        self.refused(self.req("delete", id="ABC-S-002"), "Only a text section can be deleted; hide the others.")
+        self.refused(self.req("delete", id="ABC-S-002"), "Only a text, needs or tracker section can be deleted; hide the others.")
         self.assertEqual(self.beside_now(), before, "the partner's flag was written inside the step, so the refusal rolled it back")
         self.assertEqual(self.snapshot(), snap, "no step, no change_log row")
 
@@ -561,6 +563,78 @@ class Steps(Api):
         self.assertNotIn("SECRET-BODY-TEXT", json.dumps(out))
         self.assertEqual(set(out), {"ok", "apply_id", "reversed", "skipped", "words", "sections"})
         self.assertEqual(self.s.read(KIND, ref="ABC-S-005")["body"], BODY, "the body itself is untouched")
+
+
+class AddBeside(Api):
+    """#149: adding a section beside another is one change and one Undo, never an add and then a pairing."""
+
+    def lone(self):
+        return next(r["id"] for r in self.rows() if changes._on_its_own(self.rows(), r["id"]) and r["id"] != self.ids_now()[-1])
+
+    def paired(self):
+        first = next(i for i, r in enumerate(self.rows()) if r["beside"] == 1 and i + 1 < len(self.rows()))
+        return self.rows()[first]["id"]
+
+    def test_add_below_is_as_it_was(self):
+        target = self.lone()
+        got = self.ok("new", values={"title": "Below"}, after=target)
+        self.assertEqual(self.ids_now().index(got["ref"]), self.ids_now().index(target) + 1)
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[target], 0)
+
+    def test_add_beside_is_one_change_with_the_pairing_in_it(self):
+        target = self.lone()
+        before = {r["id"]: r["beside"] for r in self.rows()}
+        got = self.ok("new", values={"title": "Beside"}, after=target, beside=1)
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual(self.ids_now().index(got["ref"]), self.ids_now().index(target) + 1, "the new section is just after its partner")
+        self.assertEqual((flags[target], flags[got["ref"]]), (1, 0), "the one above starts the pair, the new one is its second half")
+        self.assertEqual({k: v for k, v in flags.items() if k not in (target, got["ref"])}, {k: v for k, v in before.items() if k != target})
+        self.assertIsNotNone(got["apply_id"])
+        updates = [(r["key"], r["field"]) for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"]
+        self.assertEqual(updates, [(target, "beside")], "one step holds the new row and the one flag: nothing else")
+
+    def test_one_undo_removes_the_section_and_the_pairing(self):
+        target = self.lone()
+        before = self.snapshot()[2]
+        got = self.ok("new", values={"title": "Beside"}, after=target, beside=1)
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertEqual(self.snapshot()[2], before, "the section is gone and the one above is on its own again")
+
+    def test_a_section_that_already_has_a_partner_is_refused_and_nothing_is_written(self):
+        self.refused(self.req("new", values={"title": "No"}, after=self.paired(), beside=1), changes.STALE)
+
+    def test_the_second_half_of_a_pair_is_refused_too(self):
+        first = self.paired()
+        second = self.ids_now()[self.ids_now().index(first) + 1]
+        self.refused(self.req("new", values={"title": "No"}, after=second, beside=1), changes.STALE)
+
+    def test_beside_needs_the_section_it_goes_beside(self):
+        self.refused(self.req("new", values={"title": "No"}, beside=1), changes.INVALID_LAYOUT)
+        self.refused(self.req("new", values={"title": "No"}, after=None, beside=1), changes.INVALID_LAYOUT)
+
+    def test_a_hostile_target_is_refused_with_nothing_written(self):
+        for hostile in ("ABC-S-999", "XYZ-S-001", "ABC-S-001; DROP TABLE report_sections", "", 5, ["ABC-S-001"], {"id": "ABC-S-001"}):
+            with self.subTest(after=hostile):
+                self.refused(self.req("new", values={"title": "No"}, after=hostile, beside=1), changes.STALE)
+
+    def test_beside_is_0_or_1_and_nothing_else(self):
+        target = self.lone()
+        for bad in (True, False, 2, -1, "1", 1.0, None, [1]):
+            with self.subTest(beside=bad):
+                self.refused(self.req("new", values={"title": "No"}, after=target, beside=bad), changes.FLAG_WORDS)
+
+    def test_beside_0_is_a_plain_add(self):
+        target = self.lone()
+        got = self.ok("new", values={"title": "Plain"}, after=target, beside=0)
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[target], 0)
+        self.assertEqual([r for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"], [], "no flag is touched")
+
+    def test_no_other_kind_takes_beside(self):
+        for kind in ("actions", "raid", "decisions", "milestones"):
+            with self.subTest(kind=kind):
+                status, body = self.change({"project": "ABC", "kind": kind, "op": "new", "values": {}, "beside": 1})
+                self.assertEqual((status, body["ok"]), (400, False))
+                self.assertEqual(body["message"], "That change doesn't take 'beside'.")
 
 
 class Undoing(Api):
@@ -1165,6 +1239,13 @@ class Items(Api):
         status, body = self.change({**self.item("actions", self.a, status="Closed"), "place": "board"})
         self.assertEqual((status, body.get("message")), (200, None), body)
         self.assertEqual(self.s.con.execute("SELECT place FROM item_events WHERE apply_id = ?", (body["apply_id"],)).fetchone()[0], "board")
+
+    def test_the_peek_is_a_place_and_a_made_up_one_still_is_not(self):
+        self.assertIn("peek", changes.PLACES)
+        status, body = self.change({**self.item("actions", self.a, status="Closed"), "place": "peek"})
+        self.assertEqual((status, body.get("message")), (200, None), body)
+        self.assertEqual(self.s.con.execute("SELECT place FROM item_events WHERE apply_id = ?", (body["apply_id"],)).fetchone()[0], "peek")
+        self.no({**self.item("actions", self.a, status="Open"), "place": "peeks"}, changes.BAD_PLACE)
 
     def test_board_is_not_taken_while_the_store_does_not_know_it(self):
         if "board" in store_module.PLACES:

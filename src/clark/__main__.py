@@ -16,6 +16,7 @@ The logic is in main() so a test can run it with fakes; everything that touches 
 """
 import argparse
 import errno
+import logging
 import os
 import re
 import shutil
@@ -25,10 +26,14 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import appfiles, backup, changes, idle, movement_read, page, platform, publish, publish_flow, safety, server, store as clark_store, use_cases_read
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
+LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
 HERE = Path(__file__).resolve().parent
+VENDOR = HERE.parents[1] / "vendor"       # the bundled Python libraries (openpyxl); put last on the path, so they never hide the system's own
+if VENDOR.is_dir() and str(VENDOR) not in sys.path:
+    sys.path.append(str(VENDOR))
 DEV = HERE.parents[1] / "dev"            # dev/demo_data.py builds the demo database; it is not part of the package
 ADDRESS_LINE = "Open http://"           # the start of the line server.serve prints once it is listening
 LISTENING = re.compile(r"^Open http://127\.0\.0\.1:(\d+)/")
@@ -295,8 +300,22 @@ def use_case_ids_on_file(store):
     return ids
 
 
+def start_log(data_folder, projects, home=None, scratch=None):
+    """The daily log for this run (#110): the log folder of the platform (inside the temporary demo folder with --demo, so a
+    demo leaves nothing in the real log), the level kept in the data folder, and clark's standard loggers routed into it.
+    (log, handler, Logs) or (None, None, None) when the log folder cannot be named (a system clark is not built for yet): clark
+    never stops for want of a log."""
+    try:
+        folder = Path(scratch) / "logs" if scratch else platform.log_dir(home)
+    except platform.PlatformError:
+        return None, None, None
+    routes = set(server.GET_ROUTES) | set(server.POST_ROUTES) | {"/health", server.CSP_REPORT_ROUTE}
+    log = clog.Log(folder, data=data_folder, routes=routes)
+    return log, clog.install(log), log_routes.Logs(log, counts=lambda: {"projects": len(projects())})
+
+
 def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.open_url, home=None, onedrive_roots=None,
-         change=None, undo=None, environ=None, is_free=port_free):
+         change=None, undo=None, environ=None, is_free=port_free, word_import=None, word_export=None):
     """Run the launcher; the exit code. `serve`, `open_url`, `home` (for the default data folder) and `onedrive_roots` are
     `is_free` (the check that the port is taken or not) are seams for tests. `change` and `undo` are the handlers for POST
     /api/change and /api/undo (#65): built from clark.changes for this data's file unless a test gives its own."""
@@ -307,7 +326,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         return restore_main(given[1:], out, err, home, onedrive_roots)
     p = parser()
     args = p.parse_args(argv)
-    store, scratch, code = None, None, None
+    store, scratch, code, handler = None, None, None, None
     try:
         try:
             if args.demo and args.data:
@@ -336,20 +355,40 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
             return 1
         roots = [] if args.demo else onedrive_roots
         store.close()           # #111: nothing keeps the database open while clark runs (each request opens its own), so Restore can swap the file
-        handlers = {"change": change or changes.make_change(store.path, roots),
-                    "undo": undo or changes.make_undo(store.path, roots)}
+        who = profile_settings.Profile(store.path.parent)          # #180: the name typed in Settings, else the login name, is the name on each change
+        handlers = {"change": change or changes.make_change(store.path, roots, who.who),
+                    "undo": undo or changes.make_undo(store.path, roots, who.who),
+                    "sneak": sneak.make_read(store.data_for),
+                    "word_import": word_import or word_route.make_word_import(store.path, roots),
+                    "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
         server.set_data_mark(appfiles.data_mark(store.path.parent))
         shown = ServerOutput(out, code, open_url if args.open else None, err)
+        projects = projects_of(store.path, roots)
+        log, handler, logs = start_log(store.path.parent, projects, home, scratch)
+        LOG.info("started on port %d", port)
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
-                     projects=projects_of(store.path, roots), out=shown,
+                     projects=projects, out=shown,
                      err=err,
-                     publisher=publish_flow.Publisher(store.path, roots, data_dir=store.path.parent),
+                     publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
+                     profile=who,
+                     draft_email=draft_email_feed.make(
+                         store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
+                         rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(store, c)),
+                         chased=lambda c: draft_email_feed.chase_counts_of(store.email_sent_for(c))),
+                     draft_email_sent=draft_email_feed.make_sent(store.path, roots, by_user=who.who),
+                     milestones=milestone_feed.make_feed(store.data_for),
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store)),
-                     safety=safety.Safety(store.path, roots),
+                     safety=safety.Safety(store.path, roots), logs=logs,
+                     ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
+                     app_settings=app_settings.AppSettings(store.path, roots),
+                     ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
+                     activity=activity_read.make_read(store.path, store.data_for),
+                     brand_picture=page.brand_picture,
                      **handlers)
+        LOG.info("stopped with code %d", done)
         if done == 0:
             print("Stopped.", file=out, flush=True)
         return done
@@ -357,6 +396,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         print("Stopped.", file=out, flush=True)
         return 0
     finally:
+        if handler is not None:
+            logging.getLogger("clark").removeHandler(handler)
         if store is not None:
             store.close()
         if scratch is not None:

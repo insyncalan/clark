@@ -188,10 +188,11 @@ class PlainPages(unittest.TestCase):
         self.assertEqual(raw_reply(self.port, f"GET /health HTTP/1.1\r\n{self.host()}Connection: close\r\n\r\n".encode())[0], 200)
 
     def test_nothing_raw_reaches_the_log_or_the_screen(self):
-        """A request line with control and binary bytes, as a path under /api/ and as garbage, logs nothing unescaped."""
+        """A request line with control and binary bytes, as an authorised path under /api/ (logged, escaped) and as garbage or a
+        request without the token (#234: counted, never a line of its own), logs nothing unescaped."""
         evil = b"/api/\x1b[31m\x07\x00\xff"
         with mock.patch("sys.stderr", io.StringIO()) as err, self.assertLogs(sv.LOG, level=logging.DEBUG) as logs:
-            raw_reply(self.port, b"GET " + evil + b" HTTP/1.1\r\n" + self.host().encode() + b"Connection: close\r\n\r\n")
+            raw_reply(self.port, b"GET " + evil + b" HTTP/1.1\r\n" + self.host().encode() + f"{sv.TOKEN_HEADER}: {sv.TOKEN}\r\n".encode() + b"Connection: close\r\n\r\n")   # authorised (#234): the only API call that is logged
             raw_reply(self.port, b"\x00\xff\xfe\x1b[31m\r\n\r\n")
             raw_reply(self.port, b"PUT " + evil + b" HTTP/1.1\r\n" + self.host().encode() + b"Connection: close\r\n\r\n")
             logging.getLogger(sv.LOG.name).info("end")

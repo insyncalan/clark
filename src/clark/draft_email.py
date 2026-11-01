@@ -1,13 +1,13 @@
 """Draft email: the wording and the rules, as plain code with no model (#50; BRD FR-44, FR-45, BR-9).
 
 Brought across from creaite's Draft email and Draft chase (BL-83, BL-224, BL-298; v2.6.11 drafts.js and drafts.py): the
-greeting by the time of day, the subject, the update request, the chase (First, Second, Firmer), the decision request, due
+greeting by the time of day, the subject, the update request, the chase (First chase, Second chase, Firmer chase), the decision request, due
 and overdue marking, and the email's HTML. It reads nothing and writes nothing: it takes the items, the options and the
 time, and returns the To, the Subject, the HTML and the plain text. clark never sends mail and never makes an Outlook
 draft; the page copies the two texts to the clipboard and the user pastes them.
 
 The HTML is for Outlook's Word engine: every element carries its own inline style, tables have cellpadding and a bottom
-border on each cell, Calibri then Arial at 11 pt, and there are no classes, style blocks, variables, spans or images. It is
+border on each cell, the look's email fonts (Calibri then Arial) at 11 pt, and there are no classes, style blocks, variables, spans or images. It is
 always drawn on white. Colour is never the only signal: the words say overdue and due soon too. Dates in the text are
 DD-MM-YYYY; the items carry them as YYYY-MM-DD.
 
@@ -17,11 +17,13 @@ reach an email: an internal note, a source or anything else on the dict is never
 
 Standard library only, Python 3.9.
 """
+import re
 import unicodedata
 from datetime import date, timedelta
 from html import escape
 from urllib.parse import quote
 
+from clark import look
 from clark.confusables import skeleton
 
 # The mode is named "update_request" and its subject word is joined from parts because the one-writer test in
@@ -29,7 +31,7 @@ from clark.confusables import skeleton
 UPDATE_REQUEST = "".join(("Up", "date request"))
 LATEST = "".join(("up", "date"))              # the item field holding the latest update
 MODES = ("update_request", "chase", "decision")
-TONE_NAMES = ("First", "Second", "Firmer")
+TONE_NAMES = ("First chase", "Second chase", "Firmer chase")   # what a person reads on the tone buttons
 RECORD_MODES = MODES                                  # what "I sent it" records
 DUE_SOON_DAYS = 7
 SENT_KIND = "email_sent"
@@ -45,13 +47,18 @@ MAILTO_LIMIT = 2000        # the longest finished mailto: link (encoded) that ev
 HELD_WORDS = ("confidential", "restricted")
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
-# The email is drawn on white whatever the theme. Every pair used for text is at least 4.5:1 on white (tested).
-COLOURS = {"red": "#B3261E", "amber": "#8A5A00", "ink": "#1E1F1E", "muted": "#5C5D60", "head": "#F1F3F4",
-           "rule": "#D9D9E0", "white": "#FFFFFF"}
+# The email is drawn on white whatever the theme, in the committed look's light colours (read from tokens.css by look.py, not written
+# here): red and amber are the status text colours, ink and muted the text colours, head and rule the page's quiet grey and its
+# border. Every pair used for text is at least 4.5:1 on white (tested).
+COLOURS = {key: "#" + look.colour(token) for key, token in (
+    ("red", "status-red-text"), ("amber", "status-amber-text"), ("ink", "text"), ("muted", "text-muted"), ("head", "grey-50"),
+    ("rule", "grey-300"), ("white", "white"))}
 # The only keys of an item the module reads; the items it hands back carry these and nothing else.
 ITEM_KEYS = ("id", "project", "kind", "text", "due", "priority", "owner", "type", "response", LATEST, "status", "client_visible",
              "sensitive", "hidden")
-FONT = "font-family:Calibri,Arial,sans-serif;font-size:11pt;"
+# The page's own fonts (Inter and Montserrat) are embedded in the page and a mail app does not have them, so an email cannot use them:
+# it takes the look's --font-email list (Calibri, then Arial, then the generic sans-serif), at 11 pt.
+FONT = f"font-family:{look.email_font_family()};font-size:11pt;"
 
 OPEN = "I'm pulling together where things stand on the items below."
 ASK = "Could you let me know where each one stands, and flag anything that's blocking you or that you need from me?"
@@ -93,20 +100,29 @@ def one_line(text):
     return " ".join(flat.split())
 
 
+DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")       # the one shape clark stores: no week or ordinal forms, no spaces, ASCII digits only
+
+
+def _as_day(iso):
+    """The date of a stored YYYY-MM-DD that is a real day, else None. The same on every Python (3.11 reads more forms)."""
+    if not isinstance(iso, str) or not DAY.fullmatch(iso):
+        return None
+    try:
+        return date(int(iso[:4]), int(iso[5:7]), int(iso[8:]))
+    except ValueError:
+        return None
+
+
 def shown(iso):
     """YYYY-MM-DD as DD-MM-YYYY; anything else comes back as it is."""
-    try:
-        return date.fromisoformat(str(iso)).strftime("%d-%m-%Y")
-    except ValueError:
-        return str(iso or "")
+    day = _as_day(iso)
+    return f"{day.day:02d}-{day.month:02d}-{day.year:04d}" if day else str(iso or "")
 
 
 def weekday_date(iso):
     """YYYY-MM-DD as "Thursday 15-10-2026", the way the email names a reply-by date; '' when it is not a date."""
-    try:
-        return f"{WEEKDAYS[date.fromisoformat(str(iso)).weekday()]} {shown(iso)}"
-    except ValueError:
-        return ""
+    day = _as_day(iso)
+    return f"{WEEKDAYS[day.weekday()]} {shown(iso)}" if day else ""
 
 
 def short(text, limit=60):
@@ -262,7 +278,7 @@ def chase_counts(entries):
 
 
 def tone_for(ids, counts):
-    """0 First, 1 Second, 2 Firmer: stepped up with the most often chased of the items picked."""
+    """0 First chase, 1 Second chase, 2 Firmer chase: stepped up with the most often chased of the items picked."""
     n = max([0] + [(counts or {}).get(i, {}).get("n", 0) for i in ids])
     return min(n, 2)
 

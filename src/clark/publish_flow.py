@@ -444,17 +444,25 @@ class Publisher:
             name, warnings = f"{code}-{today}.xlsx", []
             here = Path(self.db_path).parent                                      # beside clark.db, where the record is kept
             try:
-                # The record of the export (what the import later compares with) is kept beside clark.db under the workbook's
-                # SHA-256 (the browser saves the download where clark can't see, and the import finds the record by the bytes,
-                # so only while the file is exactly what clark wrote: a re-save or an edit loses it, until #169 puts an id in the workbook);
-                # the workbook itself stays in the temporary folder, which is removed. Two exports differ, so neither replaces the other,
-                # and save_state and prune_hash_records hold excel.STATE_LOCK, so two exports at once both keep their record.
+                # The record of the export (what the import later compares with) is kept beside clark.db under the export id
+                # inside the workbook and the project (the browser saves the download where clark can't see, and the
+                # import finds the record by that id, from any folder and after an edit or a re-save); the workbook itself stays
+                # in the temporary folder, which is removed. Each export has its own id, so neither replaces the other, and
+                # save_state and prune_hash_records hold excel.STATE_LOCK, so two exports at once both keep their record.
                 made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings,
-                                       exported_by=self.by_user())      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
+                                       exported_by=self.by_user(), reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
                 data = Path(made).read_bytes()
                 record = excel.load_state(folder / "state.json", made)
-                excel.save_state(here / excel.STATE_FILE, excel.hash_key(record.get("hash") or excel.file_hash(made)), record)
-                excel.prune_hash_records(here / excel.STATE_FILE, self.today())       # records older than 30 days go
+                key = (excel.id_key(code, record["export_id"]) if record.get("export_id")
+                       else excel.hash_key(record.get("hash") or excel.file_hash(made)))
+                with excel.STATE_LOCK:
+                    before = excel.find_state(here / excel.STATE_FILE, key)[1]
+                    if key.startswith("id:") and before.get("hash") == record.get("hash"):
+                        # the same file exported again keeps its id (excel.export's reuse), and what its imports recorded
+                        record.update({k: before[k] for k in ("imported_hash", "imported_step", "created") if k in before})
+                    excel.save_state(here / excel.STATE_FILE, key, record)
+                live = {r["code"] for r in store.read("projects") if not r.get("archived")}
+                excel.prune_hash_records(here / excel.STATE_FILE, self.today(), live=live, keep=key)       # older than 30 days, over the cap, or an archived project's: gone (#181)
             except (excel.Refused, OSError, ValueError, platform.PlatformError):          # excel.TooBig is a Refused too
                 return 409, self.fail("export_failed")
             return 200, {"name": name, "data": data, "warnings": warnings}

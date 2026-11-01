@@ -151,7 +151,7 @@
     const p = C.P(), late = x.type === 'A' && x.due && D.days(x.due) < 0 && C.isOpen(x);
     const st = x.type === 'R' || x.type === 'I' ? `${x.status} · ${{ R: 'Red', A: 'Amber', G: 'Green' }[C.ragOf(x)]}` : x.status;
     const msOpts = C.mssAll().filter(m => !m.archived || m.id === x.ms).map(m => `<option value="${m.id}"${x.ms === m.id ? ' selected' : ''}>${esc(C.msName(m.id))}</option>`).join('');   /* the link to an archived milestone is kept, and says so */
-    const ucOpts = D.S.usecases.filter(u => u.code === x.code).map(u => `<option value="${u.id}"${x.uc === u.id ? ' selected' : ''}>${esc(u.ref || u.id)}: ${esc(u.title.split('\n')[0])}</option>`).join('');
+    const ucOpts = D.S.usecases.filter(u => u.code === x.code && (!u.archived || u.id === x.uc)).map(u => `<option value="${u.id}"${x.uc === u.id ? ' selected' : ''}>${esc(u.ref || u.id)}: ${esc(u.title.split('\n')[0])}</option>`).join('');
     return `${topBar(`<button class="ib" id="pkEye" aria-label="Client-visible: ${x.client ? 'on' : 'off'}" aria-pressed="${x.client}" title="${x.client ? 'Shown to the client' : 'Not shown to the client'}">${C.icon(x.client ? 'eye' : 'eyeoff')}</button>
       <button class="ib" id="pkSneak" aria-label="Sneak peek: change this item in words">${C.icon('sparkle')}</button>${C.isOpen(x) ? `<button class="ib" id="pkMail" aria-label="Draft email (C)" title="Draft email (C)">${C.icon('mail')}</button>` : ''}<button class="ib" id="pkLink" aria-label="Copy link">${C.icon('link')}</button><button class="ib" id="pkMore" aria-label="More">${C.icon('more')}</button>`)}
     <div class="pk-scroll"><div class="pk-inner">
@@ -204,7 +204,7 @@
   }
   /* ── Draft email (#50; creaite's Draft email and Draft chase: its FR-79, FR-186, FR-241): from the peek, an email about this item,
      written in plain code (no model), ready to paste into Outlook. clark never sends it. Three kinds: an update request, a chase
-     (First, Second, Firmer) and, for a decision, a decision request. Nothing changes until "I sent it", which records the date in history. ── */
+     (First chase, Second chase, Firmer chase) and, for a decision, a decision request. Nothing changes until "I sent it", which records the date in history. ── */
   const MAILC = { red: '#B3261E', amber: '#8A5A00', ink: '#1E1F1E', head: '#F1F3F4', rule: '#D9D9E0' };
   const greet = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
   const workdays = (iso, n) => { let d = iso; while (n > 0) { d = D.addDays(d, 1); const w = new Date(d + 'T00:00:00').getDay(); if (w && w < 6) n--; } return d; };
@@ -235,7 +235,7 @@
         <div class="mail-f"><label>To</label><span>${esc(x.owner || 'No owner')} <small class="muted">· no email recorded</small></span>
           <label for="mlSub">Subject</label><input class="field" id="mlSub" value="${esc(m.subject)}">
           <label for="mlBy">Reply by</label><input class="field" type="date" id="mlBy" min="${D.TODAY}" value="${o.by}">
-          ${m.kind === 'chase' ? `<label>Tone</label><span class="seg">${[['first', 'First'], ['second', 'Second'], ['firmer', 'Firmer']].map(([v, t]) => `<button type="button" data-tone="${v}" aria-pressed="${m.tone === v}">${t}</button>`).join('')}</span>` : ''}
+          ${m.kind === 'chase' ? `<label>Tone</label><span class="seg">${[['first', 'First chase'], ['second', 'Second chase'], ['firmer', 'Firmer chase']].map(([v, t]) => `<button type="button" data-tone="${v}" aria-pressed="${m.tone === v}">${t}</button>`).join('')}</span>` : ''}
           <label></label><label class="chk"><input type="checkbox" id="mlUpd" ${o.update ? 'checked' : ''}> Include the latest update</label></div>
         <div class="mail-prev" id="mlPrev" contenteditable="true" aria-label="The email; you can edit it">${m.html}</div>
         <div class="dlg-f"><button type="button" class="btn quiet" id="mlSent">I sent it</button><span class="sp"></span><button type="button" class="btn" id="mlText">Copy as text</button><button type="button" class="btn pri" id="mlCopy">Copy for Outlook</button></div>`, d => {

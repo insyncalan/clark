@@ -8,6 +8,7 @@ import sqlite3
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
@@ -18,7 +19,10 @@ from clark import excel
 from clark import excel_colours as colours
 from clark import excel_cover as cover
 from clark import excel_import as xi
+from clark import look
 from clark import page
+
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
 
 
 _NO_BRAND = tempfile.mkdtemp(prefix="clark-no-brand-")    # a brand logo on this computer never changes a test (#133)
@@ -304,11 +308,11 @@ class InTheWorkbook(unittest.TestCase):
         self.assertNotIn("provenance", "\n".join(str(c.value) for row in ws.iter_rows() for c in row).lower())
         self.assertNotIn("Provenance", repr(excel.COVER_LABELS))
 
-    def test_everything_on_the_cover_is_arial_text_and_no_line_starts_with_the_product_name(self):
+    def test_everything_on_the_cover_is_the_looks_office_font_text_and_no_line_starts_with_the_product_name(self):
         ws = self.cover_sheet()
         for row in ws.iter_rows():
             for c in row:
-                self.assertEqual(c.font.name, "Arial", c.coordinate)
+                self.assertEqual(c.font.name, look.office_font(), c.coordinate)
                 self.assertIn(c.data_type, ("s", "inlineStr"), c.coordinate)
                 self.assertFalse(str(c.value or "").lower().startswith("clark"), c.coordinate)
 
@@ -370,10 +374,14 @@ class InTheWorkbook(unittest.TestCase):
         self.assertEqual([n for n in plan.notes if "ignored" in n], [])
 
     def test_the_same_data_and_clock_give_the_same_bytes(self):
-        first = self.path.read_bytes()
-        self.state.unlink()
-        self.path.unlink()
-        self.make()
+        with mock.patch.object(excel, "new_export_id", lambda: FIXED_ID):       # the id is random: held still, as the clock is
+            self.state.unlink()
+            self.path.unlink()
+            self.make()
+            first = self.path.read_bytes()
+            self.state.unlink()
+            self.path.unlink()
+            self.make()
         self.assertEqual(self.path.read_bytes(), first)
 
 

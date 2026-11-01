@@ -21,11 +21,11 @@ from clark import page, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
-READ_FAILED = "clark could not read this project. Reload the page. If it happens again, restart clark."
-HIT_PROBLEM = "clark hit a problem reading this project. Reload the page. If it happens again, restart clark."
-NOT_ACCEPTED = "clark did not accept that request. Reload the page."
-STALE = "clark was restarted after you opened this page. Reload the page and try again."
-NOT_ANSWERING = "clark has stopped. It stops by itself after a while with nothing open. Start it again from clark.command."
+READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark."
+HIT_PROBLEM = "A problem came up reading this project. Reload the page. If it happens again, restart clark."
+NOT_ACCEPTED = "That request was not accepted. Reload the page."
+STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again."
+NOT_ANSWERING = "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command."
 WENT_WRONG = "Something went wrong"
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
@@ -139,7 +139,7 @@ class Words(unittest.TestCase):
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
         odd = "ValueError: bad JSON in /Users/someone/file.py"
-        cases = {500: HIT_PROBLEM, 400: "clark could not read that request. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
+        cases = {500: HIT_PROBLEM, 400: "That request could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
         for code, wanted in cases.items():
             def route(handler, code=code):
                 handler.send(code, {"ok": False, "message": odd})
@@ -164,18 +164,36 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings", "Settings are not ready yet.",
-                                  "Client folder",      # #43: the one setting built so far; the rest of Settings is FR-1
+                                  "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
+                                  "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
+                                  "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder",
                                   "Personal",    # #45: Settings › Personal, the section styles
                                   "These are for you, on this computer. This changes the page you edit. The published page uses Slim gaps for now.",
+                                  "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179
+                                  "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
+                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Section style", "Slim gaps", "Sections close together, divided by a thin line.",
                                   "Roomy gaps", "More space between sections.", "Grey headers", "Each section's title sits on a grey band.",
                                   "One card", "All the sections inside a single card.",
+                                  "Keys", "Single-key shortcuts",            # #193
+                                  "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
+                                  "Logs and diagnostics",      # #110
+                                  "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
+                                  "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
+                                  "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again"])
+                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Asking",             # #47: the switch and its folders, below the client folder
+                                  "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
+                                  "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
+                                  "Turn on asking", "Folders asking may read",
+                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
+                                  "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
+                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is."])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -238,6 +256,30 @@ class Words(unittest.TestCase):
             self.assertNotIn("report editor", text.lower(), f.name)
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
+
+    def test_no_sentence_on_the_page_starts_with_the_product_name(self):
+        """A screen sentence does not start with the product name (the rule set in #170): every string in the page's code, and the
+        words of Help (the page's and the prototype's), at the start of a string and after a full stop inside one."""
+        starts = re.compile(r"""(?:[`"'>]|[.!?]\s)\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
+        headings = ("clark version and updates",)                                   # a heading in Help's list of Settings entries, not a sentence
+        files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
+                 PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
+        self.assertTrue(files)
+        for f in files:
+            for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                if line.lstrip().startswith("//"):
+                    continue
+                for m in starts.finditer(line):
+                    if line[m.start():].lstrip("`\"'>.!? ").startswith(headings):
+                        continue
+                    self.fail(f"{f.name}:{n}: a sentence starts with the product name")
+
+    def test_help_names_no_version_that_may_not_exist(self):
+        """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
+        for path in (PAGE_SRC / "help" / "helpContent.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("**Review X.Y.Z**", text, path.name)
+            self.assertNotRegex(text, r"Review \d+\.\d+\.\d+", path.name)
 
     def test_every_publish_message_a_person_can_see_is_plain_words(self):
         """#43: the publish routes' messages hold no system text slot, no jargon and no request talk."""
