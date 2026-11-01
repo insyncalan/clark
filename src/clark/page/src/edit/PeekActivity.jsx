@@ -8,6 +8,7 @@ import { readActivity } from "./activityApi.js";
 
 const TABS = [["details", "Details"], ["activity", "Activity"]];
 const LOADING = "Reading the history…";
+const MISSING = "This item is not in the open lists (it may be archived), so its history is not shown here.";
 const FAILED = "The history could not be read just now. Close the peek and open it again to try once more.";
 
 export function PeekTabs() {
@@ -60,6 +61,7 @@ export function PeekActivity({ id }) {
   }, [id, d]);                                    // eslint-disable-line react-hooks/exhaustive-deps
   let body;
   if (!got) body = <p class="muted pa-none" data-activity-loading>{LOADING}</p>;
+  else if (!got.ok && got.missing) body = <p class="muted pa-none" data-activity-missing>{MISSING}</p>;
   else if (!got.ok) body = <p class="muted pa-none" data-activity-failed>{FAILED}</p>;
   else if (!got.view.rows.length) body = <p class="muted pa-none" data-activity-empty>{got.view.empty || "Nothing has changed on this item yet."}</p>;
   else {
