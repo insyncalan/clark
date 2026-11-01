@@ -1,0 +1,31 @@
+# Start clark in a container (#427):   docker compose -f docker/compose.yaml up --build
+# Then open http://127.0.0.1:8766/ in the browser on this Mac. The container never opens a browser itself.
+#
+# Two things matter for safety, and both are on the "ports" and "volumes" lines:
+#  - The port is published to 127.0.0.1 ONLY. Without the "127.0.0.1:" in front, anyone on your network could reach clark.
+#  - The data folder is shared from the Mac. By default it is the same folder the terminal route uses, so do not run both
+#    routes at the same time. Keep it out of OneDrive and Dropbox.
+name: clark
+services:
+  clark:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: clark:local
+    ports:
+      - "127.0.0.1:8766:8766"
+    volumes:
+      - type: bind
+        source: ${CLARK_DATA:-${HOME}/Library/Application Support/clark}
+        target: /data
+    # The container's user is 10001. If clark says it cannot write to the data folder, run it as yourself instead:
+    #   CLARK_UID=$(id -u) CLARK_GID=$(id -g) docker compose -f docker/compose.yaml up
+    user: "${CLARK_UID:-10001}:${CLARK_GID:-10001}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
