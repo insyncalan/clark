@@ -18,6 +18,7 @@ import argparse
 import os
 import re
 import sys
+import zlib
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -44,7 +45,9 @@ USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)")
 
 # A picture or font is allowed only if it is well formed for its own extension and ENDS where its format says it ends, so a
 # picture cannot carry an archive or a program after its end. (A comment segment inside it is still read by the content scans.)
-PNG_TEXT_CHUNKS = (b"tEXt", b"zTXt", b"iTXt")     # a picture's own text: it may hold compressed bytes of any kind
+# The chunk types the repo's own pictures use, and the safe ancillary ones. Anything else is refused: eXIf, the text chunks
+# (tEXt, zTXt, iTXt: anything could be hidden in them) and any private or unknown chunk can carry data a reader never sees.
+PNG_CHUNKS = frozenset([b"IHDR", b"PLTE", b"IDAT", b"IEND", b"tRNS", b"gAMA", b"cHRM", b"sRGB", b"iCCP", b"pHYs", b"bKGD"])
 
 
 def _png_ok(d):
@@ -53,8 +56,10 @@ def _png_ok(d):
         return False
     while i + 12 <= len(d):
         size, kind = int.from_bytes(d[i:i + 4], "big"), d[i + 4:i + 8]
-        if kind in PNG_TEXT_CHUNKS:               # anything could be hidden in here, so a picture carrying one is refused
+        if kind not in PNG_CHUNKS:                # not on the list, so a picture carrying one is refused
             return False
+        if i + 12 + size > len(d) or zlib.crc32(d[i + 4:i + 8 + size]) != int.from_bytes(d[i + 8 + size:i + 12 + size], "big"):
+            return False                          # a chunk whose check value is wrong
         i += 12 + size
         if kind == b"IEND":
             return size == 0 and i == len(d)
@@ -126,8 +131,13 @@ def _webp_ok(d):
     return d[:4] == b"RIFF" and d[8:12] == b"WEBP" and _ends_at(d, int.from_bytes(d[4:8], "little") + 8)
 
 
-def _woff_ok(magic):
-    return lambda d: d[:4] == magic and len(d) >= 12 and _ends_at(d, int.from_bytes(d[8:12], "big"))
+def _woff_ok(magic, meta_at):
+    """A font ends where its length says. Its metadata block and private block (offsets at meta_at and meta_at + 12) must be
+    absent: bytes there are inside the declared length, so the length check alone would not see them."""
+    def check(d):
+        return (d[:4] == magic and len(d) >= meta_at + 16 and _ends_at(d, int.from_bytes(d[8:12], "big"))
+                and not int.from_bytes(d[meta_at:meta_at + 4], "big") and not int.from_bytes(d[meta_at + 12:meta_at + 16], "big"))
+    return check
 
 
 def _ico_ok(d):
@@ -140,7 +150,7 @@ def _ico_ok(d):
 
 
 PICTURES = {".png": _png_ok, ".jpg": _jpeg_ok, ".jpeg": _jpeg_ok, ".gif": _gif_ok, ".webp": _webp_ok, ".ico": _ico_ok,
-            ".woff": _woff_ok(b"wOFF"), ".woff2": _woff_ok(b"wOF2")}     # edit here, in a reviewed change
+            ".woff": _woff_ok(b"wOFF", 24), ".woff2": _woff_ok(b"wOF2", 28)}     # edit here, in a reviewed change
 
 
 class Scan:
