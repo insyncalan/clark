@@ -26,6 +26,9 @@ def canon(value):
 TYPES = ("needs", "tracker")
 
 
+TRACKER = {"v": 1, "groups": [{"name": MARK, "lines": [{"text": "A line"}]}]}      # whole: the tracker checker's own shape
+
+
 def text(value):
     return json.dumps(value)
 
@@ -119,7 +122,7 @@ class Adding(Content):
         for kind in TYPES:
             with self.subTest(kind=kind):
                 ref, _ = self.make(kind)
-                old = text(BODY) if kind == "needs" else text({"v": 1, "old": "shape"})                  # needs has its real shape now; the tracker takes any
+                old = text(BODY) if kind == "needs" else text(TRACKER)                  # each type has its real shape now
                 self.ok("update", id=ref, changes={"body": old})                                       # accepted by today's checker
                 strict = {k: (lambda value, rules: (_ for _ in ()).throw(sb.Bad("Stricter now."))) for k in TYPES}
                 with mock.patch.dict(sb.CHECKERS, strict):
@@ -152,11 +155,11 @@ class Writing(Content):
 
     def test_a_second_body_replaces_the_whole_first_in_one_step(self):
         ref, _ = self.make("tracker")
-        first = self.write(ref, text({"groups": [1, 2, 3]}))[1]
-        second = self.write(ref, text({"other": True}))[1]
-        self.assertEqual(self.stored(ref), '{"other":true}')
+        first = self.write(ref, text({"groups": [{"name": "First", "lines": []}]}))[1]
+        second = self.write(ref, text({"groups": [{"name": "Second", "lines": []}]}))[1]
+        self.assertIn('"name":"Second"', self.stored(ref))
         self.undone(second["apply_id"])
-        self.assertEqual(self.stored(ref), '{"groups":[1,2,3]}')
+        self.assertIn('"name":"First"', self.stored(ref))
         self.undone(first["apply_id"])
         self.assertEqual(self.stored(ref), "")
 
@@ -217,7 +220,7 @@ class Writing(Content):
             self.assertEqual(self.write(needs, text({"rows": []}))[0], 200)
             self.refused_body(needs, text({"groups": []}), "Needs from you holds a list of rows.")
             self.assertEqual(self.write(tracker, text({"groups": []}))[0], 200)          # the tracker has its own checker
-            self.assertEqual(self.write(tracker, text({"rows": []}))[0], 200)
+            self.assertEqual(self.write(tracker, text({"rows": []}))[0], 400)          # which is not the needs one
         self.assertEqual(self.s.read(KIND, ref=needs)["type"], "needs")
 
     def test_a_body_that_is_not_text_is_refused(self):
@@ -303,7 +306,7 @@ class Deleting(Content):
         for kind in TYPES:
             with self.subTest(kind=kind):
                 ref, _ = self.make(kind)
-                self.write(ref, text(BODY))
+                self.write(ref, text(BODY if kind == "needs" else TRACKER))
                 kept = self.stored(ref)
                 deleted = self.ok("delete", id=ref)
                 self.assertNotIn(ref, self.ids_now())

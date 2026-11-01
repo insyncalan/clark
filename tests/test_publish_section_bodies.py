@@ -25,6 +25,11 @@ def body(*words):
     return json.dumps({"v": 1, "rows": [{"what": w, "kind": "decision", "from": w[:100], "by": "", "hidden": 0} for w in words]})
 
 
+def tbody(*words):
+    """A body the tracker takes: one group whose lines carry the words."""
+    return json.dumps({"v": 1, "groups": [{"name": "Plan", "lines": [{"text": w[:200]} for w in words]}]})
+
+
 class Published(Api):
     def section(self, kind="needs", title=None, **more):
         return self.ok("new", values={"type": kind, "title": title or ("Needs from you" if kind == "needs" else "Progress")}, **more)["ref"]
@@ -55,7 +60,7 @@ class Kept(Published):
         needs = self.section("needs")
         tracker = self.section("tracker")
         self.write(needs, body("one"))
-        self.write(tracker, body("two"))
+        self.write(tracker, tbody("two"))
         got = self.sections()
         self.assertEqual(got[needs], {"id": needs, "type": "needs", "title": "Needs from you", "beside": 0,
                                       "rows": [{"what": "one", "kind": "decision", "from": "one", "by": ""}]})
@@ -89,7 +94,7 @@ class Kept(Published):
     def test_the_stored_text_is_checked_by_the_checker_of_its_type_at_publish_time(self):
         needs, tracker = self.section("needs"), self.section("tracker")
         self.write(needs, body("a"))
-        self.write(tracker, body("b"))
+        self.write(tracker, tbody("b"))
         calls = []
 
         def checker(kind):
@@ -120,7 +125,7 @@ class Kept(Published):
         self.write(first, body("one"))
         got = self.sections()
         self.assertEqual((got[first]["beside"], second in got), (0, False))        # the partner has no body: out, so the first takes the full row
-        self.write(second, body("two"))
+        self.write(second, tbody("two"))
         got = self.sections()
         self.assertEqual((got[first]["beside"], got[second]["beside"]), (1, 0))      # both in: a pair
         self.raw(second, "not json")

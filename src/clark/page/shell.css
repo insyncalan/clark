@@ -927,6 +927,30 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .styles legend { padding: 0; margin-bottom: 6px; font-size: var(--size-small); color: var(--text-muted); }
 .stylepick { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .stylepick input { accent-color: var(--brand-blue); width: 16px; height: 16px; margin-top: 3px; }
+/* The section style as four picture cards: each is a label holding a real radio (kept in the page for the keyboard and screen readers,
+   drawn over the whole card, see through), a small drawing of the layout made of the tokens, the name and one line. Selected = a 2 px
+   --brand-blue edge and a tick, never colour alone. Edges are --grey-700 (3:1 or more on the card and on the page, light and dark). */
+.styles.secstyles { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.styles.secstyles legend { grid-column: 1 / -1; }
+.secpick { position: relative; display: block; cursor: pointer; }
+.secpick input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.secpick-card { position: relative; display: grid; gap: 4px; align-content: start; height: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--grey-700); border-radius: var(--radius-lg); background: var(--surface); transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
+.secpick:hover .secpick-card { border-color: var(--text); }
+.secpick input:checked + .secpick-card { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
+.secpick input:focus-visible + .secpick-card { outline: 2px solid var(--brand-blue); outline-offset: 3px; }
+.secpick-card b { font-weight: var(--weight-medium); color: var(--text); }
+.secpick-card small { color: var(--text-muted); font-size: var(--size-small); }
+.secpick-pic { display: grid; height: 74px; box-sizing: border-box; padding: 8px; gap: 4px; margin-bottom: 6px; border-radius: 6px; background: var(--grey-100); grid-template-rows: 12px 1fr 1fr; }
+.secpick-pic i { display: block; border-radius: 3px; background: var(--surface); border: 1px solid var(--grey-700); }
+.secpick-pic i:first-child { background: var(--heading); border: 0; }
+.sk-roomy .secpick-pic { gap: 8px; }
+.sk-grey .secpick-pic i:nth-child(n+2) { background: linear-gradient(var(--grey-300) 0 5px, var(--surface) 5px); }
+.sk-card .secpick-pic { gap: 0; }
+.sk-card .secpick-pic i:nth-child(2) { border-radius: 3px 3px 0 0; }
+.sk-card .secpick-pic i:nth-child(3) { border-top: 0; border-radius: 0 0 3px 3px; }
+.secpick-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; }
+.secpick-tick { display: none; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand-blue); color: var(--text-on-brand); }
+.secpick input:checked + .secpick-card .secpick-tick { display: grid; }
 .fld { display: grid; gap: 4px; margin: 0 0 12px; max-width: 420px; }
 .fld label { font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); }
 .fld input { min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
@@ -1053,3 +1077,11 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+.pk-stale { margin: 0 0 8px; }
+.pk-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-small); }
+
+/* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
+.pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pk-val .i { width: 16px; height: 16px; }
+.ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
+.ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
