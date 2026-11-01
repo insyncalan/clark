@@ -2507,7 +2507,7 @@ class Store:
         one day ahead of today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
         transaction. Returns the record's number."""
         if not str(by_user or "").strip():
-            raise Invalid("A sent record needs who pressed it.")
+            raise Invalid("Add your name in Settings, then try again.")
         if mode not in self.EMAIL_MODES:
             raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
         if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
@@ -2526,7 +2526,7 @@ class Store:
         if sent > (today or date.today()) + timedelta(days=1):
             raise Invalid("The day the email was sent can't be in the future.")
         if self.con.in_transaction:
-            raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
+            raise Invalid("This can't be recorded while another change is being made. Finish that change first.")
         try:
             self.con.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as e:

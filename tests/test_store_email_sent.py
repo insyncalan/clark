@@ -136,8 +136,8 @@ class InTheHistory(Base):
 
 class Refusals(Base):
     def test_each_refusal_writes_nothing_and_says_what_to_do(self):
-        self.refuses("who pressed it", who="  ")
-        self.refuses("who pressed it", who=None)
+        self.refuses("Add your name in Settings", who="  ")
+        self.refuses("Add your name in Settings", who=None)
         self.refuses("isn't one clark records", mode="reminder")
         self.refuses("Tick at least one item", ids=[])
         self.refuses("Tick at least one item", ids=["  ", ""])
@@ -161,7 +161,15 @@ class Refusals(Base):
         with self.store.step("dashboard", USER):
             with self.assertRaises(Invalid) as caught:
                 self.send()
-            self.assertIn("middle of a step", str(caught.exception))
+            self.assertEqual(str(caught.exception), "This can't be recorded while another change is being made. Finish that change first.")
+
+    def test_no_name_for_who_pressed_it_says_where_to_add_one(self):
+        """#208(a): the refusal says what to do, with no 'sent record'."""
+        for who in ("", "   ", None):
+            with self.subTest(who=who):
+                with self.assertRaises(Invalid) as caught:
+                    self.send(who=who)
+                self.assertEqual(str(caught.exception), "Add your name in Settings, then try again.")
 
     def test_the_email_words_are_in_no_column(self):
         con = sqlite3.connect(self.store.path)
