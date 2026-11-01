@@ -16,7 +16,8 @@ from _paths import SRC
 from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_sizes import DATA, published_page  # noqa: E402
 from test_page import navigate  # noqa: E402
-from test_work_board_page import Base, FIXED  # noqa: E402
+import _testpage as testpage  # noqa: E402
+from test_work_board_page import Base as PageBase, FIXED  # noqa: E402
 from test_work_filters import click, where  # noqa: E402
 from test_work_items import bundled  # noqa: E402
 
@@ -43,6 +44,14 @@ def tap(cdp, sid, selector, mods=0, count=1):
     for n in range(1, count + 1):
         m("mousePressed", n, button="left", buttons=1)
         m("mouseReleased", n, button="left", buttons=0)
+
+
+class Base(PageBase):
+    """The served page carries no window.clarkPage, so these tests load the test page, which adds it (the hook the peek tests use)."""
+
+    def setUp(self):
+        super().setUp()
+        self.s.httpd.page_html = lambda: testpage.html()
 
 
 class Rules(unittest.TestCase):
@@ -535,7 +544,8 @@ class PublishedFile(unittest.TestCase):
             cdp.js("document.querySelector('#work tr[data-id]').focus()", sid)
             press(cdp, sid, "ArrowDown", SHIFT)
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.id", sid) == rows[1]), "Shift+Down moved to the next row")
-            self.assertEqual(cdp.js("clarkPage.selected()", sid), [], "and selected nothing")
+            # the published page carries no test hook: a row that could be chosen would say so with aria-selected, and none does
+            self.assertEqual(cdp.js("document.querySelectorAll('#work tr[aria-selected]').length", sid), 0, "and selected nothing")
 
 
 class OnTheBoard(Base):

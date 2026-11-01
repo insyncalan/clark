@@ -293,7 +293,7 @@ class Browser(unittest.TestCase):
                 s, sid = self.load_page(cdp, width)
                 ids = self.ids_on_page(cdp, sid)
                 self.assertTrue(len(ids) > 3)
-                click(cdp, sid, f"#work tbody tr[data-id='{ids[1]}'] .c-item")
+                dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[1]}'] .c-item")
                 self.assertTrue(wait(lambda: cdp.js("clarkPage.peek() && clarkPage.peek().id", sid) == ids[1]))
                 self.assertEqual(cdp.js("document.querySelector('#peek').dataset.peek", sid), ids[1])
                 labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
