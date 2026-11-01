@@ -96,10 +96,10 @@ export function sortRows(rows, today) { // eslint-disable-line no-unused-vars
 export function rowsOf(data) {
   const ucs = Object.fromEntries((data.use_cases || []).map((u) => [u.id, u.ref]));
   const ms = Object.fromEntries((data.milestones || []).map((m) => [m.id, m.name]));
-  // The review facts the Freshness filter reads (filters.js notReviewed), carried over when the server sends them. `raised` is left out on
-  // purpose (filters.js says why), so nothing is flagged until the server sends `not_reviewed` or `last_reviewed`.
-  const seen = (r) => { const o = {}; for (const k of ["not_reviewed", "last_reviewed"]) if (r[k] !== undefined && r[k] !== null) o[k] = r[k]; return o; };
-  const common = (r) => ({ ...seen(r), id: r.id, status: r.status, client: !!r.client_visible,
+  // #158: when the data carries an item's freshness (worked out from its history), the row carries it too.
+  const fresh = (r) => (r.freshness && typeof r.freshness === "object"
+    ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null } : {});
+  const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible,
     uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "" });
   const rows = [];
   for (const r of data.actions || []) rows.push({ ...common(r), kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });

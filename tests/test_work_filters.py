@@ -142,6 +142,15 @@ def page_rows(data, code):
     return out
 
 
+def dblclick(cdp, sid, selector):
+    """A real double click: two presses, the second with a click count of 2 (#195: a single click on a row selects it)."""
+    x, y = where(cdp, sid, selector)
+    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+    for n in (1, 2):
+        cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": n}, sid)
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": n}, sid)
+
+
 def need_chrome():
     assert Path(CHROME).is_file(), f"Google Chrome is needed for the required browser tests ({CHROME}); set CLARK_CHROME"
 
@@ -153,6 +162,10 @@ class Rules(unittest.TestCase):
         need_chrome()
         cls.store, cls.folder, cls.ids = load_demo()
         cls.data = {p["code"]: cls.store.data_for(p["code"]) for p in cls.store.read("projects")}
+        for d in cls.data.values():                      # #158: the server now adds freshness; these rules are tested on rows without it
+            for t in ("actions", "raid", "decisions"):
+                for r in d.get(t, ()):
+                    r.pop("freshness", None)
         cls.stack = contextlib.ExitStack()
         cls.cdp = cls.stack.enter_context(chrome())
         cls.sid = page_target(cls.cdp)
