@@ -2230,6 +2230,12 @@ class Store:
             out["glance_tiles"] = [dict(r) for r in con.execute(              # #45: the tiles' place, hidden flag and outline; no archived column
                 "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                 "ORDER BY sort_order, tile", (code,))]
+            # #96: what publish keeps out, so a template's live part in the served View leaves out what the file leaves out (FR-11):
+            # the ids hidden from the report by the eye, and the label rules (as publish_inputs reads them).
+            out["report_hidden"] = [r["item_id"] for r in con.execute(
+                "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
+            out["label_rules"] = [dict(r) for r in con.execute(
+                "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
             return out
         finally:
             con.close()
