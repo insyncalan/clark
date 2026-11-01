@@ -28,7 +28,7 @@ from clark import changes, publish, section_bodies, store as store_module
 from clark.section_kinds import base, workitems as wi
 from test_changes import Api
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg, tearDownModule  # noqa: F401
-from test_server import Running, chrome, wait
+from test_server import Running, chrome, wait, wait_toast
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 RULES = store_module.BODY_RULES
@@ -535,9 +535,7 @@ class InThePage(PageBase):
             p.until(f"location.hash.includes('item={self.a_later}')", "Space opened its peek")
 
     def toast(self, p):
-        read = lambda: p.js("(document.querySelector('.toast-text') || {}).textContent || ''")
-        wait(lambda: read() != "", 10)   # a slow runner paints the toast late
-        return read()
+        return wait_toast(lambda: p.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
 
 
 class PublishedFile(PageBase):

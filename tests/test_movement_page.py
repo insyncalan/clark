@@ -25,7 +25,7 @@ import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
 from clark import changes, milestone_rows, movement_read, movement_view as mv, page, server as sv  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 from test_report_editor import Pg  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -164,9 +164,7 @@ class Base(unittest.TestCase):
         p.until("!!document.querySelector('#movement .mvm-sentence')", "Movement drew")
 
     def toast(self, p):
-        read = lambda: p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''")
-        wait(lambda: read() != "", 10)   # a slow runner paints the toast late
-        return read()
+        return wait_toast(lambda: p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''"))
 
     def key(self, p, key, code, vk):
         p.key(key, code=code, vk=vk)
