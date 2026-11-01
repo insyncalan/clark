@@ -265,7 +265,7 @@ class Source(unittest.TestCase):
         self.assertNotIn("innerHTML", src)
 
     def test_the_brd_records_the_hold_as_lifted(self):
-        # The owner lifted the 28-10 hold on 31-10-2026: FR-94, D-6 and the release list must not still say it is on hold.
+        # The hold on this feature is lifted: FR-94, D-6 and the release list must not still say it is on hold.
         brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
         lines = brd.splitlines()
         i = next(n for n, line in enumerate(lines) if line.startswith("- **FR-94"))
