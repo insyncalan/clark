@@ -3,7 +3,7 @@
 import { style, setStyle } from "../stores/style.js";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
-import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
+import { profile, loadProfile, profileKnown, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 
 export const STYLES = [
@@ -21,6 +21,8 @@ export const APPEARANCES = [                                 // the ruled order:
 
 // About you (#180): the two optional boxes. Each is saved when it is left (or on Enter); a refusal says why under the box and writes
 // nothing, and what was typed stays in the box so it can be mended. Emptying the name returns the menu's top line to its link.
+const UNREAD = "Your saved name and email could not be read. Reload the page and try again. Nothing was saved.";
+
 function AboutYou() {
   const name = useRef(null), email = useRef(null);
   const [typed, setTyped] = useState({ name: profile.value.name, email: profile.value.email });
@@ -36,8 +38,13 @@ function AboutYou() {
   }, [profile.value.name, profile.value.email]);
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   const save = async (field) => {
-    // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
-    const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
+    // A save made before the first read has landed would send a blank for the other box and so blank what clark has saved there: wait for the
+    // read first. If it cannot be read, nothing is sent.
+    if (!(await profileKnown())) { setSaid({ name: field === "name" ? UNREAD : "", email: field === "email" ? UNREAD : "" }); return; }
+    // the box left is read as it is now (not from an earlier draw); the other box is sent as it is now only if it has been typed in, else as clark has it
+    const now = (f) => (typedIn.current[f] && (f === "name" ? name : email).current ? (f === "name" ? name : email).current.value : profile.value[f]);
+    const sent = { name: field === "name" ? (name.current ? name.current.value : typed.name) : now("name"),
+                   email: field === "email" ? (email.current ? email.current.value : typed.email) : now("email") };
     const seen = { ...edits.current };
     const r = await setProfile(sent.name, sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear

@@ -306,6 +306,27 @@ class AboutYou(Base):
             self.assertEqual(p.js("document.querySelector('#about-email').value"), "a@b@c")
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
 
+    def test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box(self):
+        """#420: the saved name and email are on disk, but the page's first read of them is slow. A name saved before that read lands must not
+        blank the email that was already saved (the save waits for the read, and sends the email as clark has it)."""
+        (self.rig.data_dir / "settings.json").write_text(json.dumps({"profile_name": "Old Name", "profile_email": "keep@example.test"}), encoding="utf-8")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            cdp.call("Page.enable", {}, p.sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source":
+                     "(() => { const f = window.fetch; window.__readDone = 0; window.fetch = (u, o) => (String(u).includes('/api/profile') && !(o && o.method === 'POST')) "
+                     "? f(u, o).then((r) => new Promise((ok) => setTimeout(() => { window.__readDone++; ok(r); }, 2500))) : f(u, o); })()"}, p.sid)
+            p.js("window.__before_reload = true; location.reload()")
+            p.until("!window.__before_reload && !!document.querySelector('#profile-btn')", "the page again (not the one being left)")
+            self.open_settings(p)
+            self.assertEqual(p.js("window.__readDone"), 0, "the first read has not landed")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "", "the email box is still empty: the read is out")
+            self.type_into(p, "name", "New Name")                    # saved before the read has landed
+            p.until("window.__readDone >= 1", "the first read landed")
+            self.handled(p, "New Name", "keep@example.test")
+            self.assertEqual(self.saved(), {"profile_name": "New Name", "profile_email": "keep@example.test"}, "the email already saved was kept")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "keep@example.test")
+
 
 class Source(unittest.TestCase):
     def test_the_words_are_pinned(self):

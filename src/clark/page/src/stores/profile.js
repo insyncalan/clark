@@ -5,14 +5,26 @@ import { getProfile, saveProfile } from "../api.js";
 
 export const profile = signal({ name: "", email: "" });
 export const wantName = signal(false);                  // "Add your name in Settings": the name box takes the focus when Settings has drawn
-let asked = false;
+let reading = null;                                     // the read in flight, or the one that landed (shared by whoever asks)
+let known = false;                                      // true once a read has landed: before that, profile.value is a blank, not what clark has
 
-/** Read what was saved, once (the menu and Settings both ask; the first one reads). */
-export async function loadProfile() {
-  if (asked) return;
-  asked = true;
-  const got = await getProfile();
-  if (got) { if (!applied) profile.value = got; } else asked = false;       // a failed read is tried again the next time something asks
+/** Read what was saved, once (the menu and Settings both ask; the first one reads and the others wait on the same read). Resolves true when
+ *  what clark has is known, false when the read failed (it is tried again the next time something asks). */
+export function loadProfile() {
+  if (!reading) {
+    reading = (async () => {
+      const got = await getProfile();
+      if (got) { if (!applied) profile.value = got; known = true; return true; }
+      reading = null;
+      return false;
+    })();
+  }
+  return reading;
+}
+
+/** Wait until what clark has is known (a read that is slow is waited for; one that failed is tried once more). */
+export async function profileKnown() {
+  return known || (await loadProfile()) || (await loadProfile());
 }
 
 let sent = 0, applied = 0;                              // saves sent so far; the newest save whose answer the menu has been given
