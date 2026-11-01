@@ -1137,6 +1137,7 @@ class Gutter(Base):
             p.until("document.querySelectorAll('.sec').length === 12", "nobody claimed it, so a plain text section was added below, as before")
             self.assertEqual(self.sent[-1][1]["after"], "ABC-S-003", "below the section whose + was pressed")
             self.assertEqual(self.sent[-1][1]["values"], {"type": "text"})
+            p.until("((document.querySelector('.toast-text') || {}).textContent || '') === 'Section added.'", "the toast says Section added.")   # waits: a slow runner paints it late
             self.assertEqual(p.toast(), "Section added.")
             self.assertTrue(p.js("!!document.querySelector('.toast .toast-btn')"), "with its Undo")
             self.assertEqual(len(self.sent), n + 1)
