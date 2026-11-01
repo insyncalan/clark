@@ -1676,6 +1676,31 @@ def _do_undo_many(store, by_user, req):
     return 200, out
 
 
+def undo_refusals(store, project, steps):
+    """The steps among `steps` that Undo several would leave out whole, each with its plain reason: {step: words}. It asks the same
+    questions _do_undo_many asks, in the same order (an undo, a step that is not ours, a step undone already), so the Activity tab can
+    withhold the tick before it is chosen. A step that can be chosen is not in the answer. Read only."""
+    out = {}
+    reverted = None
+    for s in set(steps):
+        rows = store.step_rows(s)
+        if not rows:
+            continue
+        if all(str(r["via"]).startswith(clark_store.REVERT_VIA) for r in rows):
+            out[s] = IS_AN_UNDO
+        elif not _ours(store, s, rows, project):
+            out[s] = NOT_FROM_HERE
+        else:
+            if reverted is None:
+                reverted = clark_store.reverted_rowids(store.con)
+            gone = store.con.execute("SELECT undone_at FROM applies WHERE apply_id = ?", (s,)).fetchone()
+            real = [r[0] for r in store.con.execute(
+                "SELECT rowid FROM change_log WHERE apply_id = ? AND field NOT IN ('note', 'updated_at') AND via != ?", (s, clark_store.SEED_VIA))]
+            if gone and gone[0] or real and all(r in reverted for r in real):
+                out[s] = UNDONE_ALREADY
+    return out
+
+
 def _call(path, onedrive_roots, by_user, work, req):
     """Run `work(store, by_user, req)` on a store of its own, under the one lock; (status, body). A refusal and the
     store's own rule messages are 400 in plain words; a missing database, a busy one and an unusable folder are 503; any
