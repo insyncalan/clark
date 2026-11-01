@@ -134,11 +134,11 @@ class RefusedRequests(Rig):
         handler = clog.install(self.log)
         self.addCleanup(logging.getLogger("clark").removeHandler, handler)
         self.ticks = [1000.0]
-        patch = mock.patch.object(sv, "REFUSED", sv.Refused(clock=lambda: self.ticks[0]))
+        patch = mock.patch.object(sv, "REFUSED", sv.Refused(clock=lambda: self.ticks[0], timer=None))
         patch.start()
         self.addCleanup(patch.stop)
-        sv.refused_count()                                    # a minute that has just begun (the first refusal starts it)
-        sv.REFUSED.n = 0
+        sv.refused_count()                                    # a minute that has just begun (the first refusal starts it, and says so)
+        self.base = self.text()
 
     def foreign(self, method, path, host=None):
         """One request as another site's page sends it with mode no-cors: its own Origin, cross-site, no token."""
@@ -169,14 +169,16 @@ class RefusedRequests(Rig):
 
     def test_twenty_five_foreign_requests_write_no_line(self):
         self.flood(25)
-        self.assertEqual(self.text(), "")
+        self.assertEqual(self.text(), self.base)
 
     def test_the_minute_is_said_in_one_line_with_nothing_of_the_requests(self):
         self.flood(25)
         self.ticks[0] += sv.CSP_REPORT_WINDOW + 1                           # the minute is up
         self.flood(3)
-        (line,) = self.text().splitlines()
-        self.assertRegex(line, r" WARN  server +25 requests were turned away and not logged one by one$")
+        first, line, again = self.text().splitlines()
+        self.assertEqual(first + "\n", self.base)
+        self.assertRegex(again, r" WARN  server +a request was turned away; more are counted")
+        self.assertRegex(line, r" WARN  server +25 more requests were turned away and not logged one by one$")
         self.assertNotIn(MARK.lower(), line.lower())
         self.assertNotIn("/api/", line)
         self.assertNotIn("example", line)

@@ -308,23 +308,48 @@ def csp_take(n):
 
 class Refused:
     """Requests turned away before authorised() let them in (#234): counted, never a line of their own, so a page on another
-    site looping requests at this port cannot fill the day's log. Once `interval` seconds are up, the next one writes the
-    count in one line: a number only, nothing of any request (no path, query, header or Origin). `clock` is monotonic, so a
-    clock stepping back never holds the line back; tests pass their own."""
+    site looping requests at this port cannot fill the day's log. The first one after a quiet spell writes one line saying so;
+    the rest in the next `interval` seconds are counted and written as one line when it is up (a timer writes it, so a burst
+    that is the last for a while is still written; a later request writes it too if the timer has not yet). Only a number is
+    written: nothing of any request (no path, query, header or Origin). `clock` is monotonic, so a clock stepping back never
+    holds the line back; tests pass their own clock and `timer=None`."""
 
-    def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic):
-        self.interval, self.clock, self.lock = interval, clock, threading.Lock()
-        self.since, self.n = None, 0
+    def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic, timer=threading.Timer):
+        self.interval, self.clock, self.timer, self.lock = interval, clock, timer, threading.Lock()
+        self.since, self.n, self.gen = None, 0, 0
+
+    def _close(self):
+        """End the window (the lock is held): the count of the others in it, or 0."""
+        n, self.since, self.n = self.n, None, 0
+        return n
+
+    def flush(self, gen=None):
+        """Write what the window counted and end it (the timer calls this, for the window it was started for)."""
+        with self.lock:
+            if gen is not None and gen != self.gen:
+                return                                   # that window already ended; a newer one has its own timer
+            n = self._close()
+        if n:
+            LOG.warning("%d more requests were turned away and not logged one by one", n)
 
     def count(self):
+        first, n = False, 0
         with self.lock:
             now = self.clock()
-            n = 0
-            if self.since is None or now - self.since >= self.interval:
-                n, self.since, self.n = self.n, now, 0
-            self.n += 1
+            if self.since is not None and now - self.since >= self.interval:
+                n = self._close()
+            if self.since is None:
+                first, self.since, self.gen = True, now, self.gen + 1
+                if self.timer:
+                    t = self.timer(self.interval, self.flush, (self.gen,))
+                    t.daemon = True
+                    t.start()
+            else:
+                self.n += 1
         if n:
-            LOG.warning("%d requests were turned away and not logged one by one", n)
+            LOG.warning("%d more requests were turned away and not logged one by one", n)
+        if first:
+            LOG.warning("a request was turned away; more are counted and written as one line a minute")
 
 
 REFUSED = Refused()
