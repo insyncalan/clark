@@ -214,8 +214,10 @@ def review_events(con, ids, cache=None):
             new = [i for i in ids if i not in cache.events]
             if new:
                 mine = {i: [] for i in new}
-                odd = set()
-                _first_reads(con, set(new), sorted({i.split("-", 1)[0] for i in new}), mine, odd)
+                odd = {i for i in new if "-" not in i}                # no code to cut at: read whole, like history()
+                codes = sorted({i.split("-", 1)[0] for i in new if "-" in i})
+                if codes:
+                    _first_reads(con, set(new) - odd, codes, mine, odd)
                 if odd:
                     mine.update(history_many(con, sorted(odd)))
                 for i in new:
