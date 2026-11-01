@@ -9,9 +9,9 @@ import unittest
 from _paths import ROOT
 import _testpage as testpage
 
-from clark import changes, sneak  # noqa: E402
+from _real_server import real_server
 from test_peek import key  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
@@ -46,8 +46,8 @@ class PeekFresh(unittest.TestCase):
         return d
 
     def load(self, cdp, width, item, scheme):
-        s = Running(data_for=self.data_for, projects=lambda: self.store.read("projects"), page_html=lambda: testpage.html(), sneak=sneak.make_read(self.data_for),
-                    change=changes.make_change(self.store.path, [], "Demo User"), undo=changes.make_undo(self.store.path, [], "Demo User"))
+        s = real_server(self.store.path, self.data_for, who="Demo User", projects=lambda: self.store.read("projects"),
+                        page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)

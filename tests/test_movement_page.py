@@ -18,6 +18,7 @@ from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
+from _real_server import real_server
 from _paths import SRC, TOOLS
 
 sys.path.insert(0, str(TOOLS))
@@ -25,7 +26,7 @@ import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
 from clark import changes, milestone_rows, movement_read, movement_view as mv, page, server as sv  # noqa: E402
-from test_server import Running, chrome, wait_toast  # noqa: E402
+from test_server import chrome, wait_toast  # noqa: E402
 from test_report_editor import Pg  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -126,8 +127,7 @@ class Base(unittest.TestCase):
         self.read = movement_read.make_read(self.store.milestone_moves, self.store.data_for)
         self.sent, self.reads, self.hold_read = [], [], None
         self.fail_read = False
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING),
-                         change=self.seam(self.real_change, "change"), undo=self.seam(self.real_undo, "undo"))
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING), seam=self.seam)
         self.s.httpd.movement = self.movement
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)

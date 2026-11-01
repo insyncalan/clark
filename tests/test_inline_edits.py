@@ -18,13 +18,13 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _demo import USER
+from _real_server import real_server
 from _paths import SRC
 import _testpage as testpage
 
 from clark import changes, server as sv  # noqa: E402
 from clark.store import open_store  # noqa: E402
-from test_server import CHROME, Running, chrome, wait  # noqa: E402
+from test_server import CHROME, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, TODAY, bundled, load_demo, page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -221,15 +221,14 @@ class Live(unittest.TestCase):
         self.path = self.folder / "clark.db"
         self.sent = []
         self.failure = None                  # a function (req) -> (status, body), to make clark refuse on purpose
-        real_change, real_undo = changes.make_change(self.path, [], USER), changes.make_undo(self.path, [], USER)
 
         def seam(real, which):
             def call(req):
                 self.sent.append((which, req))
                 return self.failure(req) if self.failure else real(req)
             return call
-        self.s = Running(data_for=self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
-                         page_html=lambda: testpage.html(), change=seam(real_change, "change"), undo=seam(real_undo, "undo"))
+        self.s = real_server(self.path, self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
+                             page_html=lambda: testpage.html(), seam=seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
