@@ -26,6 +26,7 @@
   --icon-red: var(--status-red); --icon-amber: var(--status-amber-text); --icon-green: var(--status-green); --icon-blue: var(--brand-blue); --icon-grey: var(--grey-700);
   /* how clear a section's control is at rest (#101): faint in light, clearer in dark, where .3 is close to invisible */
   --sh-rest: .3;
+  --sh-rest-narrow: .85;      /* the same, in the card's padding at 900 px and below: about 5:1 on the white card (#285) */
 }
 /* dark mode: the same tokens, redrawn for a dark page; the top bar and the report cover stay dark. The values are written twice because CSS cannot
    share them: once for data-theme=dark (chosen) and once for data-theme=auto (follow the computer). tests/test_page.py keeps the two copies equal. */
@@ -42,7 +43,7 @@
   --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
   --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
   --flash: #4A3F1A;
-  --sh-rest: .75;
+  --sh-rest: .75; --sh-rest-narrow: .75;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
 }
 @media (prefers-color-scheme: dark) {
@@ -59,7 +60,7 @@
     --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
     --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
     --flash: #4A3F1A;
-    --sh-rest: .75;
+    --sh-rest: .75; --sh-rest-narrow: .75;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
   }
 }
