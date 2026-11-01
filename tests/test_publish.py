@@ -687,7 +687,8 @@ class Making(unittest.TestCase):
         with self.assertRaisesRegex(PublishError, "already in that folder"):
             self.run_publish()
         again = self.run_publish(overwrite=True)
-        self.assertEqual(again["sha256"], first["sha256"], "the same data and date give the same bytes")
+        self.assertNotEqual(again["sha256"], first["sha256"], "#120: the second publish is Publication 2, and the file says so")
+        self.assertEqual((first["number"], again["number"]), (1, 2))
         self.assertEqual([p.name for p in self.out.iterdir()], ["PUB-report-2026-10-23.html"])
         with self.assertRaisesRegex(PublishError, "isn't there"):
             publish.publish(self.store, "PUB", self.tmp / "missing", by_user="Demo User", now="2026-10-28", branding=EMPTY_BRANDING)
@@ -741,7 +742,8 @@ class Making(unittest.TestCase):
                           rows[0]["week_ending"], rows[0]["checks"], rows[0]["word"], rows[0]["client_path"]),
                          ("PUB", done["path"], done["sha256"], "Demo User", "2026-10-23", "not needed", 0, None))
         self.assertEqual(done["seq"], rows[0]["seq"])
-        self.assertEqual(set(done), {"path", "sha256", "bytes", "seq"})
+        self.assertEqual(set(done), {"path", "sha256", "bytes", "seq", "number"})
+        self.assertEqual(done["number"], 1)
         self.assertEqual(self.store.last_publish_folder("PUB"), str(self.out))
         self.assertEqual(self.store.read("projects", ref="PUB")["publish_local"], self.planted_folder,
                          "no write to the project row")

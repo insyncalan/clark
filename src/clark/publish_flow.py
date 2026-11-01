@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 
 from clark import milestones, page, platform, publish, to_client
-from clark.store import Invalid, open_store
+from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 MIN_MARKER = 8                       # a shorter piece of text can't be searched for without finding it everywhere
@@ -55,7 +55,8 @@ MESSAGES = {
     "local_differs": "{name} was not saved as it was made (the folder may be syncing). Nothing was published. Try again.",
     "not_made": "{reason} Nothing was published.",
     "not_recorded": "Published, but clark could not record it. The files are fine; publish again to record it.",
-    "done_local": "Published. Saved locally as “{name}”.",
+    "done_local": "Published (Publication {number}). Saved locally as “{name}”.",
+    "number_taken": "Another publication was made at the same moment, so this one was not saved. Nothing was published. Publish again.",
     "look_at": " Look at: {items}.",
     "brand_link": " The web link comes from the brand's styling file, not from anything you wrote: ask whoever looks after the brand to remove it.",
     "folder_saved": "The client folder is saved.",
@@ -224,12 +225,14 @@ class Publisher:
             # The Save window may have been open a while. What the client is to get is made again now, so a flag turned off
             # meanwhile is honoured; if anything differs, every check before the copy runs again on the new file.
             try:
-                again = publish.build(store, code, today, self.branding, body.get("section_style"))
+                # #120: the same number while it is still the next one; else the file is made again with the new next number
+                keep = built["number"] if store.next_publication(code) == built["number"] else None
+                again = publish.build(store, code, today, self.branding, body.get("section_style"), keep)
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
             # The client folder is checked again whether or not the file changed: it may have been swapped for a link (or
             # another folder) while the window was open, and the copy goes only to the real place this check finds.
-            if again["sha256"] != digest:
+            if again["sha256"] != digest or again["number"] != built["number"]:
                 built = again
                 body_bytes, digest = built["body"], built["sha256"]
                 week = built["project"]["week_ending"]
@@ -242,6 +245,7 @@ class Publisher:
             return 409, self.fail("local_not_html")
         if any(self.inside_folder(dest, own) for own in (self.data_dir, self.backups_dir) if own):
             return 409, self.fail("local_clark_files")
+        earlier_local = self.earlier_bytes(dest)        # #120: a file this one replaces is put back if the record is refused
         written = self.write_local(dest, body_bytes, digest)
         if written is not None:
             return 409, written
@@ -263,16 +267,27 @@ class Publisher:
             client = to_client.ClientResult(False, "failed", to_client.MESSAGES["copy_failed_local_kept"].format(
                 reason=client.message), nothing_written=True)
         client_path = client.path if client is not None and client.ok else None
+        number = built["number"]
         try:
-            store.log_publication(code, dest, week, digest, self.by_user(), client_path=client_path)
+            store.log_publication(code, dest, week, digest, self.by_user(), client_path=client_path, number=number)
+        except NumberTaken:               # #120: the files say a number they do not have: take back what this call wrote, and only that
+            self.take_back(dest, digest, earlier_local)
+            if client_path is not None:
+                self.take_back(client_path, digest, None)
+            return 409, self.fail("number_taken")
         except (Invalid, OSError) as e:
             return 409, self.fail("not_recorded", MESSAGES["not_recorded"],
                                   local_saved=True, local_name=dest.name)
         if client is None:
-            return 200, {"ok": True, "code": "done", "action": "done", "message": MESSAGES["done_local"].format(name=dest.name),
-                         "local_name": dest.name, "to_client": False}
+            return 200, {"ok": True, "code": "done", "action": "done",
+                         "message": MESSAGES["done_local"].format(number=number, name=dest.name),
+                         "local_name": dest.name, "to_client": False, "number": number, "publication": number}
         status, out = self.reply(client)
-        out.update(local_saved=True, local_name=dest.name, to_client=True)
+        out.update(local_saved=True, local_name=dest.name, to_client=True, number=number)
+        if out.get("ok") is True:
+            out["publication"] = number          # #120: the per-project number, for the dialog's success line
+        if out.get("ok") and out["message"].startswith("Published."):
+            out["message"] = f"Published (Publication {number})." + out["message"][len("Published."):]
         if self.folder_warning:
             out["warning"] = self.folder_warning
             out["message"] += " " + self.folder_warning
@@ -331,6 +346,24 @@ class Publisher:
         except (OSError, platform.PlatformError) as e:
             return self.fail("local_failed", MESSAGES["local_failed"].format(name=dest.name))
         return None
+
+    def earlier_bytes(self, path):
+        """The bytes of a file already at `path` (at most 64 MB), else None: what a refused record puts back (#120)."""
+        try:
+            return publish.read_plain(path, 64 * 1048576)
+        except OSError:
+            return None
+
+    def take_back(self, path, digest, earlier):
+        """Remove a file this publish wrote, only while it still holds the bytes written; a file it replaced is put back."""
+        try:
+            if publish.still_ours(path, digest):
+                if earlier is None:
+                    Path(path).unlink()
+                else:
+                    platform.write_file(Path(path), earlier)
+        except (OSError, platform.PlatformError):
+            pass
 
     def result(self, ok, action, message, **extra):
         return {"ok": ok, "code": action, "action": action, "message": message, **extra}

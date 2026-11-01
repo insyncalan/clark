@@ -489,12 +489,14 @@ def _do_export(store, who, req, today, chosen, roots):
         except (OSError, platform.PlatformError) as e:
             failed = f"{getattr(e, 'strerror', None) or e}."
         words += SAVED_CLIENT.format(name=names["client"]) if copy else CLIENT_FAILED.format(reason=failed)
-    seq = None
+    seq, number = None, None
     try:
         seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)
+        number = store.number_of(seq)               # #120: the Word copy takes the next number of the project's one counter
+        words += f" It is Publication {number}."
     except Invalid as e:
         words += NOT_RECORDED_FILE.format(reason=str(e))
-    return 200, {"ok": True, "path": str(dest), "name": dest.name, "sha256": digest, "bytes": len(data), "seq": seq,
+    return 200, {"ok": True, "path": str(dest), "name": dest.name, "sha256": digest, "bytes": len(data), "seq": seq, "number": number,
                  "client_name": copy.name if copy else None, "client_failed": bool(failed), "message": words}
 
 

@@ -19,7 +19,7 @@ from clark import page, to_client
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 NO_FOLDER = "No client folder yet. Set it in Settings."
-DONE_NEW = to_client.MESSAGES["done_new"].format(name=WANTED)
+DONE_NEW = to_client.MESSAGES["done_new"].format(name=WANTED).replace("Published.", "Published (Publication 1).", 1)       # #120
 WIDTHS = (1400, 900)
 
 
