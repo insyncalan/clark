@@ -3,7 +3,7 @@
 // caller asks for a new one in onChange(state) and saves the history entry that onSent(entry) is given (it answers {ok, message}). clark never sends mail.
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";
-import { MODES, TONES, LABELS, chasedWords, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
+import { MODES, TONES, LABELS, subLine, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
 export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip }) {
   const [note, setNote] = useState("");
@@ -64,7 +64,7 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
   const picked = state.picked || [];
   return (
     <div class="de" role="dialog" aria-label={LABELS.title} onKeyDown={keys}>
-      <div class="de-head"><h2>{LABELS.title}</h2>{state.mode === "chase" ? <p class="muted de-sub">A chase · {chasedWords(draft.chased)}</p> : null}</div>
+      <div class="de-head"><h2>{LABELS.title}</h2><p class="muted de-sub">{subLine(state.mode, draft.chased)}</p></div>
       <div class="de-body">
         <fieldset class="de-kinds"><legend class="sr">{LABELS.kind}</legend>
           {MODES.map((m) => (

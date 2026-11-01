@@ -663,7 +663,7 @@ body.board-full .toasts { z-index: 40; }
 .de-problem { margin: 8px 0; color: var(--status-red-text); }
 .de-internal { margin: 8px 0 0; padding: 8px 10px; border-left: 3px solid var(--status-amber-text); background: var(--grey-100); }
 .de-preview { padding: 12px 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--white); color: var(--brand-ink); overflow: auto; max-height: 320px; }
-.de-tone .seg button:focus-visible, .de-preview:focus-visible, .de-opts input:focus-visible, .de-kinds input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.de-preview:focus-visible, .de-opts input:focus-visible, .de-kinds input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 /* Help (#82): the panel's styles, from the prototype's help.css; tokens only, nothing below 13px. */

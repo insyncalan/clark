@@ -98,6 +98,14 @@ export function chasedWords(n) {
   return k ? `chased ${k} time${k > 1 ? "s" : ""} before` : "not chased yet";
 }
 
+/** The line under the editor's title, in the prototype's words (system/prototype/peek.js): what kind of email this is, how often a
+ *  chase has been sent before, and that clark never sends it. An unknown kind says nothing (the editor names the choice elsewhere). */
+export const NEVER_SENDS = "clark never sends it: copy it into Outlook.";
+export function subLine(mode, chased) {
+  const kind = { update_request: "An update request", chase: `A chase · ${chasedWords(chased)}`, decision: "A decision request" }[mode];
+  return kind ? `${kind}. ${NEVER_SENDS}` : "";
+}
+
 /** What the builder is asked with each time something changes. Only the editor's own inputs; the caller adds the items, the
  *  recipient, the sender, the clock and the settings. An unknown kind is refused in plain words (never sent on). */
 export function buildOptions(state) {
