@@ -20,15 +20,15 @@ FAKE_BUILD = '''import sys
 from pathlib import Path
 root = Path(__file__).resolve().parents[2]
 def want():
-    return "header\\n" + (root / "src/a.txt").read_text() + (root / "src/b.txt").read_text()
+    return "header\\n" + (root / "src/a.txt").read_text(encoding="utf-8") + (root / "src/b.txt").read_text(encoding="utf-8")
 pages = [root / "src/clark/page/page.html", root / "src/clark/page/page-view.html"]
 if "--check" in sys.argv:
-    if any(not p.exists() or p.read_text() != want() for p in pages):
+    if any(not p.exists() or p.read_text(encoding="utf-8") != want() for p in pages):
         print("out of date")
         sys.exit(1)
     sys.exit(0)
 for p in pages:
-    p.write_text(want())
+    p.write_text(want(), encoding="utf-8")
 '''
 
 
@@ -50,7 +50,7 @@ class MergeMain(unittest.TestCase):
         git(self.w, "checkout", "-q", "-b", "main")
         (self.w / "dev/tools").mkdir(parents=True)
         (self.w / "src/clark/page").mkdir(parents=True)
-        (self.w / "dev/tools/build_page.py").write_text(FAKE_BUILD)
+        (self.w / "dev/tools/build_page.py").write_text(FAKE_BUILD, encoding="utf-8")
         shutil.copy(SCRIPT, self.w / "dev/tools/merge_main.sh")
         self.write("src/a.txt", "a0\n")
         self.write("src/b.txt", "b0\n")
@@ -61,7 +61,7 @@ class MergeMain(unittest.TestCase):
         git(self.w, "checkout", "-q", "-b", "feature")
 
     def write(self, rel, text):
-        (self.w / rel).write_text(text)
+        (self.w / rel).write_text(text, encoding="utf-8")
 
     def build(self):
         subprocess.run(["python3", "dev/tools/build_page.py"], cwd=self.w, check=True)
@@ -97,7 +97,7 @@ class MergeMain(unittest.TestCase):
         r = self.run_script()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertTrue(self.check_ok())
-        self.assertEqual((self.w / "src/clark/page/page.html").read_text(), "header\na1\nb1\n")
+        self.assertEqual((self.w / "src/clark/page/page.html").read_text(encoding="utf-8"), "header\na1\nb1\n")
         self.assertEqual(git(self.w, "log", "-1", "--format=%s").stdout.strip(), "Merge origin/main")
         self.assertEqual(git(self.w, "status", "--porcelain").stdout, "")
         self.assertIn("Not pushed. Run the checks, then push once.", r.stdout)
