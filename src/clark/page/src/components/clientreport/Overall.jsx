@@ -50,7 +50,7 @@ export function Overall({ on }) {
           </div>
           <p class="cr-gap" data-gap>{gap}</p>
         </>
-      ) : <p class="quiet">There are no milestones to measure progress by yet. Add milestones and this bar fills in.</p>}
+      ) : <p class="quiet">There are no milestones to measure progress by yet. The bar fills in once the project has milestones.</p>}
       <p class="quiet cr-how">Every milestone counts the same. A milestone that is done counts as 100%, any other counts its percent complete. Planned counts a milestone once its agreed date has come.</p>
     </>
   );
