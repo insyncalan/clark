@@ -460,7 +460,7 @@ class PublishedFile(unittest.TestCase):
             cdp.js("document.querySelector('#work tr[data-id]').focus()", sid)
             press(cdp, sid, "ArrowDown", SHIFT)
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.id", sid) == rows[1]), "Shift+Down moved to the next row")
-            self.assertEqual(cdp.js("clarkPage.selected()", sid), [], "and selected nothing")
+            self.assertEqual(cdp.js("document.querySelectorAll('#work [aria-selected=true]').length", sid), 0, "and selected nothing")
 
 
 class OnTheBoard(Base):
