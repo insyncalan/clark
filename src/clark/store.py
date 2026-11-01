@@ -1603,10 +1603,49 @@ MIGRATE_INCONSISTENT = ("The database could not be updated because some of its r
                         "changed. Your data is as it was. Ask the clark team for help, and tell them the name of the data file.")
 
 
-# How every plain refusal of an update begins (MIGRATE_FAILED, the safety-copy refusals from backup.refusal, the plan's refusals):
-# the server shows these sentences as they are instead of "clark can't read its data".
+MIGRATE_PART_WAY = ("The database could not be updated, and it may have been left part way. The copy taken before the update "
+                    "is in the backups folder. Ask the clark team for help, and tell them the name of the data file.")
+NEWER_DATA = "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."
+
+# The lowest SQLite the migration code is written for. Stated, not enforced at run time; a test checks the steps use nothing newer.
+MIN_SQLITE = (3, 24, 0)
+
+
+# How every plain refusal of an update begins (MIGRATE_FAILED, the safety-copy refusals from backup.refusal, the plan's refusals,
+# a newer file): the server shows these sentences as they are instead of "clark can't read its data".
 MIGRATE_REFUSAL_STARTS = ("The database could not be updated", "This copy of clark cannot bring the database",
-                          "The database has a version clark does not know")
+                          "The database has a version clark does not know", "This data needs a newer clark")
+
+
+def bring_up_to_date(con, path, onedrive_roots=None):
+    """The one way an existing file is brought to SCHEMA_VERSION, so no caller can migrate without the safety copy. In order: the
+    file's version is read (a newer one is refused with NEWER_DATA, and nothing is changed or copied); the plan is checked (a gap
+    or a missing step is refused before anything is copied); a safety copy is taken in backup.make's own `migrate` family (if it
+    cannot be made, nothing runs); then `migrate` runs every step in one transaction. Any failure leaves the file as it was and
+    is said in plain words. Returns the path of the safety copy, or None when the file was already up to date."""
+    from clark import backup
+    path = Path(path)
+    row = con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()
+    if row is None or not str(row[0]).isdigit():
+        raise Invalid(f"{path.name} is a clark database with no usable version. It may be damaged.")
+    version = int(row[0])
+    if version > SCHEMA_VERSION:
+        raise Invalid(NEWER_DATA)
+    if version == SCHEMA_VERSION:
+        return None
+    migration_plan(version)
+    copy = backup.make(path, path.parent / "backups", onedrive_roots, "migrate")
+    try:
+        migrate(con)
+    except Invalid:
+        raise
+    except sqlite3.OperationalError as e:
+        raise Invalid(_migrate_words(e)) from e               # busy, a disk or file that can't be written, or neither
+    except sqlite3.IntegrityError as e:                       # a foreign key or a CHECK: the records, not the space
+        raise Invalid(MIGRATE_INCONSISTENT) from e
+    except Exception as e:                # any other fault in a step: rolled back by migrate, said in plain words
+        raise Invalid(MIGRATE_FAILED) from e
+    return copy
 
 
 def open_store(path, onedrive_roots=None):
@@ -1645,29 +1684,10 @@ def open_store(path, onedrive_roots=None):
             except BaseException:
                 con.execute("ROLLBACK")
                 raise
-        row = con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()
-        if row is None or not str(row[0]).isdigit():
-            raise Invalid(f"{path.name} is a clark database with no usable version. It may be damaged.")
-        version = int(row[0])
-        if version > SCHEMA_VERSION:
-            raise Invalid(f"This database was made by a newer clark (version {version}); update clark to open it.")
-        if version < SCHEMA_VERSION:
-            # #126: the plan is checked first, so a refused plan makes no copy. Then the safety copy of an existing older file,
-            # through backup.make's own `migrate` family. If it cannot be made the migration is refused in plain words
-            # (backup.refusal) and nothing is changed. A new database never gets here.
-            migration_plan(version)
-            backup.make(path, path.parent / "backups", onedrive_roots, "migrate")
-            try:
-                migrate(con)
-            except Invalid:
-                raise
-            except sqlite3.OperationalError as e:
-                raise Invalid(_migrate_words(e)) from e               # busy, a disk or file that can't be written, or neither
-            except sqlite3.IntegrityError as e:                       # a foreign key or a CHECK: the records, not the space
-                raise Invalid(MIGRATE_INCONSISTENT) from e
-            except Exception as e:                # any other fault in a step: rolled back by migrate, said in plain words
-                raise Invalid(MIGRATE_FAILED) from e
-        return Store(con, path, onedrive_roots)
+        copy = bring_up_to_date(con, path, onedrive_roots)
+        store = Store(con, path, onedrive_roots)
+        store.migration_backup = copy
+        return store
     except sqlite3.OperationalError as e:
         con.close()
         raise Invalid(_busy(e)) from e
@@ -1991,7 +2011,10 @@ def migrate(con, table=None):
     Foreign keys are switched OFF before the transaction begins (the pragma does nothing inside one) and back ON afterwards, also
     after a failure: item_events is made again, and with the keys on the drop of the old table refuses when an Undo row points at
     it. A row that was ALREADY dangling before the update is not the update's doing and never blocks it; only a NEW violation
-    (more than before, by table, parent and key) refuses and rolls back."""
+    (more than before, by table, parent and key) refuses and rolls back.
+
+    A step must never end the transaction (executescript, COMMIT or ROLLBACK would). One that does anyway is stopped there, and
+    the words say the file may be part way and where the safety copy is, never "nothing was changed"."""
     con.execute("PRAGMA foreign_keys = OFF")
     try:
         con.execute("BEGIN IMMEDIATE")
@@ -2003,6 +2026,8 @@ def migrate(con, table=None):
                     before = _violations(con)
                     for n, step in steps:
                         step(con)
+                        if not con.in_transaction:
+                            raise Invalid(MIGRATE_PART_WAY)
                         con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(n),))
                     if _violations(con) - before:
                         raise Invalid(MIGRATE_INCONSISTENT)
@@ -2211,6 +2236,7 @@ class Store:
         self.backups_dir = self.path.parent / "backups"        # beside the database, never inside OneDrive (backup.py checks)
         self._backup_hold = None                               # set by backup.py alone, and only inside `with store.backup_once(...)`
         self.backup_warning = None                             # plain words when the last daily copy failed (backup.before); else None
+        self.migration_backup = None                           # the safety copy taken when this open brought the file up to date; else None
         self.device = con.execute("SELECT v FROM meta WHERE k = 'device'").fetchone()[0]
 
     def close(self):
