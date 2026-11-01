@@ -112,6 +112,31 @@ class HistoryManyIds(unittest.TestCase):
         finally:
             demo.close()
 
+    def test_a_thousand_ids_without_a_hyphen_do_not_break_the_query(self):
+        """#252 (Hawkeye): each bare ID used to add three OR terms and three parameters; about 400 hit SQLite's limits."""
+        from clark import history
+        demo = DemoStore()
+        try:
+            s = demo.store
+            a, b = demo.action(), demo.action(description="Second")
+            demo.update("actions", a, {"owner": "Sam Example"})
+            with s.step("dashboard", USER) as st:
+                st.update("actions", b, {"labels": "Sensitive"})
+                st.create("links", {"from_item": a, "to_item": b, "source": "demo"})
+            for old, new in ((a, "AB"), (b, "ABC")):
+                s.con.execute("UPDATE change_log SET item_id = replace(item_id, ?, ?)", (old, new))
+            s.con.commit()
+            # AB and ABC sit in different chunks, so the link row "AB|ABC|.." is matched by both and must be read once
+            ids = ["AB", "ABC-7"] + ["NOHYPHEN%d" % n for n in range(1000)] + ["ABD", "AB", "ABC"]
+            many = history.history_many(s.con, ids)
+            self.assertEqual(set(many), set(ids))
+            for i in ["AB", "ABC", "ABC-7", "ABD", "NOHYPHEN0", "NOHYPHEN999"]:
+                with self.subTest(item=i):
+                    self.assertEqual(many[i], history.history(s.con, i))
+            self.assertTrue(len(many["AB"]) >= 2 and len(many["ABC"]) >= 2, "the hyphenless IDs got no history")
+        finally:
+            demo.close()
+
 
 if __name__ == "__main__":
     unittest.main()
