@@ -55,8 +55,11 @@ HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?privat
 # Sunshine2026"): a key word, is or was, then a mixed value of 8 or more characters.
 QUOTED_PHRASE = r"""(?i)""" + _PW + r"""\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([^"\n]{8,80})"|'([^'\n]{8,80})')"""
 PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|secret)\b)["']?[ \t]{1,3}(?:is|was)[ \t]{1,3}["'(]?([^\s"'`$<>{}()\[\],;]{8,})"""
-# Known gaps, kept as Tech Debt: a secret of letters only ("correcthorsebattery") and a bare 40-character hex string with no key
-# word are not caught; guessing them would drop too many ordinary files.
+# A quoted value of 6 or more letters right after a key word (#243): `the password is "<letters>"`. Quotes: double, single, backtick, curly.
+LETTER_QUOTED = (r"""(?i)(?:passw(?:or)?d|pwd|passcode|passphrase|secret|(?<![A-Za-z])pw(?![A-Za-z]))\w{0,40}["'`\u201c\u201d\u2018\u2019]?"""
+                 r"""[ \t]{0,20}(?:[:=]|\b(?:is|was)\b)?[ \t]{0,20}["'`\u201c\u201d\u2018\u2019][A-Za-z]{6,}["'`\u201c\u201d\u2018\u2019]""")
+# Known gaps, kept as Tech Debt: an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only and
+# a bare 40-character hex string with no key word are not caught; guessing them would drop too many ordinary files.
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 
 # The publish scan's address shape starts at every letter and can take a long time on a long run of letters, so here it starts at
@@ -69,6 +72,7 @@ _UNQUOTED = re.compile(UNQUOTED_LOCAL)
 _CELL = re.compile(CELL_LOCAL)
 _PHRASE = re.compile(QUOTED_PHRASE)
 _PROSE = re.compile(PROSE_SECRET)
+_LETTERS = re.compile(LETTER_QUOTED)
 _SHORT = re.compile(SHORT_PASSWORD)
 _RUN = re.compile(BASE64_RUN)
 _BYTE_SHAPES = tuple(re.compile((ADDRESS_LINEAR if k == ADDRESS_KIND else p).encode("ascii")) for k, p in SECRET_PATTERNS)
@@ -164,7 +168,7 @@ def _one(text):
     for m in _PROSE.finditer(text):
         if _mixed(m.group(1).rstrip(".!?:")):
             return True
-    return _in_base64(text) or _loose(text) or _columns(text)
+    return _LETTERS.search(text) is not None or _in_base64(text) or _loose(text) or _columns(text)
 
 
 def looks_like_secret(text):

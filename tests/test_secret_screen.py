@@ -171,6 +171,20 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_a_letters_only_quoted_password_is_refused(self):
+        word = "orange" + "bicycle"
+        for q1, q2 in (('"', '"'), ("'", "'"), ("`", "`"), ("\u201c", "\u201d"), ("\u2018", "\u2019")):
+            for lead in ("password: ", "pwd=", "passphrase: ", "secret: ", "pw = ", "the password is ", "The wifi password was ", "password "):
+                with self.subTest(lead + q1):
+                    self.assertTrue(secret_screen.looks_like_secret(lead + q1 + word + q2))
+        self.assertTrue(secret_screen.looks_like_secret("Notes.\nPassword: \"" + "swordfish" + "\" (shared)"))
+
+    def test_a_short_or_unquoted_word_after_a_password_word_is_not_refused(self):
+        for text in ('password "ok"', 'the password "must" be long', "password: reset", "the password policy is reviewed each year",
+                     'the token "refresh" is renewed', 'a "required" field', 'pass `revert` to the call', 'password: "two words here"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
     def test_the_address_shape_still_finds_an_address(self):
         self.assertTrue(secret_screen.looks_like_secret("see s3://user:" + PW + "@host/x"))
 
