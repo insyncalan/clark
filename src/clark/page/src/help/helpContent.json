@@ -1411,7 +1411,7 @@
        ],
        [
         "Source folders for ask clark",
-        "The folders ask clark may read for this project. It only reads them."
+        "The folders ask clark may read for this project. It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
         "Publishing",
