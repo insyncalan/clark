@@ -2,7 +2,7 @@
 
 After #87 (PR 240) moved the small size from 13 px to 14 px, a bare 13px or an off-scale heading (15, 17, 18, 22 px) would
 quietly undo it. The few sizes that are not text on the scale are listed here with the reason. The places that must stay at
-13 px to fit their box at 900 px (#428's look at Romanoff's nine places) are pinned to the caption size."""
+13 px to fit their box at 900 px (#428's look at the nine places flagged on PR 240) are pinned to the caption size."""
 import re
 import unittest
 from pathlib import Path
