@@ -42,6 +42,18 @@ class Pg:
     def until(self, expr, what, seconds=15):
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
 
+    def until_new_page(self, expr, what, seconds=15):
+        """until(), but a call made while the page is navigating is waited out: Chrome answers it with 'Inspected target navigated
+        or closed' (seen on the hosted macOS runner), and the next poll sees the new page. Any other error still fails."""
+        def ask():
+            try:
+                return self.js(expr)
+            except RuntimeError as e:
+                if "navigated or closed" in str(e):
+                    return False
+                raise
+        self.t.assertTrue(wait(ask, seconds), what)
+
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
@@ -229,8 +241,10 @@ class Results(Base):
                 self.assertEqual(p.js("[...document.querySelectorAll('#palette .pal-row')].filter(e => /In use/.test(e.textContent)).map(e => e.querySelector('.pal-label').textContent)"),
                                  ["Appearance: " + mode.capitalize()], "the one in use says so")
                 p.key("Escape", 0, "Escape", 27)
+            p.js("window.__old_document = true")
             p.js("location.reload()")
-            p.until("!!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'", "Dark again after a reload")
+            p.until_new_page("window.__old_document === undefined && !!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'",
+                             "Dark again after a reload")
 
     def test_an_item_hidden_from_the_project_is_not_offered(self):
         """The page only holds what the server gave it, and the palette searches that and nothing else."""
