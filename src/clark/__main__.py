@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -292,12 +292,25 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
 
 
 def use_case_ids_on_file(store):
-    """The rule for Use Cases' on_dashboard, as a function of the project code: today publish.select's own choice. When
-    publish.client_use_cases exists (#168) this is the one place to point at it."""
+    """The rule for Use Cases' on_dashboard, as a function of the project code: the use cases the published file's Use Cases
+    tab carries, which publish.client_use_cases decides (select stores its answer as use_case_pages). The route never
+    repeats the rule."""
     def ids(code):
         chosen = publish.select(publish.read_inputs(store, code))
-        return {u["id"] for u in chosen["data"]["use_cases"]}
+        return {p["id"] for p in chosen["data"]["use_case_pages"]}
     return ids
+
+
+def use_case_history(store):
+    """The use cases' history for the Use cases page (#157): {ref: events} for the refs asked, from one read-only connection.
+    It writes nothing."""
+    def read(refs):
+        con = clark_store.connect(store.path, readonly=True)
+        try:
+            return {ref: history.history(con, ref) for ref in refs}
+        finally:
+            con.close()
+    return read
 
 
 def start_log(data_folder, projects, home=None, scratch=None):
@@ -360,6 +373,9 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                     "undo": undo or changes.make_undo(store.path, roots, who.who),
                     "section_image": changes.make_section_image(store.path, roots, who.who),    # #96 R1
                     "sneak": sneak.make_read(store.data_for),
+                    "people": changes.make_people(store.path, roots, who.who),
+                    "people_undo": changes.make_people_undo(store.path, roots, who.who),
+                    "people_list": changes.make_people_list(store.path, roots, who.who),
                     "word_import": word_import or word_route.make_word_import(store.path, roots),
                     "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())
@@ -381,7 +397,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      draft_email_sent=draft_email_feed.make_sent(store.path, roots, by_user=who.who),
                      milestones=milestone_feed.make_feed(store.data_for),
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
-                     use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store)),
+                     use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store), use_case_history(store)),
                      safety=safety.Safety(store.path, roots), logs=logs,
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
