@@ -320,18 +320,19 @@ def csp_take(n):
 
 class Refused:
     """Requests turned away before authorised() let them in (#234): counted, never a line of their own, so a page on another
-    site looping requests at this port cannot fill the day's log. The first one after a quiet spell writes one line saying so;
-    the rest in the next `interval` seconds are counted and written as one line when it is up (a timer writes it, so a burst
-    that is the last for a while is still written; a later request writes it too if the timer has not yet). Only a number is
-    written: nothing of any request (no path, query, header or Origin). `clock` is monotonic, so a clock stepping back never
-    holds the line back; tests pass their own clock and `timer=None`."""
+    site looping requests at this port cannot fill the day's log. A burst in one window of `interval` seconds writes exactly
+    one line, when the window ends: how many were turned away and how long the window was. A timer writes it, so a lone
+    refusal or a last burst before quiet is still written; a later request writes it too if the timer has not yet. Nothing is
+    written when the first request arrives. Only two whole numbers are written: nothing of any request (no path, query, header
+    or Origin). `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
+    `timer=None`."""
 
     def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic, timer=threading.Timer):
         self.interval, self.clock, self.timer, self.lock = interval, clock, timer, threading.Lock()
         self.since, self.n, self.gen = None, 0, 0
 
     def _close(self):
-        """End the window (the lock is held): the count of the others in it, or 0."""
+        """End the window (the lock is held): the count of the requests in it, or 0."""
         n, self.since, self.n = self.n, None, 0
         return n
 
@@ -341,35 +342,31 @@ class Refused:
             if gen is not None and gen != self.gen:
                 return                                   # that window already ended; a newer one has its own timer
             n = self._close()
-        self._say_more(n)
+        self._say(n)
 
-    def _say_more(self, n):
-        """The one line for the others in a window that has ended: fixed words (one message for 1, one for more), with only
-        whole numbers (how many, and how many seconds the window was) as values."""
+    def _say(self, n):
+        """The one line for a window that has ended: fixed words (one message for 1, one for more), with only whole numbers
+        (how many, and how many seconds the window was) as values."""
         secs = int(round(self.interval))
         if n == 1:
-            LOG.warning("1 more request was turned away in the last %d seconds and not logged one by one", secs)
+            LOG.warning("1 request was turned away in the last %d seconds.", secs)
         elif n:
-            LOG.warning("%d more requests were turned away in the last %d seconds and not logged one by one", n, secs)
+            LOG.warning("%d requests were turned away in the last %d seconds.", n, secs)
 
     def count(self):
-        first, n = False, 0
+        done = 0
         with self.lock:
             now = self.clock()
             if self.since is not None and now - self.since >= self.interval:
-                n = self._close()
+                done = self._close()                     # the window ended before the timer wrote it
             if self.since is None:
-                first, self.since, self.gen = True, now, self.gen + 1
+                self.since, self.gen = now, self.gen + 1
                 if self.timer:
                     t = self.timer(self.interval, self.flush, (self.gen,))
                     t.daemon = True
                     t.start()
-            else:
-                self.n += 1
-        self._say_more(n)
-        if first:
-            LOG.warning("a request was turned away. Any more in the next %d seconds are counted, not logged one by one.",
-                        int(round(self.interval)))
+            self.n += 1
+        self._say(done)
 
 
 REFUSED = Refused()
