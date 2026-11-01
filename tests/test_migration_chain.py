@@ -21,7 +21,8 @@ from clark.store import Invalid, open_store
 from test_store_migration import make_v1, version
 
 SRC = ROOT / "src" / "clark"
-FROZEN = {"schema_v2.sql": "baa137b0aad47bee9ddb4fb3ca98084a4e4f1d5dce51cf03e7cd74bd8262b960"}     # each step's frozen tables, by file: pinned, never changed
+FROZEN = {"schema_v2.sql": "baa137b0aad47bee9ddb4fb3ca98084a4e4f1d5dce51cf03e7cd74bd8262b960",
+          "schema_v6.sql": "1929544493e9aee5efef288f62f68d4989f23e76d403b1fb0d97873ea208b732"}     # each step's frozen tables, by file: pinned, never changed
 
 
 def dump(path):
@@ -151,6 +152,27 @@ class TheChain(Base):
                 self.assertEqual(dump(path), before)
                 self.assertEqual(version(path), "1")
                 self.assertEqual(len(copies(folder, "migrate")), 1)       # the copy was taken first, and is kept
+
+    def test_a_failure_after_any_real_step_leaves_a_real_shaped_file_as_it_was(self):
+        for fail_at in range(2, store_module.SCHEMA_VERSION + 1):
+            with self.subTest(fail_at=fail_at):
+                folder = self.dir / f"real{fail_at}"
+                folder.mkdir()
+                path = make_v1(folder)
+                before = dump(path)
+
+                def failing(n, fn):
+                    def run(con):
+                        fn(con)                       # the real step, then a fault after its writes
+                        if n == fail_at:
+                            raise RuntimeError("forced")
+                    return run
+                table = tuple((n, failing(n, fn)) for n, fn in store_module.MIGRATIONS)
+                with mock.patch.object(store_module, "MIGRATIONS", table):
+                    with self.assertRaises(Invalid):
+                        open_store(path, onedrive_roots=[])
+                self.assertEqual(dump(path), before)
+                self.assertEqual(version(path), "1")
 
     def test_running_twice_changes_nothing_and_takes_one_copy(self):
         path = make_v1(self.dir)
