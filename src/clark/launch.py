@@ -105,6 +105,14 @@ def wait_for_clark(port, mark, process, seconds=START_WAIT, health=ask_health, s
         sleep(POLL)
 
 
+def lock_refusal(folder):
+    """The plain line when no clark may be started on `folder` because one is open there, or because that can't be checked; else None."""
+    try:
+        return platform.already_open(folder) if platform.data_lock_held(folder) else None
+    except platform.PlatformError as e:
+        return str(e)
+
+
 def launch(port, folder, say=print, environ=None, start=platform.start_detached, find_chrome=platform.find_chrome,
            open_window=platform.open_app_window, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
            free=port_free):
@@ -118,6 +126,9 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
         return 1
     if seen == OURS:
         say("It is already running. Opening its window.")
+    elif (refusal := lock_refusal(folder)):     # clark is open on this folder (on another port), or that can't be checked: none is started
+        say(refusal)
+        return 1
     else:
         say("Starting clark...")
         log = folder / LOG_NAME

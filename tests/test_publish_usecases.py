@@ -174,7 +174,7 @@ class Present(unittest.TestCase):
         self.assertEqual(pub["tabs"], ["dashboard", "work", "milestones", "usecases"])
         self.assertEqual(block(text)["tabs"], pub["tabs"])
         router = (ROOT / "src/clark/page/src/router.js").read_text(encoding="utf-8")
-        self.assertIn('VIEWS = ["dashboard", "work", "milestones", "usecases", "settings"]', router)
+        self.assertIn('VIEWS = ["dashboard", "work", "milestones", "usecases", "clientreport", "settings"]', router)
         self.assertIn('get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }', (ROOT / "src/clark/page/src/stores/report.js").read_text(encoding="utf-8"))
 
     def test_the_page_has_no_route(self):

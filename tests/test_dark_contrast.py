@@ -38,6 +38,30 @@ def ratio(a, b):
     return (hi + 0.05) / (lo + 0.05)
 
 
+def blend(top, bottom, alpha):
+    """The colour of `top` drawn at `alpha` over `bottom`, as '#RRGGBB'."""
+    return "#" + "".join("%02X" % round(int(top[i:i + 2], 16) * alpha + int(bottom[i:i + 2], 16) * (1 - alpha)) for i in (1, 3, 5))
+
+
+class SectionControlAtRest(unittest.TestCase):
+    def test_in_the_card_padding_it_reads_at_text_level_contrast_in_light_and_in_dark(self):
+        """#285: at 900 px and below the section control rests at --sh-rest-narrow (.85 light, .75 dark); its --text-muted icon, drawn at that
+        opacity on the card (--surface), is at least 4.5:1, the text bar and not only the 3:1 bar for a control."""
+        css = TOKENS.read_text(encoding="utf-8")
+        light = css.split(":root[data-theme=dark]")[0]
+        alpha = float(re.search(r"--sh-rest-narrow:\s*([.\d]+)", light).group(1))
+        self.assertAlmostEqual(alpha, 0.85, places=2)
+        self.assertGreaterEqual(ratio(blend("#475577", "#FFFFFF", alpha), "#FFFFFF"), 4.5, "light")
+        dark = re.findall(r"--sh-rest-narrow:\s*([.\d]+)", css)
+        self.assertEqual(len(dark), 3, "light, dark and following a dark computer")
+        for block, a in zip(dark_blocks(css), dark[1:]):
+            self.assertGreaterEqual(ratio(blend(block["--text-muted"], block["--surface"], float(a)), block["--surface"]), 4.5, "dark")
+
+    def test_the_shell_reads_the_token_at_900_px_and_below(self):
+        shell = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
+        self.assertRegex(shell, r"@media \(max-width: 900px\)[^\n]*--sh-rest: var\(--sh-rest-narrow")
+
+
 class DarkBrandBlue(unittest.TestCase):
     def test_every_dark_block_is_read_and_has_the_new_blue(self):
         for label, path in (("tokens", TOKENS), ("page", PAGE)):

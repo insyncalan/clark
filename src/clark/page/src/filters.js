@@ -65,6 +65,7 @@ export function hasReviewDates(rows) {
 // does. It is the only module-level state here.
 let published = false;
 export function setPublished(on) { published = !!on; }
+export function isPublished() { return published; }
 export function fieldList() { return published ? FIELDS.filter((f) => f !== "client" && f !== "reviewed") : FIELDS; }
 export function dueBuckets() { return published ? [...DUE, ["past", "Earlier"]] : DUE; }
 
