@@ -431,7 +431,7 @@ textarea.tpl-field { resize: vertical; }
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
-/* 'Progress tracker' in Edit (#189): each group has its own small row of buttons; a line being edited is a form under it; the overall's own fields sit
+/* 'Progress tracker' in Edit (item 189): each group has its own small row of buttons; a line being edited is a form under it; the overall's own fields sit
    under the bar. Only tokens. */
 .tracker-edit .t-acts { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; }
 .tracker-edit .t-gtools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px; margin: 8px 0 2px; }

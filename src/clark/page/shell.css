@@ -341,7 +341,7 @@ table.needs .n-over { margin-left: 2px; }
 .slot-left table.needs .n-by, .slot-right table.needs .n-by { width: 34%; }
 @media (max-width: 900px) { table.needs .n-from { width: 26%; } table.needs .n-by { width: 30%; } }
 
-/* 'Progress tracker' (#189): the overall bar, then each group of lines. Only tokens; "behind plan" is never colour alone (▼ and words). */
+/* 'Progress tracker' (item 189): the overall bar, then each group of lines. Only tokens; "behind plan" is never colour alone (▼ and words). */
 .sec-tracker { margin: 8px 0 8px; min-width: 0; }
 .tr-overall { margin: 0 0 16px; }
 .tr-figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 28px; }
