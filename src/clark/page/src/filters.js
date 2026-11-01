@@ -28,7 +28,8 @@ const CLIENT = [["yes", "Shown to the client"], ["no", "Internal only"]];
 // With none of these nothing is flagged. Plain calendar days, the same rule as src/clark/freshness.py: more than N
 // days (exactly N is not yet), open items only.
 export const REVIEW_DAYS = 14;
-const REVIEWED = [["stale", "Not reviewed in " + plural(REVIEW_DAYS, "day")], ["incomplete", "No owner or no date"]];
+export const staleWords = (days = REVIEW_DAYS) => "Not reviewed in " + plural(days, "day");       // the filter's value and the peek's chip say it the same way
+const REVIEWED = [["stale", staleWords()], ["incomplete", "No owner or no date"]];
 export function notReviewed(row, today, days = REVIEW_DAYS) {
   if (!isOpen(row)) return false;
   if (typeof row.not_reviewed === "boolean") return row.not_reviewed;

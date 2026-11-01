@@ -129,6 +129,10 @@ class Rules(unittest.TestCase):
         need_chrome()
         cls.store, cls.folder, cls.ids = load_demo()
         cls.data = {p["code"]: cls.store.data_for(p["code"]) for p in cls.store.read("projects")}
+        for d in cls.data.values():                      # #158: the server now adds freshness; these rules are tested on rows without it
+            for t in ("actions", "raid", "decisions"):
+                for r in d.get(t, ()):
+                    r.pop("freshness", None)
         cls.stack = contextlib.ExitStack()
         cls.cdp = cls.stack.enter_context(chrome())
         cls.sid = page_target(cls.cdp)

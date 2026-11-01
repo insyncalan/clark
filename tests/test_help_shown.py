@@ -143,11 +143,14 @@ class AgainstThePage(unittest.TestCase):
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
         # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...), 73 with the peek's Activity tab (#42: Help now names Activity and no longer All, Updates and Source); lower this only when a feature lands, never to hide a missing one
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now)
+        # 68 with the section templates (#96) as well (their words in the Add a section box and in Help name things the page does now: measured on the merged tree)
+        # 66 with all eighteen templates built (#96 G1 to G7, measured once on the integrated tree): three more of Help’s bold words are on the page (the RAID cards’ Client wording and Latest update, the pictures’ Description): 69 on the base, 66 now
         # 66 with the section templates (#96) and the peek's Activity tab and Appearance name features as well (measured on the merged tree)
         # 66 again on the merge with the command palette (#198), which adds no bold Help name (measured on the merged tree)
         # 66 again on the merge with ask clark's panel (#47a) and the palette's command for it (measured on the merged tree)
-        # 63 with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?), which Help names and the page now draws (measured on the merged tree)
-        self.assertGreaterEqual(len(names), 63)
+        # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
+        # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
+        self.assertGreaterEqual(len(names), 60)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
