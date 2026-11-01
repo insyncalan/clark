@@ -198,6 +198,10 @@ SENT_KEYS = ("project", "ids", "mode", "day")
 MAX_SENT = 50                                      # the ids one record can hold (Store.EMAIL_MAX_IDS)
 BUSY_SENT = "That is already being recorded. Wait a moment and look at the history before you press again."
 BAD_SENT = "That could not be recorded. Reload the page and try again."
+SENT_BAD_DAY = "The date this page sent is not a real date. Reload the page and try again."     # the day comes from the page's clock, not from the person
+SENT_BAD_PROJECT = "That project could not be found. Reload the page and choose it again."
+SENT_BAD_PICK = "One of the ticked items is not in this project. Untick it, or reload the page."
+SENT_TOO_MANY = f"At most {MAX_SENT} items can be recorded in one email. Send it in parts."
 NOTHING_SAVED = "Nothing was saved."                # the last words of every refusal of "I sent it"
 
 
@@ -227,13 +231,17 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
             return refuse(400, "bad_request", BAD_SENT)
         code, ids, mode, day = (req[k] for k in SENT_KEYS)
         if not isinstance(code, str) or not CODE.fullmatch(code):
-            return refuse(400, "bad_project_code", BAD_CODE)
+            return refuse(400, "bad_project_code", SENT_BAD_PROJECT)
         if not isinstance(mode, str) or mode not in de.MODES:
             return refuse(400, "bad_mode", de.NO_SUCH_KIND)
-        if not isinstance(ids, list) or not 1 <= len(ids) <= MAX_SENT or not all(isinstance(i, str) and ID.fullmatch(i) for i in ids):
-            return refuse(400, "bad_pick", BAD_PICK)
+        if isinstance(ids, list) and not ids:
+            return refuse(400, "nothing_ticked", de.NOTHING_TO_RECORD)
+        if isinstance(ids, list) and len(ids) > MAX_SENT:
+            return refuse(400, "too_many", SENT_TOO_MANY)
+        if not isinstance(ids, list) or not all(isinstance(i, str) and ID.fullmatch(i) for i in ids):
+            return refuse(400, "bad_pick", SENT_BAD_PICK)
         if not isinstance(day, str) or not DAY.fullmatch(day) or not _day(day):
-            return refuse(400, "bad_date", BAD_DATE)
+            return refuse(400, "bad_date", SENT_BAD_DAY)
         key = (code, tuple(sorted(set(ids))), mode, day)
         with gate:
             if key in in_flight:

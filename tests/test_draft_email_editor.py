@@ -339,14 +339,14 @@ class Component(InBrowser):
         self.settle()
         self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
         self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
-        self.js("T.reply = {ok: false, message: 'One of the ticked items is not in this project. Reload the page and tick again.'}")
+        self.js("T.reply = {ok: false, message: 'One of the ticked items is not in this project. Untick it, or reload the page.'}")
         self.js(click)
         self.settle()
-        self.assertEqual(self.text(".de-note"), "One of the ticked items is not in this project. Reload the page and tick again.")
+        self.assertEqual(self.text(".de-note"), "One of the ticked items is not in this project. Untick it, or reload the page.")
         self.js("T.reply = {ok: false}")
         self.js(click)
         self.settle()
-        self.assertEqual(self.text(".de-note"), "That could not be saved to the history, so nothing was marked as sent. Try again.")
+        self.assertEqual(self.text(".de-note"), "That could not be saved to the history. Try again. Nothing was saved.")
 
     def test_i_sent_it_pressed_twice_while_one_is_in_flight_sends_one_and_is_disabled_until_the_reply(self):
         # #258: a second press does nothing until the reply
@@ -381,7 +381,7 @@ class Component(InBrowser):
 
     def test_a_missing_sender_name_blocks_copying_with_its_next_step(self):
         self.mount(state(), draft(picked=["ABC-A-001"], **{"from": ""}))
-        self.assertEqual(self.text(".de-problem"), "Add your name in Settings › Profile so it signs the email.")
+        self.assertEqual(self.text(".de-problem"), "Add your name under Settings, Personal, About you so it signs the email.")
 
     def test_copy_for_outlook_puts_html_and_text_on_the_clipboard_and_says_copied(self):
         self.mount()

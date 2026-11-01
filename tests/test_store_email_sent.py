@@ -87,7 +87,7 @@ class Writing(Base):
 
     def test_the_day_may_be_one_day_ahead_and_not_more(self):
         self.send(day=str(TODAY + timedelta(days=1)))
-        self.refuses("can't be in the future", day=str(TODAY + timedelta(days=2)))
+        self.refuses("ahead of today", day=str(TODAY + timedelta(days=2)))
 
     def test_a_chase_stepped_three_times_makes_the_tone_firmer(self):
         for n in range(3):
@@ -136,8 +136,8 @@ class InTheHistory(Base):
 
 class Refusals(Base):
     def test_each_refusal_writes_nothing_and_says_what_to_do(self):
-        self.refuses("Add your name in Settings", who="  ")
-        self.refuses("Add your name in Settings", who=None)
+        self.refuses("Add your name under Settings, Personal, About you", who="  ")
+        self.refuses("Add your name under Settings, Personal, About you", who=None)
         self.refuses("isn't one clark records", mode="reminder")
         self.refuses("Tick at least one item", ids=[])
         self.refuses("Tick at least one item", ids=["  ", ""])
@@ -150,7 +150,7 @@ class Refusals(Base):
         self.refuses("must be a real date", day="2026-02-30")
         self.refuses("must be a real date", day="20261028")
         self.refuses("must be a real date", day="28-10-2026")
-        self.refuses("There is no project", code="QQQ")
+        self.refuses("That project could not be found", code="QQQ")
 
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:
@@ -161,7 +161,7 @@ class Refusals(Base):
         with self.store.step("dashboard", USER):
             with self.assertRaises(Invalid) as caught:
                 self.send()
-            self.assertEqual(str(caught.exception), "This can't be recorded while another change is being made. Finish that change first.")
+            self.assertEqual(str(caught.exception), "clark is busy saving another change. Wait a moment, then press I sent it again.")
 
     def test_no_name_for_who_pressed_it_says_where_to_add_one(self):
         """#208(a): the refusal says what to do, with no 'sent record'."""
@@ -169,7 +169,7 @@ class Refusals(Base):
             with self.subTest(who=who):
                 with self.assertRaises(Invalid) as caught:
                     self.send(who=who)
-                self.assertEqual(str(caught.exception), "Add your name in Settings, then try again.")
+                self.assertEqual(str(caught.exception), "Add your name under Settings, Personal, About you, then try again.")
 
     def test_the_email_words_are_in_no_column(self):
         con = sqlite3.connect(self.store.path)
@@ -387,8 +387,8 @@ class Refusals258(Base):
         self.assertNotIn("2026-10-27", str(caught.exception))
 
     def test_a_day_before_2020_is_refused_and_the_first_day_of_2020_is_not(self):
-        self.refuses("too long ago", day="2019-12-31")
-        self.refuses("too long ago", day="0001-01-01")
+        self.refuses("too far in the past", day="2019-12-31")
+        self.refuses("too far in the past", day="0001-01-01")
         self.assertTrue(self.send(day="2020-01-01"))
 
 

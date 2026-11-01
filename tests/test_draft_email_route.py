@@ -425,7 +425,7 @@ class Sent(unittest.TestCase):
         self.assertTrue(started.wait(5))
         status, body = self.seam(self.good(ids=[self.b, self.a]))          # the same ids in another order
         self.assertEqual((status, body["code"] if "code" in body else body.get("error")), (409, "already_recording"), body)
-        self.assertEqual(body["message"], feed.BUSY_SENT)
+        self.assertEqual(body["message"], feed.BUSY_SENT + " Nothing was saved.")
         self.assertNotIn(self.a, body["message"])
         release.set()
         t.join(5)
@@ -462,14 +462,30 @@ class Sent(unittest.TestCase):
         self.assertEqual(self.post(self.good(mode="reminder"))[1]["message"],
                          "That kind of email isn't available. Choose Update request, Chase or Decision. Nothing was saved.")
         self.assertEqual(self.post(self.good(project="XYZ"))[1]["message"],
-                         "There is no project with that code. Nothing was saved.")
+                         "That project could not be found. Reload the page and choose it again. Nothing was saved.")
+        words = {
+            "the day the page sent": (self.good(day="28-10-2026"), "The date this page sent is not a real date. Reload the page and try again. Nothing was saved."),
+            "a day ahead of the computer's clock": (self.good(day="2026-11-05"),
+                "The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved."),
+            "a lower-case project": (self.good(project="abc"), "That project could not be found. Reload the page and choose it again. Nothing was saved."),
+            "nothing ticked": (self.good(ids=[]), "Tick at least one item before you press I sent it. Nothing was saved."),
+            "an item that is not in the project": (self.good(ids=[self.a, "ABC-A-999"]),
+                "One of the ticked items is not in this project. Untick it, or reload the page. Nothing was saved."),
+            "an item that is not an id": (self.good(ids=["not an id"]),
+                "One of the ticked items is not in this project. Untick it, or reload the page. Nothing was saved."),
+        }
+        for name, (body, said) in words.items():
+            with self.subTest(name):
+                got = self.post(body)[1]
+                self.assertEqual(got["message"], said)
+                self.assertNotRegex(got["message"], r"(?i)calendar|reply-by|capital letters|\bcode\b")
 
     def test_no_name_for_who_pressed_it_is_refused_in_the_words_of_the_ticket(self):
         """#208(a)."""
         seam = feed.make_sent(self.store.path, [], by_user=lambda: "  ", today=date(2026, 10, 28))
         status, body = seam(self.good())
         self.assertEqual((status, body["ok"]), (400, False))
-        self.assertEqual(body["message"], "Add your name in Settings, then try again. Nothing was saved.")
+        self.assertEqual(body["message"], "Add your name under Settings, Personal, About you, then try again. Nothing was saved.")
         self.assertEqual(self.store.email_sent_for("ABC"), [])
 
     def test_a_good_answer_is_left_alone(self):

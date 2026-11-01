@@ -2193,8 +2193,8 @@ def _migrate_words(e):
 def _busy(e):
     """A plain message for a database that is locked by another program for more than the busy timeout."""
     if "locked" in str(e) or "busy" in str(e):
-        return "clark's data is in use by another program or step. Wait a moment and try again."
-    return "clark's data could not be opened for writing."          # never SQLite's own words: the person doesn't read them
+        return "clark's data is in use by something else. Wait a moment and try again."
+    return "clark's data could not be opened. Wait a moment and try again. If it happens again, restart clark."          # never SQLite's own words: the person doesn't read them
 
 
 def _statements(sql):
@@ -2537,7 +2537,7 @@ class Store:
         one day ahead of today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
         transaction. Returns the record's number."""
         if not str(by_user or "").strip():
-            raise Invalid("Add your name in Settings, then try again.")
+            raise Invalid("Add your name under Settings, Personal, About you, then try again.")
         if mode not in self.EMAIL_MODES:
             raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
         if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
@@ -2554,11 +2554,11 @@ class Store:
         except ValueError:
             raise Invalid("The day the email was sent must be a real date.") from None
         if sent < date(2020, 1, 1):
-            raise Invalid("The day the email was sent is too long ago to be right. Check the date.")
+            raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again.")
         if sent > (today or date.today()) + timedelta(days=1):
-            raise Invalid("The day the email was sent can't be in the future.")
+            raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again.")
         if self.con.in_transaction:
-            raise Invalid("This can't be recorded while another change is being made. Finish that change first.")
+            raise Invalid("clark is busy saving another change. Wait a moment, then press I sent it again.")
         try:
             self.con.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as e:
@@ -2566,14 +2566,14 @@ class Store:
         try:
             row = self.con.execute("SELECT archived FROM projects WHERE code = ?", (code,)).fetchone()
             if row is None:
-                raise Invalid("There is no project with that code.")
+                raise Invalid("That project could not be found. Reload the page and choose it again.")
             if row["archived"]:
                 raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first.")
             def ours(item):
                 return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
                            for table in ("actions", "raid", "decisions"))
             if not all(ours(i) for i in ids):
-                raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
+                raise Invalid("One of the ticked items is not in this project. Untick it, or reload the page.")
             # #258: an item the email could not have been about (left out of the report, closed, or labelled to be kept out) is refused.
             values = list(ids)
             if (self.con.execute(f"SELECT 1 FROM report_hidden WHERE project = ? AND item_id IN ({', '.join('?' * len(values))})",
@@ -2583,7 +2583,7 @@ class Store:
                                             "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
                            for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
                                              ("decisions", ("Withdrawn", "Withdrawn"))))):
-                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Untick it, or reload the page.")
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])

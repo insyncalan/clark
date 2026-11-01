@@ -221,7 +221,7 @@ class PlainWordsMedium(unittest.TestCase):
         self.assertEqual(build()["problems"], [])
 
     def test_a_missing_sender_name_asks_for_it(self):
-        msg = "Add your name in Settings › Profile so it signs the email."
+        msg = "Add your name under Settings, Personal, About you so it signs the email."
         for blank in ("", "   "):
             d = build(**{"from": blank})
             self.assertEqual(d["problems"], [msg])

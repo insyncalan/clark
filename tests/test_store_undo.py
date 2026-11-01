@@ -420,7 +420,7 @@ class Opening(unittest.TestCase):
         with self.assertRaises(Invalid) as e:
             with self.demo.store.step("dashboard", USER):
                 pass
-        self.assertIn("in use by another program", str(e.exception))
+        self.assertIn("in use by something else", str(e.exception))
 
 
 if __name__ == "__main__":

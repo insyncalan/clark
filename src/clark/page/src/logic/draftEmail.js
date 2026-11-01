@@ -73,7 +73,7 @@ export function pickWords(n, of) {
 export function sentWords(entry, saved = false, failed = false) {
   const n = (entry.ids || []).length;
   const [y, m, d] = text(entry.date).split("-");
-  if (failed) return "That could not be saved to the history, so nothing was marked as sent. Try again.";
+  if (failed) return "That could not be saved to the history. Try again. " + NOTHING_SAVED;
   const items = `${n} ${n === 1 ? "item" : "items"}`;
   if (saved) return `Recorded: ${items} marked as sent on ${d}-${m}-${y}. It is in the history.`;      // only after the save worked
   return `Marked as sent for ${items} on ${d}-${m}-${y}. It is not saved to the history yet.`;

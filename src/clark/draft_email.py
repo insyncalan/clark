@@ -41,7 +41,7 @@ NOT_A_DAY = "The day the email was sent must be a real date."
 NOTHING_TO_RECORD = "Tick at least one item before you press I sent it. Nothing was saved."
 NOTHING_TICKED = "No items are ticked. Tick at least one to draft the email."
 NO_OPEN_ITEMS = "There are no open items to put in an email."
-NO_SENDER = "Add your name in Settings › Profile so it signs the email."
+NO_SENDER = "Add your name under Settings, Personal, About you so it signs the email."
 # Shown, with the preview selected, when the browser refuses the clipboard.
 COPY_REFUSED = "The browser did not copy it. Press ⌘C to copy the selected text."
 MAILTO_LIMIT = 2000        # the longest finished mailto: link (encoded) that every mail app keeps whole; longer ones are cut off
