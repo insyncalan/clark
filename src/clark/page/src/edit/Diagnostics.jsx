@@ -1,5 +1,5 @@
 // Settings: Logs and diagnostics (#110). Normal or Debug, a line on what is never logged, Open folder and Copy diagnostics, and the
-// errors of the last 7 days. The report is made by the server and copied as it is; the page never builds or edits it.
+// errors of the last 7 days, each in plain words (the server says them; the technical line stays in the report). The report is made by the server and copied as it is; the page never builds or edits it.
 import { useState, useEffect } from "preact/hooks";
 import { readDiagnostics, saveLevel, openLogFolder, said, LOAD_FAILED, SAVE_FAILED, OPEN_FAILED } from "./diagnosticsApi.js";
 
@@ -87,7 +87,7 @@ export function Diagnostics() {
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
       {info ? <h3>Errors in the last 7 days</h3> : null}
       {info && info.errors.length ? (
-        <ul class="plain" id="log-errors">{info.errors.map((e, i) => <li key={i}>{e.count} x {e.message}, last {e.last}</li>)}</ul>
+        <ul class="plain" id="log-errors">{info.errors.map((e, i) => <li key={i}>Last on {e.last}. Happened {e.count === 1 ? "once" : e.count + " times"}. {e.what} {e.next}</li>)}</ul>
       ) : info ? <p class="muted" id="log-errors">None.</p> : null}
     </section>
   );
