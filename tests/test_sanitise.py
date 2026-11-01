@@ -17,6 +17,7 @@ from html.parser import HTMLParser
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 from clark import sanitise
 from clark.sanitise import MAX_CHARS, MAX_DEPTH, SanitiseError, clean_html, plain_text
+from _growth import GROWTH_STEP, assert_growth
 
 TAGS = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"}
 VOID = {"br", "hr", "input"}
@@ -745,35 +746,42 @@ class Limits(Base):
             sys.setrecursionlimit(saved)
 
     def test_pathological_inputs_stay_fast(self):
-        """Each of these, at the longest length allowed, made the old Python 3.9 html.parser rescan for minutes."""
-        n = MAX_CHARS
-        shapes = {
-            "open tags": "<a " * (n // 3), "open comments": "<!--" * (n // 4), "open marked sections": "<![CDATA[" * (n // 9),
-            "open attributes": '<a href="' * (n // 9), "open attribute quotes": "<a b='" * (n // 6), "bangs": "<!-" * (n // 3),
-            "question marks": "<?" * (n // 2), "declarations": "<!" * (n // 2), "end tags": "</" * (n // 2),
-            "unclosed end tags": "</a " * (n // 4), "if sections": "<![if" * (n // 5), "nested raw text": "<script>" * (n // 8),
-            "textareas": "<textarea>" * (n // 10), "long comment": "<!--" + "-" * (n - 4), "long name": "<" + "a" * (n - 1),
-            "long attribute name": "<a " + "b" * (n - 3), "many attributes": "<a " + "b=c " * (n // 4 - 1) + ">",
-            "equals": "<a " + "=" * (n - 3), "slashes": "<a" + "/" * (n - 2), "quotes": "<a b=" + '"' * (n - 5),
-            "angle brackets": "<" * n, "pairs": "<>" * (n // 2), "reversed": ">" * n, "ampersands": "&" * (n // 6),
-            "entities": "&amp;" * (n // 5), "numeric entities": "&#" * (n // 2), "long number": "&#" + "9" * (n - 2),
-            "long hex": "&#x" + "f" * (n - 3), "half entities": "&am" * (n // 3), "brs": "<br>" * (n // 4), "empty ps": "<p>" * (n // 4),
-            "list items": "<li>" * (n // 4), "links": '<a href="https://example.com/">x</a>' * (n // 40), "end then start": "</p><p>" * (n // 7),
-            "nul": "\x00" * n, "controls": "<\x01p\x02>" * (n // 6), "a in a": "<a href=#>" * (n // 10),
-            "headings": "<h1>a<h2>b<h3>c" * (n // 15), "sections": "<svg/><math/>" * (n // 13), "doctype": "<!DOCTYPE " + "a " * (n // 2 - 10),
-        }
-        started = time.monotonic()
-        for label, source in shapes.items():
-            source = source[:n]
-            begun = time.monotonic()
-            try:
-                out = clean_html(source)
-            except SanitiseError:
-                out = None                                                       # refused: fine, and fast
-            self.assertLess(time.monotonic() - begun, 1.5, label)
-            if out is not None:
-                self.assertEqual(audit(out), [], label)
-        self.assertLess(time.monotonic() - started, 15, "all of them")
+        """Each of these, at the longest length allowed, made the old Python 3.9 html.parser rescan for minutes. The old check was a
+        wall-clock limit (1.5 s a shape, 15 s in all); each shape is now judged by the growth in CPU time from a quarter of the longest length to the
+        longest (growth_ratio, a step of four), and the cleaner must still refuse it or leave nothing the audit finds, at both sizes."""
+        def shapes(n):
+            return {
+                "open tags": "<a " * (n // 3), "open comments": "<!--" * (n // 4), "open marked sections": "<![CDATA[" * (n // 9),
+                "open attributes": '<a href="' * (n // 9), "open attribute quotes": "<a b='" * (n // 6), "bangs": "<!-" * (n // 3),
+                "question marks": "<?" * (n // 2), "declarations": "<!" * (n // 2), "end tags": "</" * (n // 2),
+                "unclosed end tags": "</a " * (n // 4), "if sections": "<![if" * (n // 5), "nested raw text": "<script>" * (n // 8),
+                "textareas": "<textarea>" * (n // 10), "long comment": "<!--" + "-" * (n - 4), "long name": "<" + "a" * (n - 1),
+                "long attribute name": "<a " + "b" * (n - 3), "many attributes": "<a " + "b=c " * (n // 4 - 1) + ">",
+                "equals": "<a " + "=" * (n - 3), "slashes": "<a" + "/" * (n - 2), "quotes": "<a b=" + '"' * (n - 5),
+                "angle brackets": "<" * n, "pairs": "<>" * (n // 2), "reversed": ">" * n, "ampersands": "&" * (n // 6),
+                "entities": "&amp;" * (n // 5), "numeric entities": "&#" * (n // 2), "long number": "&#" + "9" * (n - 2),
+                "long hex": "&#x" + "f" * (n - 3), "half entities": "&am" * (n // 3), "brs": "<br>" * (n // 4), "empty ps": "<p>" * (n // 4),
+                "list items": "<li>" * (n // 4), "links": '<a href="https://example.com/">x</a>' * (n // 40), "end then start": "</p><p>" * (n // 7),
+                "nul": "\x00" * n, "controls": "<\x01p\x02>" * (n // 6), "a in a": "<a href=#>" * (n // 10),
+                "headings": "<h1>a<h2>b<h3>c" * (n // 15), "sections": "<svg/><math/>" * (n // 13), "doctype": "<!DOCTYPE " + "a " * (n // 2 - 10),
+            }
+
+        # Only the cleaner is timed: both sizes of every shape are built first, and the audit runs after the timing, on the last output.
+        sizes = (MAX_CHARS // GROWTH_STEP, MAX_CHARS)
+        built = {size: shapes(size) for size in sizes}
+        for label in built[MAX_CHARS]:
+            outputs = {}
+
+            def work(size, label=label):
+                source = built[size][label][:size]
+                try:
+                    outputs[size] = clean_html(source)
+                except SanitiseError:
+                    outputs[size] = None                                         # refused: fine, and fast
+            assert_growth(self, work, MAX_CHARS // GROWTH_STEP, label, tries=5)
+            for size in sizes:
+                if outputs[size] is not None:
+                    self.assertEqual(audit(outputs[size]), [], "%s at %d" % (label, size))
 
 
 # ===== plain_text =====
