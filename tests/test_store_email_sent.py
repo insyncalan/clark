@@ -87,16 +87,16 @@ class Writing(Base):
 
     def test_the_day_may_be_one_day_ahead_and_not_more(self):
         self.send(day=str(TODAY + timedelta(days=1)))
-        self.refuses("can't be in the future", day=str(TODAY + timedelta(days=2)))
+        self.refuses("is ahead of today", day=str(TODAY + timedelta(days=2)))
 
     def test_a_chase_stepped_three_times_makes_the_tone_firmer(self):
         for n in range(3):
-            self.send(day=f"2026-10-2{n + 1}")
+            self.send(day=f"2026-10-2{n + 7}")
         self.send(mode="update_request")
         counts = de.chase_counts([dict(kind=de.SENT_KIND, ids=r["ids"], date=r["day"], mode=r["mode"]) for r in self.store.email_sent_for("ABC")])
         self.assertEqual(counts[self.a]["n"], 3, "an update request does not count")
         self.assertEqual(de.tone_for([self.a], counts), 2)
-        self.assertEqual(counts[self.a]["last"], "2026-10-23")
+        self.assertEqual(counts[self.a]["last"], "2026-10-29")
 
 
 class InTheHistory(Base):
@@ -147,9 +147,9 @@ class Refusals(Base):
         self.refuses("not in this project", ids=[self.a, self.other])
         self.refuses("not in this project", ids=["ABC-A-999"])
         self.refuses("not in this project", ids=["ABC-M-001"])
-        self.refuses("must be a real date", day="2026-02-30")
-        self.refuses("must be a real date", day="20261028")
-        self.refuses("must be a real date", day="28-10-2026")
+        self.refuses("is not a real date", day="2026-02-30")
+        self.refuses("is not a real date", day="20261028")
+        self.refuses("is not a real date", day="28-10-2026")
         self.refuses("There is no project", code="QQQ")
 
     def test_an_archived_project_is_refused(self):
@@ -350,6 +350,54 @@ class Migration(unittest.TestCase):
         finally:
             mine.close()
             theirs.close()
+
+class Refusals258(Base):
+    """#258: hidden, closed, archived, Sensitive items and a day before 2020 are refused, each writing nothing."""
+    def test_hidden_closed_archived_sensitive_and_withdrawn_items_are_refused(self):
+        words = "hidden, closed or marked Sensitive"
+        mk = self.demo.action
+        hidden, closed, cancelled, archived, sens = (mk(description=n) for n in ("h", "c", "x", "a", "s"))
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_hidden", {"project": "ABC", "item_id": hidden})
+            st.create("item_labels", {"item_id": sens, "label": "Sensitive"})
+            st.update("actions", closed, {"status": "Closed", "closed": "2026-10-20"})
+            st.update("actions", cancelled, {"status": "Cancelled"})
+            st.archive("actions", archived)
+            withdrawn = st.create("decisions", {"project": "ABC", "decision": "Old", "status": "Withdrawn", "source": "demo"})
+        for bad in (hidden, closed, cancelled, archived, sens, withdrawn):
+            with self.subTest(item=bad):
+                self.refuses(words, ids=[self.a, bad])
+        self.assertTrue(self.send(ids=[self.a, self.d, self.r]), "open items still record")
+
+    def test_the_words_name_no_field_and_no_sent_value(self):
+        sens = self.demo.action(description="s")
+        with self.store.step("dashboard", USER) as st:
+            st.create("item_labels", {"item_id": sens, "label": "Sensitive"})
+        with self.assertRaises(Invalid) as caught:
+            self.send(ids=[sens], day="2026-10-27")
+        self.assertNotIn(sens, str(caught.exception))
+        self.assertNotIn("2026-10-27", str(caught.exception))
+
+    def test_the_three_day_refusals_say_what_to_do_and_that_nothing_was_saved(self):
+        # The page sends its own clock's date; the person typed none, so the advice is the computer's clock and a reload.
+        for day in ("2026-02-30", str(TODAY - timedelta(days=2)), str(TODAY + timedelta(days=2))):
+            with self.subTest(day=day):
+                with self.assertRaises(Invalid) as caught:
+                    self.send(day=day)
+                words = str(caught.exception)
+                self.assertTrue(words.endswith("Reload the page and try again. Nothing was saved.")
+                                or words.endswith("then reload the page and try again. Nothing was saved."), words)
+                for banned in ("calendar", "Check the date", "reply-by", day):
+                    self.assertNotIn(banned, words)
+
+    def test_the_day_is_bounded_by_the_servers_clock_not_the_pages(self):
+        self.refuses("too far in the past", day="2019-12-31")
+        self.refuses("too far in the past", day="2020-01-01")
+        self.refuses("too far in the past", day=str(TODAY - timedelta(days=2)))
+        self.refuses("is ahead of today", day=str(TODAY + timedelta(days=2)))
+        for d in (TODAY, TODAY - timedelta(days=1), TODAY + timedelta(days=1)):
+            self.assertTrue(self.send(day=str(d)))
+
 
 
 if __name__ == "__main__":
