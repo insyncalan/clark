@@ -92,8 +92,8 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["publish-the-report", "find-work-items", "use-the-board", "arrange-the-report", "use-the-tiles", "read-the-milestones"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "at-a-glance", "layouts", "work-items", "status-words", "milestone-states", "using-help", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["publish-the-report", "find-work-items", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "use-the-tiles", "read-the-milestones"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "section-templates", "at-a-glance", "layouts", "work-items", "status-words", "milestone-states", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
@@ -139,7 +139,8 @@ class AgainstThePage(unittest.TestCase):
         # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...); 73 after #82 released the entries whose parts are on the page (their reworded bold names, such as Show all and Automatic, are now on the page); lower this only when a feature lands, never to hide a missing one
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now); 69 once main's Help wording (PR 19 Appearance, PR 51 use cases) and #82's rewording both sit on the page: the count fell as bold names were reworded, so lower this only when a feature lands
         # 69 re-measured after the reader's fixes (cut search, eye column, cover and the unmounted picker; the held picker is not in this whole-source count): unchanged, because the words cut were not bold names; the proofs above, not this count, now guard those parts
-        self.assertGreaterEqual(len(names), 69)
+        # 66 after merging main's section templates (#96) with #82: the templates' words and the reworded bold names now name things on the page (measured on the merged tree); lower this only when a feature lands
+        self.assertGreaterEqual(len(names), 66)
 
     def test_a_bold_name_elsewhere_is_not_proof_a_part_is_on_the_page(self):
         """The bold-name check only finds a name somewhere in the page code. These check that the part itself is there (mounted,

@@ -300,7 +300,7 @@ class Shown(unittest.TestCase):
         self.assertTrue(set(s["links"]["inside"]) <= set(howto + ref), "a link inside Help points at a held entry")
         for q in ("peek", "sneak"):                                 # features the page does not have yet: held words find nothing
             self.assertEqual(s["q"][q], [], q)
-        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board"])
+        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
         w = self.shown["where"]
