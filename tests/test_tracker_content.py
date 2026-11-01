@@ -288,5 +288,27 @@ class Size(unittest.TestCase):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
 
 
+class PublishedFailsClosed(unittest.TestCase):
+    """sb.published() answers for the tracker only when the kind is the tracker (a reader's LOW on the tracker's publish work)."""
+
+    BODY = {"groups": [{"name": "A", "lines": [{"text": "x", "weight": 100, "planned": 100, "achieved": 50}]}]}
+
+    def test_an_unknown_kind_is_never_published(self):
+        for kind in ("bogus", "", "Tracker", "text", "glance"):
+            self.assertIsNone(sb.published(kind, self.BODY), kind)
+            self.assertIsNone(sb.published(kind, {}), kind)
+
+    def test_only_the_tracker_kind_reaches_the_trackers_publisher(self):
+        """A template kind and the needs kind are answered by their own branch and never reach _published_tracker; a swapped order would fail this."""
+        from unittest import mock
+        with mock.patch.object(sb, "_published_tracker", side_effect=AssertionError("reached the tracker's publisher")) as tracker:
+            for kind in list(sb.TEMPLATES) + [sb.NEEDS, "bogus"]:
+                sb.published(kind, self.BODY)
+            tracker.assert_not_called()
+        with mock.patch.object(sb, "_published_tracker", return_value={"groups": []}) as tracker:
+            self.assertEqual(sb.published(sb.TRACKER, self.BODY), {"groups": []})
+            tracker.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
