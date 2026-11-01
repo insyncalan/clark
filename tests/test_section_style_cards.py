@@ -288,14 +288,18 @@ class Cards(Base):
         shown = self.rig.call("GET", got["url"])[1]
         self.assertIn(b'"style":"grey"', shown)
 
-    def test_a_word_that_is_not_a_style_publishes_slim_and_none_publishes_slim(self):
-        for body in ({"section_style": "wide"}, {"section_style": 3}, {}):
+    def test_a_word_that_is_not_a_style_is_refused_and_none_publishes_slim(self):
+        for body in ({"section_style": "wide"}, {"section_style": 3}):
             self.rig.save_to = self.rig.local / "x.html"
             if self.rig.save_to.exists():
                 self.rig.save_to.unlink()
             status, got = self.rig.publish(**body)
-            self.assertEqual((status, got["ok"]), (200, True), body)
-            self.assertIn('"style":"slim"', self.rig.save_to.read_text(encoding="utf-8"), body)
+            self.assertEqual((status, got["ok"]), (400, False), body)
+            self.assertFalse(self.rig.save_to.exists(), body)
+        self.rig.save_to = self.rig.local / "x.html"
+        status, got = self.rig.publish()
+        self.assertEqual((status, got["ok"]), (200, True))
+        self.assertIn('"style":"slim"', self.rig.save_to.read_text(encoding="utf-8"))
 
     def block(self, extra):
         d = data()
