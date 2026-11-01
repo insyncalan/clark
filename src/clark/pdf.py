@@ -19,11 +19,12 @@ import select
 import shutil
 import socket
 import struct
-import subprocess
 import tempfile
 import time
 from html import escape as html_escape
 from pathlib import Path
+
+from clark import platform
 
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 TIMEOUT = 60                       # seconds Chrome is given for one page
@@ -36,69 +37,8 @@ TOO_SLOW = "Chrome took too long to make the PDF. Try again; if it keeps happeni
 ORIENTATIONS = ("portrait", "landscape")
 
 
-class Child:
-    """A program this module started, with the few calls its users need: pid, poll, wait(timeout) (TimeoutError when it runs
-    on), terminate and kill. Made by spawn_child, either by os.posix_spawn or, where that is not there, by subprocess."""
-
-    def __init__(self, pid=None, popen=None):
-        self.pid, self._popen, self.returncode = (popen.pid if popen else pid), popen, None
-
-    def poll(self):
-        if self._popen is not None:
-            self.returncode = self._popen.poll()
-        elif self.returncode is None:
-            try:
-                done, status = os.waitpid(self.pid, os.WNOHANG)
-            except ChildProcessError:
-                self.returncode = 0
-                return 0
-            if done:
-                self.returncode = os.waitstatus_to_exitcode(status) if hasattr(os, "waitstatus_to_exitcode") else status
-        return self.returncode
-
-    def wait(self, timeout=None):
-        end = None if timeout is None else time.monotonic() + timeout
-        while self.poll() is None:
-            if end is not None and time.monotonic() > end:
-                raise TimeoutError("the program is still running")
-            time.sleep(0.02)
-        return self.returncode
-
-    def terminate(self):
-        self._send(15)
-
-    def kill(self):
-        self._send(9)
-
-    def _send(self, sig):
-        try:
-            os.kill(self.pid, sig)
-        except OSError:
-            pass
-
-
-def spawn_child(argv, pipe=None, **_unused):
-    """Start `argv` (an argument list, never a shell) in a process group of its own, with nothing on its standard streams.
-    With `pipe` = (read_fd, write_fd) (two descriptors of this program's), the child gets them as its descriptors 3 and 4 (what
-    Chrome's --remote-debugging-pipe reads and writes) and they are closed in the child's other places. Uses os.posix_spawn,
-    which is safe in a program with threads (no code runs in the child before the program starts). Returns a Child; raises
-    OSError if the program cannot be started."""
-    if hasattr(os, "posix_spawn"):
-        actions = [(os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0), (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
-                   (os.POSIX_SPAWN_OPEN, 2, os.devnull, os.O_WRONLY, 0)]
-        if pipe:
-            actions += [(os.POSIX_SPAWN_DUP2, pipe[0], 3), (os.POSIX_SPAWN_DUP2, pipe[1], 4),
-                        (os.POSIX_SPAWN_CLOSE, pipe[0]), (os.POSIX_SPAWN_CLOSE, pipe[1])]
-        args = [str(a) for a in argv]
-        return Child(pid=os.posix_spawn(args[0], args, os.environ, file_actions=actions, setpgroup=0))
-    if pipe:
-        raise OSError("this system cannot pass descriptors to a program this way")
-    return Child(popen=subprocess.Popen([str(a) for a in argv], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                        stderr=subprocess.DEVNULL))
-
-
 def stop_child(proc):
-    """Make sure `proc` (a Child) and anything it started in its process group are gone."""
+    """Make sure `proc` (a platform.Child) and anything it started in its process group are gone."""
     group = getattr(os, "killpg", None)
     if proc.poll() is None:
         try:
@@ -473,9 +413,9 @@ def _devtools_args(chrome, profile, pipe=True):
 
 
 def _start(args, popen, **more):
-    """Start Chrome (spawn_child, or the `popen` a test gives instead); NO_CHROME if it cannot be started."""
+    """Start Chrome (platform.start_child, or the `popen` a test gives instead); NO_CHROME if it cannot be started."""
     try:
-        return (popen or spawn_child)(args, **more)
+        return (popen or platform.start_child)(args, **more)
     except OSError as e:
         raise PdfError(NO_CHROME) from e
 
@@ -490,7 +430,7 @@ def _high(fd):
 
 def _start_piped(chrome, profile, popen):
     """Start Chrome with its DevTools pipe: Chrome reads commands on file descriptor 3 and writes answers on 4. Returns
-    (process, (to_chrome, from_chrome)). The start is spawn_child, which places the two ends on 3 and 4 for the child
+    (process, (to_chrome, from_chrome)). The start is platform.start_child, which places the two ends on 3 and 4 for the child
     (os.posix_spawn: no preexec_fn). A test's stand-in `popen` is given the child's two ends as `pipe`."""
     cmd_r, cmd_w = os.pipe()
     ans_r, ans_w = os.pipe()
