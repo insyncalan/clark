@@ -113,25 +113,41 @@ class Settings(unittest.TestCase):
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 20), "the Asking entry is in Settings")
         return js
 
+    def until(self, read_value, expected, what, seconds=20):
+        """The bounded wait the other browser tests use (test_server.wait), with the last value seen in the failure: a single read
+        straight after a click or a reload can come before the page, or the file, has caught up under load."""
+        seen = []
+
+        def check():
+            seen[:] = [read_value()]
+            return seen[0] == expected
+        self.assertTrue(wait(check, seconds), f"{what}: wanted {expected!r}, last seen {seen[0] if seen else 'nothing'!r}")
+
     def test_the_switch_is_on_by_default_changes_what_the_server_keeps_and_survives_a_reload(self):
         with chrome() as cdp:
             js = self.show_page(cdp)
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
-                self.assertEqual(js("document.documentElement.scrollWidth <= window.innerWidth"), True, f"no sideways scroll at {w}")
-                self.assertEqual(js("var r=document.querySelector('[data-ask-switch]').getBoundingClientRect(); r.width > 0 && r.right <= window.innerWidth"), True)
-            self.assertTrue(wait(lambda: js("document.querySelector('#ask-state').innerText") == ON, 20))
+                self.until(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), True, f"no sideways scroll at {w}")
+                self.until(lambda: js("var r=document.querySelector('[data-ask-switch]').getBoundingClientRect(); r.width > 0 && r.right <= window.innerWidth"),
+                           True, f"the switch is inside the page at {w}")
+            ready = "(document.querySelector('[data-ask-switch]') || {disabled: true}).disabled === false"
+            state = "(document.querySelector('#ask-state') || {}).innerText"
+            self.until(lambda: js(state), ON, "asking is on by default")
+            self.until(lambda: js(ready), True, "the switch can be pressed")
             self.assertEqual(js("localStorage.getItem('clark.askEnabled')"), None)
             js("document.querySelector('[data-ask-switch]').click()")
-            self.assertTrue(wait(lambda: js("document.querySelector('#ask-state').innerText") == OFF, 20))
-            self.assertEqual(js("document.querySelector('[data-ask-switch]').innerText"), "Turn on asking")
-            self.assertEqual(read(self.db)[0], False, "the database holds it, for this computer")
+            self.until(lambda: js(state), OFF, "asking is off after the press")
+            self.until(lambda: js("(document.querySelector('[data-ask-switch]') || {}).innerText"), "Turn on asking", "the switch offers to turn it on")
+            self.until(lambda: read(self.db)[0], False, "the database holds it, for this computer")
             self.assertEqual(js("localStorage.getItem('clark.askEnabled')"), None, "nothing is kept in the browser")
-            js("localStorage.clear(); location.reload()")
-            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == OFF, 20), "off after a reload")
+            js("window.__beforeReload = true; localStorage.clear(); location.reload()")
+            self.until(lambda: js("window.__beforeReload !== true"), True, "the page has been reloaded")      # the old page still shows OFF until it goes
+            self.until(lambda: js(state), OFF, "off after a reload")
+            self.until(lambda: js(ready), True, "the switch can be pressed after a reload")
             js("document.querySelector('[data-ask-switch]').click()")
-            self.assertTrue(wait(lambda: js("document.querySelector('#ask-state').innerText") == ON, 20))
-            self.assertEqual(read(self.db)[0], True)
+            self.until(lambda: js(state), ON, "asking is on after the second press")
+            self.until(lambda: read(self.db)[0], True, "the database holds it again")
 
     def test_a_choice_left_in_the_browsers_storage_by_an_earlier_build_is_ignored(self):
         with chrome() as cdp:

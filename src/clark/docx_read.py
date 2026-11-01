@@ -116,9 +116,6 @@ def _too_complex(name):
     return WordRefused(f"{name} is too complex for clark to read, so it was not read. Save a simpler copy and try again.")
 
 
-
-
-
 # ===== The zip =====
 def _check_names_and_sizes(name, infos):
     """Refuse a zip whose directory is hostile, before any part is read."""

@@ -540,7 +540,7 @@ def _do_export(store, who, req, today, chosen, roots):
     seq = None
     try:
         seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)
-    except Invalid as e:
+    except Invalid:
         words += NOT_RECORDED_FILE
     return 200, {"ok": True, "path": str(dest), "name": dest.name, "sha256": digest, "bytes": len(data), "seq": seq,
                  "client_name": copy.name if copy else None, "client_failed": bool(failed), "message": words}
