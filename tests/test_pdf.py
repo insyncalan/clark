@@ -368,7 +368,7 @@ class PublishWithoutChrome(unittest.TestCase):
                 mock.patch.object(pdftext, "text_of", return_value="seen ZQ-HIDDEN-ACTION here"):
             status, got = rig.publish(to_client=True, pdf=True)
         self.assertEqual((status, got["ok"]), (409, False))
-        self.assertIn("The PDF was held back", got["message"])
+        self.assertIn("The PDF was not made, because it would contain", got["message"])
         self.assertEqual(rig.everything_written(), [])
         self.assertEqual(rig.rows(), [])
 
@@ -476,7 +476,7 @@ class PdfClientCopyIsChecked(unittest.TestCase):
             data = b"%PDF-1.4\n1 0 obj<</Title " + info + b">>endobj\n"
             status, got = self.run_it(rig, data)
             self.assertEqual((status, got["ok"]), (409, False), label)
-            self.assertIn("The PDF was held back", got["message"], label)
+            self.assertIn("The PDF was not made, because it would contain", got["message"], label)
             self.assertEqual(rig.everything_written(), [], label)
 
     def test_a_pdf_over_the_size_limit_is_held_back(self):
@@ -513,6 +513,32 @@ class PdfClientCopyIsChecked(unittest.TestCase):
             status, got = self.run_it(rig, self.GOOD)
         self.assertEqual(len(calls), 2, "the folder is looked at again before the PDF is written")
         self.assertEqual(rig.listing(rig.client), [WANTED])
+
+    def test_the_plain_words_are_pinned(self):
+        M = publish_pdf.MESSAGES
+        self.assertEqual(publish_pdf.NO_CHROME_LINE, "A PDF needs Google Chrome, and clark could not find it on this computer. Install Chrome to use this.")
+        self.assertEqual(M["bad_pdf_request"], "Something is wrong inside clark. Nothing was published. Reload the page and try again; if it keeps happening, tell the clark team.")
+        self.assertEqual(M["pdf_held_back"], "The PDF was not made, because it would contain {what}. Nothing was published. Leave the PDF box unticked, or tell the clark team.")
+        self.assertEqual(M["pdf_not_checked"], "The PDF could not be checked, so it was not made. Nothing was published. Try once more; if it fails again, leave the PDF box unticked.")
+        self.assertEqual(M["pdf_too_big"], "The PDF is too big to check, so it was not made. Nothing was published. Leave the PDF box unticked.")
+        self.assertEqual(M["pdf_local_not_pdf"], "Choose a name that ends in .pdf. Nothing was published.")
+        self.assertEqual(M["pdf_overwrite_note"], "The PDF in the client folder will be replaced. The old PDF will be gone.")
+        self.assertEqual(M["why_held"], "the PDF was held back, so nothing was copied.")
+        self.assertEqual(M["why_changed"], "the client folder changed while it was being written to, so nothing was copied.")
+        self.assertEqual(M["pdf_not_saved"].format(why=M["why_local_failed"]),
+                         "The PDF was not saved: the folder you chose could not be written to. Choose a folder you can save in and publish again. The report itself is published.")
+        self.assertEqual(M["pdf_not_saved"].format(why=M["why_failed"]),
+                         "The PDF was not saved: the client folder could not be written to. Check you can edit it. The report itself is published.")
+        self.assertEqual(publish_pdf.SAME_BYTES, "The PDF could not be made from the report as it is. Try again; if it keeps happening, leave the PDF box unticked.")
+        self.assertEqual(pdf.CANNOT_CLEAN, "The PDF could not be made safe to share, so it was not made. Leave the PDF box unticked and publish again.")
+
+    def test_a_refused_copy_is_told_by_its_own_cause(self):
+        TC = publish_pdf.to_client.MESSAGES
+        for key, fill, want in (("held_back", {"what": "x"}, "why_held"), ("name_appeared", {"name": "a.pdf"}, "why_taken"),
+                                ("not_plain_file", {"name": "a.pdf"}, "why_not_plain"), ("not_same_file", {}, "why_not_same"),
+                                ("folder_changed", {}, "why_changed")):
+            self.assertEqual(publish_pdf.refused_why(TC[key].format(**fill)), publish_pdf.MESSAGES[want], key)
+        self.assertEqual(publish_pdf.refused_why("something else"), publish_pdf.MESSAGES["why_refused"])
 
     def test_the_wording_never_starts_with_the_product_name(self):
         for text in list(publish_pdf.MESSAGES.values()) + [publish_pdf.NO_CHROME_LINE]:
@@ -564,7 +590,8 @@ class TheReviewOfThePdfChecks(unittest.TestCase):
         data = tiny_pdf(b"BT /F1 12 Tf <0101> Tj ET", extra=extra)
         self.assertLess(len(data), publish.MAX_BYTES, "it is small on disk: only the inflating is the danger")
         self.assertEqual(publish_pdf.problems(data, []), ["a PDF too big to check"])
-        self.assertTrue(publish_pdf.MESSAGES["pdf_too_big"].endswith("Nothing was published."))
+        self.assertEqual(publish_pdf.MESSAGES["pdf_too_big"],
+                         "The PDF is too big to check, so it was not made. Nothing was published. Leave the PDF box unticked.")
 
     def test_hostile_text_cannot_make_the_reader_hang(self):
         script = ("import sys\nfrom clark import pdf_text\ndata = open(sys.argv[1], 'rb').read()\n"
@@ -717,7 +744,7 @@ class TheSecondReview(unittest.TestCase):
                 mock.patch.object(pdftext, "text_of", return_value="Programme"):
             status, got = rig.publish(pdf=True)
         self.assertEqual((status, got["ok"]), (409, False), got)
-        self.assertIn("The PDF was held back", got["message"])
+        self.assertIn("The PDF was not made, because it would contain", got["message"])
         self.assertEqual(rig.everything_written(), [])
 
     def test_a_fault_while_making_or_checking_is_a_plain_refusal(self):
@@ -733,7 +760,7 @@ class TheSecondReview(unittest.TestCase):
                 with first, second:
                     status, got = rig.publish(to_client=True, pdf=True)
                 self.assertEqual((status, got["ok"], got["code"]), (409, False, "pdf_failed"), (where, error))
-                self.assertTrue(got["message"].endswith("Nothing was published."), got["message"])
+                self.assertIn("Nothing was published.", got["message"])
                 self.assertNotIn("Traceback", got["message"])
                 self.assertEqual(rig.everything_written(), [])
 
@@ -883,7 +910,7 @@ class TheThirdReview(unittest.TestCase):
     def test_only_the_transient_refusal_says_try_again(self):
         self.assertNotIn("Try again", pdf.CANNOT_CLEAN)
         self.assertIn("Try again", publish_pdf.SAME_BYTES)
-        self.assertTrue(pdf.CANNOT_CLEAN.endswith("unticked."))
+        self.assertTrue(pdf.CANNOT_CLEAN.endswith("unticked and publish again."))
 
     def test_memory_and_recursion_faults_are_plain_refusals(self):
         data = build_pdf(self.CATALOG, info=3)
@@ -898,7 +925,7 @@ class TheThirdReview(unittest.TestCase):
             with mock.patch.object(publish_pdf, "make", side_effect=error):
                 status, got = rig.publish(pdf=True)
             self.assertEqual((status, got["ok"], got["code"]), (409, False, "pdf_failed"), repr(error))
-            self.assertTrue(got["message"].endswith("Nothing was published."), got["message"])
+            self.assertIn("Nothing was published.", got["message"])
             self.assertEqual(rig.everything_written(), [])
 
     def test_the_local_pdf_is_read_back_from_the_temporary_copy_before_it_replaces_anything(self):

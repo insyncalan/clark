@@ -123,6 +123,17 @@ class Dialog(Base):
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "closed")
 
+    def test_C_pdf_words_follow_the_ticks(self):
+        with mock.patch.object(pdf, "find_chrome", return_value="/chrome"), chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            self.assertIn("A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too.", p.dialog_text())
+            p.js("document.querySelector('#pub-client').click()")
+            p.until("document.querySelector('#pub-warn')", "the line about the client")
+            self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), "The client will see this page.")
+            p.js("document.querySelector('#pub-pdf').click()")
+            p.until("document.querySelector('#pub-warn').innerText === 'The client will see this page and the PDF.'", "the line names the PDF")
+
     def test_C_tick_changes_button_and_line(self):
         with chrome() as cdp:
             p = self.page(cdp)

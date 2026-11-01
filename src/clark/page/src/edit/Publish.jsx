@@ -71,12 +71,12 @@ function Dialog() {
             <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="pub-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tick(e.currentTarget.checked)} />
               <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
             <label class={`pubopt${pdfInfo.value.ok ? "" : " off"}`}><input type="checkbox" id="pub-pdf" checked={s.pdf && pdfInfo.value.ok} disabled={!pdfInfo.value.ok || working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
-              <span><b>PDF</b><small>{pdfInfo.value.ok ? "A PDF of the report, saved beside it." : pdfInfo.value.note}</small></span></label>
+              <span><b>PDF</b><small>{pdfInfo.value.ok ? "A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too." : pdfInfo.value.note}</small></span></label>
           </div>
         )}
-        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}
+        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.pdf && pdfInfo.value.ok ? "The client will see this page and the PDF." : "The client will see this page."}</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
-          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />Publishing…</p>
+          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />{s.pdf && pdfInfo.value.ok ? "Making the PDF…" : "Publishing…"}</p>
             : s.message ? <p class={s.message.kind}>{s.message.kind === "success" ? <span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span> : null}{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">

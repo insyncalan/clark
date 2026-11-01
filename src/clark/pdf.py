@@ -450,7 +450,7 @@ def _start_piped(chrome, profile, popen):
 
 CLEAN_NAME = "clark"            # the only Creator and Producer a PDF made here carries
 CLEAN_TITLE = "Report"          # the Title when the page has none
-CANNOT_CLEAN = "The PDF could not be made clean of details about this computer, so it was not made. Leave the PDF box unticked."
+CANNOT_CLEAN = "The PDF could not be made safe to share, so it was not made. Leave the PDF box unticked and publish again."
 
 
 def title_of(html_text):

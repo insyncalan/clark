@@ -25,32 +25,38 @@ KEYS = ("pdf", "pdf_on_clash", "pdf_new_name", "pdf_confirmed")
 EXT = ".pdf"
 UNREADABLE = "a PDF clark could not read back"
 TOO_BIG = "a PDF too big to check"
-SAME_BYTES = "The report changed while the PDF was being made. Try again."
+SAME_BYTES = "The PDF could not be made from the report as it is. Try again; if it keeps happening, leave the PDF box unticked."
 EXTRA_WORDS = "words that are not in the published report"
 ADDED = frozenset({"published", "publication", "page", "dashboard", "work", "items", "milestones"})      # what the print itself adds: footer and tab headings
 WORD = re.compile(r"[^\W\d_]{3,}")
 SAVE_PROMPT = "Save the PDF"
-NO_CHROME_LINE = "A PDF needs Google Chrome, and clark could not find it on this computer."
+NO_CHROME_LINE = "A PDF needs Google Chrome, and clark could not find it on this computer. Install Chrome to use this."
 MESSAGES = {
-    "bad_pdf_request": "The PDF box can only be ticked or unticked.",
+    "bad_pdf_request": "Something is wrong inside clark. Nothing was published. Reload the page and try again; if it keeps happening, tell the clark team.",
     "no_chrome": pdf.NO_CHROME + " Nothing was published.",
     "pdf_failed": "{reason} Nothing was published.",
-    "pdf_held_back": "The PDF was held back, because it would hold {what}. Nothing was published.",
-    "pdf_not_checked": "The PDF could not be checked, so it was held back. Nothing was published.",
-    "pdf_unreadable": "The PDF could not be read back to check it, so it was held back. Nothing was published.",
-    "pdf_too_big": "The PDF is too big to check, so it was held back. Nothing was published.",
+    "pdf_held_back": "The PDF was not made, because it would contain {what}. Nothing was published. Leave the PDF box unticked, or tell the clark team.",
+    "pdf_not_checked": "The PDF could not be checked, so it was not made. Nothing was published. Try once more; if it fails again, leave the PDF box unticked.",
+    "pdf_unreadable": "The PDF could not be read back to check it, so it was not made. Nothing was published. Leave the PDF box unticked.",
+    "pdf_too_big": "The PDF is too big to check, so it was not made. Nothing was published. Leave the PDF box unticked.",
     "pdf_clash_title": "A PDF with that name is already in the client folder.",
-    "pdf_overwrite_note": "The PDF in the client folder will be replaced. The client's folder keeps no copy of the old one.",
-    "pdf_local_not_pdf": "The PDF's name must end in .pdf. Nothing was published.",
+    "pdf_overwrite_note": "The PDF in the client folder will be replaced. The old PDF will be gone.",
+    "pdf_local_not_pdf": "Choose a name that ends in .pdf. Nothing was published.",
     "pdf_local_place": "That is not a place the PDF can be saved. Choose another folder. Nothing was published.",
     "pdf_saved_local": "PDF saved as “{name}”.",
     "pdf_saved_client": "PDF copied to the client folder as “{name}”.",
     "pdf_not_saved": "The PDF was not saved: {why} The report itself is published.",
     "pdf_not_made_here": "No PDF was saved, because the publish did not finish.",
-    "why_failed": "the client folder could not be written to.",
+    "why_failed": "the client folder could not be written to. Check you can edit it.",
+    "why_local_failed": "the folder you chose could not be written to. Choose a folder you can save in and publish again.",
     "why_restored": "the copy in the client folder did not match, so the earlier PDF was put back.",
     "why_left": "the copy in the client folder did not match and could not be removed. Delete “{name}” from there.",
     "why_changed": "the client folder changed while it was being written to, so nothing was copied.",
+    "why_held": "the PDF was held back, so nothing was copied.",
+    "why_taken": "a file with that name appeared in the client folder, so nothing was copied.",
+    "why_not_plain": "the file with that name in the client folder is a link or a special file, so nothing was copied.",
+    "why_refused": "the copy was refused, so nothing was copied.",
+    "why_not_same": "the PDF to copy is not the one that was made, so nothing was copied.",
 }
 
 
@@ -294,7 +300,7 @@ class Step:
             said.append(MESSAGES["pdf_saved_local"].format(name=self.local.name))
             kept += 1
         except (OSError, platform.PlatformError):
-            said.append(MESSAGES["pdf_not_saved"].format(why="the folder could not be written to."))
+            said.append(MESSAGES["pdf_not_saved"].format(why=MESSAGES["why_local_failed"]))
         finally:
             if tmp is not None and Path(tmp).exists():
                 try:
@@ -319,12 +325,21 @@ class Step:
                 elif res.path and not res.nothing_written:
                     why = MESSAGES["why_left"].format(name=name)
                 elif res.action == "refused":
-                    why = MESSAGES["why_changed"]
+                    why = refused_why(res.message)
                 else:
                     why = MESSAGES["why_failed"]
                 said.append(MESSAGES["pdf_not_saved"].format(why=why))
         LOG.info("pdf saved: %d of %d copies, %d bytes", kept, 2 if self.client is not None else 1, len(self.data))
         return said
+
+
+def refused_why(message):
+    """The reason for a refused copy to the client folder, by which of the copy's own refusals it was (read from its sentence)."""
+    for key, why in (("held_back", "why_held"), ("name_appeared", "why_taken"), ("not_plain_file", "why_not_plain"),
+                     ("not_same_file", "why_not_same"), ("folder_changed", "why_changed")):
+        if message == to_client.MESSAGES[key] or (message or "").startswith(to_client.MESSAGES[key].split("{")[0]):
+            return MESSAGES[why]
+    return MESSAGES["why_refused"]
 
 
 def finish(step, out, status):
