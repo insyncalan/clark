@@ -2,10 +2,11 @@
 // docs/handoff/design-96-templates.md has the rules. A template is data; the box (edit/AddDialog.jsx) draws it and edit/actions.js
 // sends the requests that `plan` gives back. The second slice adds entries to TEMPLATES and nothing else.
 import { rows } from "./placement.js";
+import { WORDS as NEEDS } from "./needs.js";
 
-// What the store takes in a new section today (changes.py: type "text" only). A template whose type is not here is listed but
-// not offered. Widen this only with the guarded change in the design note, section 6.
-export const ACCEPTS = { types: ["text"] };
+// What the store takes in a new section today (changes.py NEW_SECTION_TYPES: text, and needs since the section that carries content, #121).
+// A template whose type is not here is listed but not offered. Widen this only when the store takes the type (the design note, section 6).
+export const ACCEPTS = { types: ["text", "needs"] };
 
 export const KINDS = [
   { id: "text", name: "Text and pictures" },
@@ -40,6 +41,8 @@ export const TEMPLATES = [
     description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
   { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "",
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
+  { id: "needs", name: NEEDS.title, kind: "dates", fit: ["full", "half"], type: "needs", title: NEEDS.title, body: "",
+    description: "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", holds: ["Heading", "Row: what is needed", "From", "By"] },
 ];
 
 export const MESSAGES = {

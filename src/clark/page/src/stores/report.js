@@ -46,6 +46,8 @@ export const counts = computed(() => {
   return d ? { work: d.actions.length + d.raid.length + d.decisions.length, milestones: d.milestones.length } : { work: 0, milestones: 0 };
 });
 
+let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
+
 const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
@@ -119,6 +121,7 @@ export function openWork(state) {
 /** Open a work item's or a milestone's peek (`kind` "milestone" or "item"; left out, the project's data says which): one new entry; with a peek already open, this entry is rewritten (Previous, Next, another row). An id the loaded data doesn't have does nothing. */
 export function openPeek(id, kind) {
   const d = data.value;
+  if (!peek.value) openedF = filterText.value;           // the filters as they were when the peek opened: closing steps Back only if they still are
   const milestone = kind ? kind === "milestone" : known(d, id, true);
   if (d && !known(d, id, milestone)) return;               // with no data loaded there is nothing to check it against: open it
   go({ ...where(), item: milestone ? "" : id, ms: milestone ? id : "" }, { replace: !!peek.value });
@@ -129,7 +132,8 @@ export function openPeek(id, kind) {
 export function closePeek() {
   if (!peek.value) return;
   const rewrite = () => go({ ...where(), item: "", ms: "" }, { replace: true });
-  if (route.peekWasPushed() && route.back(rewrite)) return;       // onPop redraws
+  // Back would also take away a filter changed while the peek was open (that change rewrote this entry), so then the entry is rewritten.
+  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) return;       // onPop redraws
   rewrite();
 }
 
@@ -241,6 +245,14 @@ const CHANGE_KNOWN = {
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
   "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
+  // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
+  "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
+  "Say what is needed.": "Say what is needed. Nothing was changed.",
+  "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
+  "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
+  "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
+  "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
+  "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";
