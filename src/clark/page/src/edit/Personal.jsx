@@ -7,7 +7,7 @@ import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 
 export const STYLES = [
-  ["slim", "Slim gaps", "Sections close together, divided by a thin line."],
+  ["slim", "Slim gaps", "Each section is its own card, close together."],
   ["roomy", "Roomy gaps", "More space between sections."],
   ["grey", "Grey headers", "Each section's title sits on a grey band."],
   ["card", "One card", "All the sections inside a single card."],
