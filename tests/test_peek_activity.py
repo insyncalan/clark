@@ -27,13 +27,13 @@ TOKENS = ROOT / "src" / "clark" / "brand" / "tokens.css"
 
 class MissingItem(unittest.TestCase):
     def test_an_item_the_open_data_lacks_says_so_and_not_could_not_be_read(self):
-        api = (SRC / "edit" / "activityApi.js").read_text()
-        tab = (SRC / "edit" / "PeekActivity.jsx").read_text()
+        api = (SRC / "edit" / "activityApi.js").read_text(encoding="utf-8")
+        tab = (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
         self.assertIn("r.status === 404", api)
         self.assertIn("got.missing", tab)
         self.assertIn("may be archived", tab)
-        self.assertIn("Press ", (SRC / "edit" / "SneakPeek.jsx").read_text())
-        self.assertIn("Cmd+Enter", (SRC / "edit" / "SneakPeek.jsx").read_text())
+        self.assertIn("Press ", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))
+        self.assertIn("Cmd+Enter", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))
 
 
 class FollowRule(unittest.TestCase):

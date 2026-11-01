@@ -609,7 +609,7 @@ class PlainLabels(unittest.TestCase):
     def test_the_confirm_line_names_the_button(self):
         jsx = self.texts()[0]
         self.assertIn("This change needs your OK. Press ", jsx)
-        self.assertIn("to make it, or change your words.", jsx)
+        self.assertIn("to make it (or press Cmd+Enter, Ctrl+Enter on Windows), or change your words.", jsx)
         self.assertNotIn("This needs a confirm", jsx)
 
 
