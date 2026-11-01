@@ -26,6 +26,15 @@ class Button(unittest.TestCase):
         self.assertIn('<span class="toc-lbl" aria-hidden="true">On this page</span>', JSX)
         self.assertIn('class="toc-ico"', JSX)
 
+    def test_the_nav_landmark_has_its_own_name_not_the_buttons(self):
+        self.assertIn('<nav class={`toc${open ? " open" : ""}`} aria-label="Sections of this page"', JSX)
+        self.assertEqual(JSX.count('aria-label="On this page"'), 1, "only the button carries that name")
+
+    def test_escape_is_also_heard_on_the_page_while_it_is_open(self):
+        self.assertRegex(JSX, r'document\.addEventListener\("keydown", esc\)')
+        self.assertRegex(JSX, r'document\.removeEventListener\("keydown", esc\)')
+        self.assertIn("document.activeElement !== document.body", JSX)        # only with the focus on the page: a field keeps its own Esc
+
     def test_only_a_click_or_a_key_opens_it_at_900_not_hover_or_plain_focus(self):
         self.assertIn('const NARROW = "(max-width: 900px)"', JSX)
         self.assertIn("onMouseEnter={() => { if (!narrow()) setOpen(true); }}", JSX)
@@ -57,12 +66,14 @@ class Look(unittest.TestCase):
         self.assertIn("font-size: var(--size-small)", b)
         height = int(re.search(r"\.toc-lines \{[^}]*min-height: (\d+)px", b).group(1))
         self.assertGreaterEqual(height, 24)
-        item = int(re.search(r"\.toc li button \{ min-height: (\d+)px", b).group(1))
-        self.assertGreaterEqual(item, 24)
+        self.assertIn(".toc li button { min-height: var(--space-6); }", b)           # 32 px: at least 24
 
     def test_tokens_only_no_hard_coded_colour_in_the_new_rules(self):
         b = narrow_block()
         self.assertNotRegex(b, r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(")
+        self.assertIn("min-height: 40px", b)                           # the prototype's height (system/prototype/app.css:952)
+        self.assertIn("border-radius: var(--radius-pill)", b)
+        self.assertNotIn("999px", b)
         for token in ("--grey-700", "--surface", "--text", "--grey-100", "--shadow"):
             self.assertIn(f"var({token})", b)
 

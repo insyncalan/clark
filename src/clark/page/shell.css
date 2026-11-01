@@ -127,7 +127,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc-ico, .toc-lbl { display: none; }
 @media (max-width: 900px) {
   .toc { right: var(--space-4); bottom: var(--space-4); top: auto; transform: none; }
-  .toc-lines { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3); border: 1px solid var(--grey-700); border-radius: 999px; background: var(--surface); color: var(--text); font-size: var(--size-small); box-shadow: var(--shadow); }
+  .toc-lines { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3); border: 1px solid var(--grey-700); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-small); box-shadow: var(--shadow); }
   /* The fade is on the hover state only, so switching between light and dark never animates the button from white. */
   .toc-lines:hover, .toc.open .toc-lines { background: var(--grey-100); transition: background-color var(--dur-instant) var(--ease-out); }
   .toc.open .toc-lines { opacity: 1; }
@@ -135,7 +135,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
   .toc-ico, .toc-lbl { display: inline-block; }
   .toc-card { right: 0; top: auto; bottom: calc(100% + var(--space-2)); width: min(290px, calc(100vw - 32px)); max-height: calc(100vh - var(--topbar) - 96px); overflow-y: auto; transform: translateY(8px); }
   .toc.open .toc-card { transform: none; }
-  .toc li button { min-height: 32px; }
+  .toc li button { min-height: var(--space-6); }
 }
 @media (max-width: 900px) and (prefers-reduced-motion: reduce) { .toc-card, .toc.open .toc-card { transition: none; transform: none; } .toc-lines { transition: none; } }
 

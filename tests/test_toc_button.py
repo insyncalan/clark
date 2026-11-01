@@ -8,7 +8,7 @@ import unittest
 
 from test_inline_67 import size
 from test_report_editor import Base
-from test_server import chrome
+from test_server import chrome, wait
 
 BTN = "document.querySelector('.toc-lines')"
 OPEN = "document.querySelector('.toc').classList.contains('open')"
@@ -98,6 +98,60 @@ class TocButton(Base):
                 self.assertEqual(box, [True] * 5, f"{scheme}: the list sits inside the window, above the button")
                 p.js(f"{BTN}.click()")
                 p.until(f"!{OPEN}", f"{scheme}: shut")
+
+    def test_at_900_escape_closes_it_when_a_click_left_the_focus_on_the_page(self):
+        # Safari and Firefox on a Mac do not focus a button on a click, so the focus stays on the body and the key never reaches the list.
+        # A scripted click does the same (it does not move the focus), which is what this reproduces.
+        with chrome() as cdp:
+            p = self.at(cdp, 900)
+            p.js("document.activeElement && document.activeElement.blur()")
+            p.js(f"{BTN}.click()")
+            p.until(OPEN, "a click opens it")
+            self.assertTrue(p.js("document.activeElement === document.body"), "the focus is still on the page, not on the button")
+            # The page's listener is added just after it opens; press again on each poll until it has taken effect.
+            def press():
+                p.key("Escape", code="Escape", vk=27)
+                return not p.js(OPEN)
+            self.assertTrue(wait(press, 10), "Escape shuts it with the focus on the page")
+            self.assertEqual(p.js(f"{BTN}.getAttribute('aria-expanded')"), "false")
+            self.assertTrue(p.js("document.activeElement.matches('.toc-lines')"), "the focus is on the button, as after Escape from the list")
+
+    def test_the_button_and_the_nav_have_different_names(self):
+        for width in (900, 1400):
+            with chrome() as cdp:
+                p = self.at(cdp, width)
+                names = p.js("[document.querySelector('nav.toc').getAttribute('aria-label'), document.querySelector('.toc-lines').getAttribute('aria-label')]")
+                self.assertEqual(names, ["Sections of this page", "On this page"], f"at {width}: the landmark and the button are not read out twice")
+
+    def test_at_900_the_button_is_40px_tall_and_a_pill(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 900)
+            got = p.js(f"(function(){{var s=getComputedStyle({BTN}); return [Math.round({BTN}.getBoundingClientRect().height), s.borderTopLeftRadius === getComputedStyle(document.documentElement).getPropertyValue('--radius-pill').trim()];}})()")
+            self.assertEqual(got, [40, True])
+
+    def test_at_900_in_edit_the_button_is_there_and_the_list_opens_inside_the_window(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 900)
+            p.edit()
+            p.js(f"{BTN}.click()")
+            p.until(OPEN + " && getComputedStyle(document.querySelector('.toc-card')).opacity === '1'", "open in Edit")
+            box = p.js("(function(){var r=document.querySelector('.toc-card').getBoundingClientRect(), b=document.querySelector('.toc-lines').getBoundingClientRect();"
+                       "return [r.left >= 0, r.right <= document.documentElement.clientWidth, r.top >= 0, r.bottom <= b.top, document.documentElement.scrollWidth <= document.documentElement.clientWidth, "
+                       "b.bottom <= innerHeight, b.right <= document.documentElement.clientWidth];})()")
+            self.assertEqual(box, [True] * 7, "in Edit at 900 the list sits inside the window, above the button")
+
+    def test_at_900_in_a_short_window_the_open_list_fits_and_scrolls_inside_itself(self):
+        # 400 px tall, under the 600 the review could not check by eye: the list is capped below the top bar and scrolls on its own.
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 900, 400)
+            p.js("window.scrollTo(0, 0)")
+            p.js(f"{BTN}.click()")
+            p.until(OPEN + " && getComputedStyle(document.querySelector('.toc-card')).opacity === '1'", "open in a short window")
+            box = p.js("(function(){var c=document.querySelector('.toc-card'), r=c.getBoundingClientRect(), b=document.querySelector('.toc-lines').getBoundingClientRect();"
+                       "return [r.top >= 0, r.bottom <= b.top, b.bottom <= innerHeight, document.documentElement.scrollWidth <= document.documentElement.clientWidth, "
+                       "getComputedStyle(c).overflowY, c.scrollHeight >= c.clientHeight];})()")
+            self.assertEqual(box, [True, True, True, True, "auto", True])
 
 
 if __name__ == "__main__":
