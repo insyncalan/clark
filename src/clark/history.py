@@ -73,7 +73,10 @@ def history_many(con, ids):
         return {}
     wanted = set(ids)
     codes = sorted({i.split("-", 1)[0] for i in ids})
-    where = " AND (" + " OR ".join(["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes)) + ")"
+    # #251: the keys are tested in a subquery over change_log_item alone (a covering index: the key and the rowid, never the old and
+    # new values), and only the rows it names are read from the table. As one flat WHERE the planner walked all of item_events
+    # and read a change_log row for each.
+    where = " AND c.rowid IN (SELECT rowid FROM change_log WHERE " + " OR ".join(["item_id LIKE ? OR item_id LIKE ?"] * len(codes)) + ")"
     args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")]
     mine = {i: [] for i in ids}
     for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", args):
