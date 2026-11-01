@@ -143,6 +143,16 @@ class Pure(Browser):
                                            e("usecases"), e("usecases", uc="1.2", i="A-12"), e("usecases"),
                                            "#usecases&p=PDF&uc=1.2", "#usecases&p=PDF", "#work&p=PDF", "#usecases&p=PDF", "#usecases&p=PDF&uc=1.2&item=A-12"],
                          "a use case key is read on the Use cases page only, as one clean word; a peek can sit beside it")
+    def test_the_client_report_view_has_its_own_address(self):
+        """#192: Client Requested Report View is "#clientreport", with a project and a peek like the other pages."""
+        got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF'), R.parse('#clientreport&p=PDF&item=A-12'),
+            R.format({view:'clientreport',project:'PDF'}), R.format({view:'clientreport'}), R.parse('#clientreports&p=PDF').view,
+            R.parse('#CLIENTREPORT').view])""")
+        e = lambda i="": {"view": "clientreport", "project": "PDF", "item": i, "ms": "", "f": ""}  # noqa: E731
+        views, plain, peek, f1, f2, near, upper = json.loads(got)
+        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "clientreport", "settings"])
+        self.assertEqual((plain, peek, f1, f2), (e(), e("A-12"), "#clientreport&p=PDF", "#clientreport"))
+        self.assertEqual((near, upper), ("dashboard", "dashboard"), "a near miss or another case falls back to the Dashboard")
 
     def test_hostile_hashes_never_throw_and_round_trip_to_a_stable_hash_only_address(self):
         hostile = json.dumps(HOSTILE + ["#work&item=" + "%41" * 70, "#work&item=A-" + "9" * 70])

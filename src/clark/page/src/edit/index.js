@@ -18,6 +18,7 @@ import { ClientFolder } from "./ClientFolder.jsx";
 import { Movement } from "./Movement.jsx";
 import { RichField } from "./RichField.jsx";
 import { NeedsEdit } from "./NeedsEdit.jsx";
+import { RichRead } from "./RichRead.jsx";
 import { richOn } from "./richSave.js";
 import { Safety } from "./Safety.jsx";
 import { UseCasesPage } from "./UseCasesPage.jsx";
@@ -34,4 +35,4 @@ import { installKeys, openHelp, closeHelp, helpOpen } from "../help/helpStore.js
 import { templateEdit } from "./templates/index.js";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
-export const EDIT = { glance: GLANCE, Personal, RichField, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ProfileMenu, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, UseCasesPage, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk } };
+export const EDIT = { glance: GLANCE, Personal, RichField, RichRead, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ProfileMenu, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, UseCasesPage, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk } };

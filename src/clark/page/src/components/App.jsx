@@ -5,8 +5,9 @@ import { Milestones, Settings, Gate } from "./Views.jsx";
 import { Dashboard } from "./Dashboard.jsx";
 import { Peek } from "./Peek.jsx";
 import { WorkItems } from "./WorkItems.jsx";
+import { ClientReport } from "./ClientReport.jsx";
 
-const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, settings: Settings };
+const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, clientreport: ClientReport, settings: Settings };
 
 export function App({ tools }) {
   const Page = view.value === "usecases" ? (tools && tools.UseCasesPage) || Dashboard : PAGES[view.value];     // the Use cases page is the editor's: a published file has none
