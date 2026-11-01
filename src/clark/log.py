@@ -20,7 +20,8 @@ Rules the module keeps:
     day removes older files, and only files this module names (`clark-DATE.log`). A file dated in the future (a clock that was
     ahead) is never removed, and never makes today's cut-off later.
   - Each entry is one append, so two processes never mix a line.
-  - A new file is made readable and writable by its owner only (0o600).
+  - The log folder is owner-only (0o700) and so is each file (0o600): a new one is made so, and an older one is changed to
+    that when the logger first writes to it.
   - Page errors are rate-limited to 20 a minute (the rest are dropped, no line is written for them), with quoted text, addresses, paths and addresses on the web removed.
 
 (creaite v2.6.11 `system/scripts/log.py`, rewritten; see the reuse record.)
@@ -29,6 +30,7 @@ import json
 import logging
 import os
 import re
+import stat
 import threading
 import time
 import traceback
@@ -50,7 +52,7 @@ FULL_NOTICE = "log full for today, only warnings and errors are kept from now on
 LAST_NOTICE = "log full for today, later entries are not kept"
 FILE = re.compile(r"clark-(\d{4}-\d{2}-\d{2})\.log$")
 ENTRY = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (DEBUG|INFO|WARN|ERROR)\s+(\S+)\s*(.*)$")
-CONTROL = re.compile(r"[\x00-\x1f\x7f\x85\u2028\u2029]+")        # with \x85 and the rest, every break `str.splitlines` makes
+CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]+")        # every control character, the C1 ones too (\x85 is a break for `str.splitlines`)
 AREA_OK = re.compile(r"[^A-Za-z0-9_.-]+")
 ITEM_ID = re.compile(r"[A-Z][A-Z0-9]{1,6}-[A-Z]{1,2}-\d{1,6}\Z")      # ABC-A-003 (a project code, a kind letter, a number)
 KEY_OK = re.compile(r"[a-z][a-z0-9_]{0,24}\Z")
@@ -200,6 +202,7 @@ class Log:
         self._level_cache = (None, NORMAL)
         self._page = []
         self._lock = threading.Lock()
+        self._folder_private = False
 
     # The level
 
@@ -272,6 +275,7 @@ class Log:
             now = self.clock()
             path = self.path_for(now.date())
             self.folder.mkdir(parents=True, exist_ok=True)
+            self._make_folder_private()
             with self._lock:
                 if not path.exists():
                     self.prune_on_new_day(now.date())
@@ -293,10 +297,29 @@ class Log:
         except Exception:
             pass                                       # a log write never raises
 
+    def _make_folder_private(self):
+        """The log folder owner-only (0o700), once per logger; a folder that is not ours or a system with no modes is left."""
+        if self._folder_private or os.name == "nt":
+            return
+        self._folder_private = True
+        try:
+            mode = stat.S_IMODE(self.folder.stat().st_mode)
+            if mode & 0o077:                           # only ever takes access away: a folder made read-only stays read-only
+                os.chmod(str(self.folder), mode & ~0o077)
+        except OSError:
+            pass
+
     @staticmethod
     def _append(path, text):
         fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
         try:
+            if os.name != "nt":                        # a file an older version made (0o644) is closed to others now
+                try:
+                    mode = stat.S_IMODE(os.fstat(fd).st_mode)
+                    if mode & 0o077:
+                        os.fchmod(fd, mode & ~0o077)
+                except OSError:
+                    pass
             os.write(fd, text.encode("utf-8"))         # one write per entry, so two writers never mix a line
         finally:
             os.close(fd)

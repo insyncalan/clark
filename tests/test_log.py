@@ -119,12 +119,32 @@ class Writing(Base):
         path = self.log.path_for(NOW.date())
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 
+    @unittest.skipIf(os.name == "nt", "Windows has no owner-only file mode")
+    def test_an_older_world_readable_file_and_the_folder_are_closed_when_the_logger_writes(self):
+        folder = self.tmp / "logs"
+        folder.mkdir()
+        os.chmod(str(folder), 0o755)
+        path = self.log.path_for(NOW.date())
+        path.write_text("2026-10-28 09:00:00 INFO  a            earlier\n", encoding="utf-8")
+        os.chmod(str(path), 0o644)
+        self.log.info("server", "change saved")
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        self.assertEqual(stat.S_IMODE(folder.stat().st_mode), 0o700)
+        self.assertEqual(len(self.lines()), 2, "the earlier line is kept")
+
     def test_a_next_line_character_in_a_message_does_not_split_the_line(self):
         self.log.info("a", "first\x85second\u2028third")
         self.assertEqual(len(self.log.tail()), 1)
         self.assertEqual(len(self.lines()), 1)
         self.assertIn("first second third", self.text())
         self.assertEqual(clog.scrub_line("one\x85two"), "one two")
+
+    def test_every_c1_control_character_is_a_space_in_a_message_and_a_read_line(self):
+        for code in range(0x80, 0xa0):
+            ch = chr(code)
+            self.assertEqual(clog.scrub(f"a{ch}b"), "a b", hex(code))
+            self.assertEqual(clog.scrub_line(f"a{ch}b"), "a b", hex(code))
+        self.assertEqual(clog.scrub("a\u2028b\u2029c"), "a b c")
 
     def test_each_entry_is_one_append(self):
         calls = []
@@ -511,7 +531,7 @@ class Report(Base):
     def test_errors_over_a_busy_week_reads_only_the_week_and_is_quick(self):
         folder = self.tmp / "logs"
         folder.mkdir()
-        for back in range(clog.KEEP_DAYS + 1):          # today, the six days before it, and one day too old
+        for back in range(clog.KEEP_DAYS + 1):          # today, the six days before it, and one day too old (its file is read, then its lines are filtered out by time)
             day = NOW.date() - timedelta(days=back)
             busy = "".join(f"{day} 10:{n % 60:02d}:00 INFO  server       change saved  route=/api/change status=200 ms={n}\n"
                            for n in range(30000))
@@ -522,7 +542,7 @@ class Report(Base):
         took = time.monotonic() - started
         self.assertLess(took, ERRORS_WITHIN_SECONDS, f"errors() took {took:.1f} s over a week of busy logs")
         self.assertEqual([(g["count"], g["message"]) for g in found], [(clog.KEEP_DAYS, "item # failed")],
-                         "every day of the week counts, the day before it does not")
+                         "every day of the week counts, the day before it does not: the count is the real guard, the time limit only a backstop")
 
     def test_safe_settings_allow_list(self):
         self.assertEqual(diagnostics.safe_settings({"log_level": "debug", "appearance": "neon", "update_check": 0,
@@ -699,7 +719,8 @@ class PathsNotBuiltYet(Base):
                 logging.getLogger("clark.word_import").exception("import ended")      # a refusal is fine; only the log matters
             # What the import's caller has in hand, handed to the log in each way code can: a detail, a standard-library
             # record and a fault. If any marker is let through, check() sees it.
-            self.log.info("word", "import read", blocks=len(blocks), file=f"{MARKERS[5]}.docx", title=MARKERS[1], owner=MARKERS[0])
+            self.log.info("word", "import read", blocks=len(blocks), file=f"{MARKERS[5]}.docx", title=MARKERS[1], owner=MARKERS[0],
+                          ask=MARKERS[3], draft=MARKERS[4], token=MARKERS[6])
             logging.getLogger("clark.word_import").info("import read %s %s", f"{MARKERS[5]}.docx", MARKERS[2])
             self.log.exception("word", "import ended", KeyError(f"{MARKERS[7]} {HOME}/{MARKERS[5]}"))
         self.check(run)
