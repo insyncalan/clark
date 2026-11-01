@@ -2545,12 +2545,14 @@ class Store:
             if not all(ours(i) for i in ids):
                 raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
             # #258: an item the email could not have been about (left out of the report, closed, or labelled to be kept out) is refused.
-            marks = ",".join("?" * len(ids))
-            if (self.con.execute(f"SELECT 1 FROM report_hidden WHERE project = ? AND item_id IN ({marks})", (code, *ids)).fetchone()
-                    or self.sensitive_among(ids)
-                    or any(self.con.execute(f"SELECT 1 FROM {t} WHERE project = ? AND id IN ({marks}) AND (archived = 1 OR status IN ({q}))",
-                                            (code, *ids)).fetchone()
-                           for t, q in (("actions", "'Closed','Cancelled'"), ("raid", "'Closed','Cancelled'"), ("decisions", "'Withdrawn'")))):
+            values = list(ids)
+            if (self.con.execute(f"SELECT 1 FROM report_hidden WHERE project = ? AND item_id IN ({', '.join('?' * len(values))})",
+                                 (code, *values)).fetchone()
+                    or self.sensitive_among(values)
+                    or any(self.con.execute(f"SELECT 1 FROM {_table(t)} WHERE project = ? AND id IN ({', '.join('?' * len(values))}) "
+                                            "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
+                           for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
+                                             ("decisions", ("Withdrawn", "Withdrawn"))))):
                 raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
@@ -2564,12 +2566,11 @@ class Store:
     def sensitive_among(self, ids):
         """True when any of the item ids is labelled Sensitive or carries a label whose behaviour is 'exclude': the one test for
         what may never go in an email (the sent record refuses it here)."""
-        ids = list(ids)
-        if not ids:
+        values = list(ids)
+        if not values:
             return False
-        marks = ",".join("?" * len(ids))
-        return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({marks}) "
-                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", ids).fetchone())
+        return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({', '.join('?' * len(values))}) "
+                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", values).fetchone())
 
     def email_sent_for(self, code, limit=200):
         """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
