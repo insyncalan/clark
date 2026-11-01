@@ -461,4 +461,6 @@ def published(kind, value, ctx=None):
     if kind == NEEDS:
         rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
         return {"rows": rows} if rows else None
+    if kind != TRACKER:
+        return None                     # an unknown kind fails closed: nothing of it is published
     return _published_tracker(value)
