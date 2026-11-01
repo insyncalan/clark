@@ -143,7 +143,7 @@ class Page(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-nolines]")), "No lines yet")
-            self.assertEqual(p.js(self.text_of(ref, "[data-tr-total]")), "Total 0% 0% 0%")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-total]")), "Total0%0%0%")
             self.assertFalse(p.js(self.present(empty, "[data-tracker]")), "an empty tracker draws nothing in View")
 
     def test_the_markup_in_every_text_is_only_text(self):
@@ -284,8 +284,8 @@ class Page(Base):
             p.until("!" + self.one(ref, "[data-line-form]"), "the form closed")
             self.assertEqual(len(self.sent), sent)
 
-    def test_the_menu_can_delete_the_tracker_and_one_undo_puts_it_back(self):
-        # The section's own menu is shared with every section; this only checks the tracker is a section it works on.
+    def test_edit_draws_the_trackers_own_parts_and_view_does_not(self):
+        # Edit adds its own parts; View (the first test) has none.
         ref = self.make(BODY)
         with chrome() as cdp:
             p = self.visit(cdp)
