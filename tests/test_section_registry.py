@@ -106,7 +106,7 @@ class PythonSide(unittest.TestCase):
         """The route's body limit is above the largest content (with room for the request around it and its escaping)."""
         biggest = max(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_kinds.REGISTRY.values())   # a picture template's words; its pictures come by their own route
         limit = sv.ROUTE_BODY_LIMITS["/api/change"]
-        self.assertEqual(limit, 2 * biggest + 4 * 1024)
+        self.assertGreaterEqual(limit, sv.ESCAPE_FACTOR * biggest + sv.REQUEST_ENVELOPE)       # needs and the tracker are larger still (#405)
         # worst case: a stored body of quotes and backslashes, escaped once in the stored text and again as a string in the request
         stored = '"\\' * (biggest // 2)
         self.assertEqual(len(stored), biggest)
@@ -128,9 +128,10 @@ class PythonSide(unittest.TestCase):
         self.assertEqual(running.api("POST", "/api/change", fits + b" ")[0], 400, "one past the limit is refused")
 
     def test_the_change_route_limit_is_worked_out_from_the_largest_body_and_the_escape_factor(self):
-        """#378: the limit is the largest body, times what escaping can make of it, plus the request around it; none of the three is a bare number in the sum."""
-        biggest = max(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_kinds.REGISTRY.values())
-        self.assertEqual(sv.SECTION_BODY_MAX, biggest, "the server's copy of the largest body follows the registry")
+        """#378, #405: the limit is the largest body any section type is checked to, times what escaping can make of it, plus the request around it; none of the three is a bare number in the sum."""
+        from clark import section_bodies
+        biggest = max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values()))
+        self.assertEqual(sv.SECTION_BODY_MAX, biggest, "the server's copy of the largest body follows the checker's limits")
         self.assertEqual(sv.CHANGE_BODY_LIMIT, sv.ESCAPE_FACTOR * sv.SECTION_BODY_MAX + sv.REQUEST_ENVELOPE)
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         self.assertGreaterEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024, "never smaller than before")
@@ -139,7 +140,8 @@ class PythonSide(unittest.TestCase):
         self.assertEqual(sv.change_body_limit(biggest - 1024), sv.CHANGE_BODY_LIMIT - sv.ESCAPE_FACTOR * 1024, "and a smaller one")
 
     def test_the_largest_body_fully_escaped_and_the_request_around_it_fit_the_change_limit(self):
-        biggest = max(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_kinds.REGISTRY.values())
+        from clark import section_bodies
+        biggest = max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values()))
         for letter in ('"', "\\"):                    # the two letters JSON writes as two bytes
             body = json.dumps({"project": "ABCDEFG", "kind": "report_section", "op": "update", "id": "ABCDEFG-S-001",
                                "changes": {"body": letter * biggest}}, separators=(",", ":")).encode("ascii")

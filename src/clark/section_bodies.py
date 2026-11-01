@@ -256,7 +256,7 @@ def _shown_needs_row(row):
 TRACKER_VERSION = 1
 TRACKER_MAX_GROUPS = 10
 TRACKER_MAX_LINES_PER_GROUP = 47
-TRACKER_MAX_LINES = 47           # in all. The change route takes 132 KB (server.CHANGE_BODY_LIMIT, #96), so the checker's cap, not the route, is what a person meets:
+TRACKER_MAX_LINES = 47           # in all. The change route takes 516 KB (server.CHANGE_BODY_LIMIT, #96, #405), so the checker's cap, not the route, is what a person meets:
 #                                  the widest request the checker accepts (10 groups, every text at its longest, four-byte letters sent as \\u escapes) is 95 KB.
 #                                  tests/test_tracker_route.py pins that over the real route (#247).
 TRACKER_NAME_MAX = 80
