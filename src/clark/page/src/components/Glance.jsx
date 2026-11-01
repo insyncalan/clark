@@ -31,7 +31,7 @@ function Health({ t, tools, editing }) {
     <div class={`fig health-fig rag-${t.rag}`} data-fig="health">
       <span class="k"><i class="ragdot" aria-hidden="true"></i>Project health</span>
       <div class="hrow">
-        {G ? <G.HealthPill health={data.value.project.health} reason={t.reason} /> : <span class={`pill ${t.pill || "n"}`}>{t.value}</span>}
+        {G ? <G.HealthPill health={data.value.project.health} reason={t.reason} /> : <span class={`pill hpill ${t.pill || "n"}`}>{t.value}</span>}
         {G ? <G.Reason health={data.value.project.health} reason={t.reason} /> : t.reason ? <span class="hreason">{t.reason}</span> : null}
       </div>
       {t.word ? <span class="tw">{t.word}</span> : null}

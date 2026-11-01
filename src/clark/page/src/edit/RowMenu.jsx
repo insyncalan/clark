@@ -1,5 +1,5 @@
 // The right-click menu on a work item (#97): a row of the table or a card of the board, by a right click, the menu key or Shift+F10.
-// Draft email to the owner, the peek, Change status, Move due date and Change owner (each a short list), Copy link, Copy ID,
+// Draft email to the owner (listed but greyed, with its reason, until #115), the peek, Change status, Move due date and Change owner (each a short list), Copy link, Copy ID,
 // Duplicate and Archive. Each entry does what its button elsewhere does: a change is one step with Undo in the toast (the cells'
 // own words and requests, itemEdit.js), Archive is clark's archive step (never a delete, FR-43c). What each entry offers is in
 // ../logic/rowMenu.js. An entry that can't be used is listed with its reason under it. In View the changes are listed but greyed.
@@ -85,18 +85,18 @@ function entries(row, level, edit, d, today) {
     return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
       ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : []), { id: "sep", sep: true }, back];
   }
-  const edits = (id, name) => ({ id, name, sub: true, disabled: !edit });
+  const edits = (id, name) => ({ id, name, sub: true, disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
-    { id: "draft", name: dr.name, line: dr.reason, disabled: !!dr.reason },
+    { id: "draft", name: dr.name, line: dr.reason, disabled: true },
     { id: "peek", name: "Open the peek" },
     { id: "sep1", sep: true },
-    ...(edit ? [] : [{ id: "lab1", lab: why }]),
+    ...(edit ? [] : [{ id: "lab1", lab: why, dom: "rm-why-view" }]),
     edits("status", "Change status"), edits("due", "Move due date"), edits("owner", "Change owner"),
     { id: "eye", name: row.client ? "Hide from the client" : "Show to the client", line: EYE_LATER, disabled: true },
     { id: "sep2", sep: true },
     { id: "link", name: "Copy link to this item" }, { id: "copyid", name: "Copy ID" },
     { id: "sep3", sep: true },
-    { id: "dup", name: "Duplicate", disabled: !edit }, { id: "archive", name: "Archive", disabled: !edit },
+    { id: "dup", name: "Duplicate", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
   ];
 }
 
@@ -136,11 +136,6 @@ function Panel({ s }) {
     if (id === "peek") { close("pick"); openCard(row.id); return undefined; }
     if (id === "link") { close("pick"); copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); return undefined; }
     if (id === "copyid") { close("pick"); copied(row.id, `${row.id} copied.`); return undefined; }
-    if (id === "draft") {                          // Draft email (#50) listens for this; with no address the entry is greyed and never gets here
-      close("pick");
-      try { window.dispatchEvent(new CustomEvent("clark:draft-email", { detail: { ids: [row.id], to: draftEntry(row, d).to } })); } catch (e) { /* nothing is listening */ }
-      return undefined;
-    }
     if (id === "archive") {
       return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.` })
         .then((r) => { if (r && peeked.value === row.id) closePeek(); });
@@ -162,10 +157,11 @@ function Panel({ s }) {
   return (
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
       {s.pick ? null : <MenuPanel key={s.level} label={label} cls="rm" onClose={close}>
-        {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
+        {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
           <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
-            aria-haspopup={it.sub ? "menu" : undefined} aria-disabled={it.disabled ? "true" : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
-            <span class="rm-t"><b>{it.id === "back" ? "‹ Back" : it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
+            aria-haspopup={it.sub ? "menu" : undefined} aria-disabled={it.disabled ? "true" : undefined}
+            aria-describedby={it.disabled && (it.line || it.why) ? (it.why || "rm-why-" + it.id) : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
+            <span class="rm-t"><b>{it.id === "back" ? "‹ Back" : it.name}</b>{it.line ? <small id={"rm-why-" + it.id}>{it.line}</small> : null}</span>
             {it.sub ? <Icon name="right" cls="rm-go" /> : null}
           </button>
         ))}

@@ -9,20 +9,27 @@ const TITLE_LIMIT = 200;                         // clark/changes.py: a title is
 export const VIEW_ONLY = "Switch to Edit to change this.";
 export const EYE_LATER = "Showing or hiding an item for the client from here comes with a later release.";
 
-/** Where a person's email address is kept: the project's people (data.people, #115), found by name. "" when nobody has one. */
-export function emailOf(data, name) {
-  const want = String(name == null ? "" : name).trim().toLowerCase();
-  if (!want) return "";
-  const p = ((data && data.people) || []).find((x) => x && String(x.name || "").trim().toLowerCase() === want);
+export const NEEDS_PEOPLE = "Draft email needs the People list (coming with #115).";
+export const NOT_CONNECTED = "Draft email will open from here in a later release.";
+
+/** Where a person's email address is kept: the project's people (data.people, #115), found by the owner's id, never the name
+ *  (two people can share a name, docs/handoff/design-115-people-table.md). "" when there is no id, no such person or no address.
+ *  A work item carries no owner id until #115 is built, so today this is always "". */
+export function emailOf(data, ownerId) {
+  const id = String(ownerId == null ? "" : ownerId).trim();
+  if (!id) return "";
+  const p = ((data && data.people) || []).find((x) => x && x.id === id);
   return p && typeof p.email === "string" ? p.email.trim() : "";
 }
 
-/** The Draft email entry: {name, reason, to}. `reason` is "" when it can be used, else why not; `to` is the address. */
+/** The Draft email entry: {name, reason, to}. It is always greyed for now: the editor (DraftEmail.jsx) is given an email that the
+ *  builder (clark/draft_email.py) makes, and the page has no route to it. `reason` says why; `to` is the address found by id. */
 export function draftEntry(row, data) {
   const o = ownerOf(row.owner);
   if (!o.initials) return { name: "Draft email to the owner", reason: "This item has no owner yet, so there is no one to write to.", to: "" };
-  const to = emailOf(data, o.text);
-  return { name: `Draft email to ${o.text}`, reason: to ? "" : `No email address for ${o.text} yet.`, to };
+  const to = emailOf(data, row.owner_id);
+  const reason = !(data && Array.isArray(data.people)) ? NEEDS_PEOPLE : to ? NOT_CONNECTED : `${o.text} has no email on the People list.`;
+  return { name: `Draft email to ${o.text}`, reason, to };
 }
 
 /** The statuses the Change status list offers (the same as the Status cell's picker), without the one the item has. */

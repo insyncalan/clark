@@ -47,6 +47,7 @@
 .rowmenu { position: fixed; z-index: 36; }
 .rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 16px)); }
 .rowmenu [role="menuitem"] { display: flex; align-items: center; gap: 8px; }
+.rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .rowmenu .rm-t { flex: 1; min-width: 0; }
 .rowmenu .rm-t small { display: block; font-size: 13px; color: var(--text-muted); }
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }

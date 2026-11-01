@@ -62,15 +62,27 @@ class Rules(unittest.TestCase):
 
     ACTION = {"id": "ABC-A-001", "kind": "action", "owner": "Ada Quillfeather", "status": "Open", "priority": "High", "due_date": "2026-11-02"}
 
-    def test_draft_email_names_the_owner_and_is_greyed_with_a_reason_when_there_is_no_address(self):
+    def test_draft_email_is_greyed_with_a_reason_and_finds_an_address_by_owner_id_never_the_name(self):
         row = json.dumps(self.ACTION)
         self.assertEqual(self.js(f"RM.draftEntry({row}, {{}})"),
-                         {"name": "Draft email to Ada Quillfeather", "reason": "No email address for Ada Quillfeather yet.", "to": ""})
-        people = json.dumps({"people": [{"name": "ada quillfeather", "email": " ada@example.com "}]})
-        self.assertEqual(self.js(f"RM.draftEntry({row}, {people})"), {"name": "Draft email to Ada Quillfeather", "reason": "", "to": "ada@example.com"})
+                         {"name": "Draft email to Ada Quillfeather", "reason": "Draft email needs the People list (coming with #115).", "to": ""})
+        # Today's rows have no id link: a person with the same name is never used (two people can share a name).
+        same_name = json.dumps({"people": [{"id": "P-001", "name": "Ada Quillfeather", "email": "ada@example.com"}]})
+        self.assertEqual(self.js(f"RM.draftEntry({row}, {same_name})"),
+                         {"name": "Draft email to Ada Quillfeather", "reason": "Ada Quillfeather has no email on the People list.", "to": ""})
+        self.assertEqual(self.js(f"RM.emailOf({same_name}, 'Ada Quillfeather')"), "")
+        self.assertEqual(self.js(f"RM.emailOf({same_name}, '')"), "")
+        self.assertEqual(self.js(f"RM.emailOf({same_name}, 'P-001')"), "ada@example.com")
+        self.assertEqual(self.js("RM.emailOf({}, 'P-001')"), "")
+        linked = json.dumps({**self.ACTION, "owner_id": "P-002"})
+        two = json.dumps({"people": [{"id": "P-001", "name": "Ada Quillfeather", "email": "one@example.com"},
+                                     {"id": "P-002", "name": "Ada Quillfeather", "email": " two@example.com "}]})
+        got = self.js(f"RM.draftEntry({linked}, {two})")
+        self.assertEqual(got["to"], "two@example.com", "the id picks the person")
+        self.assertTrue(got["reason"], "still greyed: the dialog has no route to the builder yet")
         for owner in ("TBC", None, ""):
             none = json.dumps({**self.ACTION, "owner": owner})
-            got = self.js(f"RM.draftEntry({none}, {people})")
+            got = self.js(f"RM.draftEntry({none}, {same_name})")
             self.assertEqual((got["name"], got["to"]), ("Draft email to the owner", ""))
             self.assertIn("no owner", got["reason"])
 
@@ -134,7 +146,7 @@ class Menu(board.Base):
             self.assertEqual([e[1] for e in got], ["Draft email to Sara Khan", "Open the peek", "Change status", "Move due date", "Change owner",
                                                    "Hide from the client", "Copy link to this item", "Copy ID", "Duplicate", "Archive"])
             by = {e[0]: e for e in got}
-            self.assertEqual(by["draft"][2:], [True, "No email address for Sara Khan yet."], "greyed, with the reason in words")
+            self.assertEqual(by["draft"][2:], [True, "Draft email needs the People list (coming with #115)."], "greyed, with the reason in words")
             self.assertTrue(by["eye"][2] and by["eye"][3], "the eye says why it is greyed")
             self.assertFalse(any(by[k][2] for k in ("peek", "status", "due", "owner", "link", "copyid", "dup", "archive")))
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "peek", "focus is on the first entry that can be used")
@@ -142,6 +154,15 @@ class Menu(board.Base):
             self.assertTrue(box[0] >= 0 and box[1] >= 0 and box[2] <= 1400 and box[3] <= 900, box)
             self.assertFalse(cdp.js("!!document.querySelector('.cpop')", sid))
             self.assertEqual(self.steps(), before)
+            # A greyed entry is described by its reason line, so a screen reader can read why.
+            why = cdp.js("(() => { const b = document.querySelector('.rowmenu [data-rm=draft]'); const d = document.getElementById(b.getAttribute('aria-describedby')); return d ? d.textContent : null; })()", sid)
+            self.assertEqual(why, "Draft email needs the People list (coming with #115).")
+            self.assertTrue(cdp.js("(() => { const b = document.querySelector('.rowmenu [data-rm=eye]'); const d = document.getElementById(b.getAttribute('aria-describedby')); return !!(d && d.textContent); })()", sid))
+            # The menu items have a real focus ring: 2 px, a colour, not none.
+            key(cdp, sid, "ArrowDown")                       # a key moved focus, so :focus-visible applies
+            ring = cdp.js("(() => { const c = getComputedStyle(document.activeElement); return [c.outlineStyle, c.outlineWidth, c.outlineColor]; })()", sid)
+            self.assertEqual(ring[:2], ["solid", "2px"], ring)
+            self.assertNotEqual(ring[2], "rgba(0, 0, 0, 0)")
 
     def test_the_eye_entry_follows_the_item_and_a_menu_closes_with_escape_and_a_click_away(self):
         with chrome() as cdp:
@@ -365,6 +386,11 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % rows[-1])
             box = cdp.js("(() => { const b = document.querySelector('.rowmenu').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()", sid)
             self.assertTrue(box[0] >= 0 and box[1] >= 0 and box[2] <= 900 and box[3] <= 500, box)
+
+    def test_no_dead_draft_email_event_is_left(self):
+        for f in ("edit/RowMenu.jsx", "logic/rowMenu.js"):
+            self.assertNotIn("clark:draft-email", (ROOT / "src" / "clark" / "page" / "src" / f).read_text(encoding="utf-8"))
+        self.assertNotIn("clark:draft-email", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 
     def test_the_published_page_has_no_menu(self):
         view = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
