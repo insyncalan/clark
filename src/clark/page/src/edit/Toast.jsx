@@ -4,9 +4,10 @@
 // Preview or Export did) is shown in this same region in Edit, so the page has one live region (#147).
 import { useEffect } from "preact/hooks";
 import { mode } from "../stores/report.js";
-import { toast, dismiss, undo } from "../stores/changes.js";
+import { toast } from "../stores/changes.js";
 import { MenuNote } from "./ProfileMenu.jsx";
 import { undoKey } from "./undoKey.js";
+import { ToastCard } from "./ToastCard.jsx";
 
 export function Toast() {
   useEffect(() => {                                   // #197: Cmd or Ctrl+Z undoes the last change (undoKey.js)
@@ -18,11 +19,7 @@ export function Toast() {
   return (
     <div class="toasts" data-edit-only role="status" aria-live="polite">
       {t ? (
-        <div class={`toast ${t.kind}`} key={t.id} data-kind={t.kind} role={t.kind === "problem" ? "alert" : undefined}>
-          <span class="toast-text">{t.text}</span>
-          {t.undo || t.local ? <button type="button" class="toast-btn" data-undo onClick={() => { dismiss(); if (t.local) t.local(); else undo(t.undo, t.code); }}>Undo</button> : null}
-          <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={dismiss}>Close</button>
-        </div>
+        <ToastCard t={t} />
       ) : null}
       <MenuNote />
     </div>
