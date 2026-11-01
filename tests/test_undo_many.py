@@ -414,7 +414,7 @@ class BodyLimitAndMemory(unittest.TestCase):
 
     def test_the_memory_only_list_is_said_plainly(self):
         from pathlib import Path
-        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/stores/changes.js").read_text()
+        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/stores/changes.js").read_text(encoding="utf-8")
         self.assertIn("Nothing to undo since this page was opened. Older changes are in Activity.", src)
 
 
