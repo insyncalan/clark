@@ -91,11 +91,11 @@ class Tab(unittest.TestCase):
         for width in (1400, 900):
             for scheme in ("light", "dark"):
                 self.fresh()
-                done = self.alter(4)
+                done = self.alter(5)
                 self.assertEqual(self.undo({"project": "TUL", "apply_id": done[-1]})[0], 200)  # an undo row: it says why it has no tick
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.open_activity(cdp, width, scheme)
-                    steps = [str(s) for s in reversed(done)]                                   # newest first, as drawn
+                    steps = [str(s) for s in reversed(done)][1:]                               # newest first, as drawn; the newest is undone already: no tick
                     undo_row = cdp.js("document.querySelectorAll('[data-activity-row]:not([data-step])').length", sid)
                     self.assertGreaterEqual(undo_row, 1, "a row that cannot be chosen has no tick")
                     self.assertIn("undo", cdp.js("document.querySelector('[data-pa-why]').textContent", sid).lower(), "and says why in words")
@@ -122,6 +122,7 @@ class Tab(unittest.TestCase):
                     self.until(cdp, sid, "document.querySelectorAll('[data-pa-tick]:checked').length === 3", "three chosen")
                     self.assertEqual(self.bar(cdp, sid), "3 selected")
                     self.assertEqual(cdp.js("document.querySelector('[data-pa-undo-n]').textContent", sid), "Undo 3")
+                    self.assertEqual(self.undo({"project": "TUL", "apply_id": int(steps[0])})[0], 200)   # undone after it was drawn: the preview names it
                     before, n, prior = self.steps(), len(self.sent), self.priority()
                     cdp.js("document.querySelector('[data-pa-undo-n]').click()", sid)
                     self.until(cdp, sid, "!!document.querySelector('[data-pa-preview]')", "the preview shows first")
@@ -219,6 +220,47 @@ class Tab(unittest.TestCase):
                            ("--text", "--grey-50"), ("--heading", "--grey-50"), ("--status-red-text", "--grey-50"), ("--status-red-text", "--surface")):
                 with self.subTest(mode=mode, fg=fg, bg=bg):
                     self.assertGreaterEqual(ratio(tokens[fg], tokens[bg]), 4.5)
+
+    def refused_row(self, make, words):
+        """A change made here, then one that `make` writes to the same item: in the real page the second has no tick and says `words`,
+        and the first still has its tick."""
+        mine = self.alter(1)[0]
+        other = make()
+        with chrome() as cdp:
+            sid = self.open_activity(cdp, 1400)
+            self.assertTrue(cdp.js(f"!!document.querySelector('[data-activity-row][data-step=\"{mine}\"] [data-pa-tick]')", sid), "the ordinary one is tickable")
+            rows = cdp.js("Array.from(document.querySelectorAll('[data-activity-row]:not([data-step])')).map(e => e.textContent)", sid)
+            self.assertTrue(any(words in t for t in rows), f"{words!r} not in {rows}")
+            self.assertFalse(cdp.js(f"!!document.querySelector('[data-pa-tick=\"{other}\"]')", sid), "no tick for the refused one")
+
+    def write(self, route, **kw):
+        """A change to the item's priority on `route` (not through the dashboard's own route); its step."""
+        from clark.store import open_store
+        store = open_store(self.path, onedrive_roots=[])
+        try:
+            with store.step(route, tuk.USER, **kw) as st:
+                st.update("actions", ITEM, {"priority": "Urgent"})
+            return store.con.execute("SELECT max(apply_id) FROM applies").fetchone()[0]
+        finally:
+            store.close()
+
+    def test_a_row_from_an_excel_import_has_no_tick_and_says_why(self):
+        self.refused_row(lambda: self.write("excel"), changes.NOT_FROM_HERE)
+
+    def test_a_row_from_a_word_import_has_no_tick_and_says_why(self):
+        self.refused_row(lambda: self.write("word"), changes.NOT_FROM_HERE)
+
+    def test_a_row_ask_clark_did_not_make_under_its_own_name_has_no_tick_and_says_why(self):
+        self.refused_row(lambda: self.write("assistant", actor="you"), changes.NOT_FROM_HERE)
+
+    def test_a_row_that_is_undone_already_has_no_tick_and_says_why(self):
+        def make():
+            status, body = self.make({"project": "TUL", "kind": "actions", "op": "update", "id": ITEM, "changes": {"priority": "Urgent"}, "place": "cell"})
+            self.assertEqual(status, 200, body)
+            step = body["apply_id"]
+            self.assertEqual(self.undo({"project": "TUL", "apply_id": step})[0], 200)
+            return step
+        self.refused_row(make, changes.UNDONE_ALREADY)
 
     def test_the_rules_say_why_a_row_cannot_be_chosen(self):
         src = (SRC / "edit" / "activityUndo.js").read_text(encoding="utf-8")
