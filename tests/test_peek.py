@@ -383,6 +383,37 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak]')", sid)), "two slashes open the words box")
                 self.assertFalse(asking(), "the ask panel stays shut while a peek is open")
 
+    def test_a_palette_click_with_the_ask_panel_open_leaves_focus_in_the_peek(self):
+        """With the ask panel open, choosing a work item in the palette closes the panel (the click lands outside it) and opens the
+        peek; the panel's delayed return of focus must not pull focus away from the peek, so the two slashes still reach its words box."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                s, sid = self.load_page(cdp, width)
+                self.edit_mode(cdp, sid)
+                asking = lambda: cdp.js("!!document.querySelector('#ask-panel')", sid)
+                cdp.js("document.activeElement && document.activeElement.blur()", sid)
+                key(cdp, sid, "/")
+                self.assertTrue(wait(asking), "the ask panel is open")
+                target = next(r["id"] for r in self.data["actions"] if r["status"] == "Open")
+                common = {"key": "k", "code": "KeyK", "windowsVirtualKeyCode": 75, "modifiers": 2}
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common}, sid)
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#palette-q')", sid)), "the palette opens over the panel")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement && document.activeElement.id === 'palette-q'", sid)), "the search box has focus")
+                cdp.call("Input.insertText", {"text": target}, sid)
+                row = f"#palette .pal-row[id='pal-item-{target}']"
+                self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(row)})", sid)), "the work item is a result")
+                click(cdp, sid, row)
+                self.assertTrue(wait(lambda: not asking()), "the click closed the ask panel")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-close]')", sid)), "the peek opened")
+                time.sleep(0.3)
+                self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid), "focus stayed in the peek")
+                cdp.js("document.activeElement.blur()", sid)
+                key(cdp, sid, "/")
+                key(cdp, sid, "/")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak]')", sid)), "two slashes open the words box")
+                self.assertFalse(asking(), "the ask panel stays shut")
+
     def test_edit_opens_the_words_box_with_two_slashes_and_reads_without_writing(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
