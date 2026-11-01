@@ -183,7 +183,10 @@ export function WorkItems({ tools }) {
     <section class="frame work" id="work">
       <p class="crumbs">{d.project.name}</p>
       <div class="head">
-        <h1>Work items</h1>
+        <div>
+          <h1>Work items</h1>
+          <p class="intro muted" id="work-intro">{tools ? "Select an item to open it beside the list. The eye shows or hides it from the client." : "Select an item to open it beside the list."}</p>
+        </div>
         {tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} /> : null}   {/* a published file is read only: no Add (#204) */}
       </div>
       <p class="muted note" role="status" id="work-note">{filterNote.value || asked.value}</p>

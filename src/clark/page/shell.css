@@ -1036,6 +1036,10 @@ html[data-secstyle="card"] .secs { padding: 4px 20px 12px; border: 1px solid var
 /* type: Montserrat extra-bold for headings and figures, Inter for text, tracked capitals for the small line above a title */
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; }
+/* Work items: the project name above the title is plain (not tracked capitals), and one intro line sits under the title */
+#work .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }
+#work .head h1 { margin: 0; }
+#work .intro { margin: 4px 0 0; font-size: var(--size-small); }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: 600; }
 .tab, .proj { font-family: var(--font-label); font-weight: 500; }
 
