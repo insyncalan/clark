@@ -180,7 +180,7 @@ class Health(Setup):
             self.assertEqual(p.js("document.activeElement.getAttribute('data-kind')"), "At risk", "Down moves to the next pill")
             p.js("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
             p.until("!document.querySelector('#health-menu')", "Esc closed the menu")
-            self.assertEqual(p.js("document.activeElement.id"), "health-pill", "focus went back to the pill")
+            p.until("document.activeElement && document.activeElement.id === 'health-pill'", "focus went back to the pill")   # the menu hands focus back a moment after it closes
 
     def test_a_pick_leaving_the_box_empty_changes_nothing(self):
         with chrome() as cdp:
