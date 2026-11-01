@@ -11,6 +11,7 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
+import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
 import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
@@ -36,7 +37,7 @@ function Owner({ name }) {
     : <span class="muted">{o.text}</span>;
 }
 
-const active = signal("");                      // the id of the row that is the table's one tab stop
+const active = cursor;                          // the id of the row that is the table's one tab stop (listKeys.js)
 
 // The arrow keys inside the table. Only a key on a row or on a cell's own button: never one meant for an open picker.
 function keys(e, row) {
@@ -54,10 +55,8 @@ function keys(e, row) {
     const same = field ? r.querySelector(`[data-cell$=":${field}"]`) : null;
     (same || r).focus();
   };
-  if (e.key === "ArrowDown") toRow(at + 1);
-  else if (e.key === "ArrowUp") toRow(at - 1);
-  else if (e.key === "Home" && !cell) toRow(0);
-  else if (e.key === "End" && !cell) toRow(rows.length - 1);
+  const vert = e.key === "ArrowDown" || e.key === "ArrowUp" || (!cell && (e.key === "Home" || e.key === "End"));
+  if (vert) toRow(moveTo(e.key, at, rows.length, ["ArrowUp", "ArrowDown", "Home", "End"]));
   else if (e.key === "ArrowRight") { if (cells[c + 1]) cells[c + 1].focus(); }
   else if (e.key === "ArrowLeft" && cell) (c > 0 ? cells[c - 1] : tr).focus();
   else return;
@@ -107,7 +106,7 @@ function Row({ row, today, Cell, stop }) {
 function Table({ rows, today, type, Cell }) {
   const st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": "Work items" } : {};
   const head = <thead><tr><th class="c-type">Type</th><th class="c-item">Item</th><th class="c-owner">Owner</th><th class="c-due">Due</th><th class="c-prio">Priority</th><th class="c-status">Status</th></tr></thead>;
-  const stopOf = (drawn) => (drawn.some((r) => r.id === active.value) ? active.value : drawn.length ? drawn[0].id : "");
+  const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
   const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} stop={r.id === stop} />;
   if (g === "nothing") { const flat = sortRows(rows, today), stop = stopOf(flat); return <table class="items" {...grid}>{head}<tbody>{flat.map((r) => row(r, stop))}</tbody></table>; }
   const ctx = contextFor(today, type);

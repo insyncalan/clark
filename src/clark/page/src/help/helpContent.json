@@ -1726,6 +1726,18 @@
    [
     "[[Mod+K]]",
     "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back"
+   ],
+   [
+    "[[Up]] [[Down]] [[Home]] [[End]]",
+    "Work items table: move the cursor from row to row (never onto a group heading), to the first row or to the last. The blue outline shows where it is. The table is one stop for [[Tab]]"
+   ],
+   [
+    "[[Up]] [[Down]] [[Left]] [[Right]]",
+    "Work items board: move from card to card in reading order. [[Home]] and [[End]] go to the first and last card. To move a card, use its Move to menu"
+   ],
+   [
+    "[[Enter]]",
+    "On a row or a card: open it. In Edit, [[Enter]] on a cell opens that cell’s picker, and [[Right]] and [[Left]] move across the cells of the row"
    ]
   ],
   "icons": [
