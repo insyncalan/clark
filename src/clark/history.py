@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from clark import timefmt
 from clark.publish import RICH
 from clark.sanitise import SanitiseError, plain_text
-from clark.store import FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
+from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
 JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
 
@@ -80,6 +80,7 @@ PUT_BACK_PREFIX = "put back: "          # an Undo that made a removed label or l
 HOW_PEEK, HOW_TABLE, HOW_BOARD, HOW_REPORT, HOW_EYE = "In the peek", "In the table", "On the board", "In the report", "With the eye"
 HOW_EXCEL, HOW_ASK, HOW_DRAFT = "By Excel import", "By ask clark", "From a draft email"
 HOW_EMAIL, HOW_TEXT, HOW_UNDO = "By a sent email", "From selected text", "Undo"
+HOW_UNDO_MANY = "Undo (" + BATCH_UNDO + ")"      # #239: every row of one Undo several names it, so the rows read as one batch
 HOW_PLACES = {"peek": HOW_PEEK, "cell": HOW_TABLE, "bulk": HOW_TABLE, "menu": HOW_TABLE, "board": HOW_BOARD, "report": HOW_REPORT,
               "eye": HOW_EYE, "draft": HOW_DRAFT, "email": HOW_EMAIL, "text": HOW_TEXT}
 EXCEL_PREFIX = "Excel import:"
@@ -148,7 +149,7 @@ TITLE_LIMIT = 120
 def how_text(route, place, src_ref):
     """One of the eleven phrases for how and where a change was made. Anything else is OTHER, never the stored code."""
     if route == "undo":
-        return HOW_UNDO
+        return HOW_UNDO_MANY if src_ref == BATCH_UNDO else HOW_UNDO
     if route == "excel":
         name = re.sub(r"\s+", " ", str(src_ref or "")).strip()
         if name[:len(EXCEL_PREFIX)].lower() == EXCEL_PREFIX.lower():
