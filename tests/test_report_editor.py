@@ -96,7 +96,10 @@ class Pg:
         self.until("!!document.querySelector('[data-undo]')", "the change was saved")
 
     def toast(self):
-        return self.js("(document.querySelector('.toast-text') || {}).textContent || ''")
+        """The toast's text. Waits (up to 10 s) for one to be painted, since a slow runner paints it late; returns the last value read."""
+        read = lambda: self.js("(document.querySelector('.toast-text') || {}).textContent || ''")
+        wait(lambda: read() != "", 10)
+        return read()
 
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):

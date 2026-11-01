@@ -198,7 +198,9 @@ class Detail(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js(expr, sid), seconds), what)
 
     def toast(self, cdp, sid):
-        return cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid)
+        read = lambda: cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid)
+        wait(lambda: read() != "", 10)   # a slow runner paints the toast late
+        return read()
 
     def undo(self, cdp, sid):
         before = self.steps()

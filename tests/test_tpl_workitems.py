@@ -535,7 +535,9 @@ class InThePage(PageBase):
             p.until(f"location.hash.includes('item={self.a_later}')", "Space opened its peek")
 
     def toast(self, p):
-        return p.js("(document.querySelector('.toast-text') || {}).textContent || ''")
+        read = lambda: p.js("(document.querySelector('.toast-text') || {}).textContent || ''")
+        wait(lambda: read() != "", 10)   # a slow runner paints the toast late
+        return read()
 
 
 class PublishedFile(PageBase):
