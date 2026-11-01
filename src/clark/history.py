@@ -3,9 +3,10 @@ change_log joined to item_events; no proposals, chases or mentions. Reads only."
 import difflib
 import json
 import re
+import threading
 from datetime import datetime, timedelta, timezone
 
-from clark import timefmt
+from clark import freshness as fresh, timefmt
 from clark.publish import RICH
 from clark.sanitise import SanitiseError, plain_text
 from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
@@ -105,6 +106,126 @@ def history_many(con, ids):
                 mine[cand].append(r)
     reverted = reverted_rowids(con)
     return {i: build_events(mine[i], reverted) for i in ids}
+
+
+# #251: freshness needs only an item's first event and its latest one made by a person. So the page's read keeps just those two per
+# item (ReviewCache) and, on each call, reads only the log rows added since the last one. A change_log row is never changed once its
+# step is committed (an undo writes new rows), so what was kept stays true; a log that has shrunk or lost a row starts again.
+# The first read of an item is made by the database in one grouped pass over the project's own keys (other projects' rows are not read).
+# `at` and the event number are joined into one text that sorts the way (at, event_id) does: char(31) is below every character of a stamp.
+SORT_KEY = "e.at || char(31) || printf('%012d', e.event_id)"
+FIRST_SQL = ("SELECT c.tbl, c.item_id, min(" + SORT_KEY + ") AS found FROM change_log c JOIN item_events e ON e.change = c.rowid "
+             "WHERE c.field != 'updated_at' AND c.item_id >= ? AND c.item_id < ?@PERSON@ GROUP BY c.tbl, c.item_id")
+LAST_SQL = FIRST_SQL.replace("min(", "max(")
+PERSON_SQL = (" AND e.actor = 'you' AND e.route = 'dashboard' AND e.undoes IS NULL AND substr(c.via, 1, %d) != '%s'"
+              % (len(REVERT_VIA), REVERT_VIA))
+ENDS_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.via, e.at, e.event_id, e.route, e.actor, e.undoes FROM change_log c "
+            "JOIN item_events e ON e.change = c.rowid WHERE c.field != 'updated_at' AND c.rowid IN "
+            "(SELECT rowid FROM change_log WHERE %s)")
+NEW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.via, e.at, e.event_id, e.route, e.actor, e.undoes FROM change_log c "
+           "JOIN item_events e ON e.change = c.rowid WHERE c.field != 'updated_at' AND c.rowid > ? AND c.rowid <= ?")
+
+
+class ReviewCache:
+    """What review_events keeps between calls (a Store holds one): {id: [first event, latest person's event]} and the log's
+    newest rowid and row count when they were read."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.reset()
+
+    def reset(self):
+        self.mark = None                                   # None: nothing read yet
+        self.count = 0
+        self.events = {}
+
+
+def _event(r, bare=False):
+    """The keys freshness.freshness reads. `bare` is an event known only by its time: it has no author, so it never counts as a review."""
+    if bare:
+        return {"at": r["at"], "event_id": r["event_id"], "actor": None, "route": None, "is_undo": False, "undoes": None}
+    return {"at": r["at"], "event_id": r["event_id"], "actor": r["actor"], "route": r["route"],
+            "is_undo": str(r["via"]).startswith(REVERT_VIA), "undoes": r["undoes"]}
+
+
+def _reduce(events):
+    """Only what can still matter: the earliest event freshness can read and the latest by a person."""
+    ordered = fresh._ordered(events)
+    people = [e for e in ordered if fresh.by_person(e)]
+    return ordered[:1] + people[-1:] if ordered else []
+
+
+def _candidates(r):
+    """The ids a log row is about, as history_many reads it: a plain key is its own item; a link or label key names its items."""
+    key = str(r["item_id"])
+    if "|" not in key:
+        return [key]
+    parts = key.split("|")
+    return [c for c in {key, parts[0], *parts[1:-1]} if keyed_by(key, c) and touches(r, c)]
+
+
+def _first_reads(con, wanted, codes, mine, odd):
+    """Fill `mine` {id: events} for ids not seen before, from the database's grouped reads."""
+    for sql, person in ((FIRST_SQL, False), (LAST_SQL, True)):
+        for code in codes:
+            for table, key, found in con.execute(sql.replace("@PERSON@", PERSON_SQL if person else ""), (code + "-", code + ".")):
+                at, event_id = found.split("\x1f")
+                row = {"tbl": table, "item_id": key, "at": at, "event_id": int(event_id), "actor": "you", "route": "dashboard",
+                       "via": "", "undoes": None}
+                for cand in _candidates(row):
+                    if cand in wanted and cand in (key, key.split("|")[0]):                  # the item alone or first; the rest are read below
+                        if not fresh._has_day(at):
+                            odd.add(cand)
+                        mine[cand].append(_event(row, bare=not person))
+    where = " OR ".join(["item_id LIKE ?"] * len(codes))
+    for r in con.execute(ENDS_SQL % where, ["%|" + c + "-%" for c in codes]):
+        for cand in _candidates(r):
+            if cand in wanted and cand != str(r["item_id"]).split("|")[0]:                  # the item in the middle or at the end
+                if not fresh._has_day(r["at"]):
+                    odd.add(cand)
+                mine[cand].append(_event(r))
+
+
+def review_events(con, ids, cache=None):
+    """{id: events} for every ID in `ids`, holding only the events freshness.freshness can use (an item's first event and its
+    latest one by a person, and the same from the rows that name it inside a link's key), so freshness gives the same answer
+    as it does from history_many's full events (a test sets the two side by side). With a `cache` (a ReviewCache) the cost
+    follows the rows added since the last call, not the length of the log. An item whose first stamp freshness cannot read is
+    read whole, by history_many. Read only."""
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return {}
+    cache = cache or ReviewCache()
+    begun = not con.in_transaction
+    if begun:
+        con.execute("BEGIN")                               # one snapshot: the count, the new rows and the first reads agree
+    try:
+        with cache.lock:
+            top = con.execute("SELECT coalesce(max(rowid), 0) FROM change_log").fetchone()[0]
+            count = con.execute("SELECT count(*) FROM change_log").fetchone()[0]          # alone, the database counts pages, not rows
+            if cache.mark is not None:
+                added = con.execute("SELECT count(*) FROM change_log WHERE rowid > ?", (cache.mark,)).fetchone()[0]
+                if top < cache.mark or count != cache.count + added:
+                    cache.reset()                          # the log shrank or lost a row: nothing kept can be trusted
+            if cache.mark is not None and top > cache.mark and cache.events:
+                for r in con.execute(NEW_SQL, (cache.mark, top)):
+                    for cand in _candidates(r):
+                        if cand in cache.events:
+                            cache.events[cand] = _reduce(cache.events[cand] + [_event(r)])
+            new = [i for i in ids if i not in cache.events]
+            if new:
+                mine = {i: [] for i in new}
+                odd = set()
+                _first_reads(con, set(new), sorted({i.split("-", 1)[0] for i in new}), mine, odd)
+                if odd:
+                    mine.update(history_many(con, sorted(odd)))
+                for i in new:
+                    cache.events[i] = _reduce(mine[i])
+            cache.mark, cache.count = top, count
+            return {i: cache.events[i] for i in ids}
+    finally:
+        if begun:
+            con.execute("COMMIT")
 
 
 def original_date(con, item_id, current=None):
