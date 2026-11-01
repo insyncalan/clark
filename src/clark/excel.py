@@ -25,9 +25,10 @@ dev/run_tests.py does.
 INTERNAL ONLY: the Milestones sheet carries each milestone's Internal note, and Sensitive and client-hidden rows are exported
 too. Never send this workbook to a client. It says so in the file itself (the document description, and a note on Milestones A1).
 
-Text is neutralised on the way out (escape_text) and restored on the way in (from_cell), so a value such as =HYPERLINK(...)
-is only ever text and is never run. The file is byte-for-byte the same for the same rows, the same day (see `moment`) and the
-same export id (see `new_export_id`): each export carries a fresh random id, so two exports differ only by it.
+Text is a text cell on the way out (protect_text_cell: a string cell, with quotePrefix when it starts with = + - @, and no visible
+apostrophe) and is read as it stands on the way in (from_cell), so a value such as =HYPERLINK(...) is only ever text and is never
+run. The file is byte-for-byte the same for the same rows, the same day (see `moment`) and the same export id (see
+`new_export_id`): each export carries a fresh random id, so two exports differ only by it.
 """
 import hashlib
 import io
@@ -547,16 +548,21 @@ def cell_text(value):
     return NOT_XML.sub(lambda m: " " if m.group() in "\x0b\x0c\x1c\x1d\x1e" else "", value)
 
 
-# A text cell that starts with one of these is run as a formula by Excel (a CSV/formula injection), so it is neutralised.
+# A text cell that starts with one of these could be taken for a formula by Excel (a CSV/formula injection). Such text is stored
+# as a text cell (protect_text_cell), so it shows exactly as typed, with no apostrophe, and is never a formula. A line feed
+# first is also given the style's quotePrefix, as a cheap extra guard.
 FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+QUOTE_PREFIX_START = FORMULA_START + ("\n",)
 APOSTROPHE = "'"
 
 
 def escape_text(text):
-    """Text as it goes in a cell, so no cell can be a formula. The one rule, reversed exactly by unescape_text: text that starts
-    with = + - @ TAB CR, or with an apostrophe, gets one apostrophe in front (=1+1 becomes '=1+1; 'x becomes ''x). Other text
-    is untouched. Call it after cell_text, which can remove characters from the front."""
-    return APOSTROPHE + text if text.startswith(FORMULA_START + (APOSTROPHE,)) else text
+    """Text as it goes in a cell. Text is shown exactly as typed: protect_text_cell (not an apostrophe) is what keeps text that
+    starts with = + - @ TAB CR from running as a formula. The one case that still takes an apostrophe: text that starts with an
+    apostrophe and then one of those characters or another apostrophe ('=1 becomes ''=1), because a v0.1.0 file wrote =1 as '=1
+    and unescape_text takes that one apostrophe off again; this keeps unescape_text(escape_text(t)) == t for every text.
+    Call it after cell_text, which can remove characters from the front."""
+    return APOSTROPHE + text if text.startswith(APOSTROPHE) and text[1:].startswith(FORMULA_START + (APOSTROPHE,)) else text
 
 
 def unescape_text(text):
@@ -567,10 +573,20 @@ def unescape_text(text):
     return text
 
 
+def protect_text_cell(cell):
+    """Make `cell` a text cell, as a string, never a formula (openpyxl would make a string that starts with = a formula, and
+    "#N/A" an error). When the text starts with = + - @ TAB CR or a line feed, the cell's style also gets quotePrefix, which
+    Excel shows with no apostrophe and which makes a person's later edit of the cell stay text. Other styling is kept."""
+    if isinstance(cell.value, str):
+        cell.data_type = "s"
+        cell.quotePrefix = cell.value.startswith(QUOTE_PREFIX_START)
+    return cell
+
+
 def to_cell(field, value):
     """A stored value as it goes in a cell: dates as real dates, flags as Yes or No, text without the characters a workbook
-    can't hold (creaite excel_sync.to_cell). clark: no link fields, and text that could be a formula gets an apostrophe
-    (escape_text). Numbers and dates are never touched."""
+    can't hold (creaite excel_sync.to_cell). clark: no link fields, and the cell is made text by protect_text_cell
+    (escape_text only handles text that starts with an apostrophe). Numbers and dates are never touched."""
     if value is None:
         return None
     if field in DATES:
@@ -760,8 +776,7 @@ def write_history(wb, view):
     def put(row, values, **kw):
         for i, v in enumerate(values, start=1):
             c = ws.cell(row=row, column=i, value=v)
-            if isinstance(v, str):
-                c.data_type = "s"           # text is text: a value starting "=" is never a formula
+            protect_text_cell(c)            # text is text: a value starting "=" is never a formula
             c.font = Font(name=HISTORY_FONT, **kw)
             c.alignment = Alignment(wrap_text=i in (6, 7), vertical="top")
 
@@ -793,7 +808,7 @@ def write_lists(wb, lists):
         ws.column_dimensions[col].width = 24
         for n, v in enumerate(lists[field], start=2):
             c = ws.cell(row=n, column=i, value=v)
-            c.data_type = "s"
+            protect_text_cell(c)
             c.font = BODY_FONT
     ws.sheet_state = "hidden"
     return ws
@@ -808,9 +823,10 @@ COVER_FONT = OFFICE_FONT
 
 
 def _cover_cell(value):
-    """Cover text as a cell holds it: the same cell_text and escape_text as the data, so no cell can be a formula or hold a
-    character XML can't."""
-    return escape_text(cell_text(excel_cover.cut(value)))
+    """Cover text as a cell holds it: the same cell_text as the data (the cell itself is made text by protect_text_cell, which
+    is what keeps text starting = + - @ from being a formula), so no cell can be a formula or hold a character XML can't. No
+    escape_text: the import never reads the Cover, so text that starts '= needs no extra apostrophe."""
+    return cell_text(excel_cover.cut(value))
 
 
 def _cover_font(**kw):
@@ -836,7 +852,7 @@ def write_cover(wb, cover, mark=False):
         row = ws.max_row
         a, b = ws.cell(row=row, column=1), ws.cell(row=row, column=2)
         for c in (a, b):
-            c.data_type = "s"           # text is text: openpyxl would make a string starting "=" a formula
+            protect_text_cell(c)        # text is text: openpyxl would make a string starting "=" a formula
             c.alignment = Alignment(wrap_text=True, vertical="top")
             c.font = _cover_font()
         if kind == "title":
@@ -894,8 +910,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             ws.append([to_cell(f, r.get(f)) for _, f in cols])
             for c in ws[ws.max_row]:
                 c.font = BODY_FONT
-                if isinstance(c.value, str):
-                    c.data_type = "s"       # text is text: openpyxl would make a string starting "=" a formula, "#N/A" an error
+                protect_text_cell(c)        # text is text: openpyxl would make a string starting "=" a formula, "#N/A" an error
         n_rows = len(rows) + 1 + EXTRA_ROWS
         for i, (label, field) in enumerate(cols, start=1):
             col = get_column_letter(i)
