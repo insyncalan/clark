@@ -17,8 +17,10 @@ import { milestoneRows, CANCELLED } from "./milestones.js";
 import { rulesFor, publishable } from "./publishable.js";
 
 /** The client's rules for this project (main's gate, logic/publishable.js, the page's mirror of publish.select): a row this view
- *  draws or counts must be one the published file would hold, so a hidden row never shows and never moves a figure. */
-export function clientRules(data) {
+ *  draws or counts must be one the published file would hold, so a hidden row never shows and never moves a figure. In a published
+ *  file (`isFile`) there are no rules: the file's rows are already the kept ones, so null is given and progress() and riskRows() keep all. */
+export function clientRules(data, isFile) {
+  if (isFile) return null;      // a published file holds only the rows that passed the gate, and carries none of the fields it reads: no rules, nothing left out twice
   const d = data || {};
   return rulesFor({ code: d.project && d.project.code, hidden: (d.report_hidden || []).map((h) => (h && h.item_id) || h),
     labelRules: d.label_rules, labels: d.labels, sections: d.report_sections });

@@ -6,5 +6,5 @@ import { cleanHtml } from "../logic/cleanHtml.js";
 export function RichRead({ html, empty = "Nothing written yet." }) {
   let clean = "";
   try { clean = cleanHtml(typeof html === "string" ? html : ""); } catch (e) { clean = ""; }
-  return clean ? <div class="sec-body prose" data-rich-read dangerouslySetInnerHTML={{ __html: clean }} /> : <p class="quiet">{empty}</p>;
+  return clean ? <div class="sec-body prose" data-rich-read dangerouslySetInnerHTML={{ __html: clean }} /> : empty ? <p class="quiet">{empty}</p> : null;
 }

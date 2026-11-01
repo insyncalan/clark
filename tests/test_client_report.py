@@ -1,8 +1,9 @@
 """#192 Client Requested Report View: the new page beside the Dashboard, Work items and Milestones.
 
 Run: python3 dev/run_tests.py test_client_report
-Source tests (no browser) pin the view's id and name, the fixed order of its sections, that the published file's tab list does not
-carry it, and that its look uses tokens only. The browser tests (class Drawn, added with the sections) draw the page from the real
+Source tests (no browser) pin the view's id and name, the fixed order of its sections, that the published file's tab list carries it
+(the file's own checks are in test_client_report_file), the cover band, that the page says nothing to its author and explains nothing
+(the client reads it), and that its look uses tokens only. The browser tests (class Drawn, added with the sections) draw the page from the real
 server in View and in Edit at 1400 and 900 px, light and dark.
 """
 import json
@@ -29,7 +30,8 @@ def text(*parts):
 class Source(unittest.TestCase):
     def test_the_view_has_an_id_a_name_and_a_page(self):
         self.assertRegex(text("router.js"), r'export const VIEWS = \["dashboard", "work", "milestones", "usecases", "clientreport", "settings"\]')
-        self.assertIn('clientreport: "Client Requested Report View"', text("stores", "report.js"))
+        self.assertIn('"Client Requested Report View"', text("stores", "report.js"))
+        self.assertIn('fromFile.value ? "Weekly snapshot"', text("stores", "report.js"), "a client has not asked for anything: the file's tab has its own name")
         app = text("components", "App.jsx")
         self.assertIn('clientreport: ClientReport', app)
         self.assertIn('import { ClientReport } from "./ClientReport.jsx"', app)
@@ -38,7 +40,7 @@ class Source(unittest.TestCase):
         body = text("components", "ClientReport.jsx")
         ids = re.findall(r'\{ id: "(\w+)", title: "([^"]+)", slot: "(\w+)"', body)
         self.assertEqual(ids, [("progress", "Overall progress", "full"), ("plans", "Progress by plan", "full"),
-                               ("delivery", "Delivery progress", "full"), ("highlights", "Highlights", "left"),
+                               ("highlights", "Highlights", "left"),
                                ("nextweek", "Planned for next week", "right"), ("raid", "Risks, delays and items to watch", "full")])
 
     def test_the_cover_line_never_invents_a_client(self):
@@ -51,9 +53,35 @@ class Source(unittest.TestCase):
         self.assertRegex(body, r"project\.week_ending")
         self.assertRegex(body, r"isFile && asAtValue \? asAtValue : todayIso\(\)")
 
-    def test_the_published_file_does_not_get_a_tab_for_it(self):
+    def test_the_published_file_gets_a_tab_for_it_unless_the_milestones_are_hidden(self):
         pub = (SRC / "clark" / "publish.py").read_text(encoding="utf-8")
-        self.assertNotIn("clientreport", pub, "the first slice is the live page only: publish.py's tab list is unchanged")
+        self.assertRegex(pub, r'if "milestones" not in hidden_types:[^\n]*\n\s+tabs\.append\("clientreport"\)')
+
+    def test_nothing_unfinished_shows_and_the_delivery_plan_is_not_built(self):
+        self.assertFalse((SRCDIR / "components" / "clientreport" / "Delivery.jsx").exists(), "the delivery template (on hold) has no file and no placeholder")
+        body = text("components", "ClientReport.jsx")
+        self.assertNotIn("Delivery", body)
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
+        self.assertNotIn("cr-placeholder", css)
+
+    def test_no_author_instruction_and_no_explainer_on_the_page(self):
+        # The owner's rule: the client reads this page. No sentence tells the author to go and write something, none says how a
+        # figure is worked out, none says something is not built. (The editor's own placeholder in Edit is a control.)
+        for rel in ("ClientReport.jsx", "clientreport/Overall.jsx", "clientreport/Plans.jsx", "clientreport/Pair.jsx", "clientreport/Risks.jsx"):
+            code = re.sub(r"//[^\n]*", "", text("components", *rel.split("/")))
+            for bad in (r"on the Dashboard", r"Add a ", r"Write it", r"Nothing written", r"Nothing here yet", r"not built", r"counts the same",
+                        r"fills in once", r"worked out", r"cr-how", r"placeholder", r"is the project's milestones"):
+                self.assertNotRegex(code, bad, rel)
+
+    def test_the_cover_is_a_dark_band_with_the_title_the_week_line_a_picture_and_a_logo(self):
+        body = text("components", "ClientReport.jsx")
+        self.assertRegex(body, r'<header class="cr-band">\s*<h1>\{d\.project\.name\}</h1>\s*<p class="cr-cover">')
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
+        band = re.search(r"\.cr-band \{[^}]*\}", css).group(0)
+        self.assertIn("background: var(--brand-navy)", band)
+        self.assertIn("var(--image-cover)", css[css.index(".cr-band::before"):])
+        self.assertIn("var(--image-logo)", css[css.index(".cr-band::after"):])
+        self.assertIn("--image-logo: none", (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8"), "no logo of anyone's is in the repository")
 
     def test_the_look_is_tokens_only(self):
         css = (PAGE / "shell.css").read_text(encoding="utf-8")
@@ -62,7 +90,7 @@ class Source(unittest.TestCase):
         self.assertNotRegex(block, r"font-size:\s*(?:\d|1[0-2])px", "13 px is the floor")
 
 
-SECTION_ORDER = ["progress", "plans", "delivery", "highlights", "nextweek", "raid"]
+SECTION_ORDER = ["progress", "plans", "highlights", "nextweek", "raid"]
 MODULE = SRCDIR / "logic" / "clientReport.js"
 
 
@@ -215,6 +243,13 @@ class Drawn(unittest.TestCase):
                                 " return r.width > 0 && (r.right > f.right + 1 || r.left < f.left - 1); }).length; })()", sid), 0,
                          f"{where}: nothing leaves the page's frame")
         self.assertEqual(json.loads(cdp.js(AUDIT, sid)), [], f"{where}: text at 13 px or more and 4.5:1")
+        band = json.loads(cdp.js("(() => { const f = document.querySelector('#clientreport'), b = f.querySelector('.cr-band'), h = b.querySelector('h1'), w = b.querySelector('.cr-cover');"
+                                 " const c = getComputedStyle(b).backgroundColor.match(/\\d+/g).map(Number), bb = b.getBoundingClientRect(), first = f.querySelector('.secs').getBoundingClientRect();"
+                                 " return JSON.stringify({ dark: c[0] < 80 && c[1] < 80 && c[2] < 100, above: bb.bottom <= first.top, wide: bb.width > f.getBoundingClientRect().width * .9,"
+                                 " inside: h.getBoundingClientRect().left >= bb.left && w.getBoundingClientRect().right <= bb.right, order: h.getBoundingClientRect().bottom <= w.getBoundingClientRect().top + 1 }); })()", sid))
+        self.assertEqual(band, {"dark": True, "above": True, "wide": True, "inside": True, "order": True}, f"{where}: the dark cover band, the title over the week line")
+        self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid),
+                            r"on the Dashboard|Nothing written|Nothing here yet|not built|counts the same", f"{where}: nothing for the author and no explainer")
 
     def run_view(self, edit):
         port = self.serve()

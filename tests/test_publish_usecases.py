@@ -119,7 +119,7 @@ class Absent(unittest.TestCase):
         self.assertNotIn("usecases", pub["tabs"])
         self.assertEqual(pub["data"]["use_case_pages"], [])
         self.assertEqual(pub["data"]["use_cases"], [])
-        self.assertEqual(block(text)["tabs"], ["dashboard", "work", "milestones"])
+        self.assertEqual(block(text)["tabs"], ["dashboard", "work", "milestones", "clientreport"])
         self.assertNotIn("ZQ-KEEP-USECASE-1", text)
         self.assertNotIn("ZQ-KEEP-STANDING", text)
 
@@ -131,7 +131,7 @@ class Absent(unittest.TestCase):
         _, pub, text = made(all_off)
         self.assertEqual(pub["data"]["use_case_pages"], [])
         self.assertNotIn("usecases", pub["tabs"])
-        self.assertEqual(block(text)["tabs"], ["dashboard", "work", "milestones"])
+        self.assertEqual(block(text)["tabs"], ["dashboard", "work", "milestones", "clientreport"])
         self.assertNotIn("ZQ-KEEP-USECASE-1", text)
 
     def test_a_use_case_carries_no_eye_no_history_and_no_note(self):
@@ -171,7 +171,7 @@ class Present(unittest.TestCase):
 
     def test_tab_order(self):
         _, pub, text = made()
-        self.assertEqual(pub["tabs"], ["dashboard", "work", "milestones", "usecases"])
+        self.assertEqual(pub["tabs"], ["dashboard", "work", "milestones", "usecases", "clientreport"])
         self.assertEqual(block(text)["tabs"], pub["tabs"])
         router = (ROOT / "src/clark/page/src/router.js").read_text(encoding="utf-8")
         self.assertIn('VIEWS = ["dashboard", "work", "milestones", "usecases", "clientreport", "settings"]', router)
@@ -224,7 +224,7 @@ class RealBrowser(unittest.TestCase):
                 sid = opened(cdp, path.as_uri())
                 self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
                 self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.textContent).join()", sid),
-                                 "Dashboard,Work items,Milestones,Use Cases")
+                                 "Dashboard,Work items,Milestones,Use Cases,Weekly snapshotSnapshot")   # the last tab holds its wide and its narrow name
                 cdp.js("document.querySelector('[data-view=usecases]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == "Use Cases"))
                 cdp.js("document.querySelector('.ucp summary').click()", sid)

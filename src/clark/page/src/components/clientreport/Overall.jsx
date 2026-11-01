@@ -1,8 +1,8 @@
 // Client Requested Report View (#192): Overall progress. The project's health and reason, Actual and Planned as two figures, and a bar
 // filled to Actual with a marker at Planned. Every figure is worked out in logic/clientReport.js from the milestones; what each means
-// is said on the page, and "Not set" is shown when there is nothing to measure (never an invented number).
+// is said there, not on the page (the client reads this page), and "Not set" is shown when there is nothing to measure (never an invented number).
 // This file and Plans.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
-import { data } from "../../stores/report.js";
+import { data, fromFile } from "../../stores/report.js";
 import { HEALTH_WORDS } from "../../glanceTiles.js";
 import { showDate } from "../../workItems.js";
 import { progress, gapWords, clientRules } from "../../logic/clientReport.js";
@@ -14,7 +14,7 @@ const place = (planned) => (planned >= 88 ? " end" : planned <= 12 ? " start" : 
 
 export function Overall({ on }) {
   const d = data.value;
-  const { overall, groups } = progress(d.milestones, on, true, clientRules(d));   // the client's milestones and words, as the file shows them
+  const { overall, groups } = progress(d.milestones, on, true, clientRules(d, fromFile.value));   // the client's milestones and words, as the file shows them
   const lines = groups.reduce((n, g) => n + g.lines.length, 0);
   const health = d.project.health || "", rag = HEALTH_WORDS[health] || "n", reason = d.project.health_reason || "";
   const gap = gapWords(overall);
@@ -50,8 +50,7 @@ export function Overall({ on }) {
           </div>
           <p class="cr-gap" data-gap>{gap}</p>
         </>
-      ) : <p class="quiet">There are no milestones to measure progress by yet. The bar fills in once the project has milestones.</p>}
-      <p class="quiet cr-how">Every milestone counts the same. A milestone that is done counts as 100%, any other counts its percent complete. Planned counts a milestone once its agreed date has come.</p>
+      ) : null}
     </>
   );
 }

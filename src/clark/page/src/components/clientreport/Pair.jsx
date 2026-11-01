@@ -10,21 +10,20 @@ const HIGHLIGHTS = /highlight|this week/i;
 const NEXT = /next week/i;
 
 
-function Words({ pattern, fallback, tools }) {
+function Words({ pattern, tools }) {
   const sec = sectionFor(data.value.report_sections, pattern, data.value.report_hidden);
-  if (!sec) return <p class="quiet" data-empty="no-section">{`Nothing here yet. Add a "${fallback}" text section on the Dashboard and write it there.`}</p>;
-  const empty = `Nothing written yet. Write it in the "${sec.title}" section on the Dashboard.`;
+  if (!sec) return null;      // no words: the box stays empty. The page never tells its reader to go and write them
   const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;
-  if (editing && tools.richOn && tools.richOn("body")) return <tools.RichField field="body" id={sec.id} value={sec.body} label={`${sec.title} text`} empty={empty} />;
-  if (fromFile.value) return typeof sec.body === "string" && sec.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: sec.body }} /> : <p class="quiet">{empty}</p>;
-  if (tools && tools.RichRead) return <tools.RichRead html={sec.body} empty={empty} />;
-  return <p class="quiet">{empty}</p>;
+  if (editing && tools.richOn && tools.richOn("body")) return <tools.RichField field="body" id={sec.id} value={sec.body} label={`${sec.title} text`} />;   // the editor's own placeholder is a control, not a sentence on the page
+  if (fromFile.value) return typeof sec.body === "string" && sec.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: sec.body }} /> : null;
+  if (tools && tools.RichRead) return <tools.RichRead html={sec.body} empty="" />;
+  return null;
 }
 
 export function Highlights({ tools }) {
-  return <Words pattern={HIGHLIGHTS} fallback="This week" tools={tools} />;
+  return <Words pattern={HIGHLIGHTS} tools={tools} />;
 }
 
 export function NextWeek({ tools }) {
-  return <Words pattern={NEXT} fallback="Next week" tools={tools} />;
+  return <Words pattern={NEXT} tools={tools} />;
 }

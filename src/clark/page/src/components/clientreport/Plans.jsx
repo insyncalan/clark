@@ -2,7 +2,7 @@
 // group has a table (number, description, end date, status word with its mark, planned, achieved with a small bar) and its total.
 // A line behind plan shows "▼n" and says "n points behind plan" to a screen reader; colour is never the only signal.
 // This file and Overall.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
-import { data } from "../../stores/report.js";
+import { data, fromFile } from "../../stores/report.js";
 import { showDate } from "../../workItems.js";
 import { progress, behindWords, clientRules } from "../../logic/clientReport.js";
 import { MsMark } from "../MsMark.jsx";
@@ -43,7 +43,7 @@ function Group({ g }) {
 }
 
 export function Plans({ on }) {
-  const { groups } = progress(data.value.milestones, on, true, clientRules(data.value));   // the client's milestones and words, as the file shows them
-  if (!groups.length) return <p class="muted" data-no-lines>No milestones are shown yet. The plan lines are the project's milestones.</p>;
+  const { groups } = progress(data.value.milestones, on, true, clientRules(data.value, fromFile.value));   // the client's milestones and words, as the file shows them
+  if (!groups.length) return <p class="muted" data-no-lines>No milestones yet.</p>;
   return <div class="cr-groups">{groups.map((g) => <Group key={g.name} g={g} />)}</div>;
 }

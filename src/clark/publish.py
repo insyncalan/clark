@@ -12,7 +12,8 @@ choice is "exclude" (Sensitive always, names compared without case). Each table 
 view shows, and nothing else is ever copied, so internal_note, movement, source and the project's folders are not in the file.
 select(), clean_html(), render(), csp_meta() and file_name() are pure; read_inputs() reads the database once, read-only.
 
-- Q1 yes: a hidden section of type actions, raid, decisions, milestones or usecases drops that kind's rows and its tab.
+- Q1 yes: a hidden section of type actions, raid, decisions, milestones or usecases drops that kind's rows and its tab (a hidden
+  Milestones section also drops the Client Requested Report View's tab, whose figures are the milestones).
 - Q2 yes (Head ruling on #39): publish() records the verified file with Store.log_publication, once, after the write is read
   back and compared: a `publications` row with the file's SHA-256 and nothing else (no step, no write to the project row). The
   folder to offer next time is read back from the latest publication (Store.last_publish_folder).
@@ -378,6 +379,8 @@ def select(inputs):
         tabs.append("milestones")
     if out["use_case_pages"]:
         tabs.append("usecases")
+    if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
+        tabs.append("clientreport")
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at}
 
 
