@@ -162,6 +162,24 @@ class Writing(Base):
         self.assertLess(len(text), 400 + 200)
         self.assertNotIn("n=39", text)
 
+    def test_the_last_tenth_is_kept_for_warnings_and_errors(self):
+        """#234: ordinary lines that fill the day's file never push out a later fault; the file still stops at the limit."""
+        with mock.patch.object(clog, "MAX_BYTES", 2000):
+            for n in range(100):
+                self.log.info("server", "change saved", n=n)
+            self.log.error("server", "route failed")
+            self.log.info("server", "change saved", n=999)
+            text = self.text()
+            self.assertEqual(text.count(clog.FULL_NOTICE), 1)
+            self.assertIn("ERROR server       route failed", text)
+            self.assertNotIn("n=999", text)
+            self.assertEqual([e["message"] for e in self.log.errors()], ["route failed"])
+            for _ in range(100):
+                self.log.error("server", "route failed")
+            text = self.text()
+        self.assertEqual(text.count(clog.LAST_NOTICE), 1)
+        self.assertLess(len(text.encode("utf-8")), 2000 + 200)
+
     def test_a_read_only_folder_never_breaks_clark(self):
         if os.geteuid() == 0:
             self.skipTest("root ignores folder permissions")
@@ -389,7 +407,7 @@ class Words(Base):
                                  "have finished.")
         self.log.error("server", "route failed")
         report = diagnostics.build(self.log, "0.4.0", now=self.clock.at)
-        for text in (notice, report, clog.FULL_NOTICE):
+        for text in (notice, report, clog.FULL_NOTICE, clog.LAST_NOTICE):
             self.assertIsNone(self.BANNED.search(text), text)
         for line in report.splitlines():
             self.assertFalse(line.lower().startswith("clark"), line)

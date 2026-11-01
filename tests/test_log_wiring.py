@@ -12,6 +12,7 @@ import logging
 import shutil
 import tempfile
 import threading
+import time
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -123,6 +124,76 @@ class PageErrorRoute(Rig):
         self.start(None)
         for method, path in (("POST", "/api/page-error"), ("GET", "/api/diagnostics"), ("POST", "/api/logging")):
             self.assertEqual(self.api(method, path, {} if method == "POST" else None)[0], 404, path)
+
+
+class RefusedRequests(Rig):
+    """#234: a page on another site looping requests at this port (no token, its own Origin) writes no line per request, so
+    it cannot fill the day's log and push out a real fault. At most one line a minute says how many were turned away."""
+
+    def setUp(self):
+        super().setUp()
+        handler = clog.install(self.log)
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        self.addCleanup(sv.REFUSED.update, dict(sv.REFUSED))
+        sv.REFUSED.update(since=time.time(), n=0)          # a minute that has just begun
+
+    def foreign(self, method, path, host=None):
+        """One request as another site's page sends it with mode no-cors: its own Origin, cross-site, no token."""
+        conn = http.client.HTTPConnection(sv.HOST, self.httpd.server_port, timeout=10)
+        try:
+            conn.putrequest(method, path, skip_host=True, skip_accept_encoding=True)
+            conn.putheader("Host", host or f"127.0.0.1:{self.httpd.server_port}")
+            conn.putheader("Origin", f"http://{MARK.lower()}.example")
+            conn.putheader("Sec-Fetch-Site", "cross-site")
+            conn.putheader("Referer", f"http://{MARK.lower()}.example/{MARK}")
+            body = b"{}" if method == "POST" else None
+            if body is not None:
+                conn.putheader("Content-Type", "text/plain")
+                conn.putheader("Content-Length", str(len(body)))
+            conn.endheaders(body)
+            r = conn.getresponse()
+            r.read()
+            return r.status
+        finally:
+            conn.close()
+
+    def flood(self, n=25):
+        paths = (f"/api/{MARK.lower()}?q={MARK}", "/api/change", f"/api/data?code={MARK}", "/api/diagnostics")
+        for i in range(n):
+            method = "POST" if i % 2 else "GET"
+            host = f"{MARK.lower()}.example" if i % 5 == 4 else None          # some with another site's Host too
+            self.assertEqual(self.foreign(method, paths[i % len(paths)], host), 403)
+
+    def test_twenty_five_foreign_requests_write_no_line(self):
+        self.flood(25)
+        self.assertEqual(self.text(), "")
+
+    def test_the_minute_is_said_in_one_line_with_nothing_of_the_requests(self):
+        self.flood(25)
+        sv.REFUSED["since"] -= sv.CSP_REPORT_WINDOW + 1                     # the minute is up
+        self.flood(3)
+        (line,) = self.text().splitlines()
+        self.assertRegex(line, r" WARN  server +25 requests were turned away and not logged one by one$")
+        self.assertNotIn(MARK.lower(), line.lower())
+        self.assertNotIn("/api/", line)
+        self.assertNotIn("example", line)
+
+    def test_a_real_fault_survives_a_flood(self):
+        logging.getLogger("clark.server").error("route failed")
+        with mock.patch.object(clog, "MAX_BYTES", 4000):
+            self.flood(25)
+            for _ in range(120):                                             # ordinary lines past the day's limit
+                self.assertEqual(self.api("GET", "/api/projects")[0], 200)
+            self.flood(25)
+            logging.getLogger("clark.server").error("save failed")           # a fault after the limit for ordinary lines
+            text = self.text()
+            status, b = self.api("GET", "/api/diagnostics")
+        self.assertEqual(status, 200)
+        self.assertIn("ERROR server       route failed", text)
+        self.assertIn("ERROR server       save failed", text)
+        self.assertIn(clog.FULL_NOTICE, text)
+        self.assertEqual(sorted(e["message"] for e in b["errors"]), ["route failed", "save failed"])
+        self.assertNotIn(MARK.lower(), text.lower())
 
 
 class SettingsRoutes(Rig):

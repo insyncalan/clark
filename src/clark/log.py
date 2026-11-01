@@ -15,7 +15,8 @@ word in a message is written as it is. tests/test_log.py scans src/ and fails on
 Rules the module keeps:
   - A write never raises. A read-only folder, a full disk or a bad setting leaves clark running.
   - Normal ("info") and Debug; warnings and errors are always written. The level is read with a cache; a bad value keeps Normal.
-  - A day's file stops at 5 MB with one line saying so. Today and the six days before it are kept; the first entry of a new
+  - A day's file stops at 5 MB with one line saying so. Its last tenth is kept for warnings and errors (#234): normal and Debug
+    lines stop at 4.5 MB with one line saying so, so a burst of ordinary lines can never push out a later fault. Today and the six days before it are kept; the first entry of a new
     day removes older files, and only files this module names (`clark-DATE.log`). A file dated in the future (a clock that was
     ahead) is never removed, and never makes today's cut-off later.
   - Each entry is one append, so two processes never mix a line.
@@ -43,7 +44,9 @@ KEEP_DAYS = 7
 PAGE_ERRORS_PER_MINUTE = 20
 DEBUG_NOTICE_AFTER_DAYS = 7
 MESSAGE_LIMIT = 120
-FULL_NOTICE = "log full for today, later entries are not kept"
+RESERVE_PART = 10                  # the last tenth of a day's file is kept for warnings and errors (#234)
+FULL_NOTICE = "log full for today, only warnings and errors are kept from now on"
+LAST_NOTICE = "log full for today, later entries are not kept"
 FILE = re.compile(r"clark-(\d{4}-\d{2}-\d{2})\.log$")
 ENTRY = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (DEBUG|INFO|WARN|ERROR)\s+(\S+)\s*(.*)$")
 CONTROL = re.compile(r"[\x00-\x1f\x7f  ]+")
@@ -271,14 +274,21 @@ class Log:
             with self._lock:
                 if not path.exists():
                     self.prune_on_new_day(now.date())
-                if path.exists() and path.stat().st_size >= MAX_BYTES:
-                    if FULL_NOTICE not in self._last_bytes(path):
-                        self._append(path, f"{now:%Y-%m-%d %H:%M:%S} {LABELS[30]} {'log':<12} {FULL_NOTICE}\n")
+                size = path.stat().st_size if path.exists() else 0
+                normal_cap = MAX_BYTES - MAX_BYTES // RESERVE_PART
+                if size >= MAX_BYTES:
+                    if LAST_NOTICE not in self._last_bytes(path):
+                        self._append(path, f"{now:%Y-%m-%d %H:%M:%S} {LABELS[30]} {'log':<12} {LAST_NOTICE}\n")
                     return
+                if level < 30 and size >= normal_cap:
+                    return                             # the rest of the day's file is kept for warnings and errors
                 head = f"{now:%Y-%m-%d %H:%M:%S} {LABELS[level]} {area_of(area):<12} {scrub(message, home=self.home, keep=self.routes)}"
                 tail = details(pairs, self.routes)
                 lines = [head + ("  " + tail if tail else "")] + ["    " + x for x in extra]
-                self._append(path, "\n".join(lines) + "\n")
+                text = "\n".join(lines) + "\n"
+                self._append(path, text)
+                if size < normal_cap <= size + len(text.encode("utf-8")):
+                    self._append(path, f"{now:%Y-%m-%d %H:%M:%S} {LABELS[30]} {'log':<12} {FULL_NOTICE}\n")
         except Exception:
             pass                                       # a log write never raises
 

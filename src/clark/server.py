@@ -274,6 +274,25 @@ def csp_take(n):
         return room
 
 
+REFUSED = {"since": 0.0, "n": 0}
+REFUSED_LOCK = threading.Lock()
+
+
+def refused_count():
+    """One more request turned away with a 403 (the Host, the Origin or the token, #234): counted, never a line of its own,
+    so a page on another site looping requests at this port cannot fill the day's log. Once a minute is up, the next one
+    writes the count in one line: a number only, nothing of any request (no path, query, header or Origin)."""
+    with REFUSED_LOCK:
+        now = time.time()
+        n = 0
+        if now - REFUSED["since"] >= CSP_REPORT_WINDOW:
+            n = REFUSED["n"]
+            REFUSED.update(since=now, n=0)
+        REFUSED["n"] += 1
+    if n:
+        LOG.warning("%d requests were turned away and not logged one by one", n)
+
+
 def csp_report_route(handler):
     """POST /csp-report: what the policy blocked. Local only, rate-limited, a small body; each report is one log line naming
     the directive and the kind of source, never a URL, a sample or page text. Writes nothing else."""
@@ -627,6 +646,8 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         """Quiet: one log line per API call; safe when the request line didn't parse. (creaite log_message)"""
         path = getattr(self, "path", "") or ""
+        if args[1:2] == ("403",):         # turned away (Host, Origin or token): counted, not one line each (#234)
+            return refused_count()
         if path.startswith("/api/") and path.split("?")[0] not in (HERE_ROUTE, "/api/page-error"):   # the heartbeat is not logged; a page error's own capped line is its record
             LOG.info("%s %s", ascii(getattr(self, "command", "") or "")[1:-1], ascii(path.split("?")[0])[1:-1])   # escaped: no raw bytes
 
