@@ -14,6 +14,7 @@ export function whyNot(r) {
   if (r.kind === "Comment") return WHY_COMMENT;
   if (/undone$/i.test(String(r.kind || ""))) return WHY_UNDO;
   if (!Number.isInteger(r.step) || r.step < 1) return WHY_NO_STEP;
+  if (r.undoable === false) return String(r.why || WHY_NO_STEP);      // #240: the server's own answer, from the rule the undo uses
   return "";
 }
 
