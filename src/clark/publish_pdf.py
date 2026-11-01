@@ -190,7 +190,7 @@ def problems(data, markers, folder=None, body=None):
         text = pdf_text.text_of(data)
     except pdf_text.TooBig:
         return [TOO_BIG]
-    except (pdf_text.Undecodable, ValueError, OSError):               # text that cannot be turned back into words cannot be checked
+    except (pdf_text.Undecodable, ValueError, OSError, MemoryError, RecursionError):               # text that cannot be turned back into words cannot be checked
         return [UNREADABLE]
     if not text.strip():
         return [UNREADABLE]
@@ -266,11 +266,11 @@ class Step:
             data = make(body_bytes, as_at, number=built.get("number"))
         except pdf.PdfError as e:
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_failed"].format(reason=str(e).rstrip()))
-        except (OSError, ValueError):
+        except (OSError, ValueError, MemoryError, RecursionError):
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_not_checked"])
         try:
             bad = problems(data, markers, saved if self.client is not None else None, body_bytes)
-        except (OSError, ValueError):
+        except (OSError, ValueError, MemoryError, RecursionError):
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_not_checked"])
         if bad:
             if bad == [UNREADABLE]:
@@ -285,14 +285,22 @@ class Step:
         """Save the PDF (Local, then the client folder) and read each back. Returns the sentences to add to the reply."""
         digest = hashlib.sha256(self.data).hexdigest()
         said, kept = [], 0
+        tmp = None
         try:
-            platform.write_file(self.local, self.data)
-            if hashlib.sha256(self.local.read_bytes()).hexdigest() != digest:
+            tmp = platform._write_temp(self.local, self.data)          # read back from the temporary copy, before it replaces anything
+            if hashlib.sha256(Path(tmp).read_bytes()).hexdigest() != digest:
                 raise OSError("differs")
+            platform.replace_file(tmp, self.local)
             said.append(MESSAGES["pdf_saved_local"].format(name=self.local.name))
             kept += 1
         except (OSError, platform.PlatformError):
             said.append(MESSAGES["pdf_not_saved"].format(why="the folder could not be written to."))
+        finally:
+            if tmp is not None and Path(tmp).exists():
+                try:
+                    Path(tmp).unlink()
+                except OSError:
+                    pass
         if self.client is not None:
             folder, name, replaces = self.client
             try:             # the one writer into a client folder: the folder is checked again, the copy read back and checked, a bad one taken back

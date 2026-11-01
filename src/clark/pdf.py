@@ -510,7 +510,7 @@ def _start_piped(chrome, profile, popen):
 
 CLEAN_NAME = "clark"            # the only Creator and Producer a PDF made here carries
 CLEAN_TITLE = "Report"          # the Title when the page has none
-CANNOT_CLEAN = "The PDF could not be made clean of details about this computer. Try again; if it keeps happening, leave the PDF box unticked."
+CANNOT_CLEAN = "The PDF could not be made clean of details about this computer, so it was not made. Leave the PDF box unticked."
 
 
 def title_of(html_text):
@@ -542,6 +542,8 @@ def scrub(data, title=CLEAN_TITLE):
         size = int(re.search(rb"/Size\s+(\d+)", trailer).group(1))
         root = int(re.search(rb"/Root\s+(\d+)\s+0\s+R", trailer).group(1))
         info = re.search(rb"/Info\s+(\d+)\s+0\s+R", trailer)
+        if re.search(rb"/(?:Encrypt|Prev|XRefStm)\b", trailer):          # encrypted or updated files cannot be rewritten whole
+            raise ValueError("a trailer this cannot rewrite")
         if size != count or any(len(r) != 20 or not re.fullmatch(rb"\d{10} \d{5} [nf][ \r\n]{2}", r) for r in rows):
             raise ValueError("an unusual cross-reference table")
         offsets = {i: int(r[:10]) for i, r in enumerate(rows) if r[17:18] == b"n" and i}
@@ -579,7 +581,7 @@ def scrub(data, title=CLEAN_TITLE):
         out.append(b"xref\n0 %d\n" % total + b"".join(table))
         out.append(b"trailer\n<</Size %d\n/Root %d 0 R\n/Info %d 0 R>>\nstartxref\n%d\n%%%%EOF\n" % (total, root, info_num, at))
         return b"".join(out)
-    except (AttributeError, IndexError, ValueError, KeyError, UnicodeError) as e:
+    except (AttributeError, IndexError, ValueError, KeyError, UnicodeError, MemoryError, RecursionError) as e:
         raise PdfError(CANNOT_CLEAN) from e
 
 

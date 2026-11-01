@@ -860,5 +860,66 @@ class PdfDetailsAreNeutral(unittest.TestCase):
             self.assertEqual(str(caught.exception), pdf.CANNOT_CLEAN)
 
 
+
+# ===== The third review: files that cannot be rewritten whole, plain words, the temporary copy, memory faults =====
+class TheThirdReview(unittest.TestCase):
+    CATALOG = {1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>", 3: b"<</Creator (x)>>"}
+
+    def test_a_trailer_that_cannot_be_rewritten_is_refused_whole(self):
+        for key in (b"/Encrypt 9 0 R\n", b"/Prev 120\n", b"/XRefStm 77\n"):
+            data = build_pdf(self.CATALOG, info=3, extra_trailer=key)
+            with self.assertRaises(pdf.PdfError, msg=key) as caught:
+                pdf.scrub(data)
+            self.assertEqual(str(caught.exception), pdf.CANNOT_CLEAN)
+        pdf.scrub(build_pdf(self.CATALOG, info=3))          # the same file without them is fine
+
+    def test_a_file_with_a_cross_reference_stream_is_refused(self):
+        body = b"%PDF-1.5\n1 0 obj\n<</Type /Catalog>>\nendobj\n5 0 obj\n<</Type /XRef /Size 6 /W [1 2 1] /Root 1 0 R /Length 0>>\nstream\n\nendstream\nendobj\n"
+        data = body + b"startxref\n%d\n%%%%EOF\n" % body.index(b"5 0 obj")
+        with self.assertRaises(pdf.PdfError) as caught:
+            pdf.scrub(data)
+        self.assertEqual(str(caught.exception), pdf.CANNOT_CLEAN)
+
+    def test_only_the_transient_refusal_says_try_again(self):
+        self.assertNotIn("Try again", pdf.CANNOT_CLEAN)
+        self.assertIn("Try again", publish_pdf.SAME_BYTES)
+        self.assertTrue(pdf.CANNOT_CLEAN.endswith("unticked."))
+
+    def test_memory_and_recursion_faults_are_plain_refusals(self):
+        data = build_pdf(self.CATALOG, info=3)
+        for error in (MemoryError(), RecursionError()):
+            with mock.patch.object(pdf.re, "findall", side_effect=error):
+                with self.assertRaises(pdf.PdfError, msg=repr(error)) as caught:
+                    pdf.scrub(data)
+            self.assertEqual(str(caught.exception), pdf.CANNOT_CLEAN)
+            with mock.patch.object(pdftext, "text_of", side_effect=error):
+                self.assertEqual(publish_pdf.problems(b"%PDF-1.4", []), [publish_pdf.UNREADABLE], repr(error))
+            rig = Rig(self)
+            with mock.patch.object(publish_pdf, "make", side_effect=error):
+                status, got = rig.publish(pdf=True)
+            self.assertEqual((status, got["ok"], got["code"]), (409, False, "pdf_failed"), repr(error))
+            self.assertTrue(got["message"].endswith("Nothing was published."), got["message"])
+            self.assertEqual(rig.everything_written(), [])
+
+    def test_the_local_pdf_is_read_back_from_the_temporary_copy_before_it_replaces_anything(self):
+        with tempfile.TemporaryDirectory() as d:
+            local = Path(d) / "kept.pdf"
+            local.write_bytes(b"%PDF-earlier")
+            step = publish_pdf.Step(publish_pdf.split({"pdf": True})[0], None)
+            step.data, step.local = b"%PDF-1.4 new", local
+            real = platform._write_temp
+
+            def wrong(dest, data):                  # the temporary copy comes out different from what was handed over
+                return real(dest, data + b"!")
+            with mock.patch.object(platform, "_write_temp", wrong):
+                said = step.write(None)
+            self.assertEqual(local.read_bytes(), b"%PDF-earlier", "a copy that does not match never replaces the earlier file")
+            self.assertIn("was not saved", " ".join(said))
+            self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ["kept.pdf"], "no temporary file is left")
+            said = step.write(None)
+            self.assertEqual(local.read_bytes(), b"%PDF-1.4 new")
+            self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ["kept.pdf"])
+
+
 if __name__ == "__main__":
     unittest.main()
