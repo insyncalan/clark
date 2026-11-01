@@ -248,9 +248,10 @@ class ThePageDrawsNeedsAndLeavesTheTrackerQuiet(unittest.TestCase):
         self.assertIn("needs", line)
         self.assertNotIn("tracker", line)
 
-    def test_the_page_writes_no_body_of_a_text_section(self):
+    def test_the_page_writes_only_the_body_of_a_text_section(self):
         rich = (self.PAGE.parent / "edit" / "richSave.js").read_text(encoding="utf-8")
-        self.assertIn("export const RICH_WRITES = {};", rich)
+        self.assertIn("body: (id, html) => ({ kind: \"report_sections\", op: \"update\"", rich)
+        self.assertNotIn("RICH_WRITES = {};", rich)
 
 
 class ExportsLeaveThemOut(Published):

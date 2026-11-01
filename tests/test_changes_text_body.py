@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from _demo import USER, DemoStore
+from _paths import SRC
 from clark import changes, publish, sanitise, server as sv
 from test_changes import Api, KIND
 
@@ -189,6 +190,22 @@ class Publishing(TextBody):
         self.write(SUMMARY, body)
         published = publish.clean_html(self.stored(SUMMARY))
         self.assertEqual(published, self.stored(SUMMARY), "the file draws the saved text exactly as View does")
+
+
+class Seam(unittest.TestCase):
+    def test_the_page_lists_the_body_write_as_the_first_line_of_the_seam(self):
+        rich = (SRC / "clark" / "page" / "src" / "edit" / "richSave.js").read_text(encoding="utf-8")
+        self.assertIn('body: (id, html) => ({ kind: "report_sections", op: "update", id, changes: { body: html } }),', rich)
+        self.assertNotIn("export const RICH_WRITES = {};", rich)
+
+    def test_only_the_body_is_switched_on(self):
+        rich = (SRC / "clark" / "page" / "src" / "edit" / "richSave.js").read_text(encoding="utf-8")
+        block = rich.split("export const RICH_WRITES = {", 1)[1].split("};", 1)[0]
+        self.assertEqual(re.findall(r"^\s*(\w+):", block, re.M), ["body"])
+
+    def test_the_page_has_its_own_words_for_a_body_that_is_too_long(self):
+        report = (SRC / "clark" / "page" / "src" / "stores" / "report.js").read_text(encoding="utf-8")
+        self.assertIn(f'"{changes.WORDS_TOO_LONG}":', report, "the page picks words that say nothing was changed, not the generic failure")
 
 
 if __name__ == "__main__":
