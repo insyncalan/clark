@@ -105,12 +105,10 @@ class Line(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
-            # In Edit the ask panel already owns "/" outside a field (test_peek pins it), so the line's slash is checked in View.
-            cdp.js("document.querySelector('[data-mode=view]').click()", sid)
+            # The ask panel takes "/" outside a field on every page (test_peek pins it), so the line is focused by a click here;
+            # its own "/" handler only runs where the ask panel has not taken the key.
             cdp.js("document.activeElement.blur()", sid)
-            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
-            cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-input"))
+            self.focus(cdp, sid)
             self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", "the slash itself is not typed")
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "visible", "the hint chips show while the line is focused")
             # not while typing in another field
