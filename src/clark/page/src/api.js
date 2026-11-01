@@ -54,6 +54,24 @@ async function postItem(path, body) {
 export const sendChange = (project, req) => post("/api/change", { project, kind: KIND, ...req }, !req.kind || req.kind === KIND ? hasSections : () => true);
 export const sendUndo = (project, applyId) => post("/api/undo", { project, apply_id: applyId });
 
+// "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Answers
+// {ok: true} or {ok: false, message}; a refusal comes back in the route's own plain words, any other failure in plainChange's.
+export async function sendEmailSent(project, entry) {
+  try {
+    const r = await fetch("/api/draft-email/sent", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project, ids: entry.ids, mode: entry.mode, day: entry.date }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true) return { ok: true };
+    const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
+    if ((r.status === 400 || r.status === 404 || r.status === 409) && said) return { ok: false, message: said };
+    return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
+  }
+}
+
 // Sneak peek's reading (#42): typed words about one item as from → to changes. Read only; the server writes nothing for it.
 // {ok: true, reading} or {ok: false, message}. A refusal of the words (a date that isn't a day) comes back with its own message.
 export async function sneakRead(project, id, words) {
