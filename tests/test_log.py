@@ -661,9 +661,15 @@ class PathsNotBuiltYet(Base):
                 word_import.stage(blocks, f"{MARKERS[5]}.docx", "2026-10-29")
             except Exception:
                 logging.getLogger("clark.word_import").exception("import ended")      # a refusal is fine; only the log matters
-            self.log.info("word", "import read", blocks=len(blocks))
+            # word_import.stage logs nothing, so the markers above never reach the log by themselves and the check below
+            # could not fail. What the import's caller has in hand is handed to the log in each way code can (a detail, a
+            # standard-library record and a fault), so the check fails if the writer's text marker is taken away.
+            self.log.info("word", "import read", blocks=len(blocks), file=f"{MARKERS[5]}.docx", title=MARKERS[1], owner=MARKERS[0])
+            logging.getLogger("clark.word_import").info("import read %s %s", f"{MARKERS[5]}.docx", MARKERS[2])
+            self.log.exception("word", "import ended", KeyError(f"{MARKERS[7]} {HOME}/{MARKERS[5]}"))
         self.check(run)
         self.assertIn("import read", self.text())
+        self.assertIn("file=<text, ", self.text(), "the file name is written as its length, not as itself")
 
 
 if __name__ == "__main__":
