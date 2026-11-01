@@ -7,12 +7,13 @@ export function TopBar({ tools }) {
   const name = data.value && data.value.project.name;
   const Toggle = tools && tools.Toggle && !fromFile.value ? tools.Toggle : null;     // View or Edit: only a page clark serves has it
   const ProfileMenu = tools && tools.ProfileMenu && !fromFile.value ? tools.ProfileMenu : null;     // the profile circle's menu (#77)
+  const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
   const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
   return (
     <header class="top">
       <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>
       <span class="divider"></span>
-      <span class="proj" id="project-name">{name || project.value || "No project open"}</span>
+      {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj" id="project-name">{name || project.value || "No project open"}</span>}
       <nav class="tabs" role="tablist" aria-label="Views">
         {tabs.value.map((v) => (
           <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} onClick={() => show(v)}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>

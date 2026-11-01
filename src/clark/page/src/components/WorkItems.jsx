@@ -210,6 +210,7 @@ export function WorkItems({ tools }) {
             <FilterBar />
             <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
           </>}
+      {tools && tools.ArchivedItems && !fromFile.value ? <tools.ArchivedItems /> : null}   {/* B-5: Edit parts only; a published file carries no archived row */}
     </section>
   );
 }

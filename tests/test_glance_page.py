@@ -359,17 +359,17 @@ class UseCases(Setup):
                     for word in ("1.1", "Invoice matching", "Matching is live", "On track", "3 next steps"):
                         self.assertIn(word, first)
 
-    def test_see_all_counts_only_the_open_items_and_opens_that_same_list(self):
+    def test_see_all_counts_every_linked_item_and_opens_that_same_list(self):
         with self.store.step("dashboard", USER) as st:
             st.update("actions", self.a_open, {"status": "Closed"})
         with chrome() as cdp:
             p = self.show(cdp)
             p.js("document.querySelector('.ucrow .ucbar').click()")
             p.until("!!document.querySelector('[data-seeall]')", "the row opened")
-            self.assertEqual(p.js("document.querySelector('[data-seeall]').textContent"), "See all 2 open work items", "the closed action is not counted")
+            self.assertEqual(p.js("document.querySelector('[data-seeall]').textContent"), "See all 3 work items for 1.1", "the closed action is counted too")
             p.js("document.querySelector('[data-seeall]').click()")
             p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
-            p.until("document.querySelectorAll('#work tbody tr[data-id]').length === 2", "the list holds the two the link counted")
+            p.until("document.querySelectorAll('#work tbody tr[data-id]').length === 3", "the list holds the three the link counted, the closed one too")
 
     def test_a_row_opens_in_place_with_where_it_stands_the_next_steps_and_see_all(self):
         with chrome() as cdp:
@@ -380,7 +380,13 @@ class UseCases(Setup):
             text = p.js("document.querySelector('.ucdetail').innerText")
             self.assertIn("Live for two suppliers.", text)
             self.assertIn("Pat Demo: Chase the supplier file", text)
-            self.assertIn("See all 3 open work items", text, "all three linked items are open")
+            self.assertIn("See all 3 work items for 1.1", text, "all three linked items")
+            self.assertIn("NEXT STEPS \u00b7 3", text.upper().replace("\u00b7", "\u00b7"))
+            self.assertRegex(text, r"Pat Demo: Chase the supplier file [A-Z]+-[A-Z]-\d+")
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucdcols > div').length"), 2, "two columns")
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail [data-stepid]').length"), 3, "each step carries its id as a link")
+            left = p.js("[...document.querySelectorAll('.ucdetail .ucdcols > div')].map(e => e.getBoundingClientRect().left)")
+            self.assertGreater(left[1] - left[0], 100, "the columns sit side by side")
             self.assertEqual(p.js("document.querySelector('.ucbar').getAttribute('aria-expanded')"), "true")
             p.js("document.querySelector('[data-seeall]').click()")
             p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
@@ -454,7 +460,7 @@ class Published(Setup):
             shown = p.js("document.querySelector('.ucdetail').innerText")
             self.assertIn("Pat Demo: Chase the supplier file", shown)
             self.assertNotIn("ZQ-", shown)
-            self.assertIn("See all 1 open work item", shown, "the one item the file keeps")
+            self.assertIn("See all 1 work item for", shown, "the one item the file keeps")
             self.assertNotIn("Sam Demo", shown)
             self.assertNotIn("Lee Demo", shown)
 
