@@ -147,6 +147,24 @@ class Route(unittest.TestCase):
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
         self.assertEqual(self.store.read(KIND, ref=self.ref), before)
 
+    def test_a_request_one_byte_over_the_limit_is_refused_from_its_length_before_any_of_the_body_is_read(self):
+        """#356: the answer comes with no body sent at all; a route that read the body first would wait here until the timeout."""
+        before = self.store.read(KIND, ref=self.ref)
+        for size in (sv.CHANGE_BODY_LIMIT + 1, sv.CHANGE_BODY_LIMIT * 2):
+            conn = http.client.HTTPConnection(sv.HOST, self.running.port, timeout=10)
+            try:
+                conn.putrequest("POST", "/api/change", skip_host=True, skip_accept_encoding=True)
+                for k, v in (("Host", f"127.0.0.1:{self.running.port}"), (sv.TOKEN_HEADER, sv.TOKEN), ("Content-Type", "application/json"),
+                             ("Content-Length", str(size))):
+                    conn.putheader(k, v)
+                conn.endheaders()                                    # the headers only: not one byte of the body follows
+                r = conn.getresponse()
+                got = json.loads(r.read())
+                self.assertEqual((r.status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]), size)
+            finally:
+                conn.close()
+        self.assertEqual(self.store.read(KIND, ref=self.ref), before)
+
     def test_two_writers_on_one_tracker_leave_one_whole_body_and_the_cap_cannot_be_passed(self):
         first, second = biggest("a"), biggest("b")
         second["groups"][0]["name"] = "Second"
