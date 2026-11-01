@@ -633,7 +633,7 @@ class TheReviewOfThePdfChecks(unittest.TestCase):
             flag = [a for a in args if a.startswith("--print-to-pdf=")]
             if not flag:
                 return Gone()
-            Path(flag[0].split("=", 1)[1]).write_bytes(b"%PDF-1.4 fallback")
+            Path(flag[0].split("=", 1)[1]).write_bytes(build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>"}))          # a small, whole PDF
             seen.append(Path(args[-1][len("file://"):].replace("%20", " ")).read_text(encoding="utf-8"))
             return Done()
         with tempfile.TemporaryDirectory() as d:
