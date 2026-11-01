@@ -329,8 +329,16 @@ class Refused:
             if gen is not None and gen != self.gen:
                 return                                   # that window already ended; a newer one has its own timer
             n = self._close()
-        if n:
-            LOG.warning("%d more requests were turned away and not logged one by one", n)
+        self._say_more(n)
+
+    def _say_more(self, n):
+        """The one line for the others in a window that has ended: fixed words (one message for 1, one for more), with only
+        whole numbers (how many, and how many seconds the window was) as values."""
+        secs = int(round(self.interval))
+        if n == 1:
+            LOG.warning("1 more request was turned away in the last %d seconds and not logged one by one", secs)
+        elif n:
+            LOG.warning("%d more requests were turned away in the last %d seconds and not logged one by one", n, secs)
 
     def count(self):
         first, n = False, 0
@@ -346,10 +354,10 @@ class Refused:
                     t.start()
             else:
                 self.n += 1
-        if n:
-            LOG.warning("%d more requests were turned away and not logged one by one", n)
+        self._say_more(n)
         if first:
-            LOG.warning("a request was turned away; more are counted and written as one line a minute")
+            LOG.warning("a request was turned away. Any more in the next %d seconds are counted, not logged one by one.",
+                        int(round(self.interval)))
 
 
 REFUSED = Refused()

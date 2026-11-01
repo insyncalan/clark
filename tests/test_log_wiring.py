@@ -177,11 +177,30 @@ class RefusedRequests(Rig):
         self.flood(3)
         first, line, again = self.text().splitlines()
         self.assertEqual(first + "\n", self.base)
-        self.assertRegex(again, r" WARN  server +a request was turned away; more are counted")
-        self.assertRegex(line, r" WARN  server +25 more requests were turned away and not logged one by one$")
+        self.assertRegex(again, r" WARN  server +a request was turned away\. Any more in the next 60 seconds are counted, not logged one by one\.$")
+        self.assertRegex(line, r" WARN  server +25 more requests were turned away in the last 60 seconds and not logged one by one$")
         self.assertNotIn(MARK.lower(), line.lower())
         self.assertNotIn("/api/", line)
         self.assertNotIn("example", line)
+
+    def test_one_more_is_said_in_the_singular(self):
+        self.flood(1)
+        self.ticks[0] += sv.CSP_REPORT_WINDOW + 1
+        self.flood(1)
+        first, line, again = self.text().splitlines()
+        self.assertRegex(line, r" WARN  server +1 more request was turned away in the last 60 seconds and not logged one by one$")
+        self.assertNotIn("requests", line)
+
+    def test_the_words_follow_the_interval(self):
+        with mock.patch.object(sv, "REFUSED", sv.Refused(interval=30, clock=lambda: self.ticks[0], timer=None)):
+            self.ticks[0] += 5000
+            sv.refused_count()
+            sv.refused_count()
+            self.ticks[0] += 31
+            sv.refused_count()
+        lines = self.text().splitlines()
+        self.assertRegex(lines[-3], r"in the next 30 seconds are counted")
+        self.assertRegex(lines[-2], r"1 more request was turned away in the last 30 seconds")
 
     def test_a_real_fault_survives_a_flood(self):
         logging.getLogger("clark.server").error("route failed")
