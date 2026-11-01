@@ -78,20 +78,16 @@ export function ownerList(names, row) {
   return names.filter((n) => n !== now);
 }
 
-/** What Duplicate asks for: the item's own fields and a title that says it is a copy. No id, status, dates it was given or history. */
-export function duplicateRequest(raw, table) {
-  const keep = { actions: ["owner", "priority", "due_date", "workstream", "milestone", "client_visible"],
-    raid: ["type", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible"], decisions: ["made_by", "needed_by", "client_visible"] }[table];
-  const title = TITLE_OF[table];
-  const values = {};
-  for (const k of keep) if (raw[k] != null && raw[k] !== "") values[k] = raw[k];
-  values[title] = ("Copy of " + String(raw[title])).slice(0, TITLE_LIMIT);
-  return { kind: table, op: "new", values, place: "menu" };
+/** What Duplicate asks for: the id of the item to copy. The server makes the copy from the item itself, so it keeps every field, the
+ *  eye included (a copy of an item hidden from the client is hidden too), and gives the title "(copy)" and the source. Nothing of the
+ *  item is sent from here. */
+export function duplicateRequest(row, table) {
+  return { kind: table, op: "new", copy_of: row.id, place: "menu" };
 }
 
-/** The raw record of a row in the project's data (the page keeps a flat row; Duplicate needs every field). */
-export function rawOf(data, row) {
-  return ((data && data[tableOf(row)]) || []).find((r) => r.id === row.id) || null;
+/** What the toast says of the copy, and of its Undo, from the server's reply (the id the copy was given). */
+export function duplicateWords(reply) {
+  return { text: `${reply.ref} added.`, back: `${reply.ref} is removed.` };
 }
 
 /** The change a pick makes from the menu, as the cells make it: {table, id, changes, words, back}, {error}, or null for no change. */

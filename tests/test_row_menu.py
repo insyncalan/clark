@@ -139,19 +139,12 @@ class Rules(unittest.TestCase):
         self.assertIsNone(self.js(f"RM.pickChange({row}, 'status', 'Open', {json.dumps(TODAY)})"))
         self.assertIn("error", self.js(f"RM.pickChange({row}, 'status', 'Made', {json.dumps(TODAY)})"))
 
-    def test_duplicate_copies_the_fields_the_server_takes_and_says_it_is_a_copy(self):
-        raw = json.dumps({"id": "ABC-A-001", "description": "Order the laptops", "owner": "Ada Quillfeather", "priority": "High", "due_date": None,
-                          "workstream": "Data", "milestone": None, "status": "Closed", "closed": "2026-10-10", "client_visible": 0})
-        self.assertEqual(self.js(f"RM.duplicateRequest({raw}, 'actions')"),
-                         {"kind": "actions", "op": "new", "place": "menu",
-                          "values": {"owner": "Ada Quillfeather", "priority": "High", "workstream": "Data", "client_visible": 0,
-                                     "description": "Copy of Order the laptops"}}, "a hidden item's copy asks to be hidden too")
-        shown = json.dumps({"id": "ABC-A-001", "description": "Book the room", "owner": "Ada Quillfeather", "client_visible": 1})
-        self.assertEqual(self.js(f"RM.duplicateRequest({shown}, 'actions')")["values"]["client_visible"], 1, "a shown item's copy stays shown")
-        long = json.dumps({"decision": "x" * 300, "made_by": "A B", "needed_by": "2026-11-20", "status": "Made"})
-        got = self.js(f"RM.duplicateRequest({long}, 'decisions')")
-        self.assertEqual(len(got["values"]["decision"]), 200)
-        self.assertEqual(sorted(got["values"]), ["decision", "made_by", "needed_by"], "a copy of a made decision starts as a new one: no status")
+    def test_duplicate_asks_the_server_to_copy_the_item_and_sends_none_of_its_fields(self):
+        row = json.dumps(self.ACTION)
+        self.assertEqual(self.js(f"RM.duplicateRequest({row}, 'actions')"),
+                         {"kind": "actions", "op": "new", "copy_of": "ABC-A-001", "place": "menu"},
+                         "the server copies every field itself, the eye included; nothing of the item is sent from the page")
+        self.assertEqual(self.js("RM.duplicateWords({ref: 'ABC-A-007'})"), {"text": "ABC-A-007 added.", "back": "ABC-A-007 is removed."})
 
     def test_the_link_is_the_items_peek_address(self):
         row = json.dumps(self.ACTION)
@@ -416,7 +409,7 @@ class Menu(board.Base):
             self.assertEqual(self.row(a)["archived"], 0)
             self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} is back.")
 
-    def test_duplicate_adds_a_copy_in_one_step_with_undo(self):
+    def test_duplicate_adds_a_copy_in_one_step_with_undo_and_opens_it_in_the_peek(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
             a = self.id_of("Order the laptops")
@@ -424,15 +417,33 @@ class Menu(board.Base):
             n, before = len(self.query("SELECT id FROM actions")), self.steps()
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=dup]")
-            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"Copy of {a} added.")
-            now = self.query("SELECT * FROM actions WHERE description = 'Copy of Order the laptops'")
-            self.assertEqual((len(now), len(self.query("SELECT id FROM actions")), self.steps()), (1, n + 1, before + 1))
+            now = []
+            self.assertTrue(wait(lambda: bool(now.extend(self.query("SELECT * FROM actions WHERE description = 'Order the laptops (copy)'")) or now)))
             copy = now[0]
-            self.assertEqual((copy["owner"], copy["priority"], copy["due_date"], copy["workstream"], copy["milestone"], copy["status"]),
-                             (old["owner"], old["priority"], old["due_date"], old["workstream"], old["milestone"], "Open"))
+            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"{copy['id']} added.")
+            self.assertEqual((len(now), len(self.query("SELECT id FROM actions")), self.steps()), (1, n + 1, before + 1))
+            self.assertEqual([copy[f] for f in ("owner", "priority", "due_date", "workstream", "milestone", "status", "latest_update", "use_case", "client_visible")],
+                             [old[f] for f in ("owner", "priority", "due_date", "workstream", "milestone", "status", "latest_update", "use_case", "client_visible")])
+            self.assertEqual(copy["source"], f"Duplicated from {a}")
             self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % copy['id']}\")", "the copy in the list")
+            self.until(cdp, sid, f"location.hash.includes('item={copy['id']}')", "the copy open in the peek")
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"!document.querySelector(\"{self.TABLE % copy['id']}\")", "the copy to go again")
+            self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{copy['id']} is removed.")
+
+    def test_duplicate_of_a_hidden_item_is_hidden_too(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Send the invitations")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=eye]")
+            self.wait_toast(cdp, sid, "done")
+            self.assertEqual(self.row(a)["client_visible"], 0)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=dup]")
+            now = []
+            self.assertTrue(wait(lambda: bool(now.extend(self.query("SELECT * FROM actions WHERE description = 'Send the invitations (copy)'")) or now)))
+            self.assertEqual(now[0]["client_visible"], 0, "the copy of a hidden item stays hidden from the client")
 
     def test_a_copy_keeps_the_eye_of_its_original_for_every_kind(self):
         """A copy of a hidden item stays hidden (its title would otherwise reach the client); a copy of a shown item stays shown."""
@@ -447,9 +458,9 @@ class Menu(board.Base):
                     sid = self.visit(cdp)                    # the page reads the item as it is now
                     self.open_menu(cdp, sid, self.TABLE % ref)
                     click(cdp, sid, "[data-rm=dup]")
-                    self.assertTrue(wait(lambda: len([r for r in self.query(f"SELECT id FROM {table} WHERE {col} = ?", "Copy of " + text)
+                    self.assertTrue(wait(lambda: len([r for r in self.query(f"SELECT id FROM {table} WHERE {col} = ?", text + " (copy)")
                                                       if r["id"] not in made]) == 1), (table, eye))
-                    new = [r["id"] for r in self.query(f"SELECT id FROM {table} WHERE {col} = ?", "Copy of " + text) if r["id"] not in made][0]
+                    new = [r["id"] for r in self.query(f"SELECT id FROM {table} WHERE {col} = ?", text + " (copy)") if r["id"] not in made][0]
                     made.append(new)
                     self.assertEqual(self.row(new)["client_visible"], eye, (table, eye))
                     self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % new}\")", "the copy in the list")
@@ -473,7 +484,7 @@ class Menu(board.Base):
                 ref = self.id_of(text)
                 self.open_menu(cdp, sid, self.TABLE % ref)
                 click(cdp, sid, "[data-rm=dup]")
-                self.assertTrue(wait(lambda: len(self.query(f"SELECT id FROM {table} WHERE {col} = ?", "Copy of " + text)) == 1), table)
+                self.assertTrue(wait(lambda: len(self.query(f"SELECT id FROM {table} WHERE {col} = ?", text + " (copy)")) == 1), table)
 
     def test_copy_id_and_copy_link_put_text_on_the_clipboard_and_say_so(self):
         with chrome() as cdp:

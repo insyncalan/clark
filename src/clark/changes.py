@@ -80,6 +80,8 @@ CHANGE_KINDS = {
 KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
+for _kind in ("actions", "raid", "decisions"):
+    KIND_OP_KEYS[_kind][NEW] = ("values", "copy_of")      # Duplicate: `copy_of` is the id of the item to copy (see _copy_values); the values are then left out
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
 TILE_WORDS = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
@@ -115,6 +117,7 @@ UC_NAME_LIMIT = 120                                  # a use case's name, in cha
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
 ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision")
 CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
+ITEM_TITLE_LIMIT = 200                               # a work item's title, as _checked_item_changes holds it
 TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
               for k in ITEM_KINDS}                   # what a reply says of a changed item
@@ -185,6 +188,16 @@ NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
+COPY_SOURCE = "Duplicated from "            # a copy's source: this, then the id of the item it was copied from (the prototype's words)
+COPY_SUFFIX = " (copy)"                     # a copy's title: the original's, then this
+COPY_FIELDS = {                             # what a copy keeps of the item it was made from: every field the item has but its id, dates it was
+    "actions": ("description", "owner", "owner_id", "priority", "due_date", "workstream", "milestone", "status", "latest_update",      # given, history and archive flag;
+                "client_visible", "client_message", "use_case"),                                                                         # the eye stays as it was
+    "raid": ("type", "description", "owner", "owner_id", "impact", "likelihood", "due_date", "workstream", "milestone", "status",
+             "response_action", "client_visible", "client_message", "use_case"),
+    "decisions": ("decision", "made_by", "owner_id", "status", "date", "needed_by", "reasoning", "options", "revisit", "client_visible",
+                  "client_message", "use_case"),
+}
 NOT_A_STATUS = "That status isn't available for this item."
 NO_WORKSTREAM = "That workstream isn't available."
 ARCHIVED_MILESTONE = "That milestone is archived. Restore it first."
@@ -719,8 +732,14 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
     status and its source. The text fields are held to the same plain-text rule as an edit, a closed set (type, impact, a priority
     ...) must be one of its words, and the store's own rules (a real date, an active workstream, this project's milestone, a made
     decision's date) are put in fixed words. A refusal writes nothing. The reply says the new row, not any other project's."""
-    given = _fields(req.get("values"), table, NEW, columns, "the new row's values")
-    values = _checked_item_changes({k: v for k, v in given.items() if v is not None})
+    if req.get("copy_of") is not None:                              # Duplicate: the fields come from the item itself, never from the request
+        if req.get("values") is not None:
+            raise Refused("Say either the values or the item to copy, not both.")
+        values, copy_source = _copy_values(store, table, req.get("copy_of"), project), COPY_SOURCE + req["copy_of"]
+        given = values
+    else:
+        given = _fields(req.get("values"), table, NEW, columns, "the new row's values")
+        values, copy_source = _checked_item_changes({k: v for k, v in given.items() if v is not None}), None
     for k, v in given.items():
         if v is None and k in CLEARED_BY_NEW:
             raise Refused(ITEM_VALUE_WORDS)
@@ -734,7 +753,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
         values["raised"] = clark_store.today()
     if table == "decisions":
         values.setdefault("status", "Pending")
-    values.update(project=project, source=NEW_SOURCE)
+    values.update(project=project, source=copy_source or NEW_SOURCE)
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
         try:
             ref = st.create(table, values)
@@ -748,6 +767,19 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
     shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + ("name", "client_visible")) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
         + (("priority",) if table == "raid" else ())
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "item": {k: row[k] for k in dict.fromkeys(shown)}}
+
+
+def _copy_values(store, table, ref, project):
+    """Duplicate: the values of a new row copied from the live item `ref` of THIS project and kind (else the words an item that is
+    not here gets). Every field in COPY_FIELDS that has a value is kept, the eye (client_visible) as it is, so a copy of an item that
+    is hidden from the client is hidden too; the title says it is a copy. The new row's id, dates, history and source are clark's."""
+    row = store.read(table, ref=ref) if isinstance(ref, str) and _belongs(table, ref, project) else None
+    if row is None or row["project"] != project or row["archived"]:
+        raise Refused(ITEM_NOT_MINE)
+    values = {k: row[k] for k in COPY_FIELDS[table] if k in row.keys() and row[k] is not None and row[k] != ""}
+    first = TITLE_FIELDS[0] if table != "decisions" else TITLE_FIELDS[1]
+    values[first] = str(row[first])[:ITEM_TITLE_LIMIT - len(COPY_SUFFIX)] + COPY_SUFFIX
+    return values
 
 
 def _do_item_change(store, by_user, req, project, table, columns, place):
