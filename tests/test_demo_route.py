@@ -80,9 +80,14 @@ class Demo(unittest.TestCase):
             raise RuntimeError("/Users/someone/secret")
         seam = demo_route.make_demo(self.path, self.folder, boom)
         before = Path(self.path).read_bytes()
-        status, got = seam({"op": "reset"})
+        with self.assertLogs("clark.demo", level="ERROR") as logged:
+            status, got = seam({"op": "reset"})
         self.assertEqual((status, got["code"], got["message"]), (500, "reset_failed", demo_route.FAILED))
         self.assertNotIn("secret", json.dumps(got))
+        line = " ".join(logged.output)                       # the failure is logged: its kind only, no path and no words of the fault
+        self.assertIn("RuntimeError", line)
+        self.assertNotIn("secret", line)
+        self.assertNotIn("/Users", line)
         self.assertEqual(Path(self.path).read_bytes(), before)
 
     def test_a_reset_while_a_change_is_running_is_busy_and_does_not_wait(self):

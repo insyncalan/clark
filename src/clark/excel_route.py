@@ -22,17 +22,19 @@ The request never names a path: the file's own name is shown in words and used f
 "clark" in lower case and never first. Standard library only, Python 3.9 (the spreadsheet library is the bundled one, imported on
 the first check).
 """
+import atexit
 import base64
 import binascii
 import re
 import secrets
 import shutil
 import tempfile
+import threading
 import time
 from pathlib import Path
 
+from clark import changes, word_import, word_route
 from clark import store as clark_store
-from clark import word_import, word_route
 from clark.changes import Refused, _call, _shown
 from clark.store import Invalid
 
@@ -58,11 +60,31 @@ NO_UNDO = "That step can't be undone from here."
 UNDONE = "That step has been undone already."
 NOT_APPLIED = "Nothing was changed."
 
-PLANS = {}                           # plan id -> {"project", "plan", "dir", "at"}; used only under changes.LOCK
+PLANS = {}                           # plan id -> {"project", "plan", "dir", "at", "timer"}; used only under changes.LOCK
 
 
 def _drop(held):
+    timer = held.get("timer")
+    if timer is not None:
+        timer.cancel()
     shutil.rmtree(held["dir"], ignore_errors=True)
+
+
+def _expire_one(key, held):
+    """The timer of one waiting check: when its time is up and it is still waiting, its copy of the workbook goes (even if no
+    other call ever comes)."""
+    with changes.LOCK:
+        if PLANS.get(key) is held:
+            _drop(PLANS.pop(key))
+
+
+def _clear_all():
+    """At the end of the process (the server closing): every copy of a workbook still waiting goes."""
+    for key in list(PLANS):
+        _drop(PLANS.pop(key))
+
+
+atexit.register(_clear_all)
 
 
 def _expire(now):
@@ -139,8 +161,15 @@ def _check(store, req, project, clock):
     if plan.already_imported:                              # nothing is staged: nothing to wait for
         shutil.rmtree(folder, ignore_errors=True)
         return 200, _described(plan, None)
-    PLANS[key] = {"project": project, "plan": plan, "dir": folder, "at": now}
-    return 200, _described(plan, key)
+    held = {"project": project, "plan": plan, "dir": folder, "at": now, "timer": None}
+    timer = threading.Timer(PLAN_MINUTES * 60 + 5, _expire_one, (key, held))
+    timer.daemon = True                                    # never keeps the server from closing
+    held["timer"] = timer
+    PLANS[key] = held
+    timer.start()
+    described = _described(plan, key)
+    plan.store = None                                      # this call's store is closed when it returns; _apply gives the plan its own
+    return 200, described
 
 
 def _apply(store, who, req, project, clock):
@@ -155,6 +184,7 @@ def _apply(store, who, req, project, clock):
     if held is None or held["project"] != project:
         raise Refused(EXPIRED, 410, "expired")
     plan = held["plan"]
+    plan.store = store                                     # the live store of THIS call: the one read at the check is closed (refresh_ids reads it)
     if plan.unrecorded and not confirm:
         raise Refused(NEEDS_CONFIRM, 409, "needs_confirm")
     if plan.unrecorded:

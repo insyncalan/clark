@@ -13,9 +13,12 @@ Two ops, neither taking anything else from the request:
 
 Every message is plain words, "clark" in lower case and never first. Standard library only, Python 3.9.
 """
+import logging
 from pathlib import Path
 
 from clark import changes
+
+LOG = logging.getLogger("clark.demo")
 
 NOT_JSON_OBJECT = "That could not be read. Reload the page and try again."
 BAD_OP = "That isn't something clark can do with the demo data."
@@ -49,7 +52,8 @@ def make_demo(path, demo_folder=None, rebuild=None):
             return 409, {"ok": False, "code": "busy", "message": BUSY}
         try:
             rebuild(Path(path))
-        except Exception:                                    # noqa: BLE001  the builder's own words are never shown; the data is as it was
+        except Exception as e:                               # noqa: BLE001  the builder's own words are never shown; the data is as it was
+            LOG.error("demo reset failed (%s)", type(e).__name__)    # the kind of fault only: no path, no content
             return 500, {"ok": False, "code": "reset_failed", "message": FAILED}
         finally:
             changes.LOCK.release()

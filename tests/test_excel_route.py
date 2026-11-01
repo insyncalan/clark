@@ -148,6 +148,49 @@ class Apply(Base):
         self.assertEqual(self.description_of(self.a2), "Book the training room")
         self.assertEqual(self.post(op="undo", project="ABC", apply_id=done["apply_id"])[1]["code"], "undone")
 
+    def test_a_new_row_a_changed_row_and_a_removed_row_apply_together_in_one_step(self):
+        # The plan is read in one call and applied in another; the store the check used is closed by then. A new row works out
+        # the id it gets from the store, so the apply must give the plan its own live store (it was a closed-connection fault).
+        import openpyxl
+        wb = openpyxl.load_workbook(str(self.path))
+        ws = wb["Actions"]
+        head = {c.value: c.column for c in ws[1]}
+        row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value == self.a2)
+        ws.delete_rows(row)
+        ws.append([None] * ws.max_column)
+        ws.cell(ws.max_row, head["Description"]).value = "Order the new laptops"
+        wb.save(str(self.path))
+        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        got = self.check()[1]
+        self.assertEqual(sorted(i["kind"] for i in got["items"]), ["changed", "new", "removed"], got["items"])
+        removed = next(i["n"] for i in got["items"] if i["kind"] == "removed")
+        before = self.steps()
+        status, done = self.apply(got["plan"], [i["n"] for i in got["items"]])
+        self.assertEqual((status, done.get("ok")), (200, True), done)
+        self.assertEqual((done["counts"]["new"], done["counts"]["changed"], done["counts"]["removed"]), (1, 1, 1), done["counts"])
+        self.assertEqual(self.steps(), before + 1)
+        self.assertEqual(self.description_of(self.a1), "Draft the cut-over plan, version two")
+        self.assertEqual(self.store.read("actions", ref=self.a2)["archived"], 1)
+        made = [r["description"] for r in self.store.read("actions", project="ABC") if r["description"] == "Order the new laptops"]
+        self.assertEqual(len(made), 1)
+        self.assertTrue(removed)
+        status, back = self.post(op="undo", project="ABC", apply_id=done["apply_id"])
+        self.assertEqual((status, back["ok"]), (200, True), back)
+
+    def test_a_waiting_copy_goes_when_its_time_is_up_with_no_later_call_and_at_the_close(self):
+        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        key = self.check()[1]["plan"]
+        held = excel_route.PLANS[key]
+        self.assertTrue(held["timer"].daemon)
+        self.assertTrue(held["dir"].exists())
+        excel_route._expire_one(key, held)                   # what the timer runs when its time is up
+        self.assertNotIn(key, excel_route.PLANS)
+        self.assertFalse(held["dir"].exists())
+        key = self.check()[1]["plan"]
+        folder = excel_route.PLANS[key]["dir"]
+        excel_route._clear_all()                             # what runs when the server closes
+        self.assertEqual((excel_route.PLANS, folder.exists()), ({}, False))
+
     def test_accepting_by_number_applies_only_those(self):
         self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
         self.edit("Actions", self.a2, Description="Book the big training room")
