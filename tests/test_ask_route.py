@@ -273,7 +273,7 @@ class Refusals(Base):
         key = "sk-" + "ant-api03-" + "a1B2c3D4e5F6g7H8i9J0" + "-xyz"
         status, got = self.question("Use this " + key + " to log in")
         self.assertEqual((status, got["code"]), (400, "refused"))
-        self.assertEqual(got["message"], ask.SECRET)
+        self.assertEqual(got["message"], ask.SECRET_KEY)
         status, got = self.question("And now?", earlier=[{"role": "user", "text": "my " + "pass" + "word is " + "Hunt" + "er2-Zq-99"}])
         self.assertEqual((status, got["code"]), (400, "refused"))
         self.assertEqual(got["message"], ask.SECRET_EARLIER)

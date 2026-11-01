@@ -63,7 +63,7 @@ class QuestionRoute(route_base.Base):
         status, got = self.question(**more)
         self.assertEqual(status, 400, (name, got))
         self.assertEqual((got["ok"], got["code"]), (False, "refused"), name)
-        self.assertIn(got["message"], (ask.SECRET, ask.SECRET_EARLIER), name)
+        self.assertIn(got["message"], (ask.SECRET, ask.SECRET_EARLIER, ask.SECRET_KEY, ask.SECRET_EARLIER_KEY), name)
         self.assertEqual(len(self.provider.sent), n, f"{name}: the provider was called")
         wire = repr(got) + "\n".join(self.log.lines)
         for part in {secret_part(name, sample), sample}:
@@ -85,7 +85,7 @@ class QuestionRoute(route_base.Base):
 
     def test_the_refusal_is_the_plain_words(self):
         got = self.refused("anthropic", REFUSED["anthropic"], q="key " + REFUSED["anthropic"])
-        self.assertEqual(got["message"], ask.SECRET)
+        self.assertEqual(got["message"], ask.SECRET_KEY)
 
     def test_a_clean_question_still_reaches_the_provider_once(self):
         status, got = self.question(CLEAN_Q)

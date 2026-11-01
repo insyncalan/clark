@@ -211,6 +211,33 @@ def looks_like_secret(text):
         return True                                       # fail closed
 
 
+_PASSWORD_KIND = re.compile(_PW + r"|[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@", re.I)
+
+
+def names_a_password(text):
+    """Whether text that looks like a secret is a password rather than a key: it names a password (in any of the forms the screen
+    reads: hidden characters undone, URL-encoded, base64) or holds one in a web address. Only for choosing the refusal's words;
+    it never decides whether to refuse, and never keeps or returns what matched."""
+    if not isinstance(text, str):
+        return False
+    try:
+        seen = [text, edit_ai.normal(text)]
+        seen += [urllib.parse.unquote_plus(t) for t in seen]
+        for t in list(seen):
+            for run in dict.fromkeys(re.findall(r"[A-Za-z0-9+/_=-]{16,}", t[:20000])[:200]):
+                run = run.replace("-", "+").replace("_", "/")
+                for offset in range(4):
+                    chunk = run[offset:]
+                    chunk = chunk[:len(chunk) - len(chunk) % 4]
+                    try:
+                        seen.append(base64.b64decode(chunk).decode("utf-8", "ignore"))
+                    except ValueError:
+                        pass
+        return any(_PASSWORD_KIND.search(t) or _PASSWORD_KIND.search(_BREAKS.sub("", t)) for t in seen)
+    except (RecursionError, MemoryError, ValueError):
+        return True
+
+
 def name_looks_like_secret(name):
     """Whether a file's name looks like it holds a secret: the text screen, plus a key word joined to its value by - or _."""
     if not isinstance(name, str):

@@ -32,8 +32,13 @@ MAX_REQUEST = 70000         # the whole text: question, earlier turns and passag
 TOO_LONG = f"That question is too long. It can be {MAX_QUESTION:,} characters at most. Make it shorter and ask again."
 CHAT_TOO_LONG = "This chat has got too long. Start a new chat and ask again."
 EMPTY = "Type a question first."
-SECRET = "That looks like a password. It was not sent. Take it out and ask again."
-SECRET_EARLIER = "An earlier message looks like it holds a password. Start a new chat and ask again."
+A_PASSWORD, A_KEY = "a password", "a key"
+_SECRET_WORDS = "That looks like {kind}. It was not sent. Take it out and ask again."
+_SECRET_EARLIER_WORDS = "An earlier message looks like it holds {kind}. Start a new chat and ask again."
+SECRET = _SECRET_WORDS.format(kind=A_PASSWORD)                      # the refusals for a password; a key has its own words
+SECRET_EARLIER = _SECRET_EARLIER_WORDS.format(kind=A_PASSWORD)
+SECRET_KEY = _SECRET_WORDS.format(kind=A_KEY)
+SECRET_EARLIER_KEY = _SECRET_EARLIER_WORDS.format(kind=A_KEY)
 TOO_MUCH = "That needs too much text to send. Ask a narrower question."
 BAD_INPUT = "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark."
 
@@ -122,6 +127,12 @@ def _secret(text):
     return looks_like_secret(text) or secret_screen.looks_like_secret(text)
 
 
+def secret_kind(text):
+    """"a password" or "a key": the words for the refusal. Only for choosing words; it never decides whether to refuse."""
+    from clark import secret_screen
+    return A_PASSWORD if secret_screen.names_a_password(text) else A_KEY
+
+
 def _words_joined(run):
     """Whether a long run is only words (and numbers) joined by - _ or /, like a document name or a web address path: every part is
     all letters, all digits, or (at most two of them) a short code such as Q3 or v2. A random key has mostly mixed parts."""
@@ -167,11 +178,20 @@ def _fence(texts):
         n += 1
 
 
-def build_request(question, passages, earlier=()):
-    """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
-    P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
-    words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
-    text than the budget. Text is carried exactly as given."""
+def check_secrets(question, turns):
+    """Raise `AskRefused` when the question, or any earlier turn (the person's or the assistant's: the role is set by the page, so
+    it is not trusted to skip the screen), looks like a password or a key. The refusal says which kind and never what matched."""
+    if _secret(question):
+        raise AskRefused(SECRET if secret_kind(question) == A_PASSWORD else SECRET_KEY)
+    for _role, text in turns:
+        if _secret(text):
+            raise AskRefused(SECRET_EARLIER if secret_kind(text) == A_PASSWORD else SECRET_EARLIER_KEY)
+
+
+def check_question(question, earlier=()):
+    """The checks on what the person typed, before anything else is read or built: the question is not empty or too long, the
+    earlier turns are well formed and not too long, and neither the question nor any turn looks like a password or a key.
+    Returns the turns as (role, text) pairs. Raises `AskRefused` (plain words)."""
     if not isinstance(question, str) or not question.strip():
         raise AskRefused(EMPTY)
     if len(question) > MAX_QUESTION:
@@ -183,10 +203,16 @@ def build_request(question, passages, earlier=()):
         turns.append((turn[0], turn[1]))
     if len(turns) > MAX_EARLIER_TURNS or any(len(t) > MAX_TURN for _r, t in turns):
         raise AskRefused(CHAT_TOO_LONG)
-    if _secret(question):
-        raise AskRefused(SECRET)
-    if any(r == "user" and _secret(t) for r, t in turns):
-        raise AskRefused(SECRET_EARLIER)
+    check_secrets(question, turns)
+    return turns
+
+
+def build_request(question, passages, earlier=()):
+    """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
+    P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
+    words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
+    text than the budget. Text is carried exactly as given."""
+    turns = check_question(question, earlier)
     chosen = []
     for p in passages or ():
         label, text = (p.label, p.text) if isinstance(p, Passage) else (p[0], p[1]) if isinstance(p, (tuple, list)) and len(p) == 2 else (None, None)
