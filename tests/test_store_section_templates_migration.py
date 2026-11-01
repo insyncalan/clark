@@ -1,16 +1,19 @@
 """The migration step that lets report_sections hold the eighteen section template types (#96, the registry change that lands
 first; src/clark/store.py, guarded).
 
-The step's number is PROVISIONAL: STEP below, the MIGRATIONS entry and SCHEMA_VERSION's line in store.py are the only places it is
-written (the frozen text's name carries none). Steps 6 and 7 are empty placeholders for two other open branches; when they land,
-the placeholders go and, if the order changes, STEP and those two lines are renumbered. The tests bring a file to the version
-just before this step, run the steps up to this one where they look at this step alone, and expect the current version after a
-plain open. Fictional data only.
+The step is number 8, after the settings step (6, #47) and the sent record (7, #50): STEP below, the MIGRATIONS entry and
+SCHEMA_VERSION's line in store.py are the only places it is written (the frozen text's name carries none). No entry in MIGRATIONS
+is an empty step: a step that only held a number would stamp a file past a real step that never ran. The tests bring a file to
+the version just before this step (and to 6 and 5, with rows in app_settings and email_sent), run the steps up to this one where
+they look at this step alone, and expect the current version after a plain open. Fictional data only.
 
 Run: python3 dev/run_tests.py test_store_section_templates_migration
 """
+import ast
+import inspect
 import re
 import shutil
+import textwrap
 import sqlite3
 import tempfile
 import unittest
@@ -23,22 +26,51 @@ from clark import backup, changes, section_kinds, store as store_module
 from clark.store import Invalid, connect, migrate, open_store
 from test_store_migration import make_v1, version
 
-STEP = 8                                            # this step's number (PROVISIONAL: see the docstring)
+STEP = 8                                            # this step's number (see the docstring)
 BEFORE = str(STEP - 1)                              # the version this step brings a file from
 NOW = str(store_module.SCHEMA_VERSION)              # the version a plain open brings a file to (this step and any later one)
 TYPES_BEFORE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "needs", "tracker")
 
 
-def make_before(folder):
-    """A file at the version just before this step: a version-1 file brought up by the earlier steps only. Its report_sections
-    has the needs-and-tracker type CHECK. The copy that bringing it up took is removed, so tests count only their own."""
+def make_at(folder, level):
+    """A file at `level`: a version-1 file brought up by the steps up to `level` only. The copy that bringing it up took is removed,
+    so tests count only their own."""
     path = make_v1(folder)
-    with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), \
-            mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)):
+    with mock.patch.object(store_module, "SCHEMA_VERSION", level), \
+            mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] <= level)):
         open_store(path, onedrive_roots=[]).close()
     shutil.rmtree(Path(folder) / "backups", ignore_errors=True)
-    assert version(path) == BEFORE
+    assert version(path) == str(level)
     return path
+
+
+def make_before(folder):
+    """A file at the version just before this step. Its report_sections has the needs-and-tracker type CHECK."""
+    return make_at(folder, STEP - 1)
+
+
+def empty_steps(table):
+    """The numbers in a migration table whose step is empty (only a docstring or pass) or is named as a placeholder."""
+    found = []
+    for n, f in table:
+        name = f.__name__.lower()
+        (fn,) = ast.parse(textwrap.dedent(inspect.getsource(f))).body
+        body = [st for st in fn.body if not isinstance(st, ast.Pass)
+                and not (isinstance(st, ast.Expr) and isinstance(st.value, ast.Constant))]
+        if not body or any(w in name for w in ("placeholder", "held", "reserve", "noop", "no_op")):
+            found.append(n)
+    return found
+
+
+def every_row(path):
+    """Every table's rows (meta and SQLite's own tables left out), each in rowid order: what a migration must keep."""
+    con = sqlite3.connect(str(path))
+    try:
+        names = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+                                           "AND name != 'meta' ORDER BY name")]
+        return {n: con.execute(f'SELECT rowid, * FROM "{n}" ORDER BY rowid').fetchall() for n in names}
+    finally:
+        con.close()
 
 
 def to_this_step(path):
@@ -116,19 +148,29 @@ class TheNumber(Base):
         self.assertNotIn(f"migrate_to_{STEP}", src)                    # named for what it does, not for its number
         self.assertNotRegex(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES.split("(")[0], r"\d")
 
-    def test_the_placeholders_are_empty_and_marked(self):
-        held = [n for n, f in store_module.MIGRATIONS if f is store_module._held_for_a_step_on_another_branch]
-        self.assertEqual(held, [n for n in range(6, STEP)], "the numbers between main's last step and this one are held open")
-        path = make_v1(self.dir)
-        before = None
-        con = connect(path)
-        try:
-            before = [r for r in con.execute("SELECT name, sql FROM sqlite_master ORDER BY name")]
-            store_module._held_for_a_step_on_another_branch(con)
-            self.assertEqual([r for r in con.execute("SELECT name, sql FROM sqlite_master ORDER BY name")], before)
-        finally:
-            con.close()
-        self.assertIn("PROVISIONAL", store_module._held_for_a_step_on_another_branch.__doc__)
+    def test_the_steps_before_this_one_are_the_settings_step_and_the_sent_record(self):
+        self.assertEqual(store_module.MIGRATIONS[-3:], ((6, store_module.migrate_settings), (7, store_module.migrate_email_sent),
+                                                        (STEP, store_module.migrate_section_templates)))
+
+    def test_no_migration_step_is_empty(self):
+        """Release gate: an entry that only holds a number would stamp a file past a real step that never ran."""
+        self.assertEqual(empty_steps(store_module.MIGRATIONS), [])
+        funcs = [f for _, f in store_module.MIGRATIONS]
+        self.assertEqual(len(set(funcs)), len(funcs), "two numbers share one step")
+        self.assertNotIn("_held_for_a_step_on_another_branch", vars(store_module))
+
+    def test_the_gate_catches_an_empty_or_placeholder_step(self):
+        """The check above can fail: an empty step, a step that only passes, and one named as a placeholder are each caught."""
+        def _held_open(con):
+            """Does nothing."""
+
+        def only_passes(con):
+            pass
+
+        def placeholder_step(con):
+            con.execute("SELECT 1")
+        table = store_module.MIGRATIONS + ((9, _held_open), (10, only_passes), (11, placeholder_step))
+        self.assertEqual(empty_steps(table), [9, 10, 11])
 
     def test_the_step_changes_no_other_table(self):
         path = make_before(self.dir)
@@ -160,6 +202,52 @@ class Migrating(Base):
             self.assertEqual([r["id"] for r in s.read("report_sections", "ABC")], [r[2] for r in before])
         finally:
             s.close()
+
+    def test_a_version_7_file_with_a_sent_record_and_ask_off_keeps_every_row(self):
+        path = make_before(self.dir)
+        add_sections(path)
+        con = sqlite3.connect(str(path), isolation_level=None)
+        con.execute("UPDATE app_settings SET ask_enabled = 0, updated_at = '2026-10-30T09:00:00Z'")
+        con.execute("INSERT INTO email_sent (project, at, day, mode, by_user) VALUES ('ABC', '2026-10-30 09:00:00', '2026-10-30', 'chase', 'Sam Lee')")
+        con.execute("INSERT INTO email_sent_items (seq, item_id) VALUES (1, 'ABC-A-001')")
+        con.close()
+        self.check_every_row_kept(path, "7")
+        self.assertEqual(every_row(path)["email_sent_items"], [(1, 1, "ABC-A-001")])
+
+    def test_a_version_6_file_with_ask_off_goes_through_the_sent_record_and_this_step_and_keeps_every_row(self):
+        path = make_at(self.dir, 6)
+        add_sections(path)
+        con = sqlite3.connect(str(path), isolation_level=None)
+        con.execute("UPDATE app_settings SET ask_enabled = 0, updated_at = '2026-10-30T09:00:00Z'")
+        self.assertNotIn("email_sent", [r[0] for r in con.execute("SELECT name FROM sqlite_master")])
+        con.close()
+        after = self.check_every_row_kept(path, "6")
+        self.assertEqual((after["email_sent"], after["email_sent_items"]), ([], []))
+        self.assertEqual([r[1:3] for r in after["app_settings"]], [(1, 0)])
+
+    def test_a_version_5_file_goes_through_the_settings_step_the_sent_record_and_this_step_and_keeps_every_row(self):
+        path = make_at(self.dir, 5)
+        add_sections(path)
+        con = sqlite3.connect(str(path))
+        self.assertNotIn("app_settings", [r[0] for r in con.execute("SELECT name FROM sqlite_master")])
+        con.close()
+        after = self.check_every_row_kept(path, "5")
+        self.assertEqual([r[1:3] for r in after["app_settings"]], [(1, 1)])          # the settings step's one row, ask on
+        self.assertEqual(after["email_sent"], [])
+
+    def check_every_row_kept(self, path, start):
+        self.assertEqual(version(path), start)
+        before = every_row(path)
+        self.assertEqual(len(before["report_sections"]), 12)
+        self.assertTrue(before["projects"] and before["documents"])
+        open_store(path, onedrive_roots=[]).close()
+        self.assertEqual(version(path), NOW)
+        self.assertEqual(NOW, str(STEP))
+        after = every_row(path)
+        self.assertEqual({t: after[t] for t in before}, before)
+        self.assertIn("'onedoc'", table_sql(path))
+        self.assertEqual(len(self.copies()), 1)
+        return after
 
     def test_a_version_1_file_goes_through_every_step_and_keeps_its_sections(self):
         path = make_v1(self.dir, without=())
