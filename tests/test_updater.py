@@ -177,6 +177,13 @@ class InstallTest(Rig):
         self.assertFalse((self.data / "updates" / up.PENDING).exists())
         self.assertIsNone(ui.last_update(self.data), "the update never went in, so there is nothing to undo")
 
+    def test_a_review_is_used_once_even_when_the_install_stops(self):
+        body = self.reviewed()
+        failing = self.make(start=lambda *a, **k: (_ for _ in ()).throw(OSError("no")))
+        failing.reviewed = self.up.reviewed
+        self.assertEqual("helper", failing.install({"review_id": body["review_id"]})[1]["code"])
+        self.assertEqual("review_again", failing.install({"review_id": body["review_id"]})[1]["code"])
+
     def test_a_rolled_back_update_is_said_once_and_leaves_nothing_to_undo(self):
         body = self.reviewed()
         self.up.install({"review_id": body["review_id"]})
