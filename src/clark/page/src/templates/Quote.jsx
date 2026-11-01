@@ -1,8 +1,17 @@
-// Quote (#96), store type "quote": its view part. STUB: READY is false and it draws nothing (stub.js). Its builder fills this
-// file, its Edit part (edit/templates/Quote.jsx), src/clark/section_kinds/quote.py and tests/test_tpl_quote.py, and nothing shared.
-// View: text nodes only, never dangerouslySetInnerHTML; links, pictures, files and dates through ./safe.js; live rows only those
-// logic/publishable.js keeps. isEmpty(section, data): true leaves the section out of the served View and the published file.
-import { viewStub } from "./stub.js";
+// Quote (#96), store type "quote": its view part. One quotation with who said it, as text nodes. isEmpty: no words in the quote.
+// The Edit part is edit/templates/Quote.jsx; the content rules are section_kinds/quote.py.
+import { source, tidyQuote, quoteEmpty } from "./notes.js";
 
-export const READY = false;
-export const { View, isEmpty } = viewStub();
+export const READY = true;
+export const isEmpty = (section) => quoteEmpty(tidyQuote(source(section)));
+
+export function View({ section }) {
+  const q = tidyQuote(source(section));
+  const who = [q.by, q.role].filter(Boolean).join(", ");
+  return (
+    <figure class="tpl-quote">
+      <blockquote class="tpl-quote-q"><p>{q.quote}</p></blockquote>
+      {who ? <figcaption class="tpl-quote-by">{who}</figcaption> : null}
+    </figure>
+  );
+}
