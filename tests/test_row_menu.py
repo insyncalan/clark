@@ -21,6 +21,8 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click, need_chrome  # noqa: E402
 from test_work_items import bundled, page_target  # noqa: E402
 import test_work_board_page as board  # noqa: E402
+import test_multi_select as ms  # noqa: E402
+import _testpage as testpage  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 NOT_OFFERED = "This item cannot go in an email: it is hidden from the report, marked sensitive or restricted, or no longer open."
@@ -216,6 +218,41 @@ class Menu(board.Base):
             ring = cdp.js("(() => { const c = getComputedStyle(document.activeElement); return [c.outlineStyle, c.outlineWidth, c.outlineColor]; })()", sid)
             self.assertEqual(ring[:2], ["solid", "2px"], ring)
             self.assertNotEqual(ring[2], "rgba(0, 0, 0, 0)")
+
+    def test_while_rows_are_selected_the_menu_stands_down_and_leaves_the_event_alone(self):
+        """The Head's ruling: the selection wins. The multi-select menu (#196) owns the right click, Shift+F10 and the Menu key."""
+        self.s.httpd.page_html = lambda: testpage.html()          # the test page has window.clarkPage.selected()
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            rows = cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].map(r => r.dataset.id)", sid)
+            a, b = rows[0], rows[1]
+            # Records, for each event that reaches the bubble phase on the document, whether the menu had prevented it.
+            cdp.js("window.__seen = []; for (const t of ['contextmenu', 'keydown']) document.addEventListener(t, (e) => { if (t === 'contextmenu' || e.key === 'ContextMenu' || e.key === 'F10') window.__seen.push([t, e.defaultPrevented]); });", sid)
+            seen = lambda: cdp.js("window.__seen.splice(0)", sid)
+            for picks in ([a], [a, b]):
+                ms.tap(cdp, sid, f"#work-list tr[data-id='{picks[0]}'] .c-item .t")
+                if len(picks) == 2:
+                    ms.tap(cdp, sid, f"#work-list tr[data-id='{b}'] .c-item .t", mods=ms.MOD)
+                self.until(cdp, sid, f"clarkPage.selected().length === {len(picks)}", "the selection")
+                seen()
+                right_click(cdp, sid, self.TABLE % a)
+                self.until(cdp, sid, "window.__seen.length > 0", "the right click arrived")
+                self.assertEqual(seen(), [["contextmenu", False]], "left for the multi-select menu")
+                cdp.js(f"document.querySelector(\"{self.TABLE % a}\").focus()", sid)
+                key(cdp, sid, "F10", shift=True)
+                key(cdp, sid, "ContextMenu")
+                self.until(cdp, sid, "window.__seen.length >= 2", "the keys arrived")
+                got = seen()                                # the browser may add a contextmenu of its own after a key
+                self.assertEqual([g for g in got if g[0] == "keydown"], [["keydown", False], ["keydown", False]])
+                self.assertFalse(any(g[1] for g in got), got)
+                self.assertFalse(cdp.js("!!document.querySelector('.rowmenu')", sid), f"{len(picks)} selected: no row menu")
+            # Nothing selected: it opens as before.
+            cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "clarkPage.selected().length === 0", "the selection cleared")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [role=menu]')", sid))
+            self.assertEqual(seen()[-1], ["contextmenu", True])
 
     def test_the_eye_entry_follows_the_item_and_a_menu_closes_with_escape_and_a_click_away(self):
         with chrome() as cdp:

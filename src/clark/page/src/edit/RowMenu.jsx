@@ -20,6 +20,7 @@ import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
+import { workSelection } from "../stores/selection.js";
 
 const ROW = "tr[data-id], article.bcard";
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
@@ -42,10 +43,12 @@ function openFor(el, x, y) {
 }
 
 // A right click, or the menu key or Shift+F10 on the focused row or card (the key opens beside the row, not at the pointer).
+// While one or more rows are selected (#195) this menu stands down, and leaves the event alone (no preventDefault): the
+// multi-select menu (#196) owns the right click and the keys then (the Head's ruling).
 function useOpeners() {
   useEffect(() => {
     const onContext = (e) => {
-      if (view.value !== "work" || !e.target.closest) return;
+      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1) return;
       const el = e.target.closest(ROW);
       if (!el || e.target.isContentEditable || e.target.closest("input, textarea, select, .cpop, .ddmenu, .rowmenu")) return;
       e.preventDefault();
@@ -54,7 +57,7 @@ function useOpeners() {
       openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY);
     };
     const onKey = (e) => {
-      if (view.value !== "work" || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
+      if (view.value !== "work" || workSelection.size.value >= 1 || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
       const at = document.activeElement, el = at && at.closest ? at.closest(ROW) : null;
       if (!el || at.isContentEditable || at.closest(".cpop, .ddmenu, .rowmenu, input, textarea")) return;
       e.preventDefault();
