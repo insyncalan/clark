@@ -15,7 +15,7 @@ import html
 import re
 from dataclasses import dataclass
 
-from clark import publish, secret_screen
+from clark import publish
 from clark.ask import BUDGET, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
@@ -43,12 +43,10 @@ _TAG = re.compile(r"<[^>]*>")
 @dataclass(frozen=True)
 class ProjectData:
     """What the open project's data gives a question: the chosen `passages`, the `facts` the claims check compares against
-    ({id: {"title", "owner"}}, published rows only), and `left_out`, how many passages did not fit the budget, and `withheld`, how many lines were
-    left out because the secret screen refused them (a password typed into an action's latest update never becomes a passage)."""
+    ({id: {"title", "owner"}}, published rows only), and `left_out`, how many passages did not fit the budget."""
     passages: tuple
     facts: dict
     left_out: int
-    withheld: int = 0      # lines of rows left out because they look like they hold a password or a key (counted, never shown)
 
 
 def plain(value):
@@ -86,12 +84,6 @@ def project_lines(project):
     if current:
         lines.append(f"current state: {current}")
     return lines
-
-
-def _screened(lines):
-    """(the lines the secret screen lets through, how many it held back)."""
-    kept = [line for line in lines if not secret_screen.looks_like_secret(line)]
-    return kept, len(lines) - len(kept)
 
 
 def _cut(label, lines):
@@ -143,11 +135,8 @@ def project_data(store, code, question="", budget=BUDGET):
     """The open project's data for one question, from what the published file would carry (publish.select). Raises
     publish.PublishError (plain words) for a code that isn't a project."""
     selected = publish.select(publish.read_inputs(store, code))["data"]
-    lines, withheld = _screened(project_lines(selected.get("project") or {}))
-    passages = _cut(LABELS["project"], lines)
+    passages = _cut(LABELS["project"], project_lines(selected.get("project") or {}))
     for kind in KIND_ORDER:
-        lines, held = _screened([row_line(kind, r) for r in selected.get(kind) or ()])
-        withheld += held
-        passages += _cut(LABELS[kind], lines)
+        passages += _cut(LABELS[kind], [row_line(kind, r) for r in selected.get(kind) or ()])
     chosen, left = choose(passages, question, budget)
-    return ProjectData(chosen, facts_of(selected), left, withheld)
+    return ProjectData(chosen, facts_of(selected), left)

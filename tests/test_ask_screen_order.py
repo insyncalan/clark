@@ -12,7 +12,7 @@ import urllib.parse
 from unittest import mock
 
 import test_ask_route as route
-from clark import ask, ask_data, ask_service, store as st
+from clark import ask, ask_service, store as st
 
 PW = "Welcome" + "2026!"
 LINE = "pass" + "word: " + PW
@@ -42,8 +42,8 @@ class Rows(route.Base):
         self.assertNotIn(PW, text)
         self.assertNotIn(LINE, text)
         self.assertNotIn(PW, repr(got))
-        self.assertNotIn("ZQ-SCREEN-ROW", text, "the whole line is left out, not edited")
-        self.assertTrue(any("left out" in n and "password or a key" in n for n in got["notes"]), got["notes"])
+        self.assertNotIn("ZQ-SCREEN-ROW", text, "the passage holding it is left out, not edited")
+        self.assertIn(ask.secret_note(1), got["notes"])
 
     def test_a_key_in_a_clients_message_is_not_sent(self):
         self.plant("On hold", field="client_message", extra={"latest_update": "Use " + KEY + " for the feed"})
@@ -58,28 +58,10 @@ class Rows(route.Base):
             self.assertNotIn(update, text, n)
             self.assertNotIn("ZQ-SCREEN-ROW", text, n)
 
-    def test_the_other_rows_still_go(self):
-        self.plant("Spoke to the vendor. " + LINE)
-        self.plant("Delivered on time.", extra={"description": "Collect the ZQ-KEPT-ROW parcels"})
-        _got, text = self.sent()
-        self.assertIn("ZQ-KEPT-ROW", text)
-        self.assertNotIn(PW, text)
-
     def test_with_no_secret_nothing_is_left_out_and_there_is_no_note(self):
         got, text = self.sent()
-        self.assertFalse([n for n in got["notes"] if "password or a key" in n], got["notes"])
-        self.assertEqual(ask_service.withheld_note(0), "")
-        self.assertEqual(ask_service.withheld_note(True), "")
-
-    def test_the_count_is_in_the_project_data(self):
-        self.plant("x " + LINE)
-        store = st.open_store(self.db, onedrive_roots=[])
-        try:
-            data = ask_data.project_data(store, route.CODE, "chairs")
-        finally:
-            store.close()
-        self.assertEqual(data.withheld, 1)
-        self.assertNotIn(PW, "\n".join(p.text for p in data.passages))
+        self.assertNotIn(ask.secret_note(1), got["notes"])
+        self.assertIn("ZQ-KEEP-RISK-1", text)
 
 
 class Turns(route.Base):
@@ -107,7 +89,7 @@ class Turns(route.Base):
 class Order(route.Base):
     def test_the_screen_runs_before_any_data_is_read_for_the_question(self):
         calls = []
-        with mock.patch.object(ask_data, "project_data", side_effect=lambda *a, **k: calls.append(a)), \
+        with mock.patch.object(ask_service.ask_data, "project_data", side_effect=lambda *a, **k: calls.append(a)), \
                 mock.patch.object(ask_service.ask_passages, "folder_data", side_effect=lambda *a, **k: calls.append(a)):
             for kw in ({"q": "my " + LINE}, {"earlier": [{"role": "user", "text": LINE}]}):
                 status, got = self.question(**kw)
