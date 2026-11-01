@@ -256,6 +256,17 @@ class Refusals(Base):
         self.assertEqual((status, got["code"]), (400, "refused"))
         self.assertEqual(self.provider.sent, [])
 
+    def test_a_key_in_the_question_or_an_earlier_turn_is_never_sent(self):
+        # #253: built at run time, so the publish tool's scan has nothing to find.
+        key = "sk-" + "ant-api03-" + "a1B2c3D4e5F6g7H8i9J0" + "-xyz"
+        status, got = self.question("Use this " + key + " to log in")
+        self.assertEqual((status, got["code"]), (400, "refused"))
+        self.assertEqual(got["message"], ask.SECRET)
+        status, got = self.question("And now?", earlier=[{"role": "user", "text": "my " + "pass" + "word is " + "Hunt" + "er2-Zq-99"}])
+        self.assertEqual((status, got["code"]), (400, "refused"))
+        self.assertEqual(got["message"], ask.SECRET_EARLIER)
+        self.assertEqual(self.provider.sent, [])
+
     def test_an_archived_project_is_refused(self):
         store = st.open_store(self.db, onedrive_roots=[])
         with store.step("dashboard", "tester", place="menu") as s:

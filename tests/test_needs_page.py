@@ -233,7 +233,7 @@ class Logic(unittest.TestCase):
         t = next(x for x in self.val("N.templates.TEMPLATES") if x["id"] == "needs")
         self.assertEqual((t["name"], t["type"], t["title"], t["kind"], t["fit"]), ("Needs from you", "needs", "Needs from you", "dates", ["full", "half"]))
         self.assertEqual(self.val("N.templates.available(N.templates.find('needs'))"), True)
-        self.assertEqual(self.val("N.templates.ACCEPTS.types"), ["text", "needs"])
+        self.assertEqual(self.val("N.templates.ACCEPTS.types")[:2], ["text", "needs"])      # then the section templates (#96)
         plan = self.val("N.templates.plan([{id: 'a', title: 'Summary', beside: 0, hidden: 0}], 'needs', 'a', false)")
         self.assertEqual(plan["requests"], [{"op": "new", "values": {"type": "needs", "title": "Needs from you"}, "after": "a", "place": "report"}])
         side = self.val("N.templates.plan([{id: 'a', title: 'Summary', beside: 0, hidden: 0}], 'needs', 'a', true)")
