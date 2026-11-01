@@ -77,7 +77,9 @@ export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null);
   const editing = !!tools && !fromFile.value && mode.value === "edit";
-  const Words = editing && tools.Words, WordsBtn = editing && tools.WordsButton;
+  // The words box changes work items only (sneak.py refuses a milestone), so a milestone peek has no sparkle and no `//`.
+  const forItem = !!p && p.kind !== "milestone";
+  const Words = editing && forItem && tools.Words, WordsBtn = editing && forItem && tools.WordsButton;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   // Focus goes in when the peek opens and back to where it was when it closes.

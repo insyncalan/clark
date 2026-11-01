@@ -10,6 +10,7 @@ import json
 import re
 import shutil
 import subprocess
+import time
 import unittest
 
 from _paths import ROOT
@@ -143,6 +144,49 @@ class ActivityBrowser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields')", sid)))
                 self.assertEqual(cdp.js("document.activeElement.dataset.pkTab", sid), "details")
                 self.assertFalse(cdp.js("!!document.querySelector('[data-activity]')", sid))
+
+    def peek_stays(self, cdp, sid, item, rows=True):
+        """The peek is still open on `item` well after the router's 400 ms Back fallback, with Activity rows if asked."""
+        time.sleep(0.9)
+        self.assertEqual(cdp.js("document.querySelector('#peek') && document.querySelector('#peek').dataset.peek", sid), item, "the peek vanished")
+        self.assertIn("item=" + item, cdp.js("location.hash", sid))
+        if rows:
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-activity-row]').length", sid) > 0))
+
+    def test_closing_and_reopening_at_once_keeps_the_peek_and_its_activity_back_forward_and_reload(self):
+        """The Activity tab made the peek vanish: Esc steps Back and, 400 ms later, a fallback rewrote the address if it looked
+        unmoved. Reopening the same item within that time looked unmoved, so the fallback closed the peek just opened."""
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    s, sid = self.load_page(cdp, width)
+                    cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": theme}]}, sid)
+                    ids = self.ids_on_page(cdp, sid)
+                    one = f"#work tbody tr[data-id='{ids[0]}'] .c-item"
+                    click(cdp, sid, one)                                    # open in View, close with Esc, at once into Edit
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                    key(cdp, sid, "Escape")
+                    self.edit_mode(cdp, sid)
+                    click(cdp, sid, one)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
+                    click(cdp, sid, "[data-pk-tab=activity]")
+                    self.peek_stays(cdp, sid, ids[0])
+                    # in Edit, Esc and the same row clicked again at once (the same address within 400 ms): still open
+                    key(cdp, sid, "Escape")
+                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid), 2))
+                    click(cdp, sid, one)
+                    self.peek_stays(cdp, sid, ids[0], rows=False)
+                    # Back closes it, Forward brings it back with its Activity tab
+                    cdp.js("history.back()", sid)
+                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
+                    cdp.js("history.forward()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
+                    click(cdp, sid, "[data-pk-tab=activity]")
+                    self.peek_stays(cdp, sid, ids[0])
+                    # a reload with &item= in the address opens the peek (in View, as every reload is), and it stays
+                    cdp.call("Page.reload", {}, sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                    self.peek_stays(cdp, sid, ids[0], rows=False)
 
 
 if __name__ == "__main__":

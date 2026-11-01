@@ -513,6 +513,47 @@ class Browser(unittest.TestCase):
             self.assertFalse(cdp.js("!!document.querySelector('.toast [data-undo]')", sid))
             self.assertTrue(cdp.js("!!document.querySelector('[data-sneak]')", sid), "the box stays so the words can be changed")
 
+    def test_a_milestone_peek_in_edit_has_no_sparkle_and_two_slashes_open_nothing(self):
+        """The words box changes work items only, so a milestone peek offers no sparkle and `//` does nothing (a reader's MEDIUM)."""
+        ms = self.data["milestones"][0]["id"]
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            self.edit_mode(cdp, sid)
+            cdp.js(f"clarkPage.openPeek({json.dumps(ms)}, 'milestone')", sid)
+            self.assertTrue(wait(lambda: cdp.js("(document.querySelector('#peek') || {dataset: {}}).dataset.peek", sid) == ms))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
+            self.assertFalse(cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid), "no sparkle on a milestone")
+            cdp.js("document.activeElement.blur()", sid)
+            key(cdp, sid, "/")
+            key(cdp, sid, "/")
+            time.sleep(0.3)                     # a negative check: give a wrongly opened box time to draw
+            self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "two slashes open nothing on a milestone")
+            item = self.open_actions()[0]
+            cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid)), "an item keeps the sparkle")
+
+    def test_a_click_draws_the_peek_within_150_ms_measured_in_the_page(self):
+        """The 150 ms open time (#42), measured: from the click event to the peek in the DOM, by the page's own clock. The best of
+        three opens is held to the bound, so one slow moment on a loaded machine does not fail it, but a delay or a fetch before the
+        peek draws does."""
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            self.edit_mode(cdp, sid)
+            ids = self.ids_on_page(cdp, sid)
+            times = []
+            for i in range(3):
+                cdp.js("""(() => { window.__pk = null; let t0 = 0;
+                  document.addEventListener('click', () => { t0 = performance.now(); }, {capture: true, once: true});
+                  const o = new MutationObserver(() => {
+                    if (t0 && document.querySelector('#peek')) { window.__pk = performance.now() - t0; o.disconnect(); } });
+                  o.observe(document.body, {childList: true, subtree: true}); })()""", sid)
+                click(cdp, sid, f"#work tbody tr[data-id='{ids[i]}'] .c-item")
+                self.assertTrue(wait(lambda: cdp.js("window.__pk", sid) is not None), "the peek opened")
+                times.append(cdp.js("window.__pk", sid))
+                cdp.js("clarkPage.closePeek()", sid)
+                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
+            self.assertLess(min(times), 150, f"open times in ms: {times}")
+
     def test_the_published_page_has_no_peek_extras_and_the_served_page_no_hook(self):
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
         for word in ("/api/sneak", "/api/change", "sneak", "Sneak peek", "clarkPage"):
@@ -534,6 +575,20 @@ class OpenTime(unittest.TestCase):
                     start = text.index("openPeek(id, \"item\")")
                     text = text[max(0, start - 400):start + 400]
                 self.assertNotIn(word, text, name)
+
+
+class TestPageStyles(unittest.TestCase):
+    def test_the_browser_tests_page_carries_the_edit_styles_and_the_published_one_does_not(self):
+        """The Edit-mode browser tests load testpage.html() (main-test.jsx); it must hold edit.css as the served page does, or they
+        check an unstyled peek (a reader's MEDIUM)."""
+        sys.path.insert(0, str(ROOT / "dev/tools"))
+        import build_page
+        edit = build_page.strip_css_comments(build_page.EDIT_CSS.read_text(encoding="utf-8"))
+        self.assertIn(".pk-tab", edit)
+        self.assertIn(edit, build_page.page_css("main-test.jsx"))
+        self.assertIn(edit, build_page.page_css(build_page.ENTRY))
+        self.assertNotIn(".pk-tab", build_page.page_css(build_page.ENTRY_VIEW))
+        self.assertIn(".pk-tab", testpage.html())
 
 
 class WidthSource(unittest.TestCase):
