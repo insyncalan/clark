@@ -25,10 +25,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, idle, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, store as clark_store, use_cases_read
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, idle, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 DB_NAME = "clark.db"
 HERE = Path(__file__).resolve().parent
+VENDOR = HERE.parents[1] / "vendor"       # the bundled Python libraries (openpyxl); put last on the path, so they never hide the system's own
+if VENDOR.is_dir() and str(VENDOR) not in sys.path:
+    sys.path.append(str(VENDOR))
 DEV = HERE.parents[1] / "dev"            # dev/demo_data.py builds the demo database; it is not part of the package
 ADDRESS_LINE = "Open http://"           # the start of the line server.serve prints once it is listening
 LISTENING = re.compile(r"^Open http://127\.0\.0\.1:(\d+)/")
@@ -296,7 +299,7 @@ def use_case_ids_on_file(store):
 
 
 def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.open_url, home=None, onedrive_roots=None,
-         change=None, undo=None, environ=None, is_free=port_free):
+         change=None, undo=None, environ=None, is_free=port_free, word_import=None, word_export=None):
     """Run the launcher; the exit code. `serve`, `open_url`, `home` (for the default data folder) and `onedrive_roots` are
     `is_free` (the check that the port is taken or not) are seams for tests. `change` and `undo` are the handlers for POST
     /api/change and /api/undo (#65): built from clark.changes for this data's file unless a test gives its own."""
@@ -338,7 +341,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         store.close()           # #111: nothing keeps the database open while clark runs (each request opens its own), so Restore can swap the file
         who = profile_settings.Profile(store.path.parent)          # #180: the name typed in Settings, else the login name, is the name on each change
         handlers = {"change": change or changes.make_change(store.path, roots, who.who),
-                    "undo": undo or changes.make_undo(store.path, roots, who.who)}
+                    "undo": undo or changes.make_undo(store.path, roots, who.who),
+                    "sneak": sneak.make_read(store.data_for),
+                    "word_import": word_import or word_route.make_word_import(store.path, roots),
+                    "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
         server.set_data_mark(appfiles.data_mark(store.path.parent))
@@ -348,12 +354,20 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      err=err,
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
                      profile=who,
+                     draft_email=draft_email_feed.make(
+                         store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
+                         rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(store, c)),
+                         chased=lambda c: draft_email_feed.chase_counts_of(store.email_sent_for(c))),
+                     draft_email_sent=draft_email_feed.make_sent(store.path, roots, by_user=who.who),
+                     milestones=milestone_feed.make_feed(store.data_for),
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store)),
                      safety=safety.Safety(store.path, roots),
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
+                     activity=activity_read.make_read(store.path, store.data_for),
+                     brand_picture=page.brand_picture,
                      **handlers)
         if done == 0:
             print("Stopped.", file=out, flush=True)

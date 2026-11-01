@@ -15,6 +15,10 @@ What it does, and does not:
   does ALL its work under one lock: for an undo, the check that the step is the report's and the undo itself are one
   does not make an empty database, when clark.db isn't there.
 - The reply carries only what the page needs of each section: id, type, title, beside, hidden, sort_order. Never its body.
+- A section may be added as text, needs or tracker (NEW_SECTION_TYPES, an allow-list). An update may write `body` only for a
+  needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type; each save replaces
+  the whole body in one step with one Undo. A needs or tracker section may be deleted like a text one (Undo-able, kept in
+  change_log): "we archive, we never delete" is about work items and is not breached.
 
 `change(req)` and `undo(req)` return (status, body); the server sends them. make_change / make_undo build them for one
 database file; the launcher passes those to server.serve. Standard library only, Python 3.9.
@@ -25,7 +29,7 @@ from contextlib import contextmanager
 import unicodedata
 from pathlib import Path
 
-from clark import backup, milestone_rows, milestones, order, platform, sanitise
+from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies
 from clark import store as clark_store
 from clark.store import Invalid
 
@@ -40,7 +44,7 @@ NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK = "new update move delete arch
 NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a report row can be added to (use cases: never from here)
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 CHANGE_KINDS = {
-    "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside"), MOVE: ("beside",), DELETE: ()},
+    "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood; `archived` is in no list.
@@ -106,7 +110,7 @@ OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "be
            ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",)}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
 MAX_FLAGS = 4                             # a move may set the `beside` of at most this many sections (the moved one, its old partner, its new one, the one before)
-PLACES = tuple(p for p in ("menu", "cell", "report", "board") if p in clark_store.PLACES)   # where the change was made (the step's place); "board" counts once the store knows it
+PLACES = tuple(p for p in ("menu", "cell", "report", "board", "peek", "eye", "draft", "email", "text") if p in clark_store.PLACES)   # where the page says the change was made (the step's place); #123: + peek, eye, draft, email, text. Not bulk, dashboard, excel or ask: no screen of the page is those (ask clark and Excel import write through their own routes)
 MOVEMENT_PLACE = "movement"               # #136: a Movement change is written as place "dashboard" with the src_ref "Movement" (no schema change)
 MADE_OP = clark_store.OP_MADE            # the log's word for a row a step made: the store's own constant
 VIA = "dashboard"                         # the route of every step made here; an undo is never undone from here
@@ -185,7 +189,10 @@ UC_HEADLINE_WORDS = f"A headline can be at most {UC_HEADLINE_LIMIT} characters, 
 UC_STATUS_WORDS = "A use case's status can be On track, Flag or High risk."
 UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
-ONLY_TEXT = "Only a text section can be added."
+NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new section may be: an allow-list, never the request's own spelling
+NEW_TYPE_WORDS = "That kind of section can't be added."
+NO_BODY_HERE = "That kind of section can't take content this way."
+BODY_NOT_TEXT = "A section's content must be sent as text."
 KEEPS_TYPE = "A section keeps its type."
 FLAG_WORDS = "That must be 0 or 1."
 NO_UNDO = "That step can't be undone from here."
@@ -329,11 +336,30 @@ def _store_words(e):
 
 
 def _checked_changes(fields):
-    """An update's fields with their values checked: the title as the store keeps it, a flag as 0 or 1."""
+    """An update's fields with their values checked: the title as the store keeps it, a flag as 0 or 1, a body as text (what
+    the body holds is checked by the checker of the stored section's type, inside the step: see _section_body)."""
     out = {}
     for k, v in fields.items():
-        out[k] = _flag(v) if k in FLAG_FIELDS else clark_store.section_title(v)
+        if k == "body":
+            if not isinstance(v, str):
+                raise Refused(BODY_NOT_TEXT)
+            out[k] = v
+        else:
+            out[k] = _flag(v) if k in FLAG_FIELDS else clark_store.section_title(v)
     return out
+
+
+def _section_body(section, body):
+    """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
+    (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
+    takes a body here; a text section's body write stays closed until its own item opens it. A refusal is plain words and never
+    quotes the content. The store checks it again on write (every write, an Undo too)."""
+    if section["type"] not in section_bodies.CHECKERS:
+        raise Refused(NO_BODY_HERE)
+    try:
+        return clark_store.check_section_body(section["type"], body)
+    except Invalid as e:
+        raise Refused(str(e)) from None
 
 
 # ── The change ────────────────────────────────────────────────────────────────
@@ -469,8 +495,9 @@ def _do_change(store, by_user, req):
     changes = None
     if op == NEW:
         values = _fields(req.get("values"), kind, op, columns, "the new section's values")
-        if values.get("type", "text") != "text":
-            raise Refused(ONLY_TEXT)
+        new_type = next((t for t in NEW_SECTION_TYPES if t == values.get("type", "text")), None)    # the allow-list's own spelling
+        if new_type is None:
+            raise Refused(NEW_TYPE_WORDS)
         title = clark_store.section_title(values["title"]) if "title" in values else DEFAULT_TITLE
         after = _id_or_none(req.get("after"), STALE)
         beside = _flag(req["beside"]) if "beside" in req else 0
@@ -496,12 +523,14 @@ def _do_change(store, by_user, req):
                 _mine(after, ids, STALE)
                 if not _on_its_own(rows, after):
                     raise Refused(STALE)                            # it has a partner now: nothing is written, the page redraws
-            ref = _add(st, project, rows, ids, title, after)
+            ref = _add(st, project, rows, ids, title, after, new_type)
             if beside:
                 st.update(table, after, {"beside": 1})              # the same step: one Undo removes the section and the pairing
         else:
             _mine(ref, ids, NOT_MINE)
             if op == UPDATE:
+                if "body" in changes:                               # read from the stored section inside the step, so the body meets its own type's checker
+                    changes["body"] = _section_body(next(r for r in rows if r["id"] == ref), changes["body"])
                 st.update(table, ref, changes)
             elif op == MOVE:
                 if before is not None:
@@ -1034,8 +1063,9 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
                  "project": {"health": now["health"], "health_reason": now["health_reason"]}}
 
 
-def _add(st, project, rows, ids, title, after):
-    """Make a text section just after section `after` (None: at the end); its id. When no whole number fits between its
+def _add(st, project, rows, ids, title, after, kind="text"):
+    """Make a section of type `kind` (text, needs or tracker) just after section `after` (None: at the end); its id. A needs or
+    tracker section starts with the body the registry gives it (section_bodies.EMPTY), never one from the request. When no whole number fits between its
     neighbours, the rows are renumbered in the same step (clark.order)."""
     if after is not None:
         _mine(after, ids, STALE)
@@ -1045,7 +1075,8 @@ def _add(st, project, rows, ids, title, after):
         probe = rows + [{"id": "", "sort_order": end}]              # the new row, at the end, then moved up to its place
         renumber = order.section_slot(probe, "", ids[ids.index(after) + 1])
         new_place = renumber.pop("", end)
-    ref = st.create("report_sections", {"project": project, "type": "text", "title": title, "sort_order": new_place})
+    start = {"body": section_bodies.EMPTY[kind]} if section_bodies.EMPTY.get(kind) else {}
+    ref = st.create("report_sections", {"project": project, "type": kind, "title": title, "sort_order": new_place, **start})
     for other, place in renumber.items():
         st.update("report_sections", other, {"sort_order": place})
     return ref
@@ -1207,6 +1238,8 @@ def _field_words(entry, name):
         return f"{name} is hidden from the client again" if to == "0" else f"{name} is shown to the client again"
     if f == "title":
         return f"the title of {name}"
+    if f == "body":
+        return f"the content of {name}"                             # never the content itself
     if f == "sort_order":
         return f"the place of {name}"
     if f == "hidden":
@@ -1326,11 +1359,14 @@ def _do_undo(store, by_user, req):
     if not isinstance(req, dict):
         raise Refused(NOT_JSON_OBJECT)
     for k in req:
-        if k not in ("project", "apply_id"):
+        if k not in ("project", "apply_id", "place"):
             raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
     project = req.get("project")
     if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
         raise Refused(BAD_PROJECT, code="bad_project_code")
+    place = req.get("place")                                        # #123: where the Undo was pressed; the step's route is "undo" whatever it is
+    if place is not None and (not isinstance(place, str) or place not in PLACES):
+        raise Refused(BAD_PLACE)
     step = req.get("apply_id")
     if type(step) is not int or not 1 <= step < 2 ** 63:
         raise Refused(NO_UNDO)                                      # the same words as every other step that isn't ours
@@ -1339,10 +1375,12 @@ def _do_undo(store, by_user, req):
     step_rows = store.step_rows(step)
     if not _eligible(step_rows, project):                           # a missing step, another project's and another route's
         raise Refused(NO_UNDO)                                      # all say the same: nothing tells which exist
+    if any(r["via"] == ASSISTANT for r in step_rows) and store.step_actors(step) != {ASK_ACTOR}:
+        raise Refused(NO_UNDO)                                      # #47e: an assistant-route step is ours only when ask clark made it
     names = {r["id"]: r["title"] for r in _sections(store, project)}
     _name_use_cases(store, step_rows, names)                        # #164
     try:                                                            # still inside the caller's one lock
-        done = store.undo(step, by_user)
+        done = store.undo(step, by_user, place=place)
     except Invalid as e:
         text = str(e)
         if "undone already" in text or "undid an undo" in text:
@@ -1418,7 +1456,7 @@ def _call(path, onedrive_roots, by_user, work, req):
 
 def make_change(path, onedrive_roots=None, by_user=None):
     """The `change` the server calls for POST /api/change, for the database at `path`. `by_user` is a name or a function
-    that gives one (default: the login name, platform.login_name; Settings can override it later)."""
+    that gives one (the server passes the profile name, falling back to the login name, platform.login_name, which is also the default here)."""
     def change(req):
         return _call(path, onedrive_roots, by_user, _do_change, req)
     return change

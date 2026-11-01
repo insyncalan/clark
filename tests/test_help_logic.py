@@ -112,7 +112,7 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
         self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 26)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 27)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -156,7 +156,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 26 + 30)
+        self.assertEqual(len(p), 7 + 27 + 30)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -237,8 +237,8 @@ class Logic(unittest.TestCase):
     # ---- the keys and the icons ----
     def test_keys_list(self):
         keys, mac = self.r["keys"], self.r["keysMac"]
-        self.assertEqual(len(keys), 21)
-        self.assertEqual(len(mac), 21)
+        self.assertEqual(len(keys), 22)
+        self.assertEqual(len(mac), 22)
         row = next(k for k in keys if "J" in k["keys"] and "ask clark" in k["does"])
         self.assertEqual(row["keys"], "Ctrl+J")
         self.assertEqual(next(k for k in mac if k["does"] == row["does"])["keys"], "⌘+J")
@@ -288,15 +288,17 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        self.assertEqual(s["places"], ["howto-use-the-board", "ref-keys"])
+        SEC = ["howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "ref-section-templates", "ref-keys"]
+        self.assertEqual(s["places"], SEC)
         self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], ["howto-use-the-board"])
-        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], ["ref-keys"])
-        self.assertEqual(s["index"], ["howto-use-the-board", "ref-keys"])
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-keys"], ["work"]))
-        for q in ("peek", "publish", "sneak"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:3])
+        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], SEC[3:])
+        self.assertEqual(s["index"], SEC)
+        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "howto-add-a-section-from-a-template", "ref-keys"], ["work", "dashboard+edit"]))
+        for q in ("peek", "sneak"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match
             self.assertEqual(s["q"][q], [], q)
-        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board"])
+        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need"], "only the Needs from you task, which says a row left out is not on the published page; no Publish entry is shown")
+        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
         w = self.shown["where"]

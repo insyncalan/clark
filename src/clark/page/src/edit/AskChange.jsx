@@ -1,6 +1,6 @@
 // A change an answer suggested (#47e), shown in the ask panel as a card: the row now and after Apply, both from the server's dry
 // run of the saved data (never the answer's words), an Apply button, a separate Confirm for a change from an answer that read the
-// person's files, a plain line when it can't be made, and "Done." with Undo (the board's own /api/undo, through api.js) once saved.
+// person's files, a plain line when it can't be made, and "Done." with Undo (the board's own undo route, through api.js) once saved.
 // Every value is a text node; nothing here is read as markup. While asking is off nothing on a card can be pressed.
 import { useState } from "preact/hooks";
 import { project, reread, token } from "../stores/report.js";

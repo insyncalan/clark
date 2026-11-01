@@ -10,6 +10,7 @@ rotating quip, 1400 and 900 px in light and dark, the published page has no pane
 import json
 import re
 import threading
+import time
 import unittest
 
 from _paths import ROOT
@@ -104,6 +105,21 @@ class Panel(Base):
                     p.mouse("mouseReleased", 40, 400, 0)
                 p.until("document.querySelector('#ask-panel') === null", f"closed by {how}")
                 p.until("document.activeElement && document.activeElement.dataset.mode === 'edit'", f"focus returned after {how}")
+
+    def test_focus_that_moved_on_after_it_closed_stays_where_it_went(self):
+        """Putting focus back waits a moment; if a peek or another control took focus in that moment, it is not pulled away."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.js("document.querySelector('[data-mode=edit]').focus()")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "opened")
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "the panel is ready and has focus")
+            p.js("(() => { document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));"
+                 " document.querySelector('[data-mode=view]').focus(); })()")
+            p.until("document.querySelector('#ask-panel') === null", "closed")
+            time.sleep(0.3)
+            self.assertEqual(p.js("document.activeElement && document.activeElement.dataset.mode"), "view",
+                             "the control that took focus keeps it")
 
     def test_a_click_inside_does_not_close_it(self):
         with chrome() as cdp:
@@ -262,7 +278,9 @@ class Panel(Base):
                     p.until("!!document.querySelector('#ask-panel')", f"opened at {width} {theme}")
                     p.until("!document.querySelector('#ask-box').disabled", "ready")
                     r = p.js("(function(){var r=document.querySelector('#ask-panel').getBoundingClientRect();return {l:r.left,r:r.right,t:r.top,b:r.bottom,w:r.width}})()")
-                    self.assertAlmostEqual(r["r"], width, delta=1)
+                    edge = p.js("document.documentElement.clientWidth")      # the window less a classic scroll bar (Linux shows one; a Mac hides it)
+                    self.assertLessEqual(width - edge, 20)
+                    self.assertAlmostEqual(r["r"], edge, delta=1)
                     self.assertAlmostEqual(r["t"], 0, delta=1)
                     self.assertAlmostEqual(r["b"], 900, delta=1)
                     self.assertGreaterEqual(r["l"], 0)

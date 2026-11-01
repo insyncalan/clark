@@ -57,7 +57,7 @@ window.fetch = function (url, opts) {
 
 def make_db(folder, ready=True, cleanup=None):
     """clark.db in `folder` with project ABC. `ready=False` makes it as the version before the settings step left it (no
-    app_settings, version 2) and holds this clark at version 2 until `cleanup` runs, so opening it does not migrate it."""
+    app_settings, version 5) and holds this clark at version 5 until `cleanup` runs, so opening it does not migrate it."""
     db = Path(folder) / "clark.db"
     store = st.open_store(db, onedrive_roots=[])
     with store.step("dashboard", "tester", place="menu") as s:
@@ -66,9 +66,9 @@ def make_db(folder, ready=True, cleanup=None):
     if not ready:
         con = sqlite3.connect(str(db), isolation_level=None)
         con.execute("DROP TABLE app_settings")
-        con.execute("UPDATE meta SET v = '2' WHERE k = 'schema_version'")
+        con.execute("UPDATE meta SET v = '5' WHERE k = 'schema_version'")
         con.close()
-        for patcher in (mock.patch.object(st, "SCHEMA_VERSION", 2), mock.patch.object(st, "MIGRATIONS", st.MIGRATIONS[:1])):
+        for patcher in (mock.patch.object(st, "SCHEMA_VERSION", 5), mock.patch.object(st, "MIGRATIONS", st.MIGRATIONS[:4])):
             patcher.start()
             cleanup(patcher.stop)
     return db

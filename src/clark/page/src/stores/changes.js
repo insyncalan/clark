@@ -3,7 +3,8 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendItemChange, sendCellChange, sendMilestoneChange } from "../api.js";
+import { sendChange, sendUndo, sendItemChange, sendCellChange, sendMilestoneChange, readData } from "../api.js";
+import { flashed } from "./wordsState.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
 export const toast = signal(null);
@@ -11,6 +12,7 @@ export const toast = signal(null);
 export const undone = signal(0);
 
 let counter = 0, tail = Promise.resolve(), timer = 0;
+const linked = new Map();                // a step made together with an earlier one (changeThen), to that earlier step: its Undo takes both back
 const itemSteps = new Map();             // the steps that changed a work item (#80 cells, #68 board moves), to what their Undo says ("" for "Undone."): their undo reply has no items, so the data is read again
 
 export function say(kind, text, undo = null, code = project.value) {
@@ -52,7 +54,7 @@ async function readAgain(code, what) {
 }
 
 // Runs `task` after every earlier one has finished, whether it worked or not.
-function enqueue(task) {
+export function enqueue(task) {
   const run = tail.then(task);
   tail = run.catch(() => {});
   return run;
@@ -72,6 +74,33 @@ export function change(req, done) {
   });
 }
 
+// Two requests the page makes as one action (a new section, then a change to the section it was added below). Nothing is said
+// between them. When both worked the toast has one Undo, which takes both back (undo below: the second step first, then the first).
+// `next(reply)` makes the second request from the first reply. When the second fails the first stays made, the toast says so in
+// `partial`, and its Undo takes the first step back. Resolves to the first reply, or to null when the first request failed (the toast
+// says why, and nothing was made).
+export function changeThen(req, next, done, partial) {
+  const code = project.value;
+  return enqueue(async () => {
+    const a = await sendChange(code, req);
+    if (!a.ok) { say("problem", a.message); return null; }
+    redraw(code, a.reply);
+    const b = await sendChange(code, next(a.reply));
+    if (!b.ok) {
+      await readAgain(code, "The section was added");
+      say("problem", partial, a.reply.apply_id || null, code);
+      return a.reply;
+    }
+    redraw(code, b.reply);
+    if (!(await readAgain(code, "The change was saved"))) return a.reply;
+    if (b.reply.apply_id) {
+      if (a.reply.apply_id) linked.set(b.reply.apply_id, a.reply.apply_id);
+      say("done", done, b.reply.apply_id, code);
+    } else if (a.reply.apply_id) say("done", done, a.reply.apply_id, code);
+    return a.reply;
+  });
+}
+
 // Move one work item on the board (#68): the work items are read again (reread, report.js) after it and after its undo, so
 // the page shows what clark saved. `done` is the toast's words; an Undo goes with it only when the reply says the step can be put
 // back (a decision made is not). A refusal is a note: nothing was changed and there is nothing to undo.
@@ -88,20 +117,36 @@ export function changeItem(req, done) {
   });
 }
 
-// Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). If
-// some rows were left as they are, the toast says which, in the words clark gives (they name the section and why); otherwise it
-// says what went back (a work item's cell, #80) or that it is undone.
+// Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). A step
+// made together with an earlier one (changeThen) takes the earlier one back after it; if the first Undo fails nothing more is
+// undone, and if the second fails the toast says so and offers Undo for what is left. If some rows were left as they are, the toast
+// says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
+// or that it is undone.
 export function undo(applyId, code = project.value) {
   return enqueue(async () => {
-    const r = await sendUndo(code, applyId);
-    if (!r.ok) { say("problem", r.message); return null; }
+    const earlier = linked.get(applyId);
+    let r = await sendUndo(code, applyId);
+    if (!r.ok) { say("problem", earlier ? `${r.message} The section was not removed.` : r.message); return null; }
     redraw(code, r.reply);
     undone.value++;
+    if (earlier) {
+      linked.delete(applyId);
+      const e = await sendUndo(code, earlier);
+      if (!e.ok) {
+        await readAgain(code, "The change was undone");
+        say("problem", `The row was put back as it was, but the new section could not be removed. ${e.message}`, earlier, code);
+        return r.reply;
+      }
+      redraw(code, e.reply);
+      undone.value++;
+      r = e;
+    }
     const back = itemSteps.get(applyId);
     itemSteps.delete(applyId);
     // Read again after every undo: an item's cell, or a section's body, comes back from the database. Not read again because the
     // person has opened another project meanwhile: nothing is wrong, so nothing is said about it.
     if (!(await readAgain(code, "The change was undone"))) return r.reply;
+    if (Array.isArray(r.reply.reversed)) flash(r.reply.reversed.map((e) => ({ ref: e.ref, field: e.field })));   // the peek (#42) flashes what went back
     const skipped = Array.isArray(r.reply.skipped) && r.reply.skipped.length > 0;
     say("done", skipped && typeof r.reply.words === "string" && r.reply.words ? r.reply.words : back || "Undone.", null, code);
     return r.reply;
@@ -127,6 +172,21 @@ export function changeCell(table, id, changes, done) {
     else if (done.always) say("done", done.text, null, code);                   // a decision that is made: it changed, and has no Undo
     return r.reply;
   });
+}
+
+// Reads the project's data again and puts it on the page (the work items and the peek read it). A failed read leaves the page as it is.
+export async function refresh() {
+  const d = await readData(project.value);
+  if (d) data.value = d;
+}
+
+// Marks fields as changed for a moment: [{ref, field}]. The peek flashes the rows that show them.
+export function flash(list) {
+  const mine = list.filter((e) => e && typeof e.ref === "string" && typeof e.field === "string");
+  if (!mine.length) return;
+  const token = {};
+  flashed.value = { token, list: mine };
+  setTimeout(() => { if (flashed.value && flashed.value.token === token) flashed.value = null; }, 1600);
 }
 
 // A change to one milestone from the Movement block (#136): one step, one Undo. Resolves to {ok: true, reply} or {ok: false, message};

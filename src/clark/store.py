@@ -22,17 +22,17 @@ import sqlite3
 import unicodedata
 import uuid
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import platform
+from clark import platform, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_V3 = Path(__file__).with_name("schema_v3.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 3          # 2 (#126): documents can be archived; 3 (#47): app_settings, the ask switch
+SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
+SCHEMA_VERSION = 7          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -69,9 +69,12 @@ REQUIRED_NEW = {
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")   # what Step.archive takes (#126)
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
+                 "needs", "tracker")            # the eleven of schema.sql's CHECK ('needs' and 'tracker' carry content: section_bodies.py)
+BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
+DELETABLE_TYPES = BODY_TYPES                    # a section added by hand may be deleted; the built-in ones are hidden, never deleted
 ALLOWED = {
-    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the nine of schema.sql's CHECK
+    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the eleven of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
     ("glance_tiles", "outline"): ("R", "A", "G", "N"),                  # and '' (a blank is never checked)
     ("actions", "status"): ("Open", "Delayed", "Closed", "Cancelled"),
@@ -120,9 +123,10 @@ TITLE_LIMIT = 120                                                        # a sec
 CANCEL_CHANGES = {"actions": {"status": "Cancelled"}, "raid": {"status": "Cancelled"}, "projects": {"active": 0},
                   "workstreams": {"status": "Closed"}}
 
-# clark: a step's route, as item_events records it (data-model.md), and the vias it is written with.
-ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate")
-PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board")      # + board (#126)
+# clark: a step's route, as item_events records it (data-model.md), and the vias it is written with. "word" (#48, Head ruling Q4): a Word import.
+ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate", "word")
+PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board",      # + board (#126)
+          "eye", "draft", "email", "text", "ask")                                           # + #123: with the eye, a draft, a sent email, selected text, ask clark
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
@@ -180,6 +184,26 @@ class Unfinished(Invalid):
 def clock():
     """The current time, in UTC (a test replaces this to fix the time)."""
     return datetime.now(timezone.utc)
+
+
+def local_offset():
+    """The machine's offset from UTC at this moment as '+HH:MM' or '-HH:MM' (#123); a test replaces this one function. The step's
+    own clock is used, so a test that fixes the time gets the offset of that instant."""
+    off = clock().astimezone().utcoffset() or timedelta(0)
+    minutes = int(off.total_seconds() // 60)
+    sign = "+" if minutes >= 0 else "-"
+    return f"{sign}{abs(minutes) // 60:02d}:{abs(minutes) % 60:02d}"
+
+
+OFFSET_RE = r"[+-](?:(?:0[0-9]|1[0-3]):(?:00|15|30|45)|14:00)"     # a real offset (mirrors applies.utc_offset's CHECK); UTC is '+00:00', never 'Z' or '-00:00'
+
+
+def checked_offset(text):
+    """`text` when it is a real offset from UTC ('+HH:MM' or '-HH:MM', at most 14 hours, in quarter hours), else None, which the
+    history shows as "Time zone not recorded": a machine that reports an odd offset never stops a step being written."""
+    if isinstance(text, str) and re.fullmatch(OFFSET_RE, text) and text != "-00:00":
+        return text
+    return None
 
 
 def now():
@@ -496,13 +520,48 @@ def section_title(value):
     return title
 
 
+def _plain_ok(value):
+    """The store's text rule for content: it can be saved as UTF-8 (a lone surrogate can't) and holds no control, format
+    (bidi, zero-width), private-use or separator character, as a section title may not."""
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return not any(unicodedata.category(c) in _BAD_TITLE_KINDS for c in value)
+
+
+def _visible_ok(value):
+    """Whether the text holds a visible letter, number or symbol (section_title's rule)."""
+    return any(unicodedata.category(c)[0] in "LNPS" and c not in _BLANK_LOOKING for c in value)
+
+
+BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok)
+
+
+def check_section_body(kind, body):
+    """The content of a `kind` section (needs or tracker) as it is stored, or Invalid in plain words (never quoting it). The one
+    door to section_bodies.check: _section_rules (every write, an Undo too) and publish (a second look, at publish time) use it."""
+    try:
+        return section_bodies.check(kind, body, BODY_RULES)
+    except section_bodies.Bad as e:
+        raise Invalid(str(e)) from None
+
+
 def _section_rules(con, table, row, changed):
     """clark (#65): a section's own rules, in plain words. Runs before the id exists on a new row, so the id rules need an id."""
     row["title"] = section_title(row.get("title"))
     if type(row.get("sort_order")) is not int:
         raise Invalid("A section needs its place in the report (sort_order, a whole number).")
-    if row.get("body") not in (None, "") and (row.get("type") != "text" or not isinstance(row["body"], str)):
-        raise Invalid("Only a text section has a body.")
+    if row.get("body") not in (None, ""):
+        if row.get("type") not in BODY_TYPES:
+            raise Invalid("Only a text, needs or tracker section has a body.")
+        if not isinstance(row["body"], str):
+            raise Invalid("A section's body must be text.")
+    if row.get("type") in section_bodies.CHECKERS and ({"body", "type", "id"} & set(changed) or not row.get("id")):
+        # content: the type's own checker whenever the body is written, a new row is made or a deleted one is put back (an Undo too);
+        # what is stored is its canonical text, never the request's. A write that leaves the body alone (a rename, hide, move or
+        # renumber) does not re-check it, so a body saved under an older, looser checker never locks its section; publish checks it again
+        row["body"] = check_section_body(row["type"], row.get("body"))
     if row.get("id") and not str(row["id"]).startswith(f"{row.get('project')}-S-"):
         raise Invalid("That section's id doesn't belong to its project.")
     if "id" in changed or not row.get("id"):          # a new section, or one put back by an undo: never count the row itself
@@ -1060,8 +1119,8 @@ def delete_row(con, table, key, current, step):
     if table not in DELETED_ON_CANCEL:
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
-    if table == "report_sections" and current["type"] != "text":
-        raise Invalid("Only a text section can be deleted; hide the others.")
+    if table == "report_sections" and current["type"] not in DELETABLE_TYPES:     # a needs or tracker section goes like a text one (added by hand, kept in change_log, put back by Undo); 'we archive, we never delete' is about work items, and is not breached
+        raise Invalid("Only a text, needs or tracker section can be deleted; hide the others.")
     if table == "labels":
         if current["builtin"]:
             raise Invalid(f"{current['name']} is a built-in label and can't be deleted")
@@ -1599,18 +1658,179 @@ def migrate_to_2(con):
     _item_events_allow_board(con)
 
 
+def _item_events_allow_word(con):
+    """item_events.route gains 'word' (#48). SQLite cannot change a CHECK in place, so the table is made again from schema.sql's own
+    definition (so an upgraded file matches a new one), the rows are copied across with their numbers, the sequence is kept and the
+    indexes are made again. Only when the table's own definition does not name 'word' yet, so a second run (or a new database)
+    does nothing. Inside the caller's transaction. (schema.sql is read here because it is still version 3's item_events; when a later
+    version changes item_events, version 3's text must be frozen first, as schema_v2.sql is for version 2.)"""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is None or "'word'" in have[0]:
+        return
+    made = None
+    for statement in _statements(SCHEMA.read_text(encoding="utf-8")):
+        if re.match(r"(?:\s*--[^\n]*\n|\s)*CREATE TABLE IF NOT EXISTS item_events \(", statement):
+            made = re.sub(r"CREATE TABLE IF NOT EXISTS item_events \(", "CREATE TABLE item_events_3 (", statement, count=1)
+    if made is None:
+        raise Invalid(MIGRATE_FAILED)
+    seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+    con.execute(made)
+    con.execute("INSERT INTO item_events_3 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes "
+                "FROM item_events ORDER BY event_id")
+    con.execute("DROP TABLE item_events")
+    con.execute("ALTER TABLE item_events_3 RENAME TO item_events")
+    if seq is not None:             # the renamed table keeps the counter's place: make sure it is the old one, never lower
+        con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+        con.execute("INSERT INTO sqlite_sequence (name, seq) SELECT 'item_events', ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'item_events')", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+
+
+def migrate_to_3(con):
+    """Schema version 2 to 3 (#48): item_events accepts the route 'word', which its CHECK did not allow. `publications.word` already
+    exists in every version. Word takes the next free number, 3 at the time of writing: if #120 or #115 land first, this step is
+    renumbered (and SCHEMA_VERSION with it). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _item_events_allow_word(con)
+
+
+# The report_sections table as schema.sql makes it once a section may be of type needs or tracker, frozen here (a later change to
+# schema.sql never changes what this step makes; tests/test_store_migration.py pins it to schema.sql as it is today).
+REPORT_SECTIONS_WITH_CONTENT_TYPES = """CREATE TABLE IF NOT EXISTS report_sections (
+  project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
+  id      TEXT NOT NULL,
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker')),
+  title   TEXT NOT NULL,
+  body    TEXT NOT NULL DEFAULT '',
+  beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
+  hidden  INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0,1)),
+  sort_order INTEGER NOT NULL,
+  PRIMARY KEY (project, id)
+)"""
+
+
+def _report_sections_allow_content_types(con):
+    """report_sections.type gains 'needs' and 'tracker'. SQLite cannot change a CHECK in place, so the table is made again from the
+    frozen text above and the rows are copied in their order (nothing references this table, it has no trigger or index, and its
+    one outgoing key is kept). Only when the table's own definition does not name 'needs' yet, so a second run (or a new database)
+    does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_CONTENT_TYPES)
+        return
+    if "'needs'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_CONTENT_TYPES.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_content (", 1))
+    con.execute("INSERT INTO report_sections_content (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_content RENAME TO report_sections")
+
+
+def migrate_section_bodies(con):
+    """A section may be of type needs or tracker (the shared base for #121 and #189): report_sections is made again with the wider
+    type CHECK. Its own step and its own number (SCHEMA_VERSION: renumber at merge, the order is ruled by the Head); it touches no
+    other table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _report_sections_allow_content_types(con)
+
+
 def migrate_settings(con):
-    """The settings step (#47): the app_settings table with its one row (ask_enabled, on). The statements are schema_v3.sql's, so
+    """The settings step (#47): the app_settings table with its one row (ask_enabled, on). The statements are schema_v6.sql's, so
     a second run changes nothing: the table and the row are made only if missing. It changes no existing value. Runs inside the
-    caller's transaction and does not touch the version (the runner does). It is step 3 in MIGRATIONS."""
-    for statement in _statements(SCHEMA_V3.read_text(encoding="utf-8")):
+    caller's transaction and does not touch the version (the runner does). It is step 6 in MIGRATIONS."""
+    for statement in _statements(SCHEMA_V6.read_text(encoding="utf-8")):
         con.execute(statement)
 
 
-# version -> the step that brings a file TO that version. The runner refuses a gap, so a step takes the next free number after
-# main's SCHEMA_VERSION. The settings step (#47) is 3; PR #206 (#120) and #115 also want a step: whichever lands second takes the
-# next number at merge (renumber its frozen file and its entry here, then set SCHEMA_VERSION to the last).
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_settings))
+# The tables of the "I sent it" record (#50, step 7), frozen here: a later change to schema.sql must not change what this step
+# builds (tests/test_store_email_sent.py pins it to what schema.sql creates today).
+EMAIL_SENT_DDL = (
+    """CREATE TABLE IF NOT EXISTS email_sent (
+  seq     INTEGER PRIMARY KEY AUTOINCREMENT,
+  project TEXT NOT NULL REFERENCES projects(code),
+  at      TEXT NOT NULL DEFAULT (datetime('now')),
+  day     TEXT NOT NULL CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  mode    TEXT NOT NULL CHECK (mode IN ('update_request','chase','decision')),
+  by_user TEXT NOT NULL
+);""",
+    """CREATE TABLE IF NOT EXISTS email_sent_items (
+  seq     INTEGER NOT NULL REFERENCES email_sent(seq),
+  item_id TEXT NOT NULL CHECK (length(item_id) BETWEEN 1 AND 13),
+  PRIMARY KEY (seq, item_id)
+);""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_update BEFORE UPDATE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_delete BEFORE DELETE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_replace BEFORE INSERT ON email_sent
+WHEN EXISTS (SELECT 1 FROM email_sent WHERE seq = NEW.seq)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_update BEFORE UPDATE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_delete BEFORE DELETE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_replace BEFORE INSERT ON email_sent_items
+WHEN EXISTS (SELECT 1 FROM email_sent_items WHERE seq = NEW.seq AND item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
+)
+
+
+def migrate_email_sent(con):
+    """Schema version 6 to 7 (#50): the two tables and the triggers of the "I sent it" record.
+    Every statement is IF NOT EXISTS, so a half-applied copy is safe. It touches no other table (item_events is not rebuilt, so every route and place a file allows stays). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    for statement in EMAIL_SENT_DDL:
+        con.execute(statement)
+
+
+# #123: applies.utc_offset and the wider places, step 5 (the next free number after Word's 3 and the section bodies' 4). Frozen: never
+# reads schema.sql. The rebuilt item_events keeps every route and place the earlier steps allow (Word's 'word' among them), so a file
+# that already holds such a row still migrates and opens.
+HISTORY_VERSION = 5
+VERSION_5_ITEM_EVENTS = """CREATE TABLE item_events_v5 (
+  event_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         TEXT NOT NULL,
+  apply_id   INTEGER REFERENCES applies(apply_id),
+  item_id    TEXT NOT NULL,
+  change     INTEGER,
+  kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
+  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate','word')),
+  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board','eye','draft','email','text','ask')),
+  origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),
+  actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),
+  src_ref    TEXT CHECK (src_ref IS NULL OR (length(src_ref) <= 300 AND instr(src_ref, char(10)) = 0)),
+  undoes     INTEGER REFERENCES item_events(event_id)
+)"""
+VERSION_5_NEW_WORDS = ("'word'", "'eye'", "'draft'", "'email'", "'text'", "'ask'")     # the table is made again unless its definition names all of these
+
+
+def migrate_to_history(con):
+    """Schema version 4 to 5 (#123): applies.utc_offset (NULL on every old row: the zone was not recorded, and +00:00 would claim
+    UTC), and item_events made again with the wider places, ids kept, sequence kept, both indexes made again. Each part is skipped
+    when it is already done. Inside the caller's transaction; the runner writes the version."""
+    if "utc_offset" not in [r[1] for r in con.execute("PRAGMA table_info(applies)")]:
+        con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT CHECK (utc_offset IS NULL OR "
+                    "(length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]' AND substr(utc_offset, 2, 2) <= '14' "
+                    "AND substr(utc_offset, 5, 2) IN ('00','15','30','45') AND (substr(utc_offset, 2, 2) < '14' OR substr(utc_offset, 5, 2) = '00') "
+                    "AND utc_offset <> '-00:00'))")
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is not None and not all(w in have[0] for w in VERSION_5_NEW_WORDS):
+        seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+        con.execute(VERSION_5_ITEM_EVENTS)
+        con.execute("INSERT INTO item_events_v5 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                    "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes FROM item_events ORDER BY event_id")
+        con.execute("DROP TABLE item_events")
+        con.execute("ALTER TABLE item_events_v5 RENAME TO item_events")
+        if seq is not None:
+            con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+            con.execute("INSERT INTO sqlite_sequence (name, seq) SELECT 'item_events', ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'item_events')", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+
+
+# version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
+# number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
+              (7, migrate_email_sent))
 
 
 def migration_plan(version, table=None):
@@ -1657,7 +1877,8 @@ def migrate(con, table=None):
                         raise Invalid(MIGRATE_INCONSISTENT)
             con.execute("COMMIT")
         except BaseException:
-            con.execute("ROLLBACK")
+            if con.in_transaction:            # #48: a COMMIT that failed may have ended it already: the real error is the one to report
+                con.execute("ROLLBACK")
             raise
     finally:
         con.execute("PRAGMA foreign_keys = ON")
@@ -2025,19 +2246,23 @@ class Store:
         finally:
             con.close()
 
-    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None):
+    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0):
         """Record one published file: a `publications` row with the file's SHA-256, and nothing else. No change_log,
         no step and no write to any other table: a publication is a record of a file, not an edit (#39; Head ruling,
         28-10-2026), so Undo never meets it. The folder to offer next time is read back from the latest publication
         (`last_publish_folder`), not kept as a field of the project. `client_path` (#43) is the verified copy in the client
         folder, given only when To client was ticked and the copy read back with the same SHA-256; it is the same file, so it
-        is never the Local path. Returns the publication's number."""
+        is never the Local path. `word` is 1 for a Word report (#48, Head ruling Q2: one row for the Word file, with its own SHA-256, beside the web page's). Returns the publication's number."""
         if not str(by_user or "").strip():
             raise Invalid("a publication needs who made it (by_user)")
         if not re.fullmatch(r"[0-9a-f]{64}", str(sha256 or "")):
             raise Invalid("a publication needs the file's SHA-256")
         if not Path(str(path)).is_absolute():
             raise Invalid("a publication needs the file's full path")
+        if type(word) is not int or word not in (0, 1):
+            raise Invalid("a publication's word must be 0 or 1")
+        if client_path is not None and not Path(str(client_path)).is_absolute():
+            raise Invalid("a publication needs the client copy's full path")
         if week_ending is not None:
             try:
                 if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(week_ending)):
@@ -2061,8 +2286,8 @@ class Store:
                 raise Invalid(f"project {code} isn't here")
             cur = self.con.execute(
                 "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user) "
-                "VALUES (?, ?, ?, ?, 0, ?, 'not needed', ?)",
-                (code, week_ending, str(path), None if client_path is None else str(client_path), sha256, str(by_user).strip()))
+                "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?)",
+                (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip()))
             self.con.execute("COMMIT")
             return cur.lastrowid
         except BaseException:
@@ -2081,6 +2306,76 @@ class Store:
         r = self.con.execute("SELECT local_path FROM publications WHERE project = ? AND local_path IS NOT NULL "
                              "ORDER BY seq DESC LIMIT 1", (code,)).fetchone()
         return str(Path(r["local_path"]).parent) if r else None
+
+    EMAIL_MODES = ("update_request", "chase", "decision")
+    EMAIL_MAX_IDS = 50
+
+    def log_email_sent(self, code, ids, mode, day, by_user, today=None):
+        """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
+        was sent) and one `email_sent_items` row for each item asked about. Never the email's text or address. Like a publication it
+        is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
+        anything is written: a project that isn't here or is archived, a mode that isn't one of the three, no id or more than 50, an
+        id that is not a work item (action, risk or issue, decision) of this project, a day that is not a real date or is more than
+        one day ahead of today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
+        transaction. Returns the record's number."""
+        if not str(by_user or "").strip():
+            raise Invalid("A sent record needs who pressed it.")
+        if mode not in self.EMAIL_MODES:
+            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
+        if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
+            raise Invalid("Tick at least one item before you press I sent it.")
+        ids = list(dict.fromkeys(i.strip() for i in ids if i.strip()))
+        if not ids:
+            raise Invalid("Tick at least one item before you press I sent it.")
+        if len(ids) > self.EMAIL_MAX_IDS:
+            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts.")
+        try:
+            if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(day)):
+                raise ValueError
+            sent = date.fromisoformat(str(day))
+        except ValueError:
+            raise Invalid("The day the email was sent must be a real date.") from None
+        if sent > (today or date.today()) + timedelta(days=1):
+            raise Invalid("The day the email was sent can't be in the future.")
+        if self.con.in_transaction:
+            raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
+        try:
+            self.con.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as e:
+            raise Invalid(_busy(e)) from e
+        try:
+            row = self.con.execute("SELECT archived FROM projects WHERE code = ?", (code,)).fetchone()
+            if row is None:
+                raise Invalid("There is no project with that code.")
+            if row["archived"]:
+                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first.")
+            def ours(item):
+                return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
+                           for table in ("actions", "raid", "decisions"))
+            if not all(ours(i) for i in ids):
+                raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
+            seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
+                                   (code, str(day), mode, str(by_user).strip())).lastrowid
+            self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
+            self.con.execute("COMMIT")
+            return seq
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
+
+    def email_sent_for(self, code, limit=200):
+        """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
+        from a read-only connection. Chase counts for the tone come from this (draft_email.chase_counts)."""
+        con = connect(self.path, readonly=True)
+        try:
+            out = []
+            for r in con.execute("SELECT seq, at, day, mode, by_user FROM email_sent WHERE project = ? ORDER BY seq DESC LIMIT ?",
+                                 (code, max(1, min(int(limit), 200)))):
+                ids = [x["item_id"] for x in con.execute("SELECT item_id FROM email_sent_items WHERE seq = ? ORDER BY item_id", (r["seq"],))]
+                out.append({"seq": r["seq"], "at": r["at"], "day": r["day"], "mode": r["mode"], "by_user": r["by_user"], "ids": ids})
+            return out
+        finally:
+            con.close()
 
     def undo(self, step_id, by_user, place=None):
         """Reverse step `step_id` as a new step (creaite's undo-changes). Returns {"step_id", "reversed", "skipped"}; each
@@ -2126,6 +2421,11 @@ class Store:
         undo. It changes nothing. #45: each row also says its `field`, so an Undo can check the field and not only the table."""
         return [{"table": r["tbl"], "key": r["item_id"], "field": r["field"], "via": r["via"], "op": r["op"]} for r in self.con.execute(
             "SELECT tbl, item_id, field, via, op FROM change_log WHERE apply_id = ? ORDER BY rowid", (apply_id,))]
+
+    def step_actors(self, apply_id):
+        """Who made step `apply_id`, read only (#47e): the set of item_events actors for it ('you', 'clark'); empty when it wrote no
+        event or is not there. So /api/undo takes a step on the assistant route only when ask clark itself made it."""
+        return {r[0] for r in self.con.execute("SELECT DISTINCT actor FROM item_events WHERE apply_id = ?", (apply_id,))}
 
     def history(self, ref):
         from clark import history
@@ -2243,8 +2543,8 @@ class Step:
     def apply_id(self):
         """This step's applies row, made the first time something is logged."""
         if self._apply_id is None:
-            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device) VALUES (?, '[]', ?, ?)",
-                                   (now(), self.by_user, self.store.device))
+            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device, utc_offset) VALUES (?, '[]', ?, ?, ?)",
+                                   (now(), self.by_user, self.store.device, checked_offset(local_offset())))
             self._apply_id = cur.lastrowid
         return self._apply_id
 

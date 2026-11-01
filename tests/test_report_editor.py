@@ -19,6 +19,7 @@ from unittest import mock
 from _demo import USER, DemoStore
 from _editor_checks import edit_elements
 from _paths import SRC, TOOLS
+import _testpage as testpage
 
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
@@ -163,7 +164,7 @@ class Base(unittest.TestCase):
         self.real_undo = changes.make_undo(self.store.path, [], USER)
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING),
+        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
                          change=self.seam(self.real_change, "change"), undo=self.seam(self.real_undo, "undo"))
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)               # a fault on purpose is logged by the server
@@ -255,7 +256,7 @@ class Modes(Base):
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
 
     def test_a_report_with_no_sections_shows_none_and_does_not_crash(self):
-        s = Running(data_for=DATA.get, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        s = Running(data_for=DATA.get, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
@@ -267,9 +268,14 @@ class Modes(Base):
             self.assertEqual(p.js("document.querySelectorAll('[data-add]').length"), 1, "an empty report can still get its first section")
             p.js("window.posts = []; var f = window.fetch; window.fetch = function (u, o) { window.posts.push(String(o && o.body)); return f.apply(this, arguments); };")
             p.js("document.querySelector('[data-add]').click()")
-            self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "with nothing claiming the request, the button asks for a plain text section")
+            # The Add a section box (#96) claims the request, so the button opens it; its Add section then makes a plain text section at the end.
+            # (The fallback for a page with no box is tested at the "not claimed" toast below.)
+            p.until("!!document.querySelector('[role=dialog]')", "the button opens the Add a section box")
+            self.assertEqual(p.js("window.posts.length"), 0, "opening sends nothing")
+            p.js("document.querySelector('button[data-place]').click()")
+            self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "Add section asks for a plain text section")
             sent = json.loads(p.js("window.posts[0]"))
-            self.assertEqual(sent.get("values"), {"type": "text"})
+            self.assertEqual(sent.get("values"), {"type": "text", "title": "New section"})
             self.assertIsNone(sent.get("after"), "at the end")
 
 
@@ -1145,6 +1151,8 @@ class Gutter(Base):
             p.edit()
             self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "006 and 007 are a pair")
             p.js("document.querySelector('[data-id=\"ABC-S-006\"] [data-add]').click()")      # the + of the pair's first half
+            p.until("!!document.querySelector('button[data-place]') && !document.querySelector('button[data-place]').disabled", "the box opened with Text chosen")
+            p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12", "a plain text section was added")
             new = [i for i in p.ids() if i not in IDS][0]
             ids = p.ids()
