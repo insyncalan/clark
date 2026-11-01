@@ -1,4 +1,4 @@
-"""Where an update's trust comes from (insyncalan/clark-plan#282, point 1): src/clark/updates.py.
+"""Where an update's trust comes from (ticket #282, point 1): src/clark/updates.py.
 
 An update file is checked against the list of checksums INSIDE it (clark-release.json). That proves the file is whole, not that
 it is clark's: whoever builds a download can write a list that matches whatever they put in it. This test builds such a
@@ -40,7 +40,7 @@ class ProvenanceTest(unittest.TestCase):
             updates.read_release(make_zip(self.tmp, tweak=change), SYSTEM, "0.3.0", 2)
         self.assertEqual("damaged", caught.exception.key)
 
-    @unittest.expectedFailure       # no signature or pinned source is checked yet (insyncalan/clark-plan#282 point 1)
+    @unittest.expectedFailure       # no signature or pinned source is checked yet (ticket #282 point 1)
     def test_a_changed_file_with_a_matching_list_is_refused(self):
         files = listed_files()
         files["src/clark/store.py"] = b"# a different file from the one clark published\n"
