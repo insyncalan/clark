@@ -6,10 +6,12 @@ Served page (View) and the published file, at 1400 and 900 px, light and dark. F
 import shutil
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 
 from _demo import USER
 from test_glance_page import Published, Setup
+from clark import publish
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -48,6 +50,58 @@ class Served(Setup):
                 self.assertLessEqual(abs(b["right"] - 1), 1.5)
                 self.assertTrue(b["wide"], "no sideways scroll")
                 self.assertGreaterEqual(min(p.js(LUM)), 4.5)
+
+
+MARK = """(() => { const m = document.querySelector('header.cover .cover-mark'), c = getComputedStyle(m);
+  return {height: c.height, image: c.backgroundImage, first: document.querySelector('header.cover').firstElementChild === m, alt: m.getAttribute('aria-hidden')}; })()"""
+TOKENS = ':root { --cover-mark: url("data:image/png;base64,iVBORw0KGgo="); --cover-mark-height: 40px; }\n'
+
+
+class TheWeekAndTheLogo(Setup):
+    def coming_friday(self):
+        d = date.today()
+        return (d + timedelta(days=(4 - d.weekday()) % 7))
+
+    def test_row_34_a_project_with_no_week_shows_the_coming_friday_on_the_cover(self):
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"week_ending": None})
+        with chrome() as cdp:
+            line = self.show(cdp).js("document.querySelector('.cover-line').textContent")
+        self.assertIn("Week ending " + self.coming_friday().strftime("%d-%m-%Y"), line)
+
+    def test_row_70_the_cover_has_a_logo_place_that_is_empty_and_takes_no_room_by_default(self):
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                m = self.show(cdp, width, dark).js(MARK)
+                self.assertEqual((m["height"], m["image"], m["first"], m["alt"]), ("0px", "none", True, "true"))
+
+
+class TheLogoInTheFile(Published):
+    def publish_with(self, tokens):
+        folder = tempfile.mkdtemp(prefix="clark-439-brand-")
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        if tokens is not None:
+            (Path(folder) / "tokens.css").write_text(tokens, encoding="utf-8")
+        self.out = tempfile.mkdtemp(prefix="clark-439-")
+        self.addCleanup(shutil.rmtree, self.out, ignore_errors=True)
+        return Path(publish.publish(self.store, "ABC", self.out, by_user=USER, now="2026-10-28", branding=folder)["path"])
+
+    def test_row_70_the_logo_in_the_file_comes_from_the_local_brand_only(self):
+        plain = self.publish_with(None)
+        self.assertNotIn("iVBORw0KGgo=", plain.read_text(encoding="utf-8"), "no picture by default")
+        with chrome() as cdp:
+            m = self.draw(cdp, plain).js(MARK)
+        self.assertEqual((m["height"], m["image"]), ("0px", "none"))
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                m = self.draw(cdp, self.publish_with(TOKENS), width, dark).js(MARK)
+                self.assertEqual(m["height"], "40px")
+                self.assertIn("data:image/png", m["image"])
+
+    def test_the_file_carries_no_edit_control_on_the_cover(self):
+        path = self.publish_with(TOKENS)
+        with chrome() as cdp:
+            self.assertEqual(self.draw(cdp, path).js("document.querySelectorAll('header.cover button, header.cover input, header.cover a, header.cover [contenteditable]').length"), 0)
 
 
 class InTheFile(Published):

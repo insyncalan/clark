@@ -475,7 +475,7 @@ class InProcess(TempFolder):
         t.start()
         t.join(10)
         self.assertEqual(errors, [])
-        self.assertEqual(found, [{"code": "AAA", "name": "First programme"}, {"code": "ZZZ", "name": "Last programme"}])
+        self.assertEqual(found, [{"code": "AAA", "name": "First programme", "open": 0}, {"code": "ZZZ", "name": "Last programme", "open": 0}])
         self.assertEqual(projects(), found, "and again in this thread, after the other")
 
     def test_the_projects_function_is_not_the_stores_own_read(self):

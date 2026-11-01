@@ -231,10 +231,22 @@ def projects_of(path, onedrive_roots=None):
             raise
         try:
             rows = found.read("projects", archived=bool(archived))
+            opened = {} if archived else {r["code"]: open_items(found, r["code"]) for r in rows}     # #439: the switcher's "N open items"
         finally:
             found.close()
-        return [{"code": r["code"], "name": r["name"]} for r in sorted(rows, key=lambda r: r["code"])]
+        return [{"code": r["code"], "name": r["name"], **({"open": opened[r["code"]]} if r["code"] in opened else {})}
+                for r in sorted(rows, key=lambda r: r["code"])]
     return projects
+
+
+CLOSED_STATUSES = ("Closed", "Cancelled", "Made", "Withdrawn")      # as the page's isOpen (workItems.js): an action, risk, issue or decision with any other status is open
+
+
+def open_items(found, code):
+    """How many of the project's work items (actions, risks and issues, decisions) are open and not archived: the number the project
+    switcher says under each name. Counts only; never a title."""
+    return sum(1 for kind in ("actions", "raid", "decisions") for r in found.read(kind, project=code, archived=False)
+               if r["status"] not in CLOSED_STATUSES)
 
 
 def restore_main(argv, out, err, home=None, onedrive_roots=None):

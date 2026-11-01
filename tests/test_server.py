@@ -1086,6 +1086,18 @@ class ProjectList(ServerTest):
         self.assertNotIn(b"client_name", data)
         self.assertEqual(msg.get_all("Cache-Control"), ["no-store"])
 
+    def test_an_open_count_passes_through_only_as_a_plain_count(self):
+        """#439: the switcher says how many work items are open. A count the list gives (a whole number, 0 or more) is passed on; anything
+        else (text, a negative, a float, a bool) is left out, and nothing else of the row goes."""
+        rows = [{"code": "AAA", "name": "A", "open": 3, "client_name": "no"}, {"code": "BBB", "name": "B", "open": 0},
+                {"code": "CCC", "name": "C", "open": "7"}, {"code": "DDD", "name": "D", "open": -1}, {"code": "EEE", "name": "E", "open": 2.5},
+                {"code": "FFF", "name": "F", "open": True}]
+        s = Running(projects=lambda: rows)
+        self.addCleanup(s.close)
+        self.assertEqual(json.loads(s.api("GET", "/api/projects")[2])["projects"],
+                         [{"code": "AAA", "name": "A", "open": 3}, {"code": "BBB", "name": "B", "open": 0}, {"code": "CCC", "name": "C"},
+                          {"code": "DDD", "name": "D"}, {"code": "EEE", "name": "E"}, {"code": "FFF", "name": "F"}])
+
     def test_it_needs_the_token_and_this_machine(self):
         self.assertEqual(self.s.ask("GET", "/api/projects")[0], 403)
         self.assertEqual(self.s.api("GET", "/api/projects", token="wrong")[0], 403)
