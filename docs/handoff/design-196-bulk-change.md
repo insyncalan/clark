@@ -56,7 +56,12 @@ that item as it is and says why (the store's standing rule for every Undo, not n
 - A bulk change tells an archived item ("It is archived. Restore it first.") apart from a missing one ("It isn't in this
   project now."). Both are this project's own ids, so nothing about another project is told.
 - A decision that is Made or Withdrawn keeps who made it: a bulk "Made by" leaves it out and says so, so the record of
-  who decided is never rewritten.
+  who decided is never rewritten. The check is made again in the real step: a decision made or withdrawn from elsewhere
+  between the trial and the write refuses the whole step as out of date.
+- **V is deliberately not a bulk key.** The spec listed V for the client-visible flag on the cursor row; it is not built,
+  on purpose. The client-visible flag is refused in a bulk change (above), so showing items to a client stays a one-item,
+  one-at-a-time choice; and V already means View under the single-key switch, so it could not be taken here anyway. The
+  bulk keys are O, S, P, T and C only.
 - Impact and likelihood can be changed in bulk only; a single change still doesn't take them. This widens what a request may
   change on a risk or issue.
 - `changed` lists only the items whose row is different after the real write; one that had the value by then is counted

@@ -1066,6 +1066,8 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
         changed = []
         for ref in ready:
             before = store.read(table, ref=ref)
+            if table == "decisions" and "made_by" in changes and before["status"] in DECIDED:
+                raise Refused(STALE)                                # made or withdrawn since the trial: the whole step rolls back
             try:
                 st.update(table, ref, changes)
             except Invalid as e:                                    # changed since the trial: the whole step rolls back

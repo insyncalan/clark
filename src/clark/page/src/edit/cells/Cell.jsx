@@ -50,7 +50,7 @@ export function Cell({ row, field, said, children }) {
     if (plan) {
       if (field === "owner" && !String(value == null ? "" : value).trim()) return "An owner can't be blank. Type a name, or TBC if no one is known yet.";
       close(true);
-      ask(plan.question, () => runBulk(plan.table, plan.ids, plan.id, value, { place: "cell" }));
+      ask(plan.question, () => runBulk(plan.table, plan.ids, plan.id, value, { place: "cell", from: row.id, asked: true }), { ids: plan.ids, from: row.id });   // the question has the count: asked once
       return "";
     }
     const today = todayIso();

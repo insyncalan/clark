@@ -137,6 +137,23 @@ class Bulk(unittest.TestCase):
         self.assertEqual((body["code"], len(body["left_out"])), ("none_can", 2))
         self.assertEqual([self.value("decisions", r, "made_by") for r in (made, withdrawn)], ["Board", "Board"])
 
+    def test_a_decision_made_between_the_trial_and_the_write_is_refused_as_out_of_date(self):
+        real = clark_store.Store.step
+        fired = []
+
+        def made_elsewhere(store, via, by_user, *a, dry=False, **kw):
+            if not dry and not fired:                                # just before the real step: another window records it as made
+                fired.append(True)
+                with self.s.step("dashboard", USER) as st:
+                    st.update("decisions", self.decisions[1], {"status": "Made", "date": "2026-10-01"})
+            return real(store, via, by_user, *a, dry=dry, **kw)
+        with mock.patch.object(clark_store.Store, "step", made_elsewhere):
+            before = self.counts()
+            status, body = self.send("decisions", self.decisions, {"made_by": "Steering group"})
+        self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.STALE), body)
+        self.assertEqual(self.counts()[0], before[0] + 1, "only the other window's step was written")
+        self.assertEqual([self.value("decisions", r, "made_by") for r in self.decisions], ["Board", "Board"])
+
     def test_reopen_of_a_closed_item_still_works(self):
         self.send("actions", self.actions, {"status": "Closed"})
         _, body = self.send("actions", self.actions, {"status": "Open"})

@@ -453,6 +453,110 @@ class Page(Base):
             self.until(cdp, sid, "!document.querySelector('.bask')", "closed")
             self.assertEqual(([self.field(r, "priority") for r in rows], self.bulk_sent(), [w for w, q in self.sent if w == "change"]), (was, [], []))
 
+    def test_a_cell_above_25_asks_once(self):
+        with self.store.step("dashboard", "Demo User") as st:
+            for n in range(21):                                        # 26 actions with the five of the demo
+                st.create("actions", {"project": "ABC", "description": f"Extra task {n + 1}", "owner": "TBC", "raised": "2026-10-01", "source": "demo"})
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            self.focus(cdp, sid, rows[0])
+            press(cdp, sid, "a", MOD)
+            self.assertEqual(len(cdp.js("clarkPage.selected()", sid)), 26)
+            click(cdp, sid, f"#work-list tr[data-id='{rows[1]}'] [data-cell$=':priority']")
+            self.until(cdp, sid, "!!document.querySelector('.cpop [data-value=Low]')", "the priority menu")
+            click(cdp, sid, ".cpop [data-value=Low]")
+            self.until(cdp, sid, "!!document.querySelector('.bask')", "the question")
+            self.assertEqual(cdp.js("document.querySelector('.bask-q').textContent", sid), "Change the priority of all 26 selected items?")
+            click(cdp, sid, "[data-bask=yes]")
+            self.assertTrue(wait(lambda: len(self.bulk_sent()) == 1), "sent after the one answer")
+            self.assertFalse(cdp.js("!!document.querySelector('.bask')", sid), "no second question")
+            last = self.bulk_sent()[-1]
+            self.assertEqual((len(last["ids"]), last.get("confirm"), last["place"]), (26, True, "cell"))
+
+    # ---- the keyboard: a box keeps its own keys, and focus never falls to the page ----
+    def test_shift_f10_and_the_menu_key_in_a_box_keep_the_boxs_own_menu(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rid = cdp.js(self.ROWS, sid)[0]
+            click(cdp, sid, f"#work-list tr[data-id='{rid}'] [data-cell$=':owner']")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('cp-in')", "the owner box")
+            self.assertTrue(cdp.js(f"!!document.activeElement.closest(\"tr[data-id='{rid}']\")", sid), "the box is inside the row")
+            special(cdp, sid, "F10", "F10", 121, SHIFT)
+            special(cdp, sid, "ContextMenu", "ContextMenu", 93)
+            self.assertFalse(cdp.js("!!document.querySelector('.bmenu')", sid), "the bulk menu does not open while typing")
+            self.assertTrue(cdp.js("document.activeElement.classList.contains('cp-in')", sid), "the box keeps the keyboard")
+
+    def active_row(self, cdp, sid):
+        self.until(cdp, sid, "document.activeElement && document.activeElement !== document.body", "the keyboard back somewhere")
+        return cdp.js("(() => { const a = document.activeElement; return a.matches('tr[data-id], article.bcard[data-id]') ? a.dataset.id : a.tagName; })()", sid)
+
+    def test_after_a_change_from_the_bar_the_keyboard_goes_back_to_a_row(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = [r for r in cdp.js(self.ROWS, sid) if self.field(r, "status") != "Closed"][:2]
+            self.pick(cdp, sid, rows)
+            click(cdp, sid, "#sel-bar [data-bulk=owner]")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('cp-in')", "the owner box")
+            cdp.js("document.execCommand('insertText', false, 'Zelda Quince')", sid)
+            press(cdp, sid, "Enter")
+            self.assertIn("Changed 2 items.", self.toast(cdp, sid))
+            self.until(cdp, sid, "!document.querySelector('#sel-bar')", "the bar goes with the selection")
+            self.assertIn(self.active_row(cdp, sid), rows)
+
+    def test_after_a_change_from_the_menu_the_keyboard_goes_back_to_the_row_it_started_from(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = [r for r in cdp.js(self.ROWS, sid) if self.field(r, "status") != "Closed"]
+            self.focus(cdp, sid, rows[1])
+            special(cdp, sid, "F10", "F10", 121, SHIFT)
+            self.menu_items(cdp, sid)
+            click(cdp, sid, ".bmenu [data-bulk-menu=owner]")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('cp-in')", "the owner box")
+            cdp.js("document.execCommand('insertText', false, 'Zelda Quince')", sid)
+            press(cdp, sid, "Enter")
+            self.assertIn("Changed 1 item.", self.toast(cdp, sid))
+            self.assertEqual(self.active_row(cdp, sid), rows[1])
+            self.focus(cdp, sid, rows[2])
+            special(cdp, sid, "F10", "F10", 121, SHIFT)
+            self.menu_items(cdp, sid)
+            click(cdp, sid, ".bmenu [data-bulk-menu=close]")
+            self.assertTrue(wait(lambda: self.field(rows[2], "status") == "Closed"), "closed")
+            self.assertEqual(self.active_row(cdp, sid), rows[2], "Close from the menu too")
+
+    # ---- reasons a screen reader reads ----
+    def test_the_menus_mixed_kinds_reason_is_read_out(self):
+        with chrome() as cdp:
+            sid = self.load(cdp, kind=None)
+            a, r = self.id_of("Book the training room"), self.id_of("Supplier slips")
+            self.pick(cdp, sid, [a, r])
+            self.focus(cdp, sid, a)
+            special(cdp, sid, "F10", "F10", 121, SHIFT)
+            self.menu_items(cdp, sid)
+            got = cdp.js("(() => { const w = document.querySelector('.bmenu .bm-why'), c = document.querySelector('.bmenu [data-bulk-menu=copy]');"
+                         " const d = c.getAttribute('aria-describedby'); return [w.getAttribute('role'), w.getAttribute('aria-disabled'),"
+                         " d && document.getElementById(d) ? document.getElementById(d).textContent : null]; })()", sid)
+            self.assertEqual(got, ["menuitem", "true", "These items are of different kinds"])
+            press(cdp, sid, "Escape")
+
+    def test_the_bars_different_projects_reason_is_not_only_a_title(self):
+        real = self.s.httpd.data_for
+
+        def with_another_project(code, *a, **kw):                     # a row whose id is another project's, as a list of several would hold
+            data = real(code, *a, **kw)
+            if data and data.get("actions"):
+                data = dict(data, actions=list(data["actions"]) + [dict(data["actions"][0], id="XYZ-A-901")])
+            return data
+        self.s.httpd.data_for = with_another_project
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            self.assertIn("XYZ-A-901", rows)
+            self.pick(cdp, sid, [next(x for x in rows if x != "XYZ-A-901"), "XYZ-A-901"])
+            got = cdp.js("[...document.querySelectorAll('#sel-bar [data-bulk]')].filter(b => b.getAttribute('aria-disabled') === 'true').map(b => {"
+                         " const d = b.getAttribute('aria-describedby'), e = d && document.getElementById(d); return [b.dataset.bulk, e ? e.textContent : null]; })", sid)
+            self.assertEqual(got, [["workstream", "These items are in different projects"], ["milestone", "These items are in different projects"]])
+
     # ---- never deletes; Help; both widths, light and dark ----
     def test_nothing_offers_to_delete_or_archive(self):
         with chrome() as cdp:

@@ -31,39 +31,62 @@ const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
 const OVERLAY = ".cpop, .ddmenu, .dpick, .fbox, [role='dialog']:not([data-peek]), [role='alertdialog'], dialog[open]";   // open over the list (the peek is not one)
 const ITEM = "#work-list tr[data-id], #work-list article.bcard[data-id]";
 
-/** Send one change to `ids` (all of `table`); `value` is a picker's choice. Asks first above 25; clears the selection after a
- *  change that saved. Resolves to the reply, or null. */
-export function runBulk(table, ids, control, value, { place = "bulk" } = {}) {
+// The row or card for one of `ids` (`from`, the one the change started from, first), or null.
+function itemOf(ids, from) {
+  for (const id of [from, ...(ids || [])]) {
+    if (!id) continue;
+    const q = CSS.escape(id), el = document.querySelector(`#work-list tr[data-id="${q}"], #work-list article.bcard[data-id="${q}"]`);
+    if (el) return el;
+  }
+  return null;
+}
+
+// When the keyboard has nowhere to be (what had it has gone: the bar after the selection clears, a menu item), it goes back to
+// the row or card the change started from, so it never falls to the page.
+function refocus(ids, from) {
+  const a = document.activeElement;
+  if (a && a !== document.body && a.isConnected) return;
+  const el = itemOf(ids, from);
+  if (el) el.focus({ preventScroll: true });
+}
+
+/** Send one change to `ids` (all of `table`); `value` is a picker's choice. Asks first above 25, unless `asked` (the question
+ *  has been asked already, with the count); clears the selection after a change that saved. Resolves to the reply, or null. */
+export function runBulk(table, ids, control, value, { place = "bulk", from = null, asked = false } = {}) {
   const changes = B.changesFor(table, control, value);
   if (!changes || !ids.length) return Promise.resolve(null);
   const go = (confirm) => changeBulk(B.requestFor(table, ids, changes, { confirm, place }), B.backWords(ids.length)).then((r) => {
-    if (r && !r.ok && r.code === "confirm") { ask(B.confirmWords(r.count || ids.length), () => go(true)); return null; }
+    if (r && !r.ok && r.code === "confirm") { ask(B.confirmWords(r.count || ids.length), () => go(true), { ids, from }); return null; }
     if (r && r.ok && r.reply.changed.length) sel.clear();
+    setTimeout(() => { if (!bulkOpen.value) refocus(ids, from); }, 0);       // after the bar or the menu has gone
     return r && r.ok ? r.reply : null;
   });
-  if (B.needsConfirm(ids.length)) { ask(B.confirmWords(ids.length), () => go(true)); return Promise.resolve(null); }
-  return go(false);
+  if (!asked && B.needsConfirm(ids.length)) { ask(B.confirmWords(ids.length), () => go(true), { ids, from }); return Promise.resolve(null); }
+  return go(asked);
 }
 
-/** Ask a question with Change and Cancel; `yes` runs on Change. */
-export function ask(question, yes) { bulkOpen.value = { what: "ask", question, yes, back: document.activeElement }; }
+/** Ask a question with Change and Cancel; `yes` runs on Change. `ids` and `from`: where the keyboard goes back to if what had
+ *  it has gone. */
+export function ask(question, yes, { ids = null, from = null } = {}) { bulkOpen.value = { what: "ask", question, yes, ids, from, back: document.activeElement }; }
 
 /** Open a control for `ids`: Close and Reopen act at once, the others open their picker at `at`. */
-export function openControl(control, ids, at, place = "bulk") {
+export function openControl(control, ids, at, place = "bulk", from = null) {
   const sum = B.summary(rowsOf(ids)), why = B.keyWhy(control, sum, editing());
   if (why) { say("note", why); announce.value = why; return; }
   const c = B.CONTROLS.find((x) => x.id === control);
-  if (!c.menu) { bulkOpen.value = null; runBulk(sum.table, sum.ids, control, null, { place }); return; }
-  bulkOpen.value = { what: "pick", control, ids: sum.ids, table: sum.table, at, place, back: document.activeElement };
+  if (!c.menu) { bulkOpen.value = null; runBulk(sum.table, sum.ids, control, null, { place, from }); return; }
+  bulkOpen.value = { what: "pick", control, ids: sum.ids, table: sum.table, at, place, from, back: document.activeElement };
 }
 
-/** Open the "N items" menu for `ids` at `at` (an element, or a point {x, y}). */
-export function openMenu(ids, at, place = "menu") { bulkOpen.value = { what: "menu", ids: ids.slice(), at, place, back: document.activeElement }; }
+/** Open the "N items" menu for `ids` at `at` (an element, or a point {x, y}); `from` is the row or card it was opened on. */
+export function openMenu(ids, at, place = "menu", from = null) { bulkOpen.value = { what: "menu", ids: ids.slice(), at, place, from, back: document.activeElement }; }
 
 function close(back = true) {
   const was = bulkOpen.value;
   bulkOpen.value = null;
-  if (back && was && was.back && was.back.isConnected) was.back.focus({ preventScroll: true });
+  if (!back || !was) return;
+  if (was.back && was.back.isConnected && was.back !== document.body) was.back.focus({ preventScroll: true });
+  else refocus(was.ids, was.from);
 }
 
 // ── The bar's buttons (the SelectBar draws "N selected", Select all N matching and the X) ──
@@ -74,11 +97,12 @@ export function BulkActions() {
     <span class="sb-acts" role="group" aria-label={`Change ${B.itemsWords(sum.n)}`}>
       {list.map((c) => (
         <button type="button" key={c.id} class="sb-a" data-bulk={c.id} aria-disabled={c.on ? undefined : "true"} title={c.on ? undefined : c.why}
-          aria-haspopup={c.menu ? "dialog" : undefined}
+          aria-haspopup={c.menu ? "dialog" : undefined} aria-describedby={c.on ? undefined : why ? "sel-why" : `sel-why-${c.id}`}
           onClick={(e) => { if (c.on) openControl(c.id, ids, e.currentTarget, "bulk"); else { say("note", `${c.why}.`); announce.value = `${c.why}.`; } }}>
           {c.label}
         </button>
       ))}
+      {why ? null : list.filter((c) => !c.on).map((c) => <span class="sr-only" key={`why-${c.id}`} id={`sel-why-${c.id}`}>{c.why}</span>)}
       {why ? <span class="sb-why muted" id="sel-why">{why}</span> : null}
     </span>
   );
@@ -107,12 +131,12 @@ function ItemsMenu({ open }) {
         <div class="bm-h" role="presentation">{B.itemsWords(sum.n)}</div>
         {sum.table ? ctl.map((c) => (
           <button type="button" role="menuitem" class="menu-item" key={c.id} data-bulk-menu={c.id} aria-disabled={c.on ? undefined : "true"}
-            onClick={() => { if (c.on) { const at = open.at; bulkOpen.value = null; openControl(c.id, sum.ids, at, open.place); } }}>
+            onClick={() => { if (c.on) { const at = open.at; bulkOpen.value = null; openControl(c.id, sum.ids, at, open.place, open.from); } }}>
             <span class="mi-t">{c.menu ? `${c.label}…` : c.label}</span>{c.on ? null : <small class="mi-note">{c.why}</small>}
           </button>
-        )) : <div class="bm-why" role="presentation" aria-disabled="true">{B.WHY.kinds}</div>}
+        )) : <div class="bm-why" role="menuitem" aria-disabled="true" id="bm-why">{B.WHY.kinds}</div>}
         <div class="sep" role="separator" />
-        <button type="button" role="menuitem" class="menu-item" data-bulk-menu="copy" onClick={copy}><span class="mi-t">Copy IDs</span></button>
+        <button type="button" role="menuitem" class="menu-item" data-bulk-menu="copy" aria-describedby={sum.table ? undefined : "bm-why"} onClick={copy}><span class="mi-t">Copy IDs</span></button>
       </div>
     </Pop>
   );
@@ -124,7 +148,7 @@ function Picker({ open }) {
     const changes = B.changesFor(open.table, open.control, value);
     if (!changes) return open.control === "owner" || open.control === "made_by" ? "A name can't be blank. Type a name, or TBC if no one is known yet." : "";
     close();
-    runBulk(open.table, open.ids, open.control, value, { place: open.place });
+    runBulk(open.table, open.ids, open.control, value, { place: open.place, from: open.from });
     return "";
   };
   const shut = (back) => close(back);
@@ -187,17 +211,17 @@ export function installBulk() {
     e.preventDefault();
     const id = el.dataset.id;
     if (!sel.has(id)) sel.click(id, {}, [id]);
-    openMenu(targetIds(id), { x: e.clientX, y: e.clientY }, el.matches("article") ? "board" : "menu");
+    openMenu(targetIds(id), { x: e.clientX, y: e.clientY }, el.matches("article") ? "board" : "menu", id);
   });
   window.addEventListener("keydown", (e) => {
     if (e.defaultPrevented || e.isComposing || view.value !== "work" || fromFile.value || bulkOpen.value) return;
     const t = e.target, row = focusedItem(t), inPeek = !!item.value && !!(t && t.closest && t.closest("[data-peek]"));
     // Shift+F10 or the Menu key: the same menu, under the row or card.
     if ((e.key === "F10" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) || e.key === "ContextMenu") {
-      if (!row) return;
+      if (!row || busy(t)) return;                                // a box being typed in keeps its own menu, as a right-click does
       e.preventDefault();
       const r = row.getBoundingClientRect();
-      openMenu(targetIds(row.dataset.id), { x: r.left + 24, y: r.bottom }, row.matches("article") ? "board" : "menu");
+      openMenu(targetIds(row.dataset.id), { x: r.left + 24, y: r.bottom }, row.matches("article") ? "board" : "menu", row.dataset.id);
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat || !e.key || e.key.length !== 1) return;
@@ -209,7 +233,7 @@ export function installBulk() {
     if (!sum.n) return;
     const control = B.keyControl(e.key, sum.table || "actions");
     e.preventDefault();
-    openControl(control, ids, inPeek ? t : row, row && row.matches("article") ? "board" : "bulk");
+    openControl(control, ids, inPeek ? t : row, row && row.matches("article") ? "board" : "bulk", inPeek ? null : row.dataset.id);
   });
 }
 

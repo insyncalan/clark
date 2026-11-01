@@ -127,7 +127,8 @@ export function cellPlan(rowId, field, selectedRows) {
 
 // ── Keys on a row, a card, a selection or the open peek (Done-when 3) ──
 
-/** The control a letter key opens, for a table: O owner, S status, P priority, T due date, C close. V is not one yet. */
+/** The control a letter key opens, for a table: O owner, S status, P priority, T due date, C close. V is not one, on purpose:
+ *  the client-visible flag is never changed in bulk, and V means View (the design note says why). */
 export function keyControl(key, table) {
   const k = String(key || "").toLowerCase();
   if (k === "o") return table === "decisions" ? "made_by" : "owner";
