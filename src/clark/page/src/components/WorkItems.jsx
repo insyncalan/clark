@@ -11,7 +11,7 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
+import { data, project, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -23,6 +23,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
+import { archivedRows } from "../stores/archived.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
 // Adding an item is not built yet (#65 to #67): the Add button says so, in words, and records what was asked for.
@@ -204,7 +205,11 @@ export function WorkItems({ tools }) {
       <p class="sr" role="status" aria-live="polite" id="work-live">{announce.value}</p>
       {selecting() ? <p class="sr" role="status" aria-live="polite" id="sel-live">{sel.live.value}</p> : null}
       {allRows.value.length === 0
-        ? <p class="muted">{tools ? `This project has no work items yet. Use ${plan.word} to add the first.` : "This report has no work items."}</p>
+        ? <>
+            <p class="muted">{tools ? `This project has no work items yet. Use ${plan.word} to add the first.` : "This report has no work items."}</p>
+            {/* the prototype draws its bar (with Show archived) over an empty list too: archived items are reached from it */}
+            {tools && tools.ArchivedPill && !fromFile.value && archivedRows(project.value).length ? <Switches><tools.ArchivedPill /></Switches> : null}
+          </>
         : <>
             <Switches>{tools && tools.ArchivedPill && !fromFile.value ? <tools.ArchivedPill /> : null}<GroupBy board={board} />{fromFile.value ? <SearchBox /> : null}{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
             <FilterBar />

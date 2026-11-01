@@ -119,6 +119,53 @@ class Archived(Base):
             self.until(cdp, sid, "document.querySelector('#showArchived').textContent.trim() === 'Show archived 2'", "the count after Undo")
             self.assertEqual(self.archived_flags(), {self.gone[0]: 1, self.gone[1]: 1})
 
+    def test_a_reload_on_an_archived_items_address_keeps_the_peek_open(self):
+        from test_server import chrome
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.until(cdp, sid, "!!document.querySelector('#showArchived')", "the pill")
+            click(cdp, sid, "#showArchived")
+            self.until(cdp, sid, "document.querySelectorAll('#archived-list tr.arch').length === 2", "the rows")
+            click(cdp, sid, f"#archived-list tr[data-id='{self.gone[0]}']")
+            self.until(cdp, sid, "!!document.querySelector('#peek[data-archived]')", "the archived peek")
+            self.assertIn(self.gone[0], cdp.js("location.hash", sid), "the address names the item")
+            self.reload(cdp, sid)
+            self.until(cdp, sid, f"document.querySelector('#peek[data-archived]') && document.querySelector('#peek').dataset.peek === '{self.gone[0]}'", "the archived peek after a reload")
+            self.assertIn(self.gone[0], cdp.js("location.hash", sid), "the address still names it")
+            self.assertEqual(cdp.js("document.querySelectorAll('#pkRestore').length", sid), 0, "a reload is View: nothing to restore yet")
+            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+            self.until(cdp, sid, "document.querySelectorAll('#peek #pkRestore').length === 1", "Restore once Edit is on")
+
+    def test_a_mistyped_item_address_still_closes_the_peek_once_the_archived_read_is_done(self):
+        from test_server import chrome
+        with chrome() as cdp:
+            sid = self.visit(cdp, hash_="#work&p=ABC&item=ABC-A-999")
+            self.until(cdp, sid, "!!document.querySelector('#showArchived')", "the pill (the archived read is done)")
+            self.until(cdp, sid, "!document.querySelector('#peek')", "no peek")
+            self.assertNotIn("ABC-A-999", cdp.js("location.hash", sid), "the entry was rewritten without it")
+
+    def test_with_no_live_items_the_bar_and_the_pill_still_show_so_archived_items_are_reached(self):
+        from test_server import chrome
+        with self.store.step("dashboard", USER) as st:
+            for t in ("actions", "raid", "decisions"):
+                for r in self.data[t]:
+                    if not r.get("archived") and r["id"] not in self.gone:
+                        st.archive(t, r["id"])
+        everything = [r["id"] for t in ("actions", "raid", "decisions") for r in self.data[t]]
+        for width, scheme in VARIANTS:
+            with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                sid = self.visit(cdp, width=width, wait_for="#work")
+                self.scheme(cdp, sid, scheme)
+                self.until(cdp, sid, "!!document.querySelector('.wbar #showArchived')", "the pill in the bar over an empty list")
+                self.assertFalse(cdp.js("!!document.querySelector('#work-list')", sid), "no live list")
+                self.assertIn("no work items yet", cdp.js("document.querySelector('#work').textContent", sid))
+                self.assertEqual(cdp.js("document.querySelector('#showArchived').textContent.trim()", sid), f"Show archived {len(everything)}")
+                click(cdp, sid, "#showArchived")
+                self.until(cdp, sid, f"document.querySelectorAll('#archived-list tr.arch').length === {len(everything)}", "every archived row")
+                click(cdp, sid, f"#archived-list tr[data-id='{self.gone[0]}']")
+                self.until(cdp, sid, "!!document.querySelector('#peek[data-archived]')", "the archived peek")
+                self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
+
     def test_the_peek_has_no_restore_in_view(self):
         from test_server import chrome
         with chrome() as cdp:

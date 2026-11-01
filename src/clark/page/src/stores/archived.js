@@ -21,6 +21,10 @@ export function setShowArchived(on) {
 // and `latest_update` added, sorted by id as the prototype lists them.
 export const archivedItems = signal(null);
 
+// The project whose archived read has finished, whether it worked or not. A reload on an archived item's address waits for it
+// (stores/report.js settle) before deciding the item is unknown, so the peek stays open.
+export const archivedTried = signal("");
+
 /** The archived rows of this project, or [] when none are read for it. */
 export function archivedRows(code) {
   const a = archivedItems.value;

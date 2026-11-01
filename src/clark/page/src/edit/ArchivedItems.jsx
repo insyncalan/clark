@@ -8,10 +8,10 @@
 // live lists, the counts, a published file, the export or Ask. If a read fails the rows last read for this project stay; with none yet
 // there is no pill rather than a wrong count.
 import { useEffect } from "preact/hooks";
-import { project, data, openPeek, peek } from "../stores/report.js";
+import { project, data, openPeek, peek, settle } from "../stores/report.js";
 import { getArchived } from "../api.js";
 import { rowsFor } from "../logic/board.js";
-import { archivedItems, archivedRows, showArchived, setShowArchived } from "../stores/archived.js";
+import { archivedItems, archivedRows, archivedTried, showArchived, setShowArchived } from "../stores/archived.js";
 import { Icon } from "../components/Icon.jsx";
 import { KIND_WORDS, dueCell, ownerOf, metaOf, todayIso } from "../workItems.js";
 
@@ -45,6 +45,8 @@ export function ArchivedItems() {
       if (!live) return;
       if (r.ok) archivedItems.value = { code, rows: build(r.data, data.value) };
       else if (archivedItems.value && archivedItems.value.code !== code) archivedItems.value = null;
+      archivedTried.value = code;
+      settle();                              // an address that named an archived item is known now (or is not, and the peek closes)
     });
     return () => { live = false; };
   }, [code, d]);

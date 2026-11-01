@@ -9,7 +9,7 @@ import { decode, encode, fits, setPublished } from "../filters.js";
 import { searchIndex } from "../clientView.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
-import { archivedRow } from "./archived.js";
+import { archivedRow, archivedTried } from "./archived.js";
 
 export const VIEWS = route.VIEWS;
 export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }, clientreport: "Client Requested Report View", settings: "Settings" };   // the published tab is "Use Cases"
@@ -92,11 +92,13 @@ function go(s, options) {
 }
 
 // A peek whose item or milestone isn't in the project's data (deleted, mistyped, from an old link) opens the page with no
-// peek: the entry is rewritten, not added.
-function settle() {
+// peek: the entry is rewritten, not added. An item the open data lacks may be an archived one (Edit's Work items reads those after
+// the data), so on that page it waits for the archived read of this project, which then calls settle() again.
+export function settle() {
   const d = data.value;
   if (!d || status.value !== "ready" || (!item.value && !ms.value)) return;
   if (item.value ? known(d, item.value, false) : known(d, ms.value, true)) return;
+  if (item.value && !fromFile.value && view.value === "work" && archivedTried.value !== project.value) return;
   item.value = "";
   ms.value = "";
   route.navigate(where(), { replace: true });
