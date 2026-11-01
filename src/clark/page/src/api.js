@@ -54,6 +54,25 @@ async function postItem(path, body) {
 export const sendChange = (project, req) => post("/api/change", { project, kind: KIND, ...req }, !req.kind || req.kind === KIND ? hasSections : () => true);
 export const sendUndo = (project, applyId) => post("/api/undo", { project, apply_id: applyId });
 
+// Undo several (the Activity tab): `steps` are the steps of the rows chosen. A preview changes nothing; a run is one new change that
+// puts them all back. {ok: true, reply} or {ok: false, message, confirm}: `confirm` is true when the server wants the second
+// confirm (more than 25). Its refusals are fixed plain sentences, so a short one is shown as it is.
+export async function sendUndoMany(project, steps, { preview = false, confirm = false } = {}) {
+  try {
+    const r = await fetch("/api/undo", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify(preview ? { project, steps, preview: true } : confirm ? { project, steps, confirm: true } : { project, steps }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true && Array.isArray(reply.undo) && Array.isArray(reply.skipped)) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
+    return { ok: false, confirm: r.status === 409 && !!reply && reply.code === "confirm", message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, confirm: false, message: plainChange(0) };
+  }
+}
+
 // Sneak peek's reading (#42): typed words about one item as from → to changes. Read only; the server writes nothing for it.
 // {ok: true, reading} or {ok: false, message}. A refusal of the words (a date that isn't a day) comes back with its own message.
 export async function sneakRead(project, id, words) {

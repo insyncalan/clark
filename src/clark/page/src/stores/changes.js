@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendItemChange, sendCellChange, sendMilestoneChange, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
@@ -225,4 +225,24 @@ export function undoLast(code = project.value) {
   }
   say("note", "Nothing to undo.");
   return Promise.resolve(null);
+}
+
+// The Activity tab's Undo N (#232). `preview` reads what would be undone and what left, and changes nothing: {ok, reply} or
+// {ok: false, message}. Without it one new change undoes them all: the page reads the project again, the toast says what went back
+// and carries Undo (which takes the whole batch back), and the Movement block reads its milestones again.
+export function undoSeveral(steps, { preview = false, confirm = false } = {}) {
+  const code = project.value;
+  if (preview) return sendUndoMany(code, steps, { preview: true });
+  return enqueue(async () => {
+    const r = await sendUndoMany(code, steps, { confirm });
+    if (!r.ok) { if (!r.confirm) say("problem", r.message); return r; }
+    redraw(code, r.reply);
+    undone.value++;
+    for (const s of steps) { const at = undoable.findIndex((u) => u.step === s); if (at >= 0) undoable.splice(at, 1); }
+    if (await readAgain(code, "The changes were undone")) {
+      const words = typeof r.reply.words === "string" && r.reply.words ? r.reply.words : "Undone.";
+      say("done", words, r.reply.apply_id || null, code);
+    }
+    return r;
+  });
 }
