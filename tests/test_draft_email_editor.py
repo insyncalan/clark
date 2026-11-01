@@ -331,6 +331,19 @@ class Component(InBrowser):
         self.settle()
         self.assertEqual(self.text(".de-note"), "Marked as sent for 1 item on 13-10-2026. It is not saved to the history yet.")
 
+    def test_i_sent_it_with_no_day_given_records_the_computers_own_day_not_the_utc_day(self):
+        # Near midnight the computer's day and the UTC day differ; the record must carry the computer's day.
+        self.js("""Object.assign(Date.prototype, {
+            getFullYear() { return 2026; }, getMonth() { return 9; }, getDate() { return 14; },
+            toISOString() { return '2026-10-13T23:30:00.000Z'; } })""")
+        st = state(mode="chase", picked=["ABC-A-001"])
+        d = draft(mode="chase", picked=["ABC-A-001"])
+        self.js(f"T.mountEditor({lit(OFFERED)}, {lit(st)}, {lit(d)})")
+        self.settle()
+        self.js("Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()")
+        self.settle()
+        self.assertEqual(self.val("T.sent[0].date"), "2026-10-14")
+
     def test_i_sent_it_says_it_is_saved_when_the_history_has_it_and_marks_nothing_when_it_could_not(self):
         click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()"
         self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
