@@ -1,6 +1,7 @@
 // One section of the report (#65). In Edit, `tools` (edit/) adds the gutter control (grip, + and menu) and the editable title; View
 // never renders any of them, so they are not in the page at all.
 // A 'Needs from you' section (#121) is a table of rows: view only here and in a published file, edited in place in Edit (edit/NeedsEdit.jsx).
+// A 'Progress tracker' section (#189) is a bar and groups of lines: view only here and in a published file, edited in place in Edit (edit/TrackerEdit.jsx).
 // A text section's body (Summary, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
 // cleaned it (publish.clean_html) before it wrote the file, and the file holds nothing else. A published file draws no other type
 // (Dashboard leaves those sections out of it, so a client never reads that something is missing). The page clark serves never
@@ -20,6 +21,7 @@ import { UseCases } from "./UseCases.jsx";
 import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
 import { Needs } from "./Needs.jsx";
+import { Tracker } from "./Tracker.jsx";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -50,6 +52,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean, onE
       {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
         : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} />)
         : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
+        : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
         : editing && section.type === "text" && tools.richOn("body")
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
         : fromFile.value && section.type === "text"

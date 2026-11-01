@@ -440,6 +440,21 @@
     ]
    },
    {
+    "id": "show-progress",
+    "g": "The report",
+    "t": "Show progress against the plan",
+    "w": "Dashboard › Edit › Progress tracker",
+    "go": "dashboard+edit",
+    "s": [
+     "On the **Dashboard**, press **Edit**. In a **Progress tracker** section, press **Add a group**, give it a name and press **Add**. A group holds the plan lines for one part of the work.",
+     "In a group, press **Add a line**. Give it a number if you like, say what it is, and pick its **Status**: Planned, In progress, Completed or Late. Type its **Weight**, what was **Planned** and what was **Achieved** as percentages from 0 to 100, and its start and end as DD-MM-YYYY. Press **Add**.",
+     "Each line has **Edit**, the arrows to move it up or down, and **Remove**. A group has **Rename**, the arrows and **Remove group**.",
+     "The figures at the top are worked out for you: Actual and Planned are the totals of all the lines. A line, a group or the whole that is behind plan shows ▼ and how many points behind. If the weights do not add up to 100% a quiet line says so.",
+     "Pick the **Health** (On track, At risk or Off track), write a line about it, and switch on the Tasks, Agents or Workflows columns if you want them. In View and on the published page the section can be read but not changed.",
+     "Each line, group or setting you change is one change with its own **Undo**."
+    ]
+   },
+   {
     "id": "use-the-tiles",
     "g": "The report",
     "t": "Use the At a glance tiles",

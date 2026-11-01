@@ -21,7 +21,7 @@ def check(body):
 
 def line(**more):
     got = {"no": "1", "text": "Set up the test site", "start": "2030-01-01", "end": "2030-02-01", "status": "inprogress",
-           "weight": 400, "planned": 1000, "achieved": 800, "tasks": 12, "agents": None, "workflows": 3}
+           "weight": 20, "planned": 20, "achieved": 10, "tasks": 12, "agents": None, "workflows": 3}
     got.update(more)
     return got
 
@@ -101,10 +101,20 @@ class Shape(unittest.TestCase):
                 mutate(body)
                 self.refuses(body, words)
 
+    def test_no_total_of_weight_planned_or_achieved_passes_the_whole(self):
+        """Planned and achieved are shares of the whole (logic/tracker.js), so each column of figures adds up to 100% at most, across all groups."""
+        for field in ("weight", "planned", "achieved"):
+            body = {"groups": [{"name": "A", "lines": [line(**{field: 600}), line(text="Two", **{field: 400})]}, {"name": "B", "lines": []}]}
+            self.assertEqual(json.loads(check(body))["groups"][0]["lines"][1][field], 400, "a total of exactly 100% stands")
+            body["groups"][1]["lines"] = [line(text="Three", **{field: 1})]
+            self.refuses(body, sb.TRACKER_TOTAL)
+            self.assertEqual(sb.TRACKER_TOTAL, "The lines' weight, planned and achieved figures can each add up to 100% at most.")
+
     def test_a_percentage_is_a_whole_number_of_tenths_from_0_to_1000(self):
         for field in ("weight", "planned", "achieved"):
             for good in (0, 1, 625, 1000):
                 body = copy.deepcopy(DEMO)
+                body["groups"][0]["lines"][1][field] = 0                 # the other line's figure, so a whole 1000 can stand alone
                 body["groups"][0]["lines"][0][field] = good
                 self.assertEqual(json.loads(check(body))["groups"][0]["lines"][0][field], good)
             for bad in (-1, 1001, 100000, 1.5, "50", None, True, False, [], {}):
@@ -286,6 +296,28 @@ class Size(unittest.TestCase):
         self.assertLessEqual(sv.CHANGE_BODY_LIMIT, sv.BODY_LIMIT)
         for route, limit in (("/api/undo", 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
+
+
+class PublishedFailsClosed(unittest.TestCase):
+    """sb.published() answers for the tracker only when the kind is the tracker (a reader's LOW on the tracker's publish work)."""
+
+    BODY = {"groups": [{"name": "A", "lines": [{"text": "x", "weight": 100, "planned": 100, "achieved": 50}]}]}
+
+    def test_an_unknown_kind_is_never_published(self):
+        for kind in ("bogus", "", "Tracker", "text", "glance"):
+            self.assertIsNone(sb.published(kind, self.BODY), kind)
+            self.assertIsNone(sb.published(kind, {}), kind)
+
+    def test_only_the_tracker_kind_reaches_the_trackers_publisher(self):
+        """A template kind and the needs kind are answered by their own branch and never reach _published_tracker; a swapped order would fail this."""
+        from unittest import mock
+        with mock.patch.object(sb, "_published_tracker", side_effect=AssertionError("reached the tracker's publisher")) as tracker:
+            for kind in list(sb.TEMPLATES) + [sb.NEEDS, "bogus"]:
+                sb.published(kind, self.BODY)
+            tracker.assert_not_called()
+        with mock.patch.object(sb, "_published_tracker", return_value={"groups": []}) as tracker:
+            self.assertEqual(sb.published(sb.TRACKER, self.BODY), {"groups": []})
+            tracker.assert_called_once()
 
 
 if __name__ == "__main__":
