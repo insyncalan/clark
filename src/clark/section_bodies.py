@@ -33,7 +33,7 @@ BODY_TYPES = (NEEDS, TRACKER)            # the section types (besides text) that
 MAX_DEPTH = 8                            # lists and objects inside each other, at most
 MAX_DIGITS = 15                          # a whole number of more digits is refused before Python reads it (slow on 3.9)
 DEFAULT_LIMIT = 262144                   # bytes of stored text, unless LIMITS says less
-LIMITS = {NEEDS: 262144, TRACKER: 2 * 1024 * 1024}      # needs: 100 rows of the longest text, each character six ASCII bytes, still fits; tracker: 500 lines of the longest text in letters that take twelve ASCII bytes once stored (about 1.4 MB), see the tests
+LIMITS = {NEEDS: 262144, TRACKER: 262144}      # needs: 100 rows of the longest text, each character six ASCII bytes, still fits; tracker: the checker's own caps below keep the widest-letter tracker under this once stored
 
 
 class Bad(ValueError):
@@ -248,9 +248,9 @@ def _shown_needs_row(row):
 # every "points behind plan" figure and never stores one), it only keeps each value inside its range. A key that is missing
 # takes the default shown here; a key this does not know is refused, never dropped.
 TRACKER_VERSION = 1
-TRACKER_MAX_GROUPS = 20
-TRACKER_MAX_LINES_PER_GROUP = 100
-TRACKER_MAX_LINES = 500
+TRACKER_MAX_GROUPS = 10
+TRACKER_MAX_LINES_PER_GROUP = 80
+TRACKER_MAX_LINES = 80           # in all; the widest-letter tracker (every text at its longest, twelve ASCII bytes a letter) stores at 227724 bytes (measured), under LIMITS
 TRACKER_NAME_MAX = 80
 TRACKER_TEXT_MAX = 200
 TRACKER_NO_MAX = 10

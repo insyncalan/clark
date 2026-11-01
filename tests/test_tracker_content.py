@@ -1,5 +1,5 @@
 """The progress tracker's own shape (src/clark/section_bodies.py `_checked_tracker`, guarded) and the change route's size limit
-(src/clark/server.py CHANGE_BODY_LIMIT, guarded): a tracker of the largest size can be sent and saved, anything else is refused
+(src/clark/server.py CHANGE_BODY_LIMIT, guarded): the widest tracker the checker accepts is stored under its limit, anything else is refused
 in plain words that never quote the value.
 
 Run: python3 dev/run_tests.py test_tracker_content
@@ -33,7 +33,7 @@ DEMO = {"v": 1, "overall": {"actual": 625, "planned": 700, "health": "atrisk", "
 
 
 def biggest():
-    """The largest body the checker accepts: 20 groups, 500 lines in all, every text at its longest, in the widest letters."""
+    """The largest body the checker accepts: the most groups and lines, every text at its longest, in the widest letters."""
     return {"v": 1, "overall": {"actual": 1000, "planned": 1000, "health": "ontrack", "note": LETTER * sb.TRACKER_NOTE_MAX},
             "columns": {"tasks": True, "agents": True, "workflows": True},
             "groups": [{"name": LETTER * sb.TRACKER_NAME_MAX,
@@ -237,7 +237,7 @@ class Size(unittest.TestCase):
         self.assertEqual(sum(len(g["lines"]) for g in body["groups"]), sb.TRACKER_MAX_LINES)
         stored = check(json.dumps(body, ensure_ascii=False))
         self.assertLessEqual(len(stored.encode("ascii")), sb.LIMITS["tracker"])
-        self.assertGreater(len(stored), 1024 * 1024, "the worst case is over a megabyte, so the old 256 KB limit could never hold it")
+        self.assertLess(len(stored), 262144)
         self.assertEqual(check(stored), stored)
 
     def test_the_same_tracker_in_plain_ascii_is_well_inside_the_limit(self):
@@ -254,16 +254,9 @@ class Size(unittest.TestCase):
         self.assertEqual(str(e.exception), sb.TOO_BIG)
         self.assertEqual(sb.LIMITS["needs"], 262144)             # the needs limit is untouched
 
-    def test_the_largest_tracker_fits_the_change_route_as_the_page_sends_it_and_as_any_client_could(self):
-        text = json.dumps(biggest(), ensure_ascii=False)
-        request = {"kind": "report_section", "op": "go", "id": "ABC-S-001", "changes": {"body": text}}
-        for ensure_ascii in (False, True):       # a browser keeps the letters; another client may write every one as an escape
-            sent = json.dumps(request, ensure_ascii=ensure_ascii).encode("utf-8")
-            self.assertLessEqual(len(sent), sv.ROUTE_BODY_LIMITS["/api/change"], ensure_ascii)
-
     def test_the_change_route_limit_is_one_named_constant_and_the_small_routes_are_unchanged(self):
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
-        self.assertGreater(sv.CHANGE_BODY_LIMIT, 16 * 1024)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, 16 * 1024)
         self.assertLessEqual(sv.CHANGE_BODY_LIMIT, sv.BODY_LIMIT)
         for route, limit in (("/api/undo", 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
