@@ -7,8 +7,9 @@ import { Dashboard } from "./Dashboard.jsx";
 import { Peek } from "./Peek.jsx";
 import { UseCasesTab } from "./UseCasesTab.jsx";
 import { WorkItems } from "./WorkItems.jsx";
+import { ClientReport } from "./ClientReport.jsx";
 
-const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, settings: Settings };
+const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, settings: Settings };
 
 export function App({ tools }) {
   const own = (tabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
