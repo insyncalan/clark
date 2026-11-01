@@ -43,7 +43,7 @@ export function Edit({ section }) {
   const fid = `tpl-${section.id}`;
   const changed = oneLine(label) !== savedLabel || paragraphsOf(text).join("\n") !== savedText;
   return (
-    <div class="tpl-edit">
+    <div class="tpl-edit tpl-files-edit">
       {file ? <p class="tpl-od-file"><FileRow file={file} label={d ? d.label : ""} /></p>
         : <p class="quiet tpl-empty">No file yet. Choose the file: until then this section stays out of the published page.</p>}
       <div class="tpl-actions">

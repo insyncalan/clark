@@ -38,7 +38,7 @@ export function Edit({ section }) {
   const changed = f.href.trim() !== saved.href || oneLine(f.title) !== saved.title || oneLine(f.site) !== saved.site
     || paragraphsOf(f.text).join("\n") !== saved.text;
   return (
-    <div class="tpl-edit">
+    <div class="tpl-edit tpl-files-edit">
       {saved.href ? null : <p class="quiet tpl-empty">No link yet. Type the page's address: until then this section stays out of the published page.</p>}
       <form class="tpl-form" onSubmit={save} data-save>
         <label for={`${fid}-href`}>Link</label>

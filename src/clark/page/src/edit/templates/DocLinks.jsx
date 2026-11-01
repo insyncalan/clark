@@ -42,7 +42,7 @@ export function Edit({ section }) {
   };
   const fid = `tpl-${section.id}`;
   return (
-    <div class="tpl-edit">
+    <div class="tpl-edit tpl-files-edit">
       {shown.length ? (
         <ul class="tpl-dl">
           {raw.map((item, n) => {
