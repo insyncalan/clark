@@ -68,6 +68,8 @@ class Keys(ie.Live):
                 cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
                 key(cdp, sid, "ArrowRight")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens the peek")
+                self.until(cdp, sid, "document.activeElement.hasAttribute('data-pk-close')", "the peek takes focus when it opens")
+                cdp.js(f"document.querySelector('#work tr[data-id=\"{rows[0]}\"]').focus()", sid)      # back to the cursor, as a reader would
                 key(cdp, sid, "ArrowDown")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Down: the peek follows the cursor")
                 self.assertEqual(cdp.js(FOCUS, sid), rows[1])
@@ -150,6 +152,8 @@ class Keys(ie.Live):
                 self.assertIn("dotted", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={ids[0]}')", "Enter opens the card's peek")
+                self.until(cdp, sid, "document.activeElement.hasAttribute('data-pk-close')", "the peek takes focus when it opens")
+                cdp.js(f"document.querySelector('#work-board [data-id=\"{ids[0]}\"] .bc-main').focus()", sid)      # back to the cursor, as a reader would
                 key(cdp, sid, "ArrowDown")
                 self.until(cdp, sid, f"location.hash.includes('item={ids[1]}')", "with the peek open, the peek follows the cursor")
                 self.assertEqual(cdp.js("(document.querySelector('[data-move]') || {}).tagName || 'none'", sid), "none", "View: no Move to button")
