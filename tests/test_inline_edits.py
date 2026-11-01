@@ -13,6 +13,7 @@ import contextlib
 import json
 import re
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -537,6 +538,27 @@ class Live(unittest.TestCase):
             self.undo(cdp, sid, "rating", "TUL-007 is back to Red.")
             self.until(cdp, sid, "document.querySelector(\"tr[data-id='TUL-007'] .c-prio\").textContent === 'High'", "Undo draws it Red again")
             self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["High", ["rating:Red"]])
+
+    def test_a_rating_pick_with_two_rows_selected_changes_only_that_row(self):
+        mod = 4 if sys.platform == "darwin" else 2                       # Cmd on a Mac, Ctrl elsewhere
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            for ref, mods in (("TUL-007", 0), ("TUL-010", mod)):
+                x, y = cdp.js(f"(() => {{ const b = document.querySelector(\"tr[data-id='{ref}'] .c-item .t\").getBoundingClientRect(); return [b.x + 5, b.y + b.height / 2]; }})()", sid)
+                for kind, buttons in (("mousePressed", 1), ("mouseReleased", 0)):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1, "modifiers": mods}, sid)
+            self.until(cdp, sid, "document.querySelectorAll(\"tr[data-id].picked\").length === 2", "two risks and issues selected")
+            before, other = self.steps(), self.row("raid", "TUL-010")
+            click(cdp, sid, "[data-cell='TUL-007:status']")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
+            click(cdp, sid, "[data-pop] [data-value='rating:Green']")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
+            self.assertEqual(self.toast(cdp, sid), "TUL-007 rated Green.", "the one row, not a question about all of them")
+            self.assertNotIn("Change the status of all", cdp.js("document.body.textContent", sid))
+            self.changed_once(before, "rating")
+            self.assertEqual(self.row("raid", "TUL-007")["priority"], "Low")
+            r = self.row("raid", "TUL-010")
+            self.assertEqual((r["impact"], r["likelihood"], r["status"]), (other["impact"], other["likelihood"], other["status"]), "the other selected row is untouched")
 
     def test_a_pending_decision_made_gets_todays_date_and_no_undo(self):
         with chrome() as cdp:
