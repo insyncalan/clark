@@ -24,6 +24,8 @@ import { AiCard } from %(card)s;
 import { stubAiClient } from %(client)s;
 import { clarkEditor } from %(editor)s;
 import { forEditor } from %(html)s;
+import { menu, PLACES } from %(menu)s;
+window.menuOf = menu; window.placeOptions = PLACES;      // the page's menu table, for the flow tests
 window.opts = {};
 window.client = stubAiClient(window.opts);
 window.release = () => window.client.release();
@@ -59,7 +61,7 @@ def bundle(tmp):
     q = lambda *p: json.dumps(str(PAGE_SRC.joinpath(*p)))  # noqa: E731
     entry = Path(tmp) / "entry.jsx"
     entry.write_text(ENTRY % {"card": q("edit", "AiCard.jsx"), "client": q("edit", "aiClient.js"),
-                                                          "editor": q("core", "editor.js"), "html": q("core", "richHtml.js")}, encoding="utf-8")
+                                                          "editor": q("core", "editor.js"), "html": q("core", "richHtml.js"), "menu": q("logic", "aiMenu.js")}, encoding="utf-8")
     out = Path(tmp) / "ai.js"
     args = ["--bundle", "--format=iife", "--target=es2020", "--tsconfig-raw={}", "--loader:.jsx=jsx", *build_page.preact_flags(),
             str(entry), f"--outfile={out}"]

@@ -1086,6 +1086,8 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
   .ad-where { padding-top: 0; }
 }
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
+.pk-stale { margin: 0 0 8px; }
+.pk-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-small); }
 
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
