@@ -761,7 +761,7 @@ class Wording(RoundTrip):
 
         res = xi.apply_import(Locked(self.s), p, USER, state_path=self.state)
         self.assertFalse(res.applied)
-        self.assertIn("in use by another program", res.message)
+        self.assertIn("in use by something else", res.message)
         self.assertNotIn("database is locked", res.message)
 
 

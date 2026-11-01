@@ -9,7 +9,8 @@ export const MODES = [
   { mode: "decision", label: "Decision" },
 ];
 export const CHOOSE_A_KIND = "That kind of email isn't available. Choose Update request, Chase or Decision.";
-export const NOTHING_TO_RECORD = "Tick at least one item before you press I sent it.";
+export const NOTHING_SAVED = "Nothing was saved.";
+export const NOTHING_TO_RECORD = "Tick at least one item before you press I sent it. " + NOTHING_SAVED;
 export const COPY_REFUSED = "The browser did not copy it. Press ⌘C to copy the selected text.";
 export const NO_OPEN_ITEMS = "There are no open items to put in an email.";
 export const NO_ADDRESS = "No address yet. Add one in your mail app.";
@@ -72,10 +73,21 @@ export function pickWords(n, of) {
 export function sentWords(entry, saved = false, failed = false) {
   const n = (entry.ids || []).length;
   const [y, m, d] = text(entry.date).split("-");
-  if (failed) return "That could not be saved to the history, so nothing was marked as sent. Try again.";
+  if (failed) return "That could not be saved to the history. Try again. " + NOTHING_SAVED;
   const items = `${n} ${n === 1 ? "item" : "items"}`;
   if (saved) return `Recorded: ${items} marked as sent on ${d}-${m}-${y}. It is in the history.`;      // only after the save worked
   return `Marked as sent for ${items} on ${d}-${m}-${y}. It is not saved to the history yet.`;
+}
+
+/** What a person reads when "I sent it" got no message of the server's own (a fault, no answer, an old page): by the status of the
+ *  reply (0 for none), each ending "Nothing was saved." and saying what to do next. */
+export function sentFailedWords(status) {
+  const tail = " " + NOTHING_SAVED;
+  if (status === 0) return "clark did not answer. Start it again from clark.command, then try again." + tail;
+  if (status === 403) return "This page is out of date. Reload the page and try again." + tail;
+  if (status === 500) return "A problem came up recording that. Try again. If it happens again, restart clark." + tail;
+  if (status === 503) return "That could not be recorded just now. Wait a moment and try again. If it keeps happening, restart clark." + tail;
+  return "That could not be recorded. Reload the page and try again." + tail;
 }
 
 /** What the builder is asked with each time something changes. Only the editor's own inputs; the caller adds the items, the
@@ -201,9 +213,9 @@ export function mailLink(draft, limit) {
  *  kind of email, never the email's text. Throws in plain words when nothing is ticked or the kind is unknown. The caller
  *  saves it as one undoable step (#31's path; not built here). */
 export function sentEntry(ids, mode, day) {
-  if (!modeKnown(mode)) throw new Error(CHOOSE_A_KIND);
+  if (!modeKnown(mode)) throw new Error(`${CHOOSE_A_KIND} ${NOTHING_SAVED}`);
   const seen = Array.from(new Set((ids || []).filter((i) => typeof i === "string" && i.trim()))).slice(0, MAX_IDS);
   if (!seen.length) throw new Error(NOTHING_TO_RECORD);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text(day))) throw new Error("The date for this record is missing. Reload the page and try again.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text(day))) throw new Error("The date for this record is missing. Reload the page and try again. " + NOTHING_SAVED);
   return { kind: SENT_KIND, ids: seen, date: day, mode };
 }

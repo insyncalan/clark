@@ -140,7 +140,7 @@ class Logic(InBrowser):
         self.assertEqual(self.val("T.logic.MODES.map((m) => m.label)"), ["Update request", "Chase", "Decision"])
         msg = self.error("T.logic.buildOptions({mode: 'remind'})")
         self.assertEqual(msg, "That kind of email isn't available. Choose Update request, Chase or Decision.")
-        self.assertEqual(self.error("T.logic.sentEntry(['ABC-A-001'], 'remind', '2026-10-13')"), msg)
+        self.assertEqual(self.error("T.logic.sentEntry(['ABC-A-001'], 'remind', '2026-10-13')"), msg + " Nothing was saved.")
 
     def test_toggling_keeps_the_order_of_the_offered_items(self):
         got = self.val(f"T.logic.togglePick({lit(OFFERED)}, ['ABC-A-005'], 'ABC-A-001')")
@@ -252,12 +252,25 @@ class Logic(InBrowser):
         self.assertNotIn("%0D", head)
         self.assertNotIn("%0A", head)
 
+    def test_a_failure_with_no_words_of_the_servers_own_ends_nothing_was_saved(self):
+        """#208(d): the 5xx, no-answer, stale-page and other fallbacks of I sent it, word for word."""
+        want = {
+            0: "clark did not answer. Start it again from clark.command, then try again. Nothing was saved.",
+            403: "This page is out of date. Reload the page and try again. Nothing was saved.",
+            500: "A problem came up recording that. Try again. If it happens again, restart clark. Nothing was saved.",
+            503: "That could not be recorded just now. Wait a moment and try again. If it keeps happening, restart clark. Nothing was saved.",
+            404: "That could not be recorded. Reload the page and try again. Nothing was saved.",
+            418: "That could not be recorded. Reload the page and try again. Nothing was saved.",
+        }
+        for status, words in want.items():
+            self.assertEqual(self.val(f"T.logic.sentFailedWords({status})"), words, status)
+
     def test_i_sent_it_records_ids_day_and_kind_never_the_text(self):
         got = self.val("T.logic.sentEntry(['ABC-A-001', 'ABC-A-001', 'ABC-A-002', ''], 'chase', '2026-10-13')")
         self.assertEqual(got, {"kind": "email_sent", "ids": ["ABC-A-001", "ABC-A-002"], "date": "2026-10-13", "mode": "chase"})
-        self.assertEqual(self.error("T.logic.sentEntry([], 'chase', '2026-10-13')"), "Tick at least one item before you press I sent it.")
+        self.assertEqual(self.error("T.logic.sentEntry([], 'chase', '2026-10-13')"), "Tick at least one item before you press I sent it. Nothing was saved.")
         self.assertEqual(self.error("T.logic.sentEntry(['ABC-A-001'], 'chase', 'today')"),
-                         "The date for this record is missing. Reload the page and try again.")
+                         "The date for this record is missing. Reload the page and try again. Nothing was saved.")
         # The same shape as the Python module's own entry, so the store can take either.
         py = draft_email.sent_entry(["ABC-A-001", "ABC-A-002"], "chase", "2026-10-13")
         self.assertEqual(py, {"kind": "email_sent", "ids": ["ABC-A-001", "ABC-A-002"], "date": "2026-10-13", "mode": "chase"})
@@ -339,14 +352,14 @@ class Component(InBrowser):
         self.settle()
         self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
         self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
-        self.js("T.reply = {ok: false, message: 'One of the ticked items is not in this project. Reload the page and tick again.'}")
+        self.js("T.reply = {ok: false, message: 'One of the ticked items is not in this project. Untick it, or reload the page.'}")
         self.js(click)
         self.settle()
-        self.assertEqual(self.text(".de-note"), "One of the ticked items is not in this project. Reload the page and tick again.")
+        self.assertEqual(self.text(".de-note"), "One of the ticked items is not in this project. Untick it, or reload the page.")
         self.js("T.reply = {ok: false}")
         self.js(click)
         self.settle()
-        self.assertEqual(self.text(".de-note"), "That could not be saved to the history, so nothing was marked as sent. Try again.")
+        self.assertEqual(self.text(".de-note"), "That could not be saved to the history. Try again. Nothing was saved.")
 
     def test_i_sent_it_pressed_twice_while_one_is_in_flight_sends_one_and_is_disabled_until_the_reply(self):
         # #258: a second press does nothing until the reply
@@ -381,7 +394,7 @@ class Component(InBrowser):
 
     def test_a_missing_sender_name_blocks_copying_with_its_next_step(self):
         self.mount(state(), draft(picked=["ABC-A-001"], **{"from": ""}))
-        self.assertEqual(self.text(".de-problem"), "Add your name in Settings › Profile so it signs the email.")
+        self.assertEqual(self.text(".de-problem"), "Add your name under Settings, Personal, About you so it signs the email.")
 
     def test_copy_for_outlook_puts_html_and_text_on_the_clipboard_and_says_copied(self):
         self.mount()

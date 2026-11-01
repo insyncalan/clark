@@ -28,6 +28,9 @@ def sentence(n):
     return ("The date on this computer is a long way from today. " * 120)[: n - len(tail)] + tail
 
 
+NAMES = ("BAD_SENT", "BUSY_SENT", "BAD_CODE", "BAD_PICK", "BAD_DATE", "SENT_BAD_DAY", "SENT_BAD_PROJECT", "SENT_BAD_PICK", "SENT_TOO_MANY")
+
+
 class Shown(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -100,12 +103,14 @@ class RouteStaysUnderTheCap(unittest.TestCase):
                 elif isinstance(arg, ast.JoinedStr):                      # an f-string: its fixed parts plus up to 3 digits for a number
                     found.append("".join(p.value if isinstance(p, ast.Constant) else "999" for p in arg.values))
         for node in feed.body:                                            # BAD_SENT, BUSY_SENT, and the shared refusals the seam uses
-            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                if node.targets[0].id in ("BAD_SENT", "BUSY_SENT", "BAD_CODE", "BAD_PICK", "BAD_DATE"):
+            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and node.targets[0].id in NAMES:
+                if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
                     found.append(node.value.value)
+                elif isinstance(node.value, ast.JoinedStr):
+                    found.append("".join(p.value if isinstance(p, ast.Constant) else "999" for p in node.value.values))
         self.assertGreaterEqual(len(found), 10, "the scan found the route's refusals")
-        for said in found:
-            self.assertLessEqual(len(said), cap, said)
+        for said in found:                                                # the route adds " Nothing was saved." to all but the 409 wait
+            self.assertLessEqual(len(said) + len(" Nothing was saved."), cap, said)
 
 
 if __name__ == "__main__":

@@ -136,8 +136,8 @@ class InTheHistory(Base):
 
 class Refusals(Base):
     def test_each_refusal_writes_nothing_and_says_what_to_do(self):
-        self.refuses("who pressed it", who="  ")
-        self.refuses("who pressed it", who=None)
+        self.refuses("Add your name under Settings, Personal, About you", who="  ")
+        self.refuses("Add your name under Settings, Personal, About you", who=None)
         self.refuses("isn't one clark records", mode="reminder")
         self.refuses("Tick at least one item", ids=[])
         self.refuses("Tick at least one item", ids=["  ", ""])
@@ -150,7 +150,7 @@ class Refusals(Base):
         self.refuses("is not a real date", day="2026-02-30")
         self.refuses("is not a real date", day="20261028")
         self.refuses("is not a real date", day="28-10-2026")
-        self.refuses("There is no project", code="QQQ")
+        self.refuses("That project could not be found", code="QQQ")
 
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:
@@ -161,7 +161,15 @@ class Refusals(Base):
         with self.store.step("dashboard", USER):
             with self.assertRaises(Invalid) as caught:
                 self.send()
-            self.assertIn("middle of a step", str(caught.exception))
+            self.assertEqual(str(caught.exception), "clark is busy saving another change. Wait a moment, then press I sent it again.")
+
+    def test_no_name_for_who_pressed_it_says_where_to_add_one(self):
+        """#208(a): the refusal says what to do, with no 'sent record'."""
+        for who in ("", "   ", None):
+            with self.subTest(who=who):
+                with self.assertRaises(Invalid) as caught:
+                    self.send(who=who)
+                self.assertEqual(str(caught.exception), "Add your name under Settings, Personal, About you, then try again.")
 
     def test_the_email_words_are_in_no_column(self):
         con = sqlite3.connect(self.store.path)
