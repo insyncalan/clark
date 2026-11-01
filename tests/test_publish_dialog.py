@@ -129,7 +129,7 @@ class Dialog(Base):
             p.open_publish()
             self.assertIn("A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too.", p.dialog_text())
             p.js("document.querySelector('#pub-client').click()")
-            p.until("document.querySelector('#pub-warn')", "the line about the client")
+            p.until("!!document.querySelector('#pub-warn')", "the line about the client")
             self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), "The client will see this page.")
             p.js("document.querySelector('#pub-pdf').click()")
             p.until("document.querySelector('#pub-warn').innerText === 'The client will see this page and the PDF.'", "the line names the PDF")
