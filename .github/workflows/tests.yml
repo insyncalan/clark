@@ -6,7 +6,7 @@
 # Ubuntu 24.04: the newest Python on every file (the browser tests included), and Python 3.9 (the oldest clark supports) on
 # the files that never start Chrome (`--quick`: the quick tier, read from the files by dev/tools/run_support.py). So a browser
 # test runs once per commit, and the oldest Python is still tested on all the rest. macOS (the newest Python, every file) runs
-# on every pull request, on release branches (release-X.Y.Z, and the v0.1-release style line: v*-release*), and when started by hand with macos=true, and is REQUIRED there: clark is Mac first
+# on every pull request that is not a draft, on release branches (release-X.Y.Z, and the v0.1-release style line: v*-release*), and when started by hand with macos=true, and is REQUIRED there: clark is Mac first
 # (unlike creaite, where it is optional). A macOS runner that fails to start is re-run once before anyone calls it a failure.
 #
 # Safety: `pull_request`, never `pull_request_target` (a fork's code never runs with this repository's token or secrets);
@@ -25,6 +25,7 @@ on:
       files: {description: "Test files to run (empty: all)", required: false, default: ""}
       macos: {description: "Add the macOS job", type: boolean, required: false, default: false}
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]       # ready_for_review: a draft that is marked ready gets its macOS run
   push:
     branches: [main]
 
@@ -85,11 +86,11 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   macos:
-    # macOS (the newest Python, every file) on every pull request, on release branches (release-*, v*-release*), and when a
+    # macOS (the newest Python, every file) on every pull request that is not a draft, on release branches (release-*, v*-release*), and when a
     # hand-started run sets macos=true: gh workflow run Tests --ref <branch> -f macos=true. Required when it runs: "Tests
     # passed" waits for it. It runs on pull requests because clark is a Mac product and the runners cost nothing on a public
     # repository; before the repository was public they were paid, which is why it used to run only on a release.
-    if: github.event_name == 'pull_request' || (startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')
+    if: (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')
     name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}
     runs-on: macos-latest
     timeout-minutes: 30
@@ -138,7 +139,7 @@ jobs:
       - env:
           TESTS: ${{ needs.tests.result }}
           MACOS: ${{ needs.macos.result }}
-          WANT_MACOS: ${{ (github.event_name == 'pull_request' || (startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')) && '1' || '' }}
+          WANT_MACOS: ${{ ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')) && '1' || '' }}
         run: |
           echo "Linux: $TESTS; macOS: $MACOS (required: ${WANT_MACOS:-no})"
           test "$TESTS" = "success"

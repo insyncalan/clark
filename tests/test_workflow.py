@@ -46,7 +46,7 @@ MAC_APP = "/Applications/Google" + " Chrome.app/Contents/MacOS/Google" + " Chrom
 ON_PATH = "command -v google-chrome || command -v chrom" + "ium || command -v chrom" + "ium-browser"
 BRANCH = "github.head_ref || github.ref_name"
 RELEASE_BRANCH = f"(startsWith({BRANCH}, 'release-') || (startsWith({BRANCH}, 'v') && contains({BRANCH}, '-release')))"
-WANTS_MACOS = ("github.event_name == 'pull_request' || "
+WANTS_MACOS = ("(github.event_name == 'pull_request' && github.event.pull_request.draft == false) || "
                f"{RELEASE_BRANCH} || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')")
 
 
@@ -61,6 +61,9 @@ class Workflow(unittest.TestCase):
         self.assertIn("workflow_dispatch:", on)
         self.assertRegex(block(on, "macos", 6), r"type: boolean")
         self.assertIn("pull_request:", on)
+        # a draft pull request gets no macOS run, and marking it ready starts one
+        self.assertIn("types: [opened, synchronize, reopened, ready_for_review]", block(on, "pull_request", 2))
+        self.assertIn("github.event.pull_request.draft == false", self.text)
         self.assertRegex(block(on, "push", 2), r"branches: \[main\]")
 
     def test_a_documents_only_change_still_runs_the_suite(self):
@@ -130,7 +133,7 @@ class Workflow(unittest.TestCase):
         for job in ("tests", "macos"):
             self.assertEqual(set(re.findall(r"shard: (\d+), shards: (\d+)", self.jobs[job])), {("1", "1")}, job)
 
-    def test_macos_on_every_pull_request_and_on_release_branches_and_by_hand(self):
+    def test_macos_on_every_non_draft_pull_request_and_on_release_branches_and_by_hand(self):
         mac = self.jobs["macos"]
         self.assertIn(f"if: {WANTS_MACOS}\n", mac + "\n")
         self.assertRegex(mac, r"runs-on: macos-latest")
