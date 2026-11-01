@@ -228,7 +228,7 @@ export function WorkItems({ tools }) {
     if (!fromFile.value && !f.value && kept !== FL.BASE && allRows.value.length) setLine(kept);
   }, []);
   return (
-    <section class="frame work" id="work">
+    <section class={`frame work${fromFile.value ? " pub" : ""}`} id="work">
       <p class="crumbs">{d.project.name}</p>
       <div class="head">
         <h1>Work items</h1>
