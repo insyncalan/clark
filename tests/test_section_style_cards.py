@@ -24,7 +24,7 @@ WIDTHS = (1400, 900)
 LOOKS = ("light", "dark")
 NAMES = ["Slim gaps", "Roomy gaps", "Grey headers", "One card"]
 IDS = ["slim", "roomy", "grey", "card"]
-NOTE = "These are for you, on this computer. This changes the page you edit. The published page uses Slim gaps for now."
+NOTE = "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone."
 
 # Colour maths, in the page: a computed colour is rgb(...) or rgba(...); a clear one is looked through to what is behind it.
 JS_HELPERS = """
@@ -210,21 +210,59 @@ class Cards(Base):
 
         self.each_look(check)
 
-    def test_C_the_note_says_what_is_true_about_the_published_report(self):
+    def test_C_the_note_and_the_order_match_the_prototype(self):
         def check(p, w, look):
             self.assertEqual(p.js("document.querySelector('#personal > p.muted').textContent"), NOTE)
 
         self.each_look(check)
-        # What the note claims: the file carries a style word (its data block), but it is slim unless the project's own input has one,
-        # and nothing in clark supplies one: the choice made here lives in the browser only.
+        # The group comes first, before Appearance, and its lines are the prototype's.
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.assertEqual(p.js("[...document.querySelectorAll('#personal > fieldset legend')].map(l => l.textContent).slice(0, 3)"),
+                             ["Dashboard sections", "Appearance", "About you"])
+            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('small').textContent)"), [
+                "Each section is its own card, with a slim gap that shows the page picture.", "The same, with more space between the sections.",
+                "Slim gaps, and each section title in a grey band, like the Work items groups.", "All the sections in one long card."])
+        # What the note claims: the file carries a style word (its data block), slim unless one of the four is given.
         for name in publish.STYLES:
             self.assertEqual(self.block({"section_style": name})["style"], name, "the file can carry any of the four")
         self.assertEqual(self.block({})["style"], "slim", "with no style given, the file is Slim gaps")
         self.assertEqual(self.block({"section_style": "wide"})["style"], "slim")
-        suppliers = [f.name for f in sorted(SRC.glob("clark/*.py")) if f.name != "publish.py" and "section_style" in f.read_text(encoding="utf-8")]
-        self.assertEqual(suppliers, [], "no module hands the publish the style chosen on this page, so the note must not say it is used")
         kept = [f.name for f in sorted((SRC / "clark" / "page" / "src").rglob("*.js*")) if "clark.section-style" in f.read_text(encoding="utf-8")]
         self.assertEqual(kept, ["style.js"], "the choice is kept in the browser only")
+
+    def test_C_the_chosen_card_is_in_the_published_file_and_the_preview(self):
+        # The page sends the chosen style with Publish; the file's own data block carries it (the published page has no route and no Settings).
+        for pick in IDS:
+            with self.subTest(pick=pick), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p)
+                p.js(f"document.querySelector('#personal input[name=secstyle][value={pick}]').click()")
+                p.until(f"document.documentElement.dataset.secstyle === '{pick}'", "the choice applied")
+                self.rig.save_to = self.rig.local / f"{pick}.html"
+                p.open_publish()
+                p.go()
+                p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+                text = (self.rig.local / f"{pick}.html").read_text(encoding="utf-8")
+                got = json.loads(re.search(r'id="clark-data">(.*?)</script>', text, re.S).group(1))
+                self.assertEqual(got["style"], pick)
+                p.js("document.querySelector('[data-go]').click()")
+        status, got = self.rig.publish(section_style="roomy")
+        self.assertEqual((status, got["ok"]), (200, True))
+        status, got = self.rig.call("POST", "/api/preview", {"project": "PUB", "section_style": "grey"})
+        self.assertEqual(status, 200)
+        shown = self.rig.call("GET", got["url"])[1]
+        self.assertIn(b'"style":"grey"', shown)
+
+    def test_a_word_that_is_not_a_style_publishes_slim_and_none_publishes_slim(self):
+        for body in ({"section_style": "wide"}, {"section_style": 3}, {}):
+            self.rig.save_to = self.rig.local / "x.html"
+            if self.rig.save_to.exists():
+                self.rig.save_to.unlink()
+            status, got = self.rig.publish(**body)
+            self.assertEqual((status, got["ok"]), (200, True), body)
+            self.assertIn('"style":"slim"', self.rig.save_to.read_text(encoding="utf-8"), body)
 
     def block(self, extra):
         d = data()

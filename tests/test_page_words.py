@@ -171,13 +171,13 @@ class Words(unittest.TestCase):
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder",
                                   "Personal",    # #45: Settings › Personal, the section styles
-                                  "These are for you, on this computer. This changes the page you edit. The published page uses Slim gaps for now.",
+                                  "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.",
+                                  "Dashboard sections", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture.",
+                                  "Roomy gaps", "The same, with more space between the sections.", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups.",
+                                  "One card", "All the sections in one long card.",
                                   "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
-                                  "Dashboard sections", "Slim gaps", "Sections close together, divided by a thin line.",
-                                  "Roomy gaps", "More space between sections.", "Grey headers", "Each section's title sits on a grey band.",
-                                  "One card", "All the sections inside a single card.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Logs and diagnostics",      # #110
