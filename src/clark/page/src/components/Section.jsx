@@ -11,7 +11,7 @@
 // A section template (#96) is drawn by its own parts, looked up by type (Edit: its Edit part from tools.templateEdit, given the
 // section and the tools; View and the file: its view part from templates/index.js, given the section and the report's data). Dashboard leaves a template
 // with nothing to show out of View and the file, so its view part is only ever asked to draw something. No branch per template
-// is ever added here.
+// is ever added here. The Supporting documents section (#74) is its links: Documents.jsx in View and a file, tools.DocumentsEdit in Edit.
 import { dropAt, fromFile, data } from "../stores/report.js";
 import { templateFor } from "../templates/index.js";
 import { anchorId } from "../logic/minimap.js";
@@ -20,6 +20,7 @@ import { UseCases } from "./UseCases.jsx";
 import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
 import { Needs } from "./Needs.jsx";
+import { Documents } from "./Documents.jsx";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -50,6 +51,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean, onE
       {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
         : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} />)
         : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
+        : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : editing && section.type === "text" && tools.richOn("body")
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
         : fromFile.value && section.type === "text"

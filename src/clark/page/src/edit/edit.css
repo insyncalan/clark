@@ -429,6 +429,21 @@ textarea.tpl-field { resize: vertical; }
 .tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-small); }
 .tpl-empty { margin: 0; }
 
+/* #74 Supporting documents in Edit: each link's buttons, the add or edit form, and "Add back a document". Tokens only. */
+.docs-edit { gap: var(--space-2); margin: var(--space-2) 0; }
+.docs-edit .docs-list { margin: 0; }
+.docs-row { flex-wrap: wrap; }
+.docs-row-buttons { flex: none; display: flex; gap: var(--space-1); align-self: center; }
+.docs-row-buttons .btn, .docs-left-list .btn { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; }
+.docs-row .docs-form { flex: 1 1 100%; }
+.tpl-form select { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-form select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.docs-form-buttons { display: flex; gap: var(--space-2); }
+.docs-left summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
+.docs-left summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.docs-left-list { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.docs-left-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }
