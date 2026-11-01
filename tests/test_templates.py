@@ -675,6 +675,7 @@ class Box(Base):
             p.js("document.querySelector('[data-undo]').click()")
             self.assertTrue(wait(lambda: len(seen) == 2, 10), f"both undos were tried: {seen}")
             p.until("!!document.querySelector('.toast.problem')", "the toast says the removal failed")
+            self.assertIn("The section above was put back", p.toast())
             self.assertIn("could not be removed", p.toast())
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12, "the section is still there")
             self.assertEqual(p.js(f"!!document.querySelector('[data-id=\"{new}\"]')"), True)
