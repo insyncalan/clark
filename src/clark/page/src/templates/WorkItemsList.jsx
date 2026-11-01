@@ -36,8 +36,8 @@ function Cell({ row, col, now }) {
 
 // The rows, at both widths. `open(id)` (Edit only) makes each row open its peek: a click, or Enter on the focused row.
 export function Rows({ rows, columns, now, open }) {
-  const act = open ? (row) => ({ tabIndex: 0, "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
-    onKeyDown: (e) => { if (e.key === "Enter" && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
+  const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
+    onKeyDown: (e) => { if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
   const before = columns.filter((c) => c === "type" || c === "id"), after = columns.filter((c) => c !== "type" && c !== "id");
   return (
     <>

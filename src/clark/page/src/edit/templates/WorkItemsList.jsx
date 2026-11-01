@@ -2,7 +2,7 @@
 // ticked, a choice picked, the number or the caption left with Enter or Tab) saves the whole filter as ONE change (one step, one
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { data, openPeek } from "../../stores/report.js";
 import { change, say } from "../../stores/changes.js";
 import { Rows, today } from "../../templates/WorkItemsList.jsx";
@@ -16,6 +16,8 @@ export const NO_MATCH = "No work items match this filter, so this section is lef
 export const ONLY_SHOWN = "Only work items that go in the published page are listed.";
 export const BAD_MAX = `Show between 1 and ${MAX_ROWS} work items. Type a number in that range.`;
 export const LONG_CAPTION = `The caption can be at most ${MAX_CAPTION} characters. Shorten it and save again.`;
+
+const points = (t) => [...t].length;
 
 function Boxes({ id, legend, field, values, words, chosen, onToggle }) {
   return (
@@ -51,30 +53,41 @@ export function Edit({ section }) {
   const ucName = Object.fromEntries((d.use_cases || []).map((u) => [u.id, u.ref ? `${u.ref} ${u.title || ""}`.trim() : (u.title || u.id)]));
   const none = (f) => (v) => (v === NONE ? WORDS.none[f] : f === "use_case" ? (ucName[v] || v) : v);
 
-  const save = (next) => change({ op: "update", id: section.id, changes: { body: bodyOf(next) }, place: "report" }, SAVED)
-    .then((reply) => { if (!reply) setTick((n) => n + 1); return reply; });
+  // The latest filter the page meant to save, kept while saves are still waiting: a second choice made before the first reply is
+  // built on the first, not on the body last read. Once nothing is waiting, the saved body is the truth again.
+  const meant = useRef(null), waiting = useRef(0);
+  const latest = () => (waiting.current > 0 && meant.current ? meant.current : filter);
+  const save = (next) => {
+    meant.current = next; waiting.current += 1;
+    return change({ op: "update", id: section.id, changes: { body: bodyOf(next) }, place: "report" }, SAVED)
+      .then((reply) => { if (!reply) setTick((n) => n + 1); return reply; })
+      .finally(() => { waiting.current -= 1; if (waiting.current <= 0) meant.current = null; });
+  };
   const toggle = (field, v) => {
-    const have = filter[field];
-    save({ ...filter, [field]: have.includes(v) ? have.filter((x) => x !== v) : [...have, v] });
+    const cur = latest(), have = cur[field];
+    save({ ...cur, [field]: have.includes(v) ? have.filter((x) => x !== v) : [...have, v] });
   };
   const toggleColumn = (field, v) => {
-    const next = filter.columns.includes(v) ? filter.columns.filter((x) => x !== v) : COLUMNS.filter((c) => c === v || filter.columns.includes(c));
+    const cur = latest();
+    const next = cur.columns.includes(v) ? cur.columns.filter((x) => x !== v) : COLUMNS.filter((c) => c === v || cur.columns.includes(c));
     if (!next.length) { say("problem", "Choose at least one column to show."); setTick((n) => n + 1); return; }
-    save({ ...filter, columns: next });
+    save({ ...cur, columns: next });
   };
-  const pick = (field, v) => save({ ...filter, [field]: v });
+  const pick = (field, v) => save({ ...latest(), [field]: v });
   const commitMax = (e) => {
     const el = e.currentTarget, n = Number(el.value);
     if (n === filter.max && saved) return;
     if (!Number.isInteger(n) || n < 1 || n > MAX_ROWS) { say("problem", BAD_MAX); el.value = String(filter.max); return; }
-    save({ ...filter, max: n });
+    save({ ...latest(), max: n });
   };
   const commitCaption = (e) => {
     const el = e.currentTarget, text = el.value.split(/\s+/).filter(Boolean).join(" ");
     if (text === filter.caption) { el.value = filter.caption; return; }
-    if (text.length > MAX_CAPTION) { say("problem", LONG_CAPTION); return; }
-    save({ ...filter, caption: text });
+    if (points(text) > MAX_CAPTION) { say("problem", LONG_CAPTION); return; }
+    save({ ...latest(), caption: text });
   };
+  // Counted as the store counts: one emoji is one character, not two.
+  const capInput = (e) => { if (points(e.currentTarget.value) > MAX_CAPTION) say("problem", LONG_CAPTION); };
   const keys = (e) => {
     if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
     else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = e.currentTarget.name === "max" ? String(filter.max) : filter.caption; e.currentTarget.blur(); }
@@ -101,7 +114,7 @@ export function Edit({ section }) {
         </label>
         <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
         <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>
-          <input type="text" name="caption" maxLength={MAX_CAPTION} value={filter.caption} onChange={commitCaption} onKeyDown={keys} />
+          <input type="text" name="caption" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
         </label>
       </div>
       <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>

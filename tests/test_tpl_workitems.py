@@ -494,6 +494,46 @@ class InThePage(PageBase):
             p.key("Enter", code="Enter", vk=13)
             p.until(f"location.hash.includes('item={self.a_later}')", "Enter opened its peek")
 
+    def test_two_ticks_made_before_the_first_reply_are_both_kept(self):
+        ref = self.add({})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            base = f"[data-id=\"{ref}\"] [data-field=kinds] input"
+            p.until(f"!!document.querySelector({json.dumps(base + '[value=risk]')})", "the form drew")
+            p.js(f"(() => {{ for (const v of ['risk', 'action']) document.querySelector({json.dumps(base)}.replace('input', 'input[value=' + v + ']')).click(); }})()")
+            p.until(f"document.querySelectorAll({json.dumps(base + ':checked')}).length === 2", "both ticks stay")
+            p.saved()
+            body = json.loads(self.store.read("report_sections", ref=ref)["body"])
+            self.assertEqual(sorted(body["kinds"]), ["action", "risk"])
+
+    def test_a_caption_of_many_emoji_is_typed_and_saved_as_counted_by_the_store(self):
+        ref = self.add({})
+        caption = "\U0001F600" * 150
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            cap = f"[data-id=\"{ref}\"] [data-field=caption] input"
+            p.until(f"!!document.querySelector({json.dumps(cap)})", "the form drew")
+            self.assertFalse(p.js(f"document.querySelector({json.dumps(cap)}).hasAttribute('maxlength')"))
+            p.js(f"document.querySelector({json.dumps(cap)}).focus()")
+            p.type(caption)
+            p.key("Enter", code="Enter", vk=13)
+            p.saved()
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["caption"], caption)
+
+    def test_rows_are_buttons_and_space_opens_them_like_enter(self):
+        ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            row = f"[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{self.a_later}\"]"
+            p.until(f"!!document.querySelector({json.dumps(row)})", "the preview drew")
+            self.assertEqual(p.js(f"document.querySelector({json.dumps(row)}).getAttribute('role')"), "button")
+            p.js(f"document.querySelector({json.dumps(row)}).focus()")
+            p.key(" ", code="Space", vk=32)
+            p.until(f"location.hash.includes('item={self.a_later}')", "Space opened its peek")
+
     def toast(self, p):
         return p.js("(document.querySelector('.toast-text') || {}).textContent || ''")
 
