@@ -5,9 +5,9 @@
 // same pieces below. A line behind plan carries "▼ n" and, for a screen reader, the words, so colour is never the only signal.
 // Every value is a text node: nothing the section holds is read as markup. The sums come from logic/tracker.js and are never stored.
 import { useEffect, useState } from "preact/hooks";
-import { data, fromFile } from "../stores/report.js";
-import { showDate } from "../workItems.js";
-import { trackerOf, totals, fill, fmt, statusWord, healthWord, behindWords, COLUMNS, WORDS } from "../logic/tracker.js";
+import { data, fromFile, asAt } from "../stores/report.js";
+import { showDate, todayIso } from "../workItems.js";
+import { trackerOf, totals, fill, fmt, lineFill, markEdge, statusWord, healthWord, behindWords, COLUMNS, WORDS } from "../logic/tracker.js";
 
 const DASH = "—";
 const HEALTH_PILL = { ontrack: "g", atrisk: "a", offtrack: "r" };
@@ -23,27 +23,57 @@ export const Behind = ({ behind }) => (behind > 0
   ? <span class="tr-behind"><span aria-hidden="true">▼ {fmt(behind)}</span><span class="sr">{behindWords(behind)}</span></span>
   : null);
 
+// The Overall part, as the approved weekly-snapshot design draws it (#451): three tiles (Project health, Actual "of the whole project",
+// Planned "by <date>"), then the bar with a "Planned n%" label over the mark and a 0% to 100% scale under it. The date is the day the file
+// was published (or today, in the app), the same day every other section reads as "now". The reading is for the picture: the bar says it
+// in words to a screen reader, and the label and scale are drawn for the eye only.
 export function Overall({ overall }) {
   const { actual, planned, health, note, behind, behindWords: said } = overall;
   const pct = (t) => (t === null ? DASH : `${fmt(t)}%`);
+  const by = fromFile.value && asAt.value ? asAt.value : todayIso();
   const label = actual === null ? WORDS.none : `${WORDS.actual} ${pct(actual)}${planned === null ? "" : `, ${WORDS.planned.toLowerCase()} ${pct(planned)}`}`;
+  const edge = planned === null ? "" : markEdge(planned);
   return (
     <div class="tr-overall" data-tr-overall>
-      <div class="tr-figs">
-        <div class="tr-fig"><span class="tr-k">{WORDS.actual}</span><span class="tr-v num" data-tr-actual>{pct(actual)}</span></div>
-        <div class="tr-fig"><span class="tr-k">{WORDS.planned}</span><span class="tr-v num" data-tr-planned>{pct(planned)}</span></div>
-        {health || note ? (
-          <div class="tr-health">
-            {health ? <span class={`pill ${HEALTH_PILL[health]} tr-pill`} data-tr-health>{healthWord(health)}</span> : null}
-            {note ? <span class="tr-note">{note}</span> : null}
-          </div>
-        ) : null}
+      <div class="tr-tiles">
+        <div class="tr-tile tr-tile-health" data-tr-tile>
+          <span class="tr-k">{WORDS.healthTile}</span>
+          <span class="tr-hrow">
+            {health ? <span class={`pill ${HEALTH_PILL[health]} tr-pill`} data-tr-health>{healthWord(health)}</span> : <span class="tr-v num">{DASH}</span>}
+            {" "}
+            {said || note ? (
+              <span class="tr-reason">
+                {said ? <span class="tr-behindline" data-tr-behind>{said}</span> : null}
+                {said && note ? " " : null}
+                {note ? <span class="tr-note">{note}</span> : null}
+              </span>
+            ) : null}
+          </span>
+        </div>
+        <div class="tr-tile" data-tr-tile>
+          <span class="tr-k">{WORDS.actual}</span>
+          <span class="tr-v num" data-tr-actual>{pct(actual)}</span>
+          {" "}
+          <span class="tr-d">{WORDS.actualOf}</span>
+        </div>
+        <div class="tr-tile" data-tr-tile>
+          <span class="tr-k">{WORDS.planned}</span>
+          <span class="tr-v num" data-tr-planned>{pct(planned)}</span>
+          {" "}
+          {planned !== null ? <span class="tr-d num">{WORDS.plannedBy} {showDate(by)}</span> : null}
+        </div>
       </div>
-      <div class="tr-bar" role="img" aria-label={label}>
-        <span class="tr-fill" style={{ width: `${fill(actual) / 10}%` }} />
-        {planned !== null ? <span class="tr-mark" style={{ left: `${fill(planned) / 10}%` }} /> : null}
+      <div class="tr-barw">
+        <div class="tr-bar" role="img" aria-label={label} data-tr-bar>
+          <span class="tr-fill" style={{ width: `${fill(actual) / 10}%` }} />
+          {planned !== null ? (
+            <span class="tr-mark" style={{ left: `${fill(planned) / 10}%` }}>
+              <span class={`tr-mark-label${edge ? ` tr-edge-${edge}` : ""}`} data-tr-mark-label aria-hidden="true">{WORDS.planned} {pct(planned)}</span>
+            </span>
+          ) : null}
+        </div>
+        <div class="tr-scale num" data-tr-scale aria-hidden="true"><span>{WORDS.scaleStart}</span><span>{WORDS.scaleEnd}</span></div>
       </div>
-      {said ? <p class="tr-behindline" data-tr-behind>{said}</p> : null}
     </div>
   );
 }
@@ -81,7 +111,7 @@ export function GroupFull({ group, columns: shown, extraHead, extraCell, below, 
         <tr>
           <th scope="col" class="t-no">{WORDS.no}</th><th scope="col" class="t-what">{WORDS.what}</th>
           {date(<th scope="col" class="t-date">{WORDS.start}</th>)}{date(<th scope="col" class="t-date">{WORDS.end}</th>)}<th scope="col" class="t-status">{WORDS.status}</th>
-          <th scope="col" class="t-n">{WORDS.weight}</th><th scope="col" class="t-n">{WORDS.planned}</th><th scope="col" class="t-n">{WORDS.achieved}</th>
+          <th scope="col" class="t-n">{WORDS.weight}</th><th scope="col" class="t-n">{WORDS.planned}</th><th scope="col" class="t-n t-ach">{WORDS.achieved}</th>
           {columns.map(([k, w]) => <th key={k} scope="col" class="t-n t-count">{w}</th>)}
           {extraHead || null}
         </tr>
@@ -95,7 +125,7 @@ export function GroupFull({ group, columns: shown, extraHead, extraCell, below, 
               <td class="t-status"><StatusPill status={l.status} /></td>
               <td class="t-n num">{fmt(l.weight)}%</td>
               <td class="t-n num">{fmt(l.planned)}%</td>
-              <td class="t-n num">{fmt(l.achieved)}%<Behind behind={l.behind} /></td>
+              <td class="t-n t-ach num"><span class="tr-ach"><span class="tr-pbar" aria-hidden="true"><i style={{ width: `${lineFill(l)}%` }} /></span><b>{fmt(l.achieved)}%</b><Behind behind={l.behind} /></span></td>
               {columns.map(([k]) => <td key={k} class="t-n t-count num">{l[k] === null ? DASH : l[k]}</td>)}
               {extraCell ? extraCell(l, i) : null}
             </tr>
@@ -147,7 +177,6 @@ export function Tracker({ section, slot }) {
     <div class={`sec-tracker tr-${fit}`} data-tracker data-fit={fit}>
       <Overall overall={t.overall} />
       {t.groups.map((g, i) => (fit === "full" ? <GroupFull key={i} group={g} columns={columnsOf(tracker)} /> : <GroupHalf key={i} group={g} />))}
-      {t.weightsNote ? <p class="quiet tr-weights" data-tr-weights>{t.weightsNote}</p> : null}
     </div>
   );
 }

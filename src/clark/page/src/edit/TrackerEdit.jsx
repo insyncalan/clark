@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
+import { weightsNote } from "../logic/trackerNote.js";
 import { Overall, GroupFull, GroupHalf, columnsOf, fitOf, useNarrow, colCount } from "../components/Tracker.jsx";
 import {
   trackerOf, totals, pct, problem, totalProblem, made, draftOf, blankLine, nameProblem, noteProblem, bodyOf, STATUSES, HEALTH, COLUMNS, NAME_MAX, TEXT_MAX, NO_MAX, NOTE_MAX, WORDS,
@@ -195,7 +196,7 @@ export function TrackerEdit({ section, slot }) {
           </p>
         </div>
       ))}
-      {t.weightsNote ? <p class="quiet tr-weights" data-tr-weights>{t.weightsNote}</p> : null}
+      {weightsNote(t) ? <p class="quiet tr-weights" data-tr-weights>{weightsNote(t)}</p> : null}
       {naming === NEW ? (
         <div class="t-gtools t-new-group" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setNaming(null); setNameError(""); focusLater(sid, "[data-add-group]"); } else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); onName(); } }}>
           <label class="t-f"><span class="t-fl">{WORDS.group}</span><input data-f="group" type="text" autoFocus autocomplete="off" maxLength={NAME_MAX * 2} value={name} onInput={(e) => setName(e.currentTarget.value)} /></label>

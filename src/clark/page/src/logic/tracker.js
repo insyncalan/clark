@@ -36,6 +36,11 @@ export const healthWord = (h) => (HEALTH.find((x) => x[0] === h) || ["", ""])[1]
 export const WORDS = {
   title: "Progress tracker",
   actual: "Actual",
+  actualOf: "of the whole project",
+  plannedBy: "by",
+  healthTile: "Project health",
+  scaleStart: "0%",
+  scaleEnd: "100%",
   planned: "Planned",
   achieved: "Achieved",
   weight: "Weight",
@@ -170,8 +175,8 @@ export const behindOf = (line) => Math.max(0, line.planned - line.achieved);
 
 // The figures the section shows, all in tenths. `groups[i]` is { name, weight, planned, achieved, behind, none } (`none`: no lines, so
 // 0 everywhere and the words "No lines yet"), each with `lines[j].behind`. `overall` is { actual, planned, behind, health, note, fromLines }
-// (actual and planned are null only when there are no lines and none were typed). `weights` is the sum of every weight, and
-// `weightsNote` says so ("Weights add up to 94%") only when there are lines and the sum is not the whole.
+// (actual and planned are null only when there are no lines and none were typed). `weights` is the sum of every weight (the author's
+// note about it is logic/trackerNote.js, Edit only).
 export function totals(tracker) {
   const groups = tracker.groups.map((g) => {
     const planned = sum(g.lines, "planned"), achieved = sum(g.lines, "achieved");
@@ -185,9 +190,17 @@ export function totals(tracker) {
   const planned = fromLines ? sum(groups, "planned") : o.planned;
   const behind = actual !== null && planned !== null ? Math.max(0, planned - actual) : 0;
   const weights = sum(groups, "weight");
-  return { groups, lines, weights, weightsNote: fromLines && weights !== WHOLE ? `Weights add up to ${fmt(weights)}%` : "",
+  return { groups, lines, weights,
     overall: { actual, planned, behind, behindWords: behindWords(behind), health: o.health, note: o.note, fromLines } };
 }
+
+// The Achieved bar of one line: its achieved share of its own weight, as a whole percent from 0 to 100. A line with no weight is empty
+// until something is achieved, then full (it has done all it was asked to).
+export const lineFill = (l) => (l.weight > 0 ? Math.min(100, Math.round((100 * l.achieved) / l.weight)) : l.achieved > 0 ? 100 : 0);
+
+// Where the "Planned" label sits on the bar: its left edge at the mark near the start, its right edge near the end, centred between,
+// so the label never runs off the bar. "start", "end" or "".
+export const markEdge = (planned) => (planned <= WHOLE / 10 ? "start" : planned >= (WHOLE * 9) / 10 ? "end" : "");
 
 // How much of the bar to fill: the figure, never past the whole. null (nothing typed) draws an empty bar.
 export const fill = (t) => (t === null ? 0 : Math.min(WHOLE, Math.max(0, t)));
