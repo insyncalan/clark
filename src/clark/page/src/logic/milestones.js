@@ -229,6 +229,6 @@ export function labelLines(xs, width, gap = 0) {
 export function headLine(rows) {
   const live = (rows || []).filter((r) => r.state !== CANCELLED);
   if (!live.length) return null;
-  const last = live[live.length - 1], achieved = live.filter((r) => r.state === "Achieved").length;
+  const dated = live.filter((r) => r.baseline || r.forecast), last = (dated.length ? dated : live).slice(-1)[0], achieved = live.filter((r) => r.state === "Achieved").length;
   return { name: last.name, date: last.baseline || last.forecast, agreed: !!last.baseline, expected: last.slip > 0 ? last.expected : null, achieved, toCome: live.length - achieved };
 }

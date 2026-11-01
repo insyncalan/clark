@@ -1,6 +1,6 @@
 // The other pages as a shell: Work items and the Dashboard (Dashboard.jsx) sit in one frame of the same width (
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
-import { status, message, project, projects, projectsState, openProject, tryAgain, data, fromFile, asAt } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, data, fromFile, asAt, mode } from "../stores/report.js";
 import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
@@ -22,7 +22,7 @@ function MsHead({ Add }) {
           <h1>Milestones</h1>
           <p class="head-sub" id="ms-summary">
             {line
-              ? <><b>{line.name}</b> is {line.agreed ? "agreed" : "forecast"} for {showDate(line.date)}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
+              ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
               : "No milestones yet."}
           </p>
         </div>
@@ -34,7 +34,7 @@ function MsHead({ Add }) {
 
 export function Milestones({ tools }) {
   const More = tools && tools.MilestoneMore;      // the owner's extra block under the Plan view (#136): Edit only, so a published page has none
-  const Add = tools && !fromFile.value ? tools.MsAdd : null;      // the owner's Add milestone (#458): not in a published file
+  const Add = tools && !fromFile.value && mode.value === "edit" ? tools.MsAdd : null;      // the owner's Add milestone (#458): Edit only (a write), and never in a published file
   return (
     <section class="frame milestones" id="milestones">
       <MsHead Add={Add} />

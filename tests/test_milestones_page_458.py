@@ -37,7 +37,9 @@ OWNERS_WORDS = ("Add milestone", "Internal note", "Add a recovery action", "Esca
 NEW_STRINGS = ("Add milestone", "New milestone", "Milestone added. Undo.", "Add a recovery action", "Escalate to steering", "Recover %s",
                "Steering decision on %s", "%s added and linked to %s. Undo.", "%s added for %s. Undo.", "Internal note",
                "What is going on, what you are waiting for", "Saves when you leave the box. Never published.", "Note saved. Undo.",
-               "The note couldn't be saved, and nothing was changed. Reload the page and try again.")
+               "The note couldn't be saved, and nothing was changed. Reload the page and try again.", "Hold recorded in the note. Undo.",
+               "%s is %s behind its agreed date.", "%s is not behind its agreed date.",
+               "There is no open workstream to put the action in. Open or add a workstream first, then try again.")
 
 
 def js_words():
@@ -117,6 +119,24 @@ class Requests(unittest.TestCase):
         self.assertEqual((status, undone["ok"], undone["skipped"]), (200, True, []))
         self.assertIsNone(self.s.read("actions", ref=got["ref"]))
 
+    def test_the_explanation_line_is_kept_on_the_new_row_and_never_said_back_or_shown_to_ask_clark(self):
+        due = (date.today() + timedelta(days=7)).isoformat()
+        got = self.send("actions", {"description": "Recover pilot live", "priority": "High", "due_date": due, "milestone": self.m,
+                                    "latest_update": "Pilot live is 3 days behind its agreed date."})
+        self.assertEqual(self.s.read("actions", ref=got["ref"])["latest_update"], "Pilot live is 3 days behind its agreed date.")
+        done = self.send("decisions", {"decision": "Steering decision on pilot live", "needed_by": due, "reasoning": "Pilot live is 3 days behind its agreed date."})
+        self.assertEqual(self.s.read("decisions", ref=done["ref"])["reasoning"], "Pilot live is 3 days behind its agreed date.")
+        for reply in (got, done):
+            self.assertNotIn("behind its agreed date", json.dumps(reply), "the reply does not say the line back")
+        self.assertNotIn("latest_update", changes.ASK_SHOWN["actions"])
+        self.assertNotIn("reasoning", changes.ASK_SHOWN["decisions"])
+        for table, field in (("actions", "latest_update"), ("decisions", "reasoning")):
+            self.assertNotIn(field, changes.ASK_FIELDS[table][changes.NEW])
+            self.assertNotIn(field, changes.CHANGE_KINDS[table][changes.UPDATE])
+        status, bad = self.change({"project": "ABC", "kind": "decisions", "op": "new", "place": "report",
+                                   "values": {"decision": "x", "reasoning": "a\u202eb"}})
+        self.assertEqual((status, bad["ok"]), (400, False), "the line is held to the plain-text rule")
+
     def test_a_steering_decision_is_pending_and_needed_in_a_week(self):
         needed = (date.today() + timedelta(days=7)).isoformat()
         got = self.send("decisions", {"decision": "Steering decision on pilot live", "needed_by": needed})
@@ -183,6 +203,7 @@ SEE = """(() => {
           add: add && {w: r(add).width, h: r(add).height, name: add.getAttribute('aria-label'), onScreen: r(add).right <= window.innerWidth && r(add).left >= 0,
                        apart: r(add).left >= r(sub).right - 1 || r(add).top >= r(sub).bottom - 1 || r(add).bottom <= r(h1).top + 1},
           noScroll: document.documentElement.scrollWidth <= window.innerWidth,
+          note: q('#mvNote') && {w: r(q('#mvNote')).width, h: r(q('#mvNote')).height, onScreen: r(q('#mvNote')).right <= window.innerWidth && r(q('#mvNote')).left >= 0},
           buttons: [...document.querySelectorAll('.mvm-actions .btn')].map((b) => ({id: b.id, onScreen: r(b).right <= window.innerWidth && r(b).left >= 0, h: r(b).height}))};
 })()"""
 
@@ -194,6 +215,9 @@ class Page(Base):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.visit(cdp, width, theme)
                     p.until("!!document.querySelector('#ms-summary')", "the head drew")
+                    self.assertEqual(p.js("!!document.querySelector('#addMs')"), False, "View has no Add milestone")
+                    p.js("document.querySelector('[data-mode=edit]').click()")
+                    p.until("!!document.querySelector('#addMs')", "Edit draws the button")
                     seen = p.js(SEE)
                     self.assertEqual(seen["crumbs"], "Example Programme")
                     self.assertEqual(seen["title"], "Milestones")
@@ -208,11 +232,26 @@ class Page(Base):
                     self.assertGreaterEqual(min(seen["add"]["w"], seen["add"]["h"]), 24)
                     self.assertTrue(seen["noScroll"], "no page-wide scroll")
 
+    def test_view_has_no_add_milestone_and_sends_no_request_and_going_back_to_view_takes_it_away(self):
+        before = {r["id"] for r in self.store.read("milestones")}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until("!!document.querySelector('#ms-summary')", "the head drew")
+            self.assertEqual(p.js("!!document.querySelector('#addMs')"), False, "View has no Add milestone")
+            self.assertEqual(self.sent, [], "View sends no request")
+            p.js("document.querySelector('[data-mode=edit]').click()")
+            p.until("!!document.querySelector('#addMs')", "Edit draws the button")
+            p.js("document.querySelector('[data-mode=view]').click()")
+            p.until("!document.querySelector('#addMs')", "View takes it away again")
+            self.assertEqual(self.sent, [], "still no request")
+        self.assertEqual({r["id"] for r in self.store.read("milestones")}, before)
+
     def test_add_milestone_adds_one_thirty_days_out_opens_it_and_one_undo_takes_it_away(self):
         iso, _ = in_days(30)
         before = {r["id"] for r in self.store.read("milestones")}
         with chrome() as cdp:
             p = self.visit(cdp)
+            p.js("document.querySelector('[data-mode=edit]').click()")
             p.until("!!document.querySelector('#addMs')", "the button is there")
             p.js("document.querySelector('#addMs').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Milestone added. Undo.'", "the toast")
@@ -238,6 +277,8 @@ class Page(Base):
             text = self.toast(p)
             action = self.store.read("actions", ref=text.split(" ")[0])
             self.assertEqual((action["description"], action["priority"], action["due_date"], action["milestone"]), ("Recover go live", "High", iso, GO_LIVE))
+            self.assertRegex(action["latest_update"], r"^Go live is \d+ days? behind its agreed date\.$")
+            self.assertEqual(action["workstream"], "Build", "the first open workstream (Go live has none of its own)")
             p.until("!!document.querySelector('#peek') && document.querySelector('#peek').dataset.peek === %s" % json.dumps(action["id"]), "the action opens in the peek")
             p.js("document.querySelector('[data-pk-close]').click()")
             p.until("!document.querySelector('#peek')", "the peek closed")
@@ -245,6 +286,7 @@ class Page(Base):
             p.until("/added for Go live\\. Undo\\.$/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the decision's toast")
             decision = self.store.read("decisions", ref=self.toast(p).split(" ")[0])
             self.assertEqual((decision["decision"], decision["needed_by"], decision["status"]), ("Steering decision on go live", iso, "Pending"))
+            self.assertRegex(decision["reasoning"], r"^Go live is \d+ days? behind its agreed date\.$")
             p.until("!!document.querySelector('#peek') && document.querySelector('#peek').dataset.peek === %s" % json.dumps(decision["id"]), "the decision opens in the peek")
             p.js("document.querySelector('.toast [data-undo]').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
@@ -261,7 +303,7 @@ class Page(Base):
             before = len(self.sent)
             p.js("document.querySelector('#mvNote').focus(); document.querySelector('#mvNote').blur()")
             self.assertEqual(len(self.sent), before, "leaving the box with no change sends nothing")
-            p.js("(() => { const t = document.querySelector('#mvNote'); t.focus(); t.value = 'Waiting for the vendor\\nChase on Friday'; t.dispatchEvent(new Event('input', {bubbles: true})); t.blur(); })()")
+            p.js("(() => { const t = document.querySelector('#mvNote'); t.focus(); t.value = 'Waiting for the vendor\\nChase on Friday'; t.dispatchEvent(new Event('input', {bubbles: true})); let n = 0; t.addEventListener('blur', () => n++); t.blur(); if (!n) t.dispatchEvent(new FocusEvent('blur')); })()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the toast")
             self.assertEqual(self.row(GO_LIVE)["internal_note"], "Waiting for the vendor\nChase on Friday")
             self.assertEqual(self.sent[-1][1]["place"], "movement")
@@ -287,7 +329,37 @@ class Page(Base):
                     for b in seen["buttons"]:
                         self.assertTrue(b["onScreen"], b["id"])
                         self.assertGreaterEqual(b["h"], 24, b["id"])
+                    self.assertTrue(seen["note"] and seen["note"]["onScreen"], "the note box is on screen")
+                    self.assertGreaterEqual(seen["note"]["w"], 200, "the note box is wide enough to write in")
+                    self.assertGreaterEqual(seen["note"]["h"], 24)
                     self.assertTrue(seen["noScroll"])
+
+    def test_a_recovery_action_goes_in_an_open_workstream_and_says_so_when_there_is_none(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("workstreams", {"project": "ABC", "name": "Run", "source": "demo"})
+            st.update("milestones", GO_LIVE, {"workstream": "Build"})
+        with self.store.step("dashboard", USER) as st:
+            for w in self.store.read("workstreams"):
+                if w["name"] == "Build":
+                    st.update("workstreams", w["id"], {"status": "Closed"})
+        before = {r["id"] for r in self.store.read("actions")}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.open_movement(p)
+            p.js("document.querySelector('#mv-recover').click()")
+            p.until("/added and linked to Go live\\. Undo\\.$/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the action's toast")
+            new = [r for r in self.store.read("actions") if r["id"] not in before]
+            self.assertEqual([(r["workstream"], r["milestone"]) for r in new], [("Run", GO_LIVE)], "Build is closed, so the first open one")
+        with self.store.step("dashboard", USER) as st:
+            for w in self.store.read("workstreams"):
+                st.update("workstreams", w["id"], {"status": "Closed"})
+        before = {r["id"] for r in self.store.read("actions")}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.open_movement(p)
+            p.js("document.querySelector('#mv-recover').click()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === %s" % json.dumps(js_words()["NO_WORKSTREAM"]), "the plain refusal")
+        self.assertEqual({r["id"] for r in self.store.read("actions")}, before, "nothing was added")
 
 
 class Published(unittest.TestCase):

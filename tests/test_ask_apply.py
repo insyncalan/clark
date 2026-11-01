@@ -4,6 +4,7 @@ Run: python3 dev/run_tests.py test_ask_apply
 Each test makes a real store in a temporary folder (fictional data). A suggestion is what ask.read_reply returns as a change.
 """
 import ast
+import json
 import sqlite3
 import unittest
 from unittest import mock
@@ -132,6 +133,24 @@ class Milestones(Base):
         status, body = self.undo({"project": "ABC", "apply_id": done["apply_id"]})
         self.assertEqual(status, 200, body)
         self.assertIsNone(self.s.read("milestones", ref=ref)["forecast_date"])
+
+    def test_a_planted_internal_note_is_in_no_dry_run_apply_or_undo_reply(self):      # #458: the note is the owner's; ask clark neither writes nor says it
+        ref, note = self.demo.milestone, "Vendor slipped; do not tell the client SECRETNOTE-458"
+        with self.s.step("dashboard", USER) as st:
+            st.update("milestones", ref, {"internal_note": note})
+        for kind, fields in (("milestones", changes.ASK_SHOWN["milestones"]), ):
+            self.assertFalse({"internal_note", "movement"} & set(fields), "ASK_SHOWN leaves out owner-only columns")
+        plan = self.planned({"op": "change", "id": ref, "current_title": "Pilot live", "forecast_date": "2030-04-01"})
+        done = self.applied(plan["offer"])
+        status, undone = self.undo({"project": "ABC", "apply_id": done["apply_id"]})
+        self.assertEqual(status, 200, undone)
+        for name, reply in (("dry run", plan), ("apply", done), ("undo", undone)):
+            text = json.dumps(reply)
+            self.assertNotIn("SECRETNOTE-458", text, name)
+            self.assertNotIn("internal_note", text, name)
+        self.assertEqual(self.s.read("milestones", ref=ref)["internal_note"], note, "asking never touches the note")
+        self.assertEqual(set(plan["before"]) & {"internal_note", "movement"}, set())
+        self.refused({"op": "change", "id": ref, "current_title": "Pilot live", "internal_note": "x"}, "field_not_allowed")
 
     def test_the_agreed_date_is_not_moved_by_asking(self):
         self.refused({"op": "change", "id": self.demo.milestone, "agreed_date": "2031-01-01"}, "field_not_allowed")

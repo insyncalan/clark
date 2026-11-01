@@ -106,6 +106,7 @@ function focusRow(id) {
 async function hold(r) {
   const res = await changeMilestone({ id: r.id, changes: { movement: "hold" } }, W.TOAST_HOLD);
   if (!res.ok) { say("problem", res.message || W.CHOICE_FAILED); return; }
+  await reread(project.value);            // the Hold's dated line is in the internal note: the box shows it
   await load();
   focusRow(r.id);
 }
@@ -113,13 +114,31 @@ async function hold(r) {
 const lower = (name) => name.charAt(0).toLowerCase() + name.slice(1);
 const milestoneRow = (id) => ((data.value && data.value.milestones) || []).find((m) => m.id === id);
 
+// The line a new recovery action or steering decision starts with (the prototype's): how far behind the agreed date the milestone is.
+// None when the milestone has no agreed date to be behind.
+function explain(r) {
+  if (typeof r.slip !== "number") return "";
+  return r.slip > 0 ? W.fill(W.BEHIND_LINE, r.name, `${r.slip} ${r.slip === 1 ? "day" : "days"}`) : W.fill(W.NOT_BEHIND_LINE, r.name);
+}
+
+// The workstream a recovery action goes in: the milestone's own while it is open, else the first open one. An action can only go in
+// an open workstream (the store refuses a closed or archived one); null when there is none.
+function openWorkstream(m) {
+  const open = ((data.value && data.value.workstreams) || []).filter((w) => w.name && w.status !== "Closed" && !w.archived);
+  const own = m && m.workstream ? open.find((w) => w.name === m.workstream) : null;
+  return own ? own.name : open.length ? open[0].name : null;
+}
+
 // Add a recovery action (#458): a High priority action due in 7 days, in the milestone's workstream and linked to it. It opens in the peek.
 async function recover(r) {
   if (adding.value) return;
   adding.value = true;
   try {
-    const m = milestoneRow(r.id), values = { description: W.fill(W.RECOVER_TITLE, lower(r.name)), priority: "High", due_date: addDays(todayIso(), 7), milestone: r.id };
-    if (m && m.workstream) values.workstream = m.workstream;
+    const ws = openWorkstream(milestoneRow(r.id));
+    if (!ws) { say("problem", W.NO_WORKSTREAM); return; }
+    const values = { description: W.fill(W.RECOVER_TITLE, lower(r.name)), priority: "High", due_date: addDays(todayIso(), 7), milestone: r.id, workstream: ws };
+    const line = explain(r).slice(0, 200);
+    if (line) values.latest_update = line;
     const reply = await addRow("actions", values, (id) => W.fill(W.TOAST_ACTION, id, r.name));
     if (reply && reply.ref) openPeek(reply.ref, "item");
   } finally { adding.value = false; }
@@ -130,7 +149,10 @@ async function escalate(r) {
   if (adding.value) return;
   adding.value = true;
   try {
-    const reply = await addRow("decisions", { decision: W.fill(W.ESCALATE_TITLE, lower(r.name)), needed_by: addDays(todayIso(), 7) }, (id) => W.fill(W.TOAST_DECISION, id, r.name));
+    const values = { decision: W.fill(W.ESCALATE_TITLE, lower(r.name)), needed_by: addDays(todayIso(), 7) };
+    const line = explain(r).slice(0, 200);
+    if (line) values.reasoning = line;
+    const reply = await addRow("decisions", values, (id) => W.fill(W.TOAST_DECISION, id, r.name));
     if (reply && reply.ref) openPeek(reply.ref, "item");
   } finally { adding.value = false; }
 }

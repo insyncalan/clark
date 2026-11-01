@@ -170,7 +170,7 @@ PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions":
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal
 # note's history and every other field are not in it. `id` is only there so a milestone's creation can be told from a change.
 # What "note" is here: a step's note (Step.update(note=...)) is a change_log row with field "note", history only; it is not the
-# milestones.internal_note column, and no request can change that column (changes.py _do_milestone_change refuses it). A Hold's
+# milestones.internal_note column, which only a milestone update can change (changes.py, #458: owner only, never in a reply). A Hold's
 # dated line (dates only) and a rebaseline's reason line are stored this way, so a "note" row can sit in `shown` in
 # milestone_moves, kept because its step also has a dated or Movement row. What keeps its text off the page is not this tuple but
 # the Movement view's entries_for, which drops every entry of kind "note" or "internal_note"; the internal_note field itself is not in

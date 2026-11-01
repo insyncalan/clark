@@ -188,12 +188,14 @@ class Hostile(unittest.TestCase):
             self.assertNotIn(marker, text)
 
     # ---- hold: where its words go
-    def test_a_hold_writes_only_its_dated_line_and_never_the_internal_note(self):
+    def test_a_hold_adds_only_its_dated_line_to_the_internal_note_and_says_nothing_of_it(self):      # #458
         before = self.milestone(M)
         status, got = self.change({"movement": "hold", "state_reason": "x"})
         self.assertEqual(status, 200, got)
         after = self.milestone(M)
-        self.assertEqual(after["internal_note"], before["internal_note"], "a Hold must not touch internal_note")
+        self.assertTrue(after["internal_note"].startswith(before["internal_note"] + "\n"), "the owner's note is kept and a line added")
+        self.assertRegex(after["internal_note"][len(before["internal_note"]) + 1:], r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged(, forecast \d\d-\d\d-\d{4})?\.$")
+        self.assertNotIn(INTERNAL, json.dumps(got), "the reply never carries the note")
         for field in ("owner", "name", "workstream", "archived", "client_visible"):
             self.assertEqual(after[field], before[field], field)
         con = sqlite3.connect("file:%s?mode=ro" % self.rig.db, uri=True)
@@ -201,7 +203,8 @@ class Hostile(unittest.TestCase):
             fields = {r[0] for r in con.execute("SELECT field FROM change_log WHERE apply_id=?", (got["apply_id"],))}
         finally:
             con.close()
-        self.assertNotIn("internal_note", fields)
+        self.assertIn("internal_note", fields)        # the hold's line is in the note, in this one step
+        self.assertTrue(fields <= {"movement", "state_reason", "internal_note", "note", "updated_at"}, fields)
 
     # ---- the change door
     def test_change_door_checks(self):

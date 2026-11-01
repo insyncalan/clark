@@ -99,9 +99,9 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
                            "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",), "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
-CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone")      # #67: a row added in the report: no id,
+CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "latest_update")      # #67: a row added in the report: no id,
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone")   # raised, status or source
-CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by")      # (clark gives those), and no priority on a risk (worked out)
+CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
 # #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
 # are here (its priority is worked out from them); a decision takes only who makes it.
@@ -116,6 +116,7 @@ UC_NAME_LIMIT = 120                                  # a use case's name, in cha
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
 ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision")
 CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
+EXPLAIN_FIELDS = ("latest_update", "reasoning")      # #458: the one explanation line a new action or decision may start with (Movement's buttons); never said back, never in ask clark's before and after
 TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
               for k in ITEM_KINDS}                   # what a reply says of a changed item
@@ -745,7 +746,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
             raise Refused(words_) from None
         apply_id = st.peek_apply_id()
     row = store.read(table, ref=ref)
-    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
+    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + EXPLAIN_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
         + (("priority",) if table == "raid" else ())
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "item": {k: row[k] for k in dict.fromkeys(shown)}}
 
@@ -826,10 +827,12 @@ def _checked_milestone_changes(fields):
                 raise Refused(BAD_MOVEMENT)
             out[k] = v or None
         elif k == "internal_note":                                  # #458: plain text over several lines; the line breaks are the only control character let through
-            if v is not None and (not isinstance(v, str) or len(v) > INTERNAL_NOTE_MAX):
+            if v is not None and not isinstance(v, str):
                 raise Refused(ITEM_VALUE_WORDS)
             if isinstance(v, str):
-                v = v.replace("\r\n", "\n").replace("\r", "\n")
+                v = v.replace("\r\n", "\n").replace("\r", "\n")            # folded first, so a CRLF counts once
+                if len(v) > INTERNAL_NOTE_MAX:
+                    raise Refused(ITEM_VALUE_WORDS)
                 if not _plain_text(v.replace("\n", " ")):
                     raise Refused(NOTE_TEXT_WORDS)
             out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
@@ -874,6 +877,14 @@ def _milestone_words(e):
     return ITEM_VALUE_WORDS
 
 
+def _note_with_line(was, line):
+    """The internal note with a dated line added at the end; the oldest lines go first when it would pass the limit."""
+    text = ((was or "").strip() + "\n" + line).strip()
+    while len(text) > INTERNAL_NOTE_MAX and "\n" in text:
+        text = text.split("\n", 1)[1]
+    return text
+
+
 def _hold_line(today, forecast):
     """The dated line a Hold is recorded with (dates only, nothing a person typed)."""
     return "%s: holding; agreed date unchanged%s." % (milestone_rows.shown(today), ", forecast " + milestone_rows.shown(forecast) if forecast else "")
@@ -882,7 +893,7 @@ def _hold_line(today, forecast):
 def _do_milestone_change(store, by_user, req, project, table, columns, place):
     """#136: change fields of one milestone of THIS project, in one step (several fields, one Undo). Moving the agreed date is a
     rebaseline: who agreed it, the reason and the source are asked for (milestone_rows.rebaseline_request's own rules and words),
-    and the date, the new decision and the note are one step. A Hold writes its dated line as the step's note. The internal note
+    and the date, the new decision and the note are one step. A Hold writes its dated line as the step's note and adds it to the internal note (#458). The internal note
     (#458) may be set or cleared; the owner, the name, the workstream and the archive flag are not changeable here. A refusal
     writes nothing."""
     ref = req.get("id")
@@ -919,6 +930,8 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
         note = None
         if changes.get("movement") == "hold" and rebase is None:
             note = _hold_line(today, changes.get("forecast_date", row.get("forecast_date")))
+            if "internal_note" not in changes:                      # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo
+                changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
         try:
             st.update(table, ref, changes, rebaseline=rebase, note=note)
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value
@@ -1434,7 +1447,7 @@ MILESTONE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-M-\d{3}")           # #136: a mi
 MILESTONE_FIELD_NAMES = {"baseline_date": "agreed date", "forecast_date": "forecast date", "actual_date": "achieved date",
                          "status": "status"}
 MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason": "state", "client_message": "client wording",
-                         "movement": "Movement choice"}        # said without the value: a reason or wording is never repeated
+                         "movement": "Movement choice", "internal_note": "internal note"}        # said without the value: a reason or wording is never repeated
 
 
 def _name(names, ref):
@@ -2096,8 +2109,9 @@ ASK_PART = {NEW: "values", UPDATE: "changes"}
 ASK_OFF = "Asking is off, so nothing was changed. Turn it on in Settings first."
 ASK_NOT_YET = "That change can't be made by asking yet. Nothing was changed. Make it yourself on the board."
 ASK_CHANGED = "That item has changed since the change was shown. Nothing was changed. Look at the change again."
-ASK_SHOWN = {t: ("id",) + tuple(dict.fromkeys(CHANGE_KINDS[t][NEW] + CHANGE_KINDS[t][UPDATE] + ("type", "status", "closed", "priority", "raised")))
-             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out)
+ASK_SHOWN = {t: ("id",) + tuple(f for f in dict.fromkeys(CHANGE_KINDS[t][NEW] + CHANGE_KINDS[t][UPDATE] + ("type", "status", "closed", "priority", "raised"))
+                                if f not in clark_store.NEVER_PUBLISH and f not in EXPLAIN_FIELDS)
+             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out); #458: never an owner-only column (the internal note, the Movement choice)
 
 
 class _Dry(Exception):
