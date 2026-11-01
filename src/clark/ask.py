@@ -70,6 +70,7 @@ class Request:
     passages: tuple = ()          # ((id, label), ...)
     hidden: dict = field(default_factory=dict)
     dropped_turns: int = 0        # how many of the oldest earlier turns were left out to fit MAX_REQUEST (the panel may say so)
+    system: str = ""              # the system prompt the caller wants; "" means ask clark's own RULES (suggestions pass their own)
 
     @property
     def passage_ids(self):

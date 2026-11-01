@@ -101,6 +101,8 @@ NO_ANSWER = ("Claude couldn't answer just now. Try again in a moment. If it keep
              "when it asks.")
 TOO_SLOW = "Claude took too long to answer, so it was stopped. Try a shorter question."
 TOO_LONG_REPLY = "Claude's answer was too long to read, so it was stopped. Ask a narrower question."
+BAD_SYSTEM = "That request could not be sent, so nothing was sent."
+MAX_SYSTEM = 8000                                   # characters of a caller-given system prompt
 BUSY = "Another question is being answered. Wait for it, or press Stop."
 # Hints: added after the status sentence when this computer's set-up is one questions can't follow.
 PROXY_HINT = ("This computer reaches the internet through a proxy or its own security certificates. Questions don't use those "
@@ -138,11 +140,13 @@ def child_env(home=None, user=None):
     return env
 
 
-def arguments(path):
-    """The command line for one run: the fixed flags, the fixed rules as the system prompt, and nothing the person typed."""
+def arguments(path, system=None):
+    """The command line for one run: the fixed flags, the fixed rules as the system prompt, and nothing the person typed.
+    `system` is a fixed rules text written in clark's own code (ai_menu.SUGGEST_RULES); left out, it is ask clark's `ask.RULES`."""
+    system = ask.RULES if system is None else system
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
-            "--max-budget-usd", MAX_BUDGET_USD, "--system-prompt", ask.RULES]
+            "--max-budget-usd", MAX_BUDGET_USD, "--system-prompt", system]
 
 
 def roots_for(home=None):
@@ -333,9 +337,9 @@ class ClaudeCommand(ask.Provider):
         return {"connected": path is not None, "why": words}
 
     # ----- one question -----
-    def answer(self, path, text):
+    def answer(self, path, text, system=None):
         """Send `text` to the command at `path` (already checked) and read its answer: the reply text, or an ask.Failure."""
-        status, out, _code = run(arguments(path), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
+        status, out, _code = run(arguments(path, system), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
         if status == "stopped":
             return ask.Failure(ask.STOPPED)
         if status == "slow":
@@ -355,7 +359,12 @@ class ClaudeCommand(ask.Provider):
             path, why = self.usable(reuse=True)
             if path is None:
                 return ask.Failure(why)
-            return self.answer(path, self.envelope(request.text))
+            system = getattr(request, "system", "")
+            if system == "":
+                system = None
+            elif not isinstance(system, str) or not system.strip() or len(system) > MAX_SYSTEM:
+                return ask.Failure(BAD_SYSTEM)       # fails closed: never falls back to another prompt
+            return self.answer(path, self.envelope(request.text), system)
         finally:
             self.lock.release()
 
