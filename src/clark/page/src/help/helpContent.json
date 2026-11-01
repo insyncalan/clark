@@ -546,10 +546,10 @@
     "s": [
      "On **Milestones**, switch to Edit. **Movement** is the block under the list. It is for you and the team: it is never published.",
      "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
-     "Each open milestone has a row, the furthest behind first: its state, its agreed date, a line that marks the agreed date, the forecast and today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or press [[Up]] or [[Down]], to choose it.",
+     "Each open milestone has a row, the furthest behind first: its state, its agreed date, a line that marks the agreed date, the forecast and today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
      "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
      "Under **Decide what to do**, choose **Hold: keep the forecast, agreed date unchanged**, or **Move the agreed date**. A move asks for **New agreed date (DD-MM-YYYY)**, **Who agreed it**, a **Reason** and a **Source**, and says what will happen before you press **Move the agreed date**. **Keep the date** closes it with no change. A milestone that has not slipped cannot be moved.",
-     "Each choice changes the record at once and has its own **Undo**. A move keeps the original date and records a decision."
+     "**Hold** and **Move the agreed date** each change the record at once, and each has its own **Undo**. A move keeps the original date and records a decision."
     ]
    },
    {

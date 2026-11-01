@@ -198,7 +198,7 @@ class MovementEntries(unittest.TestCase):
 
     def test_the_rows_keys_are_the_arrows(self):
         self.assertIn("ArrowDown", self.BLOCK)
-        self.assertIn("[[Up]] or [[Down]]", " ".join(strings(entry("howto", "handle-a-slipped-milestone"))))
+        self.assertIn("move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.", " ".join(strings(entry("howto", "handle-a-slipped-milestone"))))
 
     def test_a_move_is_only_open_when_it_has_slipped(self):
         self.assertIn("can_move", self.BLOCK)
