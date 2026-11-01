@@ -26,14 +26,21 @@ function AboutYou() {
   const [typed, setTyped] = useState({ name: profile.value.name, email: profile.value.email });
   const [said, setSaid] = useState({ name: "", email: "" });
   useEffect(() => { loadProfile(); }, []);
-  const mounted = useRef(false);
-  // The boxes follow what clark saved (a read that finished after Settings opened, or a save), never on the first draw: a box typed in
-  // before that effect ran must not be emptied by it.
-  useEffect(() => { if (mounted.current) setTyped({ name: profile.value.name, email: profile.value.email }); mounted.current = true; }, [profile.value.name, profile.value.email]);
+  const typedIn = useRef({ name: false, email: false });
+  // The boxes follow what clark has when it is read late (a read that finished after Settings opened), but only a box nobody has typed in:
+  // a person who keeps typing while a save is on its way must never see the box go back to what was saved (and a box typed in before that
+  // effect ran must not be emptied by it). A saved value is put back in its box by save(), below, and only when the box still holds what was sent.
+  useEffect(() => {
+    setTyped((t) => ({ name: typedIn.current.name ? t.name : profile.value.name, email: typedIn.current.email ? t.email : profile.value.email }));
+  }, [profile.value.name, profile.value.email]);
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
-    const r = await setProfile(name.current ? name.current.value : typed.name, email.current ? email.current.value : typed.email);
+    const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
+    const r = await setProfile(sent.name, sent.email);
+    // what clark kept (it may be tidied, such as spaces cut off the ends) goes back in a box only if the box still holds what was sent:
+    // a box changed since is left as it is
+    if (r.ok) setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
     setSaid(r.ok ? { name: "", email: "" } : { name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
   };
   const box = (field, label, type, line, ref) => (
@@ -41,7 +48,7 @@ function AboutYou() {
       <label for={`about-${field}`}>{label}</label>
       <input id={`about-${field}`} ref={ref} type={type} value={typed[field]} autocomplete={field === "name" ? "name" : "email"} data-about={field}
         aria-describedby={`about-${field}-line`} aria-invalid={said[field] ? "true" : undefined}
-        onInput={(e) => { const v = e.currentTarget.value; setTyped((t) => ({ ...t, [field]: v })); }}
+        onInput={(e) => { const v = e.currentTarget.value; typedIn.current[field] = true; setTyped((t) => ({ ...t, [field]: v })); }}
         onBlur={() => save(field)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(field); } }} />
       <small id={`about-${field}-line`}>{line}</small>
       <p class="fld-bad" role="alert">{said[field]}</p>

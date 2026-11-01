@@ -10,7 +10,6 @@ a refusal says why in its words, ends "Nothing was saved.", writes nothing and l
 Chrome is required: these tests fail, never skip, without it.
 """
 import json
-import time
 import unittest
 
 from _paths import SRC
@@ -42,19 +41,28 @@ class AboutYou(Base):
 
     def type_into(self, p, field, text, leave="enter"):
         """Type `text` into the box and leave it: Enter, or a blur (headless Chrome's page has no focus, so a real blur never fires and
-        is dispatched)."""
+        is dispatched), or not at all (leave="none")."""
         p.js(f"(() => {{ const el = document.querySelector('#about-{field}'); el.value = {json.dumps(text)}; "
              "el.dispatchEvent(new Event('input', {bubbles: true})); "
-             + ("el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));" if leave == "enter"
-                else "el.dispatchEvent(new FocusEvent('blur'));") + " })()")
+             + {"enter": "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));",
+                "blur": "el.dispatchEvent(new FocusEvent('blur'));", "none": ""}[leave] + " })()")
 
-    def wait_saved(self, key, value, seconds=6):
-        end = time.time() + seconds
-        while time.time() < end:
-            if self.saved().get(key) == value:
-                return True
-            time.sleep(0.1)
-        return False
+    def handled(self, p, name, email=""):
+        """Wait on the page, not the store: the menu's top line shows what the page has taken from clark's answer to its save (the same kind of
+        signal test_report_editor.py waits on, the page has handled its save). Leaves the menu closed."""
+        self.open_menu(p)
+        if name or email:
+            p.until(f"(() => {{ const w = document.querySelector('#profile-menu .who'); return !!w && w.querySelector('b').textContent === {json.dumps(name)} "
+                    f"&& ((w.querySelector('small') || {{}}).textContent || '') === {json.dumps(email)}; }})()", "the page has taken the save")
+        else:
+            p.until("!!document.querySelector('#profile-menu .who-link')", "the page has taken the save")
+        self.close_menu(p)
+
+    def slow_saves(self, p, ms=1500):
+        """Hold back clark's answer to each save by `ms` in the page itself (the save is written at once; the page hears of it late), as on a
+        busy computer. window.__answered counts the answers the page has been handed."""
+        p.js("(() => { window.__answered = 0; const f = window.fetch; window.fetch = (u, o) => (String(u).includes('/api/profile') && o && o.method === 'POST') "
+             f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ window.__answered++; ok(r); }}, {ms}))) : f(u, o); }})()")
 
     def top(self, p):
         return p.js("(() => { const w = document.querySelector('#profile-menu .who'); if (w) return {name: w.querySelector('b').textContent, "
@@ -85,14 +93,14 @@ class AboutYou(Base):
             self.type_into(p, "name", "Sam Lee")
             self.type_into(p, "email", "sam@example.test")
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box holds it")
-            self.assertTrue(self.wait_saved("profile_email", "sam@example.test"), "saved by clark")
+            self.handled(p, "Sam Lee", "sam@example.test")
             self.assertEqual(self.saved(), {"profile_email": "sam@example.test", "profile_name": "Sam Lee"})
             self.open_menu(p)
             self.assertEqual(self.top(p), {"name": "Sam Lee", "email": "sam@example.test", "title": "Sam Lee\nsam@example.test"})
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile-menu .who b')).fontWeight >= 500"), True)
             self.close_menu(p)
-            p.js("location.reload()")
-            p.until("!!document.querySelector('#profile-btn')", "the page again")
+            p.js("window.__before_reload = true; location.reload()")
+            p.until("!window.__before_reload && !!document.querySelector('#profile-btn')", "the page again (not the one being left)")
             self.open_menu(p)
             p.until("!!document.querySelector('#profile-menu .who')", "the menu shows who you are after a reload (read from clark)")
             self.assertEqual(self.top(p)["name"], "Sam Lee")
@@ -102,13 +110,15 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.open_settings(p)
             self.type_into(p, "name", "Sam Lee", leave="blur")
-            self.assertTrue(self.wait_saved("profile_name", "Sam Lee"), "leaving the box saves it")
+            self.handled(p, "Sam Lee")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "leaving the box saves it")
             self.open_menu(p)
             p.until("!!document.querySelector('#profile-menu .who')", "the name shows")
             self.assertEqual(self.top(p), {"name": "Sam Lee", "email": "", "title": "Sam Lee"})
             self.close_menu(p)
             self.type_into(p, "name", "")
-            self.assertTrue(self.wait_saved("profile_name", ""))
+            self.handled(p, "")
+            self.assertEqual(self.saved().get("profile_name"), "")
             self.open_menu(p)
             p.until("!!document.querySelector('#profile-menu .who-link')", "the link is back")
             self.assertEqual(self.top(p), {"link": "Add your name in Settings"})
@@ -132,7 +142,8 @@ class AboutYou(Base):
             self.open_settings(p)
             self.type_into(p, "name", name)
             self.type_into(p, "email", email)
-            self.assertTrue(self.wait_saved("profile_email", email))
+            self.handled(p, name, email)
+            self.assertEqual(self.saved().get("profile_email"), email)
             self.open_menu(p)
             p.until("!!document.querySelector('#profile-menu .who small')", "both lines show")
             box = "document.querySelector('#profile-menu')"
@@ -153,8 +164,9 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.open_settings(p)
             self.type_into(p, "name", "Sam Lee")
-            self.assertTrue(self.wait_saved("profile_name", "Sam Lee"))
+            self.handled(p, "Sam Lee")
             before = self.saved()
+            self.assertEqual(before.get("profile_name"), "Sam Lee")
             self.type_into(p, "name", "N" * 61)
             p.until("document.querySelector('#about-name-line').parentElement.querySelector('.fld-bad').textContent !== ''", "the refusal shows")
             self.assertEqual(p.js("document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"),
@@ -162,12 +174,29 @@ class AboutYou(Base):
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "what was typed stays in the box")
             self.assertEqual(self.saved(), before, "nothing was written")
             self.type_into(p, "name", "Sam Lee")
+            p.until("document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent === ''", "the name is saved again and its refusal is gone")
             self.type_into(p, "email", "nope")
             p.until("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the email refusal shows")
             self.assertEqual(p.js("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent"),
                              "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
             self.assertEqual(self.saved(), before)
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
+
+    def test_C_text_typed_while_a_save_is_on_its_way_stays_in_the_box(self):
+        """The page must not put the saved value back over a box typed in since the save was sent (a person who keeps typing during a slow
+        save would see the box go back)."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.type_into(p, "name", "Sam Lee and more", leave="none")
+            p.until("window.__answered >= 1", "the page was handed the answer to its first save")
+            self.handled(p, "Sam Lee")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee and more", "what was typed since stays in the box")
+            self.type_into(p, "name", "Sam Lee and more")      # now leave it: the longer name is saved, and shown
+            self.handled(p, "Sam Lee and more")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee and more")
 
 
 class Source(unittest.TestCase):
