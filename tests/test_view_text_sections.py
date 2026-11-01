@@ -2,8 +2,8 @@
 
 Run: python3 dev/run_tests.py test_view_text_sections
 Before, the page clark serves said "Not shown on this page yet." for these four in View. Now View draws the saved text, cleaned by
-the page's own cleaner (cleanHtml), or "Nothing recorded." when there is none. Edit is unchanged (it still says the old line:
-the editor on these bodies is a later item), and a published file is unchanged (it already drew a text section's body, cleaned by
+the page's own cleaner (cleanHtml), or "Nothing recorded." when there is none. In Edit, Current state still says the old line
+and the three text sections open the one editor in place (#220), and a published file is unchanged (it already drew a text section's body, cleaned by
 the publish build, and still leaves Current state out). The browser class runs at 1400 and 900, light and dark; the source class
 reads the page's files and needs no browser.
 """
@@ -94,11 +94,15 @@ class TheBrowser(unittest.TestCase):
                     self.assertGreaterEqual(cdp.js(LUMA % "[data-id=ABC-S-006] .quiet", sid), 4.5, "quiet line contrast " + where)
                     self.assertGreaterEqual(float(cdp.js("parseFloat(getComputedStyle(document.querySelector('[data-id=ABC-S-005] .prose p')).fontSize)", sid)), 13, where)
                     self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - window.innerWidth", sid), 0, "no sideways scroll " + where)
-            # Edit says what it said before, for all four
+            # Edit: Current state keeps the old line; the three text sections show their text in the editor's field
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
-            for k in SECTIONS:
-                self.assertIn(OLD, self.text_of(cdp, sid, k), f"Edit keeps the old line for {k}")
+            for k, name in SECTIONS.items():
+                if name == "current":
+                    self.assertIn(OLD, self.text_of(cdp, sid, k), f"Edit keeps the old line for {k}")
+                else:
+                    self.assertNotIn(OLD, self.text_of(cdp, sid, k), f"Edit opens the editor for {k}")
+                    self.assertTrue(cdp.js(f"!!document.querySelector('[data-id=\"{k}\"] [data-rich=body]')", sid), f"{k} has its rich field")
             cdp.js("document.querySelector('[data-mode=view]').click()", sid)
             self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'view'", "View again")
             self.assertIn("Plain words about the month.", self.text_of(cdp, sid, "ABC-S-005"))
