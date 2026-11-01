@@ -37,6 +37,7 @@ DUE_SOON_DAYS = 7
 SENT_KIND = "email_sent"
 INTERNAL_TAG = "internal"
 NO_SUCH_KIND = "That kind of email isn't available. Choose Update request, Chase or Decision."
+NOT_A_DAY = "The day the email was sent must be a real date."
 NOTHING_TO_RECORD = "Tick at least one item before you press I sent it."
 NOTHING_TICKED = "No items are ticked. Tick at least one to draft the email."
 NO_OPEN_ITEMS = "There are no open items to put in an email."
@@ -576,5 +577,6 @@ def sent_entry(ids, mode, day):
     ids = list(dict.fromkeys(i for i in ids if isinstance(i, str) and i.strip()))[:50]
     if not ids:
         raise ValueError(NOTHING_TO_RECORD)
-    date.fromisoformat(day)
+    if not isinstance(day, str) or not DAY.fullmatch(day) or _as_day(day) is None:
+        raise ValueError(NOT_A_DAY)
     return {"kind": SENT_KIND, "ids": ids, "date": day, "mode": mode}
