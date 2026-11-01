@@ -620,6 +620,18 @@ class AddBeside(Api):
                 self.assertNotIn(got["ref"], self.ids_now())
                 self.ok("update", id=last, changes={"beside": 0})
 
+    def test_a_plain_add_clears_a_stale_flag_on_a_report_of_one_section(self):
+        """The only section is also the last one; its stale 1 is cleared the same way."""
+        keep = self.ids_now()[0]
+        self.s.con.execute("DELETE FROM report_sections WHERE project = 'ABC' AND id != ?", (keep,))
+        self.s.con.commit()
+        self.assertEqual(len(self.ids_now()), 1)
+        last = self.stale_last()
+        got = self.ok("new", values={"title": "Plain"})
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[last], 0)
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[last], 1)
+
     def test_a_plain_add_leaves_other_flags_alone(self):
         """No stale flag on the last section: nothing but the new row is written. Adding in the middle clears nothing either."""
         got = self.ok("new", values={"title": "Plain"})
