@@ -147,9 +147,10 @@ class Prompt(unittest.TestCase):
                 self.assertNotIn(CANARY, p["prompt"], (place, opt))
 
     def test_the_prompt_differs_only_by_the_text(self):
-        a = am.build_prompt("shorter", "First text here.", "plain")["prompt"]
-        b = am.build_prompt("shorter", "A completely different second text.", "plain")["prompt"]
-        self.assertEqual(a.replace("First text here.", "X"), b.replace("A completely different second text.", "X"))
+        a = am.build_prompt("shorter", "First text here.", "plain")
+        b = am.build_prompt("shorter", "A completely different second text.", "plain")
+        self.assertEqual(a["prompt"].replace("First text here.", "X").replace(a["marker"], "M"),
+                         b["prompt"].replace("A completely different second text.", "X").replace(b["marker"], "M"))
 
     def test_the_text_and_the_option_instruction_are_in_it(self):
         p = am.build_prompt("executive", "The build is late.", "notes")
@@ -170,7 +171,9 @@ class Prompt(unittest.TestCase):
         prov = FakeProvider()
         am.suggest(prov, "rewrite", "Some text, due 03-11-2026.", "plain")
         self.assertEqual(len(prov.calls), 1)
-        self.assertEqual(prov.calls[0][0], am.build_prompt("rewrite", "Some text, due 03-11-2026.", "plain")["prompt"])
+        again = am.build_prompt("rewrite", "Some text, due 03-11-2026.", "plain")
+        marker = re.search(r"Hidden marker, for the system only: (\w+)\.", prov.calls[0][0]).group(1)
+        self.assertEqual(prov.calls[0][0].replace(marker, "M"), again["prompt"].replace(again["marker"], "M"))
 
     def test_ask_uses_the_users_instruction_and_other_options_ignore_one(self):
         p = am.build_prompt("custom", "Some text.", "plain", "  turn it   into a haiku ")
