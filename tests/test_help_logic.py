@@ -112,7 +112,7 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
         self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 27)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 28)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -156,7 +156,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 27 + 30)
+        self.assertEqual(len(p), 7 + 28 + 30)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -288,13 +288,13 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        SEC = ["howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need",
+        SEC = ["howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case",
                "ref-profile-circle", "ref-sections", "ref-section-templates", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-status-words",
                "ref-picker", "ref-milestone-states", "ref-excel", "ref-dates-and-ids", "ref-using-help", "ref-keys", "ref-icons"]
         self.assertEqual(s["places"], SEC)
         self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:4])
-        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], SEC[4:])
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:5])
+        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], SEC[5:])
         self.assertEqual(s["index"], SEC)
         self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-at-a-glance", "howto-add-a-section-from-a-template", "ref-status-words", "howto-use-the-board", "ref-keys"], ["work", "dashboard+edit"]))
         for q in ("movement", "diagnostics"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match
