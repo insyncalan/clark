@@ -184,6 +184,26 @@ class Dialog(Base):
             p.until("!!document.querySelector('#pub-note')", "the bar says when")
             self.assertRegex(p.js("document.querySelector('#pub-note').textContent"), r"^Published \d\d-\d\d-\d{4} to the client$")
 
+    def test_C_publish_shows_a_spinner_while_it_works_then_a_tick_with_the_same_words(self):
+        """#130 point 4: a spinner beside "Publishing…" (still when the person asked for less motion), then a tick beside the success line."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            p.js("window.__real = window.fetch; window.fetch = (u, o) => /publish/.test(String(u)) && o && o.method === 'POST' ? new Promise((ok) => { window.__release = () => ok(window.__real(u, o)); }) : window.__real(u, o);")
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.go()
+            p.until("!!document.querySelector('#pub-msg [data-spin]')", "a spinner while it works")
+            self.assertEqual(p.message().strip(), "Publishing…")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-spin]')).animationName"), "pub-spin")
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+            p.until("getComputedStyle(document.querySelector('[data-spin]')).animationName === 'none'", "the ring stays still for reduced motion")
+            self.assertEqual(p.js("document.querySelector('#pub-msg [data-tick]')"), None, "no tick yet")
+            p.js("window.__release()")
+            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            self.assertEqual(p.js("document.querySelector('#pub-msg [data-spin]')"), None, "the spinner is gone")
+            self.assertTrue(p.js("!!document.querySelector('#pub-msg .success [data-tick] svg')"), "a tick beside the line")
+            self.assertRegex(p.message(), r"^Published\. Saved locally as ")
+
     def test_C_a_local_publish_says_locally_and_the_client_folder_is_left_alone(self):
         with chrome() as cdp:
             p = self.page(cdp)

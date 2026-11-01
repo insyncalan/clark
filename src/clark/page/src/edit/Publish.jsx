@@ -5,6 +5,7 @@
 // has a client folder (Settings). The words are the spec's (docs/handoff/design-43-to-client.md).
 import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
+import { Icon } from "../components/Icon.jsx";
 import { dialog, latest, pdfInfo, NO_FOLDER, folderName, open, close, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
@@ -75,7 +76,8 @@ function Dialog() {
         )}
         {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
-          {working ? "Publishing…" : s.message ? <p class={s.message.kind}>{s.message.text}</p> : null}
+          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />Publishing…</p>
+            : s.message ? <p class={s.message.kind}>{s.message.kind === "success" ? <span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span> : null}{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">
           {s.phase === "done" ? null : <button type="button" class="btn quiet" data-cancel onClick={cancel} disabled={working}>Cancel</button>}
