@@ -1385,7 +1385,7 @@
      ],
      [
       "p",
-      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word (in Edit) reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press Add; the items stay hidden from the client until you turn them on, and one Undo takes them all back."
+      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word (in Edit) reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items); the items stay hidden from the client until you turn them on, and one Undo takes them all back."
      ]
     ]
    },

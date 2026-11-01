@@ -6,12 +6,12 @@
 import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
+import { showDate } from "../workItems.js";
 import { dialog, latest, NO_FOLDER, folderName, open, tick, tickWord, wordPick, wordConfirm, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 import { WordClash } from "./WordClash.jsx";
 import { WordLayer } from "./Word.jsx";
 
-const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
-export const lastLine = (l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
+export const lastLine = (l) => (l ? `Published ${showDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
 
 function Dialog() {
   const s = dialog.value, el = useRef(null);
@@ -40,7 +40,7 @@ function Dialog() {
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); go(); }}>
         <h2 id="pub-title">{s.phase === "clash" ? clash.title : s.phase === "wordclash" ? "The Word file name is taken" : "Publish the report"}</h2>
         {s.phase === "clash" || s.phase === "wordclash" ? null : (
-          <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${shownDate(p.week_ending)}` : ""}{stateWords ? ` · ${stateWords}` : ""}</p>
+          <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${showDate(p.week_ending)}` : ""}{stateWords ? ` · ${stateWords}` : ""}</p>
         )}
         {s.phase === "wordclash" ? (
           <>

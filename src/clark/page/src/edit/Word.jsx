@@ -4,13 +4,13 @@
 // words (and its buttons are off), never by colour alone.
 import { useEffect, useRef } from "preact/hooks";
 import { data, project, mode } from "../stores/report.js";
+import { showDate } from "../workItems.js";
 import { NO_FOLDER, folderName } from "./publishState.js";
 import { WordClash } from "./WordClash.jsx";
 import { WORD_FILE_MB } from "./wordApi.js";
 import { exportBox, goExport, cancelExport, tickClient, pickClash, confirmReplace, exportReady,
   importBox, goRead, goAdd, cancelImport, chooseFile, tickItem, tickAllItems } from "./wordState.js";
 
-const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 // Why an empty list is empty, said once: everything in the file was added before, or there was nothing to find (a list with problems
 // says what each one is, so it only says nothing new was found).
 const nothingNew = (plan) => plan.already > 0 ? `Everything in ${plan.file} has been added before, so there is nothing new to add.`
@@ -49,7 +49,7 @@ function Export() {
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); goExport(); }}>
         <h2 id="word-x-title">{s.phase === "clash" ? "The Word file name is taken" : "Export to Word"}</h2>
         {s.phase === "clash" ? null : (
-          <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${shownDate(p.week_ending)}` : ""}</p>
+          <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${showDate(p.week_ending)}` : ""}</p>
         )}
         {s.phase === "clash" ? (
           <WordClash clash={s.clash} choice={s.choice} confirmed={s.confirmed} onPick={pickClash} onConfirm={confirmReplace} />
@@ -85,6 +85,12 @@ function Import() {
     const target = s.phase === "choose" ? dlg.querySelector("#word-file") : s.phase === "plan" ? dlg.querySelector("[data-add]:not([disabled])") || dlg.querySelector("[data-cancel]") : null;
     if (target) target.focus();
   }, [s.phase]);
+  // A browser fires no change when the same file is chosen again, so the picker is emptied whenever the page has let the file go
+  // (it was refused, or could not be read): choosing that file again is then a change, and Read the file is on again.
+  useEffect(() => {
+    const input = el.current && el.current.querySelector("#word-file");
+    if (input && !s.file && input.value) input.value = "";
+  }, [s.file, s.message]);
   const plan = s.plan, n = s.ticks.length;
   return (
     <dialog id="word-import-dialog" class="dlg wi" aria-modal="true" aria-labelledby="word-i-title" aria-busy={busy ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelImport(); }}>

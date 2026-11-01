@@ -348,6 +348,20 @@ NOT_MADE = "The Word report could not be made. Nothing was saved. Restart clark 
 ARCHIVED = "An archived project can't be exported. Restore it first. Nothing was saved."
 CANCELLED = "Cancelled. Nothing was saved."
 
+# What a refused client folder check says here, where the publisher's own words ("then publish again") would be wrong. One entry
+# per refusal that needs its own words, under its key in to_client.MESSAGES; any other is shown as to_client says it.
+MESSAGES = {
+    "folder_changed": "The client folder changed while clark was working (it is not the folder that was checked), so nothing was copied to it. Check the folder in Settings, then try again. Nothing was saved.",
+}
+
+
+def _client_folder_words(said):
+    """The words for a refused client folder check: this module's entry when `said` is to_client's entry for that key, else `said` and the usual ending."""
+    for key, words in MESSAGES.items():
+        if said == to_client.MESSAGES[key]:
+            return words
+    return said + " Nothing was saved."
+
 
 class _ReadFs:
     """The facts about a folder that to_client.preflight asks for. It reads and never writes."""
@@ -468,7 +482,7 @@ def _do_export(store, who, req, today, chosen, roots):
         checked = to_client.preflight(_ReadFs(), saved, data_dir=str(Path(store.path).parent), onedrive_roots=roots,
                                      local_folder=str(local))
         if not checked["ok"]:
-            raise Refused(checked["message"].replace("then publish again.", "then try again.") + " Nothing was saved.", 400, "client_folder")
+            raise Refused(_client_folder_words(checked["message"]), 400, "client_folder")
         client = Path(checked["folder"])
     try:
         listing = {"here": _names_in(local), **({"client": _names_in(client)} if client else {})}

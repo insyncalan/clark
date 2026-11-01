@@ -595,10 +595,16 @@ class Export(unittest.TestCase):
 
     def test_a_client_folder_that_changed_says_try_again_not_publish_again(self):
         self.save_client_folder()
-        said = {"ok": False, "message": "The client folder changed while clark was working, so nothing was copied to it. Check the folder in Settings, then publish again."}
+        said = {"ok": False, "message": word_route.to_client.MESSAGES["folder_changed"]}
         with mock.patch.object(word_route.to_client, "preflight", return_value=said):
             status, got = self.post(to_client=True)
-        self.assertEqual(got["message"], "The client folder changed while clark was working, so nothing was copied to it. Check the folder in Settings, then try again. Nothing was saved.")
+        self.assertEqual(got["message"], word_route.MESSAGES["folder_changed"], "taken from this module's table, by the key")
+        self.assertIn("then try again.", got["message"])
+        self.assertNotIn("publish again", got["message"])
+        other = {"ok": False, "message": word_route.to_client.MESSAGES["is_local"]}
+        with mock.patch.object(word_route.to_client, "preflight", return_value=other):
+            self.assertEqual(self.post(to_client=True)[1]["message"], word_route.to_client.MESSAGES["is_local"] + " Nothing was saved.")
+        self.assertNotIn(".replace(", Path(word_route.__file__).read_text(encoding="utf-8"), "no message is made by editing another module's words")
 
     def test_the_words_that_come_from_the_publisher_never_reach_the_screen(self):
         from clark import publish

@@ -406,7 +406,7 @@ class WordToo(Screens):
             p.until("document.querySelector('[data-go]').innerText === 'Close'", "both were saved")
             said = p.message()
             self.assertIn("PUB-report-2026-10-23", said)
-            self.assertRegex(said, r"Saved “PUB-report-2026-10-23\.docx” in “Local”\.")
+            self.assertIn(word_route.SAVED.format(name="PUB-report-2026-10-23.docx", folder="“Local”"), said, "the route's own entry, not a match on its words")
             self.assertEqual(self.word_files(self.rig.local), ["PUB-report-2026-10-23.docx"], "beside the web page")
             self.assertTrue((self.rig.local / "chosen.html").exists())
             self.assertEqual(sorted(r["word"] for r in self.rig.rows()), [0, 1], "one row for the web page, one for the Word file")
@@ -624,6 +624,28 @@ class Import(Screens):
                 self.assertEqual(self.sent[-1][1]["op"], "check")
                 self.inside(p, "word-import-dialog")
                 self.colours(p, "word-import-dialog", scheme)
+
+    def test_choosing_the_same_file_again_after_it_was_refused_lets_Read_the_file_be_pressed(self):     # LOW (#432)
+        """A browser fires no change when the file chosen is the one the picker already holds, so the page must empty the picker."""
+        def choose_as_a_browser_does(p, data, name):
+            fired = p.js("""(function(b64, name){var el=document.querySelector('#word-file'), held=el.files.length>0;
+                var bin=atob(b64), u=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+                var dt=new DataTransfer(); dt.items.add(new File([u], name, {type:'application/octet-stream'})); el.files=dt.files;
+                if(!held) el.dispatchEvent(new Event('change',{bubbles:true})); return !held})(%s, %s)""" % (json.dumps(encoded(data)), json.dumps(name)))
+            return fired
+        notes = b"this is only some plain text, not a Word file at all"
+        with chrome() as cdp:
+            self.start()
+            p = self.page(cdp, edit=True)
+            self.open_import(p)
+            self.assertTrue(choose_as_a_browser_does(p, notes, "notes.docx"), "the first choice is a change")
+            p.until("!document.querySelector('[data-read]').disabled", "the file was accepted by the page")
+            p.js("document.querySelector('[data-read]').click()")
+            p.until("!!document.querySelector('.word-msg .error')", "the file could not be read, so it was refused in words")
+            self.assertTrue(p.js("document.querySelector('[data-read]').disabled"), "Read the file waits for a file")
+            self.assertEqual(p.js("document.querySelector('#word-file').files.length"), 0, "the picker was emptied")
+            self.assertTrue(choose_as_a_browser_does(p, notes, "notes.docx"), "the same file again is a change")
+            p.until("!document.querySelector('[data-read]').disabled", "Read the file is on the second time")
 
     def test_a_file_over_the_limit_is_refused_in_words_before_it_is_sent(self):
         for w, scheme in ((1400, "dark"), (900, "light")):
