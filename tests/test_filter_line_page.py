@@ -134,7 +134,7 @@ class Line(unittest.TestCase):
                 self.focus(cdp, sid)
                 hints = cdp.js("[...document.querySelectorAll('.fhint')].map(h => h.textContent)", sid)
                 self.assertIn("due:overdue", hints)
-                self.assertNotIn("is:quiet", hints, "a word the page cannot answer yet is not offered")
+                self.assertIn("is:quiet", hints, "the demo carries review facts, so the word is offered")
                 self.assertGreaterEqual(cdp.js("Math.min(...[...document.querySelectorAll('.fhint')].map(h => h.getBoundingClientRect().height))", sid), 24)
                 click(cdp, sid, ".fhint[title*='Leave closed']")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "-status:Closed"))
@@ -235,13 +235,13 @@ class Line(unittest.TestCase):
             self.type(cdp, sid, "is:")
             self.assertTrue(wait(lambda: "is:open" in self.listed(cdp, sid)))
             offered = self.listed(cdp, sid)
-            for hidden in ("is:quiet", "is:needed", "is:archived"):
+            for hidden in ("is:needed", "is:archived"):
                 self.assertNotIn(hidden, offered)
             self.assertIn("is:incomplete", offered)
             self.assertTrue(cdp.js("[...document.querySelectorAll('#fline-list .fl2')].some(e => e.textContent.includes('No owner or no date'))", sid), "a gloss beside is:incomplete")
-            self.type(cdp, sid, "quiet")
+            self.type(cdp, sid, "needed")
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: "Not reviewed in 14 days is not available on this page yet" in self.say(cdp, sid)))
+            self.assertTrue(wait(lambda: "is not available on this page yet" in self.say(cdp, sid)))
             self.assertEqual(self.chips(cdp, sid), ["is:open"])
 
     def test_the_freshness_menu_gives_the_two_plain_values_and_the_chips_say_them_in_plain_words(self):
@@ -254,8 +254,8 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#freshMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#freshMenu[aria-expanded=true]')", sid)))
                     names = cdp.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())", sid)
-                    self.assertEqual(names, ["No owner or no date"], "the demo has no review dates, so only the value that needs none is offered")
-                    click(cdp, sid, "[role=menu] [role^=menuitem]")
+                    self.assertEqual(names, ["Not reviewed in 14 days", "No owner or no date"], "the demo carries review facts, so both values are offered")
+                    click(cdp, sid, "[role=menu] [role^=menuitem]:nth-child(2)")
                     self.assertTrue(wait(lambda: "is:incomplete" in self.chips(cdp, sid)), self.chips(cdp, sid))
                     self.assertEqual(cdp.js("document.querySelector('.fchip[data-chip=is][title=\"No owner or no date\"]') !== null", sid), True, "the chip's words are plain")
                     rows = self.rows(cdp, sid)
@@ -267,7 +267,7 @@ class Line(unittest.TestCase):
                     self.assertIn("reviewed", cdp.js("location.hash", sid), "the address keeps the older Freshness filter")
                     click(cdp, sid, "#freshMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu] [role^=menuitem]')", sid)))
-                    click(cdp, sid, "[role=menu] [role^=menuitem]")
+                    click(cdp, sid, "[role=menu] [role^=menuitem]:nth-child(2)")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]), "picking it again takes it off")
                     self.assertEqual(cdp.js("window.__errs", sid), [])
 

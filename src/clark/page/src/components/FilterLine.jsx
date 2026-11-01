@@ -5,7 +5,7 @@
 // Backspace in an empty box removes the last chip, Esc closes the open list.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
-import { rows as allRows, lineText, setLine, local, project, filterCtx, fromFile } from "../stores/report.js";
+import { rows as allRows, lineText, setLine, local, project, filterCtx, fromFile, peek } from "../stores/report.js";
 import * as FL from "../logic/filterLine.js";
 import { Menu } from "./Menu.jsx";
 
@@ -200,7 +200,7 @@ export function FilterLine() {
       const t = e.target, tag = t && t.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (t && t.isContentEditable)) return;
       if (document.querySelector('[role="dialog"], [aria-modal="true"], [role="menu"]')) return;
-      if (!input.current) return;
+      if (!input.current || peek.value) return;          // an open peek keeps "/" for its own words box
       e.preventDefault();
       input.current.focus();
     };

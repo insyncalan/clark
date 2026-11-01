@@ -862,7 +862,7 @@ class ShowThem(Line):
                 {"id": "S-A-2", "description": "Send the invitations", "status": "Open", "owner": "Owner One", "due_date": None},
                 {"id": "S-A-3", "description": "Order the laptops", "status": "Open", "owner": "Owner One", "due_date": "2026-11-05"}]
         if with_dates:
-            rows[2]["last_reviewed"] = "2026-10-01"
+            rows[2]["freshness"] = {"raised": "2026-09-01", "last_reviewed": "2026-10-01", "not_reviewed": True, "days": 14}
         data = {"actions": rows, "raid": [{"id": "S-R-1", "type": "Risk", "description": "No date on a risk", "status": "Open", "owner": "Owner One", "due_date": None}],
                 "decisions": [], "workstreams": [], "milestones": []}
         return self.val("(function(){ var R = T.report; history.replaceState(null, '', '#dashboard&p=TUL'); R.project.value = 'TUL'; R.data.value = " + lit(data) + "; "
