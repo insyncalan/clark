@@ -146,14 +146,14 @@ def review_days_for(project_row):
     return fresh.DEFAULT_DAYS
 
 
-def attach_freshness(con, data, days):
+def attach_freshness(con, data, days, cache=None):
     """Add `freshness` {raised, last_reviewed, days, not_reviewed} (dates YYYY-MM-DD) to each open action, risk or issue and
     decision in `data` (#158). Closed, cancelled, made, withdrawn and archived items get none. Read only: it works from each
-    item's history, read in one pass, and writes nothing."""
+    item's first and latest by-a-person history rows (history.review_events), and writes nothing."""
     from clark import history          # history imports this module, so it is read here
     on = today()
     opened = [row for t in FRESH_TABLES for row in data.get(t, ()) if fresh.is_open(row)]
-    events = history.history_many(con, [row["id"] for row in opened])          # one pass over the log, not one per item
+    events = history.review_events(con, [row["id"] for row in opened], cache)          # only the rows freshness reads, not the whole log
     for row in opened:
         f = fresh.freshness(row, events[row["id"]], on, days)
         row["freshness"] = {"raised": f["raised"], "last_reviewed": f["last_reviewed"], "days": days,
@@ -2235,6 +2235,7 @@ class Store:
         self.path = Path(path)
         self.backups_dir = self.path.parent / "backups"        # beside the database, never inside OneDrive (backup.py checks)
         self._backup_hold = None                               # set by backup.py alone, and only inside `with store.backup_once(...)`
+        self.review_cache = None                               # #251: made by the first data_for (history.ReviewCache)
         self.backup_warning = None                             # plain words when the last daily copy failed (backup.before); else None
         self.migration_backup = None                           # the safety copy taken when this open brought the file up to date; else None
         self.device = con.execute("SELECT v FROM meta WHERE k = 'device'").fetchone()[0]
@@ -2392,7 +2393,10 @@ class Store:
                 "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
             out["label_rules"] = [dict(r) for r in con.execute(
                 "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
-            attach_freshness(con, out, review_days_for(out["project"]))
+            if self.review_cache is None:
+                from clark import history                  # history imports this module, so it is read here
+                self.review_cache = history.ReviewCache()
+            attach_freshness(con, out, review_days_for(out["project"]), self.review_cache)
             return out
         finally:
             con.close()
@@ -2549,6 +2553,8 @@ class Store:
             sent = date.fromisoformat(str(day))
         except ValueError:
             raise Invalid("The day the email was sent must be a real date.") from None
+        if sent < date(2020, 1, 1):
+            raise Invalid("The day the email was sent is too long ago to be right. Check the date.")
         if sent > (today or date.today()) + timedelta(days=1):
             raise Invalid("The day the email was sent can't be in the future.")
         if self.con.in_transaction:
@@ -2568,6 +2574,16 @@ class Store:
                            for table in ("actions", "raid", "decisions"))
             if not all(ours(i) for i in ids):
                 raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
+            # #258: an item the email could not have been about (left out of the report, closed, or labelled to be kept out) is refused.
+            values = list(ids)
+            if (self.con.execute(f"SELECT 1 FROM report_hidden WHERE project = ? AND item_id IN ({', '.join('?' * len(values))})",
+                                 (code, *values)).fetchone()
+                    or self.sensitive_among(values)
+                    or any(self.con.execute(f"SELECT 1 FROM {_table(t)} WHERE project = ? AND id IN ({', '.join('?' * len(values))}) "
+                                            "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
+                           for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
+                                             ("decisions", ("Withdrawn", "Withdrawn"))))):
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
@@ -2576,6 +2592,15 @@ class Store:
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
+
+    def sensitive_among(self, ids):
+        """True when any of the item ids is labelled Sensitive or carries a label whose behaviour is 'exclude': the one test for
+        what may never go in an email (the sent record refuses it here)."""
+        values = list(ids)
+        if not values:
+            return False
+        return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({', '.join('?' * len(values))}) "
+                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", values).fetchone())
 
     def email_sent_for(self, code, limit=200):
         """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
