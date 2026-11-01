@@ -191,3 +191,17 @@ textarea.tpl-field { resize: vertical; }
   .tpl-ti-edit.pic-left .tpl-ti-pic { order: 0; }
   .tpl-gal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* #96 G7 Files and links templates: Edit parts. Tokens only, so dark mode follows. */
+.tpl-edit { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-2) 0; min-width: 0; }
+.tpl-edit .tpl-dl { margin: 0; }
+.tpl-remove { flex: none; align-self: center; }
+.tpl-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tpl-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); max-width: 560px; }
+.tpl-form label { font-size: var(--size-small); color: var(--text-muted); margin-top: var(--space-1); }
+.tpl-form input, .tpl-form textarea { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-form textarea { resize: vertical; }
+.tpl-form input:focus-visible, .tpl-form textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tpl-form .btn { justify-self: start; margin-top: var(--space-2); }
+.tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-small); }
+.tpl-empty, .tpl-hint { margin: 0; }
