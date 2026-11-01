@@ -860,7 +860,7 @@ class OnlyOneRouteWritesIntoTheClientFolder(Base):
                                                   "/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder",
                                                   "/api/preview", "/api/profile", "/api/publish", "/api/undo", "/api/word-export",
                                                   "/api/word-import"])     # #111: the two backup routes; #147: preview; #180: profile; #48: the two Word routes (word-export is the second route that can write into the client folder, through to_client, with its own tests in test_word_route); #47: asking, its switch and its folders (none writes a file); #47e: the dry run and Apply of a suggested change (the change goes through the store's one undoable step)
-        self.assertEqual(sorted(sv.GET_ROUTES), ["/api/ask-enabled", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/data", "/api/export", "/api/movement", "/api/profile",
+        self.assertEqual(sorted(sv.GET_ROUTES), ["/api/ask-enabled", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/data", "/api/export", "/api/milestones", "/api/movement", "/api/profile",
                                                  "/api/projects", "/api/publication", "/api/use-cases"])     # #147: export; #136: movement; #180: profile; #47: asking
 
     def test_no_route_takes_the_client_folder_from_the_request(self):
