@@ -101,6 +101,9 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
+# #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
+# tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
+# gets the general words. No request kind is given a larger door. tests/test_tracker_route.py pins this over the real route.
 CHANGE_BODY_LIMIT = 2 * 64 * 1024 + 4 * 1024   # #96: twice the largest section content (64 KB; the body is a string inside the request, so each quote and backslash is escaped twice) plus 4 KB; a test ties it to the registry
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
@@ -790,6 +793,8 @@ def ask_route(method):
         if service is None:
             return handler.send(404, error_body("not_found"))
         status, body = getattr(service, method)(*req)
+        if method == "ask" and isinstance(body, dict) and body.get("held") is True:
+            LOG.warning("question answer dropped, it held the private marker")     # #277: a fixed line; no reply, no marker
         return handler.send(status, body)
     return route
 
