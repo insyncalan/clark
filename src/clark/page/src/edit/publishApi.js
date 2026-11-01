@@ -18,6 +18,9 @@ async function call(method, path, body) {
 export const publishRequest = (body) => call("POST", "/api/publish", body);
 export const folderRequest = (project, action) => call("POST", "/api/client-folder", { project, action });
 export const previewRequest = (project) => call("POST", "/api/preview", { project });
+// The review period (#160). The route is the server's to add (#171, a guarded change): until it exists the answer is a 404 and the
+// Settings control says so in plain words and keeps the old number.
+export const reviewDaysRequest = (project, days) => call("POST", "/api/review-days", { project, days });
 export const latestRequest = (project) => call("GET", `/api/publication?project=${encodeURIComponent(project)}`);
 
 // The words for a reply. The publish routes write plain words themselves (to_client.py and publish_flow.py: a test pins that none

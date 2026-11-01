@@ -170,6 +170,10 @@ class Words(unittest.TestCase):
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder",
+                                  "Not reviewed after (days)",     # #160
+                                  "An open item is flagged when nobody has changed it for more than this many days. It sets the "
+                                  "Freshness filter in Work items and the optional Not reviewed tile on the Dashboard.",
+                                  "Days", "Save",
                                   "Personal",    # #45: Settings › Personal, the section styles
                                   "These are for you, on this computer. This changes the page you edit. The published page uses Slim gaps for now.",
                                   "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179

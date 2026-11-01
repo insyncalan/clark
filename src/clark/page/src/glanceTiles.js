@@ -29,6 +29,15 @@ export function tiles(rows, today) {
   ];
 }
 
+// The optional Not reviewed tile (#160): open items not reviewed in N days. It is not one of the four starting tiles, so `tiles` does
+// not return it; the Dashboard adds it only when the eye has turned it on. Its filter is the Freshness filter, in Open mode, so the
+// number is the number of rows in the list it opens. `days` is the project's setting (stores/review.js), passed in with today.
+export function notReviewedTile(rows, today, days) {
+  const filter = setFilter(initial(), "reviewed", ["stale"], false);
+  const value = applyFilters(rows, filter, today).length;
+  return { key: "stale", label: "Not reviewed", value, detail: `in ${plural(days, "day")}`, rag: value ? "a" : "g", filter };
+}
+
 // A tile's status in words as well as colour (#140: colour is never the only signal; the prototype's C.tileWord, views.js). The
 // word follows the colour the tile shows, automatic or set by hand: green "On track", amber "At risk", red "Off track". Three tiles
 // say it more exactly: red Overdue actions are "Overdue", amber Decisions needed are "Waiting", and High risks and issues are
@@ -36,6 +45,7 @@ export function tiles(rows, today) {
 // something else, so it says what it is: "Tile colour: Off track". No colour has no word. Never a colour name.
 export const TILE_WORDS = { g: "On track", a: "At risk", r: "Off track" };
 export const TILE_WORDS_OF = { overdue: { r: "Overdue" }, decisions: { a: "Waiting" }, risks: { a: "Watch", r: "High" } };
+const OPTIONAL_WORDS_OF = { stale: { a: "Needs a look" } };      // the optional tile (#160); kept apart so TILE_WORDS_OF stays the prototype's table
 export const HEALTH_WORD_LABEL = "Tile colour: ";
 
 /** The plain word for a tile, or "" for none. `key` is the tile (health, overdue, risks, decisions); `rag` is the colour it shows
@@ -46,7 +56,7 @@ export const HEALTH_WORD_LABEL = "Tile colour: ";
 export function tileWord(key, rag, outline = "", pill = "") {
   const hand = String(outline || "").toLowerCase(), c = hand === "n" ? "" : String(rag || "").toLowerCase();
   if (key === "health") return TILE_WORDS[hand] && hand !== String(pill || "").toLowerCase() && TILE_WORDS[c] ? HEALTH_WORD_LABEL + TILE_WORDS[c] : "";
-  return (TILE_WORDS_OF[key] || {})[c] || TILE_WORDS[c] || "";
+  return (TILE_WORDS_OF[key] || OPTIONAL_WORDS_OF[key] || {})[c] || TILE_WORDS[c] || "";
 }
 
 // ── The tiles as the page draws them (#45) ───────────────────────────────────────────────────────────────────────────────

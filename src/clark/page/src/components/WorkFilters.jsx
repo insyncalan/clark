@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { rows as allRows, filterState, setFilterState, openFilter, refusals } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { offeredFields, NAMES, MODES, TYPES, counts, typeCounts, isActive, options, setMode, setType, toggleValue, setNot, removeFilter } from "../filters.js";
+import { reviewDays } from "../stores/review.js";
 import { Icon } from "./Icon.jsx";
 
 export function Switches({ children }) {
@@ -25,6 +26,7 @@ export function Switches({ children }) {
 
 function FilterBox({ field, onClose }) {
   const st = filterState.value, today = todayIso(), box = useRef(null);
+  void reviewDays.value;                                // a changed review period redraws the Freshness choice
   void refusals.value;                                  // a refused tick redraws the box, so the tick goes back
   const opts = options(allRows.value, field, st, today);
   const not = !!st.not[field];

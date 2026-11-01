@@ -14,6 +14,7 @@ import { ProfileMenu, exportExcel } from "./ProfileMenu.jsx";
 import { Personal } from "./Personal.jsx";
 import { GLANCE } from "./GlanceEdit.jsx";
 import { ClientFolder } from "./ClientFolder.jsx";
+import { ReviewDays } from "./ReviewDays.jsx";
 import { Movement } from "./Movement.jsx";
 import { RichField } from "./RichField.jsx";
 import { NeedsEdit } from "./NeedsEdit.jsx";
@@ -31,4 +32,4 @@ import { AddDialog } from "./AddDialog.jsx";
 import { installKeys, openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
-export const EDIT = { glance: GLANCE, Personal, RichField, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ProfileMenu, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };
+export const EDIT = { glance: GLANCE, Personal, RichField, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ProfileMenu, exportExcel, ClientFolder, ReviewDays, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };

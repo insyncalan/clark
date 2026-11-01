@@ -8,6 +8,7 @@
 //     not: { owner: true, .. } }                 a field set to "is not" instead of "is any of"
 // Each filter is a set of chosen values (a list with no repeats). Every function returns a new state; none changes its input.
 import { dayNumber, dueField, isOpen, plural } from "./workItems.js";
+import { DEFAULT_REVIEW_DAYS } from "./reviewSetting.js";
 
 export const FIELDS = ["workstream", "status", "due", "owner", "priority", "use_case", "milestone", "client", "reviewed"];
 export const NAMES = { workstream: "Workstream", status: "Status", due: "Due", owner: "Owner", priority: "Priority", use_case: "Use case", milestone: "Milestone", client: "Client", reviewed: "Freshness" };
@@ -27,10 +28,15 @@ const CLIENT = [["yes", "Shown to the client"], ["no", "Internal only"]];
 // read here as a row's own first-seen date; if work-item rows ever get a typed `raised`, rename this key (for example first_seen).
 // With none of these nothing is flagged. Plain calendar days, the same rule as src/clark/freshness.py: more than N
 // days (exactly N is not yet), open items only.
-export const REVIEW_DAYS = 14;
-export const staleWords = (days = REVIEW_DAYS) => "Not reviewed in " + plural(days, "day");       // the filter's value and the peek's chip say it the same way
-const REVIEWED = [["stale", staleWords()], ["incomplete", "No owner or no date"]];
-export function notReviewed(row, today, days = REVIEW_DAYS) {
+// #160: N is the project's own setting (Settings, "Not reviewed after (days)"). The page's store gives it here with setReviewDays, so the
+// chip, the filter value and the Dashboard tile all read one number; until then it is 14. A bad number is never taken.
+export const REVIEW_DAYS = DEFAULT_REVIEW_DAYS;
+let reviewDays = DEFAULT_REVIEW_DAYS;
+export function setReviewDays(n) { reviewDays = Number.isInteger(n) && n >= 1 ? n : DEFAULT_REVIEW_DAYS; }
+export function getReviewDays() { return reviewDays; }
+export const staleWords = (days = reviewDays) => "Not reviewed in " + plural(days, "day");       // the filter's value and the peek's chip say it the same way
+const REVIEWED = [["stale"], ["incomplete", "No owner or no date"]];
+export function notReviewed(row, today, days = reviewDays) {
   if (!isOpen(row)) return false;
   if (typeof row.not_reviewed === "boolean") return row.not_reviewed;
   const since = dayNumber(row.last_reviewed || row.raised), t = dayNumber(today);
@@ -94,7 +100,7 @@ export function valueOf(row, field, today) {
 export function labelOf(field, value) {
   if (value === NONE) return NO_WORDS[field] || NONE;
   if (field === "due") return (DUE.find((d) => d[0] === value) || [0, value])[1];
-  if (field === "reviewed") return (REVIEWED.find((d) => d[0] === value) || [0, value])[1];
+  if (field === "reviewed") return value === "stale" ? staleWords() : (REVIEWED.find((d) => d[0] === value) || [0, value])[1];
   if (field === "client") return (CLIENT.find((d) => d[0] === value) || [0, value])[1];
   return value;
 }

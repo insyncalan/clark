@@ -4,7 +4,9 @@
 // time from the rows the file keeps) and nothing else: no button, no control.
 import { data, rows, openWork, fromFile } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
-import { allTiles, fileTiles } from "../glanceTiles.js";
+import { allTiles, fileTiles, notReviewedTile, tileWord } from "../glanceTiles.js";
+import { reviewDays, staleTile } from "../stores/review.js";
+import { Icon } from "./Icon.jsx";
 
 function Cell({ tile, children }) {
   return <div class={`tcell${tile.key === "health" ? " health" : ""}`} data-tile={tile.key}>{children}</div>;
@@ -45,6 +47,7 @@ export function Glance({ tools }) {
   const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles).filter((t) => editing || !t.hidden);
   const Wrap = editing ? tools.glance.Cell : Cell;
   const order = list.map((t) => t.key);
+  const extra = !fromFile.value && staleTile.value ? notReviewedTile(rows.value, todayIso(), reviewDays.value) : null;   // the optional tile (#160): after the others, off until the eye turns it on
   return (
     <div class="glance" data-glance>
       {list.map((t, i) => (
@@ -52,6 +55,12 @@ export function Glance({ tools }) {
           {t.key === "health" ? <Health t={{ ...t, pill: d.project.health ? ({ "On track": "g", "At risk": "a", "Off track": "r" })[d.project.health] : "n" }} tools={tools} editing={editing} /> : <Figure t={t} file={fromFile.value} />}
         </Wrap>
       ))}
+      {extra ? <div class="tcell" data-tile="stale"><Figure t={{ ...extra, word: tileWord("stale", extra.rag) }} file={false} /></div> : null}
+      {editing ? (
+        <button type="button" class="eye" data-edit-only data-stale-eye aria-pressed={staleTile.value ? "true" : "false"}
+          title={staleTile.value ? "Hide the Not reviewed tile" : "Show a Not reviewed tile"} aria-label={staleTile.value ? "Hide the Not reviewed tile" : "Show a Not reviewed tile"}
+          onClick={() => { staleTile.value = !staleTile.value; }}><Icon name={staleTile.value ? "eye" : "eyeoff"} /></button>
+      ) : null}
     </div>
   );
 }

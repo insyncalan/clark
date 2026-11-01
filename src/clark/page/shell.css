@@ -1055,3 +1055,9 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: 4px; color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
 .pk-stale { margin: 0 0 8px; }
 .pk-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-small); }
+/* #160: the review period box and the eye that turns the Not reviewed tile on. Tokens only, so light and dark both follow. */
+.days-box { width: 6em; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.days-box[aria-invalid="true"] { border-color: var(--status-red-text); }
+.glance .eye { align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--grey-200); border-radius: var(--radius); background: transparent; color: var(--text-muted); cursor: pointer; }
+.glance .eye:hover { border-color: var(--grey-500); color: var(--text); }
+.glance .eye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }

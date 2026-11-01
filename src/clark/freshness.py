@@ -24,8 +24,28 @@ from datetime import date
 from clark.timefmt import parse
 
 DEFAULT_DAYS = 14
+MAX_DAYS = 3650                      # ten years; a larger number is a slip of the finger, not a review period
 CLOSED = ("Closed", "Cancelled", "Made", "Withdrawn")          # the Work items list's "not open" (workItems.js isOpen)
 PERSON_ROUTES = ("dashboard",)
+
+
+DAYS_WORDS = "Use a whole number of days from 1 to %d. The setting stays as it was." % MAX_DAYS
+_WHOLE = re.compile(r"[0-9]{1,5}")
+
+
+def check_days(value):
+    """The "Not reviewed after (days)" setting, checked. Takes what was typed or sent and gives back
+    {"ok": True, "days": n} or {"ok": False, "message": plain words}. A whole number from 1 to MAX_DAYS is accepted (a number or its
+    digits, spaces round it allowed); 0, a negative, a fraction, a true or false, an empty value and anything else is refused, and
+    the caller keeps the old number. The page (reviewSetting.js parseReviewDays) says the same words."""
+    if isinstance(value, bool):
+        return {"ok": False, "message": DAYS_WORDS}
+    text = str(value).strip() if isinstance(value, (int, str)) else ""
+    if _WHOLE.fullmatch(text):
+        n = int(text)
+        if 1 <= n <= MAX_DAYS:
+            return {"ok": True, "days": n}
+    return {"ok": False, "message": DAYS_WORDS}
 
 
 def is_open(row):
