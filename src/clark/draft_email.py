@@ -283,6 +283,16 @@ def tone_for(ids, counts):
     return min(n, 2)
 
 
+def picked_tone(tone):
+    """The tone the user chose on the chase: 0, 1 or 2 as a whole number, else None (the history decides). A bool is not a step."""
+    return tone if isinstance(tone, int) and not isinstance(tone, bool) and 0 <= tone <= 2 else None
+
+
+def chased_before(ids, counts):
+    """How often the most often chased of these items has been asked about before (what the page says under the tone buttons)."""
+    return max([0] + [(counts or {}).get(i, {}).get("n", 0) for i in ids])
+
+
 def _per_item(items, counts):
     """(times asked, last date) for each item, from its own history: one pair per item, in the order of the items."""
     out = []
@@ -385,7 +395,7 @@ def _opening(mode, items, tone, per, unblocks="", today=""):
             lead = (f"These items are now well overdue, the longest by {_plural(longest)}." if len(late) == len(items) else
                     f"Some of these items are now well overdue, the longest by {_plural(longest)}." if late else
                     "I'm writing again about the items below.")
-        text = f"{lead} {_history(per, items)}".strip()
+        text = f"{lead} {_history(per, items)}".strip() or ("This item is still open." if one else "These items are still open.")
         if unblocks:
             text += f" It is holding up {unblocks}." if one else f" They are holding up {unblocks}."
         return text
@@ -396,7 +406,7 @@ def _opening(mode, items, tone, per, unblocks="", today=""):
         if uniform:
             return f"I'm following up on my earlier note{' of ' + shown(last) if last else ''} about the decision below{needed}."
         return f"I'm following up on the decision below{needed}. {_history(per, items, 'asked')}"
-    return _history(per, items, "asked") + _held(unblocks)
+    return (_history(per, items, "asked") + _held(unblocks)).strip() or ("This decision is still open." if one else "These decisions are still open.")
 
 
 def _ask(mode, items, tone, reply_by):
@@ -498,8 +508,10 @@ def build(opts):
     opts: mode ("update_request", "chase" or "decision"), items (the offered items), picked (IDs ticked; all when absent), name and
     first (the recipient), email, own_domains, from (the sender's name; it signs with the first word), now ("YYYY-MM-DD HH:MM"), include_update,
     reply_by (YYYY-MM-DD), chased ({id: {n, last}}), project_names ({code: name}), unblocks (what a decision holds up),
-    cover (an opening the user wrote, used instead of the standard one).
-    Returns {to, subject, html, text, items, tone, mode, ids, internal_ids, problems, ready}. internal_ids are the ticked items
+    cover (an opening the user wrote, used instead of the standard one), tone (0, 1 or 2: the step the user chose for a chase or a
+    decision; absent, the history of chases decides, and an update request has none).
+    Returns {to, subject, html, text, items, tone, chased, mode, ids, internal_ids, problems, ready}; chased is how often the most
+    often chased ticked item has been asked about before. internal_ids are the ticked items
     not marked client-visible, for an outside address: the page shows them a note in the preview, and nothing about them is in
     the copied email. problems are plain next steps (nothing ticked, no sender name); while there are any, ready is False and
     the page does not copy. An item that is barred for the address is never included, even if picked."""
@@ -514,7 +526,8 @@ def build(opts):
     items = sort_items(items, today)
     internal_ids = [i["id"] for i in items if outside and is_internal(i)]
     ids = [i["id"] for i in items]
-    tone = tone_for(ids, opts.get("chased")) if mode != "update_request" else 0
+    chosen = picked_tone(opts.get("tone"))
+    tone = 0 if mode == "update_request" else chosen if chosen is not None else tone_for(ids, opts.get("chased"))
     per = _per_item(items, opts.get("chased"))
     first = str(opts.get("first") or str(opts.get("name") or "").split(" ")[0]).strip()
     names = opts.get("project_names") or {}
@@ -537,7 +550,7 @@ def build(opts):
     offerable = any(not barred(i) for i in opts.get("items") or [])
     problems = ([] if items else [NOTHING_TICKED if offerable else NO_OPEN_ITEMS]) + ([] if sender else [NO_SENDER])
     return {"to": one_line(opts.get("email")), "internal_ids": internal_ids, "problems": problems, "ready": not problems, "subject": subject(mode, items, today, tone, names, opts.get("reply_by") or ""), "html": html,
-            "text": "\n".join(lines), "items": [{k: i[k] for k in ITEM_KEYS if k in i} for i in items], "ids": ids, "tone": tone, "mode": mode}
+            "text": "\n".join(lines), "items": [{k: i[k] for k in ITEM_KEYS if k in i} for i in items], "ids": ids, "tone": tone, "chased": chased_before(ids, opts.get("chased")), "mode": mode}
 
 
 # ---- copying, and "I sent it" -------------------------------------------------------------------------------------------

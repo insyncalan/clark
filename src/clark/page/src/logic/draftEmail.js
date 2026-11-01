@@ -8,6 +8,13 @@ export const MODES = [
   { mode: "chase", label: "Chase" },
   { mode: "decision", label: "Decision" },
 ];
+// The tone of a chase (#452): the three steps, in the prototype's words (draft_email.TONE_NAMES says the same; a test holds them
+// together). They are labels on the editor's buttons only: no tone word is ever put in the email.
+export const TONES = [
+  { tone: 0, label: "First chase" },
+  { tone: 1, label: "Second chase" },
+  { tone: 2, label: "Firmer chase" },
+];
 export const CHOOSE_A_KIND = "That kind of email isn't available. Choose Update request, Chase or Decision.";
 export const NOTHING_SAVED = "Nothing was saved.";
 export const NOTHING_TO_RECORD = "Tick at least one item before you press I sent it. " + NOTHING_SAVED;
@@ -22,6 +29,7 @@ export const LABELS = {
   kind: "Kind of email",
   to: "To",
   subject: "Subject",
+  tone: "Tone",
   items: "Items in the email",
   replyBy: "Reply by",
   unblocks: "What is this holding up? (optional)",
@@ -79,18 +87,32 @@ export function sentWords(entry, saved = false, failed = false) {
   return `Marked as sent for ${items} on ${d}-${m}-${y}. It is not saved to the history yet.`;
 }
 
+/** The tone the user picked, or null when none (the history of earlier chases decides): a whole number 0, 1 or 2 only. */
+export function toneOf(tone) {
+  return Number.isInteger(tone) && tone >= 0 && tone <= 2 ? tone : null;
+}
+
+/** What is said under the tone buttons about earlier chases: "chased 2 times before", "not chased yet" (the prototype's words). */
+export function chasedWords(n) {
+  const k = Number.isInteger(n) && n > 0 ? n : 0;
+  return k ? `chased ${k} time${k > 1 ? "s" : ""} before` : "not chased yet";
+}
+
 /** What the builder is asked with each time something changes. Only the editor's own inputs; the caller adds the items, the
  *  recipient, the sender, the clock and the settings. An unknown kind is refused in plain words (never sent on). */
 export function buildOptions(state) {
   const mode = text(state.mode) || "update_request";
   if (!modeKnown(mode)) throw new Error(CHOOSE_A_KIND);
-  return {
+  const out = {
     mode,
     picked: Array.isArray(state.picked) ? state.picked.slice() : [],
     reply_by: text(state.replyBy),
     unblocks: text(state.unblocks).trim(),
     include_update: !!state.includeUpdate,
   };
+  const tone = toneOf(state.tone);
+  if (mode !== "update_request" && tone !== null) out.tone = tone;     // only a chase or a decision has a tone; none picked is left out
+  return out;
 }
 
 /** The note shown under the preview, and never in the email, for a ticked item that is not marked for the client. */

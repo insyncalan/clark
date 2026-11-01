@@ -266,6 +266,36 @@ class Seam(unittest.TestCase):
         self.assertEqual(code.count("log_email_sent("), 1)
 
 
+class Tone(unittest.TestCase):
+    """#452: the tone the user picks on the chase."""
+
+    def test_each_tone_is_taken_and_comes_back_in_the_answer(self):
+        for tone in (0, 1, 2):
+            status, body = ask({"project": "ABC", "mode": "chase", "email": INSIDE, "tone": tone})
+            self.assertEqual((status, body["draft"]["tone"]), (200, tone))
+
+    def test_no_tone_leaves_the_tone_to_the_history(self):
+        _, body = ask({"project": "ABC", "mode": "chase", "email": INSIDE})
+        self.assertEqual(body["draft"]["tone"], 0)
+        self.assertEqual(body["draft"]["chased"], 0)
+        _, none = ask({"project": "ABC", "mode": "chase", "email": INSIDE, "tone": None})
+        self.assertEqual(none["draft"]["text"], body["draft"]["text"])
+
+    def test_a_tone_that_is_not_one_of_the_three_is_refused_in_plain_words(self):
+        for bad in (-1, 3, "second", "1", 1.5, True, [], {}):
+            status, body = ask({"project": "ABC", "mode": "chase", "email": INSIDE, "tone": bad})
+            self.assertEqual((status, body["ok"], body["code"], body["message"]), (400, False, "bad_tone", feed.BAD_TONE), bad)
+        self.assertEqual(feed.BAD_TONE, "Choose First chase, Second chase or Firmer chase, or leave the tone as it is.")
+
+    def test_the_answer_never_carries_a_tone_word_in_the_email(self):
+        for tone in (0, 1, 2):
+            _, body = ask({"project": "ABC", "mode": "chase", "email": OUTSIDE, "tone": tone})
+            d = body["draft"]
+            for name in de.TONE_NAMES:
+                for part in (d["subject"], d["text"], d["html"]):
+                    self.assertNotIn(name, part)
+
+
 class OnTheRealStore(unittest.TestCase):
     """The seam against store.data_for and publish's own rules, not a hand-made dict: a row the client's file leaves out must not
     reach a client's email either (Sensitive, in the report's hidden list, archived, another project's), and nothing is written."""
@@ -610,13 +640,13 @@ class EditorShape(unittest.TestCase):
     def test_the_state_keys_the_editor_changes_are_request_keys(self):
         src = (SRC / "clark" / "page" / "src" / "components" / "DraftEmail.jsx").read_text(encoding="utf-8")
         keys = set(re.findall(r"change\(\{\s*(\w+)\s*:", src))
-        self.assertEqual(keys, {"mode", "picked", "replyBy", "unblocks", "includeUpdate"})
+        self.assertEqual(keys, {"mode", "picked", "replyBy", "unblocks", "includeUpdate", "tone"})
         for key in keys:
             self.assertIn(self.snake(key), feed.KEYS, key)
 
     def test_what_the_editor_reads_back_is_in_the_answer(self):
         _, body = ask({"project": "ABC", "email": INSIDE})
-        for key in ("html", "text", "to", "subject", "ids", "internal_ids", "problems"):
+        for key in ("html", "text", "to", "subject", "ids", "internal_ids", "problems", "tone", "chased"):
             self.assertIn(key, body["draft"], key)
         for item in body["items"]:
             self.assertTrue({"id", "text"} <= set(item))
