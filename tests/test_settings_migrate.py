@@ -111,16 +111,21 @@ class InTheOrderedTable(Base):
         con.execute("INSERT INTO actions (id, project, description, raised, source) VALUES ('ABC-A-001', 'ABC', 'Send the plan', '2026-10-01', 'test')")
         con.close()
 
+    def rows_without_links(self):
+        """The rows of milestones and actions as dicts, leaving out the owner_id link a later step (#115) adds."""
+        return {t: [{k: r[k] for k in r.keys() if k != "owner_id"} for r in self.con.execute(f"SELECT * FROM {t} ORDER BY 1")]
+                for t in ("milestones", "actions")}
+
     def test_an_old_version_5_file_migrates_and_keeps_its_data_and_its_settings(self):
         """Named test: version 5 to 6 keeps every row and every existing value; the new row and column start at their defaults."""
         self.make_v5_with_data()
         self.assertEqual(self.version(), BEFORE)
-        before = {t: [tuple(r) for r in self.con.execute(f"SELECT * FROM {t} ORDER BY 1")] for t in ("milestones", "actions")}
+        before = self.rows_without_links()
         projects = [tuple(r) for r in self.con.execute("SELECT code, name, active, archived, layout, health FROM projects ORDER BY code")]
         open_store(self.path, onedrive_roots=[]).close()
         self.assertEqual(self.version(), str(store_module.SCHEMA_VERSION))
         self.assertGreaterEqual(store_module.SCHEMA_VERSION, STEP)          # this step, and any later one (#50 is 7)
-        self.assertEqual({t: [tuple(r) for r in self.con.execute(f"SELECT * FROM {t} ORDER BY 1")] for t in ("milestones", "actions")}, before)
+        self.assertEqual(self.rows_without_links(), before)
         self.assertEqual([tuple(r) for r in self.con.execute("SELECT code, name, active, archived, layout, health FROM projects ORDER BY code")], projects)
         self.assertEqual(self.con.execute("SELECT ask_enabled FROM app_settings").fetchone()[0], 1)
 
