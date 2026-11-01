@@ -91,12 +91,12 @@ class Writing(Base):
 
     def test_a_chase_stepped_three_times_makes_the_tone_firmer(self):
         for n in range(3):
-            self.send(day=f"2026-10-2{n + 1}")
+            self.send(day=f"2026-10-2{n + 7}")
         self.send(mode="update_request")
         counts = de.chase_counts([dict(kind=de.SENT_KIND, ids=r["ids"], date=r["day"], mode=r["mode"]) for r in self.store.email_sent_for("ABC")])
         self.assertEqual(counts[self.a]["n"], 3, "an update request does not count")
         self.assertEqual(de.tone_for([self.a], counts), 2)
-        self.assertEqual(counts[self.a]["last"], "2026-10-23")
+        self.assertEqual(counts[self.a]["last"], "2026-10-29")
 
 
 class InTheHistory(Base):
@@ -378,10 +378,13 @@ class Refusals258(Base):
         self.assertNotIn(sens, str(caught.exception))
         self.assertNotIn("2026-10-27", str(caught.exception))
 
-    def test_a_day_before_2020_is_refused_and_the_first_day_of_2020_is_not(self):
+    def test_the_day_is_bounded_by_the_servers_clock_not_the_pages(self):
         self.refuses("too long ago", day="2019-12-31")
-        self.refuses("too long ago", day="0001-01-01")
-        self.assertTrue(self.send(day="2020-01-01"))
+        self.refuses("too long ago", day="2020-01-01")
+        self.refuses("too long ago", day=str(TODAY - timedelta(days=2)))
+        self.refuses("can't be in the future", day=str(TODAY + timedelta(days=2)))
+        for d in (TODAY, TODAY - timedelta(days=1), TODAY + timedelta(days=1)):
+            self.assertTrue(self.send(day=str(d)))
 
 
 
