@@ -9,6 +9,7 @@ Routes:
 - GET  /api/projects     the projects the page can ask for: [{"code", "name"}], from the store (`projects`, #31)
 - GET  /api/data         ?project=<CODE>: one project's data, from the store (`data_for`, #31)
 - GET  /api/movement     ?project=<CODE>: Milestones Movement (#136), owner only, never published: the view of the store's `milestone_moves` read (movement_read.py); without the seam, not found
+- GET  /api/milestones   ?project=<CODE>: that project's milestones for the Calendar and its list (#146), read only: the `milestones` seam (milestone_feed.py); without the seam, not found
 - POST /api/change       one change to a project's report sections (#65); the logic is `change(req)`, from clark.changes
 - POST /api/undo         reverse one earlier step of the report's (#65); the logic is `undo(req)`
 - POST /api/here         "still here" from an open page (#71); stops a launcher-started server when no page is left
@@ -396,6 +397,28 @@ def movement_route(handler):
     return handler.send(200, {"ok": True, "project": code, "movement": view})
 
 
+def milestones_route(handler):
+    """GET /api/milestones?project=<CODE> (#146): the milestones the Calendar and its list draw, read only. The read is a seam
+    (`milestones`, milestone_feed.make_feed over the store's data_for); this server imports nothing from clark. Only the fields the
+    page needs leave (no internal note, reason or description). No body is accepted (400), a malformed code or another parameter
+    is 400, a missing project 404, and without the seam the route is not there (404). Nothing from the request is used as a path.
+    The published file never calls it: its rows come from its own data block."""
+    read = getattr(handler.server, "milestones", None)
+    if read is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    given = query.get("project") or [""]
+    code = given[0]
+    if len(given) > 1 or set(query) - {"project"} or not PROJECT_CODE.fullmatch(code):
+        return handler.send(400, error_body("bad_project_code"))
+    body = read(code)
+    if body is None:
+        return handler.send(404, error_body("project_not_found"))
+    return handler.send(200, {"ok": True, "project": code, **body})
+
+
 ARCHIVED_VIEWS = ("hide", "show", "only")          # what ?archived= may be on /api/data (#126); never passed on unchecked
 PROJECT_LIST_LIMIT = 500
 PROJECT_NAME_LIMIT = 200
@@ -624,7 +647,7 @@ def profile_route(method):
 
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
-              "/api/movement": movement_route, "/api/profile": profile_route("get")}
+              "/api/movement": movement_route, "/api/milestones": milestones_route, "/api/profile": profile_route("get")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
@@ -812,7 +835,8 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None,
+                 milestones=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -822,6 +846,7 @@ class LocalServer(ThreadingHTTPServer):
         self.page_html = page_html or placeholder_html
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
         self.movement = movement              # store.milestone_moves (#136): the owner-only Movement read; None: no such route
+        self.milestones = milestones          # milestone_feed.make_feed (#146): the Calendar's rows; None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
         self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
@@ -857,14 +882,15 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None,
+          milestones=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile,
-                            word_import=word_import, word_export=word_export)
+                            word_import=word_import, word_export=word_export, milestones=milestones)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
