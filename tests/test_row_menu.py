@@ -11,6 +11,7 @@ import contextlib
 import json
 import time
 import unittest
+from datetime import date
 
 from _paths import ROOT, SRC
 
@@ -175,7 +176,7 @@ class Menu(board.Base):
             self.drafts.append(req)
             return real(req)
         self.s.httpd.draft_email = draft_seam
-        real_sent = draft_email_feed.make_sent(self.store.path, [], by_user=lambda: "Sam Example")
+        real_sent = draft_email_feed.make_sent(self.store.path, [], by_user=lambda: "Sam Example", today=date.fromisoformat(TODAY))
         self.sent_calls = []
 
         def sent_seam(req):
