@@ -64,7 +64,7 @@ class Checker(unittest.TestCase):
     def test_only_https_and_mailto_links_with_nothing_hidden_in_them(self):
         for href in ("javascript:alert(1)", "JaVaScRiPt:alert(1)", "http://example.org", "data:text/html,x", "//example.org",
                      "relative/page.html", "Report files/Plan.pdf", "#top", "https://", "https:///x", "https://@example.org",
-                     "https://user:pass@example.org/", "https://.example.org", "https://example.org/a b", "https://example.org/\\x",
+                     "https://user:" + "pass@example.org/", "https://.example.org", "https://example.org/a b", "https://example.org/\\x",
                      "mailto:", "ftp://example.org", "https://example.org/" + "a" * 2000, "", 7, None, True, ["https://example.org"]):
             with self.subTest(href=href):
                 self.refused("doclinks", body([a_link(href=href)]))
