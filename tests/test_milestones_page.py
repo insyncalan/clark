@@ -328,21 +328,56 @@ class RealBrowser(unittest.TestCase):
         src = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "components" / "MsCalendar.jsx").read_text(encoding="utf-8")
         self.assertNotIn("2026-01-01", src, "the fallback comes from the data or today")
 
-    def test_each_chip_shows_its_status_word_and_the_period_lists_its_milestones(self):
+    def test_a_chip_is_its_mark_and_name_and_a_slipped_one_begins_expected_as_in_the_prototype(self):
+        """system/prototype/views.js:105: the chip is the mark and the name; a ghost chip's words start 'Expected: '; no status word is drawn on it."""
         port = self.serve()
         rows = {r["id"]: r for r in self.expected("MOSS")}
         with chrome() as cdp:
             sid = self.open_calendar(cdp, port)
-            words = cdp.js("[...document.querySelectorAll('.cal-ms')].filter(c => c.dataset.ghost === '0').map(c => [c.dataset.ms, c.querySelector('.cal-w').textContent, getComputedStyle(c.querySelector('.cal-w')).display])", sid)
-            self.assertTrue(words)
-            for mid, word, display in words:
-                self.assertEqual(word, rows[mid]["state"], "the status word is on screen")
-                self.assertNotEqual(display, "none")
-            self.assertEqual(cdp.js("document.querySelector('.cal-list h4').textContent", sid), "Milestones in this period")
-            listed = cdp.js("[...document.querySelectorAll('.cal-list li')].map(l => [l.dataset.cl, l.dataset.ghost])", sid)
-            chips = cdp.js("[...document.querySelectorAll('.cal-d:not(.out) .cal-ms')].map(c => [c.dataset.ms, c.dataset.ghost])", sid)
-            self.assertEqual(sorted(listed), sorted(chips), "the list is the period's chips")
-            self.assertGreater(len(listed), 0)
+            got = cdp.js("""[...document.querySelectorAll('.cal-d:not(.out) .cal-ms')].map(c => [c.dataset.ms, c.dataset.ghost, c.querySelector('span').textContent,
+                c.querySelectorAll('.cal-w, small').length, c.querySelectorAll('svg').length, c.title])""", sid)
+            self.assertTrue(got)
+            for mid, ghost, text, extra, marks, title in got:
+                self.assertEqual(extra, 0, "no status word is drawn on a chip")
+                self.assertEqual(marks, 1, "the chip carries its mark")
+                if ghost == "1":
+                    self.assertEqual(text, "Expected: " + rows[mid]["name"])
+                    self.assertTrue(title.endswith(" · expected"), title)
+                else:
+                    self.assertEqual(text, rows[mid]["name"])
+                    self.assertTrue(title.endswith(" · " + rows[mid]["state"]), title)
+
+    def test_the_period_list_is_for_a_phone_only_and_lists_the_chips_of_the_period(self):
+        """The prototype hides 'Milestones in this period' above 700 px (system/prototype/app.css:1297, 1306). Measured at 1400 and 900 px
+        (hidden, taking no room, the chips keep their names) and at 700 and 390 px (shown under the grid, inside it, names gone from the cells)."""
+        port = self.serve()
+        for width in (1400, 900, 700, 390):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
+                cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)))
+                got = cdp.js("""(() => {
+                    const l = document.querySelector('.cal-list'), cal = document.querySelector('.cal').getBoundingClientRect(), r = l.getBoundingClientRect();
+                    const g = document.querySelector('.cal-g').getBoundingClientRect(), sp = document.querySelector('.cal-d:not(.out) .cal-ms:not(.ghost) span');
+                    return {display: getComputedStyle(l).display, h: r.height, top: r.top, left: r.left, right: r.right, grid: g.bottom, calL: cal.left, calR: cal.right,
+                        span: getComputedStyle(sp).display, listed: [...l.querySelectorAll('li')].map(x => [x.dataset.cl, x.dataset.ghost]),
+                        chips: [...document.querySelectorAll('.cal-d:not(.out) .cal-ms')].map(c => [c.dataset.ms, c.dataset.ghost]),
+                        wide: [...l.querySelectorAll('li')].filter(x => x.getBoundingClientRect().right > cal.right + 1).length,
+                        h4: l.querySelector('h4').textContent}; })()""", sid)
+                self.assertEqual(sorted(got["listed"]), sorted(got["chips"]), "the list is the period's chips")
+                self.assertGreater(len(got["listed"]), 0)
+                self.assertEqual(got["h4"], "Milestones in this period")
+                if width > 700:
+                    self.assertEqual(got["display"], "none", "the list is hidden at laptop widths")
+                    self.assertEqual(got["h"], 0, "and takes no room")
+                    self.assertNotEqual(got["span"], "none", "the chips keep their names at 1400 and 900 px")
+                else:
+                    self.assertEqual(got["display"], "block")
+                    self.assertGreaterEqual(got["top"], got["grid"] - 1, "the list sits under the month")
+                    self.assertGreaterEqual(got["left"], got["calL"] - 1)
+                    self.assertLessEqual(got["right"], got["calR"] + 1)
+                    self.assertEqual(got["wide"], 0, "no row runs past the calendar")
+                    self.assertEqual(got["span"], "none", "the cells keep their marks, the names are in the list")
 
     def test_an_empty_period_says_so_with_a_next_step_and_today_brings_it_back(self):
         port = self.serve()
@@ -423,30 +458,27 @@ class RealBrowser(unittest.TestCase):
                     time.sleep(0.2)
                     self.assertEqual(self.active(cdp, sid), "cal", "Go to today keeps focus on the calendar")
 
-    def test_the_ghost_chip_reads_the_name_once_and_no_chip_text_is_cut_or_overlaps(self):
+    def test_the_ghost_chip_says_expected_once_and_no_chip_text_is_cut(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.view(cdp, width, theme)
                     cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
                     got = cdp.js("""(() => {
-                        const out = {ghost: [], cut: [], overlap: []};
+                        const out = {ghost: [], cut: []};
                         for (const c of document.querySelectorAll('.cal-ms')) {
-                            const sp = c.querySelector('span'), w = c.querySelector('.cal-w');
-                            if (c.dataset.ghost === '1') out.ghost.push([sp.textContent, c.getAttribute('aria-label'), w.textContent]);
+                            const sp = c.querySelector('span');
+                            if (c.dataset.ghost === '1') out.ghost.push([sp.textContent, c.getAttribute('aria-label')]);
                             const shown = (e) => e && getComputedStyle(e).display !== 'none';
                             if (c.scrollWidth > c.clientWidth + 1) out.cut.push(c.dataset.ms);
                             if (shown(sp) && sp.scrollWidth > sp.clientWidth + 1) out.cut.push(c.dataset.ms);
-                            if (shown(sp) && shown(w)) { const a = sp.getBoundingClientRect(), b = w.getBoundingClientRect();
-                                if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) out.overlap.push(c.dataset.ms); }
                         }
                         return out; })()""", sid)
                     self.assertEqual(got["cut"], [], "no chip text is cut off")
-                    self.assertEqual(got["overlap"], [], "the name and the status word never overlap")
-                    for visible, label, word in got["ghost"]:
-                        self.assertFalse(visible.startswith("Expected"), "the name is not squeezed by a repeated prefix")
-                        self.assertTrue(label.startswith("Expected: "), "the accessible name still says the status")
-                        self.assertEqual(word, "Expected")
+                    for visible, label in got["ghost"]:
+                        self.assertTrue(visible.startswith("Expected: "), "the prototype's words: 'Expected: ' then the name")
+                        self.assertEqual(visible.count("Expected"), 1)
+                        self.assertTrue(label.startswith("Expected: "), "the accessible name says it too")
 
     def test_the_quarter_month_button_has_a_visible_focus_ring(self):
         for width in (1400, 900):
