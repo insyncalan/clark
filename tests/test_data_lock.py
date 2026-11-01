@@ -5,6 +5,7 @@ The holders are real clark processes (`-m clark` on a free port, a temporary dat
 so they run as the Mac does on any system), so a second clark, a stopped one and a killed one are the real thing. The lock file
 must stay empty. Nothing is opened in a browser. When a clark fails to come up, the failure carries what it wrote to stderr.
 """
+import errno
 import http.client
 import io
 import os
@@ -24,7 +25,29 @@ from clark import launch, platform as pl
 from clark import __main__ as launcher
 from test_main import AS_THE_MAC
 
-SENTENCE = "clark is already open on this folder. Use that window, or close it first."
+RESTORE_SENTENCE = ("Nothing was restored: clark is open with this data. Close its window, wait a minute for clark to stop, "
+                    "then run the restore again.")
+
+
+def already_open(folder, home=None):
+    return (f"Nothing was started: clark is already open with the data in {pl.with_tilde(folder, home)}. Switch to its window. If you can't "
+            "find it, wait a minute and try again: clark stops by itself a minute after its last window closes.")
+
+
+def cant_check(folder, nothing="Nothing was started", home=None):
+    return (f"{nothing}: clark can't check whether it is already open with the data in {pl.with_tilde(folder, home)}. "
+            "Check that you can save files there, then try again.")
+
+
+def lock_unreadable(case):
+    """The lock file exists but nobody may open it (skipped as root, who may open anything)."""
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        case.skipTest("root can open a file whatever its mode")
+    case.data.mkdir()
+    lock = case.data / pl.LOCK_NAME
+    lock.write_bytes(b"")
+    lock.chmod(0)
+    case.addCleanup(lock.chmod, 0o600)
 
 
 def free_port():
@@ -95,7 +118,7 @@ class TheLock(Base):
         second, port2 = self.start()
         second.wait(timeout=20)
         self.assertEqual(second.returncode, 1, self.stderr_of(second))
-        self.assertIn(SENTENCE, self.stderr_of(second))
+        self.assertIn(already_open(self.data, self._tmp.name), self.stderr_of(second))   # the clark started here has HOME in the temporary folder
         self.assertFalse(answers(port2), "the second started nothing")
         self.assertIsNone(first.poll())
         self.assertTrue(answers(port1), "the first keeps answering")
@@ -128,9 +151,36 @@ class TheLock(Base):
         self.addCleanup(pl.release_data_lock, self.data)
         with self.assertRaises(pl.PlatformError) as ctx:
             pl.hold_data_lock(self.data)
-        self.assertEqual(str(ctx.exception), SENTENCE)
+        self.assertEqual(str(ctx.exception), already_open(self.data))
         pl.release_data_lock(self.data)
         pl.hold_data_lock(self.data)
+
+    def test_a_lock_that_can_not_be_looked_at_is_not_reported_as_already_open(self):
+        lock_unreadable(self)
+        with self.assertRaises(pl.PlatformError) as ctx:
+            pl.hold_data_lock(self.data)
+        self.assertEqual(str(ctx.exception), cant_check(self.data))
+        with self.assertRaises(pl.PlatformError) as ctx:
+            pl.data_lock_held(self.data)
+        self.assertEqual(str(ctx.exception), cant_check(self.data))
+
+    def test_any_other_error_on_the_lock_is_can_not_check_and_a_busy_one_is_already_open(self):
+        self.data.mkdir()
+        for error, said in ((OSError(errno.EIO, "io"), cant_check(self.data)), (OSError(errno.EACCES, "no"), cant_check(self.data)),
+                            (BlockingIOError(errno.EAGAIN, "busy"), already_open(self.data)),
+                            (OSError(errno.EAGAIN, "busy"), already_open(self.data))):
+            with mock.patch.object(pl, "_lock_file", side_effect=error):
+                with self.assertRaises(pl.PlatformError) as ctx:
+                    pl.hold_data_lock(self.data)
+            self.assertEqual(str(ctx.exception), said, error)
+
+    def test_clark_does_not_start_when_the_lock_can_not_be_looked_at(self):
+        lock_unreadable(self)
+        p, port = self.start()
+        p.wait(timeout=20)
+        self.assertEqual(p.returncode, 1, self.stderr_of(p))
+        self.assertIn(cant_check(self.data, home=self._tmp.name), self.stderr_of(p))
+        self.assertFalse(answers(port), "nothing started")
 
     def test_a_start_that_fails_after_the_lock_lets_it_go(self):
         self.data.mkdir()
@@ -152,7 +202,16 @@ class TheLauncher(Base):
         code = launch.launch(free_port(), self.data, say=said.append, start=lambda *a, **k: started.append(a),
                              health=lambda port, mark: launch.NOTHING)
         self.assertEqual(code, 1)
-        self.assertEqual(said, [SENTENCE])
+        self.assertEqual(said, [already_open(self.data)])
+        self.assertEqual(started, [])
+
+    def test_it_says_it_can_not_check_and_starts_nothing_when_the_lock_can_not_be_looked_at(self):
+        lock_unreadable(self)
+        said, started = [], []
+        code = launch.launch(free_port(), self.data, say=said.append, start=lambda *a, **k: started.append(a),
+                             health=lambda port, mark: launch.NOTHING)
+        self.assertEqual(code, 1)
+        self.assertEqual(said, [cant_check(self.data)])
         self.assertEqual(started, [])
 
     def test_with_no_clark_open_it_starts_one_as_before(self):
@@ -179,9 +238,14 @@ class TheRestoreCommand(Base):
         first, port1 = self.start()
         self.assert_up(port1, first)
         code, out, err = self.restore("clark-20260101T000000Z-daily.db")
-        self.assertEqual((code, out, err.strip()), (1, "", SENTENCE))
+        self.assertEqual((code, out, err.strip()), (1, "", RESTORE_SENTENCE))
         self.assertEqual([p.name for p in self.data.rglob("*") if "replaced-" in p.name or p.name.endswith(("-restore.db", ".restoring"))], [])
         self.assertTrue(answers(port1), "the clark that was open keeps answering")
+
+    def test_it_says_it_can_not_check_when_the_lock_can_not_be_looked_at(self):
+        lock_unreadable(self)
+        code, out, err = self.restore("clark-20260101T000000Z-daily.db")
+        self.assertEqual((code, out, err.strip()), (1, "", cant_check(self.data, "Nothing was restored")))
 
     def test_listing_the_backups_is_still_allowed_while_a_clark_is_open(self):
         first, port1 = self.start()
@@ -193,7 +257,7 @@ class TheRestoreCommand(Base):
         self.data.mkdir()
         code, out, err = self.restore("clark-20260101T000000Z-daily.db")
         self.assertEqual(code, 1)
-        self.assertNotIn(SENTENCE, err, "it got as far as looking for the backup")
+        self.assertNotIn(RESTORE_SENTENCE, err, "it got as far as looking for the backup")
         self.assertFalse(pl.data_lock_held(self.data), "and let the lock go")
 
 

@@ -269,7 +269,7 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
         database = folder / DB_NAME
         locked = folder.is_dir()
         if locked:
-            platform.hold_data_lock(folder)       # a clark open on this folder refuses the restore, before the database is touched
+            platform.hold_data_lock(folder, restoring=True)       # a clark open on this folder refuses the restore, before the database is touched
         held = None
         try:
             if database.exists() and database.stat().st_size > 0:    # never open an empty file: that would build a new database in it

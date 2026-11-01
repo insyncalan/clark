@@ -192,8 +192,28 @@ def private_file(path):
 # One clark to a data folder
 
 LOCK_NAME = ".clark-lock"       # in the data folder; empty, and never written to
-ALREADY_OPEN = "clark is already open on this folder. Use that window, or close it first."
 _HELD_LOCKS = {}                # data folder -> the open lock file; kept open for as long as this clark runs
+
+
+def already_open(folder, restoring=False):
+    """What a person reads when another clark has `folder` open. `restoring`: the words for `clark restore NAME`."""
+    if restoring:
+        return "Nothing was restored: clark is open with this data. Close its window, wait a minute for clark to stop, then run the restore again."
+    return (f"Nothing was started: clark is already open with the data in {with_tilde(folder)}. Switch to its window. If you can't "
+            "find it, wait a minute and try again: clark stops by itself a minute after its last window closes.")
+
+
+def cant_check(folder, restoring=False):
+    """What a person reads when the lock on `folder` can't be looked at (not when another clark holds it)."""
+    nothing = "Nothing was restored" if restoring else "Nothing was started"
+    return (f"{nothing}: clark can't check whether it is already open with the data in {with_tilde(folder)}. "
+            "Check that you can save files there, then try again.")
+
+
+def _busy(error):
+    """True when `error` from the lock call means another clark holds it (and not that the lock can't be looked at)."""
+    return isinstance(error, BlockingIOError) or error.errno in (errno.EAGAIN, errno.EWOULDBLOCK)
+
 
 
 def _lock_file(folder):
@@ -206,23 +226,20 @@ def _lock_file(folder):
     return fd
 
 
-def hold_data_lock(folder):
-    """Take the lock on `folder` for as long as this process lives, or raise PlatformError(ALREADY_OPEN) if another clark has
-    it. The system drops the lock when the process ends, however it ends, so a crash leaves nothing stale. Where there is no
-    file lock (Windows, not built yet) nothing is checked."""
+def hold_data_lock(folder, restoring=False):
+    """Take the lock on `folder` for as long as this process lives. Raises PlatformError(already_open) if another clark has it,
+    and PlatformError(cant_check) if the lock can't be looked at (no permission, or any other error): only a busy lock means
+    "already open". The system drops the lock when the process ends, however it ends, so a crash leaves nothing stale. Where
+    there is no file lock (Windows, not built yet) nothing is checked."""
     key = str(Path(folder).resolve())
     if fcntl is None:
         return
     if key in _HELD_LOCKS:
-        raise PlatformError(ALREADY_OPEN)
+        raise PlatformError(already_open(folder, restoring))
     try:
         _HELD_LOCKS[key] = _lock_file(folder)
-    except BlockingIOError:
-        raise PlatformError(ALREADY_OPEN) from None
     except OSError as e:
-        if e.errno in (errno.EAGAIN, errno.EACCES):
-            raise PlatformError(ALREADY_OPEN) from None
-        raise PlatformError("clark can't check whether it is already open on this folder. Check you may save files there, then try again.") from None
+        raise PlatformError(already_open(folder, restoring) if _busy(e) else cant_check(folder, restoring)) from None
 
 
 def release_data_lock(folder):
@@ -233,13 +250,18 @@ def release_data_lock(folder):
 
 
 def data_lock_held(folder):
-    """True when another clark holds the lock on `folder`; nothing is kept. False when there is no lock to check."""
-    if fcntl is None or not (Path(folder) / LOCK_NAME).exists():
+    """True when another clark holds the lock on `folder`; nothing is kept. False when there is no lock to check. Raises
+    PlatformError(cant_check) when the lock can't be looked at, which is not the same as held."""
+    if fcntl is None:
         return False
     try:
+        if not (Path(folder) / LOCK_NAME).exists():
+            return False
         os.close(_lock_file(folder))
-    except OSError:
-        return True
+    except OSError as e:
+        if _busy(e):
+            return True
+        raise PlatformError(cant_check(folder)) from None
     return False
 
 
