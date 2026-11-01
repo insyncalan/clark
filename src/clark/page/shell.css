@@ -572,7 +572,7 @@ table.items.grouped tr.grp th { padding: 10px 4px 6px; border-top: 1px solid var
 .bc-main { cursor: pointer; border-radius: var(--radius-sm); }
 .bc-main:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .bc-top { display: flex; align-items: center; gap: 6px; padding-right: 28px; }
-.type.tl { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0; font-size: 12px; font-weight: 600; line-height: 1; }
+.type.tl { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0; font-size: var(--size-small); font-weight: 600; line-height: 1; }
 .bc-id { font-size: 13px; color: var(--text-muted); }
 .eye { display: inline-flex; color: var(--status-blue-text); }
 .eye .i { width: 16px; height: 16px; }
@@ -1261,7 +1261,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .wl-title { overflow-wrap: anywhere; color: var(--text); }
 .wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
-.wl-meta .av { width: 22px; height: 22px; font-size: 12px; }
+.wl-meta .av { width: 22px; height: 22px; font-size: var(--size-small); }
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
