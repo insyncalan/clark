@@ -222,6 +222,8 @@ class More(tre.Base):
             cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE}, p.sid)
         if own:
             p.js(OWN)
+            # a document that loads again (the page reads itself afresh when its token is stale) keeps the setting under test too
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": OWN}, p.sid)
         p.mode = mode
         return p
 
