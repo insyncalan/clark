@@ -182,9 +182,20 @@ class Words(unittest.TestCase):
                                   "One card", "All the sections inside a single card.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
+                                  "Logs and diagnostics",      # #110
+                                  "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
+                                  "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
+                                  "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again"])
+                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Asking",             # #47: the switch and its folders, below the client folder
+                                  "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
+                                  "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
+                                  "Turn on asking", "Folders asking may read",
+                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
+                                  "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
+                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is."])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)
