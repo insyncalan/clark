@@ -204,7 +204,7 @@ class Escaping(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp(prefix="clark-cover-"))
         self.addCleanup(shutil.rmtree, self.dir, True)
 
-    def test_leading_formula_characters_get_an_apostrophe_and_are_never_formulas(self):
+    def test_leading_formula_characters_show_as_typed_and_are_never_formulas(self):
         for lead in ("=", "+", "@", "\t"):
             with self.subTest(lead=repr(lead)):
                 project = {"name": lead + "Name", "current_state": "<p>Now.</p>"}
@@ -214,10 +214,10 @@ class Escaping(unittest.TestCase):
                 wb = Workbook()
                 ws = excel.write_cover(wb, cover.lines(project, sections, tiles, STAMP))
                 values = [c.value for row in ws.iter_rows() for c in row if c.value]
-                self.assertIn("Name" if lead == "\t" else "'" + lead + "Name", values)      # the name is trimmed, so a tab goes
+                self.assertIn("Name" if lead == "\t" else lead + "Name", values)      # the name is trimmed, so a tab goes
                 for want in ("Section", "Glance", "Words"):
-                    self.assertIn("'" + lead + want, values)
-                self.assertIn("'" + lead + "Tile: 2", values)
+                    self.assertIn(lead + want, values)
+                self.assertIn(lead + "Tile: 2", values)                     # shown as typed: no apostrophe
                 for row in ws.iter_rows():
                     for c in row:
                         self.assertNotEqual(c.data_type, "f", c.coordinate)
@@ -347,8 +347,8 @@ class InTheWorkbook(unittest.TestCase):
         everything = "\n".join(self.cover_cells())
         self.assertNotIn("<script", everything)
         self.assertNotIn("alert", everything)
-        self.assertIn("'=HYPERLINK(\"http://x\")\nPhase two is under way.", self.cover_cells(),
-                      "a cell that starts with = gets the apostrophe; a later line in it can't start a formula")
+        self.assertIn("=HYPERLINK(\"http://x\")\nPhase two is under way.", self.cover_cells(),
+                      "a cell that starts with = shows as typed, as a text cell; a later line in it can't start a formula")
 
     def test_the_health_pill_is_a_coloured_cell_and_its_words_name_the_health(self):
         ws = load_workbook(self.path)["Cover"]
