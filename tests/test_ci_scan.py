@@ -56,8 +56,13 @@ def webp():
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
 
-def woff(magic=b"wOFF"):
-    return magic + b"\x00\x01\x00\x00" + struct.pack(">I", 40) + b"\0" * 28
+def woff(magic=b"wOFF", meta=0, priv=0):
+    """A header only. The metadata offset sits at byte 24 (WOFF) or 28 (WOFF2); the private offset is 12 bytes after it."""
+    size = 44 if magic == b"wOFF" else 48
+    head = bytearray(magic + b"\x00\x01\x00\x00" + struct.pack(">I", size) + b"\0" * (size - 12))
+    at = size - 20
+    head[at:at + 4], head[at + 12:at + 16] = struct.pack(">I", meta), struct.pack(">I", priv)
+    return bytes(head)
 
 
 def ico():
@@ -473,6 +478,46 @@ class Scan(unittest.TestCase):
                 r.write("img/a.png", png_with_text(kind, payload), "wb")
                 r.commit("add")
                 self.refused(r, "not a well-formed one, or has data after its end")
+
+    def test_a_png_with_a_bad_check_value_or_a_chunk_off_the_list_is_refused(self):
+        good_crc = _chunk(b"gAMA", b"\0\0\xb1\x8f")
+        bad_crc = good_crc[:-1] + bytes([good_crc[-1] ^ 1])
+        head = b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+        tail = _chunk(b"IDAT", zlib.compress(b"\0\0")) + _chunk(b"IEND", b"")
+        bad_idat = _chunk(b"IDAT", zlib.compress(b"\0\0"))
+        bad_idat = bad_idat[:-1] + bytes([bad_idat[-1] ^ 1])
+        cases = {"bad crc on an allowed chunk": head + bad_crc + tail,
+                 "bad crc on IDAT": head + bad_idat + _chunk(b"IEND", b""),
+                 "eXIf": png_with_text(b"eXIf", b"MM\0*\0\0\0\x08"),
+                 "private chunk": png_with_text(b"prVt", b"secret"),
+                 "unknown chunk": png_with_text(b"ZZZZ", b"x"),
+                 "chunk longer than the file": head + struct.pack(">I", 999) + b"gAMA"}
+        for label, data in cases.items():
+            with self.subTest(label):
+                r = self.repo()
+                r.write("img/a.png", data, "wb")
+                r.commit("add")
+                self.refused(r, "not a well-formed one, or has data after its end")
+
+    def test_a_png_with_every_listed_chunk_passes(self):
+        head = b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 3, 0, 0, 0))
+        extra = b"".join(_chunk(k, b"\0" * n) for k, n in ((b"PLTE", 3), (b"tRNS", 1), (b"gAMA", 4), (b"cHRM", 32), (b"sRGB", 1),
+                                                             (b"iCCP", 4), (b"pHYs", 9), (b"bKGD", 1)))
+        data = head + extra + _chunk(b"IDAT", zlib.compress(b"\0\0")) + _chunk(b"IEND", b"")
+        r = self.repo()
+        r.write("img/a.png", data, "wb")
+        r.commit("add")
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_a_font_with_a_metadata_or_private_block_is_refused(self):
+        for magic, name in ((b"wOFF", "a.woff"), (b"wOF2", "a.woff2")):
+            for label, data in (("metadata", woff(magic, meta=44)), ("private", woff(magic, priv=44))):
+                with self.subTest(name + " " + label):
+                    r = self.repo()
+                    r.write("img/" + name, data, "wb")
+                    r.commit("add")
+                    self.refused(r, "not a well-formed one, or has data after its end")
 
     def test_a_little_padding_at_the_end_of_a_font_or_webp_is_allowed_but_more_is_not(self):
         for name, make in (("a.webp", webp), ("a.woff", woff), ("a.woff2", lambda: woff(b"wOF2"))):
