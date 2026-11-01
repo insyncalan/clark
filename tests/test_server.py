@@ -48,6 +48,9 @@ class StubPublisher:
     def preview(self, body):
         return 200, {"ok": True, "url": "/preview?id=none"}
 
+    def section_file(self, body):
+        return 200, {"ok": True}
+
     def export(self, code):
         return 404, {"ok": False, "code": "project_not_found", "message": "There is no project with that code."}
 
@@ -295,20 +298,23 @@ class Saving(ServerTest):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/sneak/read", "/api/publish", "/api/client-folder", "/api/preview",
                                                   "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/page-error", "/api/logging", "/api/logging/open-folder", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
                                                   "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
-                                                  "/api/ask/change/apply"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read
+                                                  "/api/ask/change/apply", "/api/section-image", "/api/section-file"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read; #96 R1 the picture one, R2 the section file
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/sneak/read"], sv.sneak_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
+        self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
+                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
                                                 "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
-                                                "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024})     # #47, #47e
+                                                "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
+                                                "/api/section-file": 1024})     # #96: a project and a section only
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
@@ -408,10 +414,18 @@ class Saving(ServerTest):
         status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 2048 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
+    def test_the_change_route_limit_is_two_largest_sections_plus_4_kb(self):
+        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; a separate /api/section-body route is the later fix (Tech Debt)
+        from clark import section_bodies
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, 135168)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
+
     def test_change_and_undo_limits_and_415(self):
         running = self.seams()
         self.addCleanup(running.close)
-        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 1024)):
+        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 1024)):      # #96: twice the largest section content plus 4 KB
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(limit + 1)}
             status, _, data = running.ask("POST", route, over, b"{}")
             self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"), route)       # refused from its length
