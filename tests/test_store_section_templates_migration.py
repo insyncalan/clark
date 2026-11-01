@@ -149,7 +149,7 @@ class TheNumber(Base):
         self.assertNotRegex(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES.split("(")[0], r"\d")
 
     def test_the_steps_before_this_one_are_the_settings_step_and_the_sent_record(self):
-        self.assertEqual(store_module.MIGRATIONS[-3:], ((6, store_module.migrate_settings), (7, store_module.migrate_email_sent),
+        self.assertEqual(store_module.MIGRATIONS[-4:-1], ((6, store_module.migrate_settings), (7, store_module.migrate_email_sent),
                                                         (STEP, store_module.migrate_section_templates)))
 
     def test_no_migration_step_is_empty(self):
@@ -242,7 +242,7 @@ class Migrating(Base):
         self.assertTrue(before["projects"] and before["documents"])
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(version(path), NOW)
-        self.assertEqual(NOW, str(STEP))
+        self.assertGreaterEqual(int(NOW), STEP)                  # later steps follow (#115 is 9)
         after = every_row(path)
         self.assertEqual({t: after[t] for t in before}, before)
         self.assertIn("'onedoc'", table_sql(path))
