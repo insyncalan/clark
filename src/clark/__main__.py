@@ -348,7 +348,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
         server.set_data_mark(appfiles.data_mark(store.path.parent))
         shown = ServerOutput(out, code, open_url if args.open else None, err)
-        updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port)   # demo data is never updated
+        updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port, migration_backup=store.migration_backup)   # demo data is never updated
         if updates_seam is not None:
             updates_seam.watch()              # records how an update or undo that started this server ended, once the helper is done
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,

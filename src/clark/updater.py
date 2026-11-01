@@ -56,6 +56,8 @@ UP_TO_DATE = "Up to date."
 INSTALLING = "Installing version {to}. One moment while clark restarts. Don't close this window."
 UNDOING = "Putting back version {to}. One moment while clark restarts. Don't close this window."
 ARMED_FULL = "Choose Undo update again within 5 seconds to put back version {to}."
+ARMED_RESTORE = ("Version {to} cannot open the data the update changed, so Undo update puts your data back as it was before the "
+                 "update. Changes made after the update will be lost. Choose Undo update again within 5 seconds to go on.")
 ARMED_APP_ONLY = ("Your data has changed since the update, and putting back the old data would lose those changes. "
                   "Choose Put back the app and settings only within 5 seconds to keep your data as it is.")
 INSTALLED = "Version {to} is installed."
@@ -76,7 +78,7 @@ class Updater:
     """One per server. `choose`, `downloads`, `clock`, `python`, `start` and `server_pid` are seams for the tests."""
 
     def __init__(self, data_dir, db_path, port, app_dir=None, system=None, version=None, schema=None, choose=None,
-                 downloads=None, clock=time.monotonic, python=None, start=None, server_pid=None, home=None):
+                 downloads=None, clock=time.monotonic, python=None, start=None, server_pid=None, home=None, migration_backup=None):
         self.data = Path(data_dir)
         self.db = Path(db_path)
         self.port = port
@@ -90,6 +92,7 @@ class Updater:
         self.clock = clock
         self.python, self.start = python, start
         self.server_pid = server_pid or os.getpid()
+        self.migration_backup = migration_backup           # the copy this start's migration took (store.bring_up_to_date), else None
         self.lock = threading.Lock()
         self._installing = False
         self.reviewed = None
@@ -275,7 +278,8 @@ class Updater:
         aid = secrets.token_urlsafe(18)
         self.armed = {"id": aid, "at": self.clock(), "choice": choice}
         return 200, {"ok": True, "arm_id": aid, "choice": choice, "seconds": ARM_SECONDS,
-                     "line": ARMED_FULL.format(to=to) if choice == "full" else ARMED_APP_ONLY}
+                     "line": (ARMED_RESTORE if ui.migration_of(ui.last_update(self.data)[1]) else ARMED_FULL).format(to=to)
+                     if choice == "full" else ARMED_APP_ONLY}
 
     def undo(self, req):
         if not isinstance(req, dict) or set(req) - {"arm_id", "app_only"} or "arm_id" not in req \
@@ -301,10 +305,12 @@ class Updater:
             self._installing = True
             stamp = ui.stamp_now()
             try:
+                ui.check_restore(self.db, record)                 # a migrated update: the copy must be there and whole before anything starts
                 undo_set = ui.back_up(self.app, self.data, self.db, stamp, self.version, to, kind="undo")
                 staging = ui.stage_undo(folder, self.app, stamp)
                 self._write(PENDING, {"kind": "undo", "stamp": stamp, "set": folder.name, "undo_set": undo_set.name, "to": to})
                 self._hand_over(staging, stamp, self.version, to, undo_set)
+                ui.restore_data(self.db, record)                  # the helper is waiting for this server to stop; then it swaps the files
             except (updates.UpdateError, ui.InstallError) as e:
                 return self._stopped(stamp, e)
             return 200, {"ok": True, "restart": True, "message": UNDOING.format(to=to)}
@@ -324,7 +330,7 @@ class Updater:
             if result.get("stamp") == pending.get("stamp") and result.get("status") == "installed":
                 try:
                     if pending.get("kind") == "install" and ui.SET_RE.match(str(pending.get("set"))):
-                        ui.note_installed(sets / pending["set"], self.db)
+                        ui.note_installed(sets / pending["set"], self.db, self.migration_backup)
                         message = INSTALLED.format(to=pending.get("to"))
                     elif pending.get("kind") == "undo" and ui.SET_RE.match(str(pending.get("set"))):
                         ui.put_back_settings(sets / pending["set"], self.data)

@@ -40,7 +40,7 @@ import time
 import zipfile
 from pathlib import Path
 
-from clark import platform, settings, store, update_helper, updates
+from clark import backup, platform, settings, store, update_helper, updates
 
 RELEASES = "releases"
 UPDATES = update_helper.UPDATES
@@ -67,6 +67,9 @@ MESSAGES = {
     "undone": "That update has been undone already.",
     "data_changed": "Your data has changed since the update, and putting back the old data would lose those changes. "
                     "Choose Put back the app and settings only to keep your data as it is.",
+    "data_gone": backup.UPDATE_GONE,
+    "data_restore": "Your data could not be put back, so it was left as it is. Close every clark window, open clark again and "
+                    "try again.",
     "backup_damaged": "The copy kept from before the update doesn't match its record, so it can't be put back. Nothing was "
                       "changed. Download the version you want and replace the clark folder by hand.",
 }
@@ -255,11 +258,21 @@ def sets(data_dir):
     return out
 
 
-def note_installed(backup_dir, db_path):
-    """After the new version answers: the update went in, and the data as it stands (db_after), which Undo compares with later."""
+def note_installed(backup_dir, db_path, migration_backup=None):
+    """After the new version answers: the update went in, and the data as it stands (db_after), which Undo compares with later.
+    When the update brought the data up to a newer layout (the set's own copy of the database was at an older one), the safety
+    copy that migration took is recorded too, as record["migration"]: the old version cannot open the newer data, so the undo
+    puts that copy back. `migration_backup` is the copy this start took, else the newest `migrate` copy in the backups folder."""
     record = read_set(backup_dir)
     if record is None:
         return
+    before = (record.get("db_before") or {}).get("schema_version")
+    if isinstance(before, int) and before < store.SCHEMA_VERSION:
+        name = Path(migration_backup).name if migration_backup else None
+        if name is None:
+            found = [e for e in backup.entries(Path(db_path).parent / "backups") if e.tag == "migrate"]
+            name = Path(found[-1].path).name if found else None
+        record["migration"] = {"backup": name, "from": before, "to": store.SCHEMA_VERSION}
     record["db_after"] = summary_of(db_path)
     record["installed"] = True
     update_helper.write_json(Path(backup_dir) / RECORD, record)
@@ -394,9 +407,43 @@ def undo_choice(data_dir, db_path):
     folder, record = found
     if record.get("undone"):
         raise InstallError("undone", folder.name)
+    if migration_of(record):
+        return "full"            # put back whole from the copy taken before the migration: the old version cannot open the newer data
     now = summary_of(db_path)
     after = record.get("db_after")
     return "full" if after is not None and now == after else "app_only"
+
+
+def migration_of(record):
+    """The migration an update's set recorded, {"backup", "from", "to"}, or None when it kept the data layout."""
+    found = record.get("migration")
+    return found if isinstance(found, dict) else None
+
+
+def check_restore(db_path, record):
+    """Before an undo starts: if the update migrated the data, its copy must be there and be a copy taken before an update
+    (backup.restore_before_update, not yet confirmed, changes nothing). InstallError("data_gone") otherwise; no migration: nothing."""
+    found = migration_of(record)
+    if found is None:
+        return
+    try:
+        backup.restore_before_update(db_path, found.get("backup"))
+    except store.Invalid as e:
+        if str(e) != backup.UPDATE_ASK:        # asked to confirm: the copy is there; anything else is a refusal
+            raise InstallError("data_gone", str(e))
+
+
+def restore_data(db_path, record):
+    """The undo of a migrated update: put the copy taken before the migration back over the database, replacing it (the newer
+    file is kept whole in the backups folder). Nothing when the update kept the data layout. InstallError("data_restore")
+    when it could not be done, and the database is then as it was."""
+    found = migration_of(record)
+    if found is None:
+        return
+    try:
+        backup.restore_before_update(db_path, found.get("backup"), confirmed=True)
+    except store.Invalid as e:
+        raise InstallError("data_restore", str(e))
 
 
 def stage_undo(backup_dir, app_dir, stamp):
