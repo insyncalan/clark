@@ -57,7 +57,35 @@ export function useMenuState() {
   return [open, setOpen];
 }
 
-// items: [{id, name, line?}], or {id, sep: true} for a separator, or {id, lab} for a line of words that is not a command. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
+// A line of words followed by radio items is one group with that name, so a screen reader says "Appearance, Light, radio, checked".
+function groupedItems(items, menuId) {
+  const out = [];
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (it.lab && items[i + 1] && items[i + 1].checked !== undefined) {
+      const kids = [];
+      let j = i + 1;
+      while (items[j] && items[j].checked !== undefined) kids.push(items[j++]);
+      out.push({ group: true, id: "g-" + it.id, labelId: `${menuId || "menu"}-${it.id}`, lab: it.lab, items: kids });
+      i = j - 1;
+    } else out.push({ item: it });
+  }
+  return out;
+}
+
+// One entry of the menu: a separator, the top line, a line of words, or a command or radio item.
+function entry(it, close, onPick) {
+  return it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.head ? <div key={it.id} class="who" role="presentation" title={it.head.title}><b>{it.head.name}</b>{it.head.line ? <small>{it.head.line}</small> : null}</div> : it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
+    <button key={it.id} type="button" class={it.link ? "who-link" : it.pill ? "hp" : undefined} role={it.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={it.checked === undefined ? undefined : it.checked ? "true" : "false"}
+      tabIndex={-1} data-kind={it.id} onClick={() => { close("pick"); onPick(it.id); }}>
+      {it.checked === undefined || it.pill ? null : <span class="ck" aria-hidden="true">{it.checked ? "✓" : ""}</span>}
+      {it.pill ? <span class={`hpill ${it.pill}`}>{it.name}</span> : it.line ? <span><b>{it.name}</b><small>{it.line}</small></span> : it.name}
+      {it.pill && it.checked ? <Icon name="check" cls="hck" /> : null}
+    </button>
+  );
+}
+
+// items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab} for a line of words that is not a command, or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
 // is `onClick()` (so a button that sometimes has a menu keeps the same element when it has none).
 export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, btnCls, labelCls, menuId, menuLabel, left, chevron = true }) {
   const [open, setOpen] = useMenuState();
@@ -76,11 +104,12 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, 
       </button>
       {open && menu ? (
         <MenuPanel label={menuLabel || ariaLabel || label} id={menuId} cls={left ? "left" : ""} anchor={btn.current} onClose={close}>
-          {items.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
-            <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-kind={it.id} onClick={() => { close("pick"); onPick(it.id); }}>
-              {it.line ? <span><b>{it.name}</b><small>{it.line}</small></span> : it.name}
-            </button>
-          ))}
+          {groupedItems(items, menuId).map((n) => n.group
+            ? <div key={n.id} role="group" aria-labelledby={n.labelId}>
+                <div class="lab" role="presentation" id={n.labelId}>{n.lab}</div>
+                {n.items.map((it) => entry(it, close, onPick))}
+              </div>
+            : entry(n.item, close, onPick))}
         </MenuPanel>
       ) : null}
     </span>

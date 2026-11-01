@@ -112,7 +112,9 @@ class TheCard(Card):
             p.js("document.querySelector('[data-ask-confirm]').click()")
             p.until("!document.querySelector('[data-ask-apply]').disabled", "Apply is ready once ticked")
             p.js("document.querySelector('[data-ask-apply]').focus()")
-            p.key("Enter", code="Enter", vk=13)
+            for kind in ("keyDown", "keyUp"):    # a real Enter carries its character, which is what makes a button click
+                p.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
+                                                      "text": "\r"}, p.sid)
             time.sleep(0.4)
             self.assertEqual(self.status(), "Open", "Enter alone on Apply never applies a change from a file")
             p.js("document.querySelector('[data-ask-apply]').click()")

@@ -106,15 +106,15 @@ class AskSwitch(Base):
         self.assertEqual(self.log_count(), before)
 
     def test_a_file_without_the_step_reads_as_off_and_says_it_is_not_ready(self):
-        """A file made before the settings step (version 2, held there for the test): no table; asking reads as off (never fails open)."""
+        """A file made before the settings step (version 5, held there for the test): no table; asking reads as off (never fails open)."""
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, folder, True)
-        with mock.patch.object(st, "SCHEMA_VERSION", 2), mock.patch.object(st, "MIGRATIONS", st.MIGRATIONS[:1]):
+        with mock.patch.object(st, "SCHEMA_VERSION", 5), mock.patch.object(st, "MIGRATIONS", st.MIGRATIONS[:4]):
             path = folder / "clark.db"
             st.open_store(path, onedrive_roots=[]).close()
             con = sqlite3.connect(str(path), isolation_level=None)
             con.execute("DROP TABLE app_settings")
-            con.execute("UPDATE meta SET v = '2' WHERE k = 'schema_version'")
+            con.execute("UPDATE meta SET v = '5' WHERE k = 'schema_version'")
             con.close()
             old = st.open_store(path, onedrive_roots=[])
         self.addCleanup(old.close)

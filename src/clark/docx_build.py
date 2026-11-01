@@ -23,7 +23,7 @@ What is not carried: links between items, labels, pictures, comments, and the ed
 in the published rows). A Cancelled milestone is left out, as the page's client list leaves it out. A shown table with no rows says
 "None recorded."; an empty current state or text section is left out (FR-14c).
 
-Colours are the committed tokens (excel_colours.TOKENS); `build(..., colours={"brand-navy": "062F3A", ...})` lays a
+Colours and the font are the committed look's (excel_colours.TOKENS, read from tokens.css by look.py); `build(..., colours={"brand-navy": "062F3A", ...})` lays a
 local brand's values over them, each a #rrggbb or rrggbb that is checked, so a brand cannot put markup into the file.
 
 Standard library only, Python 3.9.
@@ -34,7 +34,7 @@ import zipfile
 from datetime import date
 
 from clark import excel_colours as colours_table
-from clark import glance, platform, sanitise
+from clark import glance, look, platform, sanitise
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused (as publish.MAX_BYTES)
 NONE = "None recorded."                   # creaite's own words (docx_tools.NONE)
@@ -42,7 +42,7 @@ PAGE_W, PAGE_H, MARGIN = 11906, 16838, 1134      # A4, 2 cm
 TEXT_W = PAGE_W - 2 * MARGIN                      # 9638 twentieths of a point between the margins
 FIXED_NAME = "clark"
 ZIP_TIME = (1980, 1, 1, 0, 0, 0)
-FONT = "Arial"
+FONT = look.office_font()                 # the look's --font-office, a font Office has
 
 NS_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -135,7 +135,7 @@ def para(runs="", style=None, keep_next=False, num=None, rule=False, fill=None, 
     if num:
         props += f'<w:numPr><w:ilvl w:val="{int(num[1])}"/><w:numId w:val="{int(num[0])}"/></w:numPr>'
     if rule:
-        props += '<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="C4CEE3"/></w:pBdr>'
+        props += f'<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="{TOKENS["grey-300"]}"/></w:pBdr>'
     if fill:
         props += f'<w:shd w:val="clear" w:color="auto" w:fill="{fill}"/>'
     if tabs:

@@ -48,14 +48,10 @@ def tables(path):
         con.close()
 
 
-CURRENT = str(store_module.SCHEMA_VERSION)       # what a file is brought to by opening it (3: #126's documents step, then #162's settings step)
-
-
 class NewDatabase(unittest.TestCase):
-    def test_a_new_database_is_the_current_version_with_the_column_and_is_not_migrated(self):
+    def test_a_new_database_is_at_the_current_version_with_the_column_and_is_not_migrated(self):
         with mock.patch.object(store_module, "migrate") as migrate, DemoStore() as s:
-            self.assertEqual(store_module.SCHEMA_VERSION, 3)
-            self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "3")
+            self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
             self.assertIn("archived", store_module.columns(s.con, "documents"))
             migrate.assert_not_called()
 
@@ -69,7 +65,7 @@ class Migrating(unittest.TestCase):
         path = make_v1(self.dir)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], CURRENT)
+            self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
             doc = s.con.execute("SELECT * FROM documents").fetchone()
             self.assertEqual((doc["title"], doc["archived"]), ("Plan", 0))
             self.assertEqual(s.read("projects", ref="ABC")["name"], "Example Programme")
@@ -93,7 +89,7 @@ class Migrating(unittest.TestCase):
         self.assertFalse(set(NEW_TABLES) & tables(path))
         open_store(path, onedrive_roots=[]).close()
         self.assertTrue(set(NEW_TABLES) <= tables(path))
-        self.assertEqual(version(path), CURRENT)
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
     def test_two_connections_on_one_version_1_file_migrate_once(self):
         path = make_v1(self.dir)
@@ -105,7 +101,7 @@ class Migrating(unittest.TestCase):
                 migrate(second)          # it believed the file was version 1; after the lock it finds 2
             again.assert_not_called()
             self.assertEqual(list(second.iterdump()), first_dump)
-            self.assertEqual(second.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], CURRENT)
+            self.assertEqual(second.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
             self.assertEqual(second.execute("SELECT archived FROM documents").fetchone()[0], 0)
         finally:
             first.close()
@@ -124,7 +120,7 @@ class Migrating(unittest.TestCase):
         con.close()
         self.assertEqual(version(path), "1")
         open_store(path, onedrive_roots=[]).close()           # and it still opens afterwards
-        self.assertEqual(version(path), CURRENT)
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
     def test_a_half_applied_copy_is_safe(self):
         path = make_v1(self.dir)
@@ -132,7 +128,7 @@ class Migrating(unittest.TestCase):
         con.execute("ALTER TABLE documents ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1))")
         con.close()
         open_store(path, onedrive_roots=[]).close()
-        self.assertEqual(version(path), CURRENT)
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
     def test_a_newer_database_is_still_refused(self):
         path = make_v1(self.dir)
@@ -268,7 +264,7 @@ class UndoRowsAndSize(unittest.TestCase):
         con.close()
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), CURRENT)
+            self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
             self.assertEqual([tuple(r) for r in s.con.execute("SELECT * FROM item_events ORDER BY event_id")], [tuple(r) for r in before])
             self.assertEqual(s.con.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
@@ -297,7 +293,7 @@ class UndoRowsAndSize(unittest.TestCase):
         began = time.monotonic()
         open_store(path, onedrive_roots=[]).close()
         self.assertLess(time.monotonic() - began, 5)
-        self.assertEqual(version(path), CURRENT)
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
 
 class OrderedMigrations(unittest.TestCase):
@@ -326,16 +322,16 @@ class OrderedMigrations(unittest.TestCase):
         finally:
             con.close()
 
-    def test_a_file_already_at_2_runs_only_the_later_step(self):
+    def test_a_file_already_at_the_current_version_runs_only_a_later_step(self):
         path = make_v1(self.dir)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 2), mock.patch.object(store_module, "MIGRATIONS", store_module.MIGRATIONS[:1]):
-            open_store(path, onedrive_roots=[]).close()
+        open_store(path, onedrive_roots=[]).close()           # now at the current version
         ran = []
+        later = store_module.SCHEMA_VERSION + 1
         con = connect(path)
         try:
-            with mock.patch.object(store_module, "SCHEMA_VERSION", 3):
-                migrate(con, table=((2, lambda c: ran.append(2)), (3, lambda c: ran.append(3))))
-            self.assertEqual(ran, [3])
+            with mock.patch.object(store_module, "SCHEMA_VERSION", later):
+                migrate(con, table=tuple((n, lambda c, n=n: ran.append(n)) for n in range(2, later + 1)))
+            self.assertEqual(ran, [later])
         finally:
             con.close()
 
@@ -348,9 +344,10 @@ class OrderedMigrations(unittest.TestCase):
         try:
             def boom(c):
                 raise RuntimeError("forced")
-            with mock.patch.object(store_module, "SCHEMA_VERSION", 3):
+            later = store_module.SCHEMA_VERSION + 1
+            with mock.patch.object(store_module, "SCHEMA_VERSION", later):
                 with self.assertRaises(RuntimeError):
-                    migrate(con, table=((2, store_module.migrate_to_2), (3, boom)))
+                    migrate(con, table=(*store_module.MIGRATIONS, (later, boom)))       # every real step runs first, then the fault: all of it is rolled back
         finally:
             con.close()
         con = sqlite3.connect(str(path))
@@ -358,7 +355,8 @@ class OrderedMigrations(unittest.TestCase):
         con.close()
 
     def test_a_gap_or_a_wrong_end_in_the_table_is_refused_in_plain_words(self):
-        for table in (((3, print),), ((2, print), (4, print)), ((2, print), (3, print), (4, print))):
+        short = tuple((n, print) for n in range(2, store_module.SCHEMA_VERSION))         # one step short of the current version
+        for table in (((3, print),), ((2, print), (4, print)), short):
             with self.assertRaises(Invalid) as caught:
                 store_module.migration_plan(1, table)
             self.assertIn("is missing a step. Install the latest clark, then try again.", str(caught.exception))
@@ -402,7 +400,7 @@ class OldDanglingRows(unittest.TestCase):
         con.close()
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), CURRENT)
+            self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
             self.assertEqual(s.con.execute("SELECT count(*) FROM item_events").fetchone()[0], 1)
             self.assertEqual(s.con.execute("PRAGMA foreign_keys").fetchone()[0], 1)
         finally:
@@ -493,7 +491,7 @@ class SafetyCopy(unittest.TestCase):
         open_store(path, onedrive_roots=[]).con.close()
         (copy,) = self.copies()
         self.assertEqual(version(copy), "1")
-        self.assertEqual(version(path), CURRENT)
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
     def test_a_new_database_takes_no_copy(self):
         open_store(self.dir / "clark.db", onedrive_roots=[]).con.close()
@@ -541,7 +539,7 @@ class SafetyCopy(unittest.TestCase):
         first.con.close()
         second.con.close()
         self.assertEqual(len(self.copies()), 1)
-        self.assertEqual(version(path), CURRENT)
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
 
 
 class FailedMigrationWords(unittest.TestCase):
@@ -628,7 +626,7 @@ class AnyFaultAndPlanFirst(unittest.TestCase):
 
     def test_a_refused_plan_takes_no_safety_copy(self):
         path = make_v1(self.dir)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 4):          # the table ends at 3: a step is missing
+        with mock.patch.object(store_module, "SCHEMA_VERSION", store_module.SCHEMA_VERSION + 1):          # the table ends one short: a step is missing
             with self.assertRaises(Invalid) as caught:
                 open_store(path, onedrive_roots=[])
         self.assertIn("missing a step", str(caught.exception))
@@ -673,7 +671,7 @@ class PlainRefusalsReachThePage(unittest.TestCase):
 
     def test_a_missing_step_is_shown_as_it_was_written(self):
         path = make_v1(self.dir)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 4):
+        with mock.patch.object(store_module, "SCHEMA_VERSION", store_module.SCHEMA_VERSION + 1):
             status, body = self.said(path)
         self.assertEqual(status, 503)
         self.assertIn("missing a step. Install the latest clark, then try again.", body["message"])

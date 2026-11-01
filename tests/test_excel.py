@@ -17,9 +17,11 @@ import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
 from _demo import USER, DemoStore
 from openpyxl import load_workbook
 
-from clark import excel, history
+from clark import excel, history, look
 from clark import excel_import as xi
 from clark import page
+
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
 
 
 _NO_BRAND = tempfile.mkdtemp(prefix="clark-no-brand-")    # a brand logo on this computer never changes a test (#133)
@@ -194,8 +196,8 @@ class ExcelTests(unittest.TestCase):
                     c = ws.cell(row=row, column=col)
                     self.assertEqual((c.protection.locked, c.protection.hidden), default, (name, row, col))
             for row in range(2, n + 2):
-                self.assertEqual(ws.cell(row=row, column=1).fill.fgColor.rgb[-6:], "EFEFEF", (name, row))
-            self.assertNotEqual(ws.cell(row=n + 2, column=1).fill.fgColor.rgb[-6:], "EFEFEF")
+                self.assertEqual(ws.cell(row=row, column=1).fill.fgColor.rgb[-6:], look.colour("grey-100"), (name, row))
+            self.assertNotEqual(ws.cell(row=n + 2, column=1).fill.fgColor.rgb[-6:], look.colour("grey-100"))
             self.assertIn(excel.ID_NOTE, ws["A1"].comment.text)
             self.assertEqual(excel.ID_NOTE, "IDs are given by clark. Don't change or move an ID, and don't sort the ID column on its own: an ID moved to another row takes that row's details with it when the file is imported. Leave the ID empty on a new row.")
             prompts = {str(dv.sqref): dv for dv in ws.data_validations.dataValidation          # the ID column's (A) prompts;
@@ -381,6 +383,7 @@ class RowsOnly(unittest.TestCase):
         out = []
         for real in (datetime(2031, 1, 1, 9, 0, 1), datetime(2031, 1, 1, 9, 0, 5), datetime(2032, 5, 6, 7, 8, 9)):
             with mock.patch.object(excel, "clock", lambda real=real: real), \
+                    mock.patch.object(excel, "new_export_id", lambda: FIXED_ID), \
                     mock.patch("time.time", lambda real=real: real.timestamp()), \
                     mock.patch("time.localtime", lambda t=None, real=real: real.timetuple()):
                 path = self.dir / f"{len(out)}.xlsx"
@@ -491,12 +494,12 @@ class HistorySheetTests(unittest.TestCase):
         self.assertEqual(ws.max_row, 3)
         self.assertEqual(ws["A3"].value, history.EMPTY["all"])
 
-    def test_every_cell_is_arial_text(self):
+    def test_every_cell_is_the_looks_office_font_text(self):
         ws = self.sheet()
         for row in ws.iter_rows():
             for c in row:
                 if c.value is not None:
-                    self.assertEqual(c.font.name, "Arial", c.coordinate)
+                    self.assertEqual(c.font.name, look.office_font(), c.coordinate)
                     self.assertEqual(c.data_type, "s", c.coordinate)
 
     def test_formula_text_is_not_a_formula(self):

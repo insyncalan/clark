@@ -225,6 +225,9 @@ class TheBudget(Folders):
 
 class OnTheRoute(tr.Base):
     def setUp(self):
+        patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)    # a Linux runner has no Mac read
+        patch.start()
+        self.addCleanup(patch.stop)
         super().setUp()
         patch = mock.patch.object(reach.platform, "system", return_value=reach.platform.MAC)
         patch.start()

@@ -86,14 +86,23 @@ class Held(unittest.TestCase):
             for why in LATER[part].values():
                 self.assertTrue(why.strip())
 
+    def test_the_held_list_is_indented_evenly(self):
+        """Every held id sits two spaces in, like its neighbours (a stray space once crept onto one line)."""
+        text = (HELP / "helpLater.json").read_text(encoding="utf-8")
+        ids = set(LATER["howto"]) | set(LATER["reference"])
+        for n, line in enumerate(text.splitlines(), 1):
+            m = re.match(r'^( *)"([^"]+)": "', line)
+            if m and m.group(2) in ids:
+                self.assertEqual(len(m.group(1)), 2, f"helpLater.json line {n}: {m.group(2)} is not indented by two spaces")
+
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Work items"])
-        self.assertEqual(s["reference"]["groups"], ["Keys and icons"])
+        self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
@@ -133,7 +142,9 @@ class AgainstThePage(unittest.TestCase):
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
         # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...); lower this only when a feature lands, never to hide a missing one
-        self.assertGreaterEqual(len(names), 76)
+        # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now)
+        # 68 with the section templates (#96) as well (their words in the Add a section box and in Help name things the page does now: measured on the merged tree)
+        self.assertGreaterEqual(len(names), 68)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

@@ -225,8 +225,8 @@ class WordingRound(unittest.TestCase):
     """The plain-words review of the Help: each fix is pinned here so the old wording cannot come back."""
     ALL = " \n".join(s for _, s in words())
 
-    def test_the_template_list_names_the_headline_band(self):          # HIGH (the product's own word; the held entry never reaches the built page)
-        self.assertIn('"Headline band"', json.dumps(SRC["reference"]["sections"]))
+    def test_the_template_list_has_only_what_the_box_offers_and_no_old_names(self):   # HIGH (the table is shown once the page has the box)
+        self.assertNotIn('"Headline band"', json.dumps(SRC["reference"]["sections"]), "a template the box does not offer is not in the table")
         self.assertNotIn("Headline message", json.dumps(SRC))
         self.assertNotIn("Notice bar", json.dumps(SRC))
 
@@ -246,7 +246,7 @@ class WordingRound(unittest.TestCase):
 
     def test_no_leftover_from_the_prototype(self):                                           # MEDIUM
         self.assertNotIn("The real clark", self.ALL)
-        self.assertIn("clark keeps one file a day", self.ALL)
+        self.assertIn("The log keeps one file a day", self.ALL)
 
     def test_published_line_is_plainer(self):                                                # LOW
         self.assertIn("“Published” on its date, to the client (or locally)", self.ALL)

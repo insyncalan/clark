@@ -98,8 +98,8 @@ const ITEMS = [["On track", "g"], ["At risk", "a"], ["Off track", "r"]];
 function HealthPill({ health, reason }) {
   const rag = (ITEMS.find((i) => i[0] === health) || [0, "n"])[1];
   return (
-    <Menu label={health || "Not set"} btnCls={`pill ${rag} pillbtn`} ariaLabel={`Project health: ${health || "not set"}. Change it`} id="health-pill" menuId="health-menu" menuLabel="Project health"
-      items={ITEMS.map(([name]) => ({ id: name, name }))} onPick={(h) => pickHealth(h, health, reason)} left />
+    <Menu label={health || "Not set"} btnCls={`pill hpill ${rag} pillbtn`} ariaLabel={`Project health: ${health || "not set"}. Change it`} id="health-pill" menuId="health-menu" menuLabel="Project health"
+      items={ITEMS.map(([name, r]) => ({ id: name, name, pill: r, checked: name === health }))} onPick={(h) => pickHealth(h, health, reason)} chevron={false} left />
   );
 }
 
