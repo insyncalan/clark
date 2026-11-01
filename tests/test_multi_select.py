@@ -25,7 +25,7 @@ LOGIC = SRC / "clark" / "page" / "src" / "logic" / "selection.js"
 ALT, CTRL, META, SHIFT = 1, 2, 4, 8
 MOD = META if sys.platform == "darwin" else CTRL       # Cmd on a Mac (where Ctrl and a click is the right-click menu), Ctrl elsewhere
 KEYS = {"Enter": (13, "\r", "Enter"), " ": (32, " ", "Space"), "Escape": (27, "", "Escape"), "ArrowDown": (40, "", "ArrowDown"),
-        "ArrowUp": (38, "", "ArrowUp"), "a": (65, "a", "KeyA"), "Tab": (9, "", "Tab")}
+        "ArrowUp": (38, "", "ArrowUp"), "a": (65, "a", "KeyA"), "Tab": (9, "", "Tab"), "Backspace": (8, "", "Backspace")}
 
 
 def press(cdp, sid, name, mods=0):
