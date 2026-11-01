@@ -68,6 +68,16 @@ class Server(unittest.TestCase):
         self.assertEqual(self.latest(), was)
         self.assertEqual(self.send("x" * changes.LATEST_UPDATE_MAX)[0], 200, "the limit itself is allowed")
 
+    def test_the_last_updated_stamp_moves_on_with_a_change_and_with_its_undo(self):
+        stamp = lambda: next(a for a in self.store.data_for(self.code)["actions"] if a["id"] == OVERDUE)["updated_at"]
+        was = stamp()
+        code, body = self.send("A stamp test.")
+        self.assertEqual(code, 200, body)
+        changed = stamp()
+        self.assertGreater(changed, was, "a change writes a later stamp")
+        self.undo({"project": self.code, "apply_id": body["apply_id"]})
+        self.assertGreaterEqual(stamp(), changed, "the Undo is a change too: the stamp is never put back to an older time")
+
     def test_a_risk_or_a_decision_has_no_latest_update(self):
         data = self.store.data_for(self.code)
         for kind, ref in (("raid", data["raid"][0]["id"]), ("decisions", data["decisions"][0]["id"])):
