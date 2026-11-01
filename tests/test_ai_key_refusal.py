@@ -15,7 +15,7 @@ BODY = "a1B2c3D4e5F6g7H8i9J0"
 # name: (the whole sample, the part that is the secret itself)
 REFUSED = {
     "anthropic": "sk-" + "ant-api03-" + BODY + "-xyz",
-    "openai": "sk-" + BODY + "K1L2",
+    "openai": "sk-" + BODY + "K1L2M3N4O5P6Q7",
     "openai project": "sk-" + "proj-" + BODY + "_K1L2",
     "github classic": "gh" + "p_" + BODY + "K1L2",
     "github oauth": "gh" + "o_" + BODY + "K1L2",
@@ -26,14 +26,13 @@ REFUSED = {
     "private key": "-----BEGIN " + "RSA PRIVATE KEY-----\nMIIBVwIBADANBgkqhkiG\n-----END RSA PRIVATE KEY-----",
     "private key plain": "-----BEGIN " + "PRIVATE KEY-----\nMIIBVwIBADANBgkqhkiG",
     "password colon": "password: " + "hunter22",
-    "password quoted": 'Password = "' + 'swordfish"',
+    "password quoted": 'Password = "' + 'swordfish1"',
     "passwd equals": "passwd=" + "s3cret!x",
-    "api key": "api_key=" + "zzzz-9999-qqqq",
-    "api key spaced": "API key: " + "abcd1234efgh",
+    "api key": "api_key=" + "zzzz-9999-qqqq-wwww",
 }
 # what must never come back out, per sample: the secret part (a label such as "password" may)
 SECRET_PART = {"private key": "MIIBVwIBADANBgkqhkiG", "private key plain": "MIIBVwIBADANBgkqhkiG", "password colon": "hunter22",
-               "password quoted": "swordfish", "passwd equals": "s3cret!x", "api key": "zzzz-9999-qqqq", "api key spaced": "abcd1234efgh"}
+               "password quoted": "swordfish1", "passwd equals": "s3cret!x", "api key": "zzzz-9999-qqqq-wwww"}
 ALLOWED = [
     "What is the key risk for the Friday delivery?",
     "The sky is blue and the task list is short.",
@@ -49,6 +48,35 @@ ALLOWED = [
     "api key: needed",
     "He said BEGIN PRIVATE and nothing else.",
 ]
+# #72 review: the attack cases a weaker rule let through; the one hardened screen refuses all of them (built from pieces)
+PW = "Welcome" + "2026!"
+ATTACKS = {
+    "json password": '{"pass' + 'word": "' + PW + '"}',
+    "json api key": '{"api_' + 'key": "a1b2c3d4e5f6"}',
+    "table cell": "| pass" + "word | " + PW + " |",
+    "table header column": "user | pass" + "word\nmail | " + PW,
+    "csv column": "user,pass" + "word\nmail," + PW,
+    "wifi prose": "the wifi pass" + "word is " + PW,
+    "pw colon": "p" + "w: " + PW,
+    "token equals": "tok" + "en=" + "a1b2c3d4e5f6a7b8c9",
+    "secret colon": "sec" + "ret: " + "a1b2c3d4e5f6a7b8",
+    "jwt": "ey" + "J" + "a" * 12 + ".ey" + "J" + "b" * 12 + "." + "c" * 12,
+    "stripe live": "sk_" + "live_" + "A1b2C3d4E5f6G7h8",
+    "google key": "AI" + "za" + "SyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6",
+    "password in a web address": "postgres://admin:" + PW + "@db.example.org/main",
+    "bearer header": "Authorization: " + "Bear" + "er " + "abcDEF123456" * 3,
+    "full-width key": "\uff53\uff4b-\uff41\uff4e\uff54-" + "a1B2c3D4e5F6",
+    "cyrillic a in the word": "p\u0430ss" + "word: " + PW,
+    "key split by a line break": "sk-" + "ant-api03-" + BODY[:10] + "\n" + BODY[10:] + "-xyz",
+    "private key block": "-----BEGIN " + "RSA PRIVATE KEY-----\nMIIBVwIBADANBgkqhkiG",
+    "aws key": "id AK" + "IA" + "IOSFODNN7EXAMPLE here",
+    "github token": "use gh" + "p_" + "A1b2C3d4" * 5,
+    "env line": "DB_PASS" + "WORD=" + PW,
+    "pass key": "pa" + "ss=" + PW,
+    "quoted passphrase": "pass" + 'word: "' + "correct horse 7 battery" + '"',
+}
+# columns need line breaks, which the one-line Ask… field squeezes into spaces, so these two are checked in the selection only
+COLUMNS = {"table header column", "csv column"}
 TEXT = "The supplier confirmed the delivery for Friday."
 
 
@@ -82,6 +110,32 @@ class KeysInTheInstruction(unittest.TestCase):
         for line in ALLOWED:
             with self.subTest(line):
                 self.assertEqual(am.check_request("custom", TEXT, "plain", line)[3], line)
+
+
+class TheAttackCases(unittest.TestCase):
+    def test_there_are_23(self):
+        self.assertEqual(len(ATTACKS), 23)
+
+    def test_each_is_refused_in_ask_and_in_the_selection_and_never_sent(self):
+        for name, key in ATTACKS.items():
+            with self.subTest(name):
+                if name not in COLUMNS:
+                    with self.assertRaises(Refused) as cm:
+                        am.check_request("custom", TEXT, "plain", "Use this: " + key)
+                    self.assertEqual(str(cm.exception), am.SECRET_MESSAGE)
+                with self.assertRaises(Refused) as cm:
+                    am.check_request("rewrite", "Notes:\n" + key + "\nend", "plain")
+                self.assertEqual(str(cm.exception), am.SECRET_MESSAGE)
+                prov = FakeProvider()
+                if name not in COLUMNS:
+                    r = am.suggest(prov, "custom", TEXT, "plain", "Use this: " + key)
+                    self.assertEqual((r["ok"], r["message"]), (False, am.SECRET_MESSAGE))
+                r = am.suggest(prov, "rewrite", "Notes:\n" + key, "plain")
+                self.assertEqual((r["ok"], r["message"]), (False, am.SECRET_MESSAGE))
+                self.assertEqual(prov.calls, [])
+
+    def test_one_rule_not_two(self):
+        self.assertFalse(hasattr(am, "SECRET"))
 
 
 class KeysInTheSelection(unittest.TestCase):

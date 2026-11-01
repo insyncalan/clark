@@ -29,7 +29,7 @@ import unicodedata
 from collections import Counter
 from urllib.parse import unquote
 
-from clark import edit_ai, sanitise
+from clark import edit_ai, sanitise, secret_screen
 from clark.edit_ai import Refused
 
 MAX_TEXT = 12000            # characters of selected text
@@ -190,25 +190,13 @@ def _hidden_set(text):
             or unicodedata.category(c) == "Cf"}
 
 
-_KEY = r"[A-Za-z0-9_\-]"
-SECRET = re.compile(
-    r"(?<![A-Za-z0-9])sk-ant-" + _KEY + r"{8,}"                              # Anthropic key
-    r"|(?<![A-Za-z0-9])sk-(?:proj-|svcacct-|admin-)?" + _KEY + r"{20,}"      # OpenAI key
-    r"|(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,}"                           # GitHub token
-    r"|(?<![A-Za-z0-9])github_pat_" + _KEY + r"{20,}"                        # GitHub fine-grained token
-    r"|(?<![A-Za-z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Za-z0-9])"             # AWS access key id
-    r"|(?<![A-Za-z0-9])xox[abpors]-[A-Za-z0-9-]{8,}"                         # Slack token
-    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"                                   # private key block
-    # a labelled secret: a value with a digit or a symbol in it, or one in quotes ("password: reset it" is only prose)
-    r"|(?<![A-Za-z0-9])(?:password|passwd|pwd|api[_ -]?key|secret[_ -]?key|access[_ -]?token)\s*[:=]\s*"
-    r"(?:[\"'][^\"'\s]{4,}|(?=[^\s]*[0-9!@#$%^&*_+=/\\-])[^\s]{6,})", re.I)
 SECRET_MESSAGE = "That looks like a password or a key, so it wasn't sent. Take it out and try again."
 
 
 def _secret(text):
     """Whether a text holds something that looks like a secret (a key, a token, a private key block or a labelled password). It
     is a yes or no: the match is never kept, shown or logged."""
-    return bool(SECRET.search(edit_ai.unseen(text)))
+    return secret_screen.looks_like_secret(str(text or ""))
 
 
 def _instruction(option, instruction):
