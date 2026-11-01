@@ -18,7 +18,7 @@ Request (JSON; every key but `project` is optional; a key not listed is refused)
                     address that is not on one of your own domains, and for no address)
 Answer: {"ok": true, "project", "mode", "items": [{id, text, kind, due, owner, internal}], "picked": [ids], "draft": build()}.
 
-Settings that do not exist yet (your own domains, your name from Settings > Profile) come from `profile`, a callable returning
+Settings that do not exist yet (your own domains, your name from Settings › Personal › About you) come from `profile`, a callable returning
 {"name": "", "own_domains": []}; the safe defaults are no name (the email says to add one) and no own domains (every address
 counts as outside, so internal items start unticked). `chased(code)` (how often each item has been asked about) is built from the "I sent it"
 records (chase_counts_of); it is empty with none. Standard library only, Python 3.9.
