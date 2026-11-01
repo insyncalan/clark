@@ -20,6 +20,7 @@ import { Movement } from "./Movement.jsx";
 import { RichField } from "./RichField.jsx";
 import { NeedsEdit } from "./NeedsEdit.jsx";
 import { richOn } from "./richSave.js";
+import { cleanHtml } from "../logic/cleanHtml.js";
 import { Safety } from "./Safety.jsx";
 import { Projects } from "./Projects.jsx";
 import { UseCasesPage } from "./UseCasesPage.jsx";
@@ -37,4 +38,6 @@ import { installKeys, openHelp, closeHelp, helpOpen } from "../help/helpStore.js
 import { templateEdit } from "./templates/index.js";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
-export const EDIT = { glance: GLANCE, Personal, Data, RichField, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ProfileMenu, exportExcel, ClientFolder, Safety, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, UseCasesPage, Board, LayoutSwitch, HelpLayer, AddDialog, addItem, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk } };
+// `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
+const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
+export const EDIT = { clean, glance: GLANCE, Personal, Data, RichField, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ProfileMenu, exportExcel, ClientFolder, Safety, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, UseCasesPage, Board, LayoutSwitch, HelpLayer, AddDialog, addItem, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk } };
