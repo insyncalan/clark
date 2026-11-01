@@ -298,6 +298,69 @@ class New(unittest.TestCase):
         status, got = self.add({"ref": "6.2", "title": "T"})
         self.assertEqual((status, got["message"]), (400, changes.PROJECT_NOT_ACTIVE))
 
+    def test_an_archived_use_cases_id_is_still_taken(self):
+        """#455: the ID check counts archived use cases too, so a Restore never brings back a second live one with the same ID."""
+        self.assertEqual(self.add({"ref": "7.1", "title": "Soon archived"})[0], 200)
+        self.assertEqual(self.add({"ref": "7.2a", "title": "Also archived"})[0], 200)
+        mine = [r for r in self.s.read("use_cases", "ABC") if r["ref"] == "7.1"][0]["id"]
+        other = [r for r in self.s.read("use_cases", "ABC") if r["ref"] == "7.2a"][0]["id"]
+        with self.s.step("dashboard", USER) as st:
+            st.archive("use_cases", mine)
+            st.archive("use_cases", other)
+        self.assertEqual(self.s.read("use_cases", ref=mine)["archived"], 1)
+        for ref in ("7.1", " 7.1 ", "7.2A"):
+            with self.subTest(ref=ref):
+                before = len(self.s.read("use_cases", "ABC"))
+                status, got = self.add({"ref": ref, "title": "Again"})
+                self.assertEqual((status, got["message"]), (400, changes.UC_REF_USED))
+                self.assertEqual(len(self.s.read("use_cases", "ABC")), before, "nothing was written")
+        with self.s.step("dashboard", USER) as st:
+            st.restore("use_cases", mine)
+        live = [r for r in self.s.read("use_cases", "ABC", archived=False) if r["ref"] == "7.1"]
+        self.assertEqual(len(live), 1)
+
+    def test_client_visible_is_set_to_on_by_the_writer(self):
+        """#455: set explicitly (on), not left to the table default; it is in the step's own rows."""
+        _, body = self.add({"ref": "8.1", "title": "On the page"})
+        con = sqlite3.connect(str(self.s.path))
+        try:
+            rows = con.execute("SELECT field, new_value FROM change_log WHERE tbl = 'use_cases' AND item_id = ?", (body["ref"],)).fetchall()
+        finally:
+            con.close()
+        self.assertIn(("client_visible", "1"), rows)
+        self.assertEqual(self.s.read("use_cases", ref=body["ref"])["client_visible"], 1)
+
+    def test_the_step_is_logged_under_its_own_apply_id_and_has_no_undo(self):
+        """#455: the creation is in the change log (so History shows it) under one apply id; the reply gives no apply id and
+        undoable false, and an Undo of that step is refused in the fixed words with the use case still there."""
+        _, body = self.add({"ref": "9.1", "title": "Logged"})
+        self.assertEqual((body["apply_id"], body["undoable"]), (None, False))
+        con = sqlite3.connect(str(self.s.path))
+        try:
+            (step,) = con.execute("SELECT max(apply_id) FROM change_log WHERE tbl = 'use_cases' AND item_id = ?", (body["ref"],)).fetchone(),
+            step = step[0]
+            kept = con.execute("SELECT count(*) FROM applies WHERE apply_id = ?", (step,)).fetchone()[0]
+        finally:
+            con.close()
+        self.assertEqual(kept, 1)
+        rows = self.s.step_rows(step)
+        self.assertTrue(rows)
+        self.assertEqual({(r["table"], r["key"], r["via"]) for r in rows}, {("use_cases", body["ref"], "dashboard")})
+        undo = changes.make_undo(self.s.path, [], USER)
+        status, got = undo({"project": "ABC", "apply_id": step})
+        self.assertEqual((status, got["ok"], got["message"]), (400, False, changes.NO_UNDO))
+        self.assertIsNotNone(self.s.read("use_cases", ref=body["ref"]), "the use case is still there")
+        self.assertEqual(self.s.read("use_cases", ref=body["ref"])["archived"], 0)
+
+    def test_a_headline_too_long_or_not_plain_text_is_refused(self):
+        for values in ({"ref": "4.1", "title": "T", "headline": "h" * 301}, {"ref": "4.1", "title": "T", "headline": "two\nlines"},
+                       {"ref": "4.1", "title": "T", "headline": "hid\u200bden"}):
+            with self.subTest(headline=values["headline"][:12]):
+                before = len(self.s.read("use_cases", "ABC"))
+                status, got = self.add(values)
+                self.assertEqual((status, got["ok"], got["message"]), (400, False, changes.UC_HEADLINE_WORDS))
+                self.assertEqual(len(self.s.read("use_cases", "ABC")), before, "nothing was written")
+
 
 if __name__ == "__main__":
     unittest.main()

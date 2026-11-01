@@ -19,6 +19,7 @@ export function App({ tools }) {
   const Ask = tools && tools.AskPanel;                   // the ask panel (#47a) sits over the open page; a published file has none
   const body = status.value === "ready" ? <Page tools={tools} /> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
+  const UcBoxes = tools && tools.ucEdit && tools.ucEdit.Boxes;      // the Dashboard's use case boxes (#455): beside <main>, which they make inert
   return (
     <>
       <TopBar tools={tools} />
@@ -28,6 +29,7 @@ export function App({ tools }) {
       {Toast ? <Toast /> : null}
       {Pal ? <Pal /> : null}
       {AddDialog ? <AddDialog /> : null}
+      {UcBoxes ? <UcBoxes /> : null}
     </>
   );
 }

@@ -967,10 +967,13 @@ def _use_case_shown(row):
 
 
 def _do_new_use_case(store, by_user, req, project, table, columns, place):
-    """#455: add one use case to THIS project, in one step with one Undo. The request gives its reference (as the project writes it,
-    "3.1"), name, status and headline; clark gives the id (the next -U- number), the project, the place at the end of the list, the
-    source, and puts it on the dashboard (client_visible). The name and headline are held to the same plain-text rule as an edit.
-    A reference that a live use case of the project already has is refused. The reply has no Undo (see below). Nothing is written when anything is refused."""
+    """#455: add one use case to THIS project, in one step (it is in the change log under its own apply id and shows in History). The
+    request gives its reference (as the project writes it, "3.1"), name, status and headline; clark gives the id (the next -U-
+    number), the project, the place at the end of the list, the source, and puts it on the dashboard (client_visible is set here to 1,
+    the store's own default, not left to the table). The name and headline are held to the same plain-text rule as an edit.
+    A reference that any use case of the project already has, archived or not, is refused: an archived use case's reference is still
+    taken, and a Restore must never bring back a second live one with it. The reply has no Undo (see below). Nothing is written when
+    anything is refused."""
     if clark_store.is_archived(store.con, project):
         raise Refused(PROJECT_NOT_ACTIVE)
     given = _fields(req.get("values"), table, NEW, columns, "the new use case's values")
@@ -982,9 +985,9 @@ def _do_new_use_case(store, by_user, req, project, table, columns, place):
         raise Refused(UC_NAME_WORDS)
     values.setdefault("status", "On track")
     values.setdefault("headline", "")
-    values.update(ref=ref_text, project=project, source=NEW_SOURCE)
+    values.update(ref=ref_text, project=project, source=NEW_SOURCE, client_visible=1)
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
-        mine = store.read(table, project=project, archived=False)
+        mine = store.read(table, project=project)                   # live AND archived: an archived use case's reference is still taken
         if any(str(r["ref"]).strip().casefold() == ref_text.casefold() for r in mine):
             raise Refused(UC_REF_USED)
         values["sort_order"] = max([r["sort_order"] for r in mine] + [0]) + 1
@@ -995,8 +998,8 @@ def _do_new_use_case(store, by_user, req, project, table, columns, place):
             if words_ is None:
                 raise
             raise Refused(words_) from None
-        st.peek_apply_id()
-    # no Undo: taking back a creation would delete the row, and use cases are archived, never deleted (NO_UNDO); Archive is the way back
+    # The step is logged under its own apply id (st.create opens it), but the reply gives none: no Undo. Taking back a creation would
+    # DELETE the row, and use cases are archived, never deleted, so _eligible refuses an undo of this step (NO_UNDO); Archive is the way back.
     return 200, {"ok": True, "apply_id": None, "undoable": False, "ref": new_ref,
                  "use_case": {**_use_case_shown(store.read(table, ref=new_ref)), "ref": ref_text}}
 

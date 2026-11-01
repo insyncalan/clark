@@ -5,22 +5,29 @@
 //   Headline the headline on each row, changed in place
 //   Name     the name in the opened row, changed in place
 //   FromRecord  "+ Add a use case from your project record (N)": the picker of the use cases that are not on the dashboard
+// The two boxes (Add a use case, the picker) are NOT drawn where their buttons are: those sit inside <main>, and a box makes <main> inert,
+// so a box drawn there could not take focus, typing or a click. The buttons only set the signal `box`; `Boxes` draws them, and App.jsx
+// mounts `Boxes` beside <main> the way it mounts AddDialog.
 // Each is ONE change through stores/changes.js (kind use_cases: update, new; or report_hidden: pick). A new use case has no Undo
 // (a use case is archived, never deleted: its toast says so), the rest keep theirs.
 import { signal } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { data } from "../stores/report.js";
+import { data, mode } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
 import { Line, NAME_MAX, HEAD_MAX } from "../components/UseCaseDetail.jsx";
-import { liveOf } from "../logic/useCasesList.js";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 const REF_MAX = 20;                                           // changes.py UC_REF_LIMIT
 const name = (u) => u.ref || u.id;                            // "Use case 1.1" as the prototype's toasts say it
+
+/** Which box is open: null, or { kind: "add" | "pick", opener } (opener is the element that had focus, so Esc gives it back). */
+const box = signal(null);
+const openBox = (kind) => { box.value = { kind, opener: document.activeElement && document.activeElement !== document.body ? document.activeElement : null }; };
+const closeBox = () => { box.value = null; };
 
 /** The id of the use case just added: the summary opens its row (UseCases.jsx reads it once and clears it). */
 export const added = signal("");
@@ -61,7 +68,7 @@ function AddBox({ onClose, opener }) {
   const submit = async (e) => {
     e.preventDefault();
     const f = e.currentTarget, ref = f.ucI.value.trim(), title = f.ucT.value.trim();
-    if (liveOf(data.value).some((u) => String(u.ref || "").trim().toLowerCase() === ref.toLowerCase())) {
+    if ((data.value.use_cases || []).some((u) => String(u.ref || "").trim().toLowerCase() === ref.toLowerCase())) {   // archived ones too: their ID is still taken
       f.ucI.setCustomValidity("That ID is already used"); f.ucI.reportValidity(); f.ucI.setCustomValidity(""); return;
     }
     setBusy(true);
@@ -93,11 +100,9 @@ function AddBox({ onClose, opener }) {
 
 /** The growing Add button in the section's header: a "+" that grows to "Add use case" on the pointer or the keyboard. */
 export function Add() {
-  const [open, setOpen] = useState(null);                           // null, or the element that had focus
   return (
     <span class="uc-add" data-edit-only>
-      <NewTile word="Add use case" kind="use_case" id="ucAdd" onAdd={() => setOpen(document.activeElement || true)} />
-      {open ? <AddBox opener={open === true ? null : open} onClose={() => setOpen(null)} /> : null}
+      <NewTile word="Add use case" kind="use_case" id="ucAdd" onAdd={() => openBox("add")} />
     </span>
   );
 }
@@ -156,15 +161,16 @@ function Pick({ onClose, opener }) {
 
 /** "+ Add a use case from your project record (N)": N is the use cases that are not on the dashboard. */
 export function FromRecord({ n }) {
-  const [open, setOpen] = useState(null);
   if (!n) return null;
-  return (
-    <>
-      <button type="button" class="link add-from" data-uc-back data-edit-only onClick={() => setOpen(document.activeElement || true)}>{`+ Add a use case from your project record (${n})`}</button>
-      {open ? <Pick opener={open === true ? null : open} onClose={() => setOpen(null)} /> : null}
-    </>
-  );
+  return <button type="button" class="link add-from" data-uc-back data-edit-only onClick={() => openBox("pick")}>{`+ Add a use case from your project record (${n})`}</button>;
+}
+
+/** The open box, drawn beside <main> (App.jsx), so the page it makes inert does not hold it. */
+export function Boxes() {
+  const b = box.value;
+  if (!b || mode.value !== "edit") return null;
+  return b.kind === "add" ? <AddBox key="add" opener={b.opener} onClose={closeBox} /> : <Pick key="pick" opener={b.opener} onClose={closeBox} />;
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Headline, Name, FromRecord, added };
+export const UCEDIT = { Add, Status, Headline, Name, FromRecord, Boxes, added };
