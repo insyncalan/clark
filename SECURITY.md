@@ -20,7 +20,7 @@ What to expect: we aim to reply within 5 working days, tell you whether we agree
 - **Reports and Excel files are saved where you choose.** A published report is one self-contained HTML page. clark does not send it anywhere; you share it yourself.
 - **clark listens on your own computer only.** The page you use is served on `127.0.0.1`, your own computer's private address, which other computers cannot reach. Every request for your data also needs a secret code (a token) that changes each time clark starts.
 - **No account, and no data sent to us.** clark has no sign-in and no usage tracking, and the released app makes no connection to the internet of its own.
-- **One feature will change that, and this file will say so first.** "Ask clark" is planned to send the passages you ask about to an AI service, through the Claude command on your computer, when you choose to use it. It is not in version 0.2.0. clark only checks whether that command is installed, and works without it.
+- **One feature will change that, and this file will say so first.** "Ask clark" is planned to send the passages you ask about to an AI service, through the Claude command on your computer, when you choose to use it. It is not in version 0.3.0. clark only checks whether that command is installed, and works without it.
 - **Real client data is your responsibility.** All the data in this repository is made up. When you put your own data into clark, clark does not encrypt it; it is protected only by what your computer gives you, such as disk encryption (FileVault on a Mac).
 
 ## Supported versions
