@@ -187,6 +187,50 @@ class Refusals(Route):
         self.refused_write({"project": "ABC", "id": ref, "body": "x" * (65536 + 1)}, changes.WORDS_TOO_LONG)
 
 
+class Standing(Route):
+    """A use case's standing text (rich text) used to go through /api/change at the larger limit; it goes through this route now."""
+
+    def setUp(self):
+        super().setUp()
+        self.uc = self.demo.use_case
+
+    def standing(self):
+        return self.s.read("use_cases", ref=self.uc)["standing"]
+
+    def send(self, body, **more):
+        return self.section_body({"project": "ABC", "kind": "use_cases", "id": self.uc, "body": body, **more})
+
+    def test_the_standing_is_cleaned_kept_in_one_step_and_undone_with_one_undo(self):
+        status, got = self.send('<p onclick="x()">Hi <strong>there</strong></p><script>bad()</script>', place="cell")
+        self.assertEqual((status, got["ok"], got["ref"]), (200, True, self.uc), got)
+        self.assertEqual(got["use_case"]["standing"], "<p>Hi <strong>there</strong></p>")
+        self.assertEqual(self.standing(), "<p>Hi <strong>there</strong></p>")
+        self.assertTrue(got["apply_id"])
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertNotIn("Hi", self.standing())
+
+    def test_what_the_use_case_path_refuses_is_refused_here_with_the_same_words(self):
+        for body in (5, {"a": 1}):
+            before = self.snapshot()
+            status, got = self.send(body)
+            self.assertEqual((status, got["message"]), (400, changes.BODY_NOT_TEXT))
+            self.assertEqual(self.snapshot(), before)
+        status, got = self.send("x" * 300000)
+        self.assertEqual((status, got["message"]), (400, changes.UC_STANDING_WORDS))
+        status, got = self.section_body({"project": "ABC", "kind": "use_cases", "id": "ABC-U-999", "body": "<p>x</p>"})
+        self.assertEqual((status, got["message"]), (400, changes.UC_NOT_MINE))
+        status, got = self.section_body({"project": "ABC", "kind": "milestones", "id": self.uc, "body": "<p>x</p>"})
+        self.assertEqual((status, got["message"]), (400, changes.BAD_KIND))
+        self.assertEqual(self.standing(), self.s.read("use_cases", ref=self.uc)["standing"])
+
+    def test_a_kind_of_use_cases_never_writes_a_section(self):
+        ref = self.make()
+        before = self.snapshot()
+        status, got = self.section_body({"project": "ABC", "kind": "use_cases", "id": ref, "body": "<p>x</p>"})
+        self.assertEqual((status, got["message"]), (400, changes.UC_NOT_MINE))
+        self.assertEqual(self.snapshot(), before)
+
+
 class Caps(unittest.TestCase):
     """The size cap at both routes. authorised() is the dispatcher's first check, so a call with no token is a 403 whatever its length."""
 
@@ -235,6 +279,27 @@ class Caps(unittest.TestCase):
                 self.assertEqual((status, json.loads(data)["code"]), (403, "not_allowed"))
         self.assertEqual(self.calls, [])
 
+    def test_the_largest_standing_the_route_lets_in_is_saved_and_one_byte_over_is_refused_on_both_routes(self):
+        from _demo import DemoStore
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        running = Running(change=changes.make_change(demo.store.path, [], "Fictional Person"))
+        self.addCleanup(running.close)
+        running.httpd.section_body = changes.make_section_body(demo.store.path, [], "Fictional Person")
+        head = b'{"project":"ABC","kind":"use_cases","id":"' + demo.use_case.encode() + b'","body":"<p>'
+        tail = b'</p>"}'
+        limit = sv.SECTION_BODY_LIMIT
+        fits = head + b"a" * (limit - len(head) - len(tail)) + tail
+        self.assertEqual(len(fits), limit)
+        status, _, data = running.api("POST", "/api/section-body", fits)
+        self.assertEqual((status, json.loads(data)["ok"]), (200, True), data[:200])
+        self.assertEqual(len(demo.store.read("use_cases", ref=demo.use_case)["standing"]), limit - len(head) - len(tail) + len("<p></p>"))
+        status, _, data = running.api("POST", "/api/section-body", fits + b" ")
+        self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"))
+        # the same text through /api/change is over its 16 KB, and says so
+        status, _, data = running.api("POST", "/api/change", fits)
+        self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"))
+
     def test_the_route_takes_json_only(self):
         self.assertEqual(self.running.api("POST", "/api/section-body", b"{}", ctype="application/x-www-form-urlencoded")[0], 415)
 
@@ -255,10 +320,12 @@ class Page(unittest.TestCase):
 
     def test_a_body_edit_goes_to_section_body_and_nothing_else_does(self):
         js = self.source()
-        self.assertEqual(len(re.findall(r'"/api/section-body"', js)), 1)
+        self.assertEqual(len(re.findall(r'"/api/section-body"', js)), 2, "a section's body, and a use case's standing")
         self.assertIn('"/api/change"', js)
         self.assertRegex(js, r'isBodyEdit\(req\)\s*\?\s*post\("/api/section-body"')
-        self.assertRegex(js, r'Object\.keys\(req\.changes\)\.length === 1 && "body" in req\.changes')
+        self.assertRegex(js, r'isStandingEdit = \(req\) => req\.kind === "use_cases" && onlyField\(req, "standing"\)')
+        self.assertRegex(js, r'isBodyEdit = \(req\) => \(!req\.kind \|\| req\.kind === KIND\) && onlyField\(req, "body"\)')
+        self.assertRegex(js, r'Object\.keys\(req\.changes\)\.length === 1 && field in req\.changes')
 
     def test_the_built_page_carries_the_route(self):
         html = (SRC / "clark" / "page" / "page.html").read_text(encoding="utf-8")
