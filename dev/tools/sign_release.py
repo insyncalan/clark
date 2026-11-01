@@ -12,7 +12,7 @@ default `release`), holding the 32-byte seed as 64 hex characters. It is never w
 else it starts. `keygen` hands the seed to `security` on its standard input (`security -i`, which reads its commands there), so
 the seed is never in a command line where `ps` could show it; `man security` offers only `-w` (the password as an argument) or
 `-X` (hex as an argument) for a value given up front, and both would show it. `sign` and `public` read the seed back with
-`security find-generic-password -w`, so macOS asks before it gives it out. Every call to `security` goes through the one function
+`security find-generic-password -w`; the item is made with `-T ""` (no application is trusted), so macOS asks before it gives it out. Every call to `security` goes through the one function
 `run_security`; the tests replace it with an in-memory fake and never reach the real Keychain.
 
 Key loss or compromise (runbook; nothing here is automatic):
@@ -71,7 +71,9 @@ def keygen(name=DEFAULT_NAME):
         raise Refused("a key called %r is already in the Keychain; use another name, or delete that item in Keychain Access first" % name)
     seed = ed25519_sign.new_seed()
     # `security -i` reads its commands from stdin, so the seed is in a pipe and never in any argv. No -U: nothing is overwritten.
-    code, _ = run_security(["-i"], stdin="add-generic-password -s %s -a %s -w %s\n" % (SERVICE, name, seed.hex()))
+    # -T "" trusts no application, not even `security` itself, so every read of the seed asks first (checked on a throwaway
+    # keychain: without it `applications (1)`, with it `applications (0)`).
+    code, _ = run_security(["-i"], stdin='add-generic-password -s %s -a %s -T "" -w %s\n' % (SERVICE, name, seed.hex()))
     if code != 0:
         raise Refused("the Keychain would not store the key (exit %d); nothing was made" % code)
     return ed25519_sign.public_key(seed)

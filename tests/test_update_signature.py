@@ -373,6 +373,7 @@ class FakeKeychain:
         if args == ["-i"]:
             words = stdin.split()
             assert words[0] == "add-generic-password", stdin
+            assert '-T ""' in stdin, "the item must trust no application, so every read asks: %r" % stdin
             key = (words[words.index("-s") + 1], words[words.index("-a") + 1])
             if key in self.items:
                 return 45, ""
