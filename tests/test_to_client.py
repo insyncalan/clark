@@ -1392,6 +1392,7 @@ class Tripwire(unittest.TestCase):
         self.assertEqual(found, {("RealFs", "write_file", "write_file"),       # the two writes: platform.write_file (Overwrite, restore)
                                  ("RealFs", "write_file", "write_file_unless_exists"),     # and the link into place for a new name
                                  ("RealFs", "remove", "unlink"),               # taking back a copy this publish made
+                                 ("RealFs", "make_folder", "mkdir"),           # #96: the "Report files" folder a section's file goes in
                                  ("RealFs", "writable", "access"), ("RealFs", "listdir", "scandir"),   # reads
                                  ("RealFs", "read_bytes", "open"),
                                  ("", "copy_to_client", "write_file"),         # through the injected fs

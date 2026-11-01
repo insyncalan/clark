@@ -448,6 +448,15 @@ class RealFs:
     def remove(self, path):
         os.unlink(path)
 
+    def make_folder(self, path):
+        """Make the one folder `path` (its parent must be there), as a section template's files folder (#96, "Report files" in the
+        client folder). False if something is already called that; nothing is replaced."""
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            return False
+        return True
+
     def stale_parts(self, folder, older_than=600):
         """The half-written temporary files an earlier publish left if clark was stopped part-way (`.NAME.html.PID.HEX.part`
         beside the copy, which OneDrive would upload): only files of exactly that shape, at least `older_than` seconds old."""

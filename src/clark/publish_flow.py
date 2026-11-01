@@ -27,7 +27,11 @@ import threading
 import time
 from pathlib import Path
 
+<<<<<<< HEAD
 from clark import milestones, page, platform, publish, publish_pdf, to_client
+=======
+from clark import changes, milestones, page, platform, publish, section_files, to_client
+>>>>>>> origin/main
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -152,17 +156,19 @@ class Publisher:
     never be in)."""
 
     def __init__(self, db_path, onedrive_roots=None, *, fs=None, choose_save_file=None, choose_folder=None, today=None,
-                 by_user=None, data_dir=None, branding=None, backups_dir=None):
+                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.fs = fs or to_client.RealFs()
         self.choose_save_file = choose_save_file or platform.choose_save_file
         self.choose_folder = choose_folder or platform.choose_folder
+        self.choose_open_file = choose_open_file or platform.choose_open_file      # #96: a file for a section template
         self.today = today or milestones.today
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
-        self.lock = threading.Lock()          # one publish at a time
+        self.add_section_file = changes.make_section_file(self.db_path, self.onedrive_roots, self.by_user)   # #96: the step that adds a copied file
+        self.lock = threading.Lock()          # one publish at a time (and one file for a section: section_files.py)
         self.previews, self.preview_lock = {}, threading.Lock()      # {nonce: (bytes, time made)}: in memory only
 
     def store(self):
@@ -413,6 +419,12 @@ class Publisher:
             return 409, self.fail("settings_failed", MESSAGES["settings_failed"])
         return 200, {"ok": True, "changed": True, "folder": folder, "folder_name": to_client.folder_name(folder),
                      "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"]}
+
+    # ----- a file for a section template (#96) -----
+    def section_file(self, body):
+        """POST /api/section-file {project, section}: the system's Open dialog, the copy into the client folder's "Report files"
+        folder and the step that adds the file to the section (section_files.py has the rules)."""
+        return section_files.attach(self, body)
 
     # ----- preview and export (#147) -----
     def preview(self, body):
