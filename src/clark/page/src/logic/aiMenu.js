@@ -57,6 +57,11 @@ export const WORDS = {
   noChanges: "The suggestion is the same words as the text.",
   notes: "Worth a look",
   sends: "The text you chose goes to Claude to make this suggestion.",
+  ai: "AI",
+  makeInto: "Make into",
+  askLabel: "What should it do with this text?",
+  nothing: "Write or select some text first.",
+  changed: "The text changed while you waited. Try again.",
 };
 
 export const placeKnown = (place) => typeof place === "string" && Object.prototype.hasOwnProperty.call(PLACES, place);

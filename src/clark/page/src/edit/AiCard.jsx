@@ -8,7 +8,7 @@
 // Keys and focus (docs/handoff/design-72-ai-menu-page.md section 6a): the card is not a trap; Tab goes Accept, Discard, Try again, Show
 // changes. Focus goes to Stop while it works and to the heading line (the option's name) when the card has a result or a line to read. Accept,
 // Discard, Stop and Esc call `returnTo()` so focus goes back to the editor; Try again and Show changes keep it on the card.
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cleanHtml } from "../logic/cleanHtml.js";
 import { WORDS, optionName } from "../logic/aiMenu.js";
 
@@ -42,7 +42,7 @@ export function AiCard({ client, place, option, text, instruction = "", returnTo
   useEffect(() => { ask(); return () => { run.current += 1; abort.current && abort.current.abort(); }; }, []);
 
   const kind = state.kind;
-  useEffect(() => {
+  useLayoutEffect(() => {                       // in the same draw that removes the old button, so the focus is never left on nothing (a field around the card would take that for leaving it)
     setSay(kind === "working" ? WORDS.working : kind === "ready" ? WORDS.ready : LINES[kind]);
     const to = kind === "working" ? stop.current : head.current;
     if (to) to.focus({ preventScroll: true });

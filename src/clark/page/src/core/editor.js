@@ -14,11 +14,12 @@
 //   ed.run(name, arg), ed.can(name), ed.active(name)   the toolbar's commands (see COMMANDS)
 //   ed.focus(), ed.destroy()
 // Keys: Cmd or Ctrl + Enter saves (onSave), Esc cancels (onCancel). A plain profile also saves on Enter (one line).
-import { createEditor } from "tiptap";
+import { createEditor, closeHistory } from "tiptap";
 import { cleanHtml, href, SanitiseError } from "../logic/cleanHtml.js";
 import { toHtml, forEditor } from "./richHtml.js";
 
 export { SanitiseError };
+export { closeHistory };      // the history's "start a new step here" mark, for a step that must be its own (the AI's Accept, edit/editorAi.jsx)
 
 // Left out of the vendored feature set: Markdown and the raw-HTML nodes, code, images, and the claim mark.
 const DROP = new Set(["markdown", "htmlBlock", "htmlBlockFromMarked", "htmlInline", "literal", "image", "code"]);

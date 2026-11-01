@@ -8,6 +8,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { clarkEditor, SanitiseError } from "../core/editor.js";
 import { href } from "../logic/cleanHtml.js";
 import { Menu } from "../components/Menu.jsx";
+import { useEditorAi } from "./editorAi.jsx";
+import { getAiClient } from "./aiClient.js";
+import { WORDS } from "../logic/aiMenu.js";
 
 const BAR = [
   ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"],
@@ -30,7 +33,9 @@ function place(box, x, y) {
   box.style.top = `${Math.round(top)}px`;
 }
 
-export function RichText({ value, label, onSave, onClose }) {
+// aiPlace: the AI menu's place for this field (logic/aiMenu.js); null leaves the AI out. aiClient: where suggestions come from (tests hand
+// in a fake one). onMakeInto(kind, text): Make into, offered only when it is given.
+export function RichText({ value, label, onSave, onClose, aiPlace = "current", aiClient, onMakeInto }) {
   const host = useRef(null), root = useRef(null), bubble = useRef(null), slashBox = useRef(null), ed = useRef(null), linkIn = useRef(null);
   const [h, setH] = useState(null);                           // the editor, once it exists (the first draw has none)
   const [, tick] = useState(0);
@@ -41,6 +46,9 @@ export function RichText({ value, label, onSave, onClose }) {
   const slashRef = useRef(null); slashRef.current = slash;
   const busy = useRef(false), closed = useRef(false), keep = useRef(false);
   const props = useRef({}); props.current = { onSave, onClose };
+  const aiBtn = useRef(null), aiKey = useRef(null);
+  const ai = useEditorAi({ h, place: aiPlace, client: aiClient || getAiClient(), onMakeInto, setProblem });
+  aiKey.current = ai.key;
 
   const leave = (back) => { if (!closed.current) { closed.current = true; props.current.onClose(back === true); } };
   const finish = async (back = true) => {
@@ -78,6 +86,7 @@ export function RichText({ value, label, onSave, onClose }) {
 
   useLayoutEffect(() => {
     const keyHook = (e) => {
+      if (aiKey.current(e)) return true;
       const s = slashRef.current;
       if (!s) return false;
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -162,6 +171,8 @@ export function RichText({ value, label, onSave, onClose }) {
         <Menu label={current ? current[1] : "Text"} ariaLabel="Text style" btnCls="rt-btn rt-style" left
           items={STYLES.map(([n, w]) => ({ id: n, name: w }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />
         {BAR.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
+        {aiPlace ? <button type="button" class="rt-btn rt-ai" ref={aiBtn} aria-label={WORDS.ai} title="AI (Alt+/)" aria-haspopup="menu"
+          aria-expanded={ai.list ? "true" : "false"} onMouseDown={hold} onClick={() => ai.open(aiBtn.current)}>{WORDS.ai}</button> : null}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
       {linkOpen ? (
@@ -173,8 +184,20 @@ export function RichText({ value, label, onSave, onClose }) {
         </div>
       ) : null}
       <div class="rt-host prose" ref={host} />
+      {ai.card}
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
-      {sel && !linkOpen ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
+      {sel && !linkOpen ? (
+        <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">
+          {BUBBLE.map(button)}
+          {aiPlace ? (
+            <span class="rt-ai-zone" role="group" aria-label={WORDS.ai}>
+              <span class="rt-sep" aria-hidden="true" />
+              <button type="button" class="rt-btn rt-ai" aria-haspopup="menu" onMouseDown={hold} onClick={(e) => ai.open(bubble.current)}>{WORDS.ai}</button>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {ai.list}
       {slash ? (
         <div class="rt-slash" ref={slashBox} role="listbox" aria-label="Insert">
           {slash.items.map(([n, w], i) => (

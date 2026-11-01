@@ -56,3 +56,10 @@ export function stubAiClient(opts = {}) {
   };
   return client;
 }
+
+// The client the editors use. Until the real one is set (slice 4 and 5), it is a client that is not signed in: the menu shows, greyed, with
+// the plain line that says why, and nothing is ever sent. Tests set a stub here or hand one to an editor directly.
+const none = { status: () => "not_signed_in", suggest: () => Promise.reject(new Error("no provider")) };
+let current = none;
+export const getAiClient = () => current;
+export const setAiClient = (client) => { current = client || none; };

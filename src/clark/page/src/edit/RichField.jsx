@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { cleanHtml } from "../logic/cleanHtml.js";
 import { RichText } from "./RichText.jsx";
 import { saveRich } from "./richSave.js";
+import { makeInto } from "./makeInto.js";
 
 const shown = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
 
@@ -15,7 +16,7 @@ export function RichField({ field, id, value, label, empty = "Click to write." }
   // focus went elsewhere leaves it where the person put it.
   useEffect(() => { if (!open && back.current) { back.current = false; if (view.current) view.current.focus(); } }, [open]);
   if (open) {
-    return <RichText value={value || ""} label={label} onSave={(html) => saveRich(field, id, html)} onClose={(refocus) => { back.current = refocus === true; setOpen(false); }} />;
+    return <RichText value={value || ""} label={label} onMakeInto={makeInto} onSave={(html) => saveRich(field, id, html)} onClose={(refocus) => { back.current = refocus === true; setOpen(false); }} />;
   }
   const html = shown(value);
   return (
