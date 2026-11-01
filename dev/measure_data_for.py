@@ -28,13 +28,14 @@ def build(demo, rows, share):
     fields = ("status", "priority", "owner", "due", "description")
     base = con.execute("SELECT max(rowid) FROM change_log").fetchone()[0] or 0
     mine = round(rows * share)           # the first `mine` rows are the project's own, the rest another project's
+    con.execute("BEGIN")                      # one transaction: this connection commits every statement unless told otherwise
     con.executemany("INSERT INTO change_log (apply_id, tbl, item_id, field, old_value, new_value, op, via) "
                     "VALUES (?, 'actions', ?, ?, ?, ?, 'update', 'dashboard')",
                     [(step, (ids if n < mine else others)[n % ITEMS], fields[n % len(fields)], str(n), str(n + 1)) for n in range(rows)])
     con.executemany("INSERT INTO item_events (at, apply_id, item_id, change, kind, route, place, actor) "
                     "VALUES ('2026-10-01 09:00:00', ?, ?, ?, 'change', 'dashboard', 'cell', 'you')",
                     [(step, (ids if n < mine else others)[n % ITEMS], base + n + 1) for n in range(rows)])
-    con.commit()
+    con.execute("COMMIT")
 
 
 def timed(store):

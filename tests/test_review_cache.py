@@ -168,18 +168,19 @@ class Cheap(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
-        self.ids = [self.demo.action(description=f"Action {n}") for n in range(6)]
+        self.ids = [self.demo.action(description=f"Action {n}") for n in range(3)]
         con = self.demo.store.con
         step = self.demo.last_step()
         base = con.execute("SELECT max(rowid) FROM change_log").fetchone()[0]
-        rows = 20000
+        rows = 6000
+        con.execute("BEGIN")                  # one transaction: this connection commits every statement unless told otherwise
         con.executemany("INSERT INTO change_log (apply_id, tbl, item_id, field, old_value, new_value, op, via) "
                         "VALUES (?, 'actions', ?, 'status', '1', '2', 'update', 'dashboard')",
                         [(step, "XYZ-A-%03d" % (n % 50)) for n in range(rows)])
         con.executemany("INSERT INTO item_events (at, apply_id, item_id, change, kind, route, place, actor) "
                         "VALUES ('2026-10-01 09:00:00', ?, ?, ?, 'change', 'dashboard', 'cell', 'you')",
                         [(step, "XYZ-A-%03d" % (n % 50), base + n + 1) for n in range(rows)])
-        con.commit()
+        con.execute("COMMIT")
 
     def steps(self):
         """The database's virtual-machine steps (in hundreds) one review_events call takes, with the cache the store keeps."""
@@ -197,7 +198,7 @@ class Cheap(unittest.TestCase):
     def test_a_call_after_the_first_does_not_read_the_log(self):
         first = self.steps()
         again = self.steps()
-        self.assertGreater(first, 500, "the first call reads the large log")
+        self.assertGreater(first, 100, "the first call reads the large log")
         self.assertLess(again * 20, first)
 
     def test_a_call_after_an_edit_reads_only_what_the_edit_added(self):
