@@ -280,6 +280,19 @@ class Logic(InBrowser):
         self.assertNotIn("%0D", head)
         self.assertNotIn("%0A", head)
 
+    def test_a_failure_with_no_words_of_the_servers_own_ends_nothing_was_saved(self):
+        """#208(d): the 5xx, no-answer, stale-page and other fallbacks of I sent it, word for word."""
+        want = {
+            0: "clark did not answer. Start it again from clark.command, then try again. Nothing was saved.",
+            403: "This page is out of date. Reload the page and try again. Nothing was saved.",
+            500: "A problem came up recording that. Try again. If it happens again, restart clark. Nothing was saved.",
+            503: "That could not be recorded just now. Wait a moment and try again. If it keeps happening, restart clark. Nothing was saved.",
+            404: "That could not be recorded. Reload the page and try again. Nothing was saved.",
+            418: "That could not be recorded. Reload the page and try again. Nothing was saved.",
+        }
+        for status, words in want.items():
+            self.assertEqual(self.val(f"T.logic.sentFailedWords({status})"), words, status)
+
     def test_i_sent_it_records_ids_day_and_kind_never_the_text(self):
         got = self.val("T.logic.sentEntry(['ABC-A-001', 'ABC-A-001', 'ABC-A-002', ''], 'chase', '2026-10-13')")
         self.assertEqual(got, {"kind": "email_sent", "ids": ["ABC-A-001", "ABC-A-002"], "date": "2026-10-13", "mode": "chase"})
