@@ -15,8 +15,7 @@ BAD_LEVEL = "That level isn't one of the choices. Reload the page and try again.
 
 # The Errors list on screen says each error in plain words. The technical line (area, route, class) stays in the log and in Copy
 # diagnostics, which is for support. One fixed sentence per kind of error, chosen here from the route and the area of the log
-# entry; none of the entry's own text is passed on. The sentences are the ones the owner approved on
-# PR 213, 01-11-2026.
+# entry; none of the entry's own text is passed on. The sentences are the ones the owner approved for #295.
 SAVE_DID_NOT_WORK = "Saving a change did not work."
 TRY_AGAIN = "Try again. If it keeps happening, use Copy diagnostics and send it to the person who is helping you."
 READ_DID_NOT_WORK = "Loading part of the page did not work."
