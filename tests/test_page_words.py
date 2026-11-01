@@ -164,7 +164,9 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings", "Settings are not ready yet.",
-                                  "Client folder",      # #43: the one setting built so far; the rest of Settings is FR-1
+                                  "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
+                                  "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
+                                  "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder",
