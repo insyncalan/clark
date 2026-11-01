@@ -853,6 +853,40 @@ class Freshness(Line):
             self.assertEqual(self.parse(got["line"])["errors"], [])
 
 
+class ShowThem(Line):
+    """#159's Show them calls openWork(showState(value)); showState is setFilter(initial(), "reviewed", [value], false). Run here in the
+    page's own store: the dialog must close on Work items with a working line, never on a TypeError."""
+
+    def open_work(self, value, with_dates=False):
+        rows = [{"id": "S-A-1", "description": "Book the room", "status": "Open", "owner": "", "due_date": "2026-11-01"},
+                {"id": "S-A-2", "description": "Send the invitations", "status": "Open", "owner": "Owner One", "due_date": None},
+                {"id": "S-A-3", "description": "Order the laptops", "status": "Open", "owner": "Owner One", "due_date": "2026-11-05"}]
+        if with_dates:
+            rows[2]["last_reviewed"] = "2026-10-01"
+        data = {"actions": rows, "raid": [{"id": "S-R-1", "type": "Risk", "description": "No date on a risk", "status": "Open", "owner": "Owner One", "due_date": None}],
+                "decisions": [], "workstreams": [], "milestones": []}
+        return self.val("(function(){ var R = T.report; history.replaceState(null, '', '#dashboard&p=TUL'); R.project.value = 'TUL'; R.data.value = " + lit(data) + "; "
+                        f"R.openWork(T.filters.setFilter(T.filters.initial(), 'reviewed', [{lit(value)}], false)); "
+                        "return { view: R.view.value, line: R.lineText.value, hash: location.hash, shown: T.fl.apply(R.rows.value, R.lineText.value, R.filterCtx()).map(function (r) { return r.id; }), "
+                        "errors: T.fl.parse(R.lineText.value, R.rows.value, R.filterCtx()).errors.length }; })()")
+
+    def test_show_them_for_no_owner_or_no_date_opens_work_items_on_those_items(self):
+        got = self.open_work("incomplete")
+        self.assertEqual((got["view"], got["line"], got["errors"]), ("work", "is:open is:incomplete", 0), got)
+        self.assertIn("#work", got["hash"])
+        self.assertEqual(got["shown"], ["S-A-1", "S-A-2"], "an action with no date counts; a risk with no date does not")
+
+    def test_show_them_for_not_reviewed_opens_work_items_when_the_data_has_dates(self):
+        got = self.open_work("stale", with_dates=True)
+        self.assertEqual((got["view"], got["line"], got["errors"]), ("work", "is:open is:quiet", 0), got)
+        self.assertEqual(got["shown"], ["S-A-3"])
+
+    def test_show_them_for_not_reviewed_with_no_dates_still_opens_work_items_with_a_plain_line(self):
+        got = self.open_work("stale")
+        self.assertEqual((got["view"], got["errors"]), ("work", 0), got)
+        self.assertEqual(got["line"], "is:open", "the word the page cannot answer yet is left out, not an error")
+
+
 class Cost(Line):
     """The parse builds each field's offers and known values once, however long the line is (counted, not timed)."""
 

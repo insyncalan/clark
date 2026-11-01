@@ -204,59 +204,63 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .note { margin: 8px 0 0; font-size: 13px; }
 .note:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.wbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; }
-.seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-.seg button { all: unset; box-sizing: border-box; padding: 6px 12px; min-height: 32px; font-size: 14px; cursor: pointer; color: var(--text); }
-.seg button + button { border-left: 1px solid var(--border); }
-.seg button:hover { background: var(--grey-50); }
-.seg button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: 500; }
-.seg button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
-.seg em { font-style: normal; color: var(--text-muted); margin-left: 4px; }
-.seg button[aria-pressed="true"] em { color: inherit; }
-.fbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 10px; }
-.fl { font-size: 13px; color: var(--text-muted); margin-right: 2px; }
-.fwrap { position: relative; display: inline-block; }
-.fbtn { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; min-height: 28px; border: 1px solid transparent; border-radius: var(--radius-pill); background: transparent; cursor: pointer; font-size: 13px; color: var(--text-muted); }
-.fbtn:hover, .fbtn[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }
-.fbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.fbtn.on { color: var(--status-blue-text); }
-.fbtn.on::after { content: ""; position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-blue); }
 .i { width: 14px; height: 14px; flex: none; }
-.fbox { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 260px; max-height: 340px; overflow: auto; padding: 8px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: 14px; }
-.fbox.right { left: auto; right: 0; }
-.fbox .isnot { display: flex; gap: 4px; padding: 0 12px 6px; }
-.fbox .isnot button { all: unset; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: 13px; color: var(--text-muted); }
-.fbox .isnot button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
-.fbox .isnot button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.fbox .fact { display: flex; gap: 6px; padding: 0 12px 6px; border-bottom: 1px solid var(--grey-100); margin-bottom: 4px; }
-.btn.sm { padding: 2px 10px; font-size: 13px; }
-.fbox label { display: flex; align-items: center; gap: 10px; padding: 6px 12px; cursor: pointer; }
-.fbox label:hover { background: var(--grey-50); }
-.fbox label .c { margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
-.factive { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 14px 0 4px; font-size: 14px; }
-.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: 13px; }
-.fchip button { all: unset; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; }
+.btn.sm { padding: 2px 10px; font-size: 13px; min-height: 24px; }
+/* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
+.fline-wrap { margin-top: 12px; }
+.fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
+.vtabs { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; min-height: 28px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); cursor: pointer; font-size: 13px; color: var(--text); }
+.vtab:hover { background: var(--grey-50); }
+.vtab[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); font-weight: 500; }
+.vtab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vtab em { font-style: normal; color: var(--text-muted); }
+.vtab[aria-pressed="true"] em { color: inherit; }
+.fdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-blue); flex: none; }
+.vform { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; font-size: 13px; }
+.vform input { box-sizing: border-box; min-height: 28px; padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 13px; }
+.vform input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vmsg { color: var(--status-red-text); }
+.vmsg:empty { display: none; }
+.fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: 40px; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
+.fline input { all: unset; box-sizing: border-box; flex: 1 1 160px; min-width: 120px; min-height: 28px; font-size: 14px; color: var(--text); }
+.fline input::placeholder { color: var(--text-muted); }
+.fkey { margin-left: auto; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.fkey kbd { font: inherit; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--grey-50); }
+.fline.on .fkey { display: none; }
+.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: 13px; }
+.fchip.word { background: var(--grey-100); color: var(--text); }
+.fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
+.flist { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; margin: 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: 14px; }
+.fopt { display: flex; align-items: baseline; gap: 10px; padding: 4px 12px; min-height: 28px; box-sizing: border-box; cursor: pointer; color: var(--text); }
+.fopt:hover, .fopt[aria-selected="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.fopt .fl1 { font-weight: 500; }
+.fopt .fl2 { font-size: 13px; color: var(--text-muted); }
+.fopt[aria-selected="true"] .fl2 { color: inherit; }
+.fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
+.fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
+.fhints.on { visibility: visible; }
+.fhl { font-size: 13px; color: var(--text-muted); }
+.fhint { all: unset; box-sizing: border-box; padding: 2px 10px; min-height: 24px; display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-pill); cursor: pointer; font-size: 13px; color: var(--text-muted); background: var(--surface); }
+.fhint:hover { background: var(--grey-100); color: var(--text); }
+.fhint:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fmsg { margin: 6px 0 0; font-size: 13px; color: var(--status-amber-text); }
+.fmsg:empty { display: none; }
+.factive { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 4px; font-size: 14px; }
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
 @media (max-width: 640px) {
+  .fkey { display: none; }
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: 4px; }
   .top .divider { display: none; }
   .top .tab { padding: 0 6px; font-size: 13px; }
   .top .tab::after { left: 6px; right: 6px; }
   .top .mode { min-width: 36px; padding: 0 6px; font-size: 13px; }
-  .wbar { gap: 8px; }
-  .wbar .seg { display: flex; flex: 1 1 100%; max-width: 100%; }
-  .wbar .seg button { flex: 1 1 0; min-width: 0; padding: 4px 6px; min-height: 32px; font-size: 13px; text-align: center; }
-  .fbar { gap: 4px; }
-  .fbtn { padding: 2px 8px; min-height: 28px; }
-  .fbox { width: min(260px, calc(100vw - 48px)); }
-  .fbox .isnot button { min-height: 24px; display: inline-flex; align-items: center; }
-  .btn.sm { min-height: 24px; }
-  .fchip button { width: 24px; height: 24px; }
   table.items, table.items tbody { display: block; width: 100%; }
   table.items thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   table.items tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 6px 12px; padding: 10px 4px; border-top: 1px solid var(--grey-100); }

@@ -52,6 +52,13 @@ class Base(unittest.TestCase):
         quiet.start()
         self.addCleanup(quiet.stop)
 
+    def line(self, cdp, sid, text):
+        """Add to the filter line the way a person does: click the box, type, press Enter."""
+        click(cdp, sid, "#fline-input")
+        cdp.call("Input.insertText", {"text": text}, sid)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == text))
+        key(cdp, sid, "Enter")
+
     # ---- the data ----
     def id_of(self, text):
         for k, f in (("actions", "description"), ("raid", "description"), ("decisions", "decision")):
@@ -110,7 +117,12 @@ class Base(unittest.TestCase):
         self.reload(cdp, sid)
         cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
         if mode != "open":
-            click(cdp, sid, f"[data-show={mode}]")
+            click(cdp, sid, "#fline-input")                 # no is: chip means every item, open or closed
+            for _ in range(5):
+                if cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0:
+                    break
+                key(cdp, sid, "Backspace")
+            self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "the count follows All")
         self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
 
     def drag(self, cdp, sid, card, cell, steps=8):
@@ -292,14 +304,12 @@ class GroupBy(Base):
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             all_ = cdp.js("document.querySelectorAll('#work-board .bcard').length", sid)
-            click(cdp, sid, "[data-type=action]")
+            self.line(cdp, sid, "type:action")
             self.until(cdp, sid, "[...document.querySelectorAll('#work-board .bcard')].every(c => c.dataset.kind === 'action')")
             acts = cdp.js("document.querySelectorAll('#work-board .bcard').length", sid)
             self.assertLess(acts, all_)
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work-board section.col')].map(c => c.dataset.col)", sid), ["Open", "Delayed", "Closed", "Cancelled"], "the status columns follow the type")
-            click(cdp, sid, "[data-fb=workstream]")
-            self.assertTrue(cdp.js("!!document.querySelector('#fbox-workstream')", sid), "Workstream is a filter")
-            click(cdp, sid, "#fbox-workstream label:nth-of-type(1) input")
+            self.line(cdp, sid, "workstream:Build")
             self.until(cdp, sid, f"document.querySelectorAll('#work-board .bcard').length < {acts}")
             n = cdp.js("document.querySelectorAll('#work-board .bcard').length", sid)
             self.assertRegex(cdp.js("document.querySelector('#work-count').textContent", sid), rf"^{n} (?:open )?items?$")
@@ -667,12 +677,12 @@ class FullScreen(Base):
             self.assertEqual(cdp.js("document.querySelector('#work-live').textContent", sid), "Full screen on.")
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.top')).display", sid), "none", "the top bar goes")
             self.assertEqual(cdp.js("getComputedStyle(document.body).backgroundColor", sid), bg, "the brand background stays")
-            self.assertTrue(cdp.js("document.querySelector('.fbar').getBoundingClientRect().height > 0", sid), "the filters stay")
+            self.assertTrue(cdp.js("document.querySelector('.fline-wrap').getBoundingClientRect().height > 0", sid), "the filters stay")
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
             # scroll: the filters scroll away, the headings stay
             cdp.js("document.querySelector('main').scrollTop = 260", sid)
             self.until(cdp, sid, "document.querySelector('main').scrollTop > 100", "the window scrolled")
-            self.assertLess(cdp.js("document.querySelector('.fbar').getBoundingClientRect().bottom", sid), 0, "the filters scrolled away")
+            self.assertLess(cdp.js("document.querySelector('.fline-wrap').getBoundingClientRect().bottom", sid), 0, "the filters scrolled away")
             lane_top = cdp.js("document.querySelector('.lane-h').getBoundingClientRect().top", sid)
             col_top = cdp.js("document.querySelector('.lane .col-h').getBoundingClientRect().top", sid)
             self.assertEqual((lane_top, col_top), (0, 40), "lane and column headings stay at the top")
@@ -719,7 +729,7 @@ class FullScreen(Base):
 
     def test_board_view_pins_only_the_column_headings_under_the_top_bar(self):
         """#134: the toolbar rows scroll away and the column headings stay at the foot of the top bar; back at 0 the rows return."""
-        rows = "['.head', '.wbar', '.fbar', '.factive', '.lanebar']"
+        rows = "['.head', '.wbar', '.fline-wrap', '.factive', '.lanebar']"
         for width in (1400, 900):
             for full in (False, True):
                 with self.subTest(width=width, full=full), chrome() as cdp:
@@ -742,7 +752,7 @@ class FullScreen(Base):
                     self.assertLessEqual(abs(got["h"] - got["bar"]), 2, f"the column headings sit at the top bar's foot: {got}")
                     cdp.js(f"{scroller}.scrollTop = 0", sid)
                     self.until(cdp, sid, f"{scroller}.scrollTop === 0", "back at the top")
-                    self.assertTrue(cdp.js("['.wbar', '.fbar', '.factive', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
+                    self.assertTrue(cdp.js("['.wbar', '.fline-wrap', '.factive', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
 
     def test_pinned_headings_dark_wheel_no_overlap_and_focus(self):
         """#134 (more): in light and dark, at 1400 and 900 px, the toolbar's top moves away with the page, the headings pin at the top

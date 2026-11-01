@@ -195,7 +195,7 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, f"no sideways page scroll: {wide}")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.scrollWidth > e.clientWidth + 1"
                                     " && /auto|scroll/.test(getComputedStyle(e).overflowX)).length", sid), 0, "no inner sideways scroll")
-            bad = cdp.js("[...document.querySelectorAll('#work tbody tr, #work .seg, #work .fbar, #work .wbar, #work .head')]"
+            bad = cdp.js("[...document.querySelectorAll('#work tbody tr, #work .fline, #work .fviews, #work .head')]"
                          ".filter(e => { const r = e.getBoundingClientRect(); return r.left < -0.5 || r.right > window.innerWidth + 0.5 "
                          "|| e.scrollWidth > e.clientWidth + 1; }).map(e => e.className || e.tagName)", sid)
             self.assertEqual(bad, [], "every row and control sits inside the window")
@@ -215,12 +215,13 @@ class RealBrowser(unittest.TestCase):
             small = cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.childNodes.length && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())"
                            " && parseFloat(getComputedStyle(e).fontSize) < 12).map(e => e.className)", sid)
             self.assertEqual(small, [], "text is at least 12 px")
-            cdp.js("document.querySelector('[data-fb=owner]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fbox-owner')", sid)))
-            targets = cdp.js("[...document.querySelectorAll('#work .seg button, #work .fbtn, #work .newb, #fbox-owner button, #fbox-owner label')]"
+            cdp.js("document.querySelector('#fline-input').focus()", sid)
+            cdp.call("Input.insertText", {"text": "st"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
+            targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fchip button, #work .newb, #work .fhint, #fline-list .fopt')]"
                              ".filter(e => { const r = e.getBoundingClientRect(); return r.height < 24 || r.width < 24; }).map(e => e.className || e.textContent)", sid)
             self.assertEqual(targets, [], "targets are at least 24 px")
-            self.assertEqual(cdp.js("(() => { const r = document.querySelector('#fbox-owner').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; })()", sid), True)
+            self.assertEqual(cdp.js("(() => { const r = document.querySelector('#fline-list').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; })()", sid), True)
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
 
     def test_the_card_cells_never_overlap_in_a_wide_or_a_narrow_font_at_390_px(self):

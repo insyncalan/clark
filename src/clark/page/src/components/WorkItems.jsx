@@ -7,11 +7,13 @@
 // Edit, from a cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
 // cells and back to the row. Enter on a row opens its peek; on a cell, Enter, Space or Alt+Down opens its picker.
 import { signal } from "@preact/signals";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile } from "../stores/report.js";
+import { useEffect } from "preact/hooks";
+import { data, rows as allRows, filterNote, openPeek, mode, fromFile, f, lineText, setLine, rememberedLine, filterCtx } from "../stores/report.js";
 import { itemRows } from "../stores/work.js";
 import { KIND_WORDS, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
-import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
-import { Switches, FilterBar } from "./WorkFilters.jsx";
+import { countText, addPlan } from "../filters.js";
+import * as FL from "../logic/filterLine.js";
+import { FilterLine } from "./FilterLine.jsx";
 import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
@@ -118,33 +120,34 @@ function GroupBy({ board }) {
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
 function List({ Board, Cell }) {
-  const st = filterState.value, today = todayIso();
-  const filtered = applyFilters(itemRows.value, st, today);
-  const cs = chips(st);
-  const clear = () => setFilterState(clearAll());
+  const line = lineText.value, today = todayIso(), ctx = filterCtx(), rows = itemRows.value;
+  const st = FL.toState(line, rows, ctx).state;
+  const filtered = FL.apply(rows, line, ctx);
+  const clear = () => setLine(FL.BASE);
+  const can = FL.canClear(line, rows, ctx);
   const board = !!Board && work.value.view === "board";
   return (
     <div id="work-list">
       <div class="factive">
         <span id="work-count" class="num">{countText(filtered.length, st.mode)}</span>
-        {cs.map((c) => (
-          <span class="fchip" key={c.field} data-chip={c.field}>{c.text}
-            <button type="button" data-fx={c.field} aria-label={`Remove the ${c.name} filter`} onClick={() => setFilterState(removeFilter(filterState.value, c.field))}>{"×"}</button>
-          </span>
-        ))}
-        {canClear(st) ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
+        {can ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
       </div>
       {filtered.length === 0
-        ? <div class="empty"><p class="muted">No items match these filters.</p>{canClear(st) ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
+        ? <div class="empty"><p class="muted">No items match these filters.</p>{can ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
         : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} />}
     </div>
   );
 }
 
 export function WorkItems({ tools }) {
-  const d = data.value, plan = addPlan(filterState.value.type), Board = tools && tools.Board;
+  const d = data.value, plan = addPlan(FL.toState(lineText.value, allRows.value, filterCtx()).state.type), Board = tools && tools.Board;
   const Cell = tools && tools.Cell && mode.value === "edit" && !fromFile.value ? tools.Cell : null;
   const board = !!Board && work.value.view === "board";
+  // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
+  useEffect(() => {
+    const kept = rememberedLine();
+    if (!f.value && kept !== FL.BASE && allRows.value.length) setLine(kept);
+  }, []);
   return (
     <section class="frame work" id="work">
       <p class="crumbs">{d.project.name}</p>
@@ -157,8 +160,8 @@ export function WorkItems({ tools }) {
       {allRows.value.length === 0
         ? <p class="muted">{tools ? `This project has no work items yet. Use ${plan.word} to add the first.` : "This report has no work items."}</p>
         : <>
-            <Switches><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
-            <FilterBar />
+            <div class="wbar"><div class="vctl"><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</div></div>
+            <FilterLine />
             <List Board={Board} Cell={Cell} />
           </>}
     </section>

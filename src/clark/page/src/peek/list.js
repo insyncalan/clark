@@ -1,15 +1,16 @@
 // The list the peek steps through: the rows the Work items page shows now (filters and order as drawn), as ids. A peek opened by
 // an address (a reload, a link) steps through the same list. A milestone steps through the project's milestones in their order.
-import { filterState, data } from "../stores/report.js";
+import { lineText, filterCtx, data } from "../stores/report.js";
 import { sortRows, todayIso } from "../workItems.js";
-import { applyFilters } from "../filters.js";
+import * as FL from "../logic/filterLine.js";
 import { work, itemRows, contextFor } from "../stores/work.js";
 import { boardGroup, columnsFor, cellOf, isCollapsed } from "../logic/board.js";
 
 // The order is the one drawn: grouped as the list is (a collapsed group's rows are not on the page, so not stepped through).
 export function itemIds() {
-  const today = todayIso(), st = filterState.value, w = work.value;
-  const rows = applyFilters(itemRows.value, st, today);
+  const today = todayIso(), w = work.value, line = lineText.value, fctx = filterCtx();
+  const st = FL.toState(line, itemRows.value, fctx).state;
+  const rows = FL.apply(itemRows.value, line, fctx);
   const g = w.view === "board" ? boardGroup(w.group) : w.group;
   if (g === "nothing") return sortRows(rows, today).map((r) => r.id);
   const ctx = contextFor(today, st.type);
