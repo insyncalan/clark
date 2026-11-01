@@ -190,6 +190,27 @@ def _hidden_set(text):
             or unicodedata.category(c) == "Cf"}
 
 
+_KEY = r"[A-Za-z0-9_\-]"
+SECRET = re.compile(
+    r"(?<![A-Za-z0-9])sk-ant-" + _KEY + r"{8,}"                              # Anthropic key
+    r"|(?<![A-Za-z0-9])sk-(?:proj-|svcacct-|admin-)?" + _KEY + r"{20,}"      # OpenAI key
+    r"|(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,}"                           # GitHub token
+    r"|(?<![A-Za-z0-9])github_pat_" + _KEY + r"{20,}"                        # GitHub fine-grained token
+    r"|(?<![A-Za-z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Za-z0-9])"             # AWS access key id
+    r"|(?<![A-Za-z0-9])xox[abpors]-[A-Za-z0-9-]{8,}"                         # Slack token
+    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"                                   # private key block
+    # a labelled secret: a value with a digit or a symbol in it, or one in quotes ("password: reset it" is only prose)
+    r"|(?<![A-Za-z0-9])(?:password|passwd|pwd|api[_ -]?key|secret[_ -]?key|access[_ -]?token)\s*[:=]\s*"
+    r"(?:[\"'][^\"'\s]{4,}|(?=[^\s]*[0-9!@#$%^&*_+=/\\-])[^\s]{6,})", re.I)
+SECRET_MESSAGE = "That looks like a password or a key, so it wasn't sent. Take it out and try again."
+
+
+def _secret(text):
+    """Whether a text holds something that looks like a secret (a key, a token, a private key block or a labelled password). It
+    is a yes or no: the match is never kept, shown or logged."""
+    return bool(SECRET.search(edit_ai.unseen(text)))
+
+
 def _instruction(option, instruction):
     """The user's own instruction (Ask…), spaces squeezed; needed for Ask…, capped; ignored for every other option."""
     if option != "custom":
@@ -201,6 +222,8 @@ def _instruction(option, instruction):
         raise Refused("Say what you want done with the text.")
     if len(clean) > MAX_INSTRUCTION:
         raise Refused(f"Keep the instruction under {MAX_INSTRUCTION} characters.")
+    if _secret(clean):
+        raise Refused(SECRET_MESSAGE)
     return clean
 
 
@@ -214,6 +237,8 @@ def check_request(option, text, place, instruction=""):
         raise Refused("Select some text first.")
     if _unsafe(text):
         raise Refused(HIDDEN_MESSAGE)
+    if _secret(text):
+        raise Refused(SECRET_MESSAGE)
     if len(text) > MAX_TEXT:
         raise Refused(f"That's too much text for one suggestion; select under {MAX_TEXT // 1000}k characters.")
     if option == "notes" and sum(1 for ln in text.splitlines() if ln.strip()) < 2:
@@ -674,6 +699,8 @@ class AiSession:
                 raise Refused("Select the text again.")
             option, text, place, instruction = check_request(option, text, place, instruction)
         except Refused as e:
+            if _secret(str(instruction or "")):
+                instruction = ""          # the card's heading is never the key
             self.card = Card(self._n, option, instruction, place, str(text or ""), start, end, "failed", str(e))
             self.card.key = confidential_key
             return self.card
