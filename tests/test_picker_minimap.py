@@ -399,12 +399,43 @@ class MinimapLogic(InBrowser):
         self.assertIs(self.val("T.minimap.closesOn('Enter')"), False)
 
 
+class MinimapCounts(InBrowser):
+    """countOf: the words beside each section, from the report's own data only (so a published file shows the same)."""
+    def setUp(self):
+        self.load()
+
+    def count(self, typ, data, today="2026-11-05", client=False):
+        return self.val(f"T.minimap.countOf({{type: {lit(typ)}}}, {lit(data)}, {lit(today)}, {lit(client)})")
+
+    def test_flagged_use_cases_slipped_milestones_and_documents(self):
+        self.assertEqual(self.count("usecases", DATA), {"text": "1 flagged", "hot": True})
+        self.assertIsNone(self.count("usecases", {"use_cases": [{"status": "On track"}]}))
+        ms = {"milestones": [{"id": "m1", "name": "A", "baseline_date": "2026-10-01", "status": "Planned"},
+                             {"id": "m2", "name": "B", "baseline_date": "2027-01-01", "forecast_date": "2027-02-01", "status": "Planned"},
+                             {"id": "m3", "name": "C", "baseline_date": "2027-03-01", "status": "Planned"},
+                             {"id": "m4", "name": "D", "baseline_date": "2026-09-01", "status": "Done", "actual_date": "2026-09-02"}]}
+        self.assertEqual(self.count("milestones", ms), {"text": "2 slipped", "hot": True})
+        self.assertEqual(self.count("docs", DATA), {"text": "1", "hot": False})
+        self.assertIsNone(self.count("docs", {}))
+
+    def test_late_actions_red_risks_and_pending_decisions(self):
+        d = {"actions": [{"status": "Open", "due_date": "2026-11-01"}, {"status": "Open", "due_date": "2026-12-01"}, {"status": "Closed", "due_date": "2026-10-01"}],
+             "raid": [{"status": "Open", "priority": "High"}, {"status": "Open", "priority": "Low"}],
+             "decisions": [{"status": "Pending"}, {"status": "Made"}]}
+        self.assertEqual(self.count("actions", d), {"text": "1 late", "hot": True})
+        self.assertEqual(self.count("actions", {"actions": d["actions"][1:2]}), {"text": "1", "hot": False})
+        self.assertEqual(self.count("raid", d), {"text": "1 red", "hot": True})
+        self.assertEqual(self.count("decisions", d), {"text": "1 pending", "hot": True})
+        self.assertIsNone(self.count("glance", d))
+        self.assertIsNone(self.count("text", d))
+
+
 class MinimapInBrowser(InBrowser):
     def setUp(self):
         self.load()
 
-    def mount(self, hidden=("docs",), sections=SECTIONS):
-        self.js(f"T.mountMinimap({lit(sections)}, {lit(list(hidden))})")
+    def mount(self, hidden=("docs",), sections=SECTIONS, counts=None):
+        self.js(f"T.mountMinimap({lit(sections)}, {lit(list(hidden))}, false, {lit(counts) if counts else 'undefined'})")
         self.assertTrue(wait(lambda: self.js("!!document.querySelector('.toc')")))
         self.settle()
 
@@ -480,6 +511,8 @@ class MinimapInBrowser(InBrowser):
             self.tab()
         self.assertEqual(self.focused(), "link:ms", "the last entry")
         self.tab()
+        self.assertEqual(self.focused(), "toc-top", "then Back to top")
+        self.tab()
         self.settle()
         self.assertEqual(self.js("document.activeElement.id"), "after")
         self.assertIs(self.is_open(), False, "tabbing out of it closes it")
@@ -535,6 +568,45 @@ class MinimapInBrowser(InBrowser):
         css = lambda sel, prop: self.js(f"getComputedStyle(document.querySelector('{sel}')).{prop}")
         self.assertEqual(css(".toc-lines i:not(.on)", "backgroundColor"), self.js("(function(){ const e = document.createElement('i'); e.style.background = 'var(--grey-700)'; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; })()"),
                          "an unmarked line is grey-700 (grey-300 failed 4.5:1)")
+
+    def test_a_count_shows_beside_its_section_and_a_hot_one_marks_its_line(self):
+        self.mount(counts={"ms": {"text": "2 slipped", "hot": True}, "glance": {"text": "3", "hot": False}})
+        self.assertEqual(self.val("Array.from(document.querySelectorAll('.toc li button')).map(b => b.textContent)"),
+                         ["Current state", "At a glance3", "Next steps", "Milestones2 slipped"])
+        self.assertEqual(self.js("document.querySelectorAll('.toc li button em.hot').length"), 1)
+        self.assertEqual(self.js("document.querySelector('.toc-lines i[data-tl=ms]').classList.contains('hot')"), True)
+        self.assertEqual(self.js("document.querySelector('.toc-lines i[data-tl=glance]').classList.contains('hot')"), False)
+
+    def test_no_counts_leaves_the_list_as_labels_only(self):
+        self.mount()
+        self.assertEqual(self.js("document.querySelectorAll('.toc li em').length"), 0)
+
+    def test_the_count_text_has_enough_contrast_in_light_and_dark(self):
+        for theme in ("light", "dark"):
+            self.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+            self.mount(counts={"ms": {"text": "2 slipped", "hot": True}, "t1": {"text": "4", "hot": False}})
+            ratio = self.val("""(function(){
+              const rgb = (c) => c.match(/[0-9.]+/g).slice(0, 3).map(Number);
+              const lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+              const bg = getComputedStyle(document.querySelector('.toc-card')).backgroundColor;
+              return ['.toc li button em.hot', '.toc li button em:not(.hot)', '.toc-top'].map((q) => {
+                const a = lum(getComputedStyle(document.querySelector(q)).color), b = lum(bg);
+                return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); });
+            })()""")
+            for r in ratio:
+                self.assertGreaterEqual(r, 4.5, f"{theme}: {ratio}")
+
+    def test_back_to_top_scrolls_to_the_top_closes_the_list_and_is_reached_by_tab(self):
+        self.mount()
+        self.js("window.scrollTo(0, 900)")
+        self.settle()
+        self.assertGreater(self.js("window.scrollY"), 0)
+        self.js("document.querySelector('.toc').dispatchEvent(new MouseEvent('mouseenter'))")
+        self.assertTrue(wait(self.is_open))
+        self.assertEqual(self.js("document.querySelector('.toc-top').textContent.trim().startsWith('Back to top')"), True)
+        self.js("document.querySelector('.toc-top').click()")
+        self.assertTrue(wait(lambda: self.js("window.scrollY") == 0))
+        self.assertFalse(self.is_open())
 
     def test_the_current_entry_follows_the_scroll(self):
         self.mount()
