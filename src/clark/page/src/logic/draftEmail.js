@@ -109,6 +109,8 @@ export function blocked(draft) {
  *  the preview is drawn, so a draft handed in from elsewhere can never run a script or load a picture. */
 const TAGS = new Set(["DIV", "P", "B", "I", "STRONG", "EM", "BR", "TABLE", "TBODY", "THEAD", "TR", "TD", "TH"]);
 const ATTRS = new Set(["style", "align", "cellpadding", "cellspacing", "border", "colspan"]);
+// A style may not load anything or hold an at-rule: any "@" is refused (the same pattern, plain: the built page holds no literal at-rule word, which test_page scans for).
+const STYLE_BAD = /url\s*\(|expression|@/i;
 
 /** The email's HTML with everything outside the allowed elements and attributes removed (the text of a removed element goes
  *  with it when it is a script or style). Returns a string. */
@@ -126,7 +128,7 @@ export function safeHtml(html, parse) {
         continue;
       }
       for (const a of Array.from(child.attributes)) {
-        const bad = !ATTRS.has(a.name) || (a.name === "style" && /url\s*\(|expression|@import/i.test(a.value));
+        const bad = !ATTRS.has(a.name) || (a.name === "style" && STYLE_BAD.test(a.value));
         if (bad) child.removeAttribute(a.name);
       }
       walk(child);

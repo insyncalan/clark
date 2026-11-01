@@ -56,6 +56,18 @@
 .pa-what ins { color: var(--status-green-text); text-decoration: underline; }
 .pa-none { padding: 12px 0; margin: 0; }
 
+/* The right-click menu on a work item (#97): the ordinary menu box, placed where the pointer or the row is. An entry that can't be
+   used shows its reason under it; the arrow marks an entry that opens a short list. */
+.rowmenu { position: fixed; z-index: 36; }
+.rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 16px)); }
+.rowmenu [role="menuitem"] { display: flex; align-items: center; gap: 8px; }
+.rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rowmenu .rm-t { flex: 1; min-width: 0; }
+.rowmenu .rm-t small { display: block; font-size: 13px; color: var(--text-muted); }
+.rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
+.rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
+.rowmenu .ddmenu { max-height: calc(100vh - 16px); overflow-y: auto; }
+
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
 .sb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
