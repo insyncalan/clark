@@ -1,9 +1,9 @@
-"""#194: the arrow keys on the Work items table, the board and the peek.
+"""#194: the arrow keys on the Work items table and the board.
 
 Run: python3 dev/run_tests.py test_list_keys
 Part 1 reads the sources (no J or K key, only arrows and Enter, the cursor is drawn, Help lists the keys). Part 2 drives the committed
 page in headless Chrome at 1400 and 900 px with real key events over a real demo store. The browser parts are required: they fail,
-never skip, without Chrome. The peek's own component is not on the page yet, so the peek is read from the address and clarkPage.peek(); Help's lines for the peek keys wait for it.
+never skip, without Chrome.
 """
 import unittest
 
@@ -60,39 +60,20 @@ class Keys(ie.Live):
                 self.assertEqual(cdp.js("document.querySelectorAll('#work tr[data-id][tabindex=\"0\"]').length", sid), 1, "one tab stop")
                 self.assertIn("dotted", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
 
-    def test_right_opens_the_peek_up_and_down_take_it_along_left_closes(self):
+    def test_enter_opens_the_cursor_rows_peek_and_left_and_right_do_nothing_in_view(self):
         for width in (1400, 900):
             with self.subTest(width=width), ie.chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
                 rows = cdp.js(ROWS, sid)
                 cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
-                key(cdp, sid, "ArrowRight")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens the peek")
-                self.until(cdp, sid, "document.activeElement.hasAttribute('data-pk-close')", "the peek takes focus when it opens")
-                cdp.js(f"document.querySelector('#work tr[data-id=\"{rows[0]}\"]').focus()", sid)      # back to the cursor, as a reader would
                 key(cdp, sid, "ArrowDown")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Down: the peek follows the cursor")
                 self.assertEqual(cdp.js(FOCUS, sid), rows[1])
-                key(cdp, sid, "ArrowUp")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Up: the peek follows back")
-                key(cdp, sid, "ArrowLeft")
-                self.until(cdp, sid, "!location.hash.includes('item=')", "Left closes the peek")
-                self.assertEqual(cdp.js(FOCUS, sid), rows[0], "focus stays on the row")
-                key(cdp, sid, "ArrowDown")                       # no peek open: Down only moves
-                self.assertFalse(cdp.js("location.hash.includes('item=')", sid))
+                for name in ("ArrowRight", "ArrowLeft"):
+                    key(cdp, sid, name)
+                    self.assertEqual(cdp.js(FOCUS, sid), rows[1], f"{name} leaves the row cursor where it is")
+                    self.assertFalse(cdp.js("location.hash.includes('item=')", sid), f"{name} does not open a peek")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Enter opens the cursor row's peek")
-
-    def test_focus_returns_to_the_row_when_the_peek_closes_from_elsewhere(self):
-        with ie.chrome() as cdp:
-            sid = self.open_page(cdp, 1400, edit=False)
-            rows = cdp.js(ROWS, sid)
-            cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
-            key(cdp, sid, "Enter")
-            self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "open")
-            cdp.js("document.activeElement.blur()", sid)       # as if the peek held focus and has gone
-            cdp.js("clarkPage.closePeek()", sid)
-            self.until(cdp, sid, f"{FOCUS} === {rows[0]!r}", "focus is back on the row")
 
     def test_in_edit_the_row_keeps_its_cells_and_enter_on_a_cell_opens_its_picker(self):
         for width in (1400, 900):
@@ -152,10 +133,6 @@ class Keys(ie.Live):
                 self.assertIn("dotted", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={ids[0]}')", "Enter opens the card's peek")
-                self.until(cdp, sid, "document.activeElement.hasAttribute('data-pk-close')", "the peek takes focus when it opens")
-                cdp.js(f"document.querySelector('#work-board [data-id=\"{ids[0]}\"] .bc-main').focus()", sid)      # back to the cursor, as a reader would
-                key(cdp, sid, "ArrowDown")
-                self.until(cdp, sid, f"location.hash.includes('item={ids[1]}')", "with the peek open, the peek follows the cursor")
                 self.assertEqual(cdp.js("(document.querySelector('[data-move]') || {}).tagName || 'none'", sid), "none", "View: no Move to button")
 
     def test_space_does_not_open_a_row_or_card_and_shift_arrows_are_left_alone(self):

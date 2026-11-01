@@ -5,11 +5,9 @@
 // A click on the row anywhere else opens the item's peek, in View and in Edit.
 // The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (in
 // Edit, from a cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
-// cells and back to the row. In View, Right on a row opens its peek and Left closes it; with the peek open, Up and Down take it
-// along (#194, listKeys.js). Enter on a row opens its peek; on a cell, Enter, Space or Alt+Down opens its picker.
+// cells and back to the row (#194, listKeys.js). Enter on a row opens its peek; on a cell, Enter, Space or Alt+Down opens its picker.
 import { signal } from "@preact/signals";
-import { useEffect } from "preact/hooks";
-import { cursor, stopOf as stopOfIds, followPeek, closeAt, openAt, moveTo, keepFocusOnClose } from "../listKeys.js";
+import { cursor, stopOf as stopOfIds, openAt, moveTo } from "../listKeys.js";
 import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile } from "../stores/report.js";
 import { itemRows } from "../stores/work.js";
 import { KIND_WORDS, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
@@ -35,7 +33,7 @@ function Owner({ name }) {
 const active = cursor;                          // the id of the row that is the table's one tab stop (listKeys.js)
 
 // The arrow keys inside the table. Only a key on a row or on a cell's own button: never one meant for an open picker.
-function keys(e, row, edit) {
+function keys(e, row) {
   const tr = e.currentTarget, t = e.target;
   if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;   // Shift is left to the selection code
   const cell = t !== tr && t.matches && t.matches("[data-cell]") ? t : null;
@@ -48,12 +46,11 @@ function keys(e, row, edit) {
     const r = rows[Math.max(0, Math.min(rows.length - 1, j))];
     const same = field ? r.querySelector(`[data-cell$=":${field}"]`) : null;
     (same || r).focus();
-    followPeek(r.dataset.id);                                    // an open peek follows the cursor
   };
   const vert = e.key === "ArrowDown" || e.key === "ArrowUp" || (!cell && (e.key === "Home" || e.key === "End"));
   if (vert) toRow(moveTo(e.key, at, rows.length, ["ArrowUp", "ArrowDown", "Home", "End"]));
-  else if (e.key === "ArrowRight") { if (cell) { if (cells[c + 1]) cells[c + 1].focus(); } else if (edit) { if (cells[0]) cells[0].focus(); } else openAt(row.id); }
-  else if (e.key === "ArrowLeft") { if (cell) (c > 0 ? cells[c - 1] : tr).focus(); else if (!closeAt()) return; }
+  else if (e.key === "ArrowRight") { if (cells[c + 1]) cells[c + 1].focus(); }
+  else if (e.key === "ArrowLeft" && cell) (c > 0 ? cells[c - 1] : tr).focus();
   else return;
   e.preventDefault();
 }
@@ -62,7 +59,7 @@ function Row({ row, today, Cell, stop }) {
   const due = dueCell(row, today), pill = pillOf(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
   return (
-    <tr data-id={row.id} data-kind={row.kind} class={isOpen(row) ? "" : "done"} tabIndex={stop ? 0 : -1} aria-label={`Open ${row.id}`} onFocusIn={() => { active.value = row.id; }} onKeyDown={(e) => keys(e, row, !!Cell)} onClick={(e) => { if (!e.target.isContentEditable && !e.target.closest("a,button,input,select,textarea,label") && !String(window.getSelection()).length) openPeek(row.id, "item"); }}>
+    <tr data-id={row.id} data-kind={row.kind} class={isOpen(row) ? "" : "done"} tabIndex={stop ? 0 : -1} aria-label={`Open ${row.id}`} onFocusIn={() => { active.value = row.id; }} onKeyDown={(e) => keys(e, row)} onClick={(e) => { if (!e.target.isContentEditable && !e.target.closest("a,button,input,select,textarea,label") && !String(window.getSelection()).length) openPeek(row.id, "item"); }}>
       <td class="c-type"><span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span></td>
       <td class="c-item">
         <span class="t">{row.title}</span>
@@ -144,7 +141,6 @@ function List({ Board, Cell }) {
 }
 
 export function WorkItems({ tools }) {
-  useEffect(() => keepFocusOnClose(), []);
   const d = data.value, plan = addPlan(filterState.value.type), Board = tools && tools.Board;
   const Cell = tools && tools.Cell && mode.value === "edit" && !fromFile.value ? tools.Cell : null;
   const board = !!Board && work.value.view === "board";
