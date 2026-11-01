@@ -6,6 +6,8 @@ import { change } from "../../stores/changes.js";
 import { data } from "../../stores/report.js";
 import { todayIso } from "../../workItems.js";
 import { FigureRow } from "../../templates/FiguresView.jsx";
+import { parseDay } from "../../templates/keydates.js";
+import { dateWords } from "../../templates/safe.js";
 import { PLACES, METRICS, LIMITS, slotsOf, bodyOf, figuresOf } from "../../templates/figures.js";
 
 const BLANK = { mode: "typed", label: "", value: "", detail: "", asof: "" };
@@ -28,6 +30,11 @@ export function figuresEdit(type) {
     const field = (i, name) => (e) => {
       const v = e.currentTarget.value.trim();
       if (v !== (slots[i][name] || "")) put(i, { ...slots[i], [name]: v });
+    };
+    const day = (i) => (e) => {       // the date is typed as DD-MM-YYYY, as Key dates takes it: clark's own way, never the browser's calendar
+      const el = e.currentTarget, raw = el.value.trim(), iso = raw ? parseDay(raw) : "";
+      if (raw && !iso) { el.value = dateWords(slots[i].asof); return; }       // not a day: the old one comes back
+      if (iso !== (slots[i].asof || "")) put(i, { ...slots[i], asof: iso });
     };
     const key = section.body || "";
     return (
@@ -54,7 +61,7 @@ export function figuresEdit(type) {
                   <label>Label<input type="text" maxLength={LIMITS.label} defaultValue={s.label} aria-label={`Figure ${i + 1} label`} onChange={field(i, "label")} /></label>
                   <label>Number<input type="text" maxLength={LIMITS.value} defaultValue={s.value} aria-label={`Figure ${i + 1} number`} onChange={field(i, "value")} /></label>
                   <label>Note<input type="text" maxLength={LIMITS.detail} defaultValue={s.detail} aria-label={`Figure ${i + 1} note`} onChange={field(i, "detail")} /></label>
-                  <label>As of<input type="date" defaultValue={s.asof} aria-label={`Figure ${i + 1} as of`} onChange={field(i, "asof")} /></label>
+                  <label>As of<input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" defaultValue={dateWords(s.asof)} aria-label={`Figure ${i + 1} as of, DD-MM-YYYY`} onBlur={day(i)} /></label>
                   {(s.label || s.value) && !(s.label && s.value) ? <p class="quiet">Add a {s.label ? "number" : "label"} to show this figure. It stays out of the published page until then.</p> : null}
                 </>
               )}

@@ -48,6 +48,9 @@ class StubPublisher:
     def preview(self, body):
         return 200, {"ok": True, "url": "/preview?id=none"}
 
+    def section_file(self, body):
+        return 200, {"ok": True}
+
     def export(self, code):
         return 404, {"ok": False, "code": "project_not_found", "message": "There is no project with that code."}
 

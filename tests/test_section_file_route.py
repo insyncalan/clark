@@ -31,6 +31,9 @@ PDF = b"%PDF-1.4 fictional plan\n" * 50
 
 class Route(unittest.TestCase):
     def setUp(self):
+        patch = mock.patch.object(platform, "system", return_value=platform.MAC)      # reach's never-read list is Mac-only: the tests say they are on a Mac (as test_reach does), so they run alike on Linux CI
+        patch.start()
+        self.addCleanup(patch.stop)
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.s = self.demo.store
@@ -339,6 +342,9 @@ class InThePage(PageBase):
 
     def setUp(self):
         super().setUp()
+        patch = mock.patch.object(platform, "system", return_value=platform.MAC)      # reach's never-read list is Mac-only: the tests say they are on a Mac (as test_reach does), so they run alike on Linux CI
+        patch.start()
+        self.addCleanup(patch.stop)
         self.s.close()
         self.tmp = Path(tempfile.mkdtemp(prefix="clark-96-r2-page-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
