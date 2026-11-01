@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import platform, section_bodies
+from clark import freshness as fresh, platform, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -130,6 +130,29 @@ PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
+FRESH_TABLES = ("actions", "raid", "decisions")          # #158: the items whose review dates the peek shows (milestones have none)
+
+
+def review_days_for(project_row):
+    """N, the days after which an open item counts as not reviewed in this project (#160). Today every project uses the one
+    default; a per-project setting will be read here, from the project row, so nothing else has to change."""
+    return fresh.DEFAULT_DAYS
+
+
+def attach_freshness(con, data, days):
+    """Add `freshness` {raised, last_reviewed, days, not_reviewed} (dates YYYY-MM-DD) to each open action, risk or issue and
+    decision in `data` (#158). Closed, cancelled, made, withdrawn and archived items get none. Read only: it works from each
+    item's history, read in one pass, and writes nothing."""
+    from clark import history          # history imports this module, so it is read here
+    on = today()
+    opened = [row for t in FRESH_TABLES for row in data.get(t, ()) if fresh.is_open(row)]
+    events = history.history_many(con, [row["id"] for row in opened])          # one pass over the log, not one per item
+    for row in opened:
+        f = fresh.freshness(row, events[row["id"]], on, days)
+        row["freshness"] = {"raised": f["raised"], "last_reviewed": f["last_reviewed"], "days": days,
+                            "not_reviewed": f["not_reviewed"]}
+
+
 PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "use_cases")     # what publish_inputs reads, in
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
@@ -2179,6 +2202,7 @@ class Store:
             out["glance_tiles"] = [dict(r) for r in con.execute(              # #45: the tiles' place, hidden flag and outline; no archived column
                 "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                 "ORDER BY sort_order, tile", (code,))]
+            attach_freshness(con, out, review_days_for(out["project"]))
             return out
         finally:
             con.close()
