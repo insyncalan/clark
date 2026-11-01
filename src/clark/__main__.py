@@ -360,6 +360,9 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                     "undo": undo or changes.make_undo(store.path, roots, who.who),
                     "section_image": changes.make_section_image(store.path, roots, who.who),    # #96 R1
                     "sneak": sneak.make_read(store.data_for),
+                    "people": changes.make_people(store.path, roots, who.who),
+                    "people_undo": changes.make_people_undo(store.path, roots, who.who),
+                    "people_list": changes.make_people_list(store.path, roots, who.who),
                     "word_import": word_import or word_route.make_word_import(store.path, roots),
                     "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())
