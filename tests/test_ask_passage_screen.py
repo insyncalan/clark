@@ -150,6 +150,46 @@ class ThroughTheRoute(route_base.Base):
         self.assertNotIn(FAKE_KEY, repr(got))
         self.assertNotIn(FAKE_KEY, "\n".join(sink.lines))
 
+    def _row_across_the_cut(self):
+        """Store an action whose description puts the password across the 4,000-character cut of its row."""
+        from clark import store as st
+        for pad in range(3800, 4000):
+            row = {"id": "ZQ-A-1", "description": "ok " * (pad // 3) + FAKE_PASSWORD, "raised": "2026-10-01"}
+            line = ask_data.row_line("actions", row)
+            at = line.find("password")
+            if 0 <= at < ask.MAX_PASSAGE < at + len(FAKE_PASSWORD):
+                break
+        else:
+            self.fail("could not place the password across the cut")
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as s:
+                s.create("actions", {"project": route_base.CODE, "description": row["description"], "raised": "2026-10-01",
+                                     "client_visible": 1, "source": "demo"})
+        finally:
+            store.close()
+
+    def test_a_password_across_the_cut_of_a_real_row_is_not_sent(self):
+        self._row_across_the_cut()
+        status, got = self.question("What are the actions?")
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        (text,) = self.provider.sent
+        self.assertIn("ZQ-KEEP-RISK-1", text)                 # the other passages still go
+        self.assertNotIn("hunter", text)
+        self.assertNotIn("password", text)
+        self.assertNotIn("hunter", repr(got))
+
+    def test_a_long_line_with_a_password_is_left_out_and_counted(self):
+        line = "ok " * 1400 + FAKE_PASSWORD
+        passages, left = ask_data._cut_screened("L", [line, "a short line"])
+        self.assertEqual(left, 1)
+        self.assertEqual([p.text for p in passages], ["a short line"])
+
+    def test_a_long_line_with_no_password_is_still_cut_and_kept(self):
+        passages, left = ask_data._cut_screened("L", ["ok " * 2000])
+        self.assertEqual(left, 0)
+        self.assertEqual([len(p.text) for p in passages], [ask.MAX_PASSAGE])
+
     def _args(self):
         from clark import store as st
         store = st.open_store(self.db, onedrive_roots=[])
