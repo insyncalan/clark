@@ -1,4 +1,4 @@
-"""#120: numbered publications (schema version 8). Each publish takes the next number of its project, in the same transaction as
+"""#120: numbered publications (schema version 10). Each publish takes the next number of its project, in the same transaction as
 its row; a Local-only publish and a Word copy take one too; the File says "Publication N"; a lost race is refused and the files are
 taken back; History gets one line per publish. Fictional data only.
 
@@ -111,10 +111,10 @@ class TheCounter(unittest.TestCase):
 
 
 class TheShapeAndTheStep(unittest.TestCase):
-    def test_the_step_is_number_8_and_the_table_has_no_gap(self):
-        self.assertEqual(store_module.SCHEMA_VERSION, 8)
-        self.assertEqual(store_module.MIGRATIONS[-1], (8, store_module.migrate_publication_numbers))
-        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, 9)))
+    def test_the_step_is_number_10_and_the_table_has_no_gap(self):
+        self.assertEqual(store_module.SCHEMA_VERSION, 10)
+        self.assertEqual(store_module.MIGRATIONS[-1], (10, store_module.migrate_publication_numbers))
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, 11)))
 
     def test_the_frozen_step_makes_what_schema_sql_makes(self):
         fresh = DemoStore()
@@ -134,7 +134,7 @@ class TheShapeAndTheStep(unittest.TestCase):
         con.execute("COMMIT")
 
         def shape(c):
-            return sorted((n, re.sub(r"\s+|\"|publications_v8", lambda m: "publications" if m.group(0) == "publications_v8" else "",
+            return sorted((n, re.sub(r"\s+|\"|publications_v10", lambda m: "publications" if m.group(0) == "publications_v10" else "",
                                      re.sub(r"--[^\n]*", "", sql)))
                           for n, sql in c.execute("SELECT name, sql FROM sqlite_master WHERE tbl_name = 'publications' "
                                                   "AND sql IS NOT NULL"))
@@ -143,7 +143,7 @@ class TheShapeAndTheStep(unittest.TestCase):
 
 
 class OlderFiles(unittest.TestCase):
-    """A real older database file: the table as version 7 made it, rows in several projects, a Word row and a tie."""
+    """A real older database file: the table as version 9 made it, rows in several projects, a Word row and a tie."""
 
     OLD = ("CREATE TABLE publications (seq INTEGER PRIMARY KEY AUTOINCREMENT, project TEXT NOT NULL REFERENCES projects(code), "
            "at TEXT NOT NULL DEFAULT (datetime('now')), week_ending TEXT, local_path TEXT NOT NULL, client_path TEXT, "
@@ -152,7 +152,7 @@ class OlderFiles(unittest.TestCase):
     ROWS = (("ABC", "2026-10-02 09:00:00", 0), ("XYZ", "2026-10-01 09:00:00", 0), ("ABC", "2026-10-01 08:00:00", 0),
             ("ABC", "2026-10-02 09:00:00", 1), ("XYZ", "2026-10-05 10:00:00", 1), ("ABC", "2026-10-09 10:00:00", 0))
 
-    def make(self, level=7):
+    def make(self, level=9):
         demo = DemoStore()
         self.addCleanup(demo.close)
         with demo.store.step("dashboard", USER) as st:
@@ -174,11 +174,11 @@ class OlderFiles(unittest.TestCase):
     def expected(self, s):
         return {(r["local_path"], r["number"]) for r in s.con.execute("SELECT local_path, number FROM publications")}
 
-    def test_a_version_7_file_is_numbered_per_project_by_date_then_seq_and_keeps_every_row(self):
+    def test_a_version_9_file_is_numbered_per_project_by_date_then_seq_and_keeps_every_row(self):
         path = self.make()
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "8")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "10")
         # ABC by time: /x/2 (08:00 on the 1st) = 1, then /x/0 and /x/3 tie on the 2nd, seq order = 2, 3, then /x/5 = 4
         self.assertEqual(self.expected(s), {("/x/2.html", 1), ("/x/0.html", 2), ("/x/3.html", 3), ("/x/5.html", 4),
                                             ("/x/1.html", 1), ("/x/4.html", 2)})
@@ -187,11 +187,11 @@ class OlderFiles(unittest.TestCase):
         self.assertEqual(s.log_publication("ABC", LOCAL, "2026-10-23", SHA, USER), 7, "the sequence goes on after the old rows")
         self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], 2, "the migration is not a step")
 
-    def test_a_version_2_file_moves_up_through_every_step_to_8(self):
+    def test_a_version_2_file_moves_up_through_every_step_to_10(self):
         path = self.make(2)
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "8")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "10")
         self.assertEqual((numbers(s.con), numbers(s.con, "XYZ")), ([2, 1, 3, 4], [1, 2]))
 
     def test_the_file_is_copied_first_a_second_open_changes_nothing_and_the_step_is_safe_to_repeat(self):

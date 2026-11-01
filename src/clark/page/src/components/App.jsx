@@ -10,7 +10,7 @@ import { WorkItems } from "./WorkItems.jsx";
 const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, settings: Settings };
 
 export function App({ tools }) {
-  const Page = PAGES[view.value];
+  const Page = view.value === "usecases" ? (tools && tools.UseCasesPage) || Dashboard : PAGES[view.value];     // the Use cases page is the editor's: a published file has none
   const Toast = tools && tools.Toast;
   const Layer = tools && tools.HelpLayer;                // Help (#82) sits over the open page; a published file has none
   const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none

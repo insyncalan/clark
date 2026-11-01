@@ -129,6 +129,7 @@ FILE_NAME_LIMIT = 60
 
 # Plain names for fields. A column listed here under a table wins; otherwise the same column under COMMON.
 COMMON = {
+    "owner_id": "Owner (linked person)",
     "name": "Name", "description": "Description", "status": "Status", "owner": "Owner", "priority": "Priority",
     "due_date": "Due date", "raised": "Raised on", "closed": "Closed on", "workstream": "Workstream", "milestone": "Milestone",
     "use_case": "Use case", "client_visible": "Shown to the client", "client_message": "Message to the client",

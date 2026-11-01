@@ -1,7 +1,7 @@
 """#50 item 5: the "I sent it" record (Store.log_email_sent, Store.email_sent_for, schema version 7, after the settings step 6). Design:
 docs/handoff/design-50-sent.md. Fictional data only. Run: python3 dev/run_tests.py test_store_email_sent
 
-What is asserted: a version-2, a version-5 and a version-6 file move up to 7 keeping every row and match a new database; one press is one row and its item rows in
+What is asserted: a version-2, a version-5 and a version-6 file move up through 7 keeping every row and match a new database; one press is one row and its item rows in
 one transaction, and each refusal (the project, the mode, no or too many ids, an id that is not this project's work item, a bad or
 far-future day, nobody named, a step open) writes nothing; the tables cannot be updated or deleted; the newest come first; the
 chase counts for the tone come from the record; the email's own words are in no column.
@@ -269,21 +269,21 @@ class Migration(unittest.TestCase):
         return {t: [tuple(r) for r in con.execute(f'SELECT * FROM "{t}" ORDER BY 1')] for (t,) in con.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall() if t != "meta"}
 
-    def test_a_version_5_file_moves_to_8_through_the_settings_step_and_keeps_every_row(self):
+    def test_a_version_5_file_moves_through_7_by_way_of_the_settings_step_and_keeps_every_row(self):
         path, con = self.at_version(5)
         before = self.rows(con)
         con.close()
         self.assertNotIn("app_settings", before)
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "8")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
         after = self.rows(s.con)
         self.assertEqual({t: after[t] for t in before}, before)
         self.assertEqual(sorted(set(after) - set(before)), ["app_settings", "email_sent", "email_sent_items"])
         self.assertEqual(s.con.execute("SELECT ask_enabled FROM app_settings").fetchone()[0], 1)
         self.assertEqual(s.con.execute("SELECT count(*) FROM email_sent").fetchone()[0], 0)
 
-    def test_a_version_6_file_with_a_word_row_a_needs_section_and_ask_off_moves_to_8_and_keeps_every_row_route_and_place(self):
+    def test_a_version_6_file_with_a_word_row_a_needs_section_and_ask_off_moves_through_7_and_keeps_every_row_route_and_place(self):
         """Step 7 builds two tables and touches nothing else: item_events is not rebuilt, so the route 'word' (step 3) and every place
         stay allowed, the report_sections type CHECK of step 4 keeps 'needs' and 'tracker', and the ask switch (step 6) keeps its value."""
         path, con = self.at_version(6)
@@ -297,7 +297,7 @@ class Migration(unittest.TestCase):
         con.close()
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "8")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
         self.assertEqual([sql_of(s.con, n) for n in kept], sqls)
         after = self.rows(s.con)
         self.assertEqual({t: after[t] for t in before}, before)
@@ -312,9 +312,9 @@ class Migration(unittest.TestCase):
         s.con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-901', 'tracker', 'Tracker', 901)")
 
     def test_the_step_is_number_7_after_the_settings_step(self):
-        self.assertEqual(store_module.SCHEMA_VERSION, 8)        # #120 added step 8 (publication numbers) after this one
-        self.assertEqual(store_module.MIGRATIONS[-3:-1], ((6, store_module.migrate_settings), (7, store_module.migrate_email_sent)))
-        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, 9)))
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 7)                       # later steps follow (#96 is 8)
+        self.assertEqual(store_module.MIGRATIONS[4:6], ((6, store_module.migrate_settings), (7, store_module.migrate_email_sent)))
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
 
     def test_the_frozen_statements_run_on_a_version_6_file_and_match_a_new_database(self):
         path, con = self.at_version(6)
