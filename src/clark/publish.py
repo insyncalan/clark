@@ -380,7 +380,8 @@ def select(inputs):
     proj["health_reason"] = reason_text(proj["health_reason"])
     proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
     out["project"] = proj
-    out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types)
+    out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
+        s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
 
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
