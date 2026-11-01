@@ -14,6 +14,7 @@ import time
 import unittest
 
 from _paths import SRC, TOOLS
+import _testpage as testpage
 import test_enrichments as te
 import test_publish_dialog as tpd
 import test_report_editor as tre
@@ -25,7 +26,7 @@ from clark import page
 
 CSS = te.CSS
 _START = CSS.index("Motion:")
-MOTION = CSS[_START:CSS.index("\n}\n", CSS.index("@media (prefers-reduced-motion: no-preference)")) + 3]     # the one block, not the rules after it
+MOTION = CSS[_START:CSS.index("\n}\n", CSS.index("@media (prefers-reduced-motion: no-preference) {\n", _START)) + 3]     # the one block, not the rules after it
 MODES = (("allowed", False, False), ("media", True, False), ("setting", False, True))
 SECTION = {"allowed": "ABC-S-002", "media": "ABC-S-003", "setting": "ABC-S-004"}     # one each: a hidden section stays hidden
 OWN = "document.documentElement.dataset.motion='reduce'"
@@ -33,7 +34,7 @@ OWN = "document.documentElement.dataset.motion='reduce'"
 
 class Rules(unittest.TestCase):
     def test_all_motion_is_in_one_block_gated_on_both_switches(self):
-        self.assertEqual(CSS.count("@media (prefers-reduced-motion: no-preference)"), 1)
+        self.assertEqual(CSS.count("@media (prefers-reduced-motion: no-preference) {\n"), 1)      # the one Motion block; an older one-line hover transition on table rows is not part of it
         self.assertIn(':root:not([data-motion="reduce"])', MOTION)
         outside = CSS[CSS.index("Loading placeholder:"):CSS.index("Motion:")]        # the rules this item added
         self.assertNotIn("animation", outside, "no animation anywhere but the Motion block")
@@ -221,9 +222,14 @@ class More(tre.Base):
             cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE}, p.sid)
         if own:
             p.js(OWN)
+        p.mode = mode
         return p
 
     def anim(self, p, sel):
+        """Name and count of the running animations, after checking the motion setting under test is still in force."""
+        _, media, own = p.mode
+        if own:
+            self.assertEqual(p.js("document.documentElement.dataset.motion"), "reduce", "the page's own setting is on")
         return p.js(f"(function(){{var e=document.querySelector({sel!r});return e?[getComputedStyle(e).animationName,e.getAnimations().length]:null;}})()")
 
     def test_the_peek_slides_in_and_its_body_fades_in_as_previous_and_next_step_on(self):
@@ -235,6 +241,8 @@ class More(tre.Base):
                 p.until("!!document.querySelector('#peek [data-pk-body]')", "the peek opened")
                 panel = self.anim(p, "#peek")
                 first = p.js("document.querySelector('#peek').dataset.peek")
+                if mode[2]:
+                    p.js(OWN)
                 p.js("document.querySelector('#peek [data-pk-next]').click()")
                 p.until(f"document.querySelector('#peek').dataset.peek !== {first!r}", "stepped to the next item")
                 body = self.anim(p, "#peek [data-pk-body]")
@@ -304,6 +312,8 @@ class More(tre.Base):
                 p.edit()
                 p.js("document.querySelector('[data-id=\"ABC-S-001\"] [data-add]').click()")
                 p.until("!!document.querySelector('.ad-prev h3')", "the dialog opened")
+                if mode[2]:
+                    p.js(OWN)
                 p.js("document.querySelectorAll('.ad-tpl:not(.off) input')[1].click()")
                 p.until("document.querySelector('.ad-prev h3').textContent === document.querySelectorAll('.ad-tpl:not(.off) .ad-tn')[1].textContent", "the preview moved")
                 name, running = self.anim(p, ".ad-prev > h3")
@@ -378,7 +388,7 @@ class Fade(tre.Base):
             while not gate["open"] and time.time() < end:
                 time.sleep(0.02)
             return self.store.data_for(code)
-        s = Running(data_for=data_for, page_html=lambda: page.page_html(tre.EMPTY_BRANDING))
+        s = Running(data_for=data_for, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         for mode in MODES:
             with self.subTest(mode=mode[0]), chrome() as cdp:

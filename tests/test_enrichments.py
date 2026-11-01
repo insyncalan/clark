@@ -19,6 +19,7 @@ from pathlib import Path
 
 from _paths import SRC, TOOLS
 import _publish_fixture as fx
+import _testpage as testpage
 import test_report_editor as tre
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
@@ -92,10 +93,10 @@ class Tokens(unittest.TestCase):
                     self.assertGreaterEqual(got, 4.5, f"{fg} on the changed tint in {theme}: {got:.2f}")
 
     def test_the_mark_uses_those_tokens_and_no_colour_of_its_own(self):
-        rule = block_of(".tag.chg")
+        rule = block_of(".tag.chg { flex")
         self.assertIn("var(--status-amber-text)", rule)
         self.assertIn("var(--status-amber-tint)", rule)
-        for name in (".tag.chg", ".sec.is-changed", "table.items tr.changed td", "ul.plain li.changed"):
+        for name in (".tag.chg { flex", ".sec.is-changed", "table.items tr.changed td", ".msl-row.changed"):
             self.assertNotRegex(block_of(name), r"#[0-9a-fA-F]{3,8}\b|rgb\(", name)
 
 
@@ -302,11 +303,11 @@ class OtherRows(unittest.TestCase):
     """Work items and Milestones take the same mark (nothing edits them yet, so the page's hook marks them)."""
 
     def test_rows_take_the_tint_the_bar_and_the_word_with_reduced_motion_at_three_widths(self):
-        s = Running(data_for=DATA.get, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=DATA.get, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             for view, ids, sel in (("work", ["ABC-A-001"], "#work tbody tr[data-id=ABC-A-001]"),
-                                   ("milestones", ["ABC-M-001"], "#milestones li")):
+                                   ("milestones", ["ABC-M-001"], "#milestones li[data-ms=ABC-M-001]")):
                 for w in WIDTHS:
                     with self.subTest(view=view, width=w):
                         sid = navigate(cdp, s.port, f"#{view}&p=ABC")
@@ -361,7 +362,7 @@ class Skeleton(tre.Base):
             while not gate["open"] and time.time() < end:
                 time.sleep(0.02)
             return self.store.data_for(code)
-        s = Running(data_for=data_for, page_html=lambda: page.page_html(tre.EMPTY_BRANDING))
+        s = Running(data_for=data_for, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         return s, gate
 
@@ -405,7 +406,8 @@ class Skeleton(tre.Base):
     def test_a_published_file_never_has_a_loading_phase(self):
         plant = fx.load()
         pub = publish.select(fx.inputs(plant))
-        text = publish.render(pub, page.page_html(tre.EMPTY_BRANDING), plant["as_at"], pub["data"]["project"]["name"])
+        served = page.page_html          # the published file is built from the served page; this test never calls the page hook
+        text = publish.render(pub, served(tre.EMPTY_BRANDING), plant["as_at"], pub["data"]["project"]["name"])
         code = pub["data"]["project"]["code"]
         with tempfile.TemporaryDirectory() as tmp:
             f = Path(tmp) / "report.html"
