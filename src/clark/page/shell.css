@@ -37,10 +37,12 @@ main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .tile .n { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
 .tile .l { font-size: var(--size-small); color: var(--text-muted); }
 /* A tile is neutral, with a thin outline in its status colour that fades out from the bottom-left corner. The
-   outline is drawn on ::after under a mask, so the text and its contrast are those of the neutral tile. A tile is 190 px; Project
-   health is two tile widths and the gap between them. */
-.tcell { position: relative; display: flex; flex: 0 0 190px; min-width: 0; }
-.tcell.health { flex: 0 0 392px; }
+   outline is drawn on ::after under a mask, so the text and its contrast are those of the neutral tile. The tiles fill the row
+   (A-D14): each tile takes an equal share of it, Project health takes two shares and the gap between them (its basis is the gap, its
+   grow is 2), and a lone tile or two fill it. A tile never goes under 150 px (its figure, label and word stay whole at 13 px), so
+   four tiles still sit on one line at 900 px (5 x 150 + 4 x 12 = 798 px of the 834 px the page leaves there). */
+.tcell { position: relative; display: flex; flex: 1 1 0; min-width: 150px; }
+.tcell.health { flex: 2 1 12px; min-width: 312px; }   /* 12px: the gap above; 312 = 2 x 150 + 12 */
 .fig { position: relative; display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 12px 16px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); font: inherit; text-align: left; color: inherit; }
 .fig::after { content: ""; position: absolute; inset: -1px; border: 2px solid transparent; border-radius: inherit; pointer-events: none; -webkit-mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); }
 .fig.rag-g::after { border-color: var(--status-green); } .fig.rag-a::after { border-color: var(--status-amber); } .fig.rag-r::after { border-color: var(--status-red); }
