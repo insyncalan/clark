@@ -161,6 +161,7 @@ class SectionControlAtRest(unittest.TestCase):
                 self.check_light(*section_control_at_900_px_in_light(css))
 
     def check_light(self, alpha, icons, behind):
+        self.assertAlmostEqual(alpha, 0.85, places=2)      # #285: the 900 px rest opacity in light
         for icon, colour in icons.items():
             for place, backdrop in behind.items():
                 shown = ratio(blend(colour, backdrop, alpha), backdrop)

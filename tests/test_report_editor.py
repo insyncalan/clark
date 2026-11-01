@@ -27,7 +27,7 @@ import esbuild  # noqa: E402
 
 from clark import changes, order, page, publish, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -59,6 +59,18 @@ class Pg:
     def until(self, expr, what, seconds=10):
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
 
+    def until_new_page(self, expr, what, seconds=10):
+        """until(), but a call made while the page is navigating is waited out: Chrome answers it with 'Inspected target navigated
+        or closed' (seen on the hosted macOS runner), and the next poll sees the new page. Any other error still fails."""
+        def ask():
+            try:
+                return self.js(expr)
+            except RuntimeError as e:
+                if "navigated or closed" in str(e):
+                    return False
+                raise
+        self.t.assertTrue(wait(ask, seconds), what)
+
     def ready(self):
         self.until("document.querySelectorAll('.sec').length > 0 || !!document.querySelector('#no-sections')", "the report drew")
 
@@ -67,7 +79,7 @@ class Pg:
         sees the old sections (or none, mid-teardown). A token set on the old window is gone in the new one."""
         self.js("window.__old_document = true")
         self.js("location.reload()")
-        self.until("window.__old_document === undefined && document.readyState === 'complete'", "the page reloaded")
+        self.until_new_page("window.__old_document === undefined && document.readyState === 'complete'", "the page reloaded")
         self.ready()
 
     def edit(self):
@@ -96,7 +108,7 @@ class Pg:
         self.until("!!document.querySelector('[data-undo]')", "the change was saved")
 
     def toast(self):
-        return self.js("(document.querySelector('.toast-text') || {}).textContent || ''")
+        return wait_toast(lambda: self.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
 
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
