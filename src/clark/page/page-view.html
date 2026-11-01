@@ -179,8 +179,9 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc-ico, .toc-lbl { display: none; }
 @media (max-width: 900px) {
   .toc { right: var(--space-4); bottom: var(--space-4); top: auto; transform: none; }
-  .toc-lines { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3); border: 1px solid var(--grey-700); border-radius: 999px; background: var(--surface); color: var(--text); font-size: var(--size-small); box-shadow: var(--shadow); transition: background-color var(--dur-instant) var(--ease-out); }
-  .toc-lines:hover, .toc.open .toc-lines { background: var(--grey-100); }
+  .toc-lines { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3); border: 1px solid var(--grey-700); border-radius: 999px; background: var(--surface); color: var(--text); font-size: var(--size-small); box-shadow: var(--shadow); }
+  
+  .toc-lines:hover, .toc.open .toc-lines { background: var(--grey-100); transition: background-color var(--dur-instant) var(--ease-out); }
   .toc.open .toc-lines { opacity: 1; }
   .toc-lines i { display: none; }
   .toc-ico, .toc-lbl { display: inline-block; }
