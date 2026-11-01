@@ -5,9 +5,9 @@ export const TITLE = "Projects";
 export const INTRO = "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.";
 export const COLUMNS = ["Name", "Code", "Client", "Workstreams", "Items"];
 export const LOADING = "Looking for your projects.";
-export const NONE = "No projects yet. To add one, ask the clark team.";
+export const NONE = "No projects yet. Adding a project is not possible from this page yet.";
 export const ALL_ARCHIVED = "Every project is archived. Choose Show archived to restore one.";
-export const FAILED = "The list of projects could not be read. Reload the page. If it happens again, restart clark.";
+export const FAILED = "The list of projects could not be read. Choose Try again. If it happens again, restart clark.";
 export const NO_CLIENT = "—";
 export const LABELS = { open: "Open", archive: "Archive", restore: "Restore", show: "Show archived", hide: "Hide archived", tryAgain: "Try again" };
 export const OPEN_NOW = "Open now";
@@ -24,6 +24,6 @@ export function rowOf(p, data, archived) {
   return { code: p.code, name: p.name, client: client || NO_CLIENT, workstreams: ws.join(", ") || NO_CLIENT, items: n, archived: !!archived };
 }
 
-export const archivedWords = (name) => `${name} archived. Show archived brings it back.`;
+export const archivedWords = (name) => `${name} archived. To bring it back, choose Show archived, then Restore.`;
 export const restoredWords = (name) => `${name} restored.`;
 export const countLabel = (n) => (n ? `${LABELS.show} (${n})` : LABELS.show);

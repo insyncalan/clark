@@ -1,7 +1,7 @@
-"""Prototype parity A-S11: Settings › Data (Export workbook), in a real browser at 1400 and 900 px, light and dark.
+"""Prototype parity A-S11: Settings › Data (Export to Excel), in a real browser at 1400 and 900 px, light and dark.
 Run: python3 dev/run_tests.py test_data_card
 
-What is asserted: the card is on Settings with its heading and words; it has an Export workbook button and no Import or Reset button
+What is asserted: the card is on Settings with its heading and words; it has an Export to Excel button and no Import or Reset button
 (the server has no route for either); pressing the button asks the server's export route once and the browser is given a workbook
 (the page says so); the card never widens the page; the button's text meets 4.5:1 in light and dark.
 Chrome is required: these tests fail, never skip, without it.
@@ -28,7 +28,7 @@ class DataCard(Base):
                 p.width(w)
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('#data-card h2').textContent"), "Data")
-                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook"])
+                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export to Excel"])
                 self.assertIn("Excel workbook", p.js("document.querySelector('#data-card p').textContent"))
                 self.assertFalse(p.js("/import|reset/i.test(document.querySelector('#data-card').innerText)"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)

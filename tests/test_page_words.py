@@ -187,10 +187,10 @@ class Words(unittest.TestCase):
                                   "Data",               # A-S11: the Data card sits between Keys and Backups
                                   "Export saves this project's actions, risks and issues, decisions and milestones as an Excel workbook, so you can look at them or keep a copy. "
                                   "Your browser saves the file; nothing is sent or published.",
-                                  "Export workbook",
+                                  "Export to Excel",
                                   "Projects", "Show archived",      # A-S6: the projects table; this server has no list to give
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
-                                  "The list of projects could not be read. Reload the page. If it happens again, restart clark. Try again",
+                                  "The list of projects could not be read. Choose Try again. If it happens again, restart clark. Try again",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",

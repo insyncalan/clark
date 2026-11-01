@@ -150,8 +150,9 @@ class Browser(unittest.TestCase):
             cdp.js("document.querySelector('tr[data-project=MOSS] [data-archive]').click()", sid)
             self.until(cdp, sid, "!document.querySelector('tr[data-project=MOSS]')", "the project to leave the list")
             self.assertEqual(self.sent, [{"project": "MOSS", "kind": "projects", "op": "archive", "id": "MOSS"}])
+            self.assertEqual(cdp.js("document.activeElement && document.activeElement.id", sid), "projects-h", "focus stays on the Projects heading after Archive")
             self.until(cdp, sid, "document.querySelector('.toast [data-undo]')", "Undo")
-            self.assertIn("archived. Show archived brings it back.", cdp.js("document.querySelector('.toast-text').textContent", sid))
+            self.assertIn("archived. To bring it back, choose Show archived, then Restore.", cdp.js("document.querySelector('.toast-text').textContent", sid))
             self.assertEqual(cdp.js("document.querySelector('#show-archived').textContent.trim()", sid), "Show archived (1)")
             cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
             self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS]')", "Undo to put the project back")
@@ -188,6 +189,16 @@ class Browser(unittest.TestCase):
     def test_an_archive_goes_through_the_change_queue(self):
         text = (SRC_DIR / "edit" / "Projects.jsx").read_text(encoding="utf-8")
         self.assertIn("await enqueue(", text)
+        self.assertRegex(text, r"try \{\s*await enqueue\([\s\S]*\} finally \{\s*setBusy\(\"\"\);", "the buttons come back on even when a change fails")
+
+    def test_each_row_button_names_its_project_and_Projects_comes_before_Data(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port, 1400)
+            self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-archive]').getAttribute('aria-label')", sid), "Archive " + self.names["MOSS"])
+            self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-open]').getAttribute('aria-label')", sid), "Open " + self.names["MOSS"])
+            self.assertEqual(cdp.js("document.querySelector('#projects-table thead th:last-child').getAttribute('aria-label')", sid), "What you can do")
+            self.assertEqual(cdp.js("document.querySelector('#projects').compareDocumentPosition(document.querySelector('#data-card')) & 4", sid), 4, "the Data card follows the Projects table")
 
     def test_open_goes_to_that_project_s_dashboard(self):
         s = self.serve()

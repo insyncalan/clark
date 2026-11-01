@@ -23,16 +23,22 @@ export function Projects({ api = REAL }) {
   }
   useEffect(() => { load(); }, [undone.value]);          // read again after an Undo (the toast's), which puts a project back
 
+  function focusHeading() { const h = document.getElementById("projects-h"); if (h) h.focus(); }
+
   async function change(row, op) {
     if (op === "archive" && row.code === openCode.value) return;     // the open project stays: the table offers no Archive for it
     setBusy(row.code);
-    await enqueue(async () => {                                      // in order with every other change and Undo
-      const r = await api.archive(row.code, op);
-      if (!r.ok) { say("problem", r.message); return; }
-      await load();
-      say("done", op === "archive" ? L.archivedWords(row.name) : L.restoredWords(row.name), r.applyId, row.code);
-    });
-    setBusy("");
+    try {
+      await enqueue(async () => {                                    // in order with every other change and Undo
+        const r = await api.archive(row.code, op);
+        if (!r.ok) { say("problem", r.message); return; }
+        await load();
+        if (op === "archive") focusHeading();                        // the clicked button is gone: keep the place
+        say("done", op === "archive" ? L.archivedWords(row.name) : L.restoredWords(row.name), r.applyId, row.code);
+      });
+    } finally {
+      setBusy("");                                                   // the buttons never stay switched off
+    }
   }
 
   const rows = showGone ? [...state.live, ...state.gone] : state.live;
@@ -50,7 +56,7 @@ export function Projects({ api = REAL }) {
       {state.phase === "ready" && !rows.length ? <p class="muted" id="projects-none">{state.gone.length ? L.ALL_ARCHIVED : L.NONE}</p> : null}
       {rows.length ? (
         <table class="items proj-table" id="projects-table" aria-label={L.TITLE}>
-          <thead><tr>{L.COLUMNS.map((c) => <th key={c} scope="col">{c}</th>)}<th scope="col" aria-label="Actions"></th></tr></thead>
+          <thead><tr>{L.COLUMNS.map((c) => <th key={c} scope="col">{c}</th>)}<th scope="col" aria-label="What you can do"></th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.code} data-project={r.code} class={r.archived ? "arch" : ""}>
@@ -61,13 +67,13 @@ export function Projects({ api = REAL }) {
                 <td class="num">{r.items}</td>
                 <td class="acts">
                   {r.archived ? (
-                    <button type="button" class="btn sm" data-restore disabled={!!busy} onClick={() => change(r, "restore")}>{L.LABELS.restore}</button>
+                    <button type="button" class="btn sm" data-restore aria-label={`Restore ${r.name}`} disabled={!!busy} onClick={() => change(r, "restore")}>{L.LABELS.restore}</button>
                   ) : (
                     <>
-                      {r.code !== openCode.value ? <button type="button" class="btn sm" data-open onClick={() => openProjectAt(r.code, "dashboard")}>{L.LABELS.open}</button> : null}
+                      {r.code !== openCode.value ? <button type="button" class="btn sm" data-open aria-label={`Open ${r.name}`} onClick={() => openProjectAt(r.code, "dashboard")}>{L.LABELS.open}</button> : null}
                       {r.code === openCode.value
                         ? <span class="muted" data-open-note>{L.OPEN_NOTE}</span>
-                        : <button type="button" class="btn sm" data-archive disabled={!!busy} onClick={() => change(r, "archive")}>{L.LABELS.archive}</button>}
+                        : <button type="button" class="btn sm" data-archive aria-label={`Archive ${r.name}`} disabled={!!busy} onClick={() => change(r, "archive")}>{L.LABELS.archive}</button>}
                     </>
                   )}
                 </td>
