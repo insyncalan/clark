@@ -97,17 +97,17 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
         self.assertEqual(s["start"]["parts"], [])
-        self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
+        self.assertEqual(len(s["reference"]["keys"]), 22 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (26, 30, 21))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (27, 30, 22))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -134,22 +134,23 @@ class AgainstThePage(unittest.TestCase):
                 self.assertRegex(self.CODE, proof, f"Help talks about {name}, which the page does not have yet")
 
     def test_the_check_has_teeth_on_the_whole_source(self):
-        """On the whole source (nothing held) the same checks fail: the peek is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), and Import and Export when Export did (#147); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
+        """On the whole source (nothing held) the same checks fail: ask clark is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), Import and Export when Export did (#147), and the peek when Sneak peek did (#42); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
         everything = " ".join(list(strings(RAW["howto"]["tasks"])) + list(strings(RAW["start"])))
         absent = [n for n, shown, proof in FEATURES if re.search(shown, everything) and not re.search(proof, self.CODE)]
-        for want in ("the peek", "ask clark", "Sneak peek"):
+        for want in ("Sneak peek",):            # "ask clark" left this list when its panel reached the page (#47a), and the peek when it did (#42), as Publish did (#43)
             self.assertIn(want, absent)
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
-        # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...); lower this only when a feature lands, never to hide a missing one
+        # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...), 73 with the peek's Activity tab (#42: Help now names Activity and no longer All, Updates and Source); lower this only when a feature lands, never to hide a missing one
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now)
-        # 68 with the section templates (#96) as well (their words in the Add a section box and in Help name things the page does now: measured on the merged tree)
-        # 66 with Version and updates (Updates, Choose zip… and Undo update name things the page does now)
+        # 66 with the section templates (#96) and the peek's Activity tab and Appearance name features as well (measured on the merged tree)
+        # 66 again on the merge with the command palette (#198), which adds no bold Help name (measured on the merged tree)
+        # 66 again on the merge with ask clark's panel (#47a) and the palette's command for it (measured on the merged tree)
         self.assertGreaterEqual(len(names), 66)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
-        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]"])
+        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]", "[[Mod+K]]"])
 
 
 class NeverDelete(unittest.TestCase):

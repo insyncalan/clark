@@ -188,6 +188,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .ddmenu .hck { width: 16px; height: 16px; stroke-width: 2.4; color: var(--text); }
 .tag { display: inline-flex; font-size: 13px; padding: 1px 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .tag.cl { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.tag.chg { margin-left: 8px; }
 .type { display: inline-block; padding: 1px 8px; border-radius: var(--radius); font-size: 13px; font-weight: 400; background: var(--grey-100); color: var(--grey-700); }
 .type.k-action { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
@@ -325,6 +326,21 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .sec-body ul, .sec-body ol { margin: 0 0 10px; padding-left: 22px; }
 .sec-body a { color: var(--link); }
 .sec-body blockquote { margin: 0 0 10px; padding-left: 12px; border-left: 3px solid var(--grey-200); }
+/* 'Needs from you': a table of what is needed, from whom and by when. It never scrolls sideways: the first column takes what the
+   others leave and wraps. The date's word Overdue is text, so it does not rest on colour alone. */
+.sec-needs { margin: 8px 0 8px; min-width: 0; }
+table.needs { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; }
+table.needs th { text-align: left; font-weight: 400; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-top: 1px solid var(--grey-200); }
+table.needs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
+table.needs th:first-child, table.needs td:first-child { padding-left: 4px; }
+table.needs .n-from { width: 24%; }
+table.needs .n-by { width: 26%; }
+table.needs .n-kind { margin-right: 4px; vertical-align: baseline; }
+table.needs .n-over { margin-left: 2px; }
+.slot-left table.needs .n-from, .slot-right table.needs .n-from { width: 28%; }
+.slot-left table.needs .n-by, .slot-right table.needs .n-by { width: 34%; }
+@media (max-width: 900px) { table.needs .n-from { width: 26%; } table.needs .n-by { width: 30%; } }
+
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
 .sec.is-hidden { border-top-style: dashed; }
 .sec.is-hidden > :not(.sec-ctl) { opacity: .65; }
@@ -386,6 +402,40 @@ input.sec-title { width: 100%; }
 .toast-btn:focus-visible { outline-color: var(--brand-cyan); }
 @media (max-width: 900px) { .modes { margin-left: auto; } .menu { min-width: 220px; } }
 
+/* The peek (#42): a panel on the right edge; its width is dragged from the left edge and kept in this browser. */
+.peek { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: 12px 24px 24px; }
+.peek.wide { width: 100%; }
+.pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
+.pk-edge:hover, .pk-edge:focus-visible { background: var(--brand-cyan); opacity: .5; }
+.pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--grey-100); }
+.pk-sp { flex: 1; }
+.pk-id { color: var(--text-muted); font-size: var(--size-small); margin-left: 6px; }
+.pkp-btn { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); cursor: pointer; color: var(--text); }
+.pkp-btn:hover:not(:disabled) { background: var(--grey-100); }
+.pkp-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 1px; }
+.pkp-btn:disabled { opacity: .35; cursor: default; }
+.pkp-btn[aria-pressed=true] { background: var(--brand-blue-tint); }
+.pkp-btn .i { width: 18px; height: 18px; }
+.pk-title { margin: 16px 0 12px; font-size: var(--size-h2, 20px); font-weight: var(--weight-medium); line-height: 1.3; color: var(--heading); overflow-wrap: anywhere; }
+.pk-fields { margin: 0; }
+.pk-row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 8px 0; border-top: 1px solid var(--grey-100); }
+.pk-row dt { color: var(--text-muted); font-size: var(--size-small); }
+.pk-row dd { margin: 0; overflow-wrap: anywhere; }
+.wordsbox { margin-top: 20px; padding: 12px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--grey-50); }
+.sn-head { display: flex; align-items: center; gap: 8px; font-size: var(--size-small); color: var(--text-muted); }
+.sn-head .i { width: 16px; height: 16px; }
+.sn-in { width: 100%; box-sizing: border-box; margin-top: 8px; min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.sn-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.sn-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: 4px 0; }
+.sn-f { width: 70px; color: var(--text-muted); font-size: var(--size-small); }
+.sn-from { color: var(--text-muted); text-decoration: line-through; }
+.sn-msg { margin: 10px 0 0; color: var(--status-red-text); }
+.sn-confirm { margin: 8px 0 0; }
+.sn-confirm.flash { animation: sn-flash .9s; }
+.pk-row.flash { animation: sn-flash 1.4s; }
+@media (prefers-reduced-motion: reduce) { .pk-row.flash, .sn-confirm.flash { animation: none; background: var(--status-amber-tint); } }
+@keyframes sn-flash { 0%, 60% { background: var(--status-amber-tint); } 100% { background: transparent; } }
+.sn-foot { margin: 10px 0 0; font-size: var(--size-small); }
 /* Work items cells that change in place (#80, Edit only): the cell's content is a button, and its picker opens in one panel under
    it. The panels are the prototype's (.cell-pick, .menu, .cp), in clark's tokens, so dark mode follows. */
 .cell-pick { all: unset; box-sizing: border-box; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 4px 8px; max-width: 100%; min-height: 28px; padding: 3px 6px; margin: -3px -6px; border-radius: var(--radius-sm); cursor: pointer; }
@@ -932,6 +982,10 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 
 /* the home banner: a still picture a person's own look may set (--art-home, --art-home-height); empty and flat by default */
 .frame.empty::before { content: ""; display: block; height: var(--art-home-height); background: var(--art-home) center / contain no-repeat; }
+.setting h3 { margin: 16px 0 6px; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
+.ask-folders { margin: 8px 0 0; padding: 0; list-style: none; }
+.ask-folders li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+#ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
 .ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: var(--space-6) var(--space-4); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }
 .ad:focus { outline: none; }
