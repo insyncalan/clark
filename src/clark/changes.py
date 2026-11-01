@@ -745,7 +745,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
             raise Refused(words_) from None
         apply_id = st.peek_apply_id()
     row = store.read(table, ref=ref)
-    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
+    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + ("name", "client_visible")) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
         + (("priority",) if table == "raid" else ())
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "item": {k: row[k] for k in dict.fromkeys(shown)}}
 

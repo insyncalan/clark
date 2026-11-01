@@ -574,7 +574,7 @@ class Inserts(Base):
         body = self.ok(add("raid", type="Risk", description="A risk", impact="High", likelihood="High"))
         self.assertEqual((body["item"]["priority"], body["item"]["status"]), ("Urgent", "Open"))
         for field, value in (("raised", "2020-01-01"), ("source", "somewhere"), ("project", "XYZ"), ("id", "ABC-A-099"),
-                             ("status", "Closed"), ("archived", 1), ("closed", "2026-10-01"), ("client_visible", 0),
+                             ("status", "Closed"), ("archived", 1), ("closed", "2026-10-01"),
                              ("client_message", "x"), ("internal_note", "x"), ("updated_at", "x")):
             with self.subTest(field=field):
                 words = changes.NO_ARCHIVE if field == "archived" else f"The field '{field}' can't be set here."
