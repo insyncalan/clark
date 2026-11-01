@@ -32,13 +32,14 @@ DEMO = {"v": 1, "overall": {"actual": 625, "planned": 700, "health": "atrisk", "
                    {"name": "Launch", "lines": []}]}
 
 
-def biggest():
-    """The largest body the checker accepts: the most groups and lines, every text at its longest, in the widest letters."""
-    return {"v": 1, "overall": {"actual": 1000, "planned": 1000, "health": "ontrack", "note": LETTER * sb.TRACKER_NOTE_MAX},
+def biggest(letter=LETTER):
+    """The largest body the checker accepts: the most groups and lines, every text at its longest, in the given letter."""
+    spread = [sb.TRACKER_MAX_LINES // sb.TRACKER_MAX_GROUPS + (k < sb.TRACKER_MAX_LINES % sb.TRACKER_MAX_GROUPS) for k in range(sb.TRACKER_MAX_GROUPS)]
+    return {"v": 1, "overall": {"actual": 1000, "planned": 1000, "health": "ontrack", "note": letter * sb.TRACKER_NOTE_MAX},
             "columns": {"tasks": True, "agents": True, "workflows": True},
-            "groups": [{"name": LETTER * sb.TRACKER_NAME_MAX,
-                        "lines": [line(no=LETTER * sb.TRACKER_NO_MAX, text=LETTER * sb.TRACKER_TEXT_MAX, tasks=99999, agents=99999, workflows=99999)
-                                  for _ in range(sb.TRACKER_MAX_LINES // sb.TRACKER_MAX_GROUPS)]} for _ in range(sb.TRACKER_MAX_GROUPS)]}
+            "groups": [{"name": letter * sb.TRACKER_NAME_MAX,
+                        "lines": [line(no=letter * sb.TRACKER_NO_MAX, text=letter * sb.TRACKER_TEXT_MAX, tasks=99999, agents=99999, workflows=99999)
+                                  for _ in range(n)]} for n in spread]}
 
 
 class Shape(unittest.TestCase):

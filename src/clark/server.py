@@ -74,6 +74,7 @@ MESSAGES = {
     "send_json": f"That could not be read. {RELOAD}",
     "length_required": f"That could not be read. {RELOAD}",
     "too_large": "That is too big for clark to take. Try again with less in it.",
+    "change_too_large": "That is too big to save. Shorten a line or remove some lines, then try again.",
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
@@ -993,7 +994,10 @@ class Handler(BaseHTTPRequestHandler):
         except LengthRequired:
             return self.send(411, error_body("length_required"))
         except TooLarge:
-            return self.send(400, error_body("too_large"))
+            sent = error_body("too_large")
+            if self.path.split("?")[0] == "/api/change":
+                sent["message"] = MESSAGES["change_too_large"]      # a section's content is the one thing that grows: say what to do (the code stays too_large)
+            return self.send(400, sent)
         except ValueError:
             return self.send(400, error_body("bad_request"))
         api = here_route if route == HERE_ROUTE else POST_ROUTES.get(route)      # /api/here has its own statement, outside POST_ROUTES

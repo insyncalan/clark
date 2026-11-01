@@ -385,6 +385,29 @@ class Saving(ServerTest):
             self.assertEqual(len(self.calls), before)
             self.assertIn(running.ask("POST", route, base + [("Origin", own), ("Origin", own)], b"{}")[0], (200, 409))   # all fine: fine
 
+    def test_the_longest_tracker_the_checker_takes_goes_through_the_change_route_and_one_over_the_limit_gets_plain_words(self):
+        from clark import section_bodies as sb
+        running = self.seams()
+        self.addCleanup(running.close)
+        line = {"no": "9" * sb.TRACKER_NO_MAX, "text": "a" * sb.TRACKER_TEXT_MAX, "start": "2030-01-01", "end": "2030-02-01", "status": "inprogress",
+                "weight": 1000, "planned": 1000, "achieved": 1000, "tasks": 99999, "agents": 99999, "workflows": 99999}
+        per = [sb.TRACKER_MAX_LINES // sb.TRACKER_MAX_GROUPS + (k < sb.TRACKER_MAX_LINES % sb.TRACKER_MAX_GROUPS) for k in range(sb.TRACKER_MAX_GROUPS)]
+        tracker = {"v": 1, "overall": {"actual": 1000, "planned": 1000, "health": "ontrack", "note": "a" * sb.TRACKER_NOTE_MAX},
+                   "columns": {"tasks": True, "agents": True, "workflows": True},
+                   "groups": [{"name": "a" * sb.TRACKER_NAME_MAX, "lines": [dict(line) for _ in range(n)]} for n in per]}
+        body = json.dumps({"kind": "report_section", "op": "update", "id": "ABC-S-001",
+                           "changes": {"body": sb.canonical(tracker)}}, separators=(",", ":")).encode("utf-8")
+        self.assertLessEqual(len(body), sv.ROUTE_BODY_LIMITS["/api/change"])          # the checker's cap, not the route, is the limit
+        self.assertEqual(running.api("POST", "/api/change", body)[0], 200)
+        over = b'{"a": "' + b"x" * sv.ROUTE_BODY_LIMITS["/api/change"] + b'"}'
+        status, _, data = running.api("POST", "/api/change", over)
+        got = json.loads(data)
+        self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
+        self.assertIn("Shorten a line or remove some lines", got["message"])
+        self.assertFalse(got["message"].startswith("clark"))
+        status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 2048 + b'"}')
+        self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
+
     def test_change_and_undo_limits_and_415(self):
         running = self.seams()
         self.addCleanup(running.close)

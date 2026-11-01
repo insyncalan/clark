@@ -249,8 +249,10 @@ def _shown_needs_row(row):
 # takes the default shown here; a key this does not know is refused, never dropped.
 TRACKER_VERSION = 1
 TRACKER_MAX_GROUPS = 10
-TRACKER_MAX_LINES_PER_GROUP = 80
-TRACKER_MAX_LINES = 80           # in all; the widest-letter tracker (every text at its longest, twelve ASCII bytes a letter) stores at 227724 bytes (measured), under LIMITS
+TRACKER_MAX_LINES_PER_GROUP = 35
+TRACKER_MAX_LINES = 35           # in all. The change route takes 16 KB: the longest ASCII tracker (10 groups with 80-letter names, every line at its
+#                                  longest with all three counts at 99999, the 200-letter note) sends as 16018 bytes at 35 lines (16432 at 36), so the
+#                                  cap here, not the route, is what a person meets. Wider letters take more bytes typed; the route then says so in plain words.
 TRACKER_NAME_MAX = 80
 TRACKER_TEXT_MAX = 200
 TRACKER_NO_MAX = 10
