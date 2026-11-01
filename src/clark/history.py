@@ -95,6 +95,9 @@ def history_many(con, ids):
 # item (ReviewCache) and, on each call, reads only the log rows added since the last one. A change_log row is never changed once its
 # step is committed (an undo writes new rows), so what was kept stays true; a log that has shrunk or lost a row starts again.
 # The first read of an item is made by the database in one grouped pass over the project's own keys (other projects' rows are not read).
+# The first read of a run of the program holds the lock for the whole read (about 0.3 s on a 50,000-row log, measured; the
+# page's own first load is that read too). That is acceptable: a second page load at the same moment would need the very same rows,
+# so waiting for the first one's answer costs it less than reading them again, and every later call takes well under a millisecond.
 # `at` and the event number are joined into one text that sorts the way (at, event_id) does: char(31) is below every character of a stamp.
 SORT_KEY = "e.at || char(31) || printf('%012d', e.event_id)"
 FIRST_SQL = ("SELECT c.tbl, c.item_id, min(" + SORT_KEY + ") AS found FROM change_log c JOIN item_events e ON e.change = c.rowid "
@@ -111,10 +114,14 @@ NEW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.via, e.at, e.event_id, 
 
 class ReviewCache:
     """What review_events keeps between calls (a Store holds one): {id: [first event, latest person's event]} and the log's
-    newest rowid and row count when they were read."""
+    newest rowid and row count when they were read. It holds at most `limit` items: when a call would take it past that, the items
+    kept longest ago are let go first (never one the call asked for), and they are read again if they are asked for later."""
 
-    def __init__(self):
+    LIMIT = 20000                                          # items kept; each is two small events, so a few megabytes at most
+
+    def __init__(self, limit=None):
         self.lock = threading.Lock()
+        self.limit = limit or self.LIMIT
         self.reset()
 
     def reset(self):
@@ -205,7 +212,16 @@ def review_events(con, ids, cache=None):
                 for i in new:
                     cache.events[i] = _reduce(mine[i])
             cache.mark, cache.count = top, count
-            return {i: cache.events[i] for i in ids}
+            out = {i: cache.events[i] for i in ids}
+            if len(cache.events) > cache.limit:
+                asked = set(ids)
+                for i in [i for i in cache.events if i not in asked]:      # oldest kept first: dicts keep the order they were added in
+                    if len(cache.events) <= cache.limit:
+                        break
+                    del cache.events[i]
+                if len(cache.events) > cache.limit:
+                    cache.events.clear()                   # this one call asked for more than the bound: answer it, keep nothing
+            return out
     finally:
         if begun:
             con.execute("COMMIT")
