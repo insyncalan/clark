@@ -857,7 +857,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-q { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 6px; cursor: pointer; border-radius: 4px; padding: 0 4px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
 .cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms span { display: none; }
-@media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-ms span { display: none; } .cal-q { grid-template-columns: 1fr; } .msl-cells { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-ms span { display: none; } .cal-q { grid-template-columns: 1fr; } }
+/* C-M11 (row 24): a list row keeps its columns (date, name, state, progress) down to 801 px, as the prototype's does (app.css:849);
+   only at 800 px and below do the cells stack in two columns (app.css:875). */
+@media (max-width: 800px) { .msl-cells { grid-template-columns: 1fr 1fr; } }
 .mlg { position: relative; display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .mlg-b { all: unset; display: inline-flex; align-items: center; box-sizing: border-box; min-height: 28px; min-width: 28px; gap: 4px; font-size: var(--size-small); color: var(--text-muted); cursor: help; padding: 2px 4px; border-radius: 4px; }
 .mlg-b:hover, .mlg:focus-within .mlg-b { color: var(--text); } .mlg-b:focus-visible { outline: 2px solid var(--brand-blue); }

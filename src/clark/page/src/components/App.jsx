@@ -18,6 +18,7 @@ export function App({ tools }) {
   const Ask = tools && tools.AskPanel;                   // the ask panel (#47a) sits over the open page; a published file has none
   const body = status.value === "ready" ? <Page tools={tools} /> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
+  const MsLayers = tools && tools.MsLayers;              // the milestone picker and an archived milestone's peek (Edit only)
   return (
     <>
       <TopBar tools={tools} />
@@ -27,6 +28,7 @@ export function App({ tools }) {
       {Toast ? <Toast /> : null}
       {Pal ? <Pal /> : null}
       {AddDialog ? <AddDialog /> : null}
+      {MsLayers && status.value === "ready" ? <MsLayers /> : null}
     </>
   );
 }

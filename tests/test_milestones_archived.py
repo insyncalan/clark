@@ -1,6 +1,6 @@
 """C-M4, Show archived on Milestones: a button with the count of the project's archived milestones, an Archived box of read-only
-rows (name, the word Archived, agreed date, work items still linked) with Restore as the only action, Restore and Undo against the
-real change route; a failed read never shows a count of 0; a project change clears the rows; a published file has none of it.
+rows (name, the word Archived, agreed date, work items still linked); the name opens the milestone read only in the peek, with Restore
+there (#436 row 23: not on the row), Restore and Undo against the real change route; a failed read never shows a count of 0; a project change clears the rows; a published file has none of it.
 
 Run: python3 dev/run_tests.py test_milestones_archived
 Headless Chrome (required: fails, never skips, without it). Desktop (1400) and 900 px, light and dark.
@@ -50,6 +50,14 @@ class Archived(Base):
     def go(self, cdp, width=1400, edit=True, project="ABC"):
         return self.visit(cdp, width=width, hash_=f"#milestones&p={project}", edit=edit, wait_for=".msv, [data-no-milestones]")
 
+    def open_peek(self, cdp, sid, ref):
+        click(cdp, sid, f"{ROWS}[data-id='{ref}'] .ma-name")
+        self.until(cdp, sid, f"!!document.querySelector('#archived-peek[data-archived-peek=\"{ref}\"]')", "the archived peek")
+
+    def restore_in_peek(self, cdp, sid, ref):
+        self.open_peek(cdp, sid, ref)
+        click(cdp, sid, "#archived-peek [data-pk-restore]")
+
     def pill(self, cdp, sid):
         return cdp.js(f"(document.querySelector('{PILL}') || {{}}).textContent || null", sid)
 
@@ -80,20 +88,58 @@ class Archived(Base):
                 self.assertIn(f"{self.dated}|Go live|Agreed 01-06-2030 · 1 work item still linked", said)
                 self.assertIn(f"{self.undated}|Hand over the keys|No agreed date · 0 work items still linked", said)
                 self.assertEqual(cdp.js("document.querySelectorAll('#ms-archived input, #ms-archived select, #ms-archived textarea, #ms-archived [contenteditable]').length", sid), 0)
-                self.assertEqual(cdp.js("[...document.querySelectorAll('#ms-archived-list button')].map(b => b.textContent).join()", sid), "Restore,Restore", "Restore is the only action")
+                self.assertEqual(sorted(cdp.js("[...document.querySelectorAll('#ms-archived-list button')].map(b => b.textContent)", sid)), ["Go live", "Hand over the keys"], "the names are the only buttons: Restore is in the peek")
+                self.assertEqual(cdp.js(f"document.querySelector('{ROWS} .ma-name').tagName", sid), "BUTTON", "the name is a real button")
+                self.assertFalse(cdp.js("!!document.querySelector('#ms-archived-list .ma-restore, #ms-archived-list [data-edit-only]')", sid), "no Restore on the row")
                 self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
                 click(cdp, sid, PILL)
                 self.until(cdp, sid, "!document.querySelector('#ms-archived-list')", "the box shut again")
 
-    def test_view_shows_the_rows_but_offers_no_restore(self):
+    def test_view_shows_the_rows_and_the_peek_but_offers_no_restore(self):
         from test_server import chrome
         with chrome() as cdp:
             sid = self.go(cdp, edit=False)
             self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the button in View")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
-            self.assertEqual(cdp.js("document.querySelectorAll('#ms-archived-list button, [data-edit-only]').length", sid), 0)
-            self.assertIn("switch to Edit", cdp.js("document.querySelector('#ms-archived-list').textContent", sid))
+            self.assertEqual(cdp.js("document.querySelectorAll('#ms-archived-list [data-edit-only]').length", sid), 0)
+            self.assertNotIn("switch to Edit", cdp.js("document.querySelector('#ms-archived-list').textContent", sid), "the box no longer carries the line: the peek does")
+            self.open_peek(cdp, sid, self.dated)
+            self.assertEqual(cdp.js("document.querySelectorAll('#archived-peek [data-pk-restore], #archived-peek button.pri').length", sid), 0, "no Restore in View")
+            self.assertIn("To put it back, switch to Edit.", cdp.js("document.querySelector('#archived-peek').textContent", sid))
+
+    def test_the_name_opens_the_milestone_read_only_in_the_peek_with_restore_there(self):
+        """Row 23 (system/prototype/views.js:1202-07, peek.js:350-68), at 1400 and 900 px in light and dark."""
+        from test_server import chrome
+        for width, scheme in VARIANTS:
+            with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                sid = self.go(cdp, width)
+                self.scheme(cdp, sid, scheme)
+                self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
+                click(cdp, sid, PILL)
+                self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
+                self.assertFalse(cdp.js("!!document.querySelector('#archived-peek')", sid), "no peek until a name is pressed")
+                self.open_peek(cdp, sid, self.dated)
+                text = cdp.js("document.querySelector('#archived-peek').textContent.replace(/\\s+/g, ' ')", sid)
+                for said in ("Go live", "Archived", "Archived, so it is read only. It is out of the lists, the counts and the published page; nothing in it was deleted.",
+                             "01-06-2030", "Linked work items"):
+                    self.assertIn(said, text)
+                self.assertEqual(cdp.js("document.querySelector('#archived-peek .pk-title').textContent", sid), "Go live")
+                self.assertEqual(cdp.js("document.querySelectorAll('#archived-peek input, #archived-peek select, #archived-peek textarea, #archived-peek [contenteditable]').length", sid), 0, "read only: nothing to type in")
+                self.assertEqual(cdp.js("document.querySelector('#archived-peek [data-pk-restore]').textContent", sid), "Restore")
+                self.assertEqual(cdp.js("document.querySelector('#archived-peek [data-pk-restore]').getAttribute('aria-label')", sid), "Restore Go live")
+                self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid), "focus goes into the peek, to Close")
+                self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
+                self.assertTrue(cdp.js("(() => { const r = document.querySelector('#archived-peek').getBoundingClientRect(); return r.right <= window.innerWidth + 1 && r.left >= 0; })()", sid), "the peek fits the screen")
+                self.assertEqual(self.flags(), {self.dated: 1, self.undated: 1}, "opening it changes nothing")
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
+                self.until(cdp, sid, "!document.querySelector('#archived-peek')", "Esc closes it")
+                self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.maOpen === '{self.dated}'", "focus goes back to the name")
+                self.open_peek(cdp, sid, self.undated)
+                self.assertEqual(cdp.js("document.querySelector('#archived-peek .pk-title').textContent", sid), "Hand over the keys")
+                click(cdp, sid, "#archived-peek [data-pk-close]")
+                self.until(cdp, sid, "!document.querySelector('#archived-peek')", "Close closes it")
+                self.assertEqual(self.flags(), {self.dated: 1, self.undated: 1})
 
     def test_restore_puts_the_milestone_back_with_one_undo_and_focus_goes_to_the_button(self):
         from test_server import chrome
@@ -101,9 +147,9 @@ class Archived(Base):
             sid = self.go(cdp)
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
-            self.assertEqual(cdp.js(f"document.querySelector('{ROWS}[data-id=\"{self.dated}\"] .ma-restore').getAttribute('aria-label')", sid), "Restore Go live")
             before = self.steps()
-            click(cdp, sid, f"{ROWS}[data-id='{self.dated}'] .ma-restore")
+            self.restore_in_peek(cdp, sid, self.dated)
+            self.until(cdp, sid, "!document.querySelector('#archived-peek')", "the peek closed once it was restored")
             self.until(cdp, sid, f"document.querySelector('.msv').textContent.includes('Go live')", "the restored milestone on the Plan")
             self.assertEqual(self.flags(), {self.dated: 0, self.undated: 1})
             self.assertEqual(self.steps(), before + 1, "one step, one Undo")
@@ -116,7 +162,7 @@ class Archived(Base):
             self.assertEqual(self.flags(), {self.dated: 1, self.undated: 1})
             self.assertFalse(cdp.js("document.querySelector('.msv').textContent.includes('Go live')", sid), "gone from the Plan again")
             for ref in self.gone:
-                click(cdp, sid, f"{ROWS}[data-id='{ref}'] .ma-restore")
+                self.restore_in_peek(cdp, sid, ref)
                 self.until(cdp, sid, f"document.querySelector('{PILL}').textContent === 'Show archived ({1 if ref == self.gone[0] else 0})'", "the count")
             self.until(cdp, sid, "document.querySelector('#ms-archived-list').textContent.includes('No archived milestones.')", "the empty words")
 
@@ -145,7 +191,7 @@ class Archived(Base):
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
             down["on"] = True
-            click(cdp, sid, f"{ROWS}[data-id='{self.dated}'] .ma-restore")
+            self.restore_in_peek(cdp, sid, self.dated)
             self.until(cdp, sid, "document.querySelector('.msv').textContent.includes('Go live')", "the restored milestone")
             time.sleep(1.5)
             self.assertEqual(self.pill(cdp, sid), "Show archived (2)", "the rows last read stay while the read fails")
@@ -170,7 +216,7 @@ class Archived(Base):
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         out = Path(publish.publish(self.store, "ABC", folder, by_user=USER, now="2026-10-29", branding=tempfile.mkdtemp())["path"])
         html = out.read_text(encoding="utf-8")
-        for never in ("Show archived", "Hand over the keys", "ms-archived", "No archived milestones"):
+        for never in ("Show archived", "Hand over the keys", "ms-archived", "No archived milestones", "archived-peek"):
             self.assertNotIn(never, html)
         self.assertNotIn("Go live", html)
         with chrome() as cdp:
@@ -187,11 +233,16 @@ class Archived(Base):
     def test_the_source_stays_in_the_edit_parts_and_no_archived_row_reaches_the_plan(self):
         self.assertTrue((PAGE_SRC / "edit" / "ArchivedMilestones.jsx").is_file())
         view = (page.__file__ and Path(page.__file__).with_name("page-view.html")).read_text(encoding="utf-8")
-        for never in ("getArchivedMilestones", "ms-archived-list", "restoreMilestone"):
+        for never in ("getArchivedMilestones", "ms-archived-list", "restoreMilestone", "archived-peek", "data-pk-restore", "ArchivedPeek"):
             self.assertNotIn(never, view)
         block = (PAGE_SRC / "edit" / "ArchivedMilestones.jsx").read_text(encoding="utf-8")
         self.assertNotIn("data.value =", block, "the archived rows are never merged into the page's data")
         self.assertIn("archived=only", (PAGE_SRC / "api.js").read_text(encoding="utf-8"))
+        peek = (PAGE_SRC / "edit" / "ArchivedPeek.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("data.value =", peek)
+        self.assertNotIn("dangerouslySetInnerHTML", peek, "every word from a milestone is a text node")
+        self.assertIn("restoreMilestone", peek, "Restore is in the peek")
+        self.assertNotIn("restoreMilestone", block, "and no longer on the row")
 
 
 if __name__ == "__main__":

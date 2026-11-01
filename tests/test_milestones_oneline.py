@@ -1,4 +1,6 @@
 """C-M10: a milestone list row's second line ("Expected a date · N days later") reads on one line at 1400 px.
+C-M11 (#436 row 24): at 900 px the row keeps its columns (date, name, state, progress side by side, as the prototype's grid does,
+system/prototype/app.css:849); it stacks in two columns only at 800 px and below (app.css:875).
 
 Run: python3 dev/run_tests.py test_milestones_oneline
 The browser parts load the committed page from the real server on the demo database (fixed CLARK_NOW), plus one milestone with a
@@ -38,6 +40,8 @@ MEASURE = r"""(() => {
             inRow: cells.every((c) => c.left >= rb.left - 1 && c.right <= rb.right + 1),
             smallInDate: sb.right <= db.right + 1, dateClearOfName: db.right <= nb.left + 1,
             cellsClip: texts.some((t) => t.scrollWidth > t.clientWidth + 1),
+            cols: getComputedStyle(row.querySelector('.msl-cells')).gridTemplateColumns.split(' ').length,
+            across: cells.every((c, i) => i === 0 || c.left > cells[i - 1].left),
             inCard: rb.left >= cb.left - 1 && rb.right <= cb.right + 1};
   });
   const de = document.documentElement;
@@ -94,6 +98,7 @@ class Rows(unittest.TestCase):
                         self.assertFalse(got["pageScroll"], f"{where}: no sideways scroll on the page")
                         self.assertFalse(got["cardScroll"] or got["listScroll"], f"{where}: nothing scrolls inside the card")
                         for r in got["rows"]:
+                            self.assertEqual((r["cols"], r["across"]), (4, True), f"{where}: the columns stay side by side ({r['text']})")
                             self.assertTrue(r["inCard"], f"{where}: the row stays inside the card ({r['text']})")
                             self.assertTrue(r["inRow"], f"{where}: every cell stays inside its row ({r['text']})")
                             self.assertTrue(r["dateClearOfName"], f"{where}: the date cell does not run into the name ({r['text']})")
@@ -104,6 +109,24 @@ class Rows(unittest.TestCase):
                         if code == "TUL":
                             long = [r for r in got["rows"] if r["nameLines"] > 1]
                             self.assertTrue(long, f"{where}: the very long name wraps in its own cell")
+
+    def test_the_cells_stack_in_two_columns_only_at_800_px_and_below(self):
+        s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(s.close)
+        for width, cols in ((901, 4), (900, 4), (801, 4), (800, 2), (700, 2)):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, s.port, width, "light", "TUL")
+                got = cdp.js(MEASURE, sid)
+                self.assertTrue(got["rows"])
+                self.assertEqual({r["cols"] for r in got["rows"]}, {cols}, f"{width}px")
+                self.assertFalse(got["pageScroll"] or got["cardScroll"] or got["listScroll"], f"{width}px: nothing scrolls sideways")
+
+    def test_the_stylesheet_stacks_the_cells_only_below_801_px(self):
+        css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
+        import re
+        for m in re.finditer(r"@media \(max-width: (\d+)px\)\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}", css):
+            if ".msl-cells" in m.group(2) and "grid-template-columns" in m.group(2):
+                self.assertEqual(m.group(1), "800", "the rule that stacks the list cells is the 800 px one, not 900")
 
     def test_the_words_are_the_products_with_the_middle_dot(self):
         s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
@@ -145,6 +168,7 @@ class Published(unittest.TestCase):
                     self.assertFalse(got["pageScroll"] or got["cardScroll"] or got["listScroll"], f"{where}: nothing scrolls sideways")
                     for r in got["rows"]:
                         self.assertTrue(r["inCard"] and r["inRow"] and r["dateClearOfName"], f"{where}: {r['text']}")
+                        self.assertEqual((r["cols"], r["across"]), (4, True), f"{where}: the columns stay side by side ({r['text']})")
                         if width == 1400:
                             self.assertEqual(r["lines"], 1, f"{where}: one line ({r['text']})")
                             self.assertFalse(r["cellsClip"], where)

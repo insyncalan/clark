@@ -3,9 +3,10 @@
 Run: python3 dev/run_tests.py -j 1 test_milestones_eye
 The page runs from the real server over a real store (fictional data) in headless Chrome (required: it fails, never skips,
 without Chrome). The eye sends the page's one change, kind report_hidden, through the real change and undo routes, so what the
-page draws after a press is what clark saved. It is the same list on the Dashboard and on the Milestones page. View and a published
-file have no eye and no mark, and a published file does not hold a left-out milestone at all. Laptop widths only: 1400 and 900 px,
-light and dark.
+page draws after a press is what clark saved. On the Dashboard the eye takes the milestone off the page (the row is gone, the timeline
+and the Calendar lose it) and "+ Add a milestone from your project record (N)" brings it back; on the Milestones page the row stays,
+marked in words. View and a published file have no eye, and a published file does not hold a left-out milestone at all (#436, rows 22).
+Laptop widths only: 1400 and 900 px, light and dark.
 """
 import json
 import re
@@ -23,6 +24,7 @@ from test_work_items import FIXED_DATE, page_target
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 LEFT_OUT = "Left out of the published page"
+ADD_LINE = "+ Add a milestone from your project record (%d)"
 NAMES = {"ABC-M-001": "Pilot live", "ABC-M-002": "Training done", "ABC-M-003": "Handover"}
 
 # What a person sees on each row: the eye's name and state, its size and place, the words that mark a left-out row and, for the
@@ -159,13 +161,13 @@ class Editor(unittest.TestCase):
                         self.check_every_row({r["id"]: r for r in got["rows"]}, f"{width}/{theme} page")
                         self.assertTrue(got["noScroll"])
 
-    def test_a_left_out_row_says_so_in_words_and_shows_the_eye_pressed_at_both_widths_in_both_themes(self):
+    def test_a_left_out_row_says_so_in_words_and_shows_the_eye_pressed_on_the_milestones_page_at_both_widths_in_both_themes(self):
         self.store_hide("ABC-M-002")
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
-                    self.visit(cdp, width=width, theme=theme)
-                    got = self.js(SEE % ".secs")
+                    self.visit(cdp, "#milestones&p=ABC", width=width, theme=theme)
+                    got = self.js(SEE % ".frame")
                     by = {r["id"]: r for r in got["rows"]}
                     r = by["ABC-M-002"]
                     self.assertEqual((r["tag"], r["tagShown"]), (LEFT_OUT, True), "the words, not colour alone")
@@ -177,28 +179,93 @@ class Editor(unittest.TestCase):
                     self.assertTrue(got["noScroll"])
                     self.assertTrue(r["inside"] and r["apart"])
 
+    def test_a_milestone_taken_off_the_dashboard_is_not_on_it_at_both_widths_in_both_themes(self):
+        """Row 22 (system/prototype/views.js:355): the Dashboard's block holds only what is on the page."""
+        self.store_hide("ABC-M-002")
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    self.visit(cdp, width=width, theme=theme)
+                    got = self.js(SEE % ".secs")
+                    self.assertEqual(sorted(r["id"] for r in got["rows"]), ["ABC-M-001", "ABC-M-003"], "the row is gone, not marked")
+                    self.assertFalse(self.js("document.querySelector('.secs .msv').textContent.includes('Training done')"), "nor on the timeline, the Calendar or anywhere in the block")
+                    self.assertTrue(got["noScroll"])
+                    self.assertEqual(self.add_line(), ADD_LINE % 1)
+                    self.assertTrue(self.js("(() => { const b = document.querySelector('.secs [data-ms-back]'); const r = b.getBoundingClientRect(); return b.tagName === 'BUTTON' && r.height >= 24 && r.width >= 24; })()"), "a real button, 24 px at least")
+
+    def add_line(self):
+        return self.js("(() => { const b = document.querySelector('.secs [data-ms-back]'); return b ? b.textContent.trim() : null; })()")
+
     def store_hide(self, ident):
         status, body = changes.make_change(self.store.path, [], USER)({"project": "ABC", "kind": "report_hidden", "op": "new", "id": ident})
         self.assertEqual(status, 200, body)
 
     # ---- the press: one change, one Undo, drawn at once ----
-    def test_a_press_sends_one_change_and_one_undo_puts_it_back_on_the_dashboard(self):
+    def test_a_press_takes_it_off_the_dashboard_with_one_change_and_one_undo_puts_it_back(self):
         with chrome() as cdp:
             self.visit(cdp)
+            self.assertIsNone(self.add_line(), "nothing is off the page yet, so no line")
             self.press("ABC-M-002")
-            self.until(f"!!document.querySelector(\"[data-ms='ABC-M-002'] .tag.hid\")", "the row says it is left out")
+            self.until("!document.querySelector(\".secs .msl-row[data-ms='ABC-M-002']\")", "the row left the Dashboard")
             self.assertEqual(self.sent_changes(), [{"project": "ABC", "kind": "report_hidden", "op": "new", "id": "ABC-M-002", "place": "report"}])
             self.assertEqual(self.left_out(), ["ABC-M-002"])
-            now = self.seen(".secs")["ABC-M-002"]
-            self.assertEqual((now["tag"], now["pressed"], now["name"]), (LEFT_OUT, "true", eye_name(True, "Training done")))
-            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "Training done left out of the published page.")
+            self.assertEqual(self.add_line(), ADD_LINE % 1)
+            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "Training done taken off the page.")
             self.assertEqual(self.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "one Undo")
             self.js("document.querySelector('.toast [data-undo]').click()")
-            self.until("!document.querySelector(\"[data-ms='ABC-M-002'] .tag.hid\")", "Undo put it back at once")
+            self.until("!!document.querySelector(\".secs .msl-row[data-ms='ABC-M-002']\")", "Undo put it back at once")
             self.assertEqual(self.left_out(), [])
+            self.assertIsNone(self.add_line(), "and the line goes with it")
             back = self.seen(".secs")["ABC-M-002"]
             self.assertEqual((back["tag"], back["pressed"], back["name"]), (None, "false", eye_name(False, "Training done")))
             self.assertEqual([w for w, _ in self.sent], ["change", "undo"], "one change and one undo, nothing more")
+
+    def test_the_add_line_opens_the_record_picker_for_milestones_and_brings_them_back_in_one_step_with_one_undo(self):
+        self.store_hide("ABC-M-002")
+        self.store_hide("ABC-M-003")
+        with chrome() as cdp:
+            self.visit(cdp)
+            self.assertEqual(self.add_line(), ADD_LINE % 2)
+            self.js("document.querySelector('.secs [data-ms-back]').click()")
+            self.until("!!document.querySelector('form.picker')", "the picker opened")
+            self.assertEqual(self.js("document.querySelector('form.picker h2').textContent"), "Add a milestone from your project record")
+            self.assertEqual(self.js("[...document.querySelectorAll('form.picker .pk-group h3')].map((h) => h.textContent).join()"), "Milestones", "milestones only")
+            self.assertEqual(self.js("document.querySelectorAll('form.picker .pick li').length"), 2)
+            self.assertEqual(self.js("document.activeElement.type"), "search", "focus starts in the search box")
+            self.js("document.querySelector(\"form.picker input[value='ABC-M-003']\").click()")
+            self.js("document.querySelector('form.picker [type=submit]').click()")
+            self.until("!!document.querySelector(\".secs .msl-row[data-ms='ABC-M-003']\")", "the chosen milestone is on the Dashboard again")
+            self.assertFalse(self.js("!!document.querySelector('form.picker')"), "the picker closed")
+            self.assertEqual(self.js("!!document.querySelector(\".secs .msl-row[data-ms='ABC-M-002']\")"), False, "the other stays off")
+            self.assertEqual(self.sent_changes(), [{"project": "ABC", "kind": "report_hidden", "op": "pick", "ids": ["ABC-M-003"], "place": "report"}])
+            self.assertEqual(self.left_out(), ["ABC-M-002"])
+            self.assertEqual(self.add_line(), ADD_LINE % 1)
+            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "1 milestone added to the page.")
+            self.js("document.querySelector('.toast [data-undo]').click()")
+            self.until("!document.querySelector(\".secs .msl-row[data-ms='ABC-M-003']\")", "Undo took it off again")
+            self.assertEqual(self.left_out(), ["ABC-M-002", "ABC-M-003"])
+
+    def test_esc_closes_the_picker_and_focus_comes_back_to_the_line(self):
+        self.store_hide("ABC-M-002")
+        with chrome() as cdp:
+            self.visit(cdp)
+            self.js("document.querySelector('.secs [data-ms-back]').click()")
+            self.until("!!document.querySelector('form.picker')", "the picker opened")
+            self.key("Escape", "Escape", 27)
+            self.until("!document.querySelector('form.picker')", "Esc closed it")
+            self.until("document.activeElement && document.activeElement.hasAttribute('data-ms-back')", "focus is back on the line")
+            self.assertEqual(self.sent, [], "nothing was sent")
+
+    def test_a_milestone_that_is_not_for_the_client_is_off_the_dashboard_and_offered_by_the_line(self):
+        with self.store.step("dashboard", USER) as st:
+            st.update("milestones", "ABC-M-003", {"client_visible": 0})
+        with chrome() as cdp:
+            self.visit(cdp)
+            self.assertEqual(sorted(r["id"] for r in self.js(SEE % ".secs")["rows"]), ["ABC-M-001", "ABC-M-002"])
+            self.assertEqual(self.add_line(), ADD_LINE % 1)
+            self.visit(cdp, "#milestones&p=ABC")
+            self.assertEqual(sorted(r["id"] for r in self.js(SEE % ".frame")["rows"]), sorted(NAMES), "the Milestones page keeps every milestone")
+            self.assertIsNone(self.add_line(), "the line is the Dashboard's only")
 
     def test_pressing_again_includes_it_and_that_has_its_own_undo(self):
         self.store_hide("ABC-M-003")
@@ -208,26 +275,26 @@ class Editor(unittest.TestCase):
             self.until("!document.querySelector(\"[data-ms='ABC-M-003'] .tag.hid\")", "the row is included again")
             self.assertEqual(self.sent_changes(), [{"project": "ABC", "kind": "report_hidden", "op": "delete", "id": "ABC-M-003", "place": "report"}])
             self.assertEqual(self.left_out(), [])
-            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "Handover included in the published page.")
+            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "Handover added back to the page.")
             self.js("document.querySelector('.toast [data-undo]').click()")
             self.until("!!document.querySelector(\"[data-ms='ABC-M-003'] .tag.hid\")", "Undo left it out again")
             self.assertEqual(self.left_out(), ["ABC-M-003"])
 
     def test_the_state_is_there_again_after_a_reload(self):
         with chrome() as cdp:
-            self.visit(cdp)
-            self.press("ABC-M-001")
+            self.visit(cdp, "#milestones&p=ABC")
+            self.press("ABC-M-001", "page")
             self.until("!!document.querySelector(\"[data-ms='ABC-M-001'] .tag.hid\")", "left out")
-            self.visit(cdp)                                    # a fresh load of the page
-            seen = self.seen(".secs")
+            self.visit(cdp, "#milestones&p=ABC")               # a fresh load of the page
+            seen = self.seen(".frame")
             self.assertEqual([k for k, r in seen.items() if r["tag"] == LEFT_OUT], ["ABC-M-001"])
             self.assertEqual(seen["ABC-M-001"]["pressed"], "true")
 
-    def test_the_dashboard_and_the_milestones_page_agree(self):
+    def test_the_dashboard_and_the_milestones_page_agree_the_page_keeps_the_row_marked(self):
         with chrome() as cdp:
             self.visit(cdp)
             self.press("ABC-M-002")
-            self.until("!!document.querySelector(\"[data-ms='ABC-M-002'] .tag.hid\")", "left out")
+            self.until("!document.querySelector(\".secs .msl-row[data-ms='ABC-M-002']\")", "taken off the Dashboard")
             self.js("location.hash = '#milestones&p=ABC'")
             self.until("!!document.querySelector('.msv[data-place=page] .msl-row')", "the Milestones page drew")
             page_rows = self.seen(".frame")
@@ -237,7 +304,7 @@ class Editor(unittest.TestCase):
     # ---- the keyboard ----
     def test_the_eye_is_a_tab_stop_after_its_row_and_enter_and_space_work_it(self):
         with chrome() as cdp:
-            self.visit(cdp)
+            self.visit(cdp, "#milestones&p=ABC")
             self.js("document.querySelector(\".msl-row[data-ms='ABC-M-002'] .msl-cells\").focus()")
             self.key("Tab", "Tab", 9)
             self.assertEqual(self.js("document.activeElement.dataset.msEye"), "ABC-M-002", "Tab from a row reaches its own eye")
@@ -253,7 +320,7 @@ class Editor(unittest.TestCase):
         with chrome() as cdp:
             self.visit(cdp)
             self.js(f"(() => {{ const b = document.querySelector({json.dumps(self.eye('ABC-M-001', 'dash'))}); b.click(); b.click(); }})()")
-            self.until("!!document.querySelector(\"[data-ms='ABC-M-001'] .tag.hid\")", "left out")
+            self.until("!document.querySelector(\".secs .msl-row[data-ms='ABC-M-001']\")", "taken off")
             self.assertEqual(len(self.sent_changes()), 1, "the second press while the first was on its way was ignored")
             self.assertEqual(self.js("document.querySelectorAll('.toast.problem').length"), 0)
 

@@ -1,10 +1,10 @@
 // "Add from your project record" (FR-16): a searchable list of the rows left out of the report, several chosen at once. It
 // only picks: the caller gets the ids through onAdd(ids) and saves them (#65's change path; not built here). Every word
-// from the data is a text node, never markup.
+// from the data is a text node, never markup. `title` is the panel's name (a list of one kind says so: "Add a milestone from your project record").
 import { useState, useRef, useEffect } from "preact/hooks";
 import { pickable, idsOf, toggle, selectAll, clear, chosen, countWords, addWords, emptyWords, ALL_ON_PAGE } from "../logic/picker.js";
 
-export function Picker({ data, hiddenIds, onPage, onAdd, onClose }) {
+export function Picker({ data, hiddenIds, onPage, onAdd, onClose, title = "Add from your project record" }) {
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState([]);
   const search = useRef(null);
@@ -22,9 +22,9 @@ export function Picker({ data, hiddenIds, onPage, onAdd, onClose }) {
     if (e.key === "Escape") { e.stopPropagation(); if (onClose) onClose(); }
   };
   return (
-    <form class="picker" role="dialog" aria-label="Add from your project record" onSubmit={submit} onKeyDown={keys}>
+    <form class="picker" role="dialog" aria-label={title} onSubmit={submit} onKeyDown={keys}>
       <div class="pk-head">
-        <h2>Add from your project record</h2>
+        <h2>{title}</h2>
         <p class="muted">{allOnPage ? none : "Choose what to add to the page."}</p>
       </div>
       <div class="pk-search">
