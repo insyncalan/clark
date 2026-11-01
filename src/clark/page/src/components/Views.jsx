@@ -26,6 +26,7 @@ export function Settings({ tools }) {
   const Data = tools && tools.Data;                    // the Data card (A-S11): Export workbook; Edit only
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
+  const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
   return (
     <>
       <Empty title="Settings">Settings are not ready yet.</Empty>
@@ -33,6 +34,7 @@ export function Settings({ tools }) {
       {Personal ? <Personal /> : null}
       {Diagnostics ? <Diagnostics /> : null}
       {Data ? <Data /> : null}
+      {Projects ? <Projects /> : null}
       {Safety ? <Safety /> : null}
       {AskSettings ? <AskSettings /> : null}
     </>
