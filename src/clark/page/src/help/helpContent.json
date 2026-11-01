@@ -462,7 +462,7 @@
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all work items** opens Work items filtered to that use case.",
-     "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
+     "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag** or **High risk**.",
      "In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.",
      "**Archive use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Show archived** finds it, and **Restore** or **Undo** brings it back."
     ]
@@ -1148,7 +1148,7 @@
      ],
      [
       "p",
-      "Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey)."
+      "Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red)."
      ]
     ]
    },
