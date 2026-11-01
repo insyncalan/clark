@@ -339,7 +339,7 @@
     "w": "Any work item: a row, a card or its ID",
     "go": "work",
     "s": [
-     "Click a row, a card or an ID. The item opens in the **peek** at the right, and the page stays where it was.",
+     "Double-click a row or a card, press [[Enter]] on it, or click an ID. The item opens in the **peek** at the right, and the page stays where it was. A single click selects the row or card instead.",
      "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
@@ -421,7 +421,7 @@
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
      "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
-     "Only **Text** and **Needs from you** can be added so far. The other templates are listed with “Coming with a later release.” and cannot be added yet.",
+     "The new section opens ready to fill in, in place. A template with nothing in it yet is left out of what the client sees.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
     ]
    },
@@ -465,6 +465,19 @@
      "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.",
      "**Archive use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Show archived** finds it, and **Restore** or **Undo** brings it back."
+    ]
+   },
+   {
+    "id": "find-a-use-case",
+    "g": "The report",
+    "t": "Find and open a use case",
+    "w": "Edit › Use cases",
+    "go": "dashboard+edit",
+    "s": [
+     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
+     "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
+     "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
+     "Click a name to open the use case on its own page. Back returns to the list."
     ]
    },
    {
@@ -604,6 +617,7 @@
      "Every change shows a message at the foot of the page with **Undo**, for about six seconds.",
      "A step of several changes undoes as one: an import, **Add from your project record**, an archive with everything in it, a board move across a lane and a column.",
      "In Edit, the peek’s **Activity** tab shows each change to the item: who made it, how, what it was, what it became, and when. A milestone’s moves are also in **Movement › What changed**.",
+     "To take back several changes at once, tick them in the **Activity** tab (click, [[Mod]] and click, or [[Shift]] and click for a run; the top box ticks all that can be undone), then press **Undo** with the number. It shows what will go back and what stays, and asks again above 25. One **Undo** in the message takes them all back. [[Esc]] clears the choice.",
      "In an editor, the undo button or [[Mod+Z]] steps back through your typing. [[Esc]] cancels the whole edit."
     ]
    },
@@ -769,7 +783,7 @@
      ],
      [
       "p",
-      "**Text** and **Needs from you** are the only ones that can be added so far; the others say “Coming with a later release.” Each template works at the widths shown."
+      "Each template works at the widths shown. A template with nothing in it yet is left out of what the client sees."
      ],
      [
       "tbl",
@@ -833,6 +847,16 @@
         "Needs from you",
         "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.",
         "Full or half"
+       ],
+       [
+        "Link preview",
+        "A web page shown as a card you write: a dashboard, a news item, a recording.",
+        "Full"
+       ],
+       [
+        "One document",
+        "A single file to read.",
+        "Half or full"
        ]
       ]
      ]
@@ -905,7 +929,7 @@
        ],
        [
         "Grey headers",
-        "Slim gaps, and each section title in a grey band."
+        "Slim gaps, and each section title in a grey band, like the Work items groups."
        ],
        [
         "One card",
@@ -1372,7 +1396,7 @@
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
-       "**Work items**: actions, risks and issues, and decisions shown to the client, with a search box.",
+       "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
        "A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.",
        "A tile opens the Work items tab. A use case row opens its detail."
@@ -1410,7 +1434,7 @@
        ],
        [
         "Source folders for ask clark",
-        "The folders ask clark may read for this project. It only reads them."
+        "The folders ask clark may read for this project. It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
         "Publishing",
@@ -1649,11 +1673,55 @@
    ],
    [
     "[[Mod+Z]]",
-    "In an editor: undo your typing, or an accepted AI suggestion"
+    "In Edit, on the Dashboard, Work items and Milestones: undo your last change, like the **Undo** button. In an editor or a box: undo your typing, or an accepted AI suggestion"
    ],
    [
     "Double-click",
     "On the left edge of the peek or ask clark: back to the usual width"
+   ],
+   [
+    "Click",
+    "Work items: select one row or card. A double-click opens the item"
+   ],
+   [
+    "[[Mod]]+click",
+    "Work items: add a row or card to the selection, or take it out"
+   ],
+   [
+    "[[Shift]]+click",
+    "Work items: select every row from the last one you clicked to this one, in the order on screen. On the board the order runs lane by lane, then column by column, then down each column"
+   ],
+   [
+    "[[Mod+Shift]]+click",
+    "Work items: add that run of rows or cards to what is already selected"
+   ],
+   [
+    "[[Shift+Up]] [[Shift+Down]]",
+    "Work items, on a row or card: select the next one up or down as well"
+   ],
+   [
+    "[[Space]]",
+    "Work items, on a row or card: select it, or take it out of the selection"
+   ],
+   [
+    "[[Mod+A]]",
+    "Work items, on a row or card: select every one shown"
+   ],
+   [
+    "The tick box on a group",
+    "Work items: select or clear every row in that group. It is off while the group is closed"
+   ],
+   [
+    "[[Esc]] with a selection",
+    "Work items, with no menu or box open: clear the selection"
+   ],
+   [
+    "[[O]] [[S]] [[P]] [[T]] [[C]]",
+    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box"
+   ],
+   [
+    "[[Shift+F10]]",
+    "Work items, on a row or card: open the menu of changes for it, or for the selection. The Menu key and a right-click open it too"
    ],
    [
     "[[Mod+K]]",

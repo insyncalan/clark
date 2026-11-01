@@ -8,14 +8,21 @@ tabs, a result opens in place, a link inside Help and a link to a screen, window
 place), and that the published page has no Help. What waits for other items: the profile-menu entry (#64), Publish, Preview and
 ask clark links (drawn as plain words until those exist).
 """
+import json
 import re
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
-from _paths import SRC  # noqa: F401  (puts src/ on the path)
+from _paths import SRC, TOOLS  # noqa: F401  (puts src/ on the path)
 from test_report_editor import ALT, Base, Pg  # noqa: F401
 from clark import page
 from _help_shown import shown_content
+
+sys.path.insert(0, str(TOOLS))
+import build_page  # noqa: E402
+import esbuild  # noqa: E402
 
 
 def keys_in_help(p):
@@ -60,8 +67,8 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('.hp-job, .hp-steps li, .hp-first li').length"), 0, "no held entry on Start here")
             self.assertTrue(p.js("!!document.querySelector('#hp-later')"))
             p.js("document.querySelector('#hpTab-howto').click()")
-            p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the three tasks the page can do")
-            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), 3)
+            p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the four tasks the page can do")
+            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), 4)
             self.assertEqual(p.js("!!document.querySelector('#hp-later')"), False)
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelectorAll('.hp-ref').length > 0", "Reference drew")
@@ -166,6 +173,18 @@ class Published(unittest.TestCase):
         text = re.sub(r"data:[a-z0-9/+.-]+;base64,[A-Za-z0-9+/=]+", "data:", text)          # a short word can turn up by chance inside the fonts' base64 data
         for word in ("Twelve jobs", "clark.helpTab", "Search Help", "hpQ", "Your first ten minutes"):
             self.assertNotIn(word, text)
+
+    def test_the_published_build_takes_none_of_the_help_files(self):
+        """A shared component that imports a Help module (its store, its logic, its words) bundles all of Help's words into the
+        published file. The published entry's module graph must hold nothing from help/, whatever the words are."""
+        with tempfile.TemporaryDirectory() as tmp:
+            meta = Path(tmp) / "meta.json"
+            done = esbuild.run(["--bundle", "--format=iife", "--tsconfig-raw={}", *build_page.preact_flags(), build_page.ENTRY_VIEW,
+                                f"--outfile={Path(tmp) / 'p.js'}", f"--metafile={meta}"], cwd=build_page.SRC, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            inputs = list(json.loads(meta.read_text(encoding="utf-8"))["inputs"])
+        self.assertTrue(inputs)
+        self.assertEqual([name for name in inputs if name.startswith("help/") or "/help/" in name], [])
 
 
 if __name__ == "__main__":

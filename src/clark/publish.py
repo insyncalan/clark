@@ -54,8 +54,9 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions",
-                 "needs", "tracker")   # not "docs" (v0.1); needs and tracker carry content: a section of those types stays in only when its body checks again (_content)
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions") + section_bodies.BODY_TYPES
+# not "docs" (v0.1); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
+# body checks again and its published fields are not empty (_content; a template stub is never in the file)
 
 # The columns the view shows, per table. Anything not named here is never copied into the file.
 PUBLISH_FIELDS = {
@@ -234,9 +235,10 @@ def _pick(row, fields):
     return {f: row.get(f) for f in fields}
 
 
-def _content(s):
-    """For a needs or tracker section: what its body adds to its entry in the file (a dict, {} when the base publishes nothing of
-    it), or None when the section is left out: its body is empty, or does not check. The stored text is checked AGAIN here
+def _content(s, ctx=None):
+    """For a needs, tracker or section template section: what its body adds to its entry in the file (a dict, {} when the base
+    publishes nothing of it), or None when the section is left out: its body is empty, or does not check, or (a template) its
+    module has nothing to publish. `ctx` (section_bodies.Context) is what select already kept, for a template's live parts. The stored text is checked AGAIN here
     (store.check_section_body, the same checker a write meets), never trusted, so a body that is bad for any reason (written
     by an older or another clark, or by hand) never reaches the file. What is published is fields picked by name from the
     CHECKED value (section_bodies.published), never the stored text, and never passed through clean_html."""
@@ -244,7 +246,7 @@ def _content(s):
         text = check_section_body(s["type"], s.get("body"))
     except StoreInvalid:
         return None
-    return section_bodies.published(s["type"], json.loads(text)) if text else None
+    return section_bodies.published(s["type"], json.loads(text), ctx) if text else None
 
 
 def select(inputs):
@@ -307,7 +309,8 @@ def select(inputs):
 
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
-    extra = {s["id"]: _content(s) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs or tracker section's published fields; None: left out
+    ctx = section_bodies.Context({k: out[k] for k in KINDS}, as_at)          # #96: only what is already kept, as the file carries it
+    extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     out_of_file = lambda x: x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
     i = 0
     while i < len(sections):
@@ -876,11 +879,12 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
-def build(store, code, now=None, branding=None):
+def build(store, code, now=None, branding=None, section_style=None):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
     date (YYYY-MM-DD); due dates and Overdue read as at that date. publish() and the To client route (#43) both start here, so
-    the file written to Local and the file copied to the client are the same bytes, made once."""
+    the file written to Local and the file copied to the client are the same bytes, made once. `section_style` is the style the
+    person chose on the page (section_style() keeps it only if it is one of STYLES); the file carries it in its own data block."""
     as_at = str(now or milestones.today())
     try:
         if not re.fullmatch(r"\d{4}-\d\d-\d\d", as_at):          # Python 3.11 and later also read 20261028
@@ -889,6 +893,8 @@ def build(store, code, now=None, branding=None):
     except ValueError:
         raise PublishError(f"{as_at!r} is not a date. Give the publish date as YYYY-MM-DD.") from None
     inputs = read_inputs(store, code, as_at)
+    if section_style is not None:
+        inputs["section_style"] = section_style
     if inputs["data"]["project"].get("archived"):           # #126: checked here, not in select (glance.kept_rows calls select and must still work)
         raise PublishError("An archived project can't be published. Restore it first.")
     published = add_glance(select(inputs), inputs)
