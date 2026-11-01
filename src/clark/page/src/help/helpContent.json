@@ -898,19 +898,19 @@
       [
        [
         "Slim gaps (standard)",
-        "Sections close together, divided by a thin line."
+        "Each section is its own card, with a slim gap that shows the page picture."
        ],
        [
         "Roomy gaps",
-        "More space between sections."
+        "The same, with more space between the sections."
        ],
        [
         "Grey headers",
-        "Each section’s title sits on a grey band."
+        "Slim gaps, and each section title in a grey band, like the Work items groups."
        ],
        [
         "One card",
-        "All the sections inside a single card."
+        "All the sections in one long card."
        ]
       ]
      ]
