@@ -3,6 +3,7 @@
    tests/test_font.py fails if one is). */
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
+html[data-mode="view"] { scrollbar-gutter: stable; }          /* a drawn (Linux, Windows) scrollbar comes and goes with the list's length: its room is always kept, so the centred page never shifts; View only, the editor's menus are sized to the whole window */
 body { margin: 0; background: var(--grey-50); color: var(--text); font: var(--weight-light) var(--size-body)/var(--leading) var(--font); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 a { color: var(--status-blue-text); }
@@ -545,6 +546,8 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 
 /* Work items: Group by, the table or board icon switch, grouped table headings (#68). Tokens only. */
 .vctl { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.vctl .search input { box-sizing: border-box; width: 220px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; }
+.vctl .search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .btn.gb { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; }
 .btn.gb .i { width: 14px; height: 14px; }
 .seg.icons button, .bib { all: unset; box-sizing: border-box; position: relative; display: inline-grid; place-items: center; width: 34px; height: 32px; cursor: pointer; color: var(--text-muted); }
