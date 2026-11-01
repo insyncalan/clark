@@ -23,9 +23,9 @@ PAGE_DID_NOT_WORK = "Part of the page stopped working."
 STORE_DID_NOT_WORK = "Reading or saving your project data did not work."
 SOMETHING_DID_NOT_WORK = "Something did not work."
 A_REQUEST_FAILED = re.compile(r"^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (\S+) failed")
-WRITES = ("POST", "PUT", "PATCH", "DELETE")
-SAVING_ROUTES = frozenset("""/api/change /api/undo /api/people /api/people/undo /api/profile /api/projects /api/use-cases /api/milestones
-    /api/movement /api/section-file /api/section-image""".split())
+READS = ("GET", "HEAD", "OPTIONS")       # any other request that failed and is not named below was saving a change,
+NOT_SAVING = frozenset("""/api/sneak/read /api/here /api/preview /api/backups/preview /api/page-error
+    /api/logging/open-folder""".split())    # except these, which only read or report
 ROUTE_SENTENCES = {
     "/api/publish": "Publishing did not work.",
     "/api/publication": "Publishing did not work.",
@@ -54,10 +54,10 @@ def what_it_was(group):
         return "Asking clark did not work."
     if method == "POST" and route == "/api/backups":
         return "Making a backup did not work."
-    if method in WRITES and route in SAVING_ROUTES:
-        return SAVE_DID_NOT_WORK
     if route in ROUTE_SENTENCES:
         return ROUTE_SENTENCES[route]
+    if method not in READS and route not in NOT_SAVING:
+        return SAVE_DID_NOT_WORK
     return READ_DID_NOT_WORK if method == "GET" else SOMETHING_DID_NOT_WORK
 
 
