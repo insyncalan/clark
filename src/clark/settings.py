@@ -71,22 +71,26 @@ def set_backups_kept(data_dir, number):
 
 # #51: the user's own (team's) mail domains, e.g. ["team.example.com"]. A project contact on one of them is refused, and never
 # reaches a published page. There is no screen for it yet (FR-1): the file's list is read as it is, and anything that isn't a
-# plain domain name is skipped. No list means no address counts as the team's.
+# plain domain name is skipped. The domain of the email saved in Settings > Personal counts as the team's too, so a team address
+# is refused with no list at all; with neither, no address counts as the team's.
 OWN_DOMAINS = "own_domains"
 OWN_DOMAINS_MAX = 20
 DOMAIN = re.compile(r"(?=.{3,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+")
 
 
 def own_domains(data_dir):
-    """The user's own mail domains from the settings file, lower case, each a plain domain name; at most OWN_DOMAINS_MAX."""
+    """The user's own mail domains, lower case, each a plain domain name; at most OWN_DOMAINS_MAX: the settings file's list, then the
+    domain of the saved profile email when it is not in the list already."""
     value = read(data_dir).get(OWN_DOMAINS)
-    if not isinstance(value, list):
-        return []
     out = []
-    for d in value:
+    for d in value if isinstance(value, list) else []:
         if isinstance(d, str) and DOMAIN.fullmatch(d.strip().lower()) and d.strip().lower() not in out:
             out.append(d.strip().lower())
-    return out[:OWN_DOMAINS_MAX]
+    out = out[:OWN_DOMAINS_MAX]
+    mine = profile(data_dir)["email"].rpartition("@")[2].lower()
+    if mine and DOMAIN.fullmatch(mine) and mine not in out and len(out) < OWN_DOMAINS_MAX:
+        out.append(mine)
+    return out
 # ===== Your name and your email (#180, Settings › Personal › About you) =====
 # Kept in the same file as the backups number: this person's, on this computer. Both are optional. The name is shown at the top of the
 # profile menu and is the name on each change (by_user) instead of the login name; the email is only used to tell which addresses are
