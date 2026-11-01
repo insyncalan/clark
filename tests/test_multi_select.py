@@ -100,7 +100,7 @@ class Rules(unittest.TestCase):
         got = self.run_(self.ORDER + "let s = SEL.click(E, 'A', {}, O); s = SEL.extend(s, 1, O); const a = [s.ids, s.cursor];"
                         " s = SEL.extend(s, 1, O); const b = [s.ids, s.cursor]; s = SEL.extend(s, -1, O); s = SEL.extend(s, -1, O); s = SEL.extend(s, -1, O);"
                         " const c = [s.ids, s.cursor]; s = SEL.extend(s, -1, O); return [a, b, c, [s.ids, s.cursor]];")
-        self.assertEqual(got, [[["A", "E"], "E"], [["A", "E", "B"], "B"], [["A", "C"], "C"], [["A", "C"], "C"]],
+        self.assertEqual(got, [[["A", "E"], "E"], [["A", "E", "B"], "B"], [["C", "A"], "C"], [["C", "A"], "C"]],
                          "down twice, then up past the anchor; at the top it stays")
 
     def test_shift_arrows_add_to_what_was_picked_and_shrink_back_to_it(self):
@@ -110,6 +110,14 @@ class Rules(unittest.TestCase):
                         " s = SEL.click(s, 'A', {add: true}, O); return [a, b, c, d, s.base === undefined];")
         self.assertEqual(got, [["B", "C", "E"], ["B", "C", "D", "E"], ["B", "C", "E"], ["C", "E"], True],
                          "the Cmd picks stay, the range comes and goes with the arrows, and any other pick ends the run")
+
+    def test_shift_arrow_after_a_shift_click_or_select_all_shrinks_that_range(self):
+        got = self.run_(self.ORDER + "let s = SEL.click(E, 'C', {}, O); s = SEL.click(s, 'B', {range: true}, O);"
+                        " s = SEL.extend(s, -1, O); const a = [...s.ids].sort(); const b = s.cursor;"
+                        " let t = SEL.selectAll(SEL.click(E, 'E', {}, O), O); t = SEL.extend(t, -1, O);"
+                        " return [a, b, [...t.ids].sort(), t.cursor];")
+        self.assertEqual(got, [["A", "C", "E"], "E", ["A", "C"], "A"],
+                         "Shift+Up after a Shift click shrinks the range; after Select all the run is first row to the cursor")
 
     def test_space_toggles_and_select_all_takes_every_drawn_row(self):
         got = self.run_(self.ORDER + "let s = SEL.toggle(E, 'B'); s = SEL.toggle(s, 'D'); const a = s.ids; s = SEL.toggle(s, 'B');"
@@ -424,6 +432,16 @@ class Page(Base):
             press(cdp, sid, "ArrowDown", SHIFT)
             self.assertEqual(self.picked(cdp, sid), rows[1:5], "the range goes on from the clicked row")
             self.assertEqual(cdp.js("String(getSelection())", sid), "", "and no text is selected")
+
+    def test_shift_up_after_a_shift_click_shrinks_the_range_in_the_browser(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[1]))
+            tap(cdp, sid, self.rsel(rows[4]), SHIFT)
+            self.assertEqual(self.picked(cdp, sid), rows[1:5])
+            press(cdp, sid, "ArrowUp", SHIFT)
+            self.assertEqual(self.picked(cdp, sid), rows[1:4], "Shift+Up takes the last row of the range back")
 
     def test_shown_not_only_by_colour_and_told_to_a_screen_reader(self):
         with chrome() as cdp:

@@ -50,12 +50,15 @@ export function extend(st, step, order) {
   const from = st.anchor != null && order.includes(st.anchor) && st.ids.includes(st.anchor) ? st.anchor : at;
   // `base` is what was picked before this run of Shift+arrows began (a Cmd or Ctrl pick, say): the range is added to it, so it
   // is kept, and the arrow back toward the anchor drops only the rows the range added. Any other change ends the run.
-  const base = st.base || st.ids;
+  // When a run starts, what the last click or Shift+click already selected (the run from the anchor to the cursor) is not
+  // "before the run": it is dropped from the base, so Shift+Up after a Shift+click shrinks that range.
+  const base = st.base || st.ids.filter((id) => !rangeOf(order, st.anchor, st.cursor).includes(id));
   return { ...make(base.concat(rangeOf(order, from, to)), from, to), base };
 }
 
 /** Cmd or Ctrl+A: every row drawn. */
-export function selectAll(st, order) { return make(order, order[0], st.cursor != null ? st.cursor : order[0]); }
+// Select all is one run from the first row to the cursor, so nothing counts as picked before it (`base` is empty).
+export function selectAll(st, order) { return { ...make(order, order[0], st.cursor != null ? st.cursor : order[0]), base: [] }; }
 
 /** A group's tick box: "checked" when every one of its drawn rows is picked, "mixed" when some are, else "unchecked". */
 export function groupState(st, groupIds) {
