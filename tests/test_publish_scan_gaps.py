@@ -14,6 +14,7 @@ from _paths import ROOT, SRC, TOOLS  # noqa: F401
 
 from clark import page, publish, to_client  # noqa: E402
 from clark.publish import PublishError  # noqa: E402
+from _growth import assert_growth  # noqa: E402
 from test_publish import ICON_LINK, TOUCH_LINK, made  # noqa: E402
 
 OPENER = '<script type="application/json" id="clark-data">'
@@ -183,15 +184,16 @@ class Gaps(unittest.TestCase):
                  "<!-- <img src=//x.invalid> -->")
 
     def test_the_new_scans_are_linear(self):
-        n = 30000
-        for name, frag in (("open tags", "<a " * n), ("open quotes", '<a b="' * n), ("entities", '<img src="' + "&#47;" * (2 * n) + 'x">'),
-                           ("comment openers in style", "<style>" + "/*" * n + "</style>"), ("url openers", "<style>" + "url(" * n + "</style>"),
-                           ("escapes", "<style>" + "\\\\" * n + "</style>"), ("hex escapes", "<style>" + "\\75 " * n + "</style>"),
-                           ("srcset commas", '<img srcset="' + "," * n + '">'), ("srcset words", '<img srcset="' + "a " * n + '">'),
-                           ("style attrs", '<a style="' * n), ("ampersands", '<a href="' + "&" * n + '">'), ("image-set", "<style>" + "image-set(" * n + "</style>")):
-            began = time.perf_counter()
-            publish.outside_addresses(frag)
-            self.assertLess(time.perf_counter() - began, 3.0, name)
+        # The old check was a wall-clock limit (3 s for 30,000 repeats); it is now the growth from 30,000 to 120,000 repeats in CPU time.
+        for name, make in (("open tags", lambda n: "<a " * n), ("open quotes", lambda n: '<a b="' * n),
+                           ("entities", lambda n: '<img src="' + "&#47;" * (2 * n) + 'x">'),
+                           ("comment openers in style", lambda n: "<style>" + "/*" * n + "</style>"),
+                           ("url openers", lambda n: "<style>" + "url(" * n + "</style>"),
+                           ("escapes", lambda n: "<style>" + "\\\\" * n + "</style>"), ("hex escapes", lambda n: "<style>" + "\\75 " * n + "</style>"),
+                           ("srcset commas", lambda n: '<img srcset="' + "," * n + '">'), ("srcset words", lambda n: '<img srcset="' + "a " * n + '">'),
+                           ("style attrs", lambda n: '<a style="' * n), ("ampersands", lambda n: '<a href="' + "&" * n + '">'),
+                           ("image-set", lambda n: "<style>" + "image-set(" * n + "</style>")):
+            assert_growth(self, lambda size, make=make: publish.outside_addresses(make(size)), 30000, name)
 
 
 FOREIGN = ("<svg><style><![CDATA[ /* </style> */ @import url(//evil/x.css); ]]></style></svg>",
