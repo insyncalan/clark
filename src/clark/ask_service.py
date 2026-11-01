@@ -134,6 +134,10 @@ class AskService:
             return 400, self.fail("bad_project_code")
         if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
+        try:
+            ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
+        except ask.AskRefused as e:
+            return 400, self.fail("refused", str(e))
         with self.lock:
             try:
                 store = self.reader()
@@ -169,7 +173,7 @@ class AskService:
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
-        notes = [n for n in (ask.dropped_note(request.dropped_turns),
+        notes = [n for n in (ask.dropped_note(request.dropped_turns), withheld_note(data.withheld),
                              left_out_note(data.left_out + found.left_out), *folder_notes(found)) if n]
         folder_ids = {pid for pid, _label in request.passages[len(data.passages):]}
         texts = {pid: p.text for (pid, _label), p in zip(request.passages, tuple(data.passages) + tuple(found.passages))}
@@ -255,6 +259,13 @@ def left_out_note(count):
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
+
+
+def withheld_note(count):
+    """The plain line for parts of the project's data that look like they hold a password or a key and were not sent."""
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+        return ""
+    return f"{count} {'part' if count == 1 else 'parts'} of the report looked like {'it holds' if count == 1 else 'they hold'} a password or a key, so {'it was' if count == 1 else 'they were'} left out."
 
 
 def folder_notes(found):
