@@ -38,7 +38,7 @@ SCHEMA_VERSION = 8          # 2 (#126): documents can be archived; 3 (#48): item
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
-          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders")
+          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people")
 SETTINGS_TABLES = ("app_settings",)     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
 ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
 # clark: - promises, + use_cases, and + the report's own tables (#65, one amendment: the route admits only report_sections)
@@ -46,10 +46,12 @@ KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "a
         "decisions": ("id",), "use_cases": ("id",), "links": ("from_item", "to_item", "kind"), "labels": ("name",),
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
-        "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",)}
+        "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",),
+        "people": ("id",)}
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
     "projects": ("code", "name"),
+    "people": ("name", "source"),                              # #115
     "milestones": ("project", "name", "source"),
     "workstreams": ("project", "name", "source"),
     "actions": ("project", "description", "raised", "source"),
@@ -67,7 +69,7 @@ REQUIRED_NEW = {
     "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
     "documents": ("project", "title", "url"),                           # clark (#126): registered so it can be archived; see DOCUMENTS_LATER
 }
-ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")   # what Step.archive takes (#126)
+ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents", "people")   # what Step.archive takes (#126)
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
@@ -161,7 +163,7 @@ OP_MADE = "insert"                    # the log's word for a row a step made; th
 SEED_VIA = "seed"                     # clark (#65): the via of the default sections a step makes (_seed_sections); an Undo never removes them
 PENDING_VIA = "revert:pending"        # an undo's rows until it knows which rows it put back
 REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "links", "item_labels", "labels",
-                  "report_sections", "source_folders")
+                  "report_sections", "source_folders", "people")      # #115: a person is never deleted; only the Undo of the step that made them takes the row away
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
 REVERT_CREATED += ("report_hidden",)    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
@@ -605,6 +607,20 @@ def _source_folder(con, table, row, changed):
 
 
 _ITEM_RULES = (_item_workstream, _project_exists, _milestone_link, _use_case_link)
+def _person_rules(con, table, row, changed):
+    """#115: a person's fields are checked and written as people.check_person gives them (trimmed, email lower-cased, aliases joined,
+    Needs details cleared by an email), against every person on the list (an email is unique, archived people included)."""
+    if "people" not in {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}:
+        raise Invalid(MIGRATE_FAILED)
+    others = [dict(r) for r in con.execute("SELECT id, name, email FROM people")]
+    clean, problems = people_rules.check_person(row, others, own_id=row.get("id"))
+    if problems:
+        raise Invalid(problems[0])
+    row.update(clean)
+    if not str(row.get("source") or "").strip():
+        raise Invalid("a person must record its source")
+
+
 ROW_RULES = {
     "actions": _ITEM_RULES,
     "raid": _ITEM_RULES,
@@ -616,6 +632,7 @@ ROW_RULES = {
     "item_labels": (_item_label,),
     "labels": (_label_name,),
     "workstreams": (_workstream_unique, _project_exists),
+    "people": (_person_rules,),
     "report_sections": (_project_exists, _section_rules),                    # clark (#65)
     "glance_tiles": (_project_exists, _tile_rules),
     "report_hidden": (_project_exists, _hidden_item),
@@ -996,12 +1013,22 @@ NEW_HOOKS = {"projects": _new_project, "workstreams": _new_workstream, "raid": _
              "links": _new_link}
 
 
+def next_person_id(con):
+    """#115: P-001, P-002 ...: one more than the largest number ever used, counting the people on the list (archived too) and every
+    id ever logged, so undoing a creation never frees its number. Refused past P-999 in words."""
+    ids = [r[0] for r in con.execute("SELECT id FROM people UNION SELECT item_id FROM change_log WHERE tbl = 'people'")]
+    try:
+        return people_rules.next_person_id(ids)
+    except ValueError as e:
+        raise Invalid(str(e)) from e
+
+
 def _check_new_fields(table, values, cols):
     unknown = set(values) - set(cols)
     if unknown:
         raise Invalid(f"unknown field(s) for {table}: {', '.join(sorted(map(str, unknown)))}. "
                       f"Valid: {', '.join(c for c in cols if c not in NO_EDIT)}")
-    if table in ID_PREFIX and values.get("id"):
+    if (table in ID_PREFIX or table == "people") and values.get("id"):
         raise Invalid("new items carry no ID; clark gives them one")
     missing = [f for f in REQUIRED_NEW[table] if not str(values.get(f) or "").strip()]
     if missing:
@@ -1039,6 +1066,8 @@ def _insert_row(con, table, item, cols, step):
     check_row(con, table, values, set(values))
     if table in ID_PREFIX:
         values["id"] = next_id(con, table, values["project"])
+    if table == "people":
+        values["id"] = next_person_id(con)
     if "updated_at" in cols:
         values["updated_at"] = now()
     if fetch(con, table, key_of(table, values)):
@@ -2576,6 +2605,29 @@ class Store:
         return {"project": code, "milestones": out, "truncated": truncated}
 
 
+OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by"}   # #115: the text column beside each owner_id
+
+
+def _live_person(con, ref):
+    row = fetch(con, "people", ref)
+    if row is None:
+        raise Invalid(f"{ref} is not on the people list")
+    if row["archived"]:
+        raise Invalid(f"{row['name']} is archived. Restore them first.")
+    return dict(row)
+
+
+def _repoint_owner_text(step, old_id, new_id, name):
+    """#115: every live (not archived) row that points at `old_id` gets owner_id `new_id` and the owner text `name`, in the caller's
+    step and through the one writer (each field logged). Returns how many rows changed."""
+    con, n = step.con, 0
+    for table, col in OWNER_TEXT.items():
+        for (key,) in con.execute(f"SELECT id FROM {_table(table)} WHERE owner_id = ? AND archived = 0 ORDER BY id", (old_id,)).fetchall():
+            step.update(table, key, {col: name, "owner_id": new_id})
+            n += 1
+    return n
+
+
 class Step:
     """The step being written: who, how (route, place, origin, actor), and its applies row once it has one."""
 
@@ -2635,6 +2687,47 @@ class Step:
         if note:
             item["note"] = note
         return write_item(self.con, item, self)
+
+    def add_person(self, **fields):
+        """#115: a new person on the people list (name and source needed); returns their id (P-001 ...). One undoable step."""
+        return write_item(self.con, {"table": "people", "op": "new", "values": dict(fields)}, self)
+
+    def edit_person(self, ref, changes):
+        """#115: change a person's fields. Owner text on work items is not touched: use rename_person for a new name."""
+        return self.update("people", ref, changes)
+
+    def archive_person(self, ref):
+        """#115: take a person off the lists; nothing is deleted, old items keep the name."""
+        return write_item(self.con, {"table": "people", "op": "archive", "id": ref}, self)
+
+    def restore_person(self, ref):
+        """#115: bring an archived person back."""
+        return write_item(self.con, {"table": "people", "op": "restore", "id": ref}, self)
+
+    def rename_person(self, ref, new_name):
+        """#115: a new name for a person and, in this one step, on every live work item that points at them. Returns the number of
+        items changed. Archived items keep the name they had."""
+        _live_person(self.con, ref)
+        self.update("people", ref, {"name": new_name})
+        name = fetch(self.con, "people", ref)["name"]
+        return _repoint_owner_text(self, ref, ref, name)
+
+    def merge_people(self, source, target):
+        """#115: one person into another, in one step. Live items that pointed at the source point at the target and show the
+        target's name; the source's name and aliases become the target's aliases; the source is archived and gives up its email
+        first (the target keeps its own email and never takes the source's, so one Undo can always put both back). Returns the number of items changed."""
+        if source == target:
+            raise Invalid("Choose two different people to merge.")
+        src, tgt = _live_person(self.con, source), _live_person(self.con, target)
+        aliases = people_rules.join_aliases(people_rules.aliases_of(tgt) + [src["name"]] + people_rules.aliases_of(src))
+        own_key = people_rules.name_key(tgt["name"])
+        aliases = ";".join(a for a in aliases.split(";") if people_rules.name_key(a) != own_key)
+        if src["email"]:
+            self.update("people", source, {"email": None})
+        self.update("people", target, {"aliases": aliases or None})
+        n = _repoint_owner_text(self, source, target, tgt["name"])
+        write_item(self.con, {"table": "people", "op": "archive", "id": source}, self)
+        return n
 
     def archive(self, kind, ref):
         """Hide a record (#126): nothing is deleted and its status is unchanged. One of the only two setters of `archived`."""

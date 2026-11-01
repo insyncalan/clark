@@ -111,8 +111,8 @@ class PeopleStep(Base):
             with self.assertRaises(sqlite3.IntegrityError):
                 self.con.execute(f"INSERT INTO people (id, name, source, {col}) VALUES ('P-001', 'A', 'test', 2)")
 
-    def test_people_is_not_in_the_publish_inputs_or_the_writers_table_list_yet(self):
-        self.assertNotIn("people", store_module.TABLES)           # the writers (commit 3) add it; the step alone gives the writer no new door
+    def test_people_is_not_in_the_publish_inputs(self):
+        self.assertNotIn("people", store_module.PUBLISH_TABLES)           # a person's name and email never reach a published file
 
 
 class InTheOrderedTable(Base):
