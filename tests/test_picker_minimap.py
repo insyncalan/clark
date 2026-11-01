@@ -410,6 +410,9 @@ class MinimapCounts(InBrowser):
     def test_flagged_use_cases_slipped_milestones_and_documents(self):
         self.assertEqual(self.count("usecases", DATA), {"text": "1 flagged", "hot": True})
         self.assertIsNone(self.count("usecases", {"use_cases": [{"status": "On track"}]}))
+        done = {"use_cases": [{"status": "Done"}, {"status": "On track"}, {"status": "High risk"}, {"status": "Done", "archived": 1}]}
+        self.assertEqual(self.count("usecases", done), {"text": "1 flagged", "hot": True}, "#412: Done is finished, not flagged")
+        self.assertIsNone(self.count("usecases", {"use_cases": [{"status": "Done"}]}))
         ms = {"milestones": [{"id": "m1", "name": "A", "baseline_date": "2026-10-01", "status": "Planned"},
                              {"id": "m2", "name": "B", "baseline_date": "2027-01-01", "forecast_date": "2027-02-01", "status": "Planned"},
                              {"id": "m3", "name": "C", "baseline_date": "2027-03-01", "status": "Planned"},

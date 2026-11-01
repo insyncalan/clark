@@ -125,8 +125,8 @@ class Edit(unittest.TestCase):
         body = self.ok({"headline": ""})
         self.assertEqual(body["use_case"]["headline"], "")
 
-    def test_status_must_be_one_of_the_three_and_done_is_not_one_yet(self):
-        for bad in ("Done", "Red", "on track", "", None, 1, ["Flag"]):
+    def test_status_must_be_one_of_the_four(self):
+        for bad in ("done", "Red", "on track", "", None, 1, ["Flag"], "Closed"):
             with self.subTest(status=bad):
                 self.refused({"status": bad}, changes.UC_STATUS_WORDS)
 
@@ -138,7 +138,7 @@ class Edit(unittest.TestCase):
         self.assertEqual(self.row()["client_visible"], 0)
 
     def test_a_partial_change_writes_nothing(self):
-        self.refused({"title": "Fine", "status": "Done"}, changes.UC_STATUS_WORDS)
+        self.refused({"title": "Fine", "status": "Finished"}, changes.UC_STATUS_WORDS)
         self.assertEqual(self.row()["title"], "Invoice matching")
 
     def test_fields_that_cannot_be_set_are_refused(self):

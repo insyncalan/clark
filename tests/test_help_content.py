@@ -255,6 +255,24 @@ class WordingRound(unittest.TestCase):
     def test_no_results_does_not_offer_ask_clark_yet(self):                                  # MEDIUM
         self.assertNotRegex(re.search(r"export const noResults.*?\}\);", LOGIC, re.S).group(0), r'hint: "[^"]*ask clark')
 
+class UseCaseStatuses(unittest.TestCase):
+    """#412: Help names the four use case statuses the store allows, in its order, in both places it lists them."""
+
+    def test_help_names_the_stores_four_statuses(self):
+        from clark import store
+        allowed = list(store.ALLOWED[("use_cases", "status")])
+        self.assertEqual(allowed, ["On track", "Flag", "High risk", "Done"])
+        lines = [t for _, t in texts(SRC) if "click the status word to choose" in t or t.startswith("Use case statuses:")]
+        self.assertEqual(len(lines), 2, lines)
+        for line in lines:
+            with self.subTest(line=line):
+                self.assertEqual(re.findall(r"\*\*([^*]+)\*\*", line.split("choose", 1)[-1]), allowed)
+
+    def test_the_colours_help_names_are_the_pages(self):
+        (line,) = [t for _, t in texts(SRC) if t.startswith("Use case statuses:")]
+        self.assertEqual(re.findall(r"\*\*[^*]+\*\* \(([a-z]+)\)", line), ["green", "amber", "red", "grey"])
+
+
 class PublishFileName(unittest.TestCase):
     def test_example_file_name_is_what_publish_really_names_the_file(self):
         from clark import publish

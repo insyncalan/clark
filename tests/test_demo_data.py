@@ -90,7 +90,7 @@ class TestContents(DemoCase):
                 ("actions", "priority", ("Urgent", "High", "Medium", "Low")),
                 ("raid", "status", ("Open", "Closed", "Cancelled")),
                 ("decisions", "status", ("Pending", "Made", "Withdrawn")),
-                ("use_cases", "status", ("On track", "Flag", "High risk")),
+                ("use_cases", "status", ("On track", "Flag", "High risk", "Done")),
                 ("milestones", "status", ("Planned", "Done", "Cancelled"))):
             got = {r[column] for r in rows(self.path, f"SELECT {column} FROM {table}")}
             self.assertEqual(got, set(values), (table, column))
