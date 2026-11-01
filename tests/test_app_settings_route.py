@@ -22,11 +22,11 @@ from clark import app_settings, changes, server as sv, store as st
 
 
 def strip_settings(path):
-    """The file as version 2 left it: the settings table gone, the version put back to 2."""
+    """The file as version 5 left it: the settings table gone, the version put back to 5."""
     con = sqlite3.connect(str(path), isolation_level=None)
     try:
         con.execute("DROP TABLE app_settings")
-        con.execute("UPDATE meta SET v = '2' WHERE k = 'schema_version'")
+        con.execute("UPDATE meta SET v = '5' WHERE k = 'schema_version'")
     finally:
         con.close()
 
@@ -82,8 +82,8 @@ class Base(unittest.TestCase):
             s.archive("projects", "OLD")
         store.close()
         if not self.ready:
-            strip_settings(self.db)          # a data file made before the settings step; this clark is held at version 2 while the test runs
-            for patcher in (mock.patch.object(st, "SCHEMA_VERSION", 2), mock.patch.object(st, "MIGRATIONS", st.MIGRATIONS[:1])):
+            strip_settings(self.db)          # a data file made before the settings step; this clark is held at version 5 while the test runs
+            for patcher in (mock.patch.object(st, "SCHEMA_VERSION", 5), mock.patch.object(st, "MIGRATIONS", st.MIGRATIONS[:4])):
                 patcher.start()
                 self.addCleanup(patcher.stop)
         self.service = app_settings.AppSettings(self.db, [], by_user=lambda: "tester")

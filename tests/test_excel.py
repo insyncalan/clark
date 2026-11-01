@@ -21,6 +21,8 @@ from clark import excel, history, look
 from clark import excel_import as xi
 from clark import page
 
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
+
 
 _NO_BRAND = tempfile.mkdtemp(prefix="clark-no-brand-")    # a brand logo on this computer never changes a test (#133)
 
@@ -381,6 +383,7 @@ class RowsOnly(unittest.TestCase):
         out = []
         for real in (datetime(2031, 1, 1, 9, 0, 1), datetime(2031, 1, 1, 9, 0, 5), datetime(2032, 5, 6, 7, 8, 9)):
             with mock.patch.object(excel, "clock", lambda real=real: real), \
+                    mock.patch.object(excel, "new_export_id", lambda: FIXED_ID), \
                     mock.patch("time.time", lambda real=real: real.timestamp()), \
                     mock.patch("time.localtime", lambda t=None, real=real: real.timetuple()):
                 path = self.dir / f"{len(out)}.xlsx"

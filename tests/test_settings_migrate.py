@@ -1,8 +1,8 @@
-"""#47: the settings migration step (store.migrate_settings, src/clark/schema_v3.sql), guarded: the ask switch's one row.
+"""#47: the settings migration step (store.migrate_settings, src/clark/schema_v6.sql), guarded: the ask switch's one row.
 
 Run: python3 dev/run_tests.py test_settings_migrate
-The step is wired as step 3 (the next free number after main's 2; whichever of this and #120's step lands second renumbers). SettingsStep calls
-it directly; InTheOrderedTable goes through open_store. Fictional data only.
+The step is wired as step 6 (the next free number after main's 5; a step that lands later takes 7). SettingsStep calls it directly;
+InTheOrderedTable goes through open_store. Every test starts from a version-5 file, as the release before this step left it. Fictional data only.
 """
 import shutil
 import sqlite3
@@ -16,6 +16,9 @@ from clark import store as store_module
 from clark.store import Invalid, connect, migration_plan, open_store
 
 V1 = ROOT / "tests" / "fixtures" / "schema-v1.sql"
+STEP = 6                                            # this step's number
+BEFORE = str(STEP - 1)                              # the version this step brings a file from
+EARLIER = tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)
 
 
 def make_v1(folder):
@@ -45,8 +48,9 @@ class Base(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, self.dir, True)
         self.path = make_v1(self.dir)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 2), mock.patch.object(store_module, "MIGRATIONS", store_module.MIGRATIONS[:1]):
-            open_store(self.path, onedrive_roots=[]).close()      # to version 2, as the last release left it: no settings step yet
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), mock.patch.object(store_module, "MIGRATIONS", EARLIER):
+            open_store(self.path, onedrive_roots=[]).close()      # to version 5, as the last release left it: no settings step yet
+        shutil.rmtree(self.dir / "backups", ignore_errors=True)   # the copy bringing it up took; a test counts only its own
         self.con = connect(self.path)
         self.addCleanup(self.con.close)
 
@@ -98,24 +102,24 @@ class SettingsStep(Base):
 
 
 class InTheOrderedTable(Base):
-    """The step as it is wired: step 3 in MIGRATIONS, SCHEMA_VERSION 3. The named migration test (#47) is here."""
+    """The step as it is wired: step 6 in MIGRATIONS. The named migration test (#47) is here."""
 
-    def make_v2_with_data(self):
-        """A version 2 file (as the last release made it) with a project, an action and a milestone, none of it settings."""
+    def make_v5_with_data(self):
+        """A version 5 file (as the last release made it) with a project, an action and a milestone, none of it settings."""
         con = connect(self.path)
         con.execute("INSERT INTO milestones (id, project, name, source) VALUES ('ABC-M-001', 'ABC', 'Go live', 'test')")
         con.execute("INSERT INTO actions (id, project, description, raised, source) VALUES ('ABC-A-001', 'ABC', 'Send the plan', '2026-10-01', 'test')")
         con.close()
 
-    def test_an_old_version_2_file_migrates_and_keeps_its_data_and_its_settings(self):
-        """Named test: version 2 to 3 keeps every row and every existing value; the new row and column start at their defaults."""
-        self.make_v2_with_data()
-        self.assertEqual(self.version(), "2")
+    def test_an_old_version_5_file_migrates_and_keeps_its_data_and_its_settings(self):
+        """Named test: version 5 to 6 keeps every row and every existing value; the new row and column start at their defaults."""
+        self.make_v5_with_data()
+        self.assertEqual(self.version(), BEFORE)
         before = {t: [tuple(r) for r in self.con.execute(f"SELECT * FROM {t} ORDER BY 1")] for t in ("milestones", "actions")}
         projects = [tuple(r) for r in self.con.execute("SELECT code, name, active, archived, layout, health FROM projects ORDER BY code")]
         open_store(self.path, onedrive_roots=[]).close()
         self.assertEqual(self.version(), str(store_module.SCHEMA_VERSION))
-        self.assertEqual(self.version(), "3")
+        self.assertEqual(self.version(), str(STEP))
         self.assertEqual({t: [tuple(r) for r in self.con.execute(f"SELECT * FROM {t} ORDER BY 1")] for t in ("milestones", "actions")}, before)
         self.assertEqual([tuple(r) for r in self.con.execute("SELECT code, name, active, archived, layout, health FROM projects ORDER BY code")], projects)
         self.assertEqual(self.con.execute("SELECT ask_enabled FROM app_settings").fetchone()[0], 1)
@@ -134,41 +138,42 @@ class InTheOrderedTable(Base):
         self.assertEqual((self.con.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall(),
                           [tuple(r) for r in self.con.execute("SELECT * FROM app_settings")], [tuple(r) for r in self.con.execute("SELECT * FROM projects")]), before)
 
-    def test_a_version_1_file_moves_up_through_2_to_3(self):
+    def test_a_version_1_file_moves_up_through_every_step_to_6(self):
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, folder, True)
         path = make_v1(folder)
         open_store(path, onedrive_roots=[]).close()
         c = sqlite3.connect(str(path))
         self.addCleanup(c.close)
-        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "3")
+        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(STEP))
         self.assertEqual(c.execute("SELECT ask_enabled FROM app_settings").fetchone()[0], 1)
 
     def test_the_table_has_no_gap_and_the_runner_refuses_one(self):
-        self.assertEqual([n for n, _ in store_module.MIGRATIONS], [2, 3])
-        gap = ((2, store_module.migrate_to_2), (4, store_module.migrate_settings))
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 4):
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
+        self.assertEqual(dict(store_module.MIGRATIONS)[STEP], store_module.migrate_settings)
+        gap = EARLIER + ((STEP + 1, store_module.migrate_settings),)
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP + 1):
             with self.assertRaises(Invalid) as caught:
-                migration_plan(2, gap)
+                migration_plan(STEP - 1, gap)
         self.assertIn("missing a step", str(caught.exception))
 
     def test_an_older_clark_refuses_the_newer_file(self):
         open_store(self.path, onedrive_roots=[]).close()
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 2), mock.patch.object(store_module, "MIGRATIONS", store_module.MIGRATIONS[:1]):
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), mock.patch.object(store_module, "MIGRATIONS", EARLIER):
             with self.assertRaises(Invalid) as caught:
                 open_store(self.path, onedrive_roots=[])
         self.assertIn("newer clark", str(caught.exception))
-        self.assertEqual(self.version(), "3")
+        self.assertEqual(self.version(), str(STEP))
 
     def test_a_failure_in_the_step_rolls_everything_back(self):
         def breaks(con):
             store_module.migrate_settings(con)
             raise sqlite3.IntegrityError("boom")
-        table = ((2, store_module.migrate_to_2), (3, breaks))
-        with mock.patch.object(store_module, "MIGRATIONS", table):
+        table = EARLIER + ((STEP, breaks),)
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP), mock.patch.object(store_module, "MIGRATIONS", table):
             with self.assertRaises(Invalid):
                 open_store(self.path, onedrive_roots=[])
-        self.assertEqual(self.version(), "2")
+        self.assertEqual(self.version(), BEFORE)
         self.assertNotIn("app_settings", [r[0] for r in self.con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")])
 
     def test_a_safety_copy_is_made_before_the_step_runs(self):
