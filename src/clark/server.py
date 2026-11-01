@@ -1174,6 +1174,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
     finally:
         wait_for_jobs()                   # a POST that began just before the stop finishes first (its write is not cut off)
         httpd.server_close()
+        REFUSED.flush()                   # the refused-request window still open is written now (#260): a last burst before exit is not lost
     return 0
 
 
