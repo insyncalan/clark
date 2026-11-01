@@ -14,8 +14,9 @@ at any time. Installing, backing up and undoing are other steps and live elsewhe
   path (nothing absolute, no `..`, no backslash or colon, nothing Windows can't hold, no names that differ only by capitals or
   accents); every member is in release_files' list for this system and nothing from it is missing; the manifest agrees with
   the members, and each file's SHA-256, size and mode match; the version inside agrees with the name; then the version rule
-  (newer, or the same or older only when reinstalling), `min_from`, and the data layout number: an update that changes the
-  data layout is refused for now.
+  (newer, or the same or older only when reinstalling), `min_from`, and the data layout number: an update with a newer layout is
+  allowed (the new version brings the data up to date, after a copy, on its first start; see store.bring_up_to_date), and one
+  with an older layout than the data is refused.
 - check_app_folder(app_dir) refuses a folder that holds `.git`, has no record of what it holds, has a link inside, or can't
   be written to.
 - plan(release, app_dir) compares the new files with the installed ones: added, replaced, removed (only a file the last
@@ -87,9 +88,7 @@ MESSAGES = {
     "older": "Version {theirs} is older than the one you have ({ours}). Choose Install again only if you want it anyway.",
     "same": "Version {theirs} is the one you have already. Choose Install again only if you want it anyway.",
     "min_from": "This update can only be installed over version {need} or newer. Install that version first, then this one.",
-    "layout": "This update changes how your data is kept, so it can't be installed from here. Nothing was changed. "
-              "To install it by hand, quit clark, then put the folder from this download in place of your clark folder. "
-              "Your projects and settings are kept in their own folder, so they stay where they are.",
+    "newer_data": "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again.",
     "git": "This copy of clark runs from its source code, so it can't update itself. Download the latest release instead.",
     "norecord": "This copy of clark has no record of what it holds, so it can't update itself. Nothing was changed. "
                 "Download the latest release and replace the clark folder by hand.",
@@ -508,8 +507,8 @@ def check_version(release, installed_version, installed_schema, reinstall=False)
                           theirs=release.version, ours=installed_version)
     if have < need:
         raise UpdateError("min_from", f"min_from {release.min_from}, installed {installed_version}", need=release.min_from)
-    if release.schema_version != installed_schema:
-        raise UpdateError("layout", f"data layout {release.schema_version}, installed {installed_schema}")
+    if release.schema_version < installed_schema:       # a newer layout is brought up to date by the new version; an older one cannot open this data
+        raise UpdateError("newer_data", f"data layout {release.schema_version}, installed {installed_schema}")
 
 
 # --- the installed folder ---------------------------------------------------------------------------------------------
