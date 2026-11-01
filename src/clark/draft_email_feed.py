@@ -24,6 +24,7 @@ counts as outside, so internal items start unticked). `chased(code)` (how often 
 records (chase_counts_of); it is empty with none. Standard library only, Python 3.9.
 """
 import re
+import threading
 import unicodedata
 from datetime import datetime
 
@@ -44,6 +45,7 @@ BAD_REQUEST = "That could not be read. Reload the page and try again."
 NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list."
 BAD_CODE = "Use a project code of 3 to 7 capital letters or digits."
 BAD_ITEM = "That item could not be found in this project. Reload the page and choose it again."
+NOT_FOR_EMAIL = "One of those items can't go in an email. Reload the page and choose again."
 BAD_PICK = "One of the ticked items is not in this project. Reload the page and tick again."
 BAD_DATE = "Choose the reply-by date from the calendar, or leave it empty."
 BAD_ADDRESS = "That email address is not complete. Check it, or leave it empty."
@@ -76,7 +78,7 @@ def items_of(data, rules=None):
     """The project's open items as the builder reads them (draft_email's words). An action, a risk or issue, and a decision still
     pending; a made or withdrawn decision is not asked for. The one place the store's columns are named for the builder. A row in
     the report's hidden list is marked `hidden` (never in an email), and one with an excluding label (Sensitive always, so it is
-    barred even when no rules are given) is marked `sensitive` (never in an email to an outside address)."""
+    barred even when no rules are given) is marked `sensitive` (never in an email, to anyone)."""
     rules = rules or {}
     hidden = set(rules.get("hidden") or ())
     excluded = {"sensitive"} | {str(n).casefold() for n in rules.get("excluded") or ()}
@@ -151,6 +153,9 @@ def make(data_for, profile=None, clock=None, chased=None, rules_for=None):
             return refuse(404, "bad_item", BAD_ITEM)
         if picked is not None and not set(picked) <= known:
             return refuse(400, "bad_pick", BAD_PICK)
+        # A Sensitive item never goes in an email, to anyone: a request that names one is refused (the list never offers it).
+        if {i["id"] for i in items if i.get("sensitive")} & ({item_id} | set(picked or ())):
+            return refuse(400, "not_for_email", NOT_FOR_EMAIL)
         now, who = clock(), profile()
         today, domains = now[:10], list(who.get("own_domains") or [])
         if item_id is not None:
@@ -191,6 +196,7 @@ def chase_counts_of(records):
 # ---- "I sent it" (#50 item 5): the seam of POST /api/draft-email/sent -----------------------------------------------------------
 SENT_KEYS = ("project", "ids", "mode", "day")
 MAX_SENT = 50                                      # the ids one record can hold (Store.EMAIL_MAX_IDS)
+BUSY_SENT = "That is already being recorded. Wait a moment and look at the history before you press again."
 BAD_SENT = "That could not be recorded. Reload the page and try again."
 NOTHING_SAVED = "Nothing was saved."                # the last words of every refusal of "I sent it"
 
@@ -210,6 +216,8 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
     `by_user` (the login name unless one is given), never from the request. The store checks the rest (the project, that each id is
     one of its work items, the day) and writes one record in one transaction (Store.log_email_sent); nothing else is written.
     Answer: {"ok": true, "seq": n}, or a refusal in plain words."""
+    gate, in_flight = threading.Lock(), set()           # #258: the same record while one is being written is refused, not written twice
+
     def work(store, who, req):
         seq = store.log_email_sent(req["project"], req["ids"], req["mode"], req["day"], who, today=today() if callable(today) else today)
         return 200, {"ok": True, "seq": seq}
@@ -226,7 +234,16 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
             return refuse(400, "bad_pick", BAD_PICK)
         if not isinstance(day, str) or not DAY.fullmatch(day) or not _day(day):
             return refuse(400, "bad_date", BAD_DATE)
-        return _call(path, onedrive_roots, by_user, work, {"project": code, "ids": ids, "mode": mode, "day": day})
+        key = (code, tuple(sorted(set(ids))), mode, day)
+        with gate:
+            if key in in_flight:
+                return refuse(409, "already_recording", BUSY_SENT)
+            in_flight.add(key)
+        try:
+            return _call(path, onedrive_roots, by_user, work, {"project": code, "ids": ids, "mode": mode, "day": day})
+        finally:
+            with gate:
+                in_flight.discard(key)
 
     def seam(req):
         return said_nothing_saved(check(req))

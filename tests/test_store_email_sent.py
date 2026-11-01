@@ -359,6 +359,39 @@ class Migration(unittest.TestCase):
             mine.close()
             theirs.close()
 
+class Refusals258(Base):
+    """#258: hidden, closed, archived, Sensitive items and a day before 2020 are refused, each writing nothing."""
+    def test_hidden_closed_archived_sensitive_and_withdrawn_items_are_refused(self):
+        words = "hidden, closed or marked Sensitive"
+        mk = self.demo.action
+        hidden, closed, cancelled, archived, sens = (mk(description=n) for n in ("h", "c", "x", "a", "s"))
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_hidden", {"project": "ABC", "item_id": hidden})
+            st.create("item_labels", {"item_id": sens, "label": "Sensitive"})
+            st.update("actions", closed, {"status": "Closed", "closed": "2026-10-20"})
+            st.update("actions", cancelled, {"status": "Cancelled"})
+            st.archive("actions", archived)
+            withdrawn = st.create("decisions", {"project": "ABC", "decision": "Old", "status": "Withdrawn", "source": "demo"})
+        for bad in (hidden, closed, cancelled, archived, sens, withdrawn):
+            with self.subTest(item=bad):
+                self.refuses(words, ids=[self.a, bad])
+        self.assertTrue(self.send(ids=[self.a, self.d, self.r]), "open items still record")
+
+    def test_the_words_name_no_field_and_no_sent_value(self):
+        sens = self.demo.action(description="s")
+        with self.store.step("dashboard", USER) as st:
+            st.create("item_labels", {"item_id": sens, "label": "Sensitive"})
+        with self.assertRaises(Invalid) as caught:
+            self.send(ids=[sens], day="2026-10-27")
+        self.assertNotIn(sens, str(caught.exception))
+        self.assertNotIn("2026-10-27", str(caught.exception))
+
+    def test_a_day_before_2020_is_refused_and_the_first_day_of_2020_is_not(self):
+        self.refuses("too long ago", day="2019-12-31")
+        self.refuses("too long ago", day="0001-01-01")
+        self.assertTrue(self.send(day="2020-01-01"))
+
+
 
 if __name__ == "__main__":
     unittest.main()
