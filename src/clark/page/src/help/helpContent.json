@@ -282,10 +282,10 @@
      "**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.",
      "Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
      "Tick **Also a Word document** for a Word copy beside the web page.",
-     "Press **Publish locally** (or **Publish and send to the client**). The line at the top of the Dashboard then says when it was published, and whether to the client or locally.",
+     "Press **Publish locally** (or **Publish and send to the client**). The message says “Published (Publication N)”, and the line at the top of the Dashboard says when it was published, and whether to the client or locally.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
-    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”."
+    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Every publish, a local one too, takes the project’s next number (Publication 1, 2, 3 and so on), shown at the foot of the page with the date. A Word copy takes the next number as well. A number is never reused, and Undo does not take it back. Each publish also adds one line to the project’s History (when, who, and “Published as Publication N”); an earlier version of clark added none."
    },
    {
     "id": "add-a-work-item",

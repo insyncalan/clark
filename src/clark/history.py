@@ -112,7 +112,7 @@ CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 change
 FILTERS = {"all": "All", "changes": "Changes", "comments": "Comments and updates"}      # key -> the words on the tab
 EMPTY = {"all": "No history yet.", "changes": "No changes yet.", "comments": "No comments or updates yet."}
 OTHER = "Other"                        # a place or route the list below does not know: shown plainly, never as its code
-KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment", "Email sent")
+KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment", "Email sent", "Published")
 UNDO_KINDS = ("Undone", "Undo undone")
 PAGE_FIELD, LEFT_OUT, PUT_BACK = "Published page", "Left out of the published page", "Put back on the published page"
 PUT_BACK_PREFIX = "put back: "          # an Undo that made a removed label or link again
@@ -443,6 +443,23 @@ def _email_rows(con, where, params, titles):
     return out
 
 
+PUBLISHED_HOW = "from Publish"           # the History's "how" for a publication (#120)
+
+
+def _publication_rows(con, code):
+    """One row for each publication of project `code` (#120): when, who and "Published as Publication N" (a Word copy says so). This
+    REVERSES #66's "no History line": a publication is still no step and has no Undo, but the person can see it was made. Only in
+    All, never in Changes or Comments. Nothing but the number, the kind, who and when is read: no path and no hash."""
+    out = []
+    for p in con.execute("SELECT seq, at, number, word, by_user FROM publications WHERE project = ? ORDER BY seq DESC", (code,)):
+        when, note = when_text(p["at"], None)
+        words = f"Published as Publication {p['number']}" + (" (Word copy)" if p["word"] else "")
+        out.append({"when": when, "zone_note": note, "when_text": when + " - " + note, "who": p["by_user"], "how": PUBLISHED_HOW,
+                    "item_id": "", "title": "", "items": [], "item": "", "field": "Publication", "from": "", "to": words,
+                    "kind": "Published", "table": "publications", "event_id": None, "step": None, "_at": p["at"], "_seq": p["seq"]})
+    return out
+
+
 def _dmy(day):
     y, m, d = str(day).split("-")
     return f"{d}-{m}-{y}"
@@ -463,7 +480,7 @@ def _finish(rows, kind, limit):
     if kind == "comments":
         rows = [r for r in rows if r["table"] in ("updates", "comments")]
     elif kind == "changes":
-        rows = [r for r in rows if r["table"] not in ("updates", "comments", "email_sent")]
+        rows = [r for r in rows if r["table"] not in ("updates", "comments", "email_sent", "publications")]
     rows.sort(key=lambda r: (_when_key(r["_at"]), r["table"] != "comments", r["_seq"]), reverse=True)
     cut = 0
     if limit is not None and len(rows) > limit:
@@ -484,6 +501,7 @@ def rows_for_project(con, code, kind="all", limit=None):
     titles = _Titles(con)
     rows += _comment_rows(con, "project = ?", (code,), titles)
     rows += _email_rows(con, "project = ?", (code,), titles)
+    rows += _publication_rows(con, code)
     return _finish(rows, kind, limit)[0]
 
 
