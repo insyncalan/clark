@@ -6,7 +6,9 @@
 import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
-import { dialog, latest, NO_FOLDER, folderName, open, tick, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialog, latest, NO_FOLDER, folderName, open, tick, tickWord, wordPick, wordConfirm, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { WordClash } from "./WordClash.jsx";
+import { WordLayer } from "./Word.jsx";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 export const lastLine = (l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
@@ -27,7 +29,7 @@ function Dialog() {
   useEffect(() => {
     const dlg = el.current;
     if (!dlg) return;
-    const target = s.phase === "clash" ? dlg.querySelector(s.choice === "rename" ? "#pub-name" : "input[name=clash]:checked") : s.phase === "done" ? dlg.querySelector("[data-go]")
+    const target = s.phase === "wordclash" ? dlg.querySelector("input[name=word-clash]:checked") : s.phase === "clash" ? dlg.querySelector(s.choice === "rename" ? "#pub-name" : "input[name=clash]:checked") : s.phase === "done" ? dlg.querySelector("[data-go]")
       : dlg.querySelector("#pub-client:not([disabled])") || dlg.querySelector("[data-go]");
     if (target) target.focus();
   }, [s.phase, s.phase === "clash" ? s.choice : ""]);
@@ -36,11 +38,16 @@ function Dialog() {
   return (
     <dialog id="publish-dialog" class="dlg" aria-labelledby="pub-title" ref={el} onCancel={(e) => { e.preventDefault(); cancel(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); go(); }}>
-        <h2 id="pub-title">{s.phase === "clash" ? clash.title : "Publish the report"}</h2>
-        {s.phase === "clash" ? null : (
+        <h2 id="pub-title">{s.phase === "clash" ? clash.title : s.phase === "wordclash" ? "The Word file name is taken" : "Publish the report"}</h2>
+        {s.phase === "clash" || s.phase === "wordclash" ? null : (
           <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${shownDate(p.week_ending)}` : ""}{stateWords ? ` · ${stateWords}` : ""}</p>
         )}
-        {s.phase === "clash" ? (
+        {s.phase === "wordclash" ? (
+          <>
+            <p class="muted" id="pub-said">{s.published}</p>
+            <WordClash clash={s.wclash} choice={s.wchoice} confirmed={s.wconfirmed} onPick={wordPick} onConfirm={wordConfirm} />
+          </>
+        ) : s.phase === "clash" ? (
           <fieldset class="pub-clash">
             <legend class="sr-only">What should clark do?</legend>
             <label class="pubopt"><input type="radio" name="clash" value="number" checked={s.choice === "number"} onChange={() => pick("number")} />
@@ -70,17 +77,19 @@ function Dialog() {
               <span><b>Local</b><small>Always. You choose the folder and name in the save window.</small></span></label>
             <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="pub-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tick(e.currentTarget.checked)} />
               <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
+            <label class="pubopt"><input type="checkbox" id="pub-word" checked={s.word} disabled={working} onChange={(e) => tickWord(e.currentTarget.checked)} />
+              <span><b>Also a Word document</b><small>A Word copy of the report, saved beside the web page.</small></span></label>
           </div>
         )}
-        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}
+        {s.phase !== "clash" && s.phase !== "wordclash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.word ? "The client will see this page and the Word report." : "The client will see this page."}</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
-          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />Publishing…</p>
+          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />{s.step === "word" ? "Saving the Word report…" : "Publishing…"}</p>
             : s.message ? <p class={s.message.kind}>{s.message.kind === "success" ? <span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span> : null}{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">
           {s.phase === "done" ? null : <button type="button" class="btn quiet" data-cancel onClick={cancel} disabled={working}>Cancel</button>}
           <button type="submit" class="btn pri" data-go disabled={working || !ready(s)}>
-            {s.phase === "done" ? "Close" : s.phase === "clash" ? "OK" : s.ticked ? "Publish and send to the client" : "Publish locally"}
+            {s.phase === "done" ? "Close" : s.phase === "clash" || s.phase === "wordclash" ? "OK" : s.ticked ? "Publish and send to the client" : "Publish locally"}
           </button>
         </div>
       </form>
@@ -99,6 +108,7 @@ export function Publish() {
         {note ? <span class="pubnote num" id="pub-note">{note}</span> : null}
       </span>
       {dialog.value ? <Dialog /> : null}
+      <WordLayer />
     </>
   );
 }

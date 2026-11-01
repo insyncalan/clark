@@ -281,7 +281,7 @@
      "Press your profile circle at the top right and choose **Publish…**. It opens the Dashboard first.",
      "**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.",
      "Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
-     "Tick **Also a Word document** for a Word copy beside the web page.",
+     "Tick **Also a Word document** for a Word copy beside the web page. With **To client** ticked it is copied to the client folder as well. If a Word file with that name is already there, clark asks whether to add a number or replace it.",
      "Press **Publish locally** (or **Publish and send to the client**). The line at the top of the Dashboard then says when it was published, and whether to the client or locally.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
@@ -1372,7 +1372,7 @@
       [
        "**Local**: always. Saved through your browser’s own save window, which opens where you last saved for the project (or your downloads, where the browser has no save window).",
        "**To client**: only when ticked, to the client folder in Settings › Publishing.",
-       "**Also a Word document**: a Word copy beside the web page."
+       "**Also a Word document**: a Word copy beside the web page, and in the client folder when To client is ticked."
       ]
      ],
      [
@@ -1382,6 +1382,10 @@
      [
       "p",
       "Each publish is noted on the project, and the Dashboard says when it was last published. **Preview the page in a new tab** shows the page without saving it."
+     ],
+     [
+      "p",
+      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word (in Edit) reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press Add; the items stay hidden from the client until you turn them on, and one Undo takes them all back."
      ]
     ]
    },

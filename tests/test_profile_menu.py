@@ -17,10 +17,10 @@ from clark import excel, server as sv
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
 TIP = "Your menu: Publish, Preview, Export, Settings"
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Settings", "Help"]       # the commands
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Settings", "Help"]       # the commands (Import from Word is Edit's: tests/test_word_screens.py)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
-ORDER = [WHO] + ITEMS[:3] + LOOK + ITEMS[3:]
+ORDER = [WHO] + ITEMS[:4] + LOOK + ITEMS[4:]
 
 
 class ProfileMenu(Base):
@@ -55,7 +55,7 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem,menuitem")
+                             "menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem,menuitem")
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                              "presentation,menuitemradio,menuitemradio,menuitemradio", "the group holds its label and the three radios")
             self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
@@ -99,7 +99,7 @@ class ProfileMenu(Base):
             shown = self.labels(p)
             for word in tip[len(NAME) + 2:].split(", "):
                 self.assertTrue(any(l.startswith(word) for l in shown), word + " is an entry")
-            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Help"], "only the who line and Help have no word in the tip")
+            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Help"], "only the who line and Help have no word in the tip (Export to Word starts with the tip's Export)")
 
     def toast(self, p):
         p.until("!!document.querySelector('.toast .toast-text')", "a message appeared")

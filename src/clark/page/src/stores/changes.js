@@ -5,6 +5,7 @@ import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendBulk, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
+import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
 export const toast = signal(null);
@@ -13,6 +14,7 @@ export const undone = signal(0);
 
 let counter = 0, tail = Promise.resolve(), timer = 0;
 const linked = new Map();                // a step made together with an earlier one (changeThen), to that earlier step: its Undo takes both back
+const wordSteps = new Set();             // the steps a Word import made (#48): their Undo goes by the Word route, which undoes only those
 const itemSteps = new Map();             // the steps that changed a work item (#80 cells, #68 board moves), to what their Undo says ("" for "Undone."): their undo reply has no items, so the data is read again
 
 // #197: the steps the toast offered Undo for, newest last, so Cmd or Ctrl+Z (undoKey.js) undoes the last one even after the toast
@@ -138,7 +140,8 @@ export function undo(applyId, code = project.value) {
   if (at >= 0) undoable.splice(at, 1);
   return enqueue(async () => {
     const earlier = linked.get(applyId);
-    let r = await sendUndo(code, applyId);
+    const word = wordSteps.has(applyId);
+    let r = word ? await sendWordUndo(code, applyId) : await sendUndo(code, applyId);
     if (!r.ok) { say("problem", earlier ? `${r.message} The section was not removed.` : r.message); return null; }
     redraw(code, r.reply);
     undone.value++;
@@ -154,8 +157,9 @@ export function undo(applyId, code = project.value) {
       undone.value++;
       r = e;
     }
-    const back = itemSteps.get(applyId);
+    const back = word ? (typeof r.reply.message === "string" && r.reply.message) || "Undone." : itemSteps.get(applyId);
     itemSteps.delete(applyId);
+    wordSteps.delete(applyId);
     // Read again after every undo: an item's cell, or a section's body, comes back from the database. Not read again because the
     // person has opened another project meanwhile: nothing is wrong, so nothing is said about it.
     if (!(await readAgain(code, "The change was undone"))) return r.reply;
@@ -164,6 +168,29 @@ export function undo(applyId, code = project.value) {
     say("done", skipped && typeof r.reply.words === "string" && r.reply.words ? r.reply.words : back || "Undone.", null, code);
     return r.reply;
   });
+}
+
+// A Word import's one step (#48): `send(code)` makes the request (the page has already shown what was read, and the person chose what
+// to add). Resolves to {ok: true} (the toast says what was added, in the server's words, with Undo) or {ok: false, status, message}
+// (nothing is said here: the import box shows the refusal where the person is). The work items are read again, so the page shows
+// what clark saved.
+export function changeWord(send, failed) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await send(code);
+    const b = r.body;
+    if (!(r.status === 200 && b && b.ok === true && Number.isInteger(b.apply_id) && typeof b.message === "string")) return { ok: false, status: r.status, message: wordWords(r, failed) };
+    wordSteps.add(b.apply_id);
+    const fresh = (await reread(code)) || project.value !== code;
+    say("done", fresh ? b.message : `${b.message} The page could not be refreshed. Reload the page to see them.`, b.apply_id, code);
+    return { ok: true };
+  });
+}
+
+async function sendWordUndo(code, applyId) {
+  const r = await wordUndoRequest(code, applyId);
+  if (r.status === 200 && r.body && r.body.ok === true) return { ok: true, reply: r.body };
+  return { ok: false, message: wordWords(r, "That step could not be undone just now, and nothing was changed. Reload the page and try again.") };
 }
 
 // #80: change fields of one work item, in one step. `table` is actions, raid or decisions; `changes` the fields to set. The page

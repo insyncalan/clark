@@ -449,3 +449,16 @@ textarea.tpl-field { resize: vertical; }
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
+
+/* The Word boxes (#48): Export to Word and Import from Word. The box itself, its options and its messages are the Publish box's
+   (shell.css); this is only the list of what was read. Tokens only. A ticked item is a ticked box, so it never relies on colour. */
+.wi { width: min(680px, calc(100vw - 32px)); }
+.word-where, .word-ask { margin: 0; font-size: var(--size-small); overflow-wrap: anywhere; }
+.word-ask { color: var(--text); font-size: var(--size-body); }
+.wi-all { display: flex; gap: 16px; margin: 0 0 8px; }
+.wi-all .link:disabled { opacity: .55; cursor: default; }
+.wi-items { display: flex; flex-direction: column; gap: 6px; max-height: 45vh; margin: 0; padding: 0; overflow: auto; border: 0; min-width: 0; }
+.wi-item span { display: block; }
+.wi-item b { margin-right: 6px; font-weight: var(--weight-medium); color: var(--heading); }
+.wi-notes { margin: 12px 0 0; padding-left: 18px; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
+.wi-notes li { margin: 2px 0; }
