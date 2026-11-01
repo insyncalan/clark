@@ -323,7 +323,7 @@
     "go": "work",
     "s": [
      "**Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the search switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
+     "The two icons beside Group by switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
      "**Swimlanes** adds rows across the board: None, Workstream or Type.",
      "In Edit, drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes. In View the board shows the cards but does not move them.",
@@ -404,7 +404,7 @@
     "s": [
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a **grip** and, under it, a **+**. They are faint until you point at the section or tab to them.",
      "Drag the grip to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include**) and, for a text section, **Delete section**. A section that is left out shows an eye-off mark under its **+**.",
+     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section, **Delete section**. A section that is left out shows an eye-off mark under its **+**.",
      "To rearrange the page, pick up a section by its grip and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a phone a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
@@ -680,8 +680,9 @@
        "**Publish…**: the Publish box, on the Dashboard.",
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
+       "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Settings**.",
-       "**Appearance**: System, Light or Dark; the one in use has a tick."
+       "**Help**: opens this Help."
       ]
      ],
      [
@@ -888,7 +889,7 @@
        [
         "High risks and issues",
         "Open risks and issues of Urgent or High priority",
-        "Red when any is rated Urgent or High; amber when some are open but none is that high; green when none are open"
+        "The worst colour among the open ones: red when any is rated Urgent or High, amber when the worst is Medium, green when the worst is Low or none is open"
        ],
        [
         "Decisions needed",
@@ -899,7 +900,7 @@
      ],
      [
       "p",
-      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Tile colour**."
+      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Outline colour**: Automatic, Green, Amber, Red or No colour."
      ]
     ]
    },
@@ -910,17 +911,17 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections in cards, with the contents at the right edge."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; slim gaps are the standard. It is used on the published report too."
      ],
      [
       "tbl",
       [
-       "Dashboard sections (yours)",
+       "Dashboard sections",
        "What it does"
       ],
       [
        [
-        "Slim gaps (standard)",
+        "Slim gaps",
         "Each section is its own card, with a slim gap that shows the page picture."
        ],
        [
@@ -946,7 +947,7 @@
     "b": [
      [
       "p",
-      "From the top: the import and export icons and **+**; the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; the search; then **Filter by**."
+      "From the top: **Add item** (in Edit; a menu of the types); the type switch; **Open**, **Closed** and **All** with counts; **Group by**; in Edit, the **Table** and **Board** icons; then **Filter by**."
      ],
      [
       "tbl",
@@ -956,8 +957,12 @@
       ],
       [
        [
+        "Type",
+        "Action, Risk, Issue, Assumption, Dependency or Decision"
+       ],
+       [
         "Item",
-        "The type badge, the title, a Client tag, then the ID, use case and milestone"
+        "The title, then the ID, use case, milestone and workstream, and a **Shown to client** tag"
        ],
        [
         "Owner",
@@ -974,10 +979,6 @@
        [
         "Status",
         "The state in words and colour: see [Status words](#ref-status-words)"
-       ],
-       [
-        "The eye",
-        "Client-visible on or off"
        ]
       ]
      ],
@@ -1123,6 +1124,11 @@
         "Its colour from its priority: Urgent or High red, Medium amber, Low green"
        ],
        [
+        "Assumption, Dependency",
+        "Open, Closed, Cancelled",
+        "Open (blue); Closed or Cancelled (grey)"
+       ],
+       [
         "Decision",
         "Pending, Made, Withdrawn",
         "Pending (blue), Made (green), Withdrawn (grey)"
@@ -1135,7 +1141,7 @@
      ],
      [
       "p",
-      "Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey)."
+      "Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red)."
      ]
     ]
    },
@@ -1547,8 +1553,7 @@
       "ul",
       [
        "Dates are shown day, month, year: DD-MM-YYYY.",
-       "The week ends on a Friday.",
-       "IDs: actions CODE-A-001, decisions CODE-D-001, risks and issues CODE-001 (one series), milestones CODE-M-001. CODE is the project’s short code.",
+       "IDs: actions CODE-A-001, decisions CODE-D-001, risks, issues, assumptions and dependencies CODE-001, milestones CODE-M-001. Actions, risks, issues and decisions share one numbering, so CODE-A-002 and CODE-002 never both exist. CODE is the project’s short code.",
        "Use cases keep the ID you give them, such as 3.1."
       ]
      ]

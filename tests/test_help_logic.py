@@ -289,8 +289,8 @@ class Shown(unittest.TestCase):
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
         SEC = ["howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case",
-               "ref-profile-circle", "ref-sections", "ref-section-templates", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-status-words",
-               "ref-picker", "ref-milestone-states", "ref-excel", "ref-dates-and-ids", "ref-using-help", "ref-keys", "ref-icons"]
+               "ref-profile-circle", "ref-section-templates", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-status-words",
+               "ref-milestone-states", "ref-dates-and-ids", "ref-using-help", "ref-keys"]
         self.assertEqual(s["places"], SEC)
         self.assertEqual(s["tabs"]["start"], [])
         self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:5])

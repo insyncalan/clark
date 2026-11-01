@@ -50,7 +50,11 @@
   "settings": "Settings",
   "updating-clark": "updates",
   "diagnostics": "diagnostics",
-  "saving": "history and ask clark"
+  "saving": "history and ask clark",
+  "sections": "the report sections' bodies (most show “Not shown on this page yet.”)",
+  "picker": "the picker (nothing opens it yet)",
+  "excel": "Excel import (the page only exports today)",
+  "icons": "the icons it names (many are not on the page yet)"
  },
  "keys": [
   {
