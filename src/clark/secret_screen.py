@@ -15,8 +15,7 @@ looked at up to a cap, past which the file counts as a hit (fail closed). A base
 when it decodes to plain text, for the key-word lines too; text with %-escapes is also read with them undone.
 
 NOT SCREENED, on purpose (#257, #374): a password word followed by plain words ("password: see below"; the other languages act the same);
-a file name whose value is a word and a year ("pin_board2026.docx"); "Secretary" and "secret santa" as key words; text escaped
-three times; a token cut by a space ("token: ab12cd34 ef56gh78"), since joining words across a space would
+the file name "secret_santa2025.xlsx" (only that whole name, with any 4-digit year); text escaped three times; a token cut by a space ("token: ab12cd34 ef56gh78"), since joining words across a space would
 leave out every file that says "token: 2026 plan"; a secret of fewer than 8 characters after secret or a key name; a key-word line
 whose base64 form is shorter than 24 characters.
 """
@@ -54,25 +53,24 @@ UNQUOTED_SECRET = r"""(?i)(?:api[_-]?key|secret|token|(passw(?:or)?d|pwd))\w*["'
 # Password in other languages (#257): German, French, Spanish, Portuguese, Dutch, Swedish, Polish, Italian, Russian and Arabic.
 _PW_OTHER = (r"passwort|kennwort|mot[ \t]?de[ \t]?passe|motdepasse|contrase(?:ñ|nn?)a|senha|wachtwoord|l(?:ö|o)senord|has(?:ł|l)o|"
              r"parola[ \t]?d'ordine|пароль|كلمة[ \t]?(?:المرور|السر)")
-# "secret" is a key word, but not at the start of an ordinary word or name ("Secretary", "secretive", "secret santa", #374).
-_SECRET = r"secret(?!ar(?:y|ies|iat)|iv(?:e|ely)|ly|ion|[_ -]?santa)"
 _PW = r"(?:passw(?:or)?d|pwd|passcode|" + _PW_OTHER + r"|(?<![A-Za-z])(?:pass|pw|pin|creds|credentials)(?![A-Za-z]))"
-_KEY = r"(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|" + _SECRET + r"|token|" + _PW + r")"
+_KEY = r"(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|" + _PW + r")"
 QUOTED_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?\s{0,20}[:=]\s{0,20}["']([^"'\s]{8,})["']"""
-UNQUOTED_LOCAL = (r"""(?i)(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|token|(""" + _SECRET + r"""|""" + _PW + r"""))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
+UNQUOTED_LOCAL = (r"""(?i)(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|token|(secret|""" + _PW + r"""))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
                   r"""([^\s"'`$<>{}()\[\],;]{8,})""")
 CELL_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?[ \t]{0,20}:?[ \t]{0,20}[|\t,][ \t]{0,20}["']?([^\s|,;"'`$<>{}()\[\]]{8,})"""
 SHORT_PASSWORD = r"""(?i)(?<!\w)(?:passw(?:or)?d|pwd|passcode|""" + _PW_OTHER + r""")(?!\w)["']?[ \t]{0,20}[:=][ \t]{0,20}["']?(\S{4,})"""
-HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?private[ _-]?key|" + _SECRET + r"|token|passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|"
+HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?private[ _-]?key|secret|token|passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|"
                           + _PW_OTHER + r")\w{0,20}$")
 # A passphrase with spaces, in matching quotes (the password family only), and a password written as prose ("the wifi password is
 # Sunshine2026"): a key word, is or was, then a mixed value of 8 or more characters.
 QUOTED_PHRASE = r"""(?i)""" + _PW + r"""\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([^"\n]{8,80})"|'([^'\n]{8,80})')"""
 PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|secret)\b)["']?[ \t]{1,3}(?:is|was)[ \t]{1,3}["'(]?([^\s"'`$<>{}()\[\],;]{8,})"""
 # A file's name: a key word, then - _ . or a space and a mixed value of 8 or more characters ("notes-password-Hunter2xyz9.txt").
-# A year (and a quarter) is not part of the value, so "pin_board2026.docx" is a file name and not a password (#374).
 NAME_SECRET = r"""(?i)""" + _KEY + r"""[-_. ]([A-Za-z0-9]{8,})"""
-_YEAR = re.compile(r"(?<!\d)(?:19|20)\d\d(?!\d)(?:Q[1-4])?", re.I)
+# The one ordinary name taken out before a file name is screened (#374): "secret_santa" (with an optional 4-digit year) as the whole
+# name or the whole name before its extension, so "secret_santa2025.xlsx" is a file name; "secret_santa_key=..." is still read.
+_SANTA = re.compile(r"(?<![^/])secret_santa(?:\d{4})?(?=\.[A-Za-z0-9]{1,5}$|$)")
 # Known gaps, kept as Tech Debt: a secret of letters only ("correcthorsebattery") and a bare 40-character hex string with no key
 # word are not caught; guessing them would drop too many ordinary files.
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
@@ -96,11 +94,6 @@ _BREAKS = re.compile(r"[\r\n]+")
 
 def _mixed(value):
     return bool(re.search(r"[0-9]", value) and re.search(r"[A-Za-z]", value))
-
-
-def _name_value(value):
-    """A file-name value that is mixed once a year is taken out (so a year after a word is not a password)."""
-    return _mixed(_YEAR.sub("", value))
 
 
 def _plain(raw):
@@ -228,4 +221,5 @@ def name_looks_like_secret(name):
     """Whether a file's name looks like it holds a secret: the text screen, plus a key word joined to its value by - or _."""
     if not isinstance(name, str):
         return True
-    return looks_like_secret(name) or any(_name_value(m.group(1)) for m in _NAME.finditer(name))
+    name = _SANTA.sub("santa", name)
+    return looks_like_secret(name) or any(_mixed(m.group(1)) for m in _NAME.finditer(name))
