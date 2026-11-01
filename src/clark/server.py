@@ -68,6 +68,33 @@ from urllib.parse import parse_qs, quote, urlsplit
 LOG = logging.getLogger("clark.server")
 HOST = "127.0.0.1"                    # the only address clark listens on, whatever any setting says
 DEFAULT_PORT = 8766
+CONTAINER_BIND = "0.0.0.0"            # #427: only inside the shipped container (see container_mode); the Mac publishes the port to 127.0.0.1 only
+
+
+def container_mode():
+    """#427: True only when CLARK_CONTAINER=1 is set (by the shipped Dockerfile) AND this really is a container. Never on a Mac."""
+    return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
+
+
+def container_gateway():
+    """#427: the container's default gateway address, the one peer a published port arrives from; None when it can't be read."""
+    try:
+        with open("/proc/net/route") as table:
+            for line in table.read().splitlines()[1:]:
+                f = line.split()
+                if f[1] == "00000000" and int(f[3], 16) & 2:
+                    return ".".join(str(b) for b in int(f[2], 16).to_bytes(4, "little"))
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def local_peer(address):
+    """Whether a request's peer address is this machine, or, in a container only, the container's gateway (#427)."""
+    if address in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+        return True
+    gateway = container_mode() and container_gateway()
+    return bool(gateway) and address == gateway
 TOKEN = secrets.token_urlsafe(24)     # new at every start; the page gets it in GET /
 TOKEN_HEADER = "X-Clark-Token"
 STALE_PAGE = "This page is out of date because clark was restarted. Reload the page and try again."
@@ -294,7 +321,7 @@ def csp_local(handler):
     """Whether a request comes from this machine's own page: a local address and Host, and no other site's Origin. Every
     Origin and Sec-Fetch-Site header counts, not only the first, and an Origin must be this very Host and port (#65: the page
     is served from that one address; a page on another local port is another site). No Origin at all (a plain client) is fine."""
-    if not handler.host_ok() or handler.client_address[0] not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+    if not handler.host_ok() or not local_peer(handler.client_address[0]):
         return False
     get_all = getattr(handler.headers, "get_all", None)                  # a request with no version has no parsed headers (a dict)
     every = (lambda name: get_all(name) or []) if get_all else (lambda name: [v for v in [handler.headers.get(name)] if v])
@@ -1061,7 +1088,7 @@ class LocalServer(ThreadingHTTPServer):
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
                  people=None, people_undo=None, people_list=None, section_image=None):
-        if server_address[0] != HOST:
+        if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
@@ -1122,7 +1149,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
-        httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
+        httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask,
