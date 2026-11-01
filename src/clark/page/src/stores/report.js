@@ -7,10 +7,11 @@ import * as route from "../router.js";
 import { rowsOf } from "../workItems.js";
 import { decode, encode, fits, setPublished } from "../filters.js";
 import { searchIndex } from "../clientView.js";
+import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", settings: "Settings" };
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", settings: "Settings" };
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
@@ -19,6 +20,7 @@ export const project = signal(start.project);
 export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
+export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
@@ -53,17 +55,18 @@ export const counts = computed(() => {
 
 let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
 
-const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value });
+const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
 // stays on the file's project and opens its first tab, as a reload of that address does.
 function apply(s) {
-  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view) };
+  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
   view.value = s.view;
   item.value = s.item;
   ms.value = s.ms;
+  uc.value = s.uc || "";
   filterText.value = s.f;
   if (s.project !== project.value) {
     project.value = s.project;
@@ -121,6 +124,26 @@ export function show(next) {
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
 export function openWork(state) {
   go({ view: "work", project: project.value, item: "", ms: "", f: fits(state) ? encode(state) : "" });
+}
+
+/** Open one use case's own page (the Use cases page, Edit's): one new entry. `id` is the use case's database id; the address carries its reference ("1.2") when that is a clean, single key, else its id. */
+export function openUseCase(id) {
+  const d = data.value, u = d && (d.use_cases || []).find((x) => x.id === id);
+  if (!u) return;
+  go({ view: "usecases", project: project.value, item: "", ms: "", f: "", uc: ucKey(d, u) });
+}
+
+/** The use case page's way back: the list, one new entry (so Back returns to the use case). */
+// A use case address that names nothing (another project, a mistyped link; an archived use case is read first, by the Use cases page)
+// opens the list: the entry is rewritten, not added.
+export function leaveUseCase() {
+  if (!uc.value) return;
+  uc.value = "";
+  route.navigate(where(), { replace: true });
+}
+
+export function openUseCases() {
+  go({ view: "usecases", project: project.value, item: "", ms: "", f: "", uc: "" });
 }
 
 /** Open a work item's or a milestone's peek (`kind` "milestone" or "item"; left out, the project's data says which): one new entry; with a peek already open, this entry is rewritten (Previous, Next, another row). An id the loaded data doesn't have does nothing. */

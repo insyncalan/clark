@@ -4,7 +4,9 @@
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
 import { useState } from "preact/hooks";
-import { data, rows, openWork, fromFile } from "../stores/report.js";
+import { data, rows, openWork, fromFile, show, project } from "../stores/report.js";
+import { format } from "../router.js";
+import { isOn, liveOf } from "../logic/useCasesList.js";
 import { isOpen } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { Icon } from "./Icon.jsx";
@@ -18,11 +20,11 @@ function plain(html) {
   return doc.body.textContent.trim();
 }
 
-/** The use cases with what is linked to them: [{u, linked, open, steps}] (steps are the open actions). */
+/** The use cases on the dashboard (the eye is on; a published file only holds those) with what is linked to them: [{u, linked, open, steps}] (steps are the open actions). The ones not on it are on the Use cases page. */
 export function summary(d, all) {
   const link = {};
   for (const r of [...(d.actions || []), ...(d.raid || []), ...(d.decisions || [])]) if (r.use_case) link[r.id] = r.use_case;
-  return (d.use_cases || []).filter((u) => !u.archived).map((u) => {
+  return liveOf(d).filter(isOn).map((u) => {
     const linked = all.filter((r) => link[r.id] === u.id), open = linked.filter(isOpen);
     return { u, linked, open, steps: open.filter((r) => r.kind === "action") };
   });
@@ -62,13 +64,21 @@ function Row({ s, shown, toggle }) {
   );
 }
 
+// "N more on the Use cases page": the editor's line under the summary when some use cases are not on the dashboard. A published file holds only
+// the ones that were, so it has none.
+function More({ n }) {
+  if (!n || fromFile.value) return null;
+  const go = (e) => { e.preventDefault(); show("usecases"); };
+  return <p class="ucmore"><a href={format({ view: "usecases", project: project.value })} data-uc-more onClick={go}>{n === 1 ? "1 more on the Use cases page" : `${n} more on the Use cases page`}</a></p>;
+}
+
 export function UseCases({ onExport }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
-  const list = summary(d, rows.value);
+  const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
-  if (!list.length) return <p class="muted" data-nouc>No use cases yet.</p>;
+  if (!list.length) return <><p class="muted" data-nouc>{off ? "No use cases are on the dashboard." : "No use cases yet."}</p><More n={off} /></>;
   const flip = (id) => { const n = new Set(open); if (n.has(id)) n.delete(id); else n.add(id); setOpen(n); };
   return (
     <div class="uc" data-uc-section>
@@ -81,6 +91,7 @@ export function UseCases({ onExport }) {
         {onExport ? <button type="button" class="bib ucexport" data-uc-export data-tip="Export to Excel (the use cases are one sheet of it)" aria-label="Export to Excel. The use cases are one sheet of the workbook." onClick={onExport}><Icon name="dl" /></button> : null}
       </div>
       <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} />)}</ul>
+      <More n={off} />
     </div>
   );
 }
