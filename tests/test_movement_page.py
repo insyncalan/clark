@@ -207,7 +207,7 @@ class Block(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('[data-mspv]')].map(b => b.textContent)"), ["Plan", "Movement"])
             self.assertEqual(p.js("document.querySelector('[data-mspv=plan]').getAttribute('aria-pressed')"), "true")
             self.assertEqual(p.js("!!document.querySelector('.msv') && !document.querySelector('#movement')"), True, "Plan shows the milestones, not Movement")
-            self.assertIn("Every milestone sits on the line", p.js("document.querySelector('[data-mspage-hint]').textContent"))
+            self.assertIn("Every milestone is on the timeline", p.js("document.querySelector('[data-mspage-hint]').textContent"))
             p.js("document.querySelector('[data-mspv=move]').click()")
             p.until("!!document.querySelector('#movement .mvm-sentence')", "Movement drew")
             self.assertEqual(p.js("!document.querySelector('.msv')"), True, "Movement replaces the Plan")
