@@ -32,7 +32,7 @@ from clark.order import GAP
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 6          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 7          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -1753,6 +1753,46 @@ def migrate_settings(con):
         con.execute(statement)
 
 
+# The tables of the "I sent it" record (#50, step 7), frozen here: a later change to schema.sql must not change what this step
+# builds (tests/test_store_email_sent.py pins it to what schema.sql creates today).
+EMAIL_SENT_DDL = (
+    """CREATE TABLE IF NOT EXISTS email_sent (
+  seq     INTEGER PRIMARY KEY AUTOINCREMENT,
+  project TEXT NOT NULL REFERENCES projects(code),
+  at      TEXT NOT NULL DEFAULT (datetime('now')),
+  day     TEXT NOT NULL CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  mode    TEXT NOT NULL CHECK (mode IN ('update_request','chase','decision')),
+  by_user TEXT NOT NULL
+);""",
+    """CREATE TABLE IF NOT EXISTS email_sent_items (
+  seq     INTEGER NOT NULL REFERENCES email_sent(seq),
+  item_id TEXT NOT NULL CHECK (length(item_id) BETWEEN 1 AND 13),
+  PRIMARY KEY (seq, item_id)
+);""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_update BEFORE UPDATE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_delete BEFORE DELETE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_replace BEFORE INSERT ON email_sent
+WHEN EXISTS (SELECT 1 FROM email_sent WHERE seq = NEW.seq)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_update BEFORE UPDATE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_delete BEFORE DELETE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_replace BEFORE INSERT ON email_sent_items
+WHEN EXISTS (SELECT 1 FROM email_sent_items WHERE seq = NEW.seq AND item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
+)
+
+
+def migrate_email_sent(con):
+    """Schema version 6 to 7 (#50): the two tables and the triggers of the "I sent it" record.
+    Every statement is IF NOT EXISTS, so a half-applied copy is safe. It touches no other table (item_events is not rebuilt, so every route and place a file allows stays). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    for statement in EMAIL_SENT_DDL:
+        con.execute(statement)
+
+
 # #123: applies.utc_offset and the wider places, step 5 (the next free number after Word's 3 and the section bodies' 4). Frozen: never
 # reads schema.sql. The rebuilt item_events keeps every route and place the earlier steps allow (Word's 'word' among them), so a file
 # that already holds such a row still migrates and opens.
@@ -1800,7 +1840,8 @@ def migrate_to_history(con):
 
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings))
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
+              (7, migrate_email_sent))
 
 
 def migration_plan(version, table=None):
@@ -2276,6 +2317,76 @@ class Store:
         r = self.con.execute("SELECT local_path FROM publications WHERE project = ? AND local_path IS NOT NULL "
                              "ORDER BY seq DESC LIMIT 1", (code,)).fetchone()
         return str(Path(r["local_path"]).parent) if r else None
+
+    EMAIL_MODES = ("update_request", "chase", "decision")
+    EMAIL_MAX_IDS = 50
+
+    def log_email_sent(self, code, ids, mode, day, by_user, today=None):
+        """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
+        was sent) and one `email_sent_items` row for each item asked about. Never the email's text or address. Like a publication it
+        is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
+        anything is written: a project that isn't here or is archived, a mode that isn't one of the three, no id or more than 50, an
+        id that is not a work item (action, risk or issue, decision) of this project, a day that is not a real date or is more than
+        one day ahead of today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
+        transaction. Returns the record's number."""
+        if not str(by_user or "").strip():
+            raise Invalid("A sent record needs who pressed it.")
+        if mode not in self.EMAIL_MODES:
+            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
+        if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
+            raise Invalid("Tick at least one item before you press I sent it.")
+        ids = list(dict.fromkeys(i.strip() for i in ids if i.strip()))
+        if not ids:
+            raise Invalid("Tick at least one item before you press I sent it.")
+        if len(ids) > self.EMAIL_MAX_IDS:
+            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts.")
+        try:
+            if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(day)):
+                raise ValueError
+            sent = date.fromisoformat(str(day))
+        except ValueError:
+            raise Invalid("The day the email was sent must be a real date.") from None
+        if sent > (today or date.today()) + timedelta(days=1):
+            raise Invalid("The day the email was sent can't be in the future.")
+        if self.con.in_transaction:
+            raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
+        try:
+            self.con.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as e:
+            raise Invalid(_busy(e)) from e
+        try:
+            row = self.con.execute("SELECT archived FROM projects WHERE code = ?", (code,)).fetchone()
+            if row is None:
+                raise Invalid("There is no project with that code.")
+            if row["archived"]:
+                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first.")
+            def ours(item):
+                return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
+                           for table in ("actions", "raid", "decisions"))
+            if not all(ours(i) for i in ids):
+                raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
+            seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
+                                   (code, str(day), mode, str(by_user).strip())).lastrowid
+            self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
+            self.con.execute("COMMIT")
+            return seq
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
+
+    def email_sent_for(self, code, limit=200):
+        """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
+        from a read-only connection. Chase counts for the tone come from this (draft_email.chase_counts)."""
+        con = connect(self.path, readonly=True)
+        try:
+            out = []
+            for r in con.execute("SELECT seq, at, day, mode, by_user FROM email_sent WHERE project = ? ORDER BY seq DESC LIMIT ?",
+                                 (code, max(1, min(int(limit), 200)))):
+                ids = [x["item_id"] for x in con.execute("SELECT item_id FROM email_sent_items WHERE seq = ? ORDER BY item_id", (r["seq"],))]
+                out.append({"seq": r["seq"], "at": r["at"], "day": r["day"], "mode": r["mode"], "by_user": r["by_user"], "ids": ids})
+            return out
+        finally:
+            con.close()
 
     def undo(self, step_id, by_user, place=None):
         """Reverse step `step_id` as a new step (creaite's undo-changes). Returns {"step_id", "reversed", "skipped"}; each

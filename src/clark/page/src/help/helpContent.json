@@ -1657,10 +1657,6 @@
     "On the left edge of the peek or ask clark: back to the usual width"
    ],
    [
-    "[[Mod+K]]",
-    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back"
-   ],
-   [
     "Click",
     "Work items: select one row or card. A double-click opens the item"
    ],
@@ -1695,6 +1691,10 @@
    [
     "[[Esc]] with a selection",
     "Work items, with no menu or box open: clear the selection"
+   ],
+   [
+    "[[Mod+K]]",
+    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back"
    ]
   ],
   "icons": [
