@@ -2,9 +2,11 @@
 import { render } from "preact";
 import { load } from "./stores/report.js";
 import { App } from "./components/App.jsx";
+import { keepChoices } from "./stores/clientMemory.js";
 
 export function boot(tools) {
   if (tools && tools.help) tools.help.installKeys();
+  if (!tools) keepChoices();                 // a published file remembers the client's choices in their own browser (#69)
   if (tools && tools.pageErrors) tools.pageErrors();        // page faults reach the log through the server (#110); a published file has none
   if (tools && tools.askPanel) tools.askPanel.installKeys();
   render(<App tools={tools} />, document.getElementById("app"));
