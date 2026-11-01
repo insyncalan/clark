@@ -84,6 +84,27 @@ def audit(out):
     return problems
 
 
+GROWTH_LIMIT = 3.5      # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8. Above 3.5 means the work is growing faster than linear (a square fails; linear measures 1.8 to 2.2).
+GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
+
+
+def growth_ratio(work, n, tries=3):
+    """Time work(n) and work(2 * n) in CPU time (time.process_time, so a busy machine does not count against it), best of
+    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR))."""
+    import time
+
+    def best(size):
+        found = None
+        for _ in range(tries):
+            start = time.process_time()
+            work(size)
+            spent = time.process_time() - start
+            found = spent if found is None else min(found, spent)
+        return found
+    small, big = best(n), best(2 * n)
+    return small, big, big / max(small, GROWTH_FLOOR)
+
+
 class Base(unittest.TestCase):
     def assertSafe(self, source, gone=(), label=None):
         started = time.monotonic()
@@ -745,35 +766,36 @@ class Limits(Base):
             sys.setrecursionlimit(saved)
 
     def test_pathological_inputs_stay_fast(self):
-        """Each of these, at the longest length allowed, made the old Python 3.9 html.parser rescan for minutes."""
-        n = MAX_CHARS
-        shapes = {
-            "open tags": "<a " * (n // 3), "open comments": "<!--" * (n // 4), "open marked sections": "<![CDATA[" * (n // 9),
-            "open attributes": '<a href="' * (n // 9), "open attribute quotes": "<a b='" * (n // 6), "bangs": "<!-" * (n // 3),
-            "question marks": "<?" * (n // 2), "declarations": "<!" * (n // 2), "end tags": "</" * (n // 2),
-            "unclosed end tags": "</a " * (n // 4), "if sections": "<![if" * (n // 5), "nested raw text": "<script>" * (n // 8),
-            "textareas": "<textarea>" * (n // 10), "long comment": "<!--" + "-" * (n - 4), "long name": "<" + "a" * (n - 1),
-            "long attribute name": "<a " + "b" * (n - 3), "many attributes": "<a " + "b=c " * (n // 4 - 1) + ">",
-            "equals": "<a " + "=" * (n - 3), "slashes": "<a" + "/" * (n - 2), "quotes": "<a b=" + '"' * (n - 5),
-            "angle brackets": "<" * n, "pairs": "<>" * (n // 2), "reversed": ">" * n, "ampersands": "&" * (n // 6),
-            "entities": "&amp;" * (n // 5), "numeric entities": "&#" * (n // 2), "long number": "&#" + "9" * (n - 2),
-            "long hex": "&#x" + "f" * (n - 3), "half entities": "&am" * (n // 3), "brs": "<br>" * (n // 4), "empty ps": "<p>" * (n // 4),
-            "list items": "<li>" * (n // 4), "links": '<a href="https://example.com/">x</a>' * (n // 40), "end then start": "</p><p>" * (n // 7),
-            "nul": "\x00" * n, "controls": "<\x01p\x02>" * (n // 6), "a in a": "<a href=#>" * (n // 10),
-            "headings": "<h1>a<h2>b<h3>c" * (n // 15), "sections": "<svg/><math/>" * (n // 13), "doctype": "<!DOCTYPE " + "a " * (n // 2 - 10),
-        }
-        started = time.monotonic()
-        for label, source in shapes.items():
-            source = source[:n]
-            begun = time.monotonic()
-            try:
-                out = clean_html(source)
-            except SanitiseError:
-                out = None                                                       # refused: fine, and fast
-            self.assertLess(time.monotonic() - begun, 1.5, label)
-            if out is not None:
+        """Each of these, at the longest length allowed, made the old Python 3.9 html.parser rescan for minutes. The old check was a
+        wall-clock limit (1.5 s a shape, 15 s in all); each shape is now judged by the growth in CPU time from half the longest length to the
+        longest (growth_ratio), and the cleaner must still refuse it or leave nothing the audit finds, at both sizes."""
+        def shapes(n):
+            return {
+                "open tags": "<a " * (n // 3), "open comments": "<!--" * (n // 4), "open marked sections": "<![CDATA[" * (n // 9),
+                "open attributes": '<a href="' * (n // 9), "open attribute quotes": "<a b='" * (n // 6), "bangs": "<!-" * (n // 3),
+                "question marks": "<?" * (n // 2), "declarations": "<!" * (n // 2), "end tags": "</" * (n // 2),
+                "unclosed end tags": "</a " * (n // 4), "if sections": "<![if" * (n // 5), "nested raw text": "<script>" * (n // 8),
+                "textareas": "<textarea>" * (n // 10), "long comment": "<!--" + "-" * (n - 4), "long name": "<" + "a" * (n - 1),
+                "long attribute name": "<a " + "b" * (n - 3), "many attributes": "<a " + "b=c " * (n // 4 - 1) + ">",
+                "equals": "<a " + "=" * (n - 3), "slashes": "<a" + "/" * (n - 2), "quotes": "<a b=" + '"' * (n - 5),
+                "angle brackets": "<" * n, "pairs": "<>" * (n // 2), "reversed": ">" * n, "ampersands": "&" * (n // 6),
+                "entities": "&amp;" * (n // 5), "numeric entities": "&#" * (n // 2), "long number": "&#" + "9" * (n - 2),
+                "long hex": "&#x" + "f" * (n - 3), "half entities": "&am" * (n // 3), "brs": "<br>" * (n // 4), "empty ps": "<p>" * (n // 4),
+                "list items": "<li>" * (n // 4), "links": '<a href="https://example.com/">x</a>' * (n // 40), "end then start": "</p><p>" * (n // 7),
+                "nul": "\x00" * n, "controls": "<\x01p\x02>" * (n // 6), "a in a": "<a href=#>" * (n // 10),
+                "headings": "<h1>a<h2>b<h3>c" * (n // 15), "sections": "<svg/><math/>" * (n // 13), "doctype": "<!DOCTYPE " + "a " * (n // 2 - 10),
+            }
+
+        for label in shapes(MAX_CHARS):
+            def work(size, label=label):
+                try:
+                    out = clean_html(shapes(size)[label][:size])
+                except SanitiseError:
+                    return                                                       # refused: fine, and fast
                 self.assertEqual(audit(out), [], label)
-        self.assertLess(time.monotonic() - started, 15, "all of them")
+            small, big, ratio = growth_ratio(work, MAX_CHARS // 2)
+            print("%s: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (label, small, big, ratio))
+            self.assertLessEqual(ratio, GROWTH_LIMIT, "%s: t(n)=%.3f t(2n)=%.3f" % (label, small, big))
 
 
 # ===== plain_text =====
@@ -954,6 +976,26 @@ class Module(unittest.TestCase):
     def test_the_allow_list_is_the_one_in_the_issue(self):
         self.assertEqual(set(sanitise.ALLOWED), TAGS)
         self.assertEqual(set(sanitise.VOID), VOID)
+
+
+class TheGrowthCheckTellsLinearFromCubic(unittest.TestCase):
+    """The helper above is only worth trusting if it passes a linear cost and fails a cubic one (known pure-Python costs)."""
+    def test_linear_work_passes_and_cubic_work_fails_the_limit(self):
+        def linear(n):
+            total = 0
+            for i in range(n * 400000):
+                total += i
+            return total
+
+        def cubic(n):
+            total = 0
+            for i in range(n):
+                for j in range(n):
+                    for k in range(n):
+                        total += 1
+            return total
+        self.assertLessEqual(growth_ratio(linear, 3)[2], GROWTH_LIMIT)
+        self.assertGreater(growth_ratio(cubic, 160)[2], GROWTH_LIMIT)
 
 
 if __name__ == "__main__":

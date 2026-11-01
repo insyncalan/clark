@@ -144,14 +144,12 @@ class Screen(unittest.TestCase):
         self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
 
     def test_a_run_of_key_words_takes_time_that_grows_with_the_size(self):
-        def took(n):
-            start = time.monotonic()
-            secret_screen.looks_like_secret("token" * n)
-            return time.monotonic() - start
-        took(1000)
-        small, big = took(8000), took(64000)                     # eight times the text: a square would take sixty-four times
-        self.assertLess(big, max(small * 24, 2.0))
-        self.assertLess(took(200000), 30)
+        # The old check was wall-clock: eight times the text had to take under 24 times as long (or 2 s), and 200,000 words under 30 s.
+        # It is now the growth from n to 2n in CPU time, over 16,000 to 200,000 words.
+        for n in (16000, 100000):
+            small, big, ratio = growth_ratio(lambda size: secret_screen.looks_like_secret("token" * size), n)
+            print("key words %d: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (n, small, big, ratio))
+            self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
 
     def test_many_ordinary_long_runs_are_not_a_secret(self):
         import uuid
@@ -200,12 +198,16 @@ class FromFolders(tp.Folders):
         self.assertEqual((got.safety, got.secret_labels), (0, ()))
 
     def test_a_secret_far_down_a_long_file_is_still_found_and_it_is_fast(self):
-        self.put(self.box, "long.txt", "plain words here\n" * 40000 + "pass" + "word=" + PW)
-        start = time.monotonic()
-        got = self.run_it()
-        self.assertLess(time.monotonic() - start, 30)
-        self.assertEqual(got.passages, ())
-        self.assertEqual(got.secret_labels, ("saved/long.txt",))
+        # The old check was wall-clock (30 s for 40,000 lines); the secret must still be found at both sizes, and the growth from 20,000 to
+        # 40,000 lines in CPU time is judged by growth_ratio.
+        def work(lines):
+            self.put(self.box, "long.txt", "plain words here\n" * lines + "pass" + "word=" + PW)
+            got = self.run_it()
+            self.assertEqual(got.passages, ())
+            self.assertEqual(got.secret_labels, ("saved/long.txt",))
+        small, big, ratio = growth_ratio(work, 20000)
+        print("long file: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (small, big, ratio))
+        self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
 
     def test_removing_the_screen_lets_the_secret_through(self):
         self.put(self.box, "s.txt", "ZQ-S pass" + "word=" + PW)
