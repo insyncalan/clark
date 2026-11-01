@@ -274,5 +274,37 @@ class Safety(unittest.TestCase):
         self.assertEqual(args.trusted_authors, {"a", "b", "c"})
 
 
+class ChromeStartsUsesTheHelper(unittest.TestCase):
+    def test_chrome_starts_builds_its_command_through_the_helper(self):
+        from unittest import mock
+        seen = {}
+
+        class Proc:
+            def wait(self, t):
+                raise subprocess.TimeoutExpired("chrome", t)
+
+        def fake_start(cmd, r, w):
+            seen["cmd"] = cmd
+            return Proc()
+
+        with mock.patch.object(poller.run_support, "start_chrome", fake_start), \
+                mock.patch.object(poller.run_support, "stop_chrome") as stop:
+            self.assertTrue(poller.chrome_starts("/x/chrome", settle=0))
+        stop.assert_called_once()
+        for flag in poller.run_support.KEYCHAIN_FLAGS:
+            self.assertIn(flag, seen["cmd"])
+
+    def test_chrome_that_exits_by_itself_does_not_start(self):
+        from unittest import mock
+
+        class Dead:
+            def wait(self, t):
+                return 1
+
+        with mock.patch.object(poller.run_support, "start_chrome", lambda c, r, w: Dead()), \
+                mock.patch.object(poller.run_support, "stop_chrome"):
+            self.assertFalse(poller.chrome_starts("/x/chrome", settle=0))
+
+
 if __name__ == "__main__":
     unittest.main()
