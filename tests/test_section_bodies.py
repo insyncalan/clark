@@ -80,8 +80,8 @@ class Registry(unittest.TestCase):
             with self.assertRaises(sb.Bad):
                 check("needs", '{"a":1}')
 
-    def test_the_tracker_publishes_nothing_of_its_content_yet_and_needs_publishes_only_its_shown_rows(self):
-        self.assertEqual(sb.published("tracker", {"rows": [{"what": "<script>"}]}), {})
+    def test_the_tracker_publishes_only_its_checked_groups_and_lines_and_needs_only_its_shown_rows(self):
+        self.assertEqual(sb.published("tracker", {"rows": [{"what": "<script>"}]}), None)
         self.assertIsNone(sb.published("needs", {"rows": [{"what": "<script>"}]}), "a row without the checked shape is not published")
         from clark import section_kinds
         from clark.section_kinds import base
