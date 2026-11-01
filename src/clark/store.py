@@ -2552,12 +2552,12 @@ class Store:
                 raise ValueError
             sent = date.fromisoformat(str(day))
         except ValueError:
-            raise Invalid("The day the email was sent must be a real date.") from None
+            raise Invalid("The date this page sent is not a real date. Reload the page and try again. Nothing was saved.") from None
         now = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
         if sent < now - timedelta(days=1):
-            raise Invalid("The day the email was sent is too long ago to be right. Check the date.")
+            raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.")
         if sent > now + timedelta(days=1):
-            raise Invalid("The day the email was sent can't be in the future.")
+            raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
             raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
         try:

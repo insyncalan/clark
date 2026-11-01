@@ -87,7 +87,7 @@ class Writing(Base):
 
     def test_the_day_may_be_one_day_ahead_and_not_more(self):
         self.send(day=str(TODAY + timedelta(days=1)))
-        self.refuses("can't be in the future", day=str(TODAY + timedelta(days=2)))
+        self.refuses("is ahead of today", day=str(TODAY + timedelta(days=2)))
 
     def test_a_chase_stepped_three_times_makes_the_tone_firmer(self):
         for n in range(3):
@@ -147,9 +147,9 @@ class Refusals(Base):
         self.refuses("not in this project", ids=[self.a, self.other])
         self.refuses("not in this project", ids=["ABC-A-999"])
         self.refuses("not in this project", ids=["ABC-M-001"])
-        self.refuses("must be a real date", day="2026-02-30")
-        self.refuses("must be a real date", day="20261028")
-        self.refuses("must be a real date", day="28-10-2026")
+        self.refuses("is not a real date", day="2026-02-30")
+        self.refuses("is not a real date", day="20261028")
+        self.refuses("is not a real date", day="28-10-2026")
         self.refuses("There is no project", code="QQQ")
 
     def test_an_archived_project_is_refused(self):
@@ -378,11 +378,23 @@ class Refusals258(Base):
         self.assertNotIn(sens, str(caught.exception))
         self.assertNotIn("2026-10-27", str(caught.exception))
 
+    def test_the_three_day_refusals_say_what_to_do_and_that_nothing_was_saved(self):
+        # The page sends its own clock's date; the person typed none, so the advice is the computer's clock and a reload.
+        for day in ("2026-02-30", str(TODAY - timedelta(days=2)), str(TODAY + timedelta(days=2))):
+            with self.subTest(day=day):
+                with self.assertRaises(Invalid) as caught:
+                    self.send(day=day)
+                words = str(caught.exception)
+                self.assertTrue(words.endswith("Reload the page and try again. Nothing was saved.")
+                                or words.endswith("then reload the page and try again. Nothing was saved."), words)
+                for banned in ("calendar", "Check the date", "reply-by", day):
+                    self.assertNotIn(banned, words)
+
     def test_the_day_is_bounded_by_the_servers_clock_not_the_pages(self):
-        self.refuses("too long ago", day="2019-12-31")
-        self.refuses("too long ago", day="2020-01-01")
-        self.refuses("too long ago", day=str(TODAY - timedelta(days=2)))
-        self.refuses("can't be in the future", day=str(TODAY + timedelta(days=2)))
+        self.refuses("too far in the past", day="2019-12-31")
+        self.refuses("too far in the past", day="2020-01-01")
+        self.refuses("too far in the past", day=str(TODAY - timedelta(days=2)))
+        self.refuses("is ahead of today", day=str(TODAY + timedelta(days=2)))
         for d in (TODAY, TODAY - timedelta(days=1), TODAY + timedelta(days=1)):
             self.assertTrue(self.send(day=str(d)))
 
