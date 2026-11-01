@@ -667,6 +667,19 @@ class Import(Screens):
             self.assertNotIn("Put actions, risks, issues or decisions under a heading", text, "the advice to add headings is wrong here")
             self.assertEqual(p.js("document.querySelector('[data-cancel]').innerText"), "Close")
 
+    def test_both_boxes_are_modal_and_their_message_areas_have_ids_of_their_own(self):
+        with chrome() as cdp:
+            self.start()
+            p = self.page(cdp, edit=True)
+            self.open_export(p)
+            self.assertEqual(p.js("document.querySelector('#word-export-dialog').getAttribute('aria-modal')"), "true")
+            self.assertEqual(p.js("document.querySelectorAll('#word-export-msg').length"), 1)
+            p.js("document.querySelector('[data-cancel]').click()")
+            p.until("!document.querySelector('#word-export-dialog')", "closed")
+            self.open_import(p)
+            self.assertEqual(p.js("document.querySelector('#word-import-dialog').getAttribute('aria-modal')"), "true")
+            self.assertEqual(p.js("document.querySelectorAll('#word-import-msg').length"), 1)
+
     def test_a_file_with_nothing_new_says_so_and_offers_only_close(self):
         with chrome() as cdp:
             self.start()
@@ -824,6 +837,19 @@ class Words(unittest.TestCase):
             inside = re.sub(r"(^|[.!?…]\s+)[A-Z][A-Za-z]*", " ", s)           # the first word of each sentence may be capital; any other must be a name of a thing
             self.assertEqual([w for w in re.findall(r"\b[A-Z][A-Za-z]*\b", inside) if w not in THINGS], [], f"{name}: {s!r} has a capital word that is not a name of a thing on the page")
             self.assertNotRegex(s, r"\bclark\b.*\bclark\b.*\bclark\b")
+
+    def test_the_ids_in_the_word_boxes_are_each_used_once_and_both_boxes_say_they_are_modal(self):
+        src = (PAGE_SRC / "edit" / "Word.jsx").read_text(encoding="utf-8")
+        ids = re.findall(r'\bid="([^"]+)"', src)
+        self.assertEqual(sorted(i for i in set(ids) if ids.count(i) > 1), [], "an id is used twice")
+        self.assertEqual(src.count('aria-modal="true"'), 2)
+
+    def test_the_help_lines_about_the_word_copy_say_you_are_asked_and_that_the_client_copy_is_never_replaced(self):
+        help_text = (PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertIn("you are asked whether to add a number or replace it", help_text)
+        self.assertNotIn("clark asks whether to add a number or replace it", help_text)
+        self.assertIn("A copy already in the client folder is never replaced", help_text)
+        self.assertNotIn("a Word copy beside the web page", help_text)
 
     def test_every_refusal_the_page_makes_for_itself_says_what_to_do_next(self):
         from re import search

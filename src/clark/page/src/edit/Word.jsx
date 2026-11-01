@@ -45,7 +45,7 @@ function Export() {
   }, [s.phase]);
   const working = s.phase === "working";
   return (
-    <dialog id="word-export-dialog" class="dlg" aria-labelledby="word-x-title" aria-busy={working ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelExport(); }}>
+    <dialog id="word-export-dialog" class="dlg" aria-modal="true" aria-labelledby="word-x-title" aria-busy={working ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelExport(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); goExport(); }}>
         <h2 id="word-x-title">{s.phase === "clash" ? "The Word file name is taken" : "Export to Word"}</h2>
         {s.phase === "clash" ? null : (
@@ -61,7 +61,7 @@ function Export() {
           </div>
         )}
         {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="word-warn">The client will see this report.</p> : null}
-        <div class="pub-msg word-msg" id="word-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
+        <div class="pub-msg word-msg" id="word-export-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {working ? "Saving the Word report… If a window asks where to save it, choose a folder there." : s.message ? <p class={s.message.kind}>{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">
@@ -87,7 +87,7 @@ function Import() {
   }, [s.phase]);
   const plan = s.plan, n = s.ticks.length;
   return (
-    <dialog id="word-import-dialog" class="dlg wi" aria-labelledby="word-i-title" aria-busy={busy ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelImport(); }}>
+    <dialog id="word-import-dialog" class="dlg wi" aria-modal="true" aria-labelledby="word-i-title" aria-busy={busy ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelImport(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); if (s.phase === "choose") goRead(); else if (s.phase === "plan") goAdd(); }}>
         <h2 id="word-i-title">Import from Word</h2>
         {s.phase === "plan" || s.phase === "adding" ? (
@@ -123,7 +123,7 @@ function Import() {
             </label>
           </>
         )}
-        <div class="pub-msg word-msg" id="word-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
+        <div class="pub-msg word-msg" id="word-import-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {s.phase === "reading" ? "Reading the file…" : s.phase === "adding" ? `Adding ${count(n, "item")}…` : s.message ? <p class={s.message.kind}>{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">
