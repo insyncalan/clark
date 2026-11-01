@@ -83,5 +83,35 @@ class HistoryMany(unittest.TestCase):
             demo.close()
 
 
+class HistoryManyIds(unittest.TestCase):
+    """#252: history_many finds an item's rows by the ID alone, not by a project code cut off at the first hyphen."""
+
+    def test_ids_without_a_hyphen_and_ids_that_are_prefixes_of_each_other(self):
+        from clark import history
+        demo = DemoStore()
+        try:
+            s = demo.store
+            a, b = demo.action(), demo.action(description="Second")
+            demo.update("actions", a, {"owner": "Sam Example"})
+            with s.step("dashboard", USER) as st:
+                st.update("actions", b, {"labels": "Sensitive"})
+                st.create("links", {"from_item": a, "to_item": b, "source": "demo"})
+            # a store's IDs always have a hyphen today, so rename the log's IDs by hand: the item row, its label row ("id|label")
+            # and its link row ("from|to|kind") follow. "AB" is a prefix of "ABC" and of "ABC-7" (which has no rows); the first two have no hyphen to cut at.
+            for old, new in ((a, "AB"), (b, "ABC")):
+                s.con.execute("UPDATE change_log SET item_id = replace(item_id, ?, ?)", (old, new))
+            s.con.commit()
+            ids = ["AB", "ABC", "ABC-7"]
+            many = history.history_many(s.con, ids)
+            for i in ids:
+                with self.subTest(item=i):
+                    self.assertEqual(many[i], history.history(s.con, i))
+            self.assertTrue(len(many["AB"]) >= 2 and len(many["ABC"]) >= 2, "the hyphenless IDs got no history")
+            self.assertIn("links", {e["table"] for e in many["AB"]})
+            self.assertIn("links", {e["table"] for e in many["ABC"]})
+        finally:
+            demo.close()
+
+
 if __name__ == "__main__":
     unittest.main()
