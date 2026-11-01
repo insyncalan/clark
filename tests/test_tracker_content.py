@@ -279,8 +279,6 @@ class Size(unittest.TestCase):
         self.assertEqual(str(e.exception), sb.TOO_BIG)
         self.assertEqual(sb.LIMITS["needs"], 262144)             # the needs limit is untouched
 
-    # #268: passes once /api/undo's body limit is raised in server.py (guarded change, on the item)
-    @unittest.expectedFailure
     def test_the_change_route_limit_is_one_named_constant_and_the_small_routes_are_unchanged(self):
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
