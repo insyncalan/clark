@@ -7,9 +7,13 @@
 # (`dev/run_tests.py --push origin/<base>`); the FULL suite (every file, the browser tests included) on a push to main, on a
 # release branch (release-X.Y.Z, and the Head's v*-release* line, read from the pull request's head branch) and when started by
 # hand. Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome, read from the
-# files by dev/tools/run_support.py) on every run. macOS (the newest Python, every file) runs on release branches and when
+# files by dev/tools/run_support.py) on every run. macOS (the newest Python, every file, in two shards: #274, the single job
+# passed 30 minutes on the v0.3.0 release run) runs on release branches and when
 # started by hand with macos=true, and is REQUIRED there: clark is Mac first (unlike creaite, where it is optional). A macOS
 # runner that fails to start is re-run once before anyone calls it a failure.
+#
+# macOS shards: one job with a matrix, so `needs.macos.result` is ONE value for the whole matrix (success only if both shards
+# pass; skipped when the job's `if` is false). The gate reads that result, so it never depends on a shard's name.
 #
 # The gate: "Tests passed" is the one result to require. A gate row can be absent because a job with `needs` has no check run
 # until its needs finish (so it is missing while a needed job still runs). A stale red gate appeared when concurrency cancelled a
@@ -109,9 +113,15 @@ jobs:
     # macOS (the newest Python, every file) on release branches (release-*, v*-release*) and when a hand-started run sets macos=true:
     # gh workflow run Tests --ref <branch> -f macos=true. Required when it runs: "Tests passed" waits for it.
     if: (startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')
-    name: macos-latest · Python 3.x · shard 1/1      # static: a skipped job's name is never resolved from a matrix
+    name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}      # skipped: shown unresolved; the gate reads needs.macos.result, never this name
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {shard: 1, shards: 2}
+          - {shard: 2, shards: 2}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -136,8 +146,8 @@ jobs:
         env:
           FILES: ${{ github.event.inputs.files }}
           JOBS: 3
-          SHARD: 1
-          SHARDS: 1
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ matrix.shards }}
         run: python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   passed:
