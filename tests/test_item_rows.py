@@ -21,12 +21,19 @@ from test_server import Running, chrome, wait  # noqa: E402
 
 AS_AT = "2026-10-28"
 HIDDEN = "Internal-only wording ZQ-HIDDEN"
+NO_WORDING = "Team-only description ZQ-NOWORDING"      # shown to the client, but with no client wording: it is left out
 
 
 def fill(store):
     with store.step("dashboard", USER) as st:
         st.create("actions", {"project": "ABC", "description": "Agree the cut-over plan", "owner": "Sara Khan", "due_date": "2026-10-20",
+                              "raised": "2026-10-01", "client_message": "Cut-over plan to be agreed", "source": "demo"})
+        st.create("actions", {"project": "ABC", "description": NO_WORDING, "owner": "Omar Reid", "due_date": "2026-11-07",
                               "raised": "2026-10-01", "source": "demo"})
+        st.create("raid", {"project": "ABC", "type": "Risk", "description": NO_WORDING + " risk", "owner": "Mia Hale",
+                           "due_date": "2026-11-04", "impact": "High", "likelihood": "High", "raised": "2026-10-01", "source": "demo"})
+        st.create("decisions", {"project": "ABC", "decision": NO_WORDING + " decision", "made_by": "Steering group",
+                                "needed_by": "2026-11-04", "status": "Pending", "source": "demo"})
         st.create("actions", {"project": "ABC", "description": "Book the training room", "owner": "Omar Reid", "due_date": "2026-11-05",
                               "raised": "2026-10-01", "client_message": "Training room booked for November", "source": "demo"})
         st.create("actions", {"project": "ABC", "description": HIDDEN, "owner": "Omar Reid", "due_date": "2026-11-06",
@@ -34,11 +41,13 @@ def fill(store):
         st.create("actions", {"project": "ABC", "description": "Closed one", "owner": "Omar Reid", "status": "Closed", "due_date": "2026-10-02",
                               "raised": "2026-10-01", "source": "demo"})
         st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier may deliver late", "owner": "Mia Hale",
-                           "due_date": "2026-11-01", "impact": "High", "likelihood": "High", "raised": "2026-10-01", "source": "demo"})
+                           "due_date": "2026-11-01", "impact": "High", "likelihood": "High", "raised": "2026-10-01",
+                           "client_message": "Supplier delivery may slip", "source": "demo"})
         st.create("raid", {"project": "ABC", "type": "Issue", "description": "Test data is incomplete", "owner": "Mia Hale",
-                           "due_date": "2026-11-02", "impact": "Low", "likelihood": "Low", "raised": "2026-10-01", "source": "demo"})
+                           "due_date": "2026-11-02", "impact": "Low", "likelihood": "Low", "raised": "2026-10-01",
+                           "client_message": "Some test data is missing", "source": "demo"})
         st.create("decisions", {"project": "ABC", "decision": "Choose the hosting region", "made_by": "Steering group",
-                                "needed_by": "2026-11-03", "status": "Pending", "source": "demo"})
+                                "needed_by": "2026-11-03", "status": "Pending", "client_message": "Hosting region to be chosen", "source": "demo"})
 
 
 ROWS = ("[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => r.dataset.id + '|' + r.querySelector('.pill').textContent"
@@ -55,18 +64,23 @@ class ItemRows(unittest.TestCase):
     def check_rows(self, js, where):
         actions = js(ROWS % "actions")
         self.assertEqual(len(actions), 2, f"{where}: two open client-visible actions (closed and hidden ones left out): {actions}")
-        self.assertIn("Agree the cut-over plan", actions[0], where)
+        self.assertIn("Cut-over plan to be agreed", actions[0], where)
         self.assertIn("Sara Khan", actions[0], where)
         self.assertIn("Due 20-10-2026", actions[0], "dates read DD-MM-YYYY")
         self.assertIn("Training room booked for November", actions[1], "the client's own wording is shown when there is one")
         raid = js(ROWS % "raid")
         self.assertEqual(len(raid), 2, where)
-        self.assertTrue(raid[0].split("|")[1] == "Red" and "Risk" in raid[0] and "Priority" in raid[0], raid[0])
-        self.assertIn("Issue", raid[1])
+        self.assertTrue(raid[0].split("|")[1] == "Urgent" and "Risk" in raid[0] and "Supplier delivery may slip" in raid[0], raid[0])
+        self.assertNotIn("Priority", raid[0], "the pill says the priority; the line does not say it again")
+        self.assertIn("Review by 01-11-2026", raid[0])
+        self.assertTrue(raid[1].split("|")[1] == "Low" and "Issue" in raid[1], raid[1])
         decisions = js(ROWS % "decisions")
         self.assertEqual(len(decisions), 1, where)
         self.assertIn("Needed by 03-11-2026", decisions[0], where)
+        self.assertIn("Hosting region to be chosen", decisions[0], where)
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
+        self.assertNotIn("ZQ-NOWORDING", js("document.body.innerText"), f"{where}: an item with no client wording is not in the rows")
+        self.assertEqual(actions[0].split("|")[1], "Late", f"{where}: a late action reads Late, not Overdue")
 
     def test_the_served_page_draws_the_rows_in_view_and_in_edit_and_the_file_draws_them_alone(self):
         s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
@@ -92,10 +106,12 @@ class ItemRows(unittest.TestCase):
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)), "the file drew its rows")
             self.check_rows(lambda e: cdp.js(e, sid), "the file")
-            self.assertIn("8 days late", cdp.js(ROWS % "actions", sid)[0], "dates in words count from the publish date, not today")
+            first = cdp.js(ROWS % "actions", sid)[0]
+            self.assertIn("Due 20-10-2026", first)
+            self.assertNotRegex(first, r"days? late|Today|Tomorrow|Yesterday|In \d+ days?", "a file shows the date only: it is read later, not on the publish date")
             self.assertEqual(cdp.js("document.querySelectorAll('[contenteditable],input,button.eye').length", sid), 0)
 
-    def test_a_section_with_nothing_to_show_says_so_on_the_page_and_is_left_out_of_the_file(self):
+    def test_a_section_with_nothing_to_show_is_left_out_of_view_and_the_file_and_says_so_in_edit(self):
         empty = DemoStore()
         self.addCleanup(empty.close)
         s = Running(data_for=empty.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
@@ -103,7 +119,11 @@ class ItemRows(unittest.TestCase):
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
             p.ready()
-            self.assertEqual(p.js("document.querySelector('[data-type=raid] .quiet').textContent"), "Nothing to show this week.")
+            gone = "document.querySelectorAll('[data-type=raid],[data-type=actions],[data-type=decisions]').length"
+            self.assertEqual(p.js(gone), 0, "View leaves an empty section out")
+            p.edit()
+            lines = "[...document.querySelectorAll('[data-type=raid] .quiet,[data-type=actions] .quiet,[data-type=decisions] .quiet')].map(e => e.textContent)"
+            self.assertEqual(p.js(lines), ["No open risks or issues.", "No open actions.", "No recent decisions."])
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(empty.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)

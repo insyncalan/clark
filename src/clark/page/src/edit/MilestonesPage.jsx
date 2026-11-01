@@ -6,8 +6,8 @@ import { recall, remember } from "../logic/remember.js";
 import { Movement } from "./Movement.jsx";
 import { HEADING } from "./movementWords.js";
 
-const MOVE_HINT = "Each choice changes the record at once, with Undo.";
-const PLAN_HINT = "Every milestone sits on the line, and the list below says where each one stands.";
+const MOVE_HINT = "Each move changes the milestone straight away. You can Undo it.";
+const PLAN_HINT = "Every milestone is on the timeline. The list shows where each one stands.";
 
 export function MilestonesPage({ plan }) {
   const [view, setView] = useState(() => (recall("msp.view", "plan") === "move" ? "move" : "plan"));

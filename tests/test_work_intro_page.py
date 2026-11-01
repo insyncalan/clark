@@ -1,5 +1,5 @@
 """Prototype parity B-3: the Work items page has a plain project name above the title and one intro line under it.
-The editor's line names the eye; the published file's line does not (it has no eye).
+The editor's line says what Shown to client means; the published file's line does not (it has no such mark).
 
 Run: python3 dev/run_tests.py test_work_intro_page
 Headless Chrome (required: fails, never skips, without it). Desktop only: 1400 and 900 px, light and dark.
@@ -39,7 +39,7 @@ class WorkIntro(unittest.TestCase):
                 self.assertEqual(cdp.js(TEXT, sid), INTRO)
                 self.assertEqual(cdp.js(CRUMB, sid)[0], "none", "the project name is not in capitals")
 
-    def test_the_editor_line_names_the_eye(self):
+    def test_the_editor_line_says_what_shown_to_client_means(self):
         demo = DemoStore()
         self.addCleanup(demo.close)
         s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(tempfile.mkdtemp()))
@@ -48,7 +48,7 @@ class WorkIntro(unittest.TestCase):
             with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                 sid = open_page(cdp, f"http://127.0.0.1:{s.port}/#work&p=ABC", width, scheme)
                 self.assertTrue(wait(lambda: cdp.js(f"!!{TEXT}", sid)), "the intro line drew")
-                self.assertEqual(cdp.js(TEXT, sid), INTRO + " The eye shows or hides it from the client.")
+                self.assertEqual(cdp.js(TEXT, sid), INTRO + " Items marked Shown to client appear on the published page.")
                 self.assertEqual(cdp.js(CRUMB, sid)[0], "none")
 
 
