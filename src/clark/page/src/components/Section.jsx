@@ -13,7 +13,7 @@ import { UseCases } from "./UseCases.jsx";
 import { MsBlock } from "./MsBlock.jsx";
 import { Needs } from "./Needs.jsx";
 
-export function Section({ section, index, count, slot, anchor, tools }) {
+export function Section({ section, index, count, slot, anchor, tools, onExport }) {
   const editing = !!tools;
   const hidden = section.hidden ? 1 : 0;
   const drop = editing && dropAt.value ? dropAt.value : null;      // what a drag would draw (#95)
@@ -27,7 +27,7 @@ export function Section({ section, index, count, slot, anchor, tools }) {
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
       </header>
-      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
+      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
         : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
         : editing && section.type === "text" && tools.richOn("body")
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
