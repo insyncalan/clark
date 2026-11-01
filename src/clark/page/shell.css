@@ -47,7 +47,16 @@ main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .fig .k { display: flex; align-items: center; gap: 6px; font-size: var(--size-small); color: var(--text-muted); }
 .fig .v { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
 .fig .dd { font-size: var(--size-small); color: var(--text-muted); }
-.fig .tw { font-size: var(--size-small); color: var(--text); }
+/* The status word is a small chip: its border is the word's own colour, so the edge keeps the text's contrast (5 to 1 or more on the
+   tile and on a hidden tile, light and dark) and no fill is drawn over the tile. As in the prototype it sits beside the figure, at the
+   right of the figure's row, centred on the figure; on Project health it sits in the label row at the right. A row too narrow for both
+   lets the chip drop under the figure, still at the right. Shared by the editor page and the published page. */
+.fig .vrow { display: flex; align-items: center; flex-wrap: wrap; column-gap: 8px; min-width: 0; }
+.fig .tw { padding: 1px 8px; border: 1px solid currentColor; border-radius: var(--radius-sm); font-size: var(--size-small); font-weight: var(--weight-medium); line-height: 1.3; white-space: nowrap; color: var(--text); }
+.fig .vrow .tw, .fig .k .tw { margin-left: auto; }
+.fig.health-fig .k { flex-wrap: wrap; row-gap: 4px; }
+#report[data-mode="edit"] .fig.health-fig .k { padding-right: 42px; }   /* the move grip sits top right of the tile (24 px at right 30 px): the label row, and the chip in it, stop short of it */
+.fig.rag-g .tw { color: var(--status-green-text); } .fig.rag-a .tw { color: var(--status-amber-text); } .fig.rag-r .tw { color: var(--status-red-text); }
 .fig .hrow { display: flex; align-items: flex-start; gap: 12px; margin-top: 4px; }
 .fig .hrow .dd { font-size: inherit; color: inherit; }
 .fig .hreason { flex: 1 1 auto; min-width: 0; font-size: var(--size-body); color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
@@ -65,7 +74,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .teye .i { width: 16px; height: 16px; }
 .tgrip:hover, .teye:hover { background: var(--grey-100); color: var(--text); }
 .tgrip:focus-visible, .teye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: var(--grey-100); }   /* not opacity: that dims the text below 4.5:1 */
+.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: var(--grey-100); padding-bottom: 54px; }   /* room under the figures for the tag at the bottom (two lines at 190 px), so it never sits over the chip or the detail */   /* not opacity: that dims the text below 4.5:1 */
 .thid { position: absolute; left: 12px; bottom: 6px; z-index: 2; }
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
@@ -918,6 +927,10 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 
 /* the home banner: a still picture a person's own look may set (--art-home, --art-home-height); empty and flat by default */
 .frame.empty::before { content: ""; display: block; height: var(--art-home-height); background: var(--art-home) center / contain no-repeat; }
+.setting h3 { margin: 16px 0 6px; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
+.ask-folders { margin: 8px 0 0; padding: 0; list-style: none; }
+.ask-folders li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+#ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
 .ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: var(--space-6) var(--space-4); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }
 .ad:focus { outline: none; }

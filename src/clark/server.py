@@ -22,6 +22,10 @@ Routes:
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
+- POST /api/draft-email  Draft email (#50): the ticks and the email text from the builder; read only, never sends (draft_email_feed.make)
+- POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, never any words of the email (draft_email_feed.make_sent)
+- POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
+- POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
 - GET  /assets/<name>    the brand's picture (#98): only cover.png, cover.jpg, cover.jpeg and cover.webp, from the local brand folder; no
                          token (an <img> can't send one), but the Host, Origin and Sec-Fetch-Site are checked; 404 when there is none
 - GET  /api/profile      the name and email typed in Settings › Personal (#180), from the data folder's settings.json; without the seam, not found
@@ -84,7 +88,11 @@ BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 CHANGE_BODY_LIMIT = 2 * 64 * 1024 + 4 * 1024   # #96: twice the largest section content (64 KB; the body is a string inside the request, so each quote and backslash is escaped twice) plus 4 KB; a test ties it to the registry
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                     "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
+                     "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
@@ -623,6 +631,64 @@ def safety_route(method):
     return route
 
 
+def draft_email_route(seam_name):
+    """POST /api/draft-email and /api/draft-email/sent (#50): hand the request to the server's seam of that name, which answers
+    (status, body). The first writes nothing and sends nothing; the second records one "I sent it" (ids, mode, day; never any text of
+    the email). With no seam there is nothing to ask: not found. Checked like change_route before this runs (token, Host, Origin,
+    JSON only, a Content-Length, the route's own limit)."""
+    def route(handler, req):
+        seam = getattr(handler.server, seam_name)
+        if seam is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = seam(req)
+        return handler.send(status, body)
+    return route
+
+
+def ask_folders_route(method):
+    """GET and POST /api/ask-folders (#47): the folders asking may read. The server's `ask_folders` (ask_folders.AskFolders)
+    answers (status, body); without one there is nothing to ask: not found. The token, the Host, the Origin, JSON only and the
+    length are checked before this runs; the checks of the folder and the only write are in ask_folders.py and the store."""
+    def route(handler, *req):
+        service = getattr(handler.server, "ask_folders", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        if not req:                          # a GET: the project comes from the address
+            req = ((parse_qs(urlsplit(handler.path).query).get("project") or [""])[0],)
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
+def app_settings_route(method):
+    """GET and POST /api/ask-enabled (#47): asking's on/off switch for this computer. The server's `app_settings`
+    (app_settings.AppSettings) answers (status, body); without one there is nothing to ask: not found. The token, the Host, the
+    Origin, JSON only and the length are checked before this runs; the value checks and the only write are in app_settings.py and
+    the store."""
+    def route(handler, *req):
+        service = getattr(handler.server, "app_settings", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
+def ask_route(method):
+    """POST /api/ask, GET /api/ask/status and POST /api/ask/stop (#47): a question about the open project, whether asking can
+    answer, and Stop. The server's `ask` (ask_service.AskService) answers (status, body): it reads the switch from the store before
+    anything is sent, so nothing leaves while asking is off; without one there is nothing to ask: not found. The token, the Host,
+    the Origin, JSON only and the length are checked before this runs; no model code is in this module. #47e: POST
+    /api/ask/change/dry and /apply hand the dry run and Apply of a suggested change to the same service, which never asks a model."""
+    def route(handler, *req):
+        service = getattr(handler.server, "ask", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
 def word_import_route(handler, req):
     """POST /api/word-import (#48). Checked like change_route before this runs: the token, the Host, no other site's Origin, JSON
     only, a Content-Length and the route's own size limit."""
@@ -648,12 +714,18 @@ def profile_route(method):
 
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
-              "/api/movement": movement_route, "/api/milestones": milestones_route, "/api/profile": profile_route("get")}
+              "/api/movement": movement_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"),
+              "/api/profile": profile_route("get")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
-               "/api/profile": profile_route("save"),
-               "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
+                "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
+                "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
+                "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
+                "/api/profile": profile_route("save"), "/api/draft-email": draft_email_route("draft_email"),
+                "/api/draft-email/sent": draft_email_route("draft_email_sent"),
+                "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -837,7 +909,7 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None,
-                 milestones=None):
+                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -851,7 +923,12 @@ class LocalServer(ThreadingHTTPServer):
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
         self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
+        self.draft_email = draft_email        # #50: builds a Draft email for a request, read only; None until the launcher gives one
+        self.draft_email_sent = draft_email_sent      # #50: records "I sent it" (ids, mode, day; no text); None until the launcher gives one
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
+        self.ask_folders = ask_folders        # ask_folders.AskFolders (#47); None: the folder routes answer 404
+        self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
+        self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -884,14 +961,15 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None,
-          milestones=None):
+          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile,
-                            word_import=word_import, word_export=word_export, milestones=milestones)
+                            word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
+                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

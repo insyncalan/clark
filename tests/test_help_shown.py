@@ -86,6 +86,15 @@ class Held(unittest.TestCase):
             for why in LATER[part].values():
                 self.assertTrue(why.strip())
 
+    def test_the_held_list_is_indented_evenly(self):
+        """Every held id sits two spaces in, like its neighbours (a stray space once crept onto one line)."""
+        text = (HELP / "helpLater.json").read_text(encoding="utf-8")
+        ids = set(LATER["howto"]) | set(LATER["reference"])
+        for n, line in enumerate(text.splitlines(), 1):
+            m = re.match(r'^( *)"([^"]+)": "', line)
+            if m and m.group(2) in ids:
+                self.assertEqual(len(m.group(1)), 2, f"helpLater.json line {n}: {m.group(2)} is not indented by two spaces")
+
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template"])
@@ -128,7 +137,7 @@ class AgainstThePage(unittest.TestCase):
         """On the whole source (nothing held) the same checks fail: the peek is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), and Import and Export when Export did (#147); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
         everything = " ".join(list(strings(RAW["howto"]["tasks"])) + list(strings(RAW["start"])))
         absent = [n for n, shown, proof in FEATURES if re.search(shown, everything) and not re.search(proof, self.CODE)]
-        for want in ("the peek", "ask clark", "Sneak peek"):
+        for want in ("the peek", "Sneak peek"):            # "ask clark" left this list when its panel reached the page (#47a), as Publish did (#43)
             self.assertIn(want, absent)
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
