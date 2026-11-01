@@ -100,14 +100,14 @@ class Held(unittest.TestCase):
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
         self.assertEqual(s["start"]["parts"], [])
-        self.assertEqual(len(s["reference"]["keys"]), 22 - len(LATER["keys"]))
+        self.assertEqual(len(s["reference"]["keys"]), 31 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (27, 30, 22))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (27, 30, 31))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -147,11 +147,15 @@ class AgainstThePage(unittest.TestCase):
         # 66 again on the merge with the command palette (#198), which adds no bold Help name (measured on the merged tree)
         # 66 again on the merge with ask clark's panel (#47a) and the palette's command for it (measured on the merged tree)
         # 64 with Version and updates (Updates, Choose zip… and Undo update name things the page does now: measured on the merged tree)
-        self.assertGreaterEqual(len(names), 64)
+        # 63 with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?), which Help names and the page now draws (measured on the merged tree)
+        # 61 with both together: Version and updates and the suggestion pills each name things the page now draws (measured on the merged tree)
+        self.assertGreaterEqual(len(names), 61)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
-        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]", "[[Mod+K]]"])
+        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
+                                "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
+                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[Mod+K]]"])
 
 
 class NeverDelete(unittest.TestCase):
