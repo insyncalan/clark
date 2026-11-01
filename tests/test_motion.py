@@ -295,7 +295,7 @@ class More(tre.Base):
                 self.assertFalse(p.js("!!document.querySelector('.sec-hint')"), "not in View")
                 p.edit()
                 p.until("!!document.querySelector('.sec-ctl.hint')", "the hint shows the first time")
-                self.assertEqual(p.js("document.querySelector('.sec-hint').textContent"), "Drag to move, + to add a template")
+                self.assertEqual(p.js("document.querySelector('.sec-hint').textContent"), "Drag to move. Use + to add a template below.")
                 name, running = self.anim(p, ".sec-ctl.hint .handle")
                 if mode[0] == "allowed":
                     self.assertEqual(name, "m-pulse")

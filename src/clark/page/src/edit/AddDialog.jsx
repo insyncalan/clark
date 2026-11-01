@@ -153,11 +153,14 @@ function Box({ after, opener, onClose }) {
               );
             })}
           </fieldset>
+          {/* One live line outside the keyed preview: the preview remounts on each move (to restart its fade), and a live region
+              that arrives already filled is usually not read out, so the name and description are announced from here. */}
+          <p class="sr-only" aria-live="polite" data-ad-say>{current ? `${current.name}. ${current.description}` : ""}</p>
           <section class="ad-prev" aria-label="About this template" key={current ? current.id : "none"}>
             {current ? (
               <>
-                <h3 aria-live="polite">{current.name}</h3>
-                <p aria-live="polite">{current.description}</p>
+                <h3>{current.name}</h3>
+                <p>{current.description}</p>
                 <p class="ad-lbl">Holds</p>
                 <ul>{current.holds.map((h) => <li key={h}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>

@@ -255,7 +255,7 @@ class Mark(tre.Base):
             self.width(p, 1400)
             self.assertEqual(p.js("document.querySelectorAll('.tag.chg').length"), 1)
 
-    def test_it_goes_at_the_next_click_or_key_press_and_after_eight_seconds(self):
+    def test_it_goes_at_the_next_click_or_key_press_and_after_three_seconds(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()

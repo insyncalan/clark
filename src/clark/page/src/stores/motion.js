@@ -33,7 +33,7 @@ export function useSettle(ref, value) {
 /** The first-time hint on the section handle: the id of the section whose handle pulses once and shows the words, or null. It is
  *  shown once in this browser (remembered in localStorage when it can be) for a few seconds, and goes at the next press or key. */
 export const handleHint = signal(null);
-export const HINT_WORDS = "Drag to move, + to add a template";
+export const HINT_WORDS = "Drag to move. Use + to add a template below.";
 export const HINT_MS = 4000;
 const KEY = "clark.handleHint";
 let hintTimer = 0, hintListening = false, armed = false;
