@@ -232,7 +232,7 @@ class NoCreateNoDelete(unittest.TestCase):
         self.assertEqual(self.s.read("use_cases", "ABC"), before)
 
     def test_the_kind_has_only_update_and_new_here_and_no_route_has_a_use_case_add_or_remove(self):
-        self.assertEqual(set(changes.CHANGE_KINDS["use_cases"]) - {"archive", "restore"}, {"update", "new"})      # #455: new, for the dashboard's Add use case
+        self.assertEqual(set(changes.CHANGE_KINDS["use_cases"]) - {"archive", "restore"}, {"update", "new", "link"})      # #455: new, for the dashboard's Add use case; #485: link, work items to it
         routes = list(sv.GET_ROUTES) + list(sv.POST_ROUTES)
         self.assertEqual([r for r in routes if "use" in r or "case" in r], ["/api/use-cases"])
         self.assertIn("/api/use-cases", sv.GET_ROUTES)
