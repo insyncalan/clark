@@ -311,12 +311,21 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 
 /* The Dashboard's sections (#65). A grid of two columns: a section takes the whole row, or shares it with the next one when it is
    set beside it. One column at 900 px and below. min-width: 0 keeps a long title from pushing the page sideways. */
-.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 24px; margin-top: 16px; }
-.sec { position: relative; min-width: 0; padding: 12px 0 4px; border-top: 1px solid var(--grey-200); }
+/* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
+   between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. The Settings ›
+   Personal style (html[data-secstyle], at the end of this file) changes the gaps (Roomy), puts the heading on a grey band (Grey
+   headers) or takes the cards away for one card round every section (One card). Shared: the published page follows the same rules. */
+.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 24px; margin-top: 16px; }
+.sec { --sec-px: 20px; position: relative; min-width: 0; padding: 14px var(--sec-px) 10px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+/* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
+html:not([data-secstyle="card"]) .frame.report { padding: 4px 28px 0; background: transparent; border: 0; box-shadow: none; }
+@media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report { padding: 4px 0 0; } }      /* Edit's control sits inside the card from here down */
 .slot-full { grid-column: 1 / -1; }
 .slot-left { grid-column: 1; }
 .slot-right { grid-column: 2; }
 .sec-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The coloured square: --brand-blue is at least 3:1 against the card, and against the grey band, in light and in dark. */
+.sec-head::before { content: ""; flex: none; width: 10px; height: 10px; margin-right: 2px; background: var(--brand-blue); }
 .sec-h { flex: 1; min-width: 0; margin: 0; font-size: var(--size-h2); line-height: 1.3; font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .quiet { margin: 6px 0 8px; font-size: var(--size-small); color: var(--text-muted); }
 /* A text section's body in a published file (#74): the editor's own words, read-only. Nothing in it may push the page sideways. */
@@ -343,8 +352,8 @@ table.needs .n-over { margin-left: 2px; }
 @media (max-width: 900px) { table.needs .n-from { width: 26%; } table.needs .n-by { width: 30%; } }
 
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
-.sec.is-hidden { border-top-style: dashed; }
-.sec.is-hidden > :not(.sec-ctl) { opacity: .65; }
+.sec.is-hidden { border-style: dashed; }
+.sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h { opacity: .75; }      /* the title and body dim; the square and the tag keep their strength */
 .tag.hid { flex: none; }
 .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }
 .secs.drop-end { box-shadow: 0 3px 0 var(--brand-cyan); }
@@ -374,14 +383,14 @@ table.needs .n-over { margin-left: 2px; }
    it never moves or narrows it. Faint at rest; clear when the section is hovered or has focus, and while its menu is open; always
    clear on a touch screen. The right half of a pair has the 24 px gap between the columns to itself, so it covers no content. */
 .sec-ctl { position: absolute; top: 6px; left: -26px; z-index: 2; display: flex; flex-direction: column; align-items: center; width: 24px; opacity: var(--sh-rest, .3);      /* --sh-rest: how clear at rest, from brand/tokens.css (.3 light, .75 dark) */ transition: opacity var(--dur-instant) var(--ease-out); }
-.sec.slot-right > .sec-ctl { left: -24px; }
+.sec.slot-right > .sec-ctl { left: -25px; }      /* the card's 1 px border is outside the padding box this is measured from */
 .sec:hover > .sec-ctl, .sec:focus-within > .sec-ctl, .sec-ctl.open, .sec-ctl:hover { opacity: 1; }
 /* an open menu is above the next section's control */
 .sec-ctl.open { z-index: 20; }
 @media (hover: none) { .sec-ctl { opacity: 1; } }
 /* At 900 px and below the frame's side padding is only 16 px, so the control would hang outside the card (issue 139). In Edit the section keeps
    room for it inside its own padding (32 px: the 24 px control and a 4 px gap each side); the box itself, its left edge and width, do not change. */
-@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: .75; } }      /* in the padding it is clear at rest (issue 130, point 2), in both themes */
+@media (max-width: 900px) { #report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: .75; } }      /* in the padding it is clear at rest (issue 130, point 2), in both themes */
 @media (prefers-reduced-motion: reduce) { .sec-ctl { transition: none; } }      /* after the rule above, so it wins */
 .sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 4px; margin: 0 -4px; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }
@@ -971,11 +980,32 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-small); }
 .fld-bad:empty { display: none; }
 .stylepick small { display: block; color: var(--text-muted); font-size: var(--size-small); }
-html[data-secstyle="roomy"] .secs { gap: 36px 32px; margin-top: 28px; }
-html[data-secstyle="roomy"] .sec { padding: 20px 0 8px; }
-html[data-secstyle="grey"] .sec { border-top: 0; padding-top: 0; }
-html[data-secstyle="grey"] .sec-head { padding: 6px 10px; border-radius: var(--radius-sm); background: var(--grey-100); }
-html[data-secstyle="card"] .secs { padding: 4px 20px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); }
+/* The section style (#45). Slim gaps is the card look above. Each style changes one thing, so a square or a border is never drawn twice. */
+html[data-secstyle="roomy"] .secs { gap: 28px 32px; margin-top: 28px; }
+html[data-secstyle="roomy"] .sec { padding: 20px var(--sec-px) 14px; }
+html[data-secstyle="grey"] .sec { padding-top: 0; }
+html[data-secstyle="grey"] .sec-head { margin: 0 calc(var(--sec-px) * -1) 4px; padding: 10px var(--sec-px); border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0; background: var(--grey-100); }
+/* One card: the report's own frame is the only card (its one border); the sections inside it are flat, divided by thin lines (the square
+   stays). The frame's side padding is Edit's gutter for the grip and +, so neither sits on a border. */
+html[data-secstyle="card"] .secs { padding: 4px 0 12px; border: 0; border-radius: 0; background: transparent; }
+html[data-secstyle="card"] .sec { --sec-px: 0px; padding: 12px 0 4px; background: transparent; border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; box-shadow: none; }
+html[data-secstyle="card"] .sec.is-hidden { border-top-style: dashed; }
+html[data-secstyle="card"] .secs > .sec:first-child, html[data-secstyle="card"] .secs > .sec.slot-left:first-child + .sec.slot-right { border-top: 0; }      /* the first row has no line, for either half of a pair */
+/* A pair's right half reaches back across the 24 px column gap (its own padding gives the room back), so the line above the pair is one
+   unbroken line, and the right half's control sits in that gap, inside its own box, clear of every border. */
+@media (min-width: 901px) {
+  html[data-secstyle="card"] .sec.slot-right { margin-left: -24px; padding-left: 24px; }
+  html[data-secstyle="card"] .sec.slot-right > .sec-ctl { left: 0; }
+  html[data-secstyle="card"] .sec.drop-right::after { width: calc((100% - 24px) / 2); }
+}
+/* At 900 px and below the frame has 16 px side padding: in Edit it widens to 36 px for the control (24 px and a 6 px gap each side), so the
+   sections keep their full width and the control still sits in the frame's padding, not on its border. */
+@media (max-width: 900px) {
+  html[data-secstyle="card"] #report[data-mode="edit"] { padding-left: 36px; }
+  html[data-secstyle="card"] #report[data-mode="edit"] .sec { --sec-px: 0px; padding-left: 0; }
+  html[data-secstyle="card"] #report[data-mode="edit"] .sec > .sec-ctl, html[data-secstyle="card"] #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: -30px; }
+}
+html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }      /* the flat sections keep the drag drop-line */
 
 /* The rich editor (#66). Colours from the tokens only, so dark mode follows. The editor adds no <style> of its own (injectCSS is
    false), so the rules ProseMirror needs are here. */

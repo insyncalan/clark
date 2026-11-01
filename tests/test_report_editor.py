@@ -390,7 +390,7 @@ class Sections(Base):
             p.until(hidden, "dimmed in Edit")
             self.assertEqual(p.ids(), IDS, "still drawn in Edit")
             self.assertIn("Left out of the published page", p.js("document.querySelector('[data-id=\"ABC-S-002\"]').textContent"))
-            self.assertLess(float(p.js("getComputedStyle(document.querySelector('[data-id=\"ABC-S-002\"] .sec-head')).opacity")), 1, "its words are dimmed")
+            self.assertLess(float(p.js("getComputedStyle(document.querySelector('[data-id=\"ABC-S-002\"] .sec-h')).opacity")), 1, "its words are dimmed")
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
             p.view()
@@ -1112,7 +1112,7 @@ class Gutter(Base):
             p.js("document.querySelector('[data-id=\"ABC-S-002\"]').classList.add('is-hidden')")
             self.assertLessEqual(p.js(self.MEASURE + "[1][1]"), p.js(self.MEASURE + "[1][2]"), "a left-out section too")
             p.view()
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('.secs > .sec')).paddingLeft"), "0px", "View is unchanged")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.secs > .sec')).paddingLeft"), "20px", "View keeps the card's own 20 px side padding, not Edit's 32 px (A-D3)")
 
     def test_the_menu_entries_and_their_order(self):
         with chrome() as cdp:
