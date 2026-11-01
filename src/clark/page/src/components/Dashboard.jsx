@@ -60,8 +60,9 @@ export function Dashboard({ tools }) {
   return (
     <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
       <header class="cover" id="cover">
+        <span class="cover-mark" aria-hidden="true"></span>
         <h1>{d.project.name}</h1>
-        <p class="cover-line"><b class="cover-kind">Weekly report</b>{coverLine(d.project).map((t) => <span key={t}>{t}</span>)}</p>
+        <p class="cover-line"><b class="cover-kind">Weekly report</b>{coverLine(d.project, fromFile.value ? "" : todayIso()).map((t) => <span key={t}>{t}</span>)}</p>
       </header>
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
       <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" ? " drop-end" : ""}`}>

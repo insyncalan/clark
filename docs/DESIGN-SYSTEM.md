@@ -24,7 +24,7 @@ An own look may also add rules (a logo picture, a still picture for the home ban
 | Type | `--font` `--font-head` `--font-label`, `--size-*`, `--leading`, `--weight-*`, `--tracking-caps` | One text face, one heading face, one label face |
 | Shape and space | `--radius-sm` `--radius` `--radius-lg` `--radius-pill`, `--space-1` to `--space-8`, `--max-width`, `--topbar` | Corners and spacing: use the tokens, not numbers |
 | Depth and motion | `--shadow`, `--ease-*`, `--dur-*`, `--stagger` | See section 6 |
-| Pictures | `--image-cover` `--image-fade` `--art-home` `--art-home-height` | Empty and flat by default; only an own look fills them |
+| Pictures | `--image-cover` `--image-fade` `--art-home` `--art-home-height` `--cover-mark` `--cover-mark-height` | Empty and flat by default; only an own look fills them |
 | Profile circle | `--profile-bg` `--profile-fg` `--profile-ring` `--profile-size` | The initials circle in the header |
 
 **Rule: no raw colour in a rule.** A rule in `shell.css` or a component uses a token. A new colour is a new token in the contract, with a dark value.
@@ -49,6 +49,7 @@ An own look may also add rules (a logo picture, a still picture for the home ban
 - **Tables:** a header row in capitals, one hairline per row, dates `DD-MM-YYYY` on one line. The Due column is wide enough for a date in the text face at 900 px.
 - **Empty states** say what is missing and the next step. A view filtered to nothing says why.
 - **Home banner:** an empty strip above "No project open"; `--art-home` and `--art-home-height` fill it in an own look. It is a still picture, never animated.
+- **Cover logo:** `--cover-mark` (a `data:` picture) and `--cover-mark-height` put a logo at the right of the report's cover band, in an own look only; empty and no room by default, so a published file carries none unless the person's own look sets it.
 - **Components clark adds** (the Work items board, the profile menu, the milestone Calendar, Legend and timeline, and the rest as they are written) are described in `docs/DESIGN-SYSTEM-COMPONENTS.md`.
 
 ## 6. Motion

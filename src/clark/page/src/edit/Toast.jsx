@@ -12,10 +12,12 @@ export function Toast() {
     document.addEventListener("keydown", undoKey);
     return () => document.removeEventListener("keydown", undoKey);
   }, []);
-  if (mode.value !== "edit") return null;
+  const editing = mode.value === "edit";
+  useEffect(() => { if (!editing) dismiss(); }, [editing]);       // a message from Edit does not follow the person into View
   const t = toast.value;
+  if (!editing && !t) return null;                    // View has no toast of its own; it shows one only for the report bar's Week ending field (A-D2), which saves from View too
   return (
-    <div class="toasts" data-edit-only role="status" aria-live="polite">
+    <div class="toasts" data-edit-only={editing ? true : undefined} role="status" aria-live="polite">
       {t ? (
         <div class={`toast ${t.kind}`} key={t.id} data-kind={t.kind} role={t.kind === "problem" ? "alert" : undefined}>
           <span class="toast-text">{t.text}</span>
@@ -23,7 +25,7 @@ export function Toast() {
           <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={dismiss}>Close</button>
         </div>
       ) : null}
-      <MenuNote />
+      {editing ? <MenuNote /> : null}
     </div>
   );
 }
