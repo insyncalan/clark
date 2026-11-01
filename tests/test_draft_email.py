@@ -370,6 +370,88 @@ class ToneNames(unittest.TestCase):
         self.assertNotIn("'First']", proto)
 
 
+class ToneChoice(unittest.TestCase):
+    """#452: the user can pick First, Second or Firmer chase; the words are the builder's own, plain code with no model."""
+
+    def chase(self, **kw):
+        return build(mode="chase", items=[LATE, LATE2], **kw)
+
+    def test_each_tone_can_be_picked_whatever_the_history(self):
+        words = {}
+        for tone in (0, 1, 2):
+            d = self.chase(tone=tone)
+            self.assertEqual(d["tone"], tone)
+            words[tone] = (d["subject"], d["text"])
+        self.assertIn("Reminder:", words[0][0])
+        self.assertIn("Second reminder:", words[1][0])
+        self.assertIn("Reply needed:", words[2][0])
+        self.assertIn("A quick reminder about the items below", words[0][1])
+        self.assertIn("I'm following up on my earlier note", words[1][1])
+        self.assertIn("Please reply with a firm date for each", words[2][1])
+        self.assertEqual(len({t for _, t in words.values()}), 3)
+
+    def test_a_picked_tone_beats_the_one_the_history_would_give(self):
+        counts = both(3, "2026-10-08")
+        self.assertEqual(self.chase(chased=counts)["tone"], 2)
+        d = self.chase(chased=counts, tone=0)
+        self.assertEqual(d["tone"], 0)
+        self.assertIn("A quick reminder", d["text"])
+        self.assertNotIn("Please reply with a firm date", d["text"])
+
+    def test_no_tone_given_steps_up_on_its_own_as_before(self):
+        self.assertEqual(self.chase()["tone"], 0)
+        self.assertEqual(self.chase(chased=both(1))["tone"], 1)
+        self.assertEqual(self.chase(tone=None, chased=both(1))["tone"], 1)
+
+    def test_a_tone_that_is_not_a_step_is_ignored(self):
+        for bad in (-1, 3, 1.5, "1", "firmer", True, False, [], {}):
+            self.assertEqual(self.chase(tone=bad, chased=both(1))["tone"], 1, bad)
+
+    def test_an_update_request_has_no_tone(self):
+        self.assertEqual(build(tone=2)["tone"], 0)
+        self.assertEqual(build(tone=2)["text"], build()["text"])
+
+    def test_a_decision_takes_the_tone_too(self):
+        d = build(mode="decision", items=[DEC], tone=1)
+        self.assertEqual(d["tone"], 1)
+        self.assertIn("Decision needed (second reminder)", d["subject"])
+
+    def test_the_count_of_earlier_chases_is_the_most_often_chased_of_the_ticked_items(self):
+        self.assertEqual(self.chase()["chased"], 0)
+        c = {"ABC-A-001": {"n": 2, "last": "2026-10-08"}, "ABC-A-006": {"n": 1, "last": "2026-10-09"}}
+        self.assertEqual(self.chase(chased=c)["chased"], 2)
+        self.assertEqual(self.chase(chased=c, picked=["ABC-A-006"])["chased"], 1)
+        self.assertEqual(self.chase(chased=c, tone=0)["chased"], 2, "the pick of tone does not change the count")
+
+    def test_a_firmer_chase_never_has_an_empty_opening(self):
+        for items in ([FAR], [NODATE], [FAR, NODATE]):
+            d = build(mode="chase", items=items, tone=2)
+            lines = d["text"].split("\n")
+            self.assertTrue(lines[2].strip(), (items, lines[:4]))
+        d = build(mode="decision", items=[DEC], tone=2, now="2026-10-10 09:00")
+        self.assertTrue(d["text"].split("\n")[2].strip())
+
+    def test_a_firmer_chase_claims_only_the_chases_on_record(self):
+        d = build(mode="chase", items=[LATE], tone=2)
+        self.assertNotIn("I have chased", d["text"])
+        d = build(mode="chase", items=[LATE], tone=2, chased={"ABC-A-001": {"n": 2, "last": "2026-10-08"}})
+        self.assertIn("I have chased it twice, most recently on 08-10-2026.", d["text"])
+
+    def test_no_tone_name_and_nothing_internal_reaches_the_email(self):
+        secret = dict(LATE, note="SECRET-NOTE", internal_note="SECRET-INTERNAL", source="SECRET-SOURCE", tone="SECRET-TONE")
+        for mode in de.MODES:
+            for tone in (None, 0, 1, 2):
+                d = build(mode=mode, items=[secret, DEC if mode == "decision" else LATE2], tone=tone, include_update=True)
+                everything = "\n".join((d["subject"], d["text"], d["html"], d["to"]))
+                for name in de.TONE_NAMES:
+                    self.assertNotIn(name, everything, (mode, tone))
+                    self.assertNotIn(name.lower(), everything.lower(), (mode, tone))
+                for word in ("SECRET", "tone"):
+                    self.assertNotIn(word, everything, (mode, tone))
+                for key in ("note", "internal_note", "source", "tone"):
+                    self.assertNotIn(key, d["items"][0], (mode, tone))
+
+
 class Dates(unittest.TestCase):
     def test_dates_read_one_shape_only(self):
         self.assertEqual(de.shown("2026-10-29"), "29-10-2026")

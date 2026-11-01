@@ -153,6 +153,34 @@ class Logic(InBrowser):
         got = self.val("T.logic.buildOptions({mode: 'decision', picked: ['ABC-D-001'], replyBy: '2026-10-15', unblocks: ' the plan ', includeUpdate: 1, secret: 'x'})")
         self.assertEqual(got, {"mode": "decision", "picked": ["ABC-D-001"], "reply_by": "2026-10-15", "unblocks": "the plan", "include_update": True})
 
+    def test_the_tone_steps_have_the_prototypes_words_and_the_builders_numbers(self):
+        """#452: First chase, Second chase, Firmer chase (system/prototype/peek.js); the labels match the builder's TONE_NAMES."""
+        self.assertEqual(self.val("T.logic.TONES.map((t) => t.label)"), list(draft_email.TONE_NAMES))
+        self.assertEqual(self.val("T.logic.TONES.map((t) => t.tone)"), [0, 1, 2])
+        self.assertEqual(self.val("[0, 1, 2, 3, -1, 1.5, '1', null, true].map((t) => T.logic.toneOf(t))"), [0, 1, 2, None, None, None, None, None, None])
+
+    def test_the_chased_count_reads_as_the_prototype_says_it(self):
+        self.assertEqual(self.val("[0, 1, 2, 5, null, -1, 'x'].map((n) => T.logic.chasedWords(n))"),
+                         ["not chased yet", "chased 1 time before", "chased 2 times before", "chased 5 times before",
+                          "not chased yet", "not chased yet", "not chased yet"])
+
+    def test_the_line_under_the_title_has_the_prototypes_words_for_each_kind(self):
+        """#452: 'An update request', 'A chase · chased N times before', 'A decision request', each ending 'clark never sends it: copy it into Outlook.'"""
+        end = " clark never sends it: copy it into Outlook."
+        self.assertEqual(self.val("T.logic.subLine('update_request', {})"), "An update request." + end)
+        self.assertEqual(self.val("T.logic.subLine('decision', {})"), "A decision request." + end)
+        self.assertEqual(self.val("T.logic.subLine('chase', 0)"), "A chase · not chased yet." + end)
+        self.assertEqual(self.val("T.logic.subLine('chase', 1)"), "A chase · chased 1 time before." + end)
+        self.assertEqual(self.val("T.logic.subLine('chase', 3)"), "A chase · chased 3 times before." + end)
+        self.assertEqual(self.val("T.logic.subLine('remind', 3)"), "")
+
+    def test_a_picked_tone_goes_to_the_builder_for_a_chase_and_a_decision_only(self):
+        self.assertEqual(self.val("T.logic.buildOptions({mode: 'chase', picked: [], tone: 2})")["tone"], 2)
+        self.assertEqual(self.val("T.logic.buildOptions({mode: 'chase', picked: [], tone: 0})")["tone"], 0)
+        self.assertEqual(self.val("T.logic.buildOptions({mode: 'decision', picked: [], tone: 1})")["tone"], 1)
+        for st in ("{mode: 'update_request', tone: 2}", "{mode: 'chase'}", "{mode: 'chase', tone: 7}", "{mode: 'chase', tone: 'firmer'}"):
+            self.assertNotIn("tone", self.val(f"T.logic.buildOptions({st})"), st)
+
     def test_the_tick_count_reads_as_a_sentence(self):
         got = self.val("[[0, 3], [1, 3], [2, 3], [3, 3], [1, 1], [2, 2], [0, 0]].map(([n, of]) => T.logic.pickWords(n, of))")
         self.assertEqual(got, ["0 of 3 items ticked", "1 of 3 items ticked", "2 of 3 items ticked", "3 items ticked", "1 item ticked",
@@ -296,6 +324,69 @@ class Component(InBrowser):
         got = self.val("T.changed")
         self.assertEqual(got[0]["mode"], "chase")
         self.assertEqual(got[1]["picked"], ["ABC-A-001", "ABC-A-002", "ABC-A-005"])
+
+    def test_a_chase_shows_the_three_tone_buttons_with_the_one_in_use_pressed(self):
+        """#452: First chase, Second chase, Firmer chase, and under the title how often it has been chased before."""
+        counts = {"ABC-A-001": {"n": 2, "last": "2026-10-08"}}
+        self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"], chased=counts))
+        self.assertEqual(self.val("Array.from(document.querySelectorAll('.de-tone button')).map((b) => b.textContent)"),
+                         ["First chase", "Second chase", "Firmer chase"])
+        self.assertEqual(self.val("Array.from(document.querySelectorAll('.de-tone button')).map((b) => b.getAttribute('aria-pressed'))"),
+                         ["false", "false", "true"])
+        self.assertEqual(self.text(".de-sub"), "A chase · chased 2 times before. clark never sends it: copy it into Outlook.")
+        self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
+        self.assertEqual(self.val("Array.from(document.querySelectorAll('.de-tone button')).map((b) => b.getAttribute('aria-pressed'))"),
+                         ["true", "false", "false"])
+        self.assertEqual(self.text(".de-sub"), "A chase · not chased yet. clark never sends it: copy it into Outlook.")
+
+    def test_an_update_request_and_a_decision_show_no_tone_buttons_but_say_what_they_are_and_that_clark_never_sends_them(self):
+        end = " clark never sends it: copy it into Outlook."
+        self.mount()
+        self.assertEqual(self.val("document.querySelectorAll('.de-tone').length"), 0)
+        self.assertEqual(self.text(".de-sub"), "An update request." + end)
+        self.mount(state(mode="decision"), draft(mode="decision", picked=["ABC-A-001"]))
+        self.assertEqual(self.val("document.querySelectorAll('.de-tone').length"), 0)
+        self.assertEqual(self.text(".de-sub"), "A decision request." + end)
+
+    def test_pressing_a_tone_hands_the_new_state_to_the_caller_and_the_preview_is_not_changed_by_the_page(self):
+        self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
+        self.click(".de-tone button[data-tone='1']")
+        self.assertEqual(self.val("T.changed.map((s) => s.tone)"), [1])
+        self.assertEqual(self.val("T.changed[0].mode"), "chase")
+        self.click(".de-tone button[data-tone='2']")
+        self.assertEqual(self.val("T.changed.map((s) => s.tone)"), [1, 2])
+        self.assertNotIn("Firmer chase", self.text(".de-preview"), "no tone word is in the email")
+        self.assertNotIn("First chase", self.text(".de-preview"))
+
+    def test_the_tone_buttons_fit_at_900_and_1400_wide_in_light_and_dark(self):
+        for width in (1400, 900):
+            for dark in (False, True):
+                self.load(width)
+                self.js(f"document.documentElement.setAttribute('data-theme', '{'dark' if dark else 'light'}')")
+                self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
+                box = self.val("(() => { const s = document.querySelector('.de-tone .seg').getBoundingClientRect(); const d = document.querySelector('.de').getBoundingClientRect(); return [s.left >= d.left, s.right <= d.right, s.height > 0]; })()")
+                self.assertEqual(box, [True, True, True], (width, dark))
+
+    def test_the_focus_ring_on_a_tone_button_is_not_clipped_at_900_and_1400_wide_in_light_and_dark(self):
+        """#452: the group clips what is outside it (overflow hidden), so the 2px ring must sit inside the button, never outside the group."""
+        for width in (1400, 900):
+            for dark in (False, True):
+                self.load(width)
+                self.js(f"document.documentElement.setAttribute('data-theme', '{'dark' if dark else 'light'}')")
+                self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
+                for tone in (0, 1, 2):
+                    self.js(f"document.querySelector(\".de-tone button[data-tone='{tone}']\").focus()")
+                    got = self.val("""(() => {
+                        const b = document.activeElement, g = b.closest('.seg'), cs = getComputedStyle(b);
+                        const r = b.getBoundingClientRect(), box = g.getBoundingClientRect();
+                        const reach = parseFloat(cs.outlineOffset) + parseFloat(cs.outlineWidth);   // how far the ring goes past the button
+                        return {matches: b.matches(':focus-visible'), width: parseFloat(cs.outlineWidth), style: cs.outlineStyle,
+                                inside: r.left - reach >= box.left + 1 - 0.01 && r.right + reach <= box.right - 1 + 0.01
+                                        && r.top - reach >= box.top + 1 - 0.01 && r.bottom + reach <= box.bottom - 1 + 0.01};
+                    })()""")
+                    self.assertEqual(got["width"], 2, (width, dark, tone))
+                    self.assertEqual(got["style"], "solid", (width, dark, tone))
+                    self.assertTrue(got["inside"], (width, dark, tone, "the ring is cut off by the group's edge"))
 
     def test_a_decision_and_a_chase_ask_what_it_holds_up_and_an_update_request_does_not(self):
         self.mount()

@@ -12,6 +12,7 @@ Request (JSON; every key but `project` is optional; a key not listed is refused)
     reply_by        YYYY-MM-DD
     unblocks        what a decision or a chase holds up (one line, 200 characters)
     include_update  true to put each item's latest update under it
+    tone            0, 1 or 2 (First, Second or Firmer chase): the step the user chose; absent or null, the history of chases decides (#452)
     item            one item's ID (the peek's); or
     owner           a person's name (their open items); not both
     email, name     who the email is for (an address decides which items start ticked: internal ones start unticked for any
@@ -37,7 +38,7 @@ ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[AD]-)?[0-9]{3}")        # the shape of 
 DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 ADDRESS = re.compile(r"[^@\s<>?,;:\"()\[\]\\]+@[^@\s<>?,;:\"()\[\]\\]+\.[^@\s<>?,;:\"()\[\]\\]+")      # no brackets, query, quotes or separators
 HIDDEN_IN_TEXT = frozenset({"Cf", "Co", "Cs"})            # a bidi override or a zero-width mark: one_line leaves these, an address may not have them
-KEYS = ("project", "mode", "picked", "reply_by", "unblocks", "include_update", "item", "owner", "email", "name")
+KEYS = ("project", "mode", "picked", "reply_by", "unblocks", "include_update", "tone", "item", "owner", "email", "name")
 MAX_PICKED, MAX_UNBLOCKS, MAX_NAME, MAX_EMAIL = 200, 200, 100, 254
 
 SAFE_PROFILE = {"name": "", "own_domains": []}
@@ -50,6 +51,7 @@ BAD_PICK = "One of the ticked items is not in this project. Reload the page and 
 BAD_DATE = "Choose the reply-by date from the calendar, or leave it empty."
 BAD_ADDRESS = "That email address is not complete. Check it, or leave it empty."
 BAD_TEXT = "One of the fields is too long or is not text. Shorten it and try again."
+BAD_TONE = "Choose First chase, Second chase or Firmer chase, or leave the tone as it is."
 BAD_BOTH = "Choose one item or one person, not both."
 ARCHIVED = "That project is archived, so no email can be drafted for it. Restore it first."
 
@@ -133,6 +135,9 @@ def make(data_for, profile=None, clock=None, chased=None, rules_for=None):
             return refuse(400, "bad_text", BAD_TEXT)
         if email and (not ADDRESS.fullmatch(email) or any(unicodedata.category(c) in HIDDEN_IN_TEXT for c in email)):
             return refuse(400, "bad_address", BAD_ADDRESS)
+        tone = req.get("tone")
+        if tone is not None and de.picked_tone(tone) is None:
+            return refuse(400, "bad_tone", BAD_TONE)
         include_update = req.get("include_update", False)
         item_id, picked = req.get("item"), req.get("picked")
         if not isinstance(include_update, bool) or item_id is not None and not (isinstance(item_id, str) and ID.fullmatch(item_id)):
@@ -172,7 +177,7 @@ def make(data_for, profile=None, clock=None, chased=None, rules_for=None):
         outside = de.is_outside(email, domains)
         draft = de.build({"mode": mode, "items": offer, "picked": ticks, "name": name, "email": email, "own_domains": domains,
                           "from": who.get("name") or "", "now": now, "include_update": include_update, "reply_by": reply_by,
-                          "unblocks": unblocks, "chased": chased(code), "project_names": {code: (data.get("project") or {}).get("name") or code}})
+                          "unblocks": unblocks, "tone": tone, "chased": chased(code), "project_names": {code: (data.get("project") or {}).get("name") or code}})
         shown = [{"id": i["id"], "text": i["text"], "kind": i["kind"], "due": i.get("due"), "owner": i.get("owner"),
                   "internal": bool(outside and de.is_internal(i))} for i in offer]
         return 200, {"ok": True, "project": code, "mode": mode, "items": shown, "picked": ticks, "draft": draft, "outside": bool(outside)}

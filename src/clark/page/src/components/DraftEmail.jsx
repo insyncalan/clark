@@ -3,7 +3,7 @@
 // caller asks for a new one in onChange(state) and saves the history entry that onSent(entry) is given (it answers {ok, message}). clark never sends mail.
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";
-import { MODES, LABELS, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
+import { MODES, TONES, LABELS, subLine, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
 export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip }) {
   const [note, setNote] = useState("");
@@ -64,13 +64,20 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
   const picked = state.picked || [];
   return (
     <div class="de" role="dialog" aria-label={LABELS.title} onKeyDown={keys}>
-      <div class="de-head"><h2>{LABELS.title}</h2></div>
+      <div class="de-head"><h2>{LABELS.title}</h2><p class="muted de-sub">{subLine(state.mode, draft.chased)}</p></div>
       <div class="de-body">
         <fieldset class="de-kinds"><legend class="sr">{LABELS.kind}</legend>
           {MODES.map((m) => (
             <label key={m.mode}><input type="radio" name="de-kind" value={m.mode} checked={state.mode === m.mode} onChange={() => change({ mode: m.mode })} /> {m.label}</label>
           ))}
         </fieldset>
+        {state.mode === "chase" ? (
+          <div class="de-tone"><span id="de-tone-l">{LABELS.tone}</span>
+            <span class="seg" role="group" aria-labelledby="de-tone-l">
+              {TONES.map((t) => <button type="button" key={t.tone} data-tone={t.tone} aria-pressed={draft.tone === t.tone} onClick={() => change({ tone: t.tone })}>{t.label}</button>)}
+            </span>
+          </div>
+        ) : null}
         <dl class="de-meta">
           <dt>{LABELS.to}</dt><dd>{draft.to || NO_ADDRESS}</dd>
           <dt>{LABELS.subject}</dt><dd>{draft.subject}</dd>
