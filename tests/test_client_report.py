@@ -28,7 +28,7 @@ def text(*parts):
 
 class Source(unittest.TestCase):
     def test_the_view_has_an_id_a_name_and_a_page(self):
-        self.assertRegex(text("router.js"), r'export const VIEWS = \["dashboard", "work", "milestones", "clientreport", "settings"\]')
+        self.assertRegex(text("router.js"), r'export const VIEWS = \["dashboard", "work", "milestones", "usecases", "clientreport", "settings"\]')
         self.assertIn('clientreport: "Client Requested Report View"', text("stores", "report.js"))
         app = text("components", "App.jsx")
         self.assertIn('clientreport: ClientReport', app)

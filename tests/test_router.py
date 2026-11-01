@@ -148,7 +148,7 @@ class Pure(Browser):
         got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF'), R.parse('#clientreport&p=PDF&item=A-12'),
             R.format({view:'clientreport',project:'PDF'}), R.format({view:'clientreport'}), R.parse('#clientreports&p=PDF').view,
             R.parse('#CLIENTREPORT').view])""")
-        e = lambda i="": {"view": "clientreport", "project": "PDF", "item": i, "ms": "", "f": ""}  # noqa: E731
+        e = lambda i="": {"view": "clientreport", "project": "PDF", "item": i, "ms": "", "f": "", "uc": ""}  # noqa: E731
         views, plain, peek, f1, f2, near, upper = json.loads(got)
         self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "clientreport", "settings"])
         self.assertEqual((plain, peek, f1, f2), (e(), e("A-12"), "#clientreport&p=PDF", "#clientreport"))
