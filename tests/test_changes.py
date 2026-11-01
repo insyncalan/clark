@@ -599,6 +599,45 @@ class AddBeside(Api):
         self.assertEqual(self.undone(got["apply_id"])[0], 200)
         self.assertEqual(self.snapshot()[2], before, "the section is gone and the one above is on its own again")
 
+    def stale_last(self):
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})
+        return last
+
+    def test_a_plain_add_below_the_last_section_clears_its_stale_flag_in_the_same_step(self):
+        """#244: the page ignores a 1 on the last section, but a new section after it would pair with it."""
+        for after in (None, "last"):
+            with self.subTest(after=after):
+                last = self.stale_last()
+                got = self.ok("new", values={"title": "Plain"}, after=last if after else None)
+                flags = {r["id"]: r["beside"] for r in self.rows()}
+                self.assertEqual((flags[last], flags[got["ref"]]), (0, 0))
+                updates = [(r["key"], r["field"]) for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"]
+                self.assertEqual(updates, [(last, "beside")], "the one step holds the new row and the cleared flag")
+                self.assertEqual(self.undone(got["apply_id"])[0], 200)
+                self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[last], 1, "one Undo restores the flag as well")
+                self.assertNotIn(got["ref"], self.ids_now())
+                self.ok("update", id=last, changes={"beside": 0})
+
+    def test_a_plain_add_leaves_other_flags_alone(self):
+        """No stale flag on the last section: nothing but the new row is written. Adding in the middle clears nothing either."""
+        got = self.ok("new", values={"title": "Plain"})
+        self.assertEqual([r for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"], [])
+        last = self.stale_last()
+        mid = self.ok("new", values={"title": "Mid"}, after=self.ids_now()[0])
+        self.assertEqual([r for r in self.s.step_rows(mid["apply_id"]) if r["op"] == "update" and r["field"] == "beside"], [])
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[last], 1)
+
+    def test_a_flag_on_the_second_half_of_a_last_pair_is_not_touched_by_a_plain_add(self):
+        """The last two sections are a pair; the page ignores the 1 on the second half and the pair stays a pair."""
+        ids = self.ids_now()
+        self.ok("update", id=ids[-2], changes={"beside": 1})
+        self.ok("update", id=ids[-1], changes={"beside": 1})
+        got = self.ok("new", values={"title": "Plain"}, after=ids[-1])
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual((flags[ids[-2]], flags[ids[-1]]), (1, 1), "the pair is as it was")
+        self.assertEqual([r for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"], [])
+
     def test_a_section_that_already_has_a_partner_is_refused_and_nothing_is_written(self):
         self.refused(self.req("new", values={"title": "No"}, after=self.paired(), beside=1), changes.STALE)
 
