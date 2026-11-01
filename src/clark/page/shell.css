@@ -875,7 +875,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .pubbar { margin-left: auto; display: inline-flex; align-items: center; gap: 12px; }
 .pubbar + .modes { margin-left: 0; }
-.pubnote { font-size: 13px; color: rgba(255,255,255,.75); }
 .me { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: var(--white); cursor: pointer; }
 .me:hover { background: rgba(255,255,255,.14); }
 .me:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
@@ -927,7 +926,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .backup-panel { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .backup-panel p { margin: 0 0 6px; }
 .setting p.error { color: var(--status-red-text); }
-@media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: 16px; } }
+@media (max-width: 900px) { .dlg-form { padding: 16px; } }
 /* #43: on a phone the Publish button must not push the top bar wider than the window; only top-bar rules, after the phone card rules. */
 @media (max-width: 640px) { .pubbar { gap: 4px; } .pubbtn { padding: 0 8px; font-size: 13px; } .top:has(.pubbar) .logo .wm { display: none; } }   /* the Edit top bar only: the logo keeps its icon (its aria-label names it) */
 

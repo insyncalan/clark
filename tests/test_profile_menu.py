@@ -73,7 +73,7 @@ class ProfileMenu(Base):
                 p.open_publish()
                 p.go()
                 p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
-                p.until("!!document.querySelector('#pub-note')", "the bar says when")
+                p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
                 p.go()
                 p.until("!document.querySelector('#publish-dialog')", "closed")
                 p.js("document.querySelector('#profile-btn').click()")

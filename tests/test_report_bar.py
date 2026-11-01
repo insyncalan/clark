@@ -51,6 +51,17 @@ class Bar(Base):
                 self.assertEqual(p.js("document.querySelector('#week-ending').type"), "text")
                 self.assertEqual(p.js("document.querySelector('#week-ending').labels.length"), 1, "the field has its label")
 
+    def test_the_drag_hint_shows_once_not_on_every_entry_to_edit(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            p.until("!!document.querySelector('#report-hint')", "the hint the first time")
+            p.js("document.querySelector('[data-mode=view]').click()")
+            p.until("document.querySelector('#report').dataset.mode === 'view'", "View")
+            p.edit()
+            p.until("!!document.querySelector('#week-ending')", "the date field")
+            self.assertIsNone(p.js("document.querySelector('#report-hint')"), "not shown again")
+
     def test_a_new_week_is_saved_and_undone(self):
         with chrome() as cdp:
             p = self.show(cdp)

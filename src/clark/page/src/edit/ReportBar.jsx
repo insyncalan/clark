@@ -1,13 +1,17 @@
 // The bar above the page (A-D2): the week the report covers, and where it stands (Draft, or when it was published). Only a page
 // clark serves has it (the published file is never given this part). View shows the week as text and the chip; Edit adds the date
-// field, the note that each change saves on its own and the drag hint. Never an input in View.
+// field, the note that each change saves on its own and, the first time only, the drag hint. Never an input in View.
 import { useEffect } from "preact/hooks";
+import { signal } from "@preact/signals";
+import { recall, remember } from "../logic/remember.js";
 import { data, project, mode } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { parseDay, problem } from "../templates/keydates.js";
 import { latest, refreshLatest } from "./publishState.js";
 import { lastLine } from "./Publish.jsx";
 
+// The drag hint shows the first time this browser enters Edit and stays until Edit is left; after that it is not shown again.
+const hintOpen = signal(!recall("dragHintSeen", false));
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 
 export function ReportBar() {
@@ -15,6 +19,10 @@ export function ReportBar() {
   if (!data.value || !data.value.project) return null;
   const week = data.value.project.week_ending || "";
   const editing = mode.value === "edit";
+  useEffect(() => {
+    if (editing && hintOpen.value) remember("dragHintSeen", true);
+    if (!editing && hintOpen.value && recall("dragHintSeen", false)) hintOpen.value = false;
+  }, [editing]);
   const published = lastLine(latest.value);
   const save = (e) => {       // typed as DD-MM-YYYY, as Key dates takes it: clark's own way, never the browser's calendar
     const el = e.currentTarget, raw = el.value.trim(), iso = parseDay(raw);
@@ -31,7 +39,7 @@ export function ReportBar() {
         <span class="rbar-week" id="week-ending-text">{week ? `Week ending ${shownDate(week)}` : "No week ending date yet"}</span>
       )}
       <span class="rbar-state" id="report-state">{editing ? "Editing · each change saves on its own" : published || "Draft · not published yet"}</span>
-      {editing ? <span class="rbar-hint" id="report-hint">Drag to move, + to add a template</span> : null}
+      {editing && hintOpen.value ? <span class="rbar-hint" id="report-hint">Drag to move, + to add a template</span> : null}
     </div>
   );
 }
