@@ -142,18 +142,23 @@ export function Peek({ tools }) {
   // handler moves the cursor; this only watches where the focus lands, so a Tab or a click away never moves the peek).
   useEffect(() => {
     if (!p || p.kind === "milestone") return undefined;
-    let arrow = false, off = 0;
+    let arrow = false;
     const down = (e) => {
       arrow = (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey;
-      clearTimeout(off); off = setTimeout(() => { arrow = false; }, 0);
     };
+    const off = () => { arrow = false; };               // the key coming up, or a click, ends the arrow: no timer
     const into = (e) => {
       const id = arrow ? listItemOf(e.target) : "";
       if (id && id !== shown.current) openPeek(id, "item");
     };
     document.addEventListener("keydown", down, true);
+    document.addEventListener("keyup", off, true);
+    document.addEventListener("pointerdown", off, true);
     document.addEventListener("focusin", into);
-    return () => { clearTimeout(off); document.removeEventListener("keydown", down, true); document.removeEventListener("focusin", into); };
+    return () => {
+      document.removeEventListener("keydown", down, true); document.removeEventListener("keyup", off, true);
+      document.removeEventListener("pointerdown", off, true); document.removeEventListener("focusin", into);
+    };
   }, [!!p, p && p.kind]);                                 // eslint-disable-line react-hooks/exhaustive-deps
   // Esc closes the words box first, then the peek; two slashes outside a field open the words box (Edit only). Up and Down on one of the
   // peek's own buttons step to the item before or after (#246); every other arrow is left to whatever it was aimed at (#289).
