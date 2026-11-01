@@ -1259,6 +1259,61 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-small); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 
+/* ===== Client Requested Report View (item 192). Tokens only; shared by the live page and, if it is ever published, the file. ===== */
+.client-report h1 { margin-bottom: 4px; }
+.cr-cover { margin: 0; font-size: var(--size-small); color: var(--text-muted); }
+.cr-cover b { font-weight: var(--weight-medium); letter-spacing: .06em; color: var(--text); }
+/* -- 192 part 2: Overall progress and Progress by plan -- */
+.cr-tiles { margin-top: 8px; }
+.cr-tiles .tcell { flex: 1 1 190px; }
+.cr-tiles .tcell.health { flex: 3 1 360px; }
+.cr-bar-w { margin-top: 36px; }
+.cr-bar { position: relative; height: 14px; border-radius: 7px; background: var(--grey-200); box-shadow: inset 0 0 0 1px var(--grey-500); }
+.cr-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px; background: var(--brand-blue); }
+.cr-bar .mk { position: absolute; top: -6px; bottom: -6px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--heading); }
+.cr-bar .mk span { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px; padding: 0 4px; background: var(--surface); font-style: normal; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); white-space: nowrap; }
+.cr-bar .mk.start span { left: 0; transform: none; }
+.cr-bar .mk.end span { left: auto; right: 0; transform: none; }
+.cr-scale { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--size-small); color: var(--text-muted); }
+.cr-gap { margin: 8px 0 0; font-size: var(--size-body); color: var(--text); }
+.cr-gap:empty { display: none; }
+.cr-how { margin: 8px 0 4px; }
+.cr-groups { display: flex; flex-direction: column; gap: 20px; margin: 8px 0 4px; }
+.cr-gh { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding-bottom: 6px; border-bottom: 1px solid var(--grey-200); }
+.cr-gh h3 { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
+.cr-gt { font-size: var(--size-small); color: var(--text-muted); }
+.cr-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); }
+.cr-table th { padding: 8px 8px 6px; text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+.cr-table td { padding: 8px; border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; font-size: var(--size-body); color: var(--text); }
+.cr-table .c-no { width: 44px; padding-left: 2px; } .cr-table .c-end { width: 124px; white-space: nowrap; } .cr-table .c-st { width: 150px; } .cr-table .c-pl { width: 84px; } .cr-table .c-ac { width: 190px; }
+.cr-table .c-st .mst, .cr-table .c-ac { font-size: var(--size-small); }
+.cr-table .c-ac .pbar { flex: 0 0 64px; }
+.cr-no { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 24px; padding: 0 6px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); font-size: var(--size-small); color: var(--text); }
+.cr-behind { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 999px; background: var(--status-red-tint); color: var(--status-red-text); font-size: var(--size-small); font-weight: var(--weight-medium); white-space: nowrap; }
+@media (max-width: 1100px) { .cr-table .c-end { display: none; } }
+.tab .tl-short { display: none; }
+@media (max-width: 1100px) { .tab .tl-full { display: none; } .tab .tl-short { display: inline; } }
+/* -- 192 part 3: Highlights, Planned for next week, Risks and the delivery placeholder -- */
+/* The pair (Highlights, Planned for next week) uses the dashboard's .slot-left and .slot-right: two columns, one column at 900 px. */
+.client-report .slot-left > .sec-body, .client-report .slot-right > .sec-body { margin-top: 8px; }
+/* Risks, delays and items to watch: one slim row for each item. */
+.cr-wl { list-style: none; margin: 8px 0; padding: 0; }
+.cr-wl .wl-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 4px 16px; align-items: start; padding: 10px 0; border-top: 1px solid var(--grey-200); }
+.cr-wl .wl-row:first-child { border-top: 0; }
+.cr-wl .wl-state { padding-top: 1px; }
+.cr-wl .wl-main { display: grid; gap: 4px; min-width: 0; }
+.cr-wl .wl-title { font-weight: var(--weight-medium); color: var(--text); overflow-wrap: anywhere; }
+.cr-wl .wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--size-small); color: var(--text-muted); }
+.cr-wl .wl-meta .who { align-items: center; gap: 6px; color: var(--text); }
+.cr-wl .wl-meta .dot { color: var(--text-muted); }
+.cr-wl .wl-meta b { font-weight: var(--weight-medium); color: var(--status-red-text); }
+.cr-wl .wl-resp { font-size: var(--size-small); color: var(--text); overflow-wrap: anywhere; }
+.cr-wl .wl-id { padding-top: 2px; }
+.cr-wl .idl { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+@media (max-width: 900px) { .cr-wl .wl-row { grid-template-columns: 88px minmax(0, 1fr); } .cr-wl .wl-id { grid-column: 2; padding-top: 0; } }
+/* The delivery template's place (item 190, on hold): a plain marked block. */
+.cr-placeholder { margin: 8px 0; padding: 12px 16px; border: 1px dashed var(--grey-300); border-radius: var(--radius); background: var(--surface-muted); }
+
 /* The Use Cases tab of a published file (view only): each use case is a closed row that opens in place. */
 .ucp { border-top: 1px solid var(--grey-100); }
 .ucp summary { cursor: pointer; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
@@ -1271,3 +1326,4 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-val .i { width: 16px; height: 16px; }
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
+
