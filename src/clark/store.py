@@ -2497,8 +2497,9 @@ class Store:
 
     EMAIL_MODES = ("update_request", "chase", "decision")
     EMAIL_MAX_IDS = 50
+    EMAIL_DAYS_BACK = 31          # the day an email was sent may be this many days ago at most
 
-    def log_email_sent(self, code, ids, mode, day, by_user, today=None):
+    def log_email_sent(self, code, ids, mode, day, by_user, today=None, *, offerable):
         """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
         was sent) and one `email_sent_items` row for each item asked about. Never the email's text or address. Like a publication it
         is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
@@ -2525,6 +2526,8 @@ class Store:
             raise Invalid("The day the email was sent must be a real date.") from None
         if sent > (today or date.today()) + timedelta(days=1):
             raise Invalid("The day the email was sent can't be in the future.")
+        if sent < (today or date.today()) - timedelta(days=self.EMAIL_DAYS_BACK):
+            raise Invalid(f"The day the email was sent can't be more than {self.EMAIL_DAYS_BACK} days ago.")
         if self.con.in_transaction:
             raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
         try:
@@ -2542,6 +2545,9 @@ class Store:
                            for table in ("actions", "raid", "decisions"))
             if not all(ours(i) for i in ids):
                 raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
+            if not all(i in offerable for i in ids):
+                raise Invalid("One of the ticked items is closed, hidden from the report or marked Sensitive, so it can't be in an email. "
+                              "Reload the page and tick again.")
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])

@@ -194,6 +194,18 @@ MAX_SENT = 50                                      # the ids one record can hold
 BAD_SENT = "That could not be recorded. Reload the page and try again."
 
 
+def offerable_ids(store, code):
+    """The ids the Draft email would offer for project `code` to an address outside your own domains (the strictest case): open,
+    not in the report's hidden list, not confidential or restricted in its words, not marked Sensitive or any excluding label.
+    The same draft_email.offered rule the email uses, so a sent record can only name items the email could carry. Empty when
+    there is no such project."""
+    data = store.data_for(code)
+    if data is None:
+        return set()
+    items = items_of(data, rules_from_inputs(publish.read_inputs(store, code)))
+    return {i["id"] for i in de.offered(items, "", ())[0]}
+
+
 def make_sent(path, onedrive_roots=None, by_user=None, today=None):
     """The `draft_email_sent` seam for server.LocalServer: `seam(req)` records one press of "I sent it" and answers (status, body).
     The request holds the project code, the item ids ticked (1 to 50), the mode and the day (YYYY-MM-DD); a key not listed, anything
@@ -202,7 +214,8 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
     one of its work items, the day) and writes one record in one transaction (Store.log_email_sent); nothing else is written.
     Answer: {"ok": true, "seq": n}, or a refusal in plain words."""
     def work(store, who, req):
-        seq = store.log_email_sent(req["project"], req["ids"], req["mode"], req["day"], who, today=today() if callable(today) else today)
+        seq = store.log_email_sent(req["project"], req["ids"], req["mode"], req["day"], who, today=today() if callable(today) else today,
+                                  offerable=offerable_ids(store, req["project"]))
         return 200, {"ok": True, "seq": seq}
 
     def seam(req):

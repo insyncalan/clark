@@ -16,6 +16,7 @@ from pathlib import Path
 import _paths  # noqa: F401
 from _demo import DemoStore, USER
 from clark import draft_email as de
+from clark import draft_email_feed as feed
 from clark import history
 from clark import store as store_module
 from clark.store import Invalid, open_store
@@ -48,7 +49,8 @@ class Base(unittest.TestCase):
                                         "likelihood": "Medium", "raised": "2026-10-01", "source": "demo"})
 
     def send(self, ids=None, mode="chase", day="2026-10-28", who="Sam Lee", code="ABC"):
-        return self.store.log_email_sent(code, [self.a, self.b] if ids is None else ids, mode, day, who, today=TODAY)
+        return self.store.log_email_sent(code, [self.a, self.b] if ids is None else ids, mode, day, who, today=TODAY,
+                                         offerable=feed.offerable_ids(self.store, code))
 
     def refuses(self, words, **kw):
         before = fingerprint(self.store.path)
@@ -151,6 +153,29 @@ class Refusals(Base):
         self.refuses("must be a real date", day="20261028")
         self.refuses("must be a real date", day="28-10-2026")
         self.refuses("There is no project", code="QQQ")
+
+    def test_an_item_the_email_would_not_offer_is_refused_and_nothing_is_written(self):
+        with self.store.step("dashboard", USER) as st:
+            hidden = st.create("actions", {"project": "ABC", "description": "Prepare the pack", "raised": "2026-10-01", "source": "demo"})
+            secret = st.create("actions", {"project": "ABC", "description": "Review the terms", "raised": "2026-10-01", "source": "demo"})
+            closed = st.create("actions", {"project": "ABC", "description": "Old task", "raised": "2026-10-01", "source": "demo", "status": "Closed"})
+            held = st.create("actions", {"project": "ABC", "description": "This is confidential", "raised": "2026-10-01", "source": "demo"})
+            st.create("report_hidden", {"project": "ABC", "item_id": hidden})
+            st.create("item_labels", {"item_id": secret, "label": "Sensitive"})
+        for bad in (hidden, secret, closed, held):
+            self.refuses("can't be in an email", ids=[self.a, bad])
+        self.assertEqual(self.store.email_sent_for("ABC"), [])
+        self.send(ids=[self.a])                            # the others are still fine
+
+    def test_a_made_decision_is_not_offered_either(self):
+        with self.store.step("dashboard", USER) as st:
+            made = st.create("decisions", {"project": "ABC", "decision": "Which vendor", "status": "Made", "date": "2026-10-01", "source": "demo"})
+        self.refuses("can't be in an email", ids=[made])
+
+    def test_the_day_may_not_be_more_than_31_days_back(self):
+        self.send(day=str(TODAY - timedelta(days=31)))
+        self.refuses("more than 31 days ago", day=str(TODAY - timedelta(days=32)))
+        self.refuses("more than 31 days ago", day="1999-01-01")
 
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:

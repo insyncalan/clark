@@ -404,6 +404,19 @@ class Sent(unittest.TestCase):
             self.assertNotRegex(got["message"], r"(?i)traceback|sqlite|\bsql\b|exception")
         self.assertEqual(self.fingerprint(), before)
 
+    def test_an_item_the_email_would_not_offer_and_a_day_too_far_back_are_refused(self):
+        with self.store.step("dashboard", USER) as st:
+            hidden = st.create("actions", {"project": "ABC", "description": "Prepare the pack", "raised": "2026-10-01", "source": "demo", "status": "Open"})
+            st.create("report_hidden", {"project": "ABC", "item_id": hidden})
+        before = self.fingerprint()
+        status, got = self.post(self.good(ids=[self.a, hidden]))
+        self.assertEqual((status, got["ok"]), (400, False))
+        self.assertIn("can't be in an email", got["message"])
+        status, got = self.post(self.good(day="2026-09-01"))
+        self.assertEqual((status, got["ok"]), (400, False))
+        self.assertIn("more than 31 days ago", got["message"])
+        self.assertEqual(self.fingerprint(), before)
+
     def test_the_email_words_never_reach_the_database_file(self):
         self.post(self.good(text="PLANTED-WORDS-xyzzy", email="planted@partner.test"))
         self.post(self.good())
