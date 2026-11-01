@@ -46,6 +46,26 @@
 .pk-tab { min-height: 32px; padding: 4px 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-small); cursor: pointer; }
 .pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
 .pk-tab:focus-visible, .pk-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* The peek's warning bar, Latest update with Draft, and the Last updated stamp (Edit only). Tokens only; wraps at 900 px. */
+.pk-warnbar { margin: 10px 0 0; padding: 8px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--status-amber-tint); }
+.pk-warn { margin: 0; display: flex; align-items: flex-start; gap: 6px; font-size: var(--size-small); color: var(--status-amber-text); overflow-wrap: anywhere; }
+.pk-warn .i { margin-top: 2px; }
+.pk-fix { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
+.pk-fix button:hover { background: var(--status-amber-tint); }
+.pk-fix button:focus-visible, .pk-draft:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-latest { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--grey-100); }
+.pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; color: var(--text); font-size: var(--size-small); }
+.pk-draft { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: 999px; background: var(--surface); color: var(--status-blue-text); font: inherit; font-size: var(--size-small); cursor: pointer; }
+.pk-draft:hover { background: var(--brand-blue-tint); }
+.pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: 64px; margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pk-latest-text { cursor: text; }
+.pk-latest-text:hover { border-color: var(--grey-200); }
+.pk-latest-in { resize: vertical; border-color: var(--brand-blue); background: var(--surface); }
+.pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
+.pk-latest-hint { color: var(--text-muted); }
+.pk-latest-err { color: var(--status-red-text); }
+.pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px; color: var(--text-muted); font-size: var(--size-small); }
 .pa-list { list-style: none; margin: 0; padding: 0; }
 .pa-row { padding: 8px 0; border-top: 1px solid var(--grey-100); }
 .pa-meta { margin: 0; font-size: var(--size-small); color: var(--text-muted); }
