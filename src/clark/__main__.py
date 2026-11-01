@@ -25,7 +25,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, appfiles, backup, changes, idle, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, idle, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 DB_NAME = "clark.db"
 HERE = Path(__file__).resolve().parent
@@ -358,6 +358,9 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store)),
                      safety=safety.Safety(store.path, roots),
+                     ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
+                     app_settings=app_settings.AppSettings(store.path, roots),
+                     ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
                      activity=activity_read.make_read(store.path, store.data_for),
                      brand_picture=page.brand_picture,
                      **handlers)

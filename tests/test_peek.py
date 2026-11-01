@@ -361,6 +361,28 @@ class Browser(unittest.TestCase):
                 click(cdp, sid, "[data-pk-wide]")
                 self.assertTrue(wait(lambda: w() == client), "across the whole screen")
 
+    def test_slash_opens_ask_with_no_peek_and_yields_to_the_words_box_in_a_peek(self):
+        """The ask panel's "/" and the peek's "//" share a key: with a peek open the two slashes reach the words box and the ask
+        panel stays shut; with no peek, one slash opens the ask panel as before."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                s, sid = self.load_page(cdp, width)
+                self.edit_mode(cdp, sid)
+                asking = lambda: cdp.js("!!document.querySelector('#ask-panel')", sid)
+                cdp.js("document.activeElement && document.activeElement.blur()", sid)
+                key(cdp, sid, "/")
+                self.assertTrue(wait(asking), "with no peek, one slash opens the ask panel")
+                key(cdp, sid, "Escape")
+                self.assertTrue(wait(lambda: not asking()), "Esc closes it")
+                target = next(r["id"] for r in self.data["actions"] if r["status"] == "Open")
+                cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "focus went into the peek")
+                cdp.js("document.activeElement.blur()", sid)
+                key(cdp, sid, "/")
+                key(cdp, sid, "/")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak]')", sid)), "two slashes open the words box")
+                self.assertFalse(asking(), "the ask panel stays shut while a peek is open")
+
     def test_edit_opens_the_words_box_with_two_slashes_and_reads_without_writing(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:

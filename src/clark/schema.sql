@@ -340,4 +340,14 @@ CREATE TABLE IF NOT EXISTS comments (
   source  INTEGER REFERENCES staged_changes(id)
 );
 
+-- clark: (#47) one row for this computer: ask_enabled is asking's safety switch (1 on, the starting value; 0 off: nothing is sent).
+-- The same statements as schema_v3.sql, which brings an older file to version 3.
+CREATE TABLE IF NOT EXISTS app_settings (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  ask_enabled INTEGER NOT NULL DEFAULT 1 CHECK (ask_enabled IN (0,1)),
+  updated_at  TEXT                    -- set by the writer when the switch changes; empty until then (a new file is the same every time)
+);
+
+INSERT OR IGNORE INTO app_settings (id) VALUES (1);
+
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);   -- schema_version, created_at, device, db_id, role (owner|teammate), share_folder; on a teammate's copy base_db_id, base_seq, base_apply_id
