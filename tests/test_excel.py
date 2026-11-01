@@ -314,7 +314,7 @@ class RowsOnly(unittest.TestCase):
                              "client_visible": 1, "source": "demo", **fields}]}
 
     def test_text_that_could_be_a_formula_is_neutralised_and_comes_back(self):
-        """Review: =1+1 or =HYPERLINK(...) was a live formula. Now a leading apostrophe; read back it is the same text."""
+        """=1+1 or =HYPERLINK(...) was a live formula. Now a text cell that shows exactly as typed (no apostrophe); read back it is the same text."""
         path = self.dir / "DEMO.xlsx"
         values = ["=1+1", '=HYPERLINK("http://x.invalid","hi")', "+1", "-cmd", "@SUM(A1)", "\tTabbed", "'quoted",
                   "'=1", "''", "a=b", "-5", "#N/A", "=", "plain", " =1"]
@@ -342,11 +342,14 @@ class RowsOnly(unittest.TestCase):
         self.assertEqual(excel.from_cell("description", "'\r=1"), "\r=1")     # but a CR found in a file is undone like the rest
 
     def test_the_escape_rule(self):
-        for text, cell in (("=1+1", "'=1+1"), ("+1", "'+1"), ("-cmd", "'-cmd"), ("@x", "'@x"), ("\tx", "'\tx"),
-                           ("'q", "''q"), ("'=1", "''=1"), ("a=b", "a=b"), ("x'", "x'"), ("", "")):
+        # Text goes in as typed: a text cell (protect_text_cell) keeps it from being a formula, not an apostrophe. Only text that
+        # starts with an apostrophe and then = + - @ TAB CR or an apostrophe gets one more, so the import's undo is exact.
+        for text, cell in (("=1+1", "=1+1"), ("+1", "+1"), ("-cmd", "-cmd"), ("@x", "@x"), ("\tx", "\tx"),
+                           ("'q", "'q"), ("'=1", "''=1"), ("''q", "'''q"), ("a=b", "a=b"), ("x'", "x'"), ("", "")):
             self.assertEqual(excel.to_cell("description", text), cell)
             self.assertEqual(excel.from_cell("description", cell) if cell else None, text or None)
-        self.assertEqual(excel.escape_text("\rx"), "'\rx")                    # (to_cell turns a CR into a line feed first)
+        self.assertEqual(excel.escape_text("\rx"), "\rx")                      # (to_cell turns a CR into a line feed first)
+        self.assertEqual(excel.from_cell("description", "'=1+1"), "=1+1")     # a file from v0.1.0 wrote =1+1 with an apostrophe
         self.assertEqual(excel.from_cell("description", "'abc"), "'abc")      # typed in Excel: no escape to undo
         self.assertEqual(excel.from_cell("description", "=A1+1"), "=A1+1")    # a typed formula stays its text
 
@@ -362,7 +365,7 @@ class RowsOnly(unittest.TestCase):
         head = [c.value for c in ws[1]]
         order, name = ws.cell(row=2, column=head.index("Order") + 1), ws.cell(row=2, column=head.index("Milestone") + 1)
         self.assertEqual((order.value, order.data_type), (-5, "n"))
-        self.assertEqual((name.value, name.data_type), ("'-5", "s"))
+        self.assertEqual((name.value, name.data_type), ("-5", "s"))
         back = excel.read_workbook(path)["milestones"][0]
         self.assertEqual((back["sort_order"], back["name"], back["baseline_date"]), (-5, "-5", "2030-04-01"))
 
