@@ -12,7 +12,7 @@ One page. A release has no workflow: the download is built and attached by hand,
    `python3 dev/tools/package.py mac --release --notes dev/release-notes/X.Y.Z-plain.md --out DIR`
    (the same commit gives the same bytes: build twice and compare if in doubt).
 6. **Attach `clark-X.Y.Z-mac.zip` and its SHA-256 to the GitHub release.** Put the digest in the release notes, with the command to check it: `shasum -a 256 clark-X.Y.Z-mac.zip`. Every zip in the release has its digest in the notes.
-7. **Sign it** (once the signing key exists). Attach the signature beside the zip. Until then the digest is only as trustworthy as the page it is on; say so in the release body.
+7. **Sign it** (once #282 is in; until then the digest in the notes is the check). Attach the signature beside the zip. Until then the digest is only as trustworthy as the page it is on; say so in the release body.
 8. **Verify the download.** Download the zip from the release page and compare its digest with the notes. Check: they match.
 9. **Run `python3 dev/tools/check_release_assets.py vX.Y.Z`.** It must print that the download is attached. A release without it is not finished.
 10. **Board.** Every item in the release is State Shipped, with the Release field set to this version; items that did not make it move to the next release. Check: read the board back.
