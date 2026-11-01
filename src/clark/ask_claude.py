@@ -363,9 +363,7 @@ class ClaudeCommand(ask.Provider):
         try:
             self.stop_event.clear()
             system = getattr(request, "system", "")
-            if system == "":
-                system = None
-            elif not self.fixed_rules(system):
+            if not self.fixed_rules(system):         # an empty one too: it never quietly becomes ask clark's rules
                 return ask.Failure(BAD_SYSTEM)       # fails closed, before any sign-in check: never falls back to another prompt
             path, why = self.usable(reuse=True)
             if path is None:
