@@ -151,6 +151,19 @@ export async function getProfile() {
   }
 }
 
+// The people list (#115, GET /api/people), read only, for Hand over's person field (#199): the list as clark has it, or [] when
+// clark has none to give (no list, or any failure). Only a person's id, name and whether they are archived are kept here.
+export async function readPeople() {
+  try {
+    const r = await fetch("/api/people", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const body = await r.json().catch(() => null);
+    if (!r.ok || !body || body.ok !== true || !Array.isArray(body.people)) return [];
+    return body.people.filter((p) => p && typeof p.name === "string").map((p) => ({ id: p.id, name: p.name, archived: !!p.archived }));
+  } catch (e) {
+    return [];
+  }
+}
+
 export async function saveProfile(name, email) {
   try {
     const r = await fetch("/api/profile", {
