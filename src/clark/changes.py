@@ -1375,6 +1375,8 @@ def _do_undo(store, by_user, req):
     step_rows = store.step_rows(step)
     if not _eligible(step_rows, project):                           # a missing step, another project's and another route's
         raise Refused(NO_UNDO)                                      # all say the same: nothing tells which exist
+    if any(r["via"] == ASSISTANT for r in step_rows) and store.step_actors(step) != {ASK_ACTOR}:
+        raise Refused(NO_UNDO)                                      # #47e: an assistant-route step is ours only when ask clark made it
     names = {r["id"]: r["title"] for r in _sections(store, project)}
     _name_use_cases(store, step_rows, names)                        # #164
     try:                                                            # still inside the caller's one lock

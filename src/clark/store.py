@@ -2311,6 +2311,11 @@ class Store:
         return [{"table": r["tbl"], "key": r["item_id"], "field": r["field"], "via": r["via"], "op": r["op"]} for r in self.con.execute(
             "SELECT tbl, item_id, field, via, op FROM change_log WHERE apply_id = ? ORDER BY rowid", (apply_id,))]
 
+    def step_actors(self, apply_id):
+        """Who made step `apply_id`, read only (#47e): the set of item_events actors for it ('you', 'clark'); empty when it wrote no
+        event or is not there. So /api/undo takes a step on the assistant route only when ask clark itself made it."""
+        return {r[0] for r in self.con.execute("SELECT DISTINCT actor FROM item_events WHERE apply_id = ?", (apply_id,))}
+
     def history(self, ref):
         from clark import history
         return history.history(self.con, ref)
