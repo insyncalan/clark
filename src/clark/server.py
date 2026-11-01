@@ -707,7 +707,7 @@ XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 # browser tab, in plain words, not a bare line (the prototype's Preview is a page in a tab). It names nothing internal.
 PREVIEW_GONE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Preview opened already</title>
+<title>Preview not available</title>
 <style>
 :root { color-scheme: light dark; }
 body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f9; color: #1d2733; }
@@ -716,9 +716,9 @@ h1 { margin: 0 0 8px; font-size: 1.4rem; font-weight: 500; }
 p { margin: 0 0 8px; color: #55606e; }
 @media (prefers-color-scheme: dark) { body { background: #12171d; color: #e8ecf1; } main { background: #1b222b; border-color: #2e3844; } p { color: #a9b4c1; } }
 </style></head><body><main>
-<h1>This preview was opened already</h1>
+<h1>This preview is no longer available</h1>
 <p>A preview opens once, and only for a couple of minutes after you ask for it.</p>
-<p>Go back to clark, open your menu (the circle at the top right) and choose Preview again for a new one.</p>
+<p>Go back to clark, open your menu (the circle at the top right) and choose Preview the page in a new tab for a new one.</p>
 </main></body></html>
 """
 
