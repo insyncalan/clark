@@ -316,8 +316,9 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
         self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
+        self.assertEqual(sv.POST_ROUTES["/api/section-body"], sv.section_body_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
-                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
+                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/section-body": sv.SECTION_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
@@ -403,22 +404,22 @@ class Saving(ServerTest):
             self.assertEqual(len(self.calls), before)
             self.assertIn(running.ask("POST", route, base + [("Origin", own), ("Origin", own)], b"{}")[0], (200, 409))   # all fine: fine
 
-    def test_the_longest_tracker_the_checker_takes_goes_through_the_change_route_and_one_over_the_limit_gets_plain_words(self):
+    def test_the_longest_tracker_the_checker_takes_goes_through_the_section_body_route_and_one_over_the_limit_gets_plain_words(self):
         from clark import section_bodies as sb
         running = self.seams()
         self.addCleanup(running.close)
+        running.httpd.section_body = lambda req: (200, {"ok": True})
         line = {"no": "9" * sb.TRACKER_NO_MAX, "text": "a" * sb.TRACKER_TEXT_MAX, "start": "2030-01-01", "end": "2030-02-01", "status": "inprogress",
                 "weight": 1000, "planned": 1000, "achieved": 1000, "tasks": 99999, "agents": 99999, "workflows": 99999}
         per = [sb.TRACKER_MAX_LINES // sb.TRACKER_MAX_GROUPS + (k < sb.TRACKER_MAX_LINES % sb.TRACKER_MAX_GROUPS) for k in range(sb.TRACKER_MAX_GROUPS)]
         tracker = {"v": 1, "overall": {"actual": 1000, "planned": 1000, "health": "ontrack", "note": "a" * sb.TRACKER_NOTE_MAX},
                    "columns": {"tasks": True, "agents": True, "workflows": True},
                    "groups": [{"name": "a" * sb.TRACKER_NAME_MAX, "lines": [dict(line) for _ in range(n)]} for n in per]}
-        body = json.dumps({"kind": "report_section", "op": "update", "id": "ABC-S-001",
-                           "changes": {"body": sb.canonical(tracker)}}, separators=(",", ":")).encode("utf-8")
-        self.assertLessEqual(len(body), sv.ROUTE_BODY_LIMITS["/api/change"])          # the checker's cap, not the route, is the limit
-        self.assertEqual(running.api("POST", "/api/change", body)[0], 200)
-        over = b'{"a": "' + b"x" * sv.ROUTE_BODY_LIMITS["/api/change"] + b'"}'
-        status, _, data = running.api("POST", "/api/change", over)
+        body = json.dumps({"project": "ABC", "id": "ABC-S-001", "body": sb.canonical(tracker)}, separators=(",", ":")).encode("utf-8")
+        self.assertLessEqual(len(body), sv.ROUTE_BODY_LIMITS["/api/section-body"])          # the checker's cap, not the route, is the limit
+        self.assertEqual(running.api("POST", "/api/section-body", body)[0], 200)
+        over = b'{"a": "' + b"x" * sv.ROUTE_BODY_LIMITS["/api/section-body"] + b'"}'
+        status, _, data = running.api("POST", "/api/section-body", over)
         got = json.loads(data)
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
         self.assertIn("Shorten a line or remove some lines", got["message"])
@@ -426,18 +427,21 @@ class Saving(ServerTest):
         status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 2048 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
-    def test_the_change_route_limit_is_two_largest_sections_plus_4_kb(self):
-        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; a separate /api/section-body route is the later fix (Tech Debt)
+    def test_the_section_body_route_limit_is_two_largest_sections_plus_4_kb_and_change_is_16_kb(self):
+        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/section-body (#273), so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; /api/change is small
         from clark import section_bodies
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 135168)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertEqual(sv.SECTION_BODY_LIMIT, 135168)
+        self.assertEqual(sv.SECTION_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, 16 * 1024)
         self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
 
-    def test_change_and_undo_limits_and_415(self):
+    def test_change_section_body_and_undo_limits_and_415(self):
         running = self.seams()
         self.addCleanup(running.close)
-        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 1024)):      # #96: twice the largest section content plus 4 KB
+        running.httpd.section_body = lambda req: (200, {"ok": True})
+        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/section-body", sv.SECTION_BODY_LIMIT), ("/api/undo", 1024)):      # #273: 16 KB; twice the largest section content plus 4 KB
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(limit + 1)}
             status, _, data = running.ask("POST", route, over, b"{}")
             self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"), route)       # refused from its length

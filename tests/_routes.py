@@ -16,7 +16,7 @@ POST_ROUTES = (
     "/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry", "/api/ask/stop",
     "/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder", "/api/draft-email",
     "/api/draft-email/sent", "/api/logging", "/api/logging/open-folder", "/api/page-error", "/api/people", "/api/people/undo",
-    "/api/preview", "/api/profile", "/api/publish", "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo",
+    "/api/preview", "/api/profile", "/api/publish", "/api/section-body", "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo",
     "/api/word-export", "/api/word-import",
 )     # #43, #111, #147, #180, #50, #47, #47e, #42, #96, and #48 (the two Word ones)
 

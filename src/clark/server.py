@@ -101,20 +101,22 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
-# #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
-# tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
-# gets the general words. No request kind is given a larger door. tests/test_tracker_route.py pins this over the real route.
-SECTION_BODY_MAX = 64 * 1024           # #378: the largest section content the change route carries (the registry's biggest; a test keeps the two equal)
+# #247, #273: no tracker-only limit is needed. A section's content, tracker or not, is read up to SECTION_BODY_LIMIT, which is above the widest
+# tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it gets the
+# general words. /api/change is small. tests/test_tracker_route.py pins this over the real route.
+SECTION_BODY_MAX = 64 * 1024           # #378: the largest section content a request carries (the registry's biggest; a test keeps the two equal)
 ESCAPE_FACTOR = 2                      # the body is a string inside the request, so each quote and backslash is escaped twice: at worst twice the bytes
-REQUEST_ENVELOPE = 4 * 1024            # the request around the body: its kind, op, id and the rest of its changes
+REQUEST_ENVELOPE = 4 * 1024            # the request around the body: its project, id, place and the rest
+CHANGE_BODY_MAX = 16 * 1024            # #273: a change is a few short fields; a section's content goes to /api/section-body
 
 
 def change_body_limit(body_max=SECTION_BODY_MAX):
     return ESCAPE_FACTOR * body_max + REQUEST_ENVELOPE
 
 
-CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378: 132 KB today; moves with the three above, never with a bare number
-ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+SECTION_BODY_LIMIT = change_body_limit()   # #96, #273, #378: 132 KB today, for POST /api/section-body; moves with the three constants above, never with a bare number
+CHANGE_BODY_LIMIT = CHANGE_BODY_MAX        # #273: 16 KB for POST /api/change
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
@@ -601,6 +603,11 @@ def people_route(seam_name):
     return route
 
 
+def section_body_route(handler, req):
+    """POST /api/section-body (#273): one section's content. Checked like change_route before this runs (authorised() first), with its own body limit."""
+    return seam_route(handler, handler.server.section_body, req)
+
+
 def section_image_route(handler, req):
     """POST /api/section-image (#96 R1). Checked like change_route before this runs, with its own body limit."""
     return seam_route(handler, handler.server.section_image, req)
@@ -848,7 +855,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/diagnostics": logs_route("diagnostics")}
-POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
+POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/section-body": section_body_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
@@ -1038,7 +1045,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(411, error_body("length_required"))
         except TooLarge:
             sent = error_body("too_large")
-            if self.path.split("?")[0] == "/api/change":
+            if self.path.split("?")[0] in ("/api/change", "/api/section-body"):
                 sent["message"] = MESSAGES["change_too_large"]      # a section's content is the one thing that grows: say what to do (the code stays too_large)
             return self.send(400, sent)
         except ValueError:
@@ -1054,18 +1061,19 @@ class LocalServer(ThreadingHTTPServer):
     server_bind calls socket.getfqdn(host), which can stall for 30 s on some Macs.) `data_for(code)` is the store's read
     of one project (None when there is none); `projects()` lists them as rows with a code and a name; `page_html()` gives
     the page's HTML (#35 supplies the bundle); `change(req)` and `undo(req)` (#65) answer POST /api/change and /api/undo
-    with (status, body), each on a store of its own (None: those routes answer 503); `section_image(req)` (#96 R1) answers POST /api/section-image the same way; `sneak(req)` (#42) answers POST /api/sneak/read the same way, reading only; `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163); `word_import(req)` and `word_export(req)` (#48) answer POST /api/word-import and /api/word-export the same way as `change` and `undo`; `activity(code, item)` reads one item's changes (#42)."""
+    with (status, body), each on a store of its own (None: those routes answer 503); `section_image(req)` (#96 R1) answers POST /api/section-image the same way; `section_body(req)` (#273) answers POST /api/section-body the same way; `sneak(req)` (#42) answers POST /api/sneak/read the same way, reading only; `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163); `word_import(req)` and `word_export(req)` (#48) answer POST /api/word-import and /api/word-export the same way as `change` and `undo`; `activity(code, item)` reads one item's changes (#42)."""
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
-                 people=None, people_undo=None, people_list=None, section_image=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
         self.change, self.undo, self.sneak = change, undo, sneak
+        self.section_body = section_body      # changes.make_section_body (#273); None: that route answers 503 saving_off
         self.section_image = section_image    # changes.make_section_image (#96 R1); None: that route answers 503 saving_off
         self.word_import, self.word_export = word_import, word_export
         self.page_html = page_html or placeholder_html
@@ -1117,7 +1125,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
-          people=None, people_undo=None, people_list=None, section_image=None):
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -1126,7 +1134,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

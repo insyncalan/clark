@@ -1,5 +1,5 @@
-"""The progress tracker's own shape (src/clark/section_bodies.py `_checked_tracker`, guarded) and the change route's size limit
-(src/clark/server.py CHANGE_BODY_LIMIT, guarded): the widest tracker the checker accepts is stored under its limit, anything else is refused
+"""The progress tracker's own shape (src/clark/section_bodies.py `_checked_tracker`, guarded) and the section-body route's size limit
+(src/clark/server.py SECTION_BODY_LIMIT, guarded): the widest tracker the checker accepts is stored under its limit, anything else is refused
 in plain words that never quote the value.
 
 Run: python3 dev/run_tests.py test_tracker_content
@@ -281,9 +281,11 @@ class Size(unittest.TestCase):
 
     def test_the_change_route_limit_is_one_named_constant_and_the_small_routes_are_unchanged(self):
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
-        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; a separate /api/section-body route is the later fix (Tech Debt)
-        self.assertLessEqual(sv.CHANGE_BODY_LIMIT, sv.BODY_LIMIT)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, 16 * 1024)
+        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/section-body (#273), so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
+        self.assertEqual(sv.SECTION_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertLessEqual(sv.SECTION_BODY_LIMIT, sv.BODY_LIMIT)
         for route, limit in (("/api/undo", 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
 

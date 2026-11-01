@@ -1,4 +1,4 @@
-"""A progress tracker over the REAL change route with the REAL store (#247; src/clark/server.py CHANGE_BODY_LIMIT, guarded): the
+"""A progress tracker over the REAL change route with the REAL store (#247; src/clark/server.py SECTION_BODY_LIMIT, guarded; #273 moved a section's content to /api/section-body): the
 widest tracker the checker accepts is not stopped by the route's size limit, one line over the checker's cap is answered with the
 checker's own words, a request over the route's limit gets the general words, and two writers leave exactly one whole body.
 
@@ -47,7 +47,7 @@ class Running:
 def request(ref, body, ascii_only=True):
     """The bytes a page sends to save a tracker: the body is a string of JSON inside the request, so it is escaped twice."""
     inner = json.dumps(body, ensure_ascii=ascii_only, separators=(",", ":")) if not isinstance(body, str) else body
-    return json.dumps({"project": "ABC", "kind": KIND, "op": "update", "id": ref, "changes": {"body": inner}},
+    return json.dumps({"project": "ABC", "id": ref, "body": inner},
                       ensure_ascii=ascii_only, separators=(",", ":")).encode("utf-8")
 
 
@@ -62,9 +62,10 @@ class Route(unittest.TestCase):
             {"project": "ABC", "kind": KIND, "op": "new", "values": {"type": "tracker", "title": "Progress"}}).encode())
         self.assertEqual(status, 200, data)
         self.ref = json.loads(data)["ref"]
+        self.running.httpd.section_body = changes.make_section_body(self.store.path, [], USER)
 
-    def post(self, body):
-        status, _, data = self.running.api("POST", "/api/change", body)
+    def post(self, body, route="/api/section-body"):
+        status, _, data = self.running.api("POST", route, body)
         return status, json.loads(data)
 
     def stored(self):
@@ -80,7 +81,7 @@ class Route(unittest.TestCase):
             for ascii_only in (True, False):
                 with self.subTest(letter=letter, ascii_only=ascii_only):
                     body = request(self.ref, biggest(letter), ascii_only)
-                    self.assertLess(len(body), sv.CHANGE_BODY_LIMIT)                     # room to spare, so the checker is what answers
+                    self.assertLess(len(body), sv.SECTION_BODY_LIMIT)                     # room to spare, so the checker is what answers
                     status, got = self.post(body)
                     self.assertEqual((status, got["ok"]), (200, True), got)
                     self.assertEqual(self.stored(), check(biggest(letter)))
@@ -99,8 +100,8 @@ class Route(unittest.TestCase):
                 self.assertEqual(self.stored(), kept)                                     # nothing was written
 
     def test_a_request_over_the_route_limit_still_gets_the_general_words_and_nothing_else_is_let_through_larger(self):
-        for pad in (sv.CHANGE_BODY_LIMIT, sv.CHANGE_BODY_LIMIT + 1):
-            raw = b'{"project":"ABC","kind":"report_sections","op":"update","id":"' + self.ref.encode() + b'","changes":{"title":"' + b"x" * pad + b'"}}'
+        for pad in (sv.SECTION_BODY_LIMIT, sv.SECTION_BODY_LIMIT + 1):
+            raw = b'{"project":"ABC","id":"' + self.ref.encode() + b'","body":"' + b"x" * pad + b'"}'
             status, got = self.post(raw)
             self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
         self.assertEqual(self.stored(), "")
@@ -108,23 +109,23 @@ class Route(unittest.TestCase):
     def test_a_17_kb_change_that_is_not_a_tracker_is_the_stores_to_refuse_not_a_larger_door_for_trackers(self):
         before = self.store.read(KIND, ref=self.ref)
         raw = json.dumps({"project": "ABC", "kind": KIND, "op": "update", "id": self.ref, "changes": {"title": "x" * 17 * 1024}}).encode()
-        status, got = self.post(raw)
-        self.assertEqual((status, got["ok"]), (400, False))
-        self.assertNotEqual(got.get("code"), "too_large")        # the route lets it in (the one limit is 132 KB for every change); the store says no
+        status, got = self.post(raw, "/api/change")
+        self.assertEqual((status, got["ok"], got["code"]), (400, False, "too_large"))        # /api/change is 16 KB: no door for a section's content
         self.assertEqual(self.store.read(KIND, ref=self.ref), before)
 
     def test_the_route_limit_still_covers_the_widest_tracker_with_room_to_spare(self):
         widest = max(len(request(self.ref, biggest(letter), ascii_only)) for letter in LETTERS for ascii_only in (True, False))
-        self.assertGreater(sv.CHANGE_BODY_LIMIT, widest)
-        self.assertGreaterEqual(sv.CHANGE_BODY_LIMIT, widest + 4 * 1024)       # the envelope (project, place, ids) is far smaller than 4 KB
+        self.assertGreater(sv.SECTION_BODY_LIMIT, widest)
+        self.assertGreaterEqual(sv.SECTION_BODY_LIMIT, widest + 4 * 1024)       # the envelope (project, place, ids) is far smaller than 4 KB
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         for route, limit in (("/api/undo", 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
 
     def padded(self, size):
-        """A valid JSON change body of exactly `size` bytes: the title is padded with plain letters."""
-        head = b'{"project":"ABC","kind":"report_sections","op":"update","id":"' + self.ref.encode() + b'","changes":{"title":"'
-        tail = b'"}}'
+        """A valid JSON section-body request of exactly `size` bytes: the content is padded with plain letters."""
+        head = b'{"project":"ABC","id":"' + self.ref.encode() + b'","body":"'
+        tail = b'"}'
         raw = head + b"x" * (size - len(head) - len(tail)) + tail
         self.assertEqual(len(raw), size)
         json.loads(raw)
@@ -132,15 +133,15 @@ class Route(unittest.TestCase):
 
     def test_a_body_of_exactly_the_route_limit_is_let_in_and_refused_for_another_reason(self):
         before = self.store.read(KIND, ref=self.ref)
-        status, got = self.post(self.padded(sv.CHANGE_BODY_LIMIT))
-        self.assertEqual((status, got["ok"]), (400, False))                 # the store refuses a title this long
+        status, got = self.post(self.padded(sv.SECTION_BODY_LIMIT))
+        self.assertEqual((status, got["ok"]), (400, False))                 # the checker refuses content that is not a tracker
         self.assertNotEqual(got.get("code"), "too_large")
         self.assertNotEqual(got["message"], sv.MESSAGES["change_too_large"])
         self.assertEqual(self.store.read(KIND, ref=self.ref), before)
 
     def test_a_body_of_one_byte_over_the_route_limit_gets_the_general_words(self):
         before = self.store.read(KIND, ref=self.ref)
-        status, got = self.post(self.padded(sv.CHANGE_BODY_LIMIT + 1))
+        status, got = self.post(self.padded(sv.SECTION_BODY_LIMIT + 1))
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
         self.assertEqual(self.store.read(KIND, ref=self.ref), before)
 

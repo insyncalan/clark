@@ -1,5 +1,5 @@
-// The page's only way to change anything: POST /api/change and POST /api/undo (#65). No other file names these two routes, so a
-// build that leaves this file out (the published page, view.jsx) has no way to change a thing and no mention of them.
+// The page's only way to change anything: POST /api/change, POST /api/section-body (a section's content, #273) and POST /api/undo (#65).
+// No other file names these routes, so a build that leaves this file out (the published page, view.jsx) has no way to change a thing and no mention of them.
 // Every reply is turned into plain words here: the page never shows the server's own text, only what plainChange (report.js)
 // picks for the status, or for a message it knows.
 import { token, plainChange } from "./stores/report.js";
@@ -51,7 +51,17 @@ async function postItem(path, body) {
 
 // `req` is the change's own parts: op, id, values, changes, before, after, place (see clark/changes.py). `kind` is report_sections
 // unless the request says otherwise (#45: glance_tiles and projects reply with tiles or the project, not the sections).
-export const sendChange = (project, req) => post("/api/change", { project, kind: KIND, ...req }, !req.kind || req.kind === KIND ? hasSections : () => true);
+// A section's content (an update whose only change is `body`) goes to /api/section-body (#273), which takes the larger request; /api/change is small.
+// A use case's standing text (rich text, as long) goes the same way, with kind "use_cases".
+const onlyField = (req, field) => req.op === "update" && !!req.changes && typeof req.changes === "object" && Object.keys(req.changes).length === 1 && field in req.changes;
+const isBodyEdit = (req) => (!req.kind || req.kind === KIND) && onlyField(req, "body");
+const isStandingEdit = (req) => req.kind === "use_cases" && onlyField(req, "standing");
+const placed = (req) => (req.place === undefined ? {} : { place: req.place });
+export const sendChange = (project, req) => isBodyEdit(req)
+  ? post("/api/section-body", { project, id: req.id, body: req.changes.body, ...placed(req) })
+  : isStandingEdit(req)
+  ? post("/api/section-body", { project, kind: "use_cases", id: req.id, body: req.changes.standing, ...placed(req) }, () => true)
+  : post("/api/change", { project, kind: KIND, ...req }, !req.kind || req.kind === KIND ? hasSections : () => true);
 export const sendUndo = (project, applyId) => post("/api/undo", { project, apply_id: applyId });
 
 // Undo several (the Activity tab): `steps` are the steps of the rows chosen. A preview changes nothing; a run is one new change that

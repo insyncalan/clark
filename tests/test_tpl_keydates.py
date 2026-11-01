@@ -98,9 +98,9 @@ class Checker(unittest.TestCase):
         self.refuses(json.dumps({"v": 1, "items": [typed("x" * 120, "2030-01-01")] * 12}) + " " * keydates.LIMIT)
         self.refuses(json.dumps({"v": 1, "items": [typed("\U0001F600" * 120)] * 13}))
 
-    def test_the_limit_fits_the_change_route(self):
+    def test_the_limit_fits_the_section_body_route(self):
         from clark import server as sv
-        self.assertGreaterEqual(sv.ROUTE_BODY_LIMITS["/api/change"], keydates.LIMIT + 8 * 1024)
+        self.assertGreaterEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], keydates.LIMIT + 8 * 1024)
         worst = body(*[typed("é" * 120) for _ in range(12)])
         self.assertLessEqual(len(self.check(worst)), keydates.LIMIT, "the largest valid content fits its limit")
 

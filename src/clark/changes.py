@@ -487,6 +487,49 @@ def _do_section_image(store, by_user, req):
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
 
 
+# ── A section's content (POST /api/section-body, Tech Debt #273) ──────────────
+BODY_KEYS = ("project", "id", "body", "place", "kind")
+BODY_KINDS = ("report_sections", "use_cases")    # a section's content, or a use case's standing text (the other long text the page saves)
+
+
+def _do_section_body(store, by_user, req):
+    """POST /api/section-body: {project, id, body, place, kind}. Sets one section's content, as one step with one Undo, the same as an
+    update of `body` through /api/change but on a route of its own so that /api/change stays small. The content meets the
+    stored type's checker (_section_body) and the store checks it again on write. The reply is the change route's: apply_id, ref and the sections.
+    With kind "use_cases" the text is a use case's standing text instead, which goes through the use case path of /api/change
+    (the same cleaner, the same checks, the same reply) but with this route's larger request limit."""
+    if not isinstance(req, dict):
+        raise Refused(NOT_JSON_OBJECT)
+    for k in req:
+        if k not in BODY_KEYS:
+            raise Refused(f"That change doesn't take '{_shown(k)}'.")
+    project = req.get("project")
+    if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
+        raise Refused(BAD_PROJECT, code="bad_project_code")
+    place = req.get("place")
+    if place is not None and (not isinstance(place, str) or place not in PLACES):
+        raise Refused(BAD_PLACE)
+    kind = req.get("kind", "report_sections")
+    if not isinstance(kind, str) or kind not in BODY_KINDS:
+        raise Refused(BAD_KIND)
+    ref, body = req.get("id"), req.get("body")
+    if not isinstance(ref, str):
+        raise Refused(NOT_MINE)
+    if not isinstance(body, str):
+        raise Refused(BODY_NOT_TEXT)
+    if store.read("projects", ref=project) is None:
+        raise Refused(NO_PROJECT, 404, "project_not_found")
+    if kind == "use_cases":
+        return _do_use_case_change(store, by_user, {"id": ref, "changes": {"standing": body}}, project, "use_cases",
+                                   clark_store.columns(store.con, "use_cases"), place)
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the section read next is the one written
+        rows = _sections(store, project)
+        _mine(ref, [r["id"] for r in rows], NOT_MINE)
+        st.update("report_sections", ref, {"body": _section_body(next(r for r in rows if r["id"] == ref), body)})
+        apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
+    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+
+
 # ── The change ────────────────────────────────────────────────────────────────
 
 def _sections(store, code):
@@ -1852,6 +1895,13 @@ def make_section_image(path, onedrive_roots=None, by_user=None):
     def section_image(req):
         return _call(path, onedrive_roots, by_user, _do_section_image, req)
     return section_image
+
+
+def make_section_body(path, onedrive_roots=None, by_user=None):
+    """The `section_body` the server calls for POST /api/section-body (Tech Debt #273), for the database at `path` (see make_change)."""
+    def section_body(req):
+        return _call(path, onedrive_roots, by_user, _do_section_body, req)
+    return section_body
 
 
 # ── A file for a section template (#96, POST /api/section-file) ────────────────

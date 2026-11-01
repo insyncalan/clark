@@ -152,6 +152,13 @@ class Detail(unittest.TestCase):
                          change=seam(real_change, "change"), undo=seam(real_undo, "undo"))
         self.s.httpd.use_cases = use_cases_read.make_read(self.read, lambda code: set(), launcher.use_case_history(mock.Mock(path=self.path)))
         self.addCleanup(self.s.close)
+        real_body = changes.make_section_body(self.path, [], USER)
+
+        def standing(req):          # #273: the standing text goes to /api/section-body; recorded as the update of `standing` it stands for
+            self.sent.append(("change", {"project": req.get("project"), "kind": req.get("kind"), "op": "update", "id": req.get("id"),
+                                         "changes": {"standing": req.get("body")}, **({"place": req["place"]} if "place" in req else {})}))
+            return real_body(req)
+        self.s.httpd.section_body = standing
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
         self.addCleanup(quiet.stop)
