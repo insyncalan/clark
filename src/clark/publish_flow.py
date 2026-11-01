@@ -27,11 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-<<<<<<< HEAD
-from clark import milestones, page, platform, publish, publish_pdf, to_client
-=======
-from clark import changes, milestones, page, platform, publish, section_files, to_client
->>>>>>> origin/main
+from clark import changes, milestones, page, platform, publish, publish_pdf, section_files, to_client
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
