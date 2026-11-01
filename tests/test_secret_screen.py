@@ -109,7 +109,7 @@ class Screen(unittest.TestCase):
         self.assertTrue(secret_screen.looks_like_secret(text))
 
     # The old check was a wall-clock limit (VERY_LARGE_OLD_LIMIT, 30 s, for the full-size texts); a loaded runner took 74.6 s. It is now the
-    # growth from n to 2n in CPU time, with the same ten shapes at n tenths of the old size. Kept as documentation, no longer asserted.
+    # growth from n to 4n in CPU time, with the same ten shapes at n tenths of the old size. Kept as documentation, no longer asserted.
     VERY_LARGE_OLD_LIMIT = 30
 
     def test_a_very_large_text_is_screened_quickly(self):
@@ -123,7 +123,7 @@ class Screen(unittest.TestCase):
 
     def test_a_run_of_key_words_takes_time_that_grows_with_the_size(self):
         # The old check was wall-clock: eight times the text had to take under 24 times as long (or 2 s), and 200,000 words under 30 s.
-        # It is now the growth from n to 2n in CPU time, over 16,000 to 200,000 words.
+        # It is now the growth from n to 4n in CPU time, over 16,000 to 400,000 words.
         for n in (16000, 100000):
             assert_growth(self, lambda size: secret_screen.looks_like_secret("token" * size), n, "key words %d" % n)
 
@@ -174,14 +174,14 @@ class FromFolders(tp.Folders):
         self.assertEqual((got.safety, got.secret_labels), (0, ()))
 
     def test_a_secret_far_down_a_long_file_is_still_found_and_it_is_fast(self):
-        # The old check was wall-clock (30 s for 40,000 lines); the secret must still be found at both sizes, and the growth from 20,000 to
+        # The old check was wall-clock (30 s for 40,000 lines); the secret must still be found at both sizes, and the growth from 10,000 to
         # 40,000 lines in CPU time is judged by growth_ratio.
         def work(lines):
             self.put(self.box, "long.txt", "plain words here\n" * lines + "pass" + "word=" + PW)
             got = self.run_it()
             self.assertEqual(got.passages, ())
             self.assertEqual(got.secret_labels, ("saved/long.txt",))
-        assert_growth(self, work, 20000, "long file")
+        assert_growth(self, work, 10000, "long file")
 
     def test_removing_the_screen_lets_the_secret_through(self):
         self.put(self.box, "s.txt", "ZQ-S pass" + "word=" + PW)
