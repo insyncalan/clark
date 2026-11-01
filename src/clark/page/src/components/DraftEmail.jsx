@@ -3,6 +3,7 @@
 // caller asks for a new one in onChange(state) and saves the history entry that onSent(entry) is given (it answers {ok, message}). clark never sends mail.
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";
+import { todayIso } from "../workItems.js";
 import { MODES, LABELS, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
 export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip }) {
@@ -43,7 +44,7 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
     inFlight.current = true;
     setSaving(true);
     try {
-      const entry = sentEntry(draft ? draft.ids : [], state.mode, today);
+      const entry = sentEntry(draft ? draft.ids : [], state.mode, today || todayIso());   // the person's own day, never a UTC day, which the store would show as the wrong day near midnight
       const r = onSent ? await onSent(entry) : null;
       if (r && typeof r === "object" && r.ok === false) setNote(typeof r.message === "string" && r.message ? r.message : sentWords(entry, false, true));
       else setNote(sentWords(entry, !!(r && typeof r === "object" && r.ok === true)));
