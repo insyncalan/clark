@@ -40,6 +40,9 @@ Routes:
 - GET  /api/people       the people list, archived too (#115; changes.make_people_list); without the seam, not found
 - POST /api/people       one person writer: {op: add | edit | rename | merge | archive | restore, ...}, one undoable step (#115; changes.make_people)
 - POST /api/people/undo  {apply_id}: reverse one people step (#115; changes.make_people_undo)
+- POST /api/excel-import a workbook to read back in, and the choice of what to take from it (#444; excel_route.py)
+- POST /api/project     a new project, or a project's name, client and added workstreams (#444; project_route.py)
+- POST /api/demo        whether the open data is the demo data, and the demo data put back as it started (#444; demo_route.py)
 - POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
 - POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
 - POST /api/section-file  {project, section}: the Open dialog, then the file copied into the client folder's "Report files" folder and
@@ -100,6 +103,7 @@ MESSAGES = {
 # bad_request and any 500 or more server_error.
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
+EXCEL_FILE_MB = 25                     # the largest workbook clark reads (excel.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it (#444)
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 # #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
 # tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
@@ -124,6 +128,8 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
+                     "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
+                     "/api/project": 4 * 1024, "/api/demo": 1024,      # #444: a name, a code, a client and a few workstreams; the demo's two asks have no fields
                      "/api/section-file": 1024}     # #96: names a project and a section only; the file never comes in the request
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
@@ -861,6 +867,23 @@ def word_export_route(handler, req):
     return seam_route(handler, handler.server.word_export, req)
 
 
+def excel_import_route(handler, req):
+    """POST /api/excel-import (#444). Checked like change_route before this runs: the token, the Host, no other site's Origin, JSON
+    only, a Content-Length and the route's own size limit."""
+    return seam_route(handler, handler.server.excel_import, req)
+
+
+def project_save_route(handler, req):
+    """POST /api/project (#444): a new project, or a project's name, client and added workstreams. Checked like change_route before this runs."""
+    return seam_route(handler, handler.server.project_save, req)
+
+
+def demo_route(handler, req):
+    """POST /api/demo (#444): whether the open data is the demo data, and the demo data put back as it started. Checked like change_route
+    before this runs."""
+    return seam_route(handler, handler.server.demo, req)
+
+
 def profile_route(method):
     """GET and POST /api/profile (#180): hand the request to the server's `profile` (profile_settings.Profile), which answers (status,
     body). Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the 2 KiB limit)."""
@@ -889,6 +912,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/secti
                 "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),
                 "/api/word-import": word_import_route, "/api/word-export": word_export_route,
+                "/api/excel-import": excel_import_route, "/api/project": project_save_route, "/api/demo": demo_route,     # #444
                 "/api/section-file": publisher_route("section_file")}     # later items: /api/import
 # ===== end of the page and the data =====
 
@@ -1088,7 +1112,7 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None, demo=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
                  people=None, people_undo=None, people_list=None, section_image=None):
         if server_address[0] != HOST:
@@ -1098,6 +1122,7 @@ class LocalServer(ThreadingHTTPServer):
         self.change, self.undo, self.sneak = change, undo, sneak
         self.section_image = section_image    # changes.make_section_image (#96 R1); None: that route answers 503 saving_off
         self.word_import, self.word_export = word_import, word_export
+        self.excel_import, self.project_save, self.demo = excel_import, project_save, demo      # #444: the workbook import, a project's new and edit, the demo's reset; None: those routes answer 503
         self.page_html = page_html or placeholder_html
         self.logs = logs                      # log_routes.Logs (#110); None: those routes answer not found
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
@@ -1145,7 +1170,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None, demo=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
           people=None, people_undo=None, people_list=None, section_image=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
@@ -1154,7 +1179,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
-                            word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
+                            word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, demo=demo, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask,
                             people=people, people_undo=people_undo, people_list=people_list, section_image=section_image)
     except OSError as e:

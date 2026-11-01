@@ -459,3 +459,34 @@ textarea.tpl-field { resize: vertical; }
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
+
+/* Settings › Data and Projects, #444: the project form, Import workbook and the Reset confirm. Tokens only; no text under 13 px.
+   The box is the Add a section box's (.ad-scrim, .ad) made narrow. The danger button is the Reset's: a red edge and red words. */
+.btn.danger { border-color: var(--status-red); color: var(--status-red-text); background: var(--surface); }
+.btn.danger:hover { background: var(--status-red-tint); border-color: var(--status-red-text); }
+.btn.danger:disabled { opacity: .55; cursor: default; }
+#data-card .row .btn { min-height: 32px; }
+#data-card .dc-note { font-size: 13px; margin: 10px 0 0; }
+.projects .proj-head .sp { flex: 1 1 auto; }
+.ad.dlg { width: min(520px, 100%); max-height: calc(100dvh - 2 * var(--space-6)); }
+.ad.dlg.wide { width: min(760px, 100%); }
+.ad.dlg .dlg-b { padding: var(--space-2) var(--space-5) var(--space-4); overflow: auto; min-height: 0; }
+.ad.dlg .dlg-b p { margin: 0 0 var(--space-2); }
+.ad.dlg .dlg-note { font-size: var(--size-small); }
+.ad.dlg .dlg-small { font-size: 13px; margin: 0; }
+.ad.dlg .dlg-form { display: grid; gap: 6px; }
+.ad.dlg .dlg-form label { font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); margin-top: var(--space-2); }
+.ad.dlg .dlg-field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--control-border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ad.dlg .dlg-field:disabled { background: var(--grey-50); color: var(--text-muted); }
+.ad.dlg .dlg-field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ad.dlg .dlg-code { text-transform: uppercase; }
+.ad.dlg p.error { min-height: 0; margin: var(--space-2) 0 0; color: var(--status-red-text); font-size: var(--size-small); }
+.ad.dlg p.error:empty { display: none; }
+.ad.dlg .imp-warn { padding: 8px 10px; border-left: 4px solid var(--status-amber); background: var(--status-amber-tint); color: var(--status-amber-text); border-radius: var(--radius-sm); }
+.ad.dlg .imp-note { font-size: 13px; }
+.ad.dlg .imp-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; max-height: 40vh; overflow: auto; }
+.ad.dlg .imp-list li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
+.ad.dlg .imp-list label { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
+.ad.dlg .imp-list input { flex: none; }
+.ad.dlg .imp-detail { margin-left: 26px; font-size: 13px; }
+@media (max-width: 900px) { .ad.dlg, .ad.dlg.wide { width: 100%; } }

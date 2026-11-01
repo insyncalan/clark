@@ -316,12 +316,17 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
         self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
+        self.assertEqual(sv.POST_ROUTES["/api/excel-import"], sv.excel_import_route)      # #444
+        self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
+        self.assertEqual(sv.POST_ROUTES["/api/demo"], sv.demo_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
+                                                "/api/excel-import": (sv.EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #444: a workbook as text
+                                                "/api/project": 4 * 1024, "/api/demo": 1024,                           # #444
                                                 "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
