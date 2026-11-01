@@ -75,7 +75,7 @@ export async function sendUndoMany(project, steps, { preview = false, confirm = 
 }
 
 // A refusal of the route's is a fixed plain sentence (each ends "Nothing was saved."). Up to this many characters it is shown as it is;
-// text longer than that, or with a control character in it, is not one of the route's, so plainChange speaks instead (#307).
+// text longer than that, or with a control character in it, is not one of the route's, so sentFailedWords speaks instead (#307).
 const SENT_REFUSAL_MAX = 600;
 
 // "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Answers
