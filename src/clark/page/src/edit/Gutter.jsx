@@ -11,12 +11,13 @@ import { useMenuState } from "../components/Menu.jsx";
 
 // An item that cannot apply stays in the menu, unavailable, with the reason on it.
 const why = (r) => (r.ok || r.quiet ? {} : { off: true, reason: r.message });
+const DELETABLE = ["text", "needs"];             // the types the store lets a person delete (changes.py): a text section and one that carries content
 const MOVED = 4;                               // px: more than this between press and release was a drag, not a click
 
 export function Gutter({ section, count }) {
   const [open, setOpen] = useMenuState();
   const grip = useRef(null), menu = useRef(null), down = useRef(null);
-  const isText = section.type === "text";
+  const canDelete = DELETABLE.includes(section.type);
 
   const items = (() => {
     const out = [
@@ -30,7 +31,7 @@ export function Gutter({ section, count }) {
         ? { act: "show", text: "Include in the published page", run: () => setHidden(section.id, false, "menu", "options") }
         : { act: "hide", text: "Leave out of the published page", run: () => setHidden(section.id, true, "menu", "options") },
     ];
-    if (isText) out.push({ act: "delete", text: "Delete section", run: () => remove(section.id, "menu") });
+    if (canDelete) out.push({ act: "delete", text: "Delete section", run: () => remove(section.id, "menu") });
     return out;
   })();
 

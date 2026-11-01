@@ -187,7 +187,8 @@ CREATE TABLE IF NOT EXISTS applies (
   file_ops    TEXT,
   undone_at   TEXT,
   by_user     TEXT NOT NULL,                -- clark: who made the step (the settings name); needed for history now, and for several users later
-  device      TEXT NOT NULL                 -- clark: which installation wrote it (a random id made at setup); for several users later
+  device      TEXT NOT NULL,                -- clark: which installation wrote it (a random id made at setup); for several users later
+  utc_offset  TEXT CHECK (utc_offset IS NULL OR (length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]' AND substr(utc_offset, 2, 2) <= '14' AND substr(utc_offset, 5, 2) IN ('00','15','30','45') AND (substr(utc_offset, 2, 2) < '14' OR substr(utc_offset, 5, 2) = '00') AND utc_offset <> '-00:00'))   -- clark: (#123) the writer's offset from UTC when the step was made, e.g. '+04:00': a real offset, -14:00 to +14:00 in quarter hours, UTC as '+00:00'; NULL on a row made before (zone not recorded)
 );
 CREATE TABLE IF NOT EXISTS change_log (
   at         TEXT NOT NULL DEFAULT (datetime('now')),
@@ -208,7 +209,7 @@ CREATE TABLE IF NOT EXISTS item_events (
   change     INTEGER,
   kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
   route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate','word')),   -- clark: clark's routes (cut down; + client, team, word)
-  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board')),   -- clark: clark's places (+ board, #126: the board's own moves)
+  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board','eye','draft','email','text','ask')),   -- clark: clark's places (+ board, #126: the board's own moves; + eye, draft, email, text, ask, #123)
   origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),   -- clark: clark's origins
   actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),          -- clark: creaite's two values, renamed
   src_ref    TEXT CHECK (src_ref IS NULL OR (length(src_ref) <= 300 AND instr(src_ref, char(10)) = 0)),
@@ -302,6 +303,38 @@ CREATE TABLE IF NOT EXISTS publications (
   by_user     TEXT NOT NULL
 );
 
+-- #50: one row for each press of "I sent it" in the Draft email editor: the project, who, when, the mode and the day it was sent, and
+-- the work item ids asked about. Never the email's text or address. Append only, like publications: no step, no Undo, never edited.
+-- A row can't be changed, deleted or replaced: SQLite's REPLACE removes the old row without running a delete trigger, so each table
+-- also refuses an insert that would land on a row already there (the BEFORE INSERT triggers).
+CREATE TABLE IF NOT EXISTS email_sent (
+  seq     INTEGER PRIMARY KEY AUTOINCREMENT,
+  project TEXT NOT NULL REFERENCES projects(code),
+  at      TEXT NOT NULL DEFAULT (datetime('now')),
+  day     TEXT NOT NULL CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  mode    TEXT NOT NULL CHECK (mode IN ('update_request','chase','decision')),
+  by_user TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS email_sent_items (
+  seq     INTEGER NOT NULL REFERENCES email_sent(seq),
+  item_id TEXT NOT NULL CHECK (length(item_id) BETWEEN 1 AND 13),
+  PRIMARY KEY (seq, item_id)
+);
+CREATE TRIGGER IF NOT EXISTS email_sent_no_update BEFORE UPDATE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;
+CREATE TRIGGER IF NOT EXISTS email_sent_no_delete BEFORE DELETE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;
+CREATE TRIGGER IF NOT EXISTS email_sent_no_replace BEFORE INSERT ON email_sent
+WHEN EXISTS (SELECT 1 FROM email_sent WHERE seq = NEW.seq)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;
+CREATE TRIGGER IF NOT EXISTS email_sent_items_no_update BEFORE UPDATE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;
+CREATE TRIGGER IF NOT EXISTS email_sent_items_no_delete BEFORE DELETE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;
+CREATE TRIGGER IF NOT EXISTS email_sent_items_no_replace BEFORE INSERT ON email_sent_items
+WHEN EXISTS (SELECT 1 FROM email_sent_items WHERE seq = NEW.seq AND item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;
+
 -- The changes inbox: changes files from teammates (team-changes.md) and from the published page (client-edits.md, option A).
 CREATE TABLE IF NOT EXISTS change_files (
   sha256      TEXT PRIMARY KEY,                       -- a file already handled is never applied twice
@@ -338,5 +371,15 @@ CREATE TABLE IF NOT EXISTS comments (
   client_visible INTEGER NOT NULL DEFAULT 1 CHECK (client_visible IN (0,1)),
   source  INTEGER REFERENCES staged_changes(id)
 );
+
+-- clark: (#47) one row for this computer: ask_enabled is asking's safety switch (1 on, the starting value; 0 off: nothing is sent).
+-- The same statements as schema_v3.sql, which brings an older file to version 3.
+CREATE TABLE IF NOT EXISTS app_settings (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  ask_enabled INTEGER NOT NULL DEFAULT 1 CHECK (ask_enabled IN (0,1)),
+  updated_at  TEXT                    -- set by the writer when the switch changes; empty until then (a new file is the same every time)
+);
+
+INSERT OR IGNORE INTO app_settings (id) VALUES (1);
 
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);   -- schema_version, created_at, device, db_id, role (owner|teammate), share_folder; on a teammate's copy base_db_id, base_seq, base_apply_id
