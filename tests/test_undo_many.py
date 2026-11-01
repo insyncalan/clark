@@ -368,6 +368,28 @@ class Request(Base):
         status, body = self.undo({"project": "ABC", "apply_id": single})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
 
+    def test_an_assistant_step_is_undone_in_a_batch_only_when_ask_clark_made_it(self):
+        """The same gate as a single undo: an assistant-route step is ours only when ask clark made it."""
+        def assistant(actor, **fields):
+            with self.s.step("assistant", USER, actor=actor) as st:
+                st.update("actions", self.a, fields)
+            return self.s.con.execute("SELECT max(apply_id) FROM applies").fetchone()[0]
+        foreign = assistant("you", owner="Sam Example")
+        before = dump(self.s.path)
+        self.assertEqual(self.undo({"project": "ABC", "apply_id": foreign})[1]["message"], changes.NO_UNDO)
+        status, body = self.many([foreign], preview=True)
+        self.assertEqual(status, 200, body)
+        self.assertEqual((body["undo"], [(e["step"], e["why"]) for e in body["skipped"]]), ([], [(foreign, changes.NOT_FROM_HERE)]))
+        self.assertEqual(self.many([foreign])[1]["message"], changes.MANY_NOTHING)
+        self.assertEqual(dump(self.s.path), before, "nothing was written")
+        ours = assistant("clark", priority="High")
+        status, body = self.many([foreign, ours])
+        self.assertEqual(status, 200, body)
+        self.assertEqual(([e["step"] for e in body["undo"]], [e["step"] for e in body["skipped"]]), ([ours], [foreign]))
+        self.assertEqual(self.action(self.a)["owner"], "Sam Example")
+        status, back = self.undo({"project": "ABC", "apply_id": body["apply_id"]})      # and the batch itself still undoes
+        self.assertEqual(status, 200, back)
+
     def test_plain_words(self):
         for name in ("MANY_NONE", "MANY_TOO_MANY", "MANY_NOT_MINE", "MANY_CONFIRM", "MANY_NOTHING", "MANY_BAD_FLAG", "IS_AN_UNDO",
                      "UNDONE_ALREADY", "NOT_FROM_HERE", "ARCHIVED_NOW", "CHANGED_SINCE"):
