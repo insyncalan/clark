@@ -143,7 +143,10 @@ class Rules(unittest.TestCase):
                           "workstream": "Data", "milestone": None, "status": "Closed", "closed": "2026-10-10", "client_visible": 0})
         self.assertEqual(self.js(f"RM.duplicateRequest({raw}, 'actions')"),
                          {"kind": "actions", "op": "new", "place": "menu",
-                          "values": {"owner": "Ada Quillfeather", "priority": "High", "workstream": "Data", "description": "Copy of Order the laptops"}})
+                          "values": {"owner": "Ada Quillfeather", "priority": "High", "workstream": "Data", "client_visible": 0,
+                                     "description": "Copy of Order the laptops"}}, "a hidden item's copy asks to be hidden too")
+        shown = json.dumps({"id": "ABC-A-001", "description": "Book the room", "owner": "Ada Quillfeather", "client_visible": 1})
+        self.assertEqual(self.js(f"RM.duplicateRequest({shown}, 'actions')")["values"]["client_visible"], 1, "a shown item's copy stays shown")
         long = json.dumps({"decision": "x" * 300, "made_by": "A B", "needed_by": "2026-11-20", "status": "Made"})
         got = self.js(f"RM.duplicateRequest({long}, 'decisions')")
         self.assertEqual(len(got["values"]["decision"]), 200)
@@ -429,6 +432,38 @@ class Menu(board.Base):
             self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % copy['id']}\")", "the copy in the list")
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"!document.querySelector(\"{self.TABLE % copy['id']}\")", "the copy to go again")
+
+    def test_a_copy_keeps_the_eye_of_its_original_for_every_kind(self):
+        """A copy of a hidden item stays hidden (its title would otherwise reach the client); a copy of a shown item stays shown."""
+        with chrome() as cdp:
+            made = []
+            for text, table, col in (("Order the laptops", "actions", "description"), ("Supplier slips", "raid", "description"),
+                                     ("Use the new tool", "decisions", "decision")):
+                ref = self.id_of(text)
+                for eye in (0, 1):
+                    with self.store.step("dashboard", USER) as st:
+                        st.update(table, ref, {"client_visible": eye})
+                    sid = self.visit(cdp)                    # the page reads the item as it is now
+                    self.open_menu(cdp, sid, self.TABLE % ref)
+                    click(cdp, sid, "[data-rm=dup]")
+                    self.assertTrue(wait(lambda: len([r for r in self.query(f"SELECT id FROM {table} WHERE {col} = ?", "Copy of " + text)
+                                                      if r["id"] not in made]) == 1), (table, eye))
+                    new = [r["id"] for r in self.query(f"SELECT id FROM {table} WHERE {col} = ?", "Copy of " + text) if r["id"] not in made][0]
+                    made.append(new)
+                    self.assertEqual(self.row(new)["client_visible"], eye, (table, eye))
+                    self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % new}\")", "the copy in the list")
+
+    def test_in_view_arrow_right_opens_no_edit_on_a_greyed_entry(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp, edit=False)
+            a, before = self.id_of("Order the laptops"), self.steps()
+            self.open_menu(cdp, sid, self.TABLE % a)
+            for rm in ("status", "due", "owner"):
+                cdp.js(f"document.querySelector('.rowmenu [data-rm={rm}]').focus()", sid)
+                key(cdp, sid, "ArrowRight")
+                time.sleep(0.3)
+                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [data-rm=draft]')", sid), "still the top list: no list opened for " + rm)
+            self.assertEqual(self.steps(), before)
 
     def test_duplicate_works_for_a_risk_and_a_decision_too(self):
         with chrome() as cdp:

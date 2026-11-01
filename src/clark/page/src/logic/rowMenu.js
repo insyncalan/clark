@@ -80,8 +80,8 @@ export function ownerList(names, row) {
 
 /** What Duplicate asks for: the item's own fields and a title that says it is a copy. No id, status, dates it was given or history. */
 export function duplicateRequest(raw, table) {
-  const keep = { actions: ["owner", "priority", "due_date", "workstream", "milestone"],
-    raid: ["type", "owner", "impact", "likelihood", "due_date", "workstream", "milestone"], decisions: ["made_by", "needed_by"] }[table];
+  const keep = { actions: ["owner", "priority", "due_date", "workstream", "milestone", "client_visible"],
+    raid: ["type", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible"], decisions: ["made_by", "needed_by", "client_visible"] }[table];
   const title = TITLE_OF[table];
   const values = {};
   for (const k of keep) if (raw[k] != null && raw[k] !== "") values[k] = raw[k];

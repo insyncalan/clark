@@ -118,6 +118,18 @@ class Eye(unittest.TestCase):
             self.undo({"project": "ABC", "apply_id": steps[kind]})
         self.assertEqual(published(), shown)
 
+    def test_a_new_row_may_be_hidden_from_the_start_and_only_with_0_or_1(self):
+        """#97: Duplicate of a hidden item creates its copy hidden, in the same step (one Undo)."""
+        for kind, vals in (("actions", {"description": "Copy of a"}), ("raid", {"type": "Risk", "description": "Copy of r"}),
+                           ("decisions", {"decision": "Copy of d"})):
+            for eye in (0, 1):
+                r = self.change({"project": "ABC", "kind": kind, "op": "new", "values": {**vals, "client_visible": eye}, "place": "menu"})
+                self.assertEqual(r[0], 200, r)
+                self.assertEqual(self.s.read(kind, ref=r[1]["ref"])["client_visible"], eye, (kind, eye))
+            bad = self.change({"project": "ABC", "kind": kind, "op": "new", "values": {**vals, "client_visible": True}, "place": "menu"})
+            self.assertNotEqual(bad[0], 200, "True is not 0 or 1")
+            self.assertNotEqual(self.change({"project": "ABC", "kind": kind, "op": "new", "values": {**vals, "client_visible": "0"}, "place": "menu"})[0], 200)
+
 
 if __name__ == "__main__":
     unittest.main()

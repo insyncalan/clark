@@ -91,7 +91,7 @@ function entries(row, level, edit, d, today) {
     return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
       ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : []), { id: "sep", sep: true }, back];
   }
-  const edits = (id, name) => ({ id, name, sub: id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
+  const edits = (id, name) => ({ id, name, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
     { id: "draft", name: dr.name, line: dr.reason, disabled: dr.disabled },
     { id: "peek", name: "Open the peek" },
