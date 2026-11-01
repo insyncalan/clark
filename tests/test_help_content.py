@@ -2,8 +2,8 @@
 
 Run: python3 dev/run_tests.py test_help_content
 Quick tier: reads the JSON and the prototype's files, starts no browser. The logic that works on the source (tab lists, search,
-places) is tested in test_help_logic.py. Counts are the prototype's, which has grown past the issue's first numbers (26 tasks
-and 30 sections, not 24 and 28, after the section templates were added). Text taken out because it describes the prototype
+places) is tested in test_help_logic.py. Counts are the prototype's, which has grown past the issue's first numbers (27 tasks
+and 30 sections, not 24 and 28, after the section templates and the Needs from you task were added). Text taken out because it describes the prototype
 or names creaite is in helpHeld.json, which the page never loads, and none of it may be in the shipped source.
 """
 import json
@@ -23,7 +23,8 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # says Delete; 'Delete section' is the label the page has today (edit/Gutter.jsx), kept as it is for the ruling.
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
-CHECKED_BY_HAND = set(['Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
+# 'Add a row' is the button of the Needs from you section (edit/NeedsEdit.jsx), which the prototype does not have; read against the page's own words (logic/needs.js).
+CHECKED_BY_HAND = set(['Add a row', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -66,7 +67,7 @@ class Shape(unittest.TestCase):
         """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (26, 30))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (27, 30))
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (22, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):

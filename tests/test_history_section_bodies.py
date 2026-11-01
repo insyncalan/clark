@@ -15,7 +15,7 @@ OTHER = "ZQ-HISTORY-OTHER"
 
 
 def body(word):
-    return json.dumps({"rows": [{"what": word, "from": "Example team"}]})
+    return json.dumps({"v": 1, "rows": [{"what": word, "kind": "decision", "from": "Example team", "by": "", "hidden": 0}]})
 
 
 class Shown(Api):
