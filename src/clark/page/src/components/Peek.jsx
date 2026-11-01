@@ -6,6 +6,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile } from "../stores/report.js";
 import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
+import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso } from "../workItems.js";
 import { itemIds, milestoneIds, around } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
@@ -41,6 +42,10 @@ function ItemFields({ row, editing }) {
       <Row name="Milestone">{text(row.milestone)}</Row>
       <Row name="Use case">{text(row.uc)}</Row>
       {editing ? <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row> : null}
+      {typeof row.not_reviewed === "boolean" ? <>
+        <Row name="Raised">{showDate(row.raised)}</Row>
+        <Row name="Last reviewed">{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
+      </> : null}
     </dl>
   );
 }
@@ -131,6 +136,7 @@ export function Peek({ tools }) {
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
       <h2 class="pk-title">{title}</h2>
+      {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       {showActivity ? <Activity key={p.id} id={p.id} />
