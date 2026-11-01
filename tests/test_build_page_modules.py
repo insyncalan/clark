@@ -2,7 +2,7 @@
 manifest does not list, at a file whose fingerprint differs, or with a specifier that could reach the esbuild command line
 stops the build in plain words and no page is written.
 
-Run: python3 dev/run_tests.py test_build_page_vendor
+Run: python3 dev/run_tests.py test_build_page_modules
 Everything is built in a temporary folder; the "secret" is a made-up file. Runs on Python 3.9 and later.
 """
 import hashlib
