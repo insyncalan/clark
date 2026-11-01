@@ -286,6 +286,29 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(got["code"], "number_taken", got)
         self.assertEqual((rig.local / "chosen.html").read_text(encoding="utf-8"), "an earlier report")
 
+    def test_a_lost_race_after_an_overwrite_puts_the_clients_earlier_report_back(self):
+        rig = Rig(self)
+        status, got = rig.publish(to_client=True)                        # the client folder now holds a report
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        taken = rig.client / "PUB-report-2026-10-23.html"
+        taken.write_bytes(b"<!doctype html>the client's earlier report")
+        earlier = taken.read_bytes()
+        rig.save_to = rig.local / "second.html"
+        real = store_module.Store.log_publication
+
+        def late(store, *a, **kw):            # another window publishes between the copy and its record
+            real(store, "PUB", Path("/tmp/clark-fictional/other.html"), None, SHA, "Someone Else")
+            return real(store, *a, **kw)
+        store_module.Store.log_publication = late
+        try:
+            status, got = rig.publish(to_client=True, on_clash="overwrite", confirmed=True)
+        finally:
+            store_module.Store.log_publication = real
+        self.assertEqual((status, got["code"]), (409, "number_taken"), got)
+        self.assertEqual(taken.read_bytes(), earlier, "the client's earlier report is back, byte for byte")
+        self.assertEqual(rig.listing(rig.client), [taken.name], "and nothing else is left in the client folder")
+        self.assertFalse((rig.local / "second.html").exists(), "the Local file was taken back")
+
     def test_publish_publish_returns_the_number_and_takes_its_file_back_on_a_lost_race(self):
         tmp = tempfile.mkdtemp(prefix="clark-test-")
         self.addCleanup(shutil.rmtree, tmp, True)

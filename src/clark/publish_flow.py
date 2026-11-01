@@ -253,7 +253,10 @@ class Publisher:
             return 409, written
         # Local is saved. The copy comes next; whatever happens to it, Local stays and the publish is logged.
         client = None
+        earlier_client = None
         if plan is not None:
+            if plan["replaces"]:          # #120: an Overwrite's old file is put back if the record is refused, as Local's is
+                earlier_client = self.earlier_bytes(Path(plan["folder"]) / plan["name"])
             try:
                 client = to_client.copy_to_client(
                     self.fs, plan["folder"], plan["name"], body_bytes, project=code, at=today, markers=markers,
@@ -275,7 +278,7 @@ class Publisher:
         except NumberTaken:               # #120: the files say a number they do not have: take back what this call wrote, and only that
             self.take_back(dest, digest, earlier_local)
             if client_path is not None:
-                self.take_back(client_path, digest, None)
+                self.take_back(client_path, digest, earlier_client)
             return 409, self.fail("number_taken")
         except (Invalid, OSError) as e:
             return 409, self.fail("not_recorded", MESSAGES["not_recorded"],
