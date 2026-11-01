@@ -238,8 +238,8 @@ class OfflinePageColours(unittest.TestCase):
         self.assertEqual(self.light["--accent-ink"].upper(), token_in("light", "--text-on-brand"))
 
     def test_the_font_is_the_pages_own_list_and_no_font_is_named_in_the_file(self):
-        self.assertIn(f"font:15px/1.5 {look.family_list('--font')}}}", self.page)
-        self.assertIn(f"font:500 13px {look.family_list('--font')};", self.page)
+        self.assertIn(f"font:16px/1.5 {look.family_list('--font')}}}", self.page)      # body, button and title follow tokens.css (16, 14, 30 px; #428)
+        self.assertIn(f"font:500 14px {look.family_list('--font')};", self.page)
         source = (SRC / "clark" / "app" / "offline.html").read_text(encoding="utf-8")
         self.assertNotRegex(source, r"Arial|Helvetica|Calibri|Inter\b")
 

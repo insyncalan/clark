@@ -59,7 +59,7 @@
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
 .sb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.sb-a { padding: 3px 10px; min-height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 13px; cursor: pointer; }
+.sb-a { padding: 3px 10px; min-height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-caption); cursor: pointer; }
 .sb-a:hover { border-color: var(--grey-500); }
 .sb-a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .sb-a[aria-disabled="true"] { color: var(--text-muted); border-style: dashed; cursor: default; }
@@ -91,7 +91,7 @@
 /* the head: dark, with the person's own cover picture fading in from the right when the look has one (--image-cover is none otherwise) */
 .ask-head { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex: none; height: 60px; padding: 0 14px 0 20px; color: var(--white); background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }
 .ask-head::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--image-cover) center top / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .9; }
-.ask-head h2 { margin: 0; font-size: 18px; font-weight: var(--weight-medium); letter-spacing: .01em; color: var(--white); }
+.ask-head h2 { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); letter-spacing: .01em; color: var(--white); }
 .ask-head .btn { background: transparent; color: var(--white); border-color: color-mix(in srgb, var(--white) 70%, transparent); }
 .ask-head .btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); border-color: var(--white); }
 .ask-head .btn:focus-visible { outline-color: var(--white); }
