@@ -188,10 +188,10 @@ class Published(Setup):
         for hash_ in ("", "#usecases&p=ABC", "#usecases&p=ABC&uc=1.1"):
             with self.subTest(hash=hash_), chrome() as cdp:
                 p = self.draw(cdp, path, hash_)
-                self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.textContent)"), ["Dashboard", "Work items", "Milestones", "Use Cases"])
+                self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.textContent)"), ["Dashboard", "Work items", "Milestones", "Use cases"])
                 self.assertEqual(p.js("document.querySelectorAll('#usecases, #usecase, .ucl-row, [data-uc-more], .ucmore').length"), 0)
                 if hash_:
-                    self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Use Cases", "an address of the Use cases page opens the file's own tab")
+                    self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Use cases", "an address of the Use cases page opens the file's own tab")
                     continue
                 self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Dashboard")
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases", "the file shows the selected use cases only")

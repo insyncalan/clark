@@ -11,7 +11,7 @@ import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }, settings: "Settings" };   // the published tab is "Use Cases"
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", settings: "Settings" };   // the tab reads "Use cases" in the editor and in a published file alike (#383)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
