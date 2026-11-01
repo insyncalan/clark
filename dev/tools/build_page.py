@@ -206,7 +206,8 @@ def _manifest_name(folder):
 
 def _shown_key(key):
     """A manifest key as it can be shown in a refusal: quoted if it is plain printable text, else a general word (never an echo of odd text)."""
-    return f"'{key}'" if isinstance(key, str) and SHOWABLE_NAME.fullmatch(key) else "a key with unusual characters"
+    shown = isinstance(key, str) and SHOWABLE_NAME.fullmatch(key) and key.isprintable()     # isprintable: no control, bidi or line-separator character
+    return f"'{key}'" if shown else "a key with unusual characters"
 
 
 def font_bytes(folder, name, where):
@@ -258,6 +259,8 @@ def font_css(folders=None):
             text = (folder / "manifest.json").read_text(encoding="utf-8")
         except OSError:
             raise FontManifestError(f"{manifest} is missing or cannot be opened") from None
+        except UnicodeDecodeError:       # a ValueError too, so it is caught first: it is the text encoding, not the JSON, that is wrong
+            raise FontManifestError(f"{manifest} cannot be read as text; open it in a text editor and save it as UTF-8") from None
         except ValueError:
             raise FontManifestError(f"{manifest} is not valid JSON (check commas and quotes)") from None
         try:

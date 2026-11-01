@@ -129,6 +129,38 @@ class FontManifestTests(unittest.TestCase):
             self.skipTest("cannot make a symlink here")
         self.assertIn("no file with that name is in the font's folder", self.refused(file="Dangling.woff2"))
 
+    def test_a_dangling_symlink_to_outside_the_folder_is_refused_as_a_link_outside(self):
+        try:
+            os.symlink(self.tmp / "gone-outside.woff2", self.folder / "Out.woff2")
+        except (OSError, NotImplementedError):
+            self.skipTest("cannot make a symlink here")
+        message = self.refused(file="Out.woff2")
+        self.assertIn("symbolic link) to something outside", message)
+        self.assertNotIn("gone-outside", message)
+
+    def test_a_manifest_that_is_not_text_is_refused_as_text_not_as_json(self):
+        (self.folder / "manifest.json").write_bytes(b'{"fonts": [], "package": "caf\xe9 \xff\xfe"}')       # Latin-1 bytes: not UTF-8
+        message = self.refusal()
+        self.assertIn("cannot be read as text", message)
+        self.assertIn("UTF-8", message)
+        self.assertNotIn("not valid JSON", message)
+
+    def test_an_unknown_key_with_unusual_characters_is_refused_and_not_echoed_unsafely(self):
+        odd = ("a" * 5000, "x" * 61, "two words", 'say "hi"', "it's", "caf\u00e9 \u65e5\u672c", "a/b", "a\\b", "C:x", "line\nbreak", "tab\there",
+               "esc\x1b[31m", "csi\x9b31m", "nul\x00", "bidi\u202egnp", "sep\u2028x", "")
+        item = dict(GOOD, file="Good.woff2")
+        for key in odd:
+            for where, body in (("manifest", {"fonts": [item], key: 1}), ("font", {"fonts": [dict(item, **{key: 1})]})):
+                with self.subTest(key=key[:20], where=where):
+                    message = self.refused_raw(json.dumps(body))
+                    self.assertIn("is not a setting", message)
+                    self.assertLess(len(message), 400, "a very long key is never echoed whole")
+                    self.assertTrue(message.isprintable(), "no control, escape or line-break character reaches the message")
+                    self.assertNotIn("\u202e", message)
+        for key in ("two words", 'say "hi"', "caf\u00e9 \u65e5\u672c"):         # plain printable text is still named, so the fix is findable
+            self.assertIn(f"'{key}'", self.refused_raw(json.dumps({"fonts": [item], key: 1})))
+        self.assertIn("a key with unusual characters", self.refused_raw(json.dumps({"fonts": [item], "x" * 61: 1})))
+
     def test_an_unknown_key_in_a_font_is_refused_and_named(self):
         message = self.refused(extra="x")
         self.assertIn("'extra'", message)
