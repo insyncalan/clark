@@ -1,7 +1,7 @@
 """Stage the text of a Word file as NEW work items for the person to accept (#48; BRD FR-72, FR-43a; design-48-word.md section 4).
 
 A pure function of `docx_read`'s blocks: `stage(read, file_name, imported_on, seen)` gives a `WordPlan`. It touches no database, no
-file, no route and no page; the guarded step that writes the accepted rows (one step, one Undo, the history row "by Word import
+file, no route and no page; the guarded step that writes the accepted rows (one step, one Undo, the history row "Added from Word
 (<file name>)") comes in a separate change and takes `WordPlan.accepted()`.
 
 What it stages: new actions, new risks and issues (and the other two RAID types), and new decisions, nothing else. A paragraph or a
