@@ -13,6 +13,7 @@ Run: python3 dev/run_tests.py test_secret_refusal_paths
 import inspect
 import logging
 import re
+import types
 import unittest
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 import test_ask_route as route_base
 from test_ai_key_refusal import ATTACKS, REFUSED, SECRET_PART, TEXT
 from test_ai_menu import FakeProvider
-from clark import ai_menu as am, ask, secret_screen, server as sv
+from clark import ai_menu as am, ask, ask_service, secret_screen, server as sv
 
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
@@ -167,6 +168,15 @@ class OneWordingForEveryLooksLikeAPasswordNote(unittest.TestCase):
         self.assertIn(what, secret_screen.REASON)
         for note in (ask.SECRET, ask.SECRET_EARLIER, am.SECRET_MESSAGE, secret_screen.REASON, secret_screen.NEXT_STEP):
             self.assertNotIn("secret", note.lower())
+
+    def test_the_saved_folder_note_says_the_answer_may_be_missing_something(self):
+        found = types.SimpleNamespace(safety=1, secret_labels=("saved/keys.txt",), pdf=0, other=0)
+        line = [n for n in ask_service.folder_notes(found) if n.startswith("saved/keys.txt")][0]
+        self.assertEqual(line, "saved/keys.txt looks like it holds a password or a key, so clark left it out and the answer may be "
+                               "missing something. " + secret_screen.NEXT_STEP)
+        self.assertIn(ask.LOOKS_LIKE.removeprefix("looks like "), line)
+        self.assertIn("the answer may be missing something", line)
+        self.assertNotIn("secret", line.lower())
 
 
 if __name__ == "__main__":
