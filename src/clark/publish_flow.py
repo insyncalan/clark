@@ -27,7 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-from clark import milestones, page, platform, publish, to_client
+from clark import milestones, page, platform, publish, publish_pdf, to_client
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -66,6 +66,7 @@ MESSAGES = {
     "settings_failed": "The client folder could not be saved. Nothing was changed. Try again.",
     "brand_styling": "The brand's styling file has a web link in it, so the report can't go out. Ask whoever looks after the brand to remove it.",
     "page_shape": "Something is wrong inside clark. Nothing was published. Tell the clark team, and say what you were doing.",
+    **{k: publish_pdf.MESSAGES[k] for k in ("bad_pdf_request", "no_chrome", "pdf_failed")},
     "db_unreadable": "The records could not be read. Restart clark and try again.",
     "preview_not_made": "The preview could not be made. {reason}",
     "preview_ready": "The preview is ready. This is the version kept on this computer, not the client's copy. It is not published.",
@@ -173,8 +174,11 @@ class Publisher:
             return 409, self.fail("busy")
         try:
             store = self.store()
+            self.pdf_step = None
             try:
-                return self._publish(store, body if isinstance(body, dict) else {})
+                status, out = self._publish(store, body if isinstance(body, dict) else {})
+                publish_pdf.finish(self.pdf_step, out, status)          # the PDF is saved only once the report is
+                return status, out
             finally:
                 store.close()
         finally:
@@ -184,6 +188,10 @@ class Publisher:
         return {"ok": False, "code": code, "message": status_message or MESSAGES[code], **extra}
 
     def _publish(self, store, body):
+        pdf_req, body = publish_pdf.split(body)          # the PDF's keys are read here; the rest is as it always was
+        if pdf_req["error"]:
+            return 400, self.fail("bad_pdf_request")
+        self.pdf_step = publish_pdf.Step(pdf_req, self)
         code = body.get("project")
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
@@ -207,6 +215,8 @@ class Publisher:
         self.folder_warning = None
         if want_client:
             early, plan, same, markers = self.client_plan(store, code, built, saved, last, today, week, body)
+            if early is None and self.pdf_step.on and plan is not None:
+                early = self.pdf_step.plan_client(self, plan, confirmed)         # a taken PDF name is asked about now too
             if early is not None:
                 return early
         # Nothing has been written. The system's own Save dialog chooses the Local file; Cancel cancels everything.
@@ -236,12 +246,20 @@ class Publisher:
             early, plan, same, markers = self.client_plan(store, code, built, saved, last, today, week, body)
             if early is not None:
                 return early
+        if want_client and self.pdf_step.on and plan is not None:
+            early = self.pdf_step.plan_client(self, plan, confirmed)
+            if early is not None:
+                return early
         if saved and self.inside_folder(dest.parent, saved):
             return 409, self.fail("same_folder")
         if dest.suffix.lower() != ".html":
             return 409, self.fail("local_not_html")
         if any(self.inside_folder(dest, own) for own in (self.data_dir, self.backups_dir) if own):
             return 409, self.fail("local_clark_files")
+        if self.pdf_step.on:                  # made only after every refusal above; saved after the report (publish_pdf.finish)
+            early = self.pdf_step.prepare(self, dest, built, today, store, code, markers if want_client else None, saved)
+            if early is not None:
+                return early
         written = self.write_local(dest, body_bytes, digest)
         if written is not None:
             return 409, written
@@ -483,4 +501,5 @@ class Publisher:
             last = store.latest_publication(code)
         finally:
             store.close()
-        return 200, {"ok": True, "latest": {"at": last["at"][:10], "to_client": last["to_client"]} if last else None}
+        return 200, {"ok": True, "latest": {"at": last["at"][:10], "to_client": last["to_client"]} if last else None,
+                     "pdf": publish_pdf.available()}

@@ -1,4 +1,4 @@
-// The Publish dialog's state (#43): the same steps as to_client.dialog_step, which the tests pin. Local is always on. To client is
+// The Publish dialog's state: the same steps as to_client.dialog_step, which the tests pin. Local is always on. To client is
 // unticked every time the dialog opens (never remembered, not even in localStorage) and cannot be ticked until a client folder is
 // saved. A taken name in the client folder is asked about before anything is written. Nothing here names a folder or a file.
 import { signal } from "@preact/signals";
@@ -8,6 +8,7 @@ import { publishRequest, latestRequest, words } from "./publishApi.js";
 export const NO_FOLDER = "No client folder yet. Set it in Settings.";
 export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
+export const pdfInfo = signal({ ok: false, note: "" });      // whether Chrome is on this computer, and the one line saying why not
 
 export const savedFolder = () => {
   const d = data.value;
@@ -15,7 +16,7 @@ export const savedFolder = () => {
 };
 export const folderName = (path) => (path ? String(path).replace(/[\\/]+$/, "").split(/[\\/]/).pop() || String(path) : "");
 
-const fresh = (saved) => ({ saved, ticked: false, phase: "choose", clash: null, choice: "number", newName: "", confirmed: false, message: null });
+const fresh = (saved) => ({ saved, ticked: false, pdf: false, prev: null, phase: "choose", clash: null, choice: "number", newName: "", confirmed: false, message: null });
 const set = (patch) => { if (dialog.value) dialog.value = { ...dialog.value, ...patch }; };
 
 export async function refreshLatest() {
@@ -23,6 +24,8 @@ export async function refreshLatest() {
   if (!code) { latest.value = null; return; }
   const r = await latestRequest(code);
   latest.value = r.status === 200 && r.body && r.body.ok === true && r.body.latest ? r.body.latest : null;
+  const p = r.status === 200 && r.body && r.body.ok === true ? r.body.pdf : null;
+  pdfInfo.value = p && typeof p.ok === "boolean" ? { ok: p.ok, note: typeof p.note === "string" ? p.note : "" } : { ok: false, note: "" };
 }
 
 export function open() { dialog.value = fresh(savedFolder()); }
@@ -39,6 +42,10 @@ export function tick(on) {
   const s = dialog.value;
   if (s && s.saved && ["choose", "error", "done"].includes(s.phase)) set({ ticked: !!on });
 }
+export function tickPdf(on) {      // the PDF tick: never remembered either, and only when Chrome is there
+  const s = dialog.value;
+  if (s && pdfInfo.value.ok && ["choose", "error", "done"].includes(s.phase)) set({ pdf: !!on });
+}
 export const pick = (choice) => { if (dialog.value && dialog.value.phase === "clash") set({ choice, confirmed: false }); };
 export const rename = (text) => set({ newName: String(text) });
 export const confirmOverwrite = (on) => { const s = dialog.value; if (s && s.phase === "clash" && s.choice === "overwrite") set({ confirmed: !!on }); };
@@ -47,11 +54,13 @@ export const confirmOverwrite = (on) => { const s = dialog.value; if (s && s.pha
 export const ready = (s) => s.phase !== "clash" || (s.choice === "rename" ? s.newName.trim() !== "" : s.choice !== "overwrite" || s.confirmed);
 
 export function request(s, code) {
-  const body = { project: code, to_client: !!(s.ticked && s.saved) };
-  if (s.clash) {
-    body.on_clash = s.choice;
-    if (s.choice === "rename") body.new_name = s.newName.trim();
-    if (s.choice === "overwrite" && s.confirmed) body.confirmed = true;
+  const body = { ...(s.prev || {}), project: code, to_client: !!(s.ticked && s.saved) };
+  if (s.pdf && pdfInfo.value.ok) body.pdf = true; else delete body.pdf;
+  if (s.clash) {      // a taken PDF name is answered in its own keys, so the answer about the report is kept beside it
+    const k = s.clash.pdf ? "pdf_" : "";
+    body[k + "on_clash"] = s.choice;
+    if (s.choice === "rename") body[k + "new_name"] = s.newName.trim();
+    if (s.choice === "overwrite" && s.confirmed) body[k + "confirmed"] = true;
   }
   return body;
 }
@@ -71,7 +80,7 @@ export async function go() {
   const r = await publishRequest(body);
   const b = r.body;
   if (r.status === 200 && b && b.ok === false && b.clash === true) {
-    set({ phase: "clash", clash: { name: b.name, numbered: b.numbered, canOverwrite: b.can_overwrite !== false, note: b.note, title: words(r, "publish") }, choice: "number", confirmed: false, newName: "", message: null });
+    set({ phase: "clash", clash: { name: b.name, numbered: b.numbered, canOverwrite: b.can_overwrite !== false, note: b.note, pdf: b.pdf === true, title: words(r, "publish") }, prev: body, choice: "number", confirmed: false, newName: "", message: null });
     return;
   }
   const said = words(r, "publish");
