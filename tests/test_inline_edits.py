@@ -112,7 +112,7 @@ class Rules(unittest.TestCase):
         status = {"error": "That status isn't one this item can have, so nothing was changed. Pick one from the list."}
         self.assertEqual(self.change(self.MADE, "status", "Pending"), status)
         self.assertEqual(self.change(self.RISK, "status", "Delayed"), status)
-        self.assertEqual(self.change(self.ACTION, "title", "New"), {"error": "Only the owner, due date, priority and status can be changed here. Nothing was changed."})
+        self.assertEqual(self.change(self.ACTION, "workstream", "New"), {"error": "Only the owner, due date, priority and status can be changed here. Nothing was changed."})
         self.assertIn("error", self.change(self.ACTION, "owner", "x" * 201))
 
     def test_a_name_with_a_hidden_character_is_said_in_the_picker_and_sends_nothing(self):

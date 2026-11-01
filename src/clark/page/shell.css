@@ -1317,3 +1317,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-val .i { width: 16px; height: 16px; }
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
+/* a next step on the published Use cases tab: the owner's circle, then "Owner: the client wording" and its small print (the prototype's .ucp-steps) */
+.ucp-steps li { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; padding: 0; border-top: 0; }
+.ucp-steps .av { margin-top: 1px; width: 24px; height: 24px; }
+.ucp-sm { min-width: 0; overflow-wrap: anywhere; }
+.ucp-sx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); }

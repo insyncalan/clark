@@ -1,12 +1,13 @@
 // The use case summary (#45): a strip (the total, a count for each status, a small meter) and one slim row for each use case:
 // reference, title, headline, the status word and the open next steps. The status words sit in one column. A row opens in place
-// (an accordion): where it stands, the open next steps as "Owner: what it is", and "See all N work items". Read-only here: changing a
-// status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
+// (an accordion): where it stands, the open next steps (open work items of any type) as "Owner: what it is" in the client wording, and "See all N
+// work items". In Edit a step's owner and words change in place (edit/StepEdit.jsx); changing a status or linking a work item are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
 import { useState } from "preact/hooks";
-import { data, rows, openWork, openPeek, fromFile, show, project } from "../stores/report.js";
+import { data, rows, mode, openWork, openPeek, fromFile, show, project } from "../stores/report.js";
 import { format } from "../router.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
+import { stepsFrom, wordingById } from "../logic/useCaseSteps.js";
 import { isOpen, dueField, showDate } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { Icon } from "./Icon.jsx";
@@ -20,13 +21,16 @@ function plain(html) {
   return doc.body.textContent.trim();
 }
 
-/** The use cases on the dashboard (the eye is on; a published file only holds those) with what is linked to them: [{u, linked, open, steps}] (steps are the open actions). The ones not on it are on the Use cases page. */
-export function summary(d, all) {
+/** The use cases on the dashboard (the eye is on; a published file only holds those) with what is linked to them: [{u, linked, open, steps}].
+ *  The steps are the open work items of any type, each with `said`, its client wording (the title when it has none). In a published file (`client`) a step
+ *  with no client wording is left out. The ones not on the dashboard are on the Use cases page. */
+export function summary(d, all, client = false) {
+  const wording = wordingById(d);
   const link = {};
   for (const r of [...(d.actions || []), ...(d.raid || []), ...(d.decisions || [])]) if (r.use_case) link[r.id] = r.use_case;
   return liveOf(d).filter(isOn).map((u) => {
     const linked = all.filter((r) => link[r.id] === u.id), open = linked.filter(isOpen);
-    return { u, linked, open, steps: open.filter((r) => r.kind === "action") };
+    return { u, linked, open, steps: stepsFrom(open, wording, { client }) };
   });
 }
 
@@ -38,8 +42,8 @@ export function refText(ref) {
 // A row and "See all" are buttons by role, not <button> elements: a published file has no button but its tabs (and nothing in it edits).
 const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); run(); } };
 
-function Row({ s, shown, toggle }) {
-  const { u } = s, id = `uc-${u.id}`, label = u.ref ? `Use case ${u.ref}` : "";
+function Row({ s, shown, toggle, tools }) {
+  const { u } = s, StepEdit = tools && tools.StepEdit && mode.value === "edit" && !fromFile.value ? tools.StepEdit : null, id = `uc-${u.id}`, label = u.ref ? `Use case ${u.ref}` : "";
   // "See all N" counts every linked item, open or closed, and the link opens that same list (the All switch), as the prototype does.
   const n = s.linked.length, go = () => openWork({ ...setFilter(initial(), "use_case", [label], false), mode: "all" });
   return (
@@ -62,7 +66,7 @@ function Row({ s, shown, toggle }) {
               <h3>{`Next steps \u00b7 ${s.steps.length}`}</h3>
               {s.steps.length ? <ul class="plain">{s.steps.map((r) => {
                 const due = dueField(r), see = () => openPeek(r.id, "item");
-                return <li key={r.id}><b>{(r.owner || "No owner").trim() || "No owner"}:</b> {r.title} <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span>{due ? <span class="muted">{` \u00b7 due ${showDate(due)}`}</span> : null}</li>;
+                return <li key={r.id} data-step={r.id}>{StepEdit ? <StepEdit r={r} /> : <><b>{(r.owner || "No owner").trim() || "No owner"}:</b> {r.said}</>} <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span>{due ? <span class="muted">{` \u00b7 due ${showDate(due)}`}</span> : null}</li>;
               })}</ul> : <p class="muted">No open next steps.</p>}
             </div>
           </div>
@@ -81,9 +85,9 @@ function More({ n }) {
   return <p class="ucmore"><a href={format({ view: "usecases", project: project.value })} data-uc-more onClick={go}>{n === 1 ? "1 more on the Use cases page" : `${n} more on the Use cases page`}</a></p>;
 }
 
-export function UseCases({ onExport }) {
+export function UseCases({ onExport, tools }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
-  const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
+  const list = summary(d, rows.value, fromFile.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
@@ -99,7 +103,7 @@ export function UseCases({ onExport }) {
         </span>
         {onExport ? <button type="button" class="bib ucexport" data-uc-export data-tip="Export to Excel (the use cases are one sheet of it)" aria-label="Export to Excel. The use cases are one sheet of the workbook." onClick={onExport}><Icon name="dl" /></button> : null}
       </div>
-      <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} />)}</ul>
+      <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} tools={tools} />)}</ul>
       <More n={off} />
     </div>
   );

@@ -56,6 +56,9 @@ export function statusNote(row, status) {
   return row.kind === "decision" && status === "Made" && row.status !== "Made" ? "Can't be undone" : "";
 }
 
+/** The column an item's title is saved in (changes.py): an action's and a risk's `description`, a decision's `decision`. */
+export function titleColumn(row) { return row.kind === "decision" ? "decision" : "description"; }
+
 /** The column the Owner cell changes: a decision's is who makes it. */
 export function ownerField(row) { return row.kind === "decision" ? "made_by" : "owner"; }
 
@@ -70,6 +73,7 @@ export function canClearDue(row) { return !(row.kind === "decision" && row.statu
 
 // What a cell is called in a sentence, for the label and the toast.
 export function fieldName(row, field) {
+  if (field === "title") return "Title";
   if (field === "owner") return row.kind === "decision" ? "Decider" : "Owner";
   if (field === "due") return row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date";
   return field === "priority" ? "Priority" : "Status";
@@ -95,6 +99,16 @@ export function changeFor(row, field, value, today) {
     if (text === now) return null;
     const back = now ? `${name} of ${row.id} is back to ${now}.` : `${name} of ${row.id} is blank again.`;
     return { changes: { [col]: text }, words: `${name} of ${row.id} changed to ${text}.`, back };
+  }
+  if (field === "title") {
+    // a next step's words, changed in place on the Use cases summary (the prototype's views.js: the step's text is its title)
+    const text = String(value == null ? "" : value).trim().split(/\s+/).filter(Boolean).join(" ");
+    const now = String(row.title == null ? "" : row.title).trim();
+    if (!text) return { error: "A next step needs some words. The old words were kept." };
+    if (HIDDEN.test(text)) return { error: "That text has a hidden character in it, often from copying and pasting. Type it again, then press Enter." };
+    if (Array.from(text).length > 200) return { error: "A title can be 200 characters at most. Shorten it and try again." };
+    if (text === now) return null;
+    return { changes: { [titleColumn(row)]: text }, words: `Title of ${row.id} changed.`, back: `Title of ${row.id} is back to what it was.` };
   }
   if (field === "due") {
     const iso = value || null;
