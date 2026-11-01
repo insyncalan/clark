@@ -43,7 +43,7 @@ class Rules(unittest.TestCase):
     def test_only_tokens_set_a_time_or_an_easing_and_nothing_loops(self):
         # The one exception is the Publish ring, which turns only while the work is going on (the dialog says "Publishing…") and
         # is gone when it ends; the issue asks for it by name. Everything else runs once.
-        self.assertEqual([x.strip() for x in re.findall(r"([^{}\s][^{}]*)\{[^}]*infinite", re.sub(r"/\*.*?\*/", "", MOTION, flags=re.S))], [".pub-spin"])
+        self.assertEqual([x.strip() for x in re.findall(r"([^{}\s][^{}]*)\{[^}]*infinite", re.sub(r"/\*.*?\*/", "", MOTION, flags=re.S))], [])
         for decl in re.findall(r"animation:([^;]+);", MOTION):
             if "infinite" in decl:
                 self.assertRegex(decl, r"var\(--dur-[a-z]+\)")
@@ -64,9 +64,9 @@ class Rules(unittest.TestCase):
 
     def test_the_still_forms_of_the_ring_and_the_tick_are_in_the_base_rules(self):
         base = CSS[:CSS.index("Motion:")]
-        self.assertRegex(base, r"\.pub-spin \{[^}]*border-top-color")            # a still ring with one strong quarter
-        self.assertRegex(base, r"\.pub-tick path \{[^}]*stroke-dashoffset: 0")   # the tick is fully drawn without motion
-        self.assertIn("m-draw", MOTION)
+        self.assertRegex(base, r"\.spin \{[^}]*border-top-color")            # a still ring with one strong quarter
+        self.assertNotRegex(base, r"\.pub-tick \{[^}]*(opacity: 0|scale)")   # the tick is fully there without motion
+        self.assertIn("m-tick", MOTION)
 
     def test_the_words_are_unchanged_by_motion(self):
         self.assertIn('"Changed"', (SRC / "clark" / "page" / "src" / "stores" / "changed.js").read_text(encoding="utf-8").replace("'", '"'))
@@ -346,27 +346,27 @@ class PublishLooks(tpd.Base):
                 p.js(self.HOLD)
                 p.open_publish()
                 p.go()
-                p.until("!!document.querySelector('.pub-spin')", "the ring is shown while it works")
+                p.until("!!document.querySelector('.spin')", "the ring is shown while it works")
                 self.assertEqual(p.message(), "Publishing…")
                 self.assertEqual(p.js("document.querySelector('[data-go]').disabled"), True, "no second publish while it works")
-                spin = p.js("(function(){var e=document.querySelector('.pub-spin');return [getComputedStyle(e).animationName,e.getAnimations().length];})()")
+                spin = p.js("(function(){var e=document.querySelector('.spin');return [getComputedStyle(e).animationName,e.getAnimations().length];})()")
                 if mode[0] == "allowed":
-                    self.assertEqual(spin[0], "m-spin")
+                    self.assertEqual(spin[0], "pub-spin")
                     self.assertGreater(spin[1], 0)
                 else:
                     self.assertEqual(spin, ["none", 0], "a still ring")
-                    self.assertGreater(p.js("document.querySelector('.pub-spin').offsetWidth"), 0, "and it is there")
+                    self.assertGreater(p.js("document.querySelector('.spin').offsetWidth"), 0, "and it is there")
                 self.assertEqual(p.js("document.querySelector('[data-cancel]').disabled"), True)
                 p.js("window.__release()")
                 p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
-                self.assertFalse(p.js("!!document.querySelector('.pub-spin')"), "the ring is gone when the work ends")
+                self.assertFalse(p.js("!!document.querySelector('.spin')"), "the ring is gone when the work ends")
                 self.assertTrue(p.js("!!document.querySelector('#pub-msg .pub-tick')"), "the tick is shown")
                 self.assertTrue(p.message(), "and the words are still there")
-                tick = p.js("(function(){var e=document.querySelector('.pub-tick path');var c=getComputedStyle(e);return [c.animationName,c.strokeDashoffset,e.getAnimations().length];})()")
+                tick = p.js("(function(){var e=document.querySelector('.pub-tick');var c=getComputedStyle(e);return [c.animationName,c.opacity,e.getAnimations().length];})()")
                 if mode[0] == "allowed":
-                    self.assertEqual(tick[0], "m-draw", "drawn")
-                    p.until("document.querySelector('.pub-tick path').getAnimations().every(function(a){return a.playState === 'finished';})", "it draws once and stops", 3)
-                self.assertEqual(p.js("getComputedStyle(document.querySelector('.pub-tick path')).strokeDashoffset"), "0px", "fully drawn at the end, or at once when still")
+                    self.assertEqual(tick[0], "m-tick", "it appears with a motion")
+                    p.until("document.querySelector('.pub-tick').getAnimations().every(function(a){return a.playState === 'finished';})", "it appears once and stops", 3)
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.pub-tick')).opacity"), "1", "fully there at the end, or at once when still")
                 if mode[0] != "allowed":
                     self.assertEqual(tick[0], "none")
                 self.assertTrue(p.js("document.querySelector('[data-go]').disabled === false"), "Close works")

@@ -6,13 +6,24 @@
 // (Dashboard leaves those sections out of it, so a client never reads that something is missing). The page clark serves never
 // draws a saved body as markup until the one editor and the page's cleanHtml arrive (#66); there, every section shows one quiet
 // line, the same for every type.
-import { dropAt, fromFile } from "../stores/report.js";
+// A section template (#96) is drawn by its own parts, looked up by type (Edit: its Edit part from tools.templateEdit, given the
+// section and the tools; View and the file: its view part from templates/index.js, given the section and the report's data). Dashboard leaves a template
+// with nothing to show out of View and the file, so its view part is only ever asked to draw something. No branch per template
+// is ever added here.
+import { dropAt, fromFile, data } from "../stores/report.js";
+import { templateFor } from "../templates/index.js";
 import { isChanged, WORD } from "../stores/changed.js";
 import { anchorId } from "../logic/minimap.js";
 import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
 import { MsBlock } from "./MsBlock.jsx";
 import { Needs } from "./Needs.jsx";
+
+// A template's Edit part, from the tools (edit/templates/); the quiet line if the tools have none for it.
+function TemplateEdit({ section, tools }) {
+  const Edit = tools.templateEdit ? tools.templateEdit(section.type) : null;
+  return Edit ? <Edit section={section} tools={tools} /> : <p class="quiet">Not shown on this page yet.</p>;
+}
 
 export function Section({ section, index, count, slot, anchor, tools, onExport }) {
   const editing = !!tools;
@@ -21,6 +32,7 @@ export function Section({ section, index, count, slot, anchor, tools, onExport }
   const mark = !drop ? "" : drop.line === "before" && drop.ids.includes(section.id) ? " drop-before"
     : drop.outline === section.id ? ` drop-${drop.side}` : "";
   const changed = isChanged(section.id);
+  const tpl = templateFor(section.type);
   return (
     <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
@@ -31,6 +43,7 @@ export function Section({ section, index, count, slot, anchor, tools, onExport }
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
       </header>
       {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
+        : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} />)
         : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
         : editing && section.type === "text" && tools.richOn("body")
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />

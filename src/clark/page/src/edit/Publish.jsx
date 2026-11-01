@@ -5,17 +5,11 @@
 // has a client folder (Settings). The words are the spec's (docs/handoff/design-43-to-client.md).
 import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
+import { Icon } from "../components/Icon.jsx";
 import { dialog, latest, NO_FOLDER, folderName, open, tick, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 export const lastLine = (l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
-
-// The tick that confirms a publish: drawn once when it appears, or simply there when the page may not move (shell.css, Motion).
-const Tick = () => (
-  <svg class="pub-tick" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-    <path d="M3 8.5l3.2 3.2L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="20" />
-  </svg>
-);
 
 function Dialog() {
   const s = dialog.value, el = useRef(null);
@@ -80,8 +74,8 @@ function Dialog() {
         )}
         {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
-          {working ? <p class="pub-busy"><span class="pub-spin" aria-hidden="true" />Publishing…</p>
-            : s.message ? <p class={s.message.kind}>{s.message.kind === "success" ? <Tick /> : null}{s.message.text}</p> : null}
+          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />Publishing…</p>
+            : s.message ? <p class={s.message.kind}>{s.message.kind === "success" ? <span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span> : null}{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">
           {s.phase === "done" ? null : <button type="button" class="btn quiet" data-cancel onClick={cancel} disabled={working}>Cancel</button>}
