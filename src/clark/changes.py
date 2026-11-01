@@ -1259,7 +1259,7 @@ def _checked_project_changes(fields):
             raise Refused(BAD_HEALTH)
         if k == "week_ending":
             try:
-                if not isinstance(v, str) or not re.fullmatch(r"\d{4}-\d\d-\d\d", v):
+                if not isinstance(v, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", v):
                     raise ValueError(v)
                 date.fromisoformat(v)
             except ValueError:
