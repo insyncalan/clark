@@ -87,7 +87,7 @@ class HistoryMany(unittest.TestCase):
         from clark import history
         demo = DemoStore()
         try:
-            demo.update("projects", "ABC", {"health": "At risk"})
+            demo.update("projects", "ABC", {"health": "At risk", "health_reason": "Two milestones slipped"})
             one = history.history(demo.store.con, "ABC")
             self.assertTrue(one)
             self.assertEqual(history.history_many(demo.store.con, ["ABC"]), {"ABC": one})
