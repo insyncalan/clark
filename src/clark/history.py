@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from clark import timefmt
 from clark.publish import RICH
 from clark.sanitise import SanitiseError, plain_text
-from clark.store import FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
+from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
 JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
 
@@ -21,32 +21,73 @@ def touches(r, item_id):
     return item_id in (parts[:2] if r["tbl"] == "links" else parts[:1])
 
 
+ROW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
+           "a.by_user, a.undone_at, e.event_id, e.at, e.route, e.place, e.origin, e.actor, e.src_ref, e.undoes "
+           "FROM change_log c JOIN item_events e ON e.change = c.rowid LEFT JOIN applies a ON a.apply_id = c.apply_id "
+           "WHERE c.field != 'updated_at'")
+
+
+def keyed_by(key, item_id):
+    """True when a change_log key names the item the way the history query asks: the key is the ID, starts with 'ID|' or has
+    '|ID|' inside it (the same three tests as the query's SQL)."""
+    return key == item_id or key.startswith(item_id + "|") or ("|" + item_id + "|") in key
+
+
+def build_events(rows, reverted):
+    """The events for one item from its change_log rows (already in event order, already limited to the ones about it). The
+    one place an event is built, for one item or many."""
+    # a row's columns are unpacked once, in ROW_SQL's order: reading them by name 21 times a row is slow over a long log
+    undone_by = {row[18]: row[11] for row in rows if row[18] is not None}
+    events = []
+    for (rowid, tbl, item_id, field, old_value, new_value, op, via, apply_id, by_user, undone_at, event_id, at, route, place,
+         origin, actor, src_ref, undoes) in rows:
+        events.append({
+            "event_id": event_id, "at": at, "step": apply_id, "by_user": by_user, "table": tbl,
+            "ref": item_id, "field": field, "before": old_value, "after": new_value, "op": op,
+            "route": route, "place": place, "origin": origin, "actor": actor, "src_ref": src_ref,
+            "undoes": undoes,
+            "is_undo": str(via).startswith(REVERT_VIA), "undone_by": undone_by.get(event_id),
+            "in_force": not undone_at and rowid not in reverted,
+        })
+    events.reverse()
+    return events
+
+
 def history(con, item_id):
     """[event, ...] for `item_id`, newest first. Each event: event_id, at, step, by_user, table, field, before, after, op,
     route, place, origin, actor, src_ref (how it came in, such as "by Word import (plan.docx)", else None), undoes (the event it
     reverses), undone_by (the event that reversed it) and in_force (False once an undo still in force has reversed it, or its own
     step was undone)."""
-    rows = con.execute(
-        "SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
-        "a.by_user, a.undone_at, e.event_id, e.at, e.route, e.place, e.origin, e.actor, e.src_ref, e.undoes "
-        "FROM change_log c JOIN item_events e ON e.change = c.rowid LEFT JOIN applies a ON a.apply_id = c.apply_id "
-        "WHERE c.field != 'updated_at' AND (c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?) ORDER BY e.event_id",
-        (item_id, item_id + "|%", "%|" + item_id + "|%")).fetchall()
+    rows = con.execute(ROW_SQL + " AND (c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?) ORDER BY e.event_id",
+                       (item_id, item_id + "|%", "%|" + item_id + "|%")).fetchall()
     rows = [r for r in rows if touches(r, item_id)]
+    return build_events(rows, reverted_rowids(con))
+
+
+def history_many(con, ids):
+    """{id: history(con, id)} for every ID in `ids`, read in ONE pass: the undone steps are found once and the log is read once
+    (the single-item query's leading wildcard cannot use the index, so asking per item scans the whole log each time). Each
+    item's events come from the same build_events code, so the answers are the same as history()'s."""
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return {}
+    wanted = set(ids)
+    codes = sorted({i.split("-", 1)[0] for i in ids})
+    where = " AND (" + " OR ".join(["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes)) + ")"
+    args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")]
+    mine = {i: [] for i in ids}
+    for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", args):
+        key = str(r["item_id"])
+        if "|" not in key:                                  # the usual row: keyed by its own item alone
+            if key in wanted:
+                mine[key].append(r)
+            continue
+        parts = key.split("|")
+        for cand in {key, parts[0], *parts[1:-1]}:          # every ID the three tests of history()'s query could match
+            if cand in wanted and keyed_by(key, cand) and touches(r, cand):
+                mine[cand].append(r)
     reverted = reverted_rowids(con)
-    undone_by = {r["undoes"]: r["event_id"] for r in rows if r["undoes"] is not None}
-    events = []
-    for r in rows:
-        events.append({
-            "event_id": r["event_id"], "at": r["at"], "step": r["apply_id"], "by_user": r["by_user"], "table": r["tbl"],
-            "ref": r["item_id"], "field": r["field"], "before": r["old_value"], "after": r["new_value"], "op": r["op"],
-            "route": r["route"], "place": r["place"], "origin": r["origin"], "actor": r["actor"], "src_ref": r["src_ref"],
-            "undoes": r["undoes"],
-            "is_undo": str(r["via"]).startswith(REVERT_VIA), "undone_by": undone_by.get(r["event_id"]),
-            "in_force": not r["undone_at"] and r["rowid"] not in reverted,
-        })
-    events.reverse()
-    return events
+    return {i: build_events(mine[i], reverted) for i in ids}
 
 
 def original_date(con, item_id, current=None):
@@ -80,6 +121,7 @@ PUT_BACK_PREFIX = "put back: "          # an Undo that made a removed label or l
 HOW_PEEK, HOW_TABLE, HOW_BOARD, HOW_REPORT, HOW_EYE = "In the peek", "In the table", "On the board", "In the report", "With the eye"
 HOW_EXCEL, HOW_ASK, HOW_DRAFT = "By Excel import", "By ask clark", "From a draft email"
 HOW_EMAIL, HOW_TEXT, HOW_UNDO = "By a sent email", "From selected text", "Undo"
+HOW_UNDO_MANY = "Undo (" + BATCH_UNDO + ")"      # #239: every row of one Undo several names it, so the rows read as one batch
 HOW_PLACES = {"peek": HOW_PEEK, "cell": HOW_TABLE, "bulk": HOW_TABLE, "menu": HOW_TABLE, "board": HOW_BOARD, "report": HOW_REPORT,
               "eye": HOW_EYE, "draft": HOW_DRAFT, "email": HOW_EMAIL, "text": HOW_TEXT}
 EXCEL_PREFIX = "Excel import:"
@@ -148,7 +190,7 @@ TITLE_LIMIT = 120
 def how_text(route, place, src_ref):
     """One of the eleven phrases for how and where a change was made. Anything else is OTHER, never the stored code."""
     if route == "undo":
-        return HOW_UNDO
+        return HOW_UNDO_MANY if src_ref == BATCH_UNDO else HOW_UNDO
     if route == "excel":
         name = re.sub(r"\s+", " ", str(src_ref or "")).strip()
         if name[:len(EXCEL_PREFIX)].lower() == EXCEL_PREFIX.lower():
