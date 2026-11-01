@@ -19,10 +19,13 @@ What it does, and does not:
   needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type; each save replaces
   the whole body in one step with one Undo. A needs or tracker section may be deleted like a text one (Undo-able, kept in
   change_log): "we archive, we never delete" is about work items and is not breached.
+- #96: make_section_file adds a file that section_files.py copied into the client folder to a Documents and links or One document
+  section, as one step with one Undo; its request is made by clark, not by the page (it is no op of /api/change).
 
 `change(req)` and `undo(req)` return (status, body); the server sends them. make_change / make_undo build them for one
 database file; the launcher passes those to server.serve. Standard library only, Python 3.9.
 """
+import json
 import re
 import threading
 import unicodedata
@@ -1455,6 +1458,47 @@ def make_change(path, onedrive_roots=None, by_user=None):
     def change(req):
         return _call(path, onedrive_roots, by_user, _do_change, req)
     return change
+
+
+# ── A file for a section template (#96, POST /api/section-file) ────────────────
+
+FILE_TYPES = tuple(t for t, m in section_bodies.TEMPLATES.items() if callable(getattr(m, "add_file", None)))   # the templates that hold a file
+NO_FILE_HERE = "That section can't hold a file. Add a Documents and links or One document section, then add the file there."
+
+
+def _do_section_file(store, by_user, req):
+    """Add a file that is already in the client folder to a section, as one step with one Undo (place "report"). `req` is made by
+    clark itself (section_files.py, after it copied the file), never by the page: {project, id, entry: {name, rel, bytes}}. The
+    stored body is read inside the step and the section's own template says where the file goes (its add_file); the result meets
+    the type's checker like any other body write, so the store's rules are the same as a save from the page."""
+    project, ref, entry = req.get("project"), req.get("id"), req.get("entry")
+    if not isinstance(project, str) or store.read("projects", ref=project) is None:
+        raise Refused(NO_PROJECT, 404, "project_not_found")
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    with store.step(VIA, by_user, place="report") as st:
+        rows = _sections(store, project)
+        _mine(ref, [r["id"] for r in rows], NOT_MINE)
+        row = next(r for r in rows if r["id"] == ref)
+        kind = next((t for t in FILE_TYPES if t == row["type"]), None)
+        if kind is None:
+            raise Refused(NO_FILE_HERE)
+        text = _section_body(row, row.get("body") or "")
+        try:
+            value = section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None, entry)
+        except section_bodies.Bad as e:
+            raise Refused(str(e)) from None
+        st.update("report_sections", ref, {"body": _section_body(row, section_bodies.canonical(value))})
+        apply_id = st.peek_apply_id()
+    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+
+
+def make_section_file(path, onedrive_roots=None, by_user=None):
+    """The step that adds a copied file to a section (see _do_section_file), for the database at `path`. Called by section_files.py
+    only; it is not a route of its own."""
+    def section_file(req):
+        return _call(path, onedrive_roots, by_user, _do_section_file, req)
+    return section_file
 
 
 def make_undo(path, onedrive_roots=None, by_user=None):

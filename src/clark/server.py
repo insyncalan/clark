@@ -28,6 +28,8 @@ Routes:
 - POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
 - POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
 - POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
+- POST /api/section-file  {project, section}: the Open dialog, then the file copied into the client folder's "Report files" folder and
+                         added to the section in one step (#96; publish_flow.py and section_files.py). The request never names a file
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
 
 Run: python3 -m clark.server   (CLARK_PORT sets the port; the default is 8766, beside creaite's 8765)
@@ -84,7 +86,8 @@ BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 ROUTE_BODY_LIMITS = {"/api/change": 72 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
-                     "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
+                     "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
+                     "/api/section-file": 1024}     # #96: names a project and a section only; the file never comes in the request
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -652,7 +655,8 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publi
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
                "/api/profile": profile_route("save"),
-               "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
+               "/api/word-import": word_import_route, "/api/word-export": word_export_route,
+               "/api/section-file": publisher_route("section_file")}     # later items: /api/import
 # ===== end of the page and the data =====
 
 

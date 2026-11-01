@@ -293,14 +293,16 @@ class Saving(ServerTest):
 
     def test_the_post_routes_are_exactly_change_undo_the_publish_ones_the_two_backup_ones_profile_and_the_two_word_ones(self):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/publish", "/api/client-folder", "/api/preview",
-                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/word-import", "/api/word-export"})     # #43, #111, #147, #180; #48 added the last two
+                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/word-import", "/api/word-export",
+                                                  "/api/section-file"})     # #43, #111, #147, #180; #48 added the two Word ones; #96 the section file
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 72 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/word-export": 1024,     # #111, #180; #48
-                                                "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024})
+                                                "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
+                                            "/api/section-file": 1024})     # #96: a project and a section only
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
