@@ -1,5 +1,5 @@
-// The page's only way to change anything: POST /api/change and POST /api/undo (#65). No other file names these two routes, so a
-// build that leaves this file out (the published page, view.jsx) has no way to change a thing and no mention of them.
+// The page's only way to change anything: POST /api/change, POST /api/section-body (a section's content, #273) and POST /api/undo (#65).
+// No other file names these routes, so a build that leaves this file out (the published page, view.jsx) has no way to change a thing and no mention of them.
 // Every reply is turned into plain words here: the page never shows the server's own text, only what plainChange (report.js)
 // picks for the status, or for a message it knows.
 import { token, plainChange } from "./stores/report.js";
