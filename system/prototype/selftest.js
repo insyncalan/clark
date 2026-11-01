@@ -1197,6 +1197,15 @@
     { const html = await C.webPage({ n: 99 }); ok('needs: it is published, with the decision', C.onPage(nx) && /Needs from you/.test(html) && /PDF-D-008/.test(html) && /Needed by/.test(html)); }
     { const d = C.needsList(P())[0]; if (d) { const was = d.client; d.client = false; ok('needs: an item hidden with the eye is never listed', !C.needsList(P()).includes(d)); d.client = was; } }
     C.setProject('CPR'); ok('needs: with nothing to ask the editor says so quietly', C.needsHtml(true).includes('Nothing needed from you this week.') && C.needsList(C.P()).length === 0); C.setProject('PDF');
+    /* #144 point 3: a Needs from you section with nothing to ask is left out of the published page, and one with a line is kept */
+    { C.setProject('CPR'); const cp = C.P(), empty = { id: 'nx-empty', type: 'needs', title: 'Needs from you', asks: [] };
+      cp.report.sections.push(empty);
+      const html = await C.webPage({ n: 98 });
+      ok('needs 144: with nothing to ask the section is left out of the published page', C.onPub(empty, cp) === false && !/sec-nx-empty/.test(html) && !/Needs from you/.test(html));
+      empty.asks.push({ id: 'nd-pub', what: 'Confirm the floor plan', owner: 'Sam', due: A(5), archived: false });
+      const kept = await C.webPage({ n: 99 });
+      ok('needs 144: the same section with one line is published', C.onPub(empty, cp) === true && /sec-nx-empty/.test(kept) && /Confirm the floor plan/.test(kept));
+      cp.report.sections.splice(cp.report.sections.indexOf(empty), 1); C.setProject('PDF'); }
     /* #122 health suggestion */
     C.go('dashboard'); await sleep(80); click($('[data-mode=edit]')); await sleep(60);
     { const p = P(), hs = C.healthSuggest(p);
