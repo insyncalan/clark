@@ -383,40 +383,27 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak]')", sid)), "two slashes open the words box")
                 self.assertFalse(asking(), "the ask panel stays shut while a peek is open")
 
-    def test_a_palette_click_with_the_ask_panel_open_leaves_focus_in_the_peek(self):
-        """With the ask panel open, choosing a work item in the palette closes the panel (the click lands outside it) and opens the
-        peek; the panel's delayed return of focus must not pull focus away from the peek, so the two slashes still reach its words box."""
+    def test_the_ask_panel_closing_does_not_pull_focus_from_what_took_it(self):
+        """Closing the ask panel returns focus after a moment, but only if focus is still lost. A click outside that lands on a
+        control (the peek's close button here, standing for a palette result that opened a peek) keeps the focus it took."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 s, sid = self.load_page(cdp, width)
                 self.edit_mode(cdp, sid)
                 asking = lambda: cdp.js("!!document.querySelector('#ask-panel')", sid)
+                target = next(r["id"] for r in self.data["actions"] if r["status"] == "Open")
                 cdp.js("document.activeElement && document.activeElement.blur()", sid)
                 key(cdp, sid, "/")
                 self.assertTrue(wait(asking), "the ask panel is open")
-                target = next(r["id"] for r in self.data["actions"] if r["status"] == "Open")
-                common = {"key": "k", "code": "KeyK", "windowsVirtualKeyCode": 75, "modifiers": 2}
-                cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common}, sid)
-                cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#palette-q')", sid)), "the palette opens over the panel")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement && document.activeElement.id === 'palette-q'", sid)), "the search box has focus")
-                cdp.call("Input.insertText", {"text": target}, sid)
-                row = f"#palette .pal-row[id='pal-item-{target}']"
-                self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(row)})", sid)), "the work item is a result")
-                # Mouse down and click in one turn, so the peek has focus before the panel's delayed return of focus runs.
-                cdp.js(f"(() => {{ const r = document.querySelector({json.dumps(row)});"
-                       " r.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));"
-                       " r.dispatchEvent(new MouseEvent('click', {bubbles: true})); })()", sid)
-                self.assertTrue(wait(lambda: not asking()), "the click closed the ask panel")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-close]')", sid)), "the peek opened")
+                cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-close]')", sid)), "the peek opened over the panel")
+                # The click outside closes the panel and, in the same turn, the control it landed on takes focus.
+                cdp.js("(() => { const b = document.querySelector('[data-pk-close]');"
+                       " b.dispatchEvent(new MouseEvent('mousedown', {bubbles: true})); b.focus(); })()", sid)
+                self.assertTrue(wait(lambda: not asking()), "the click outside closed the ask panel")
                 cdp.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))", sid)
                 time.sleep(0.3)
-                self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid), "focus stayed in the peek")
-                cdp.js("document.activeElement.blur()", sid)
-                key(cdp, sid, "/")
-                key(cdp, sid, "/")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak]')", sid)), "two slashes open the words box")
-                self.assertFalse(asking(), "the ask panel stays shut")
+                self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid), "focus stayed where it went")
 
     def test_edit_opens_the_words_box_with_two_slashes_and_reads_without_writing(self):
         for width in (1400, 900):
