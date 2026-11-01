@@ -66,7 +66,7 @@ class Registry(unittest.TestCase):
             return {"mine": 1}
         with mock.patch.dict(sb.CHECKERS, {"needs": mine}):
             self.assertEqual(check("needs", '{"a":1}'), '{"mine":1}')              # what is stored is what the checker handed back
-            self.assertEqual(check("tracker", '{"a":1}'), '{"a":1}')               # the other type is untouched
+            self.assertEqual(check("tracker", '{"groups":[]}'), check("tracker", '{}'))      # the other type is untouched: its own checker rebuilds it
         self.assertEqual(seen, [("mine", {"a": 1})])
 
     def test_a_checker_can_refuse_in_its_own_words_and_a_checker_that_returns_a_string_is_a_fault(self):
@@ -99,7 +99,7 @@ class Canonical(Generic):
         self.assertEqual(check("needs", got), got)                                  # saving it again changes nothing
 
     def test_a_list_is_content_too(self):
-        self.assertEqual(check("tracker", '[1, 2]'), "[1,2]")
+        self.assertEqual(check("needs", '[1, 2]'), "[1,2]")
 
     def test_nothing_is_empty_content(self):
         for kind in TYPES:
