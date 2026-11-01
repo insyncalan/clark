@@ -196,7 +196,23 @@ function Panel({ s }) {
 }
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const BEHIND = ["#main", ".top"];                // made inert while the Draft email is open
+// While the Draft email is open everything outside it is inert: at every level from the dialog up to the body, each sibling off its path
+// (the page, the top bar, the peek, the ask panel, Help, the palette). One that mounts later is held as it appears. Only what this
+// function set is released again, so an element that was inert before stays so.
+function holdBehind(scrim) {
+  const mine = new Set();
+  const sweep = () => {
+    for (let n = scrim; n && n !== document.body; n = n.parentNode) {
+      for (const sib of n.parentNode ? n.parentNode.children : []) {
+        if (sib !== n && !sib.hasAttribute("inert") && !/^(SCRIPT|STYLE|LINK)$/.test(sib.tagName)) { sib.setAttribute("inert", ""); mine.add(sib); }
+      }
+    }
+  };
+  sweep();
+  const watch = typeof MutationObserver === "function" ? new MutationObserver(sweep) : null;
+  if (watch) watch.observe(document.body, { childList: true, subtree: true });
+  return () => { if (watch) watch.disconnect(); mine.forEach((el) => el.removeAttribute("inert")); };
+}
 
 // The Draft email over the page (modal: focus stays inside, Esc closes, focus goes back to the row). It holds the draft the server built;
 // each change in the dialog (the kind, the ticks, the options) asks for a new one, and the last answer wins. It sends and saves nothing.
@@ -211,9 +227,9 @@ function DraftHost({ d }) {
   useEffect(() => {
     const first = root.current && root.current.querySelector("input, button");
     if (first) first.focus();
-    const held = BEHIND.map((q) => document.querySelector(q)).filter(Boolean);
-    held.forEach((el) => el.setAttribute("inert", ""));
-    return () => held.forEach((el) => el.removeAttribute("inert"));
+    const box = root.current && root.current.querySelector(".de");
+    if (box) box.setAttribute("aria-modal", "true");
+    return root.current ? holdBehind(root.current) : undefined;
   }, []);
   useEffect(() => { if (view.value !== "work") draftOpen.value = null; }, [view.value]);        // another page: the dialog goes with it
   useEffect(() => { if (!data.value || !itemRows.value.some((r) => r.id === d.id)) draftOpen.value = null; }, [itemRows.value]);   // the item went

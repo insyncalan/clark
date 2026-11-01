@@ -574,6 +574,25 @@ class Menu(board.Base):
             self.assertEqual((self.steps(), len(self.sent)), (before, sent), "nothing was changed, saved or sent")
             self.assertFalse(cdp.js("document.querySelector('#main, .top').hasAttribute('inert')", sid))
 
+    def test_the_draft_dialog_is_modal_and_everything_outside_it_is_inert_even_what_mounts_later(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            self.assertEqual(cdp.js("document.querySelector('[data-draft-email] .de').getAttribute('aria-modal')", sid), "true")
+            outside = """(() => { const out = []; for (let n = document.querySelector('[data-draft-email]'); n && n !== document.body; n = n.parentNode)
+                for (const s of n.parentNode.children) if (s !== n && !/^(SCRIPT|STYLE|LINK)$/.test(s.tagName)) out.push(s.hasAttribute('inert')); return out; })()"""
+            got = cdp.js(outside, sid)
+            self.assertTrue(got and all(got), got)
+            # A panel that mounts after the dialog opened (the palette, Help, the peek) is held as it appears.
+            cdp.js("(() => { const d = document.createElement('div'); d.id = 'late-panel'; document.querySelector('[data-draft-email]').parentNode.appendChild(d); })()", sid)
+            self.until(cdp, sid, "document.getElementById('late-panel').hasAttribute('inert')", "the late panel to be held")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
+            self.assertFalse(cdp.js("!!document.querySelector('[inert]')", sid), "all released again")
+
     def test_draft_email_for_an_item_with_no_owner_stays_greyed_with_its_reason(self):
         with chrome() as cdp:
             a = self.id_of("Order the laptops")
