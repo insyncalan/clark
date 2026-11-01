@@ -205,6 +205,12 @@ class Shape(unittest.TestCase):
         self.refuses({"groups": [{"name": f"G{i}", "lines": [line() for _ in range(100)]} for i in range(5)] + [{"name": "More", "lines": [line()]}]},
                      sb.TRACKER_TOO_MANY_LINES)
 
+    def test_the_cap_on_lines_is_for_the_whole_tracker_not_for_each_group(self):
+        spread = lambda sizes: {"groups": [{"name": f"G{i}", "lines": [line() for _ in range(n)]} for i, n in enumerate(sizes)]}
+        self.refuses(spread([10] * 5), sb.TRACKER_TOO_MANY_LINES)            # 50 lines in all: each group is small, the total is not
+        check(spread([sb.TRACKER_MAX_LINES - 7, 7]))                         # 47 in all is accepted
+        self.refuses(spread([sb.TRACKER_MAX_LINES - 7, 8]), sb.TRACKER_TOO_MANY_LINES)    # 48 in all is refused
+
     def test_the_words_never_quote_the_value_and_are_plain(self):
         secret = "SECRET-ZQ"
         for mutate in (lambda d: d["groups"][0]["lines"][0].update(status=secret), lambda d: d["groups"][0]["lines"][0].update(start=secret),
