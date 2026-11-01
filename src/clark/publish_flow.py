@@ -197,7 +197,7 @@ class Publisher:
         want_client, confirmed = asked["to_client"], asked["confirmed"]
         today = str(self.today())
         try:
-            built = publish.build(store, code, today, self.branding)
+            built = publish.build(store, code, today, self.branding, body.get("section_style"))
         except publish.PublishError as e:
             return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
         week = built["project"]["week_ending"]
@@ -224,7 +224,7 @@ class Publisher:
             # The Save window may have been open a while. What the client is to get is made again now, so a flag turned off
             # meanwhile is honoured; if anything differs, every check before the copy runs again on the new file.
             try:
-                again = publish.build(store, code, today, self.branding)
+                again = publish.build(store, code, today, self.branding, body.get("section_style"))
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
             # The client folder is checked again whether or not the file changed: it may have been swapped for a link (or
@@ -408,7 +408,7 @@ class Publisher:
             if store.read("projects", ref=code) is None:
                 return 404, self.fail("project_not_found")
             try:
-                built = publish.build(store, code, str(self.today()), self.branding)
+                built = publish.build(store, code, str(self.today()), self.branding, body.get("section_style"))
             except publish.PublishError as e:
                 return 409, self.fail("preview_not_made", MESSAGES["preview_not_made"].format(reason=made_words(e)))
         finally:
