@@ -16,6 +16,7 @@ from _demo import USER
 from _paths import ROOT, SRC
 
 from clark import changes, page, server as sv  # noqa: E402
+from _editor_checks import edit_elements  # noqa: E402
 from test_board import make_data  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_filters import click, dblclick, hover, key, need_chrome, where  # noqa: E402
@@ -590,17 +591,39 @@ class Moves(Base):
             self.assertEqual((self.steps(), len(self.sent)), before)
             self.assertEqual(cdp.js("location.hash.includes('item=')", sid), False, "a drag never opens the peek")
 
-    def test_in_view_nothing_moves(self):
-        with chrome() as cdp:
-            sid = self.visit(cdp, edit=False)
-            self.board(cdp, sid, "status", mode="open")
-            cdp.js("document.querySelector('[data-mode=view]').click()", sid)
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-move]').length", sid), 0)
-            a = self.id_of("Order the laptops")
-            before = len(self.sent)
-            self.drag(cdp, sid, a, self.cell("Delayed"))
-            self.assertEqual(len(self.sent), before)
-            self.assertIn("Switch to Edit to move cards.", cdp.js("document.querySelector('.lanebar').textContent", sid))
+    def test_in_view_the_move_to_menu_works_and_dragging_does_not(self):
+        """#449 (row 17): the card's "..." Move to menu is in View as in Edit, as the prototype's is; the move is one step with Undo and its
+        toast is drawn in View. Dragging stays an Edit part, and View still has no edit field or edit part. 1400 and 900 px, light and dark."""
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.visit(cdp, width=width, edit=False)
+                    cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                    self.board(cdp, sid, "status", mode="open")
+                    cdp.js("document.querySelector('[data-mode=view]').click()", sid)
+                    self.until(cdp, sid, "document.querySelector('[data-mode=view]').getAttribute('aria-pressed') === 'true'", "View")
+                    a = self.id_of("Order the laptops")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-move]').length", sid), cdp.js("document.querySelectorAll('#work-board .bcard').length", sid),
+                                     "every card has its Move to button in View")
+                    self.assertEqual(cdp.js(f"document.querySelector(\"[data-move='{a}']\").getAttribute('aria-label')", sid), f"Move {a} to…")
+                    before, sent = self.steps(), len(self.sent)
+                    self.drag(cdp, sid, a, self.cell("Delayed"))
+                    self.assertEqual((self.steps(), len(self.sent)), (before, sent), "dragging is for Edit")
+                    self.assertIn("Switch to Edit to drag cards.", cdp.js("document.querySelector('.lanebar').textContent", sid))
+                    click(cdp, sid, f"[data-move='{a}']")
+                    self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid), ["Delayed", "Closed", "Cancelled"])
+                    click(cdp, sid, ".ddmenu [data-to='Delayed']")
+                    t = self.wait_toast(cdp, sid, "done")
+                    self.assertEqual(t["text"], f"{a} is now Delayed.")
+                    self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1))
+                    self.assertEqual(cdp.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')", sid), "true", "still View")
+                    self.assertEqual(edit_elements(cdp, sid), [], "View has no field and no edit part")
+                    self.assertTrue(cdp.js("(() => { const r = document.querySelector('.toast').getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()", sid))
+                    self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
+                    click(cdp, sid, "[data-undo]")
+                    self.until(cdp, sid, "document.querySelector('.toast-text').textContent === 'Undone.'", "Undone")
+                    self.assertEqual(self.row(a)["status"], "Open")
 
 
 class Collapse(Base):

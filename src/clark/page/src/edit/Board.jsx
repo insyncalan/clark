@@ -1,8 +1,8 @@
 // The Work items board (#68) and its full screen (#81): columns for Group by, one level of swimlanes, cards, and moving a card by
 // dragging it or by its "Move to..." menu. Spec: docs/handoff/design-68-81-board.md. Every rule (which column a card is in, what a
 // move asks the server for, why it is refused) is in ../logic/board.js; this file draws it and sends what moveFor gives, through
-// stores/changes.js. It is an Edit part (edit/index.js): the published page has no board. Cards move only in Edit; in View they
-// can be read and opened. Nothing here removes an item: a card moves, and closing is a status.
+// stores/changes.js. It is an Edit part (edit/index.js): the published page has no board. The "..." Move to menu works in View as in
+// Edit (#449, as the prototype's does); dragging a card is Edit only. Nothing here removes an item: a card moves, and closing is a status.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { mode, item, openPeek } from "../stores/report.js";
 import { work, setWork, full, announce, contextFor } from "../stores/work.js";
@@ -34,7 +34,7 @@ function Eye() {
 // A card is picked like a table row (#195): a click selects it, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
 // order drawn, a double click (or Enter) opens the peek; Space adds or removes it, Shift+Up and Shift+Down extend, Cmd or Ctrl+A
 // selects every card shown.
-function Card({ card, editing, selected, picked, dragging, ask, menu, onOpen, onPick, onMenu, children }) {
+function Card({ card, selected, picked, dragging, ask, menu, onOpen, onPick, onMenu, children }) {
   const label = `${card.id} ${card.title}, ${card.state.text}${card.due.words ? ", " + card.due.words.toLowerCase() : ""}${picked ? ", selected" : ""}`;
   const focusCard = (id) => { const el = document.querySelector(`article[data-id="${CSS.escape(id)}"] .bc-main`); if (el) el.focus(); };
   return (
@@ -56,14 +56,12 @@ function Card({ card, editing, selected, picked, dragging, ask, menu, onOpen, on
           <span class={`pill ${card.state.class}`}>{card.state.text}</span>
         </div>
       </div>
-      {editing ? (
-        <span class="dd bmv">
-          <button type="button" class="bc-move" aria-label={`Move ${card.id} to…`} aria-haspopup="menu" aria-expanded={menu ? "true" : "false"} data-move={card.id} onClick={() => onMenu(card.id)}>
-            <Icon name="dots" />
-          </button>
-          {children}
-        </span>
-      ) : null}
+      <span class="dd bmv">
+        <button type="button" class="bc-move" aria-label={`Move ${card.id} to…`} aria-haspopup="menu" aria-expanded={menu ? "true" : "false"} data-move={card.id} onClick={() => onMenu(card.id)}>
+          <Icon name="dots" />
+        </button>
+        {children}
+      </span>
       {ask}
     </article>
   );
@@ -351,7 +349,7 @@ export function Board({ rows, today, type }) {
     const here = cardCell[cd.id];
     return (
       <div key={cd.id} class="bwrap" onPointerDown={(e) => startDrag(e, cd.id, ln.key, c.key)}>
-        <Card card={cd} editing={editing} selected={peeked === cd.id} picked={picked.includes(cd.id)} dragging={dragId === cd.id} menu={menu === cd.id}
+        <Card card={cd} selected={peeked === cd.id} picked={picked.includes(cd.id)} dragging={dragId === cd.id} menu={menu === cd.id}
           onOpen={open} onPick={pick} onMenu={(id) => setMenu(menu === id ? null : id)}
           ask={ask && ask.id === cd.id
             ? ask.kind === "date"
@@ -381,7 +379,7 @@ export function Board({ rows, today, type }) {
       <div class="lanebar" role="group" aria-label="Board view">
         <Menu label={`Swimlanes: ${laneNow}`} ariaLabel={`Swimlanes: ${laneNow}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left items={laneItems}
           onPick={(id) => setWork({ lane: id === "none" ? null : id })} />
-        {!editing ? <span class="muted lb-hint">Switch to Edit to move cards.</span> : null}
+        {!editing ? <span class="muted lb-hint">Switch to Edit to drag cards.</span> : null}
         <button type="button" class="bib fs" id="board-full" ref={fsBtn} aria-pressed={isFull ? "true" : "false"} aria-label={isFull ? "Leave full screen" : "View full screen"}
           data-tip={isFull ? "Leave full screen (Esc)" : "View full screen"} onClick={toggleFull}>
           <Icon name={isFull ? "shrink" : "expand"} />
@@ -410,7 +408,7 @@ export function Board({ rows, today, type }) {
                       {shut ? null : <span class="col-rz" role="separator" tabIndex={0} aria-orientation="vertical" data-resize={c.key}
                         aria-label={`Resize the ${c.label} column`} aria-valuemin={COL_MIN} aria-valuemax={COL_MAX} aria-valuenow={wd || COL_DEFAULT}
                         aria-keyshortcuts="ArrowLeft ArrowRight Home End Enter" title="Drag to resize; double-click for the usual width"
-                        onPointerDown={(e) => sepDown(e, c)} onKeyDown={(e) => sepKey(e, c)} onDblClick={() => { setWidth(c, COL_DEFAULT); sayWidth(c, COL_DEFAULT); }} />}
+                        onPointerDown={(e) => sepDown(e, c)} onKeyDown={(e) => sepKey(e, c)} onDblClick={() => { setWidth(c, COL_DEFAULT); say("done", "Column width reset"); }} />}
                     </h4>
                     {c.nodrop && !shut ? <p class="muted nd">{c.key === "overdue" ? "Can't drop here. Use This week, Next week or Later." : "Can't drop here"}</p> : null}
                     {shut ? null : (
