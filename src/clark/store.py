@@ -25,13 +25,13 @@ from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from clark import platform
+from clark import platform, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 3          # 2 (#126): documents can be archived; 3 (#51): a project has a contact for the published page's Draft email
+SCHEMA_VERSION = 4          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -63,9 +63,12 @@ REQUIRED_NEW = {
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")   # what Step.archive takes (#126)
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
+                 "needs", "tracker")            # the eleven of schema.sql's CHECK ('needs' and 'tracker' carry content: section_bodies.py)
+BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
+DELETABLE_TYPES = BODY_TYPES                    # a section added by hand may be deleted; the built-in ones are hidden, never deleted
 ALLOWED = {
-    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the nine of schema.sql's CHECK
+    ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): the eleven of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
     ("glance_tiles", "outline"): ("R", "A", "G", "N"),                  # and '' (a blank is never checked)
     ("actions", "status"): ("Open", "Delayed", "Closed", "Cancelled"),
@@ -114,8 +117,8 @@ TITLE_LIMIT = 120                                                        # a sec
 CANCEL_CHANGES = {"actions": {"status": "Cancelled"}, "raid": {"status": "Cancelled"}, "projects": {"active": 0},
                   "workstreams": {"status": "Closed"}}
 
-# clark: a step's route, as item_events records it (data-model.md), and the vias it is written with.
-ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate")
+# clark: a step's route, as item_events records it (data-model.md), and the vias it is written with. "word" (#48, Head ruling Q4): a Word import.
+ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate", "word")
 PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board")      # + board (#126)
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
@@ -491,13 +494,48 @@ def section_title(value):
     return title
 
 
+def _plain_ok(value):
+    """The store's text rule for content: it can be saved as UTF-8 (a lone surrogate can't) and holds no control, format
+    (bidi, zero-width), private-use or separator character, as a section title may not."""
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return not any(unicodedata.category(c) in _BAD_TITLE_KINDS for c in value)
+
+
+def _visible_ok(value):
+    """Whether the text holds a visible letter, number or symbol (section_title's rule)."""
+    return any(unicodedata.category(c)[0] in "LNPS" and c not in _BLANK_LOOKING for c in value)
+
+
+BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok)
+
+
+def check_section_body(kind, body):
+    """The content of a `kind` section (needs or tracker) as it is stored, or Invalid in plain words (never quoting it). The one
+    door to section_bodies.check: _section_rules (every write, an Undo too) and publish (a second look, at publish time) use it."""
+    try:
+        return section_bodies.check(kind, body, BODY_RULES)
+    except section_bodies.Bad as e:
+        raise Invalid(str(e)) from None
+
+
 def _section_rules(con, table, row, changed):
     """clark (#65): a section's own rules, in plain words. Runs before the id exists on a new row, so the id rules need an id."""
     row["title"] = section_title(row.get("title"))
     if type(row.get("sort_order")) is not int:
         raise Invalid("A section needs its place in the report (sort_order, a whole number).")
-    if row.get("body") not in (None, "") and (row.get("type") != "text" or not isinstance(row["body"], str)):
-        raise Invalid("Only a text section has a body.")
+    if row.get("body") not in (None, ""):
+        if row.get("type") not in BODY_TYPES:
+            raise Invalid("Only a text, needs or tracker section has a body.")
+        if not isinstance(row["body"], str):
+            raise Invalid("A section's body must be text.")
+    if row.get("type") in section_bodies.CHECKERS and ({"body", "type", "id"} & set(changed) or not row.get("id")):
+        # content: the type's own checker whenever the body is written, a new row is made or a deleted one is put back (an Undo too);
+        # what is stored is its canonical text, never the request's. A write that leaves the body alone (a rename, hide, move or
+        # renumber) does not re-check it, so a body saved under an older, looser checker never locks its section; publish checks it again
+        row["body"] = check_section_body(row["type"], row.get("body"))
     if row.get("id") and not str(row["id"]).startswith(f"{row.get('project')}-S-"):
         raise Invalid("That section's id doesn't belong to its project.")
     if "id" in changed or not row.get("id"):          # a new section, or one put back by an undo: never count the row itself
@@ -1034,8 +1072,8 @@ def delete_row(con, table, key, current, step):
     if table not in DELETED_ON_CANCEL:
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
-    if table == "report_sections" and current["type"] != "text":
-        raise Invalid("Only a text section can be deleted; hide the others.")
+    if table == "report_sections" and current["type"] not in DELETABLE_TYPES:     # a needs or tracker section goes like a text one (added by hand, kept in change_log, put back by Undo); 'we archive, we never delete' is about work items, and is not breached
+        raise Invalid("Only a text, needs or tracker section can be deleted; hide the others.")
     if table == "labels":
         if current["builtin"]:
             raise Invalid(f"{current['name']} is a built-in label and can't be deleted")
@@ -1573,25 +1611,85 @@ def migrate_to_2(con):
     _item_events_allow_board(con)
 
 
-# The two columns version 3 adds, exactly as schema.sql has them (a test keeps the two the same); whole fixed statements, so
-# no SQL is built from a name.
-CONTACT_COLUMNS = (
-    ("contact_name", "ALTER TABLE projects ADD COLUMN contact_name TEXT CHECK (contact_name IS NULL OR length(contact_name) <= 80)"),
-    ("contact_email", "ALTER TABLE projects ADD COLUMN contact_email TEXT CHECK (contact_email IS NULL OR length(contact_email) BETWEEN 3 AND 254)"),
-)
+def _item_events_allow_word(con):
+    """item_events.route gains 'word' (#48). SQLite cannot change a CHECK in place, so the table is made again from schema.sql's own
+    definition (so an upgraded file matches a new one), the rows are copied across with their numbers, the sequence is kept and the
+    indexes are made again. Only when the table's own definition does not name 'word' yet, so a second run (or a new database)
+    does nothing. Inside the caller's transaction. (schema.sql is read here because it is still version 3's item_events; when a later
+    version changes item_events, version 3's text must be frozen first, as schema_v2.sql is for version 2.)"""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is None or "'word'" in have[0]:
+        return
+    made = None
+    for statement in _statements(SCHEMA.read_text(encoding="utf-8")):
+        if re.match(r"(?:\s*--[^\n]*\n|\s)*CREATE TABLE IF NOT EXISTS item_events \(", statement):
+            made = re.sub(r"CREATE TABLE IF NOT EXISTS item_events \(", "CREATE TABLE item_events_3 (", statement, count=1)
+    if made is None:
+        raise Invalid(MIGRATE_FAILED)
+    seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+    con.execute(made)
+    con.execute("INSERT INTO item_events_3 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes "
+                "FROM item_events ORDER BY event_id")
+    con.execute("DROP TABLE item_events")
+    con.execute("ALTER TABLE item_events_3 RENAME TO item_events")
+    if seq is not None:             # the renamed table keeps the counter's place: make sure it is the old one, never lower
+        con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+        con.execute("INSERT INTO sqlite_sequence (name, seq) SELECT 'item_events', ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'item_events')", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
 
 
 def migrate_to_3(con):
-    """Schema version 2 to 3 (#51): the project's contact, the outside address a published page's Draft email is addressed to
-    (one per project; the owner, 31-10-2026). Two nullable columns on projects, each added only when it is not there yet (a
-    half-applied copy is safe). Runs inside the caller's transaction and does not touch the version (the runner does)."""
-    have = columns(con, "projects")
-    for name, statement in CONTACT_COLUMNS:
-        if name not in have:
-            con.execute(statement)
+    """Schema version 2 to 3 (#48): item_events accepts the route 'word', which its CHECK did not allow. `publications.word` already
+    exists in every version. Word takes the next free number, 3 at the time of writing: if #120 or #115 land first, this step is
+    renumbered (and SCHEMA_VERSION with it). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _item_events_allow_word(con)
 
 
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3))     # version -> the step that brings a file TO that version (#51 takes 3)
+# The report_sections table as schema.sql makes it once a section may be of type needs or tracker, frozen here (a later change to
+# schema.sql never changes what this step makes; tests/test_store_migration.py pins it to schema.sql as it is today).
+REPORT_SECTIONS_WITH_CONTENT_TYPES = """CREATE TABLE IF NOT EXISTS report_sections (
+  project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
+  id      TEXT NOT NULL,
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker')),
+  title   TEXT NOT NULL,
+  body    TEXT NOT NULL DEFAULT '',
+  beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
+  hidden  INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0,1)),
+  sort_order INTEGER NOT NULL,
+  PRIMARY KEY (project, id)
+)"""
+
+
+def _report_sections_allow_content_types(con):
+    """report_sections.type gains 'needs' and 'tracker'. SQLite cannot change a CHECK in place, so the table is made again from the
+    frozen text above and the rows are copied in their order (nothing references this table, it has no trigger or index, and its
+    one outgoing key is kept). Only when the table's own definition does not name 'needs' yet, so a second run (or a new database)
+    does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_CONTENT_TYPES)
+        return
+    if "'needs'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_CONTENT_TYPES.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_content (", 1))
+    con.execute("INSERT INTO report_sections_content (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_content RENAME TO report_sections")
+
+
+def migrate_section_bodies(con):
+    """A section may be of type needs or tracker (the shared base for #121 and #189): report_sections is made again with the wider
+    type CHECK. Its own step and its own number (SCHEMA_VERSION: renumber at merge, the order is ruled by the Head); it touches no
+    other table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _report_sections_allow_content_types(con)
+
+
+# version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
+# number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies))
 
 
 def migration_plan(version, table=None):
@@ -1638,7 +1736,8 @@ def migrate(con, table=None):
                         raise Invalid(MIGRATE_INCONSISTENT)
             con.execute("COMMIT")
         except BaseException:
-            con.execute("ROLLBACK")
+            if con.in_transaction:            # #48: a COMMIT that failed may have ended it already: the real error is the one to report
+                con.execute("ROLLBACK")
             raise
     finally:
         con.execute("PRAGMA foreign_keys = ON")
@@ -2006,19 +2105,23 @@ class Store:
         finally:
             con.close()
 
-    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None):
+    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0):
         """Record one published file: a `publications` row with the file's SHA-256, and nothing else. No change_log,
         no step and no write to any other table: a publication is a record of a file, not an edit (#39; Head ruling,
         28-10-2026), so Undo never meets it. The folder to offer next time is read back from the latest publication
         (`last_publish_folder`), not kept as a field of the project. `client_path` (#43) is the verified copy in the client
         folder, given only when To client was ticked and the copy read back with the same SHA-256; it is the same file, so it
-        is never the Local path. Returns the publication's number."""
+        is never the Local path. `word` is 1 for a Word report (#48, Head ruling Q2: one row for the Word file, with its own SHA-256, beside the web page's). Returns the publication's number."""
         if not str(by_user or "").strip():
             raise Invalid("a publication needs who made it (by_user)")
         if not re.fullmatch(r"[0-9a-f]{64}", str(sha256 or "")):
             raise Invalid("a publication needs the file's SHA-256")
         if not Path(str(path)).is_absolute():
             raise Invalid("a publication needs the file's full path")
+        if type(word) is not int or word not in (0, 1):
+            raise Invalid("a publication's word must be 0 or 1")
+        if client_path is not None and not Path(str(client_path)).is_absolute():
+            raise Invalid("a publication needs the client copy's full path")
         if week_ending is not None:
             try:
                 if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(week_ending)):
@@ -2042,8 +2145,8 @@ class Store:
                 raise Invalid(f"project {code} isn't here")
             cur = self.con.execute(
                 "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user) "
-                "VALUES (?, ?, ?, ?, 0, ?, 'not needed', ?)",
-                (code, week_ending, str(path), None if client_path is None else str(client_path), sha256, str(by_user).strip()))
+                "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?)",
+                (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip()))
             self.con.execute("COMMIT")
             return cur.lastrowid
         except BaseException:

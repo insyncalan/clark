@@ -11,6 +11,7 @@ export const toast = signal(null);
 export const undone = signal(0);
 
 let counter = 0, tail = Promise.resolve(), timer = 0;
+const linked = new Map();                // a step made together with an earlier one (changeThen), to that earlier step: its Undo takes both back
 const itemSteps = new Map();             // the steps that changed a work item (#80 cells, #68 board moves), to what their Undo says ("" for "Undone."): their undo reply has no items, so the data is read again
 
 export function say(kind, text, undo = null, code = project.value) {
@@ -72,6 +73,33 @@ export function change(req, done) {
   });
 }
 
+// Two requests the page makes as one action (a new section, then a change to the section it was added below). Nothing is said
+// between them. When both worked the toast has one Undo, which takes both back (undo below: the second step first, then the first).
+// `next(reply)` makes the second request from the first reply. When the second fails the first stays made, the toast says so in
+// `partial`, and its Undo takes the first step back. Resolves to the first reply, or to null when the first request failed (the toast
+// says why, and nothing was made).
+export function changeThen(req, next, done, partial) {
+  const code = project.value;
+  return enqueue(async () => {
+    const a = await sendChange(code, req);
+    if (!a.ok) { say("problem", a.message); return null; }
+    redraw(code, a.reply);
+    const b = await sendChange(code, next(a.reply));
+    if (!b.ok) {
+      await readAgain(code, "The section was added");
+      say("problem", partial, a.reply.apply_id || null, code);
+      return a.reply;
+    }
+    redraw(code, b.reply);
+    if (!(await readAgain(code, "The change was saved"))) return a.reply;
+    if (b.reply.apply_id) {
+      if (a.reply.apply_id) linked.set(b.reply.apply_id, a.reply.apply_id);
+      say("done", done, b.reply.apply_id, code);
+    } else if (a.reply.apply_id) say("done", done, a.reply.apply_id, code);
+    return a.reply;
+  });
+}
+
 // Move one work item on the board (#68): the work items are read again (reread, report.js) after it and after its undo, so
 // the page shows what clark saved. `done` is the toast's words; an Undo goes with it only when the reply says the step can be put
 // back (a decision made is not). A refusal is a note: nothing was changed and there is nothing to undo.
@@ -88,15 +116,30 @@ export function changeItem(req, done) {
   });
 }
 
-// Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). If
-// some rows were left as they are, the toast says which, in the words clark gives (they name the section and why); otherwise it
-// says what went back (a work item's cell, #80) or that it is undone.
+// Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). A step
+// made together with an earlier one (changeThen) takes the earlier one back after it; if the first Undo fails nothing more is
+// undone, and if the second fails the toast says so and offers Undo for what is left. If some rows were left as they are, the toast
+// says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
+// or that it is undone.
 export function undo(applyId, code = project.value) {
   return enqueue(async () => {
-    const r = await sendUndo(code, applyId);
-    if (!r.ok) { say("problem", r.message); return null; }
+    const earlier = linked.get(applyId);
+    let r = await sendUndo(code, applyId);
+    if (!r.ok) { say("problem", earlier ? `${r.message} The section was not removed.` : r.message); return null; }
     redraw(code, r.reply);
     undone.value++;
+    if (earlier) {
+      linked.delete(applyId);
+      const e = await sendUndo(code, earlier);
+      if (!e.ok) {
+        await readAgain(code, "The change was undone");
+        say("problem", `The row was put back as it was, but the new section could not be removed. ${e.message}`, earlier, code);
+        return r.reply;
+      }
+      redraw(code, e.reply);
+      undone.value++;
+      r = e;
+    }
     const back = itemSteps.get(applyId);
     itemSteps.delete(applyId);
     // Read again after every undo: an item's cell, or a section's body, comes back from the database. Not read again because the

@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS item_events (
   item_id    TEXT NOT NULL,
   change     INTEGER,
   kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
-  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate')),   -- clark's routes (cut down; + client, team)
+  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate','word')),   -- clark's routes (cut down; + client, team)
   place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board')),
   origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),
   actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),          -- creaite's two values, renamed

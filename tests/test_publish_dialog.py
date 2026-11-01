@@ -264,6 +264,17 @@ class NoFolder(Base):
 class Settings(Base):
     saved = False
 
+    def test_C_publishing_card_has_local_and_client(self):
+        """A-S9: one Publishing card with a Local folder part (words only: no typed path) and the client folder part."""
+        with chrome() as cdp:
+            p = self.page(cdp, "#settings&p=PUB")
+            p.until("!!document.querySelector('#publishing')", "the card")
+            self.assertEqual(p.js("document.querySelector('#publishing h2').innerText"), "Publishing")
+            self.assertEqual(p.js("document.querySelector('#publishing #local-folder h3').innerText"), "Local folder")
+            self.assertEqual(p.js("document.querySelector('#publishing #client-folder h3').innerText"), "Client folder")
+            self.assertEqual(p.js("document.querySelectorAll('#publishing input').length"), 0, "no typed path or address")
+            self.assertEqual(p.js("document.querySelectorAll('#publishing [data-choose-folder]').length"), 1)
+
     def test_C_settings_folder_field(self):
         self.rig.pick = self.rig.client
         with chrome() as cdp:

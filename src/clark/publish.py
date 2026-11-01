@@ -38,8 +38,8 @@ import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import draft_email, milestones, page, platform
-from clark.store import Invalid as StoreInvalid, open_store
+from clark import draft_email, milestones, page, platform, section_bodies
+from clark.store import Invalid as StoreInvalid, check_section_body, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
@@ -54,7 +54,8 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions")   # not "docs" (v0.1)
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions",
+                 "needs", "tracker")   # not "docs" (v0.1); needs and tracker carry content: a section of those types stays in only when its body checks again (_content)
 
 # The columns the view shows, per table. Anything not named here is never copied into the file.
 PUBLISH_FIELDS = {
@@ -233,6 +234,19 @@ def _pick(row, fields):
     return {f: row.get(f) for f in fields}
 
 
+def _content(s):
+    """For a needs or tracker section: what its body adds to its entry in the file (a dict, {} when the base publishes nothing of
+    it), or None when the section is left out: its body is empty, or does not check. The stored text is checked AGAIN here
+    (store.check_section_body, the same checker a write meets), never trusted, so a body that is bad for any reason (written
+    by an older or another clark, or by hand) never reaches the file. What is published is fields picked by name from the
+    CHECKED value (section_bodies.published), never the stored text, and never passed through clean_html."""
+    try:
+        text = check_section_body(s["type"], s.get("body"))
+    except StoreInvalid:
+        return None
+    return section_bodies.published(s["type"], json.loads(text)) if text else None
+
+
 def select(inputs):
     """What goes in the file, from `inputs` (read_inputs' shape: data as Store.data_for gives it, and hidden, sections,
     label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at"}. Everything not allowed is absent,
@@ -293,19 +307,23 @@ def select(inputs):
 
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
+    extra = {s["id"]: _content(s) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs or tracker section's published fields; None: left out
+    out_of_file = lambda x: x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):
-            if all(not x.get("hidden") and x.get("type") in SECTION_TYPES for x in sections[i:i + 2]):
+            if all(not out_of_file(x) for x in sections[i:i + 2]):
                 pairs.add(sections[i]["id"])
             i += 1
         i += 1
     for s in sections:
-        if s.get("hidden") or s.get("type") not in SECTION_TYPES:
+        if out_of_file(s):
             continue
         c = {"id": s["id"], "type": s["type"], "title": s.get("title") or "", "beside": 1 if s["id"] in pairs else 0}
         if s["type"] == "text":
             c["body"] = clean_html(s.get("body"))
+        elif s["type"] in section_bodies.CHECKERS:
+            c.update({k: v for k, v in extra[s["id"]].items() if k not in c})     # never over id, type, title or beside
         shown.append(c)
     tabs = ["dashboard"]
     if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):

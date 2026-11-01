@@ -23,8 +23,9 @@ def touches(r, item_id):
 
 def history(con, item_id):
     """[event, ...] for `item_id`, newest first. Each event: event_id, at, step, by_user, table, field, before, after, op,
-    route, place, origin, actor, undoes (the event it reverses), undone_by (the event that reversed it) and in_force (False once
-    an undo still in force has reversed it, or its own step was undone)."""
+    route, place, origin, actor, src_ref (how it came in, such as "by Word import (plan.docx)", else None), undoes (the event it
+    reverses), undone_by (the event that reversed it) and in_force (False once an undo still in force has reversed it, or its own
+    step was undone)."""
     rows = con.execute(
         "SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
         "a.by_user, a.undone_at, e.event_id, e.at, e.route, e.place, e.origin, e.actor, e.src_ref, e.undoes "
@@ -119,6 +120,7 @@ FIELD_NAMES = {
     "updates": {"health": "Health", "summary": "Summary", "key_changes": "Key changes"},
 }
 REMOVED_NAME = "Removed"
+CONTENT_FIELD, CONTENT_CHANGED = "Content", "Changed"    # a section's body (a needs or tracker list, kept as JSON) is never shown, before or after: only that it changed
 THING = {"links": "Link", "item_labels": "Label", "labels": "Label", "report_sections": "Section", "glance_tiles": "Tile",
          "report_hidden": "Hidden item", "saved_views": "Saved view", "documents": "Document", "source_folders": "Folder",
          "projects": "Project", "milestones": "Milestone", "workstreams": "Workstream", "actions": "Action", "raid": "RAID item",
@@ -213,7 +215,8 @@ def _unpack(old, table=""):
         return old
     if not isinstance(data, dict):
         return old
-    return ", ".join(f"{field_name('', k)}: {'' if v is None else shown_value(table, k, v)}" for k, v in data.items() if k != "updated_at")
+    return ", ".join(f"{field_name('', k)}: {'' if v is None else shown_value(table, k, v)}" for k, v in data.items()
+                     if k != "updated_at" and not (table == "report_sections" and k == "body"))      # a removed section's content is not unpacked into the row
 
 
 class _Titles:
@@ -318,6 +321,8 @@ def _display(con, rows, keep):
             fold, kind = (r["apply_id"], r["tbl"], r["item_id"]), (undo_kind if undo else "Created")
             if hidden and not undo:
                 kind = "Changed"
+        elif r["tbl"] == "report_sections" and field_key == "body":      # content, never shown raw as 'Text': only that it changed
+            kind, before, after, field = (undo_kind if undo else "Changed"), "", CONTENT_CHANGED, CONTENT_FIELD
         elif undo:
             kind, before, after = undo_kind, shown_value(r["tbl"], field_key, before), shown_value(r["tbl"], field_key, after)
         else:
