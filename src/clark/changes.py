@@ -1681,7 +1681,6 @@ def undo_refusals(store, project, steps):
     questions _do_undo_many asks, in the same order (an undo, a step that is not ours, a step undone already), so the Activity tab can
     withhold the tick before it is chosen. A step that can be chosen is not in the answer. Read only."""
     out = {}
-    reverted = None
     for s in set(steps):
         rows = store.step_rows(s)
         if not rows:
@@ -1691,12 +1690,7 @@ def undo_refusals(store, project, steps):
         elif not _ours(store, s, rows, project):
             out[s] = NOT_FROM_HERE
         else:
-            if reverted is None:
-                reverted = clark_store.reverted_rowids(store.con)
-            gone = store.con.execute("SELECT undone_at FROM applies WHERE apply_id = ?", (s,)).fetchone()
-            real = [r[0] for r in store.con.execute(
-                "SELECT rowid FROM change_log WHERE apply_id = ? AND field NOT IN ('note', 'updated_at') AND via != ?", (s, clark_store.SEED_VIA))]
-            if gone and gone[0] or real and all(r in reverted for r in real):
+            if store.step_undone(s):
                 out[s] = UNDONE_ALREADY
     return out
 
