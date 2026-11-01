@@ -307,7 +307,7 @@ class Health(Base):
 
     def test_a_week_ending_that_is_not_a_real_date_is_refused_and_the_old_date_kept(self):
         old = self.project()["week_ending"]
-        for value in ("2026-13-45", "x", 5, None, "2026-02-30", "6-11-2026", ""):
+        for value in ("2026-13-45", "x", 5, None, "2026-02-30", "6-11-2026", "", "20261029", "2026-W44-3", "2026-10-29\n", " 2026-10-29", "\uff12\uff10\uff12\uff16-\uff11\uff10-\uff12\uff19"):
             with self.subTest(value=value):
                 self.refused(self.proj(week_ending=value), changes.BAD_WEEK)
                 self.assertEqual(self.project()["week_ending"], old)
