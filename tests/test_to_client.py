@@ -1348,7 +1348,7 @@ class PlainWords(unittest.TestCase):
 class Tripwire(unittest.TestCase):
     """Only this module writes into a client folder, and only through one place. Read from the syntax trees of src/clark."""
     WRITERS = {"RealFs", "copy_to_client", "send_to_client"}
-    ALLOWED_OUTSIDE = {"publish_flow.py"}      # modules that may use them: the publish route's logic (server.py only hands requests to it)
+    ALLOWED_OUTSIDE = {"publish_flow.py", "publish_pdf.py"}      # modules that may use them: the publish route's logic and the PDF option's copy (server.py only hands requests to it)
     DISK_CALLS = {"write_file", "replace_file", "remove", "unlink", "rename", "write_text", "write_bytes", "mkdir", "makedirs",
                   "rmdir", "copyfile", "copy2", "move", "symlink", "touch", "write_file_unless_exists", "move_unless_exists", "link"}
 
