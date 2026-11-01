@@ -319,6 +319,24 @@ class Page(Base):
             press(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('.bmenu')", "Esc closes the menu")
 
+    def test_with_a_selection_exactly_one_menu_opens_and_it_is_the_bulk_one(self):
+        """A right click and Shift+F10 on a selection open one menu, the bulk menu, never a second (a per-row menu stands down)."""
+        menus = "[...document.querySelectorAll('[role=menu], .bmenu, .cpop')].map(e => e.classList.contains('bmenu'))"
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = [r for r in cdp.js(self.ROWS, sid) if self.field(r, "status") != "Closed"]
+            self.pick(cdp, sid, rows[:2])
+            self.right_click(cdp, sid, self.rsel(rows[1]))
+            self.menu_items(cdp, sid)
+            self.assertEqual(cdp.js(menus, sid), [True], "one menu, and it is the bulk menu")
+            press(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('.bmenu')", "Esc closes the menu")
+            cdp.js(f"document.querySelector(\"tr[data-id='{rows[0]}']\").focus()", sid)
+            special(cdp, sid, "F10", "F10", 121, SHIFT)
+            self.menu_items(cdp, sid)
+            self.assertEqual(cdp.js(menus, sid), [True], "Shift+F10 opens the same one menu")
+            self.assertEqual(cdp.js("clarkPage.selected().length", sid), 2, "and the selection is kept")
+
     def test_shift_f10_and_the_menu_key_open_it_and_mixed_kinds_offer_only_copy_ids(self):
         with chrome() as cdp:
             sid = self.load(cdp, kind=None)
