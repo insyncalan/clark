@@ -3,9 +3,7 @@
 Run: python3 dev/run_tests.py test_ai_menu_page
 The page's copy only decides what to draw; src/clark/ai_menu.py (the server's menu()) is the authority. The parity test bundles
 aiMenu.js alone with the pinned esbuild, runs it in headless Chrome and compares menu(place) with ai_menu.menu(place) for all five
-places. While src/clark/ai_menu.py is not in this tree (the logic branch has not landed), the server's menu is read from
-tests/fixtures/ai_menu_logic_branch.py, a checked-in copy of that branch's file, so the comparison always runs and fails if the page
-table differs. When the logic branch lands, delete the fixture and the fallback below: the test then reads the real module.
+places. The server module is read as it is on this tree (never a copy), so if it breaks or its menu changes, this test fails.
 """
 import json
 import re
@@ -21,14 +19,7 @@ sys.path.insert(0, str(TOOLS))
 import esbuild  # noqa: E402
 from test_server import chrome  # noqa: E402
 
-try:
-    from clark import ai_menu
-except ImportError:           # the logic branch is not on main yet: use the checked-in copy of its file
-    import importlib.util
-    _spec = importlib.util.spec_from_file_location("ai_menu_logic_branch", Path(__file__).parent / "fixtures" / "ai_menu_logic_branch.py")
-    ai_menu = importlib.util.module_from_spec(_spec)
-    sys.modules["ai_menu_logic_branch"] = ai_menu
-    _spec.loader.exec_module(ai_menu)
+from clark import ai_menu  # noqa: E402     # the real server module, never a copy: if it breaks, this test must fail, not pass on a frozen file
 
 LOGIC = ROOT / "src" / "clark" / "page" / "src" / "logic"
 PLACES = ["current", "notes", "plain", "email", "client_message"]

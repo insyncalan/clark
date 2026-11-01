@@ -21,8 +21,12 @@ Routes:
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
+- GET  /assets/<name>    the brand's picture (#98): only cover.png, cover.jpg, cover.jpeg and cover.webp, from the local brand folder; no
+                         token (an <img> can't send one), but the Host, Origin and Sec-Fetch-Site are checked; 404 when there is none
 - GET  /api/profile      the name and email typed in Settings › Personal (#180), from the data folder's settings.json; without the seam, not found
 - POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
+- POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
+- POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
 
 Run: python3 -m clark.server   (CLARK_PORT sets the port; the default is 8766, beside creaite's 8765)
@@ -63,6 +67,8 @@ MESSAGES = {
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
+    "picture_not_found": "Your brand's picture could not be found. Put it in the assets folder next to your brand's tokens.css, "
+                         "named cover.jpg, cover.png or cover.webp, then reload the page.",
     "bad_project_code": "Use a project code of 3 to 7 capital letters or digits.",
     "project_not_found": "There is no project with that code. Check the code in the address, or choose a project from the list.",     # = changes.NO_PROJECT (a test keeps the two equal)
     "bad_archived": "That way of showing archived records isn't available. Reload the page and try again.",
@@ -74,8 +80,10 @@ MESSAGES = {
 # bad_request and any 500 or more server_error.
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
+WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
-                     "/api/profile": 2 * 1024}     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
 
@@ -192,15 +200,18 @@ def csp_hashes(html):
         at = stop
 
 
-def csp_policy(html):
+def csp_policy(html, host=None):
     """The enforced policy for one page: this page's script and style hashes, nothing from outside this machine.
-    style="" attributes stay allowed (style-src-attr 'unsafe-inline'), which Preact and Tiptap need."""
+    style="" attributes stay allowed (style-src-attr 'unsafe-inline'), which Preact and Tiptap need. Images come from data:,
+    blob: and, under the Host the page was asked for (host_allowed, so nothing else is let in), the brand's /assets/ route and the app's own
+    icons under /app/ (the manifest's, which the browser fetches as images) only."""
     h = csp_hashes(html if isinstance(html, str) else html.decode("utf-8", "surrogateescape"))
     scripts = " ".join(h["script"]) or "'none'"
+    images = ["data:", "blob:"] + ([f"http://{host}{BRAND_PREFIX}", f"http://{host}{APP_ICON_PREFIX}"] if host_allowed(host) else [])
     return "; ".join([
         "default-src 'self'", f"script-src {scripts}", "worker-src 'self'",
         "style-src 'self' 'unsafe-inline'", " ".join(["style-src-elem 'self'"] + h["style"]), "style-src-attr 'unsafe-inline'",
-        "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self'", "object-src 'none'",
+        " ".join(["img-src"] + images), "font-src 'self' data:", "connect-src 'self'", "object-src 'none'",
         "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'", f"report-uri {CSP_REPORT_ROUTE}"])
 
 
@@ -293,6 +304,33 @@ def csp_report_route(handler):
     handler.end_headers()
     return None
 # ===== end of the script policy =====
+
+
+# ===== The brand's pictures (#98) =====
+BRAND_PREFIX = "/assets/"
+APP_ICON_PREFIX = "/app/"                 # the app icons (appfiles.ICONS): an image source too, or the browser cannot show the manifest's icons
+BRAND_PICTURES = ("cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
+
+
+def brand_picture_route(handler, name):
+    """GET /assets/<name>, for a name in BRAND_PICTURES only (the dispatcher checks): the brand's picture. No token, since an
+    <img> or a CSS url() can't send one, so the same local checks as /csp-report (csp_local: Host, a local address, no other
+    site's Origin or Sec-Fetch-Site). The file comes from the `brand_picture` seam (page.brand_picture, given by the launcher), which never builds a path from a request."""
+    if not csp_local(handler):
+        return handler.send(403, error_body("not_allowed"))
+    if handler.requestline.split()[1:2] != [handler.path]:      # newer Pythons fold "//assets/x" into "/assets/x": not this route
+        return handler.send(404, error_body("not_found"))
+    got = handler.server.brand_picture(name)
+    if got is None:
+        return handler.send(404, error_body("picture_not_found"))
+    data, ctype = got
+    handler.send_response(200)
+    handler.send_header("Content-Type", ctype)
+    handler.send_header("Content-Length", str(len(data)))
+    handler.end_headers()
+    handler.wfile.write(data)
+    return None
+# ===== end of the brand's pictures =====
 
 
 # ===== The page and the data (the seams to #35 and #31) =====
@@ -561,6 +599,17 @@ def safety_route(method):
     return route
 
 
+def word_import_route(handler, req):
+    """POST /api/word-import (#48). Checked like change_route before this runs: the token, the Host, no other site's Origin, JSON
+    only, a Content-Length and the route's own size limit."""
+    return seam_route(handler, handler.server.word_import, req)
+
+
+def word_export_route(handler, req):
+    """POST /api/word-export (#48). Checked like change_route before this runs."""
+    return seam_route(handler, handler.server.word_export, req)
+
+
 def profile_route(method):
     """GET and POST /api/profile (#180): hand the request to the server's `profile` (profile_settings.Profile), which answers (status,
     body). Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the 2 KiB limit)."""
@@ -579,7 +628,8 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
-               "/api/profile": profile_route("save")}     # later items: /api/import
+               "/api/profile": profile_route("save"),
+               "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -637,7 +687,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", f"{ctype}; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         if ctype == "text/html":
-            extra = {"Content-Security-Policy": csp_policy(data), **(extra or {})}
+            extra = {"Content-Security-Policy": csp_policy(data, self.headers.get("Host")), **(extra or {})}
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -701,7 +751,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send(403, error_body("not_allowed"))
 
     def do_GET(self):
-        """GET /health, the page, and the API's GET routes (token first, also before a 404 under /api/)."""
+        """GET /health, the page, the brand's pictures, and the API's GET routes (token first, also before a 404 under /api/)."""
         if not self.headers_ok():
             return None
         if not self.host_ok():
@@ -717,6 +767,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.run_route(open_route, route)
         if route == PREVIEW_ROUTE:
             return self.run_route(preview_page_route)
+        if route.startswith(BRAND_PREFIX) and route[len(BRAND_PREFIX):] in BRAND_PICTURES:
+            return self.run_route(brand_picture_route, route[len(BRAND_PREFIX):])
         api = GET_ROUTES.get(route)
         if api or route.startswith("/api/"):
             if not self.authorised():
@@ -756,20 +808,22 @@ class LocalServer(ThreadingHTTPServer):
     server_bind calls socket.getfqdn(host), which can stall for 30 s on some Macs.) `data_for(code)` is the store's read
     of one project (None when there is none); `projects()` lists them as rows with a code and a name; `page_html()` gives
     the page's HTML (#35 supplies the bundle); `change(req)` and `undo(req)` (#65) answer POST /api/change and /api/undo
-    with (status, body), each on a store of its own (None: those routes answer 503); `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163)."""
+    with (status, body), each on a store of its own (None: those routes answer 503); `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163); `word_import(req)` and `word_export(req)` (#48) answer POST /api/word-import and /api/word-export the same way as `change` and `undo`."""
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, profile=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
         self.change, self.undo = change, undo
+        self.word_import, self.word_export = word_import, word_export
         self.page_html = page_html or placeholder_html
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
         self.movement = movement              # store.milestone_moves (#136): the owner-only Movement read; None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
+        self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
         super().__init__(server_address, handler)
@@ -803,13 +857,14 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, profile=None):
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
-                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, profile=profile)
+                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile,
+                            word_import=word_import, word_export=word_export)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

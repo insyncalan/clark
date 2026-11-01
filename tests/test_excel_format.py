@@ -7,6 +7,7 @@ itself; no cell holds a formula and the values, drop-downs and the import are no
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -18,6 +19,8 @@ from clark import excel
 from clark import excel_colours as colours
 from clark import look
 from test_excel import Demo, ON
+
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
 
 TODAY = date(2030, 6, 1)
 
@@ -118,6 +121,22 @@ class Formatting(unittest.TestCase):
             self.assertEqual(ws.freeze_panes, "C2", name)
             self.assertEqual([ws["A1"].value, ws["B1"].value], ["ID", title], name)
 
+    def test_every_data_sheet_is_in_the_looks_office_font_header_body_and_the_empty_rows(self):
+        """One font in the whole workbook: the Cover and History already were; the data sheets named none, so they showed Calibri."""
+        wb = load_workbook(self.build(self.everything()))
+        want = look.office_font()
+        for name, table, cols, _ in excel.SHEETS:
+            ws = wb[name]
+            self.assertGreater(ws.max_row, 1, name)
+            for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+                for c in row:
+                    if c.value is not None or c.row == 1:
+                        self.assertEqual(c.font.name, want, (name, c.coordinate))
+            for i in range(1, len(cols) + 1):
+                letter = ws.cell(row=1, column=i).column_letter
+                self.assertEqual(ws.column_dimensions[letter].font.name, want, (name, letter, "the rows below the data"))
+        self.assertEqual({c.font.name for c in wb["Lists"][1] if c.value}, {want}, "the hidden Lists sheet too")
+
     def test_the_filter_covers_the_header_and_the_data(self):
         rows = {"actions": [action(1), action(2), action(3)], "raid": []}
         wb = load_workbook(self.build(rows))
@@ -134,6 +153,15 @@ class Formatting(unittest.TestCase):
                 self.assertEqual(c.font.color.rgb[-6:], look.colour("white"))
                 self.assertEqual(c.fill.fgColor.rgb[-6:], look.colour("brand-navy"))
                 self.assertTrue(c.alignment.wrap_text)
+
+    def test_the_looks_office_font_on_the_header_and_the_data_cells_of_each_data_sheet(self):
+        wb = load_workbook(self.build(self.everything()))
+        font = look.office_font()
+        for name in ("Milestones", "Actions", "Risks and issues", "Decisions", "Use cases"):
+            ws = wb[name]
+            self.assertEqual(ws["A1"].font.name, font, (name, "header"))
+            self.assertEqual(ws["B2"].font.name, font, (name, "data"))
+            self.assertEqual(ws["B2"].font.sz, 11, (name, "data size"))
 
     # ── widths and wrapping ──────────────────────────────────────────────────
 
@@ -361,8 +389,9 @@ class Formatting(unittest.TestCase):
         rows = self.everything()
         rows["actions"] = [action(i, priority=p, due_date="2030-01-01", status="Open")
                            for i, p in enumerate(("Urgent", "High", "Medium", "Low"), start=1)]
-        a, b = self.build(rows), self.build(rows)
-        self.assertEqual(a.read_bytes(), b.read_bytes())
+        with mock.patch.object(excel, "new_export_id", lambda: FIXED_ID):       # the id is random: held still, as the clock is
+            a, b = self.build(rows), self.build(rows)
+            self.assertEqual(a.read_bytes(), b.read_bytes())
 
     def test_values_and_drop_downs_are_the_same_as_without_colour(self):
         """Colour is the only difference: the same export with the colour table emptied has the same values and drop-downs."""
