@@ -129,12 +129,12 @@ const tenths = (v) => (Number.isInteger(v) && v >= 0 && v <= WHOLE ? v : 0);
 const count = (v) => (Number.isInteger(v) && v >= 0 && v <= COUNT_MAX ? v : null);
 const str = (v) => (typeof v === "string" ? v : "");
 
-// The tracker a section holds, as one shape. `fromFile`: the file's own copy (a published section's `tracker`, already the shown
-// groups and lines only, dates as DD-MM-YYYY). Otherwise the stored body, which is text; text that can't be read is an empty
+// The tracker a section holds, as one shape. `fromFile`: the file's own copy (the published section's entry itself, which carries
+// the shown groups and lines only, dates as DD-MM-YYYY). Otherwise the stored body, which is text; text that can't be read is an empty
 // tracker. Never throws, and never trusts a field it does not name.
 export function trackerOf(section, fromFile) {
   let v = {};
-  if (fromFile) v = section && section.tracker && typeof section.tracker === "object" ? section.tracker : {};
+  if (fromFile) v = section && typeof section === "object" ? section : {};     // the published entry carries overall, columns and groups beside its id and title
   else {
     try { v = JSON.parse(section && typeof section.body === "string" && section.body ? section.body : "{}"); } catch (e) { v = {}; }
   }

@@ -176,7 +176,7 @@ class Totals(unittest.TestCase):
 
     def test_a_published_copy_is_read_with_its_dates_written_day_first(self):
         shown = {"groups": [{"name": "A", "lines": [line("x", 100, 100, 100, start="05-01-2026", end="27-03-2026")]}]}
-        r = self.k(f"trackerOf({{tracker: {lit(shown)}}}, true)")["groups"][0]["lines"][0]
+        r = self.k(f"trackerOf({lit({"id": "S-1", "title": "Progress", **shown})}, true)")["groups"][0]["lines"][0]
         self.assertEqual((r["start"], r["end"]), ("2026-01-05", "2026-03-27"))
 
     # ── checking a line ──────────────────────────────────────────────────────

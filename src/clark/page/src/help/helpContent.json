@@ -421,7 +421,7 @@
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
      "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
-     "Only **Text** and **Needs from you** can be added so far. The other templates are listed with “Coming with a later release.” and cannot be added yet.",
+     "The new section opens ready to fill in, in place. A template with nothing in it yet is left out of what the client sees.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
     ]
    },
@@ -785,7 +785,7 @@
      ],
      [
       "p",
-      "**Text** and **Needs from you** are the only ones that can be added so far; the others say “Coming with a later release.” Each template works at the widths shown."
+      "Each template works at the widths shown. A template with nothing in it yet is left out of what the client sees."
      ],
      [
       "tbl",
@@ -849,6 +849,16 @@
         "Needs from you",
         "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.",
         "Full or half"
+       ],
+       [
+        "Link preview",
+        "A web page shown as a card you write: a dashboard, a news item, a recording.",
+        "Full"
+       ],
+       [
+        "One document",
+        "A single file to read.",
+        "Half or full"
        ]
       ]
      ]
