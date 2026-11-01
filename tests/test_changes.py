@@ -534,6 +534,41 @@ class Steps(Api):
         self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
         self.assertEqual(self.beside_now(), before)
 
+    # ----- #439 (prototype views.js:251): a lone section's stray beside flag is tidied after any add or move -----
+    def test_any_add_clears_a_stray_flag_on_the_last_section_in_the_same_step(self):
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})                   # a 1 on the last section: the page ignores it
+        before = self.beside_now()
+        body = self.ok("new", values={"title": "Middle"}, after="ABC-S-002")      # an add in the middle, not after the last section
+        self.assertEqual(self.beside_now()[last], 0)
+        self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
+        self.assertEqual(self.beside_now(), before, "one Undo puts the section away and the flag back")
+
+    def test_any_move_clears_a_stray_flag_on_a_second_half_and_keeps_the_real_pair(self):
+        for ref, value in (("ABC-S-003", 1), ("ABC-S-004", 1)):             # S3 and S4 are a pair; S4's own 1 is ignored by the page
+            self.ok("update", id=ref, changes={"beside": value})
+        before = self.beside_now()
+        body = self.ok("move", id="ABC-S-009", before="ABC-S-002", place="report")
+        now = self.beside_now()
+        self.assertEqual((now["ABC-S-003"], now["ABC-S-004"]), (1, 0), "the pair stays, the ignored flag goes")
+        self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
+        self.assertEqual(self.beside_now(), before)
+
+    def test_an_add_or_move_leaves_a_report_with_no_stray_flag_as_it_was(self):
+        self.ok("update", id="ABC-S-003", changes={"beside": 1})            # a real pair, no stray
+        before = self.beside_now()
+        body = self.ok("new", values={"title": "Plain"}, after="ABC-S-007")
+        others = {r["field"] for r in self.s.con.execute("SELECT field FROM change_log WHERE apply_id = ? AND item_id != ?", (body["apply_id"], body["ref"])).fetchall()}
+        self.assertNotIn("beside", others, "no other section's flag was written")
+        self.assertEqual({k: v for k, v in self.beside_now().items() if k in before}, before)
+
+    def test_the_stray_flags_are_the_ones_the_page_ignores(self):
+        row = lambda i, b: {"id": i, "beside": b}
+        self.assertEqual(changes._stray_flags([row("a", 1), row("b", 1), row("c", 1), row("d", 1), row("e", 1)]), ["b", "d", "e"])
+        self.assertEqual(changes._stray_flags([row("a", 0), row("b", 1), row("c", 0)]), [], "b starts a pair with c: not stray")
+        self.assertEqual(changes._stray_flags([row("a", 1), row("b", 0), row("c", 1)]), ["c"])
+        self.assertEqual(changes._stray_flags([row("a", 0), row("b", 0)]), [])
+
     def test_a_delete_the_store_refuses_leaves_every_flag_as_it_was(self):
         self.ok("update", id="ABC-S-001", changes={"beside": 1})           # S-002 is the second half of S-001; it is not a text section
         before, snap = self.beside_now(), self.snapshot()
