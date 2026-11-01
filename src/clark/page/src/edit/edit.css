@@ -469,3 +469,20 @@ textarea.tpl-field { resize: vertical; }
 .ucm .field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucm .ad-foot { justify-content: flex-end; }
 @media (max-width: 900px) { .ucm-form { grid-template-columns: minmax(0, 1fr); } }
+
+/* The Dashboard's use case row in Edit, part two: the eye on the row, "Where it stands" changed in place, the box that adds a next step
+   and the link to the box that links work items. Tokens only; no text under 13 px. */
+.ucrow-ed > .ucbar { grid-template-columns: 32px minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 104px 112px; }
+.uceye { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
+.uceye:hover { background: var(--grey-200); color: var(--text); }
+.uceye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.uceye .i, .uceye svg { width: 18px; height: 18px; }
+.ucdetail .rt-view { margin: 0 0 6px; }
+.ucx-step { margin: 6px 0 2px; }
+.ucx-step .field { box-sizing: border-box; width: 100%; max-width: 560px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ucx-step .field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ucdetail .add-from { display: inline-flex; align-items: center; min-height: 24px; margin: 4px 0 0; }
+.uclink .pk-search .seg { flex: 0 1 auto; }
+.uclink .pick li .type { margin-right: 4px; }
+.uclink .pick li .pill { margin-left: 4px; }
+@media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; } }

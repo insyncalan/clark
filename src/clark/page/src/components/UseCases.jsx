@@ -4,7 +4,7 @@
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
 import { useEffect, useState } from "preact/hooks";
-import { data, rows, openWork, fromFile, show, project } from "../stores/report.js";
+import { data, rows, openWork, fromFile, show, project, mode } from "../stores/report.js";
 import { format } from "../router.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
 import { isOpen } from "../workItems.js";
@@ -45,9 +45,10 @@ function Row({ s, shown, toggle, ed }) {
   // "See all N" counts the open items and the link opens the open ones: one list, `s.open`, for both.
   const n = s.open.length, go = () => openWork(setFilter(initial(), "use_case", [label], false));
   return (
-    <li class={`ucrow${shown ? " open" : ""}`} data-uc={u.id}>
+    <li class={`ucrow${shown ? " open" : ""}${ed ? " ucrow-ed" : ""}`} data-uc={u.id}>
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
         onClick={(e) => { if (ed && mine(e)) return; toggle(); }} onKeyDown={(e) => { if (ed && e.target !== e.currentTarget) return; press(e, toggle); }}>
+        {ed ? <ed.Eye u={u} /> : null}
         {u.ref ? <span class="ucref num" data-ref>{refText(u.ref)}</span> : <span></span>}
         <span class="uctitle">{u.title}</span>
         {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
@@ -58,9 +59,10 @@ function Row({ s, shown, toggle, ed }) {
         <div class="ucdetail" id={id}>
           {ed ? <ed.Name u={u} /> : null}
           <h3>Where it stands</h3>
-          {fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Nothing written yet."}</p>}
+          {ed ? <ed.Standing u={u} /> : fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Nothing written yet."}</p>}
           <h3>Next steps</h3>
           {s.steps.length ? <ul class="plain">{s.steps.map((r) => <li key={r.id}><b>{(r.owner || "No owner").trim() || "No owner"}:</b> {r.title}</li>)}</ul> : <p class="muted">No open next steps.</p>}
+          {ed ? <><ed.NextStep u={u} /><ed.LinkButton u={u} /></> : null}
           {n && label ? <span class="link" role="button" tabIndex={0} data-seeall onClick={go} onKeyDown={(e) => press(e, go)}>{`See all ${n} open work ${n === 1 ? "item" : "items"}`}</span> : n ? <p class="muted">{`${n} open work ${n === 1 ? "item" : "items"}.`}</p> : <p class="muted">No open work items.</p>}
         </div>
       ) : null}
@@ -78,7 +80,7 @@ function More({ n }) {
 
 export function UseCases({ onExport, tools }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
-  const ed = tools && tools.ucEdit && !fromFile.value ? tools.ucEdit : null;       // Edit's parts (#455); View and a published file have none
+  const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
   const fresh = ed ? ed.added.value : "";                                           // a use case just added opens its row
   useEffect(() => {
