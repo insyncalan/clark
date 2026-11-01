@@ -84,7 +84,7 @@ export async function go() {
     return;
   }
   const said = words(r, "publish");
-  if (r.status === 200 && b && b.ok === true) { set({ phase: "done", clash: null, message: { kind: "success", text: said } }); refreshLatest(); return; }
+  if (r.status === 200 && b && b.ok === true) { set({ phase: "done", clash: null, message: { kind: b.pdf_saved === false ? "info" : "success", text: said } }); refreshLatest(); return; }
   const cancelled = r.status === 200 && b && (b.code === "cancelled" || b.code === "cancel");
   set({ phase: "error", clash: null, message: { kind: cancelled ? "info" : "error", text: said } });
   if (b && b.local_saved === true) refreshLatest();       // Local was saved and logged although the copy was not

@@ -47,7 +47,9 @@ MESSAGES = {
     "pdf_saved_client": "PDF copied to the client folder as “{name}”.",
     "pdf_not_saved": "The PDF was not saved: {why} The report itself is published.",
     "pdf_not_made_here": "No PDF was saved, because the publish did not finish.",
+    "pdf_client_same": "The PDF was not copied to the client folder, because the client folder already holds this report.",
     "why_failed": "the client folder could not be written to. Check you can edit it.",
+    "why_local_taken": "a file with that name appeared in the folder while the PDF was being made, so nothing was saved. Choose another name and publish again.",
     "why_local_failed": "the folder you chose could not be written to. Choose a folder you can save in and publish again.",
     "why_restored": "the copy in the client folder did not match, so the earlier PDF was put back.",
     "why_left": "the copy in the client folder did not match and could not be removed. Delete “{name}” from there.",
@@ -229,6 +231,11 @@ class Step:
         self.saved = None            # the client folder as saved in Settings, set by prepare
         self.body = None             # the published file's bytes, which the PDF's words are checked against, set by prepare
         self.note = None
+        self.local_replaces = False  # the Local name was taken and the Save window's own question was answered: only then may it be replaced
+        self.client_skipped = False  # To client was ticked, but the client folder already holds this report, so no PDF copy is planned
+        self.plan_key = None         # (folder, name, replaces, confirmed) the client PDF was last planned for
+        self.kept_local = False      # the Local PDF was saved and read back, set by write
+        self.kept_all = False        # every PDF copy that was asked for was saved, set by write
 
     @property
     def on(self):
@@ -236,6 +243,10 @@ class Step:
 
     def plan_client(self, pub, plan, html_confirmed):
         """With To client ticked: the PDF's name in the client folder, before the Save window. None, or an (status, body) to send."""
+        key = (str(plan["folder"]), plan["name"], bool(plan["replaces"]), bool(html_confirmed))
+        if self.client is not None and key == self.plan_key:         # the same plan again, after the Save window: the folder's own identity is
+            self.identity = plan.get("identity")                    # renewed, and a name that has appeared since is refused at the write
+            return None
         kind, *got = client_name(pub.fs, plan["folder"], plan["name"], bool(plan["replaces"] and html_confirmed), self.req)
         if kind == "ask":
             return 200, ask_reply(got[0])
@@ -243,13 +254,31 @@ class Step:
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_failed"].format(reason=got[0].replace(" Nothing was published.", "").rstrip()))
         self.client = (Path(plan["folder"]), got[0], got[1])
         self.identity = plan.get("identity")
+        self.plan_key = key
         return None
+
+    def with_note(self, pub, early, saved):
+        """The question about a taken report name in the client folder (`early`, a (status, body) or None), with the PDF's own
+        warning added when the PDF ticked would replace one of its name as well. Anything else is returned as it came."""
+        if early is None or not self.on or not saved:
+            return early
+        status, out = early
+        if not (isinstance(out, dict) and out.get("code") == "ask" and out.get("can_overwrite") and out.get("name") and not out.get("pdf")):
+            return early
+        try:
+            hit = to_client._find([dict(e) for e in pub.fs.listdir(saved)], pdf_name(out["name"]))
+        except OSError:
+            return early
+        if hit is not None and hit["kind"] == "file":
+            out = dict(out, note=((out.get("note") or "") + " " + MESSAGES["pdf_overwrite_note"]).strip())
+        return status, out
 
     def prepare(self, pub, dest, built, as_at, store, code, markers, saved):
         """Make the PDF and check it, and choose where the Local one goes, with nothing written. None, or (status, body).
         `markers` is what To client already worked out, or None (then it is worked out here from the store)."""
         body_bytes = built["body"]
-        if markers is None:
+        self.client_skipped = markers is not None and self.client is None          # To client was ticked, and no copy of the report is planned
+        if markers is None:            # Local only: the marker check still runs on the PDF (a hit stops the whole publish)
             from clark import page, publish_flow            # publish_flow imports this module, so it is imported here
             markers = publish_flow.markers_for(store, code, built["published"], page.page_html(pub.branding, view=True))
         if not pdf.find_chrome():
@@ -285,6 +314,7 @@ class Step:
                 return 409, pub.fail("pdf_failed", MESSAGES["pdf_too_big"])
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_held_back"].format(what=to_client.held_words(bad)))
         self.data, self.local, self.markers, self.saved, self.body = data, local, markers, saved, body_bytes
+        self.local_replaces = local.exists() or local.is_symlink()          # if so, the Save window already asked about replacing it
         return None
 
     def write(self, pub):
@@ -292,21 +322,29 @@ class Step:
         digest = hashlib.sha256(self.data).hexdigest()
         said, kept = [], 0
         tmp = None
+        why_local = MESSAGES["why_local_failed"]
         try:
             tmp = platform._write_temp(self.local, self.data)          # read back from the temporary copy, before it replaces anything
             if hashlib.sha256(Path(tmp).read_bytes()).hexdigest() != digest:
                 raise OSError("differs")
-            platform.replace_file(tmp, self.local)
+            if self.local_replaces:
+                platform.replace_file(tmp, self.local)
+            elif not platform.move_unless_exists(tmp, self.local):          # a name that appeared since the check is never written over
+                why_local = MESSAGES["why_local_taken"]
+                raise OSError("taken")
             said.append(MESSAGES["pdf_saved_local"].format(name=self.local.name))
             kept += 1
+            self.kept_local = True
         except (OSError, platform.PlatformError):
-            said.append(MESSAGES["pdf_not_saved"].format(why=MESSAGES["why_local_failed"]))
+            said.append(MESSAGES["pdf_not_saved"].format(why=why_local))
         finally:
             if tmp is not None and Path(tmp).exists():
                 try:
                     Path(tmp).unlink()
                 except OSError:
                     pass
+        if self.client is None and self.client_skipped:
+            said.append(MESSAGES["pdf_client_same"])
         if self.client is not None:
             folder, name, replaces = self.client
             try:             # the one writer into a client folder: the folder is checked again, the copy read back and checked, a bad one taken back
@@ -329,6 +367,7 @@ class Step:
                 else:
                     why = MESSAGES["why_failed"]
                 said.append(MESSAGES["pdf_not_saved"].format(why=why))
+        self.kept_all = self.kept_local and (kept == 2 if self.client is not None else not self.client_skipped)
         LOG.info("pdf saved: %d of %d copies, %d bytes", kept, 2 if self.client is not None else 1, len(self.data))
         return said
 
@@ -353,4 +392,6 @@ def finish(step, out, status):
         return
     said = step.write(step.pub)
     out["message"] = (out.get("message") or "") + " " + " ".join(said)
-    out["pdf_name"] = step.local.name
+    out["pdf_saved"] = step.kept_all
+    if step.kept_local:
+        out["pdf_name"] = step.local.name

@@ -933,7 +933,7 @@ class TheThirdReview(unittest.TestCase):
             local = Path(d) / "kept.pdf"
             local.write_bytes(b"%PDF-earlier")
             step = publish_pdf.Step(publish_pdf.split({"pdf": True})[0], None)
-            step.data, step.local = b"%PDF-1.4 new", local
+            step.data, step.local, step.local_replaces = b"%PDF-1.4 new", local, True          # the Save window asked, and was answered yes
             real = platform._write_temp
 
             def wrong(dest, data):                  # the temporary copy comes out different from what was handed over
@@ -946,6 +946,134 @@ class TheThirdReview(unittest.TestCase):
             said = step.write(None)
             self.assertEqual(local.read_bytes(), b"%PDF-1.4 new")
             self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ["kept.pdf"])
+
+
+class TheReviewFindings(unittest.TestCase):
+    """The PDF at the route: a same-name PDF, a failed save, the same report already there, a name that appears, Local only."""
+    GOOD = b"%PDF-1.4\n1 0 obj<</Title (Weekly report)>>endobj\n"
+    OLDER = b"<!doctype html>a different earlier file"
+
+    def setUp(self):
+        self.rig = Rig(self)
+        self.rig.publish(to_client=True)          # Local "chosen.html" and the client's copy of the report
+        self.rig.saves.clear()
+        self.report = self.rig.client / WANTED
+        self.client_pdf = self.rig.client / PDF_WANTED
+        self.rig.save_to = self.rig.local / "second.html"
+        self.before = self.rig.everything_written()
+
+    def go(self, text="Programme", before=None, **body):
+        """Publish with Chrome faked: `before` runs as the PDF is made (after every check of the names)."""
+        def make_it(*a, **k):
+            if before is not None:
+                before()
+            return self.GOOD
+        with mock.patch.object(pdf, "find_chrome", return_value="/c"), mock.patch.object(publish_pdf, "make", make_it), \
+                mock.patch.object(pdftext, "text_of", return_value=text):
+            return self.rig.publish(**body)
+
+    def test_replacing_the_report_says_a_pdf_of_that_name_goes_too_and_it_does(self):
+        self.report.write_bytes(self.OLDER)
+        self.client_pdf.write_bytes(b"%PDF-earlier")
+        before = self.rig.everything_written()
+        status, got = self.go(to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"], got["code"], got["can_overwrite"]), (200, False, "ask", True))
+        self.assertIn(publish_pdf.MESSAGES["pdf_overwrite_note"], got["note"])
+        self.assertIn("The PDF in the client folder will be replaced. The old PDF will be gone.", got["note"])
+        self.assertEqual((self.client_pdf.read_bytes(), self.rig.everything_written()), (b"%PDF-earlier", before), "the question writes nothing")
+        status, got = self.go(to_client=True, pdf=True, on_clash="overwrite", confirmed=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, True), got)
+        self.assertEqual(self.client_pdf.read_bytes(), self.GOOD)
+
+    def test_the_pdf_warning_is_only_shown_when_there_is_a_pdf_to_replace(self):
+        self.report.write_bytes(self.OLDER)
+        for label, ticked, there in (("no tick", False, True), ("no such PDF", True, False)):
+            if there:
+                self.client_pdf.write_bytes(b"%PDF-earlier")
+            elif self.client_pdf.exists():
+                self.client_pdf.unlink()
+            status, got = self.go(to_client=True, pdf=True) if ticked else self.rig.publish(to_client=True)
+            self.assertEqual(got["code"], "ask", label)
+            self.assertNotIn("PDF", got["note"], label)
+
+    def test_a_pdf_that_was_not_saved_is_said_in_the_reply_and_has_no_name(self):
+        real = platform._write_temp
+
+        def failing(dest, data):
+            if str(dest).endswith(".pdf"):
+                raise OSError("disk")
+            return real(dest, data)
+        with mock.patch.object(platform, "_write_temp", failing):
+            status, got = self.go(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, False), got)
+        self.assertNotIn("pdf_name", got)
+        self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_local_failed"]), got["message"])
+        self.assertEqual(sorted(p.name for p in self.rig.local.iterdir()), ["chosen.html", "second.html"])
+
+    def test_a_saved_pdf_says_so_and_is_named(self):
+        status, got = self.go(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"], got["pdf_name"]), (200, True, True, "second.pdf"), got)
+        status, got = self.rig.publish(to_client=False)
+        self.assertNotIn("pdf_saved", got, "no PDF asked for: no field")
+
+    def test_a_pdf_that_reached_only_one_place_is_not_saved_in_full(self):
+        write = to_client.RealFs.write_file
+
+        def failing(fs, dest, data, replaces=False):
+            if str(dest).endswith(".pdf"):
+                raise OSError("disk")
+            return write(fs, dest, data, replaces=replaces)
+        self.report.unlink()
+        with mock.patch.object(to_client.RealFs, "write_file", failing):
+            status, got = self.go(to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"], got["pdf_name"]), (200, True, False, "second.pdf"), got)
+        self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_failed"]), got["message"])
+
+    def test_the_same_report_already_in_the_client_folder_says_no_pdf_was_copied(self):
+        status, got = self.go(to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"], got["action"], got["pdf_saved"]), (200, True, "nothing_to_do", False), got)
+        self.assertIn(publish_pdf.MESSAGES["pdf_client_same"], got["message"])
+        self.assertEqual(self.rig.listing(self.rig.client), [WANTED], "nothing went to the client folder")
+        self.assertEqual(got["pdf_name"], "second.pdf", "the Local PDF is saved")
+        self.assertIn("PDF saved as", got["message"])
+
+    def test_a_local_name_that_appears_after_the_check_is_never_written_over(self):
+        mine = self.rig.local / "second.pdf"
+        status, got = self.go(to_client=False, pdf=True, before=lambda: mine.write_bytes(b"someone else's"))
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, False), got)
+        self.assertEqual(mine.read_bytes(), b"someone else's")
+        self.assertIn(publish_pdf.MESSAGES["why_local_taken"], got["message"])
+        self.assertNotIn("pdf_name", got)
+        self.assertEqual(sorted(p.name for p in self.rig.local.iterdir()), ["chosen.html", "second.html", "second.pdf"], "no temporary file is left")
+
+    def test_a_local_name_that_was_taken_and_confirmed_in_the_save_window_is_replaced(self):
+        mine = self.rig.local / "second.pdf"
+        mine.write_bytes(b"%PDF-earlier")
+        status, got = self.go(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, True), got)
+        self.assertEqual(mine.read_bytes(), self.GOOD)
+
+    def test_a_client_name_that_appears_after_the_check_is_never_written_over(self):
+        self.report.unlink()
+        status, got = self.go(to_client=True, pdf=True, before=lambda: self.client_pdf.write_bytes(b"someone else's"))
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, False), got)
+        self.assertEqual(self.client_pdf.read_bytes(), b"someone else's")
+        self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_taken"]), got["message"])
+        self.assertEqual(self.rig.listing(self.rig.client), sorted([WANTED, PDF_WANTED]))
+
+    def test_local_only_with_the_pdf_ticked_still_checks_it_for_dropped_markers(self):
+        status, got = self.go(text="seen ZQ-HIDDEN-ACTION here", to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["code"]), (409, False, "pdf_failed"), got)
+        self.assertIn("The PDF was not made, because it would contain", got["message"])
+        self.assertEqual((self.rig.everything_written(), len(self.rig.rows())), (self.before, 1), "the report is not published either")
+
+    def test_the_pdfs_name_in_the_client_folder_is_planned_once_when_nothing_changes(self):
+        self.report.unlink()
+        with mock.patch.object(publish_pdf, "client_name", wraps=publish_pdf.client_name) as called:
+            status, got = self.go(to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, True), got)
+        self.assertEqual(called.call_count, 1)
+        self.assertEqual(len(self.rig.saves), 1)
 
 
 if __name__ == "__main__":

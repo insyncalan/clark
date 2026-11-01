@@ -219,6 +219,7 @@ class Publisher:
             early, plan, same, markers = self.client_plan(store, code, built, saved, last, today, week, body)
             if early is None and self.pdf_step.on and plan is not None:
                 early = self.pdf_step.plan_client(self, plan, confirmed)         # a taken PDF name is asked about now too
+            early = self.pdf_step.with_note(self, early, saved)
             if early is not None:
                 return early
         # Nothing has been written. The system's own Save dialog chooses the Local file; Cancel cancels everything.
@@ -246,6 +247,7 @@ class Publisher:
                 body_bytes, digest = built["body"], built["sha256"]
                 week = built["project"]["week_ending"]
             early, plan, same, markers = self.client_plan(store, code, built, saved, last, today, week, body)
+            early = self.pdf_step.with_note(self, early, saved)
             if early is not None:
                 return early
         if want_client and self.pdf_step.on and plan is not None:
