@@ -403,9 +403,13 @@ class Browser(unittest.TestCase):
                 cdp.call("Input.insertText", {"text": target}, sid)
                 row = f"#palette .pal-row[id='pal-item-{target}']"
                 self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(row)})", sid)), "the work item is a result")
-                click(cdp, sid, row)
+                # Mouse down and click in one turn, so the peek has focus before the panel's delayed return of focus runs.
+                cdp.js(f"(() => {{ const r = document.querySelector({json.dumps(row)});"
+                       " r.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));"
+                       " r.dispatchEvent(new MouseEvent('click', {bubbles: true})); })()", sid)
                 self.assertTrue(wait(lambda: not asking()), "the click closed the ask panel")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-close]')", sid)), "the peek opened")
+                cdp.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))", sid)
                 time.sleep(0.3)
                 self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid), "focus stayed in the peek")
                 cdp.js("document.activeElement.blur()", sid)
