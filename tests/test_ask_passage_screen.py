@@ -84,8 +84,11 @@ class PassageScreen(unittest.TestCase):
 
     def test_the_count_is_in_plain_words(self):
         self.assertEqual(ask.secret_note(0), "")
-        self.assertEqual(ask.secret_note(1), "1 passage was left out because it looked like a key or a password.")
-        self.assertEqual(ask.secret_note(3), "3 passages were left out because they looked like a key or a password.")
+        said = ("Part of your report was left out because it looks like a password or a key, so the answer may be missing something. "
+                "Take the password out of the item if you want it included.")
+        for n in (1, 3):
+            self.assertEqual(ask.secret_note(n), said)
+        self.assertNotIn("passage", said)
 
     def test_nothing_is_logged_with_the_text(self):
         sink, root = Sink(), logging.getLogger()
@@ -117,6 +120,35 @@ class ThroughTheRoute(route_base.Base):
         self.assertIn(ask.secret_note(1), got["notes"])
         self.assertNotIn(FAKE_KEY, repr(got))
         self.assertEqual([s["label"] for s in got["sources"]], [real.passages[0].label])
+
+    def test_a_real_stored_row_with_a_key_is_not_sent_nor_echoed_nor_logged(self):
+        """The row goes in through the store, is published by the real report rules and read by the real route: no patched data."""
+        from clark import store as st
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as s:
+                s.create("actions", {"project": route_base.CODE, "description": "Feed login " + FAKE_KEY + " ZQ-KEYROW",
+                                     "raised": "2026-10-01", "client_visible": 1, "source": "demo"})
+        finally:
+            store.close()
+        sink, root = Sink(), logging.getLogger()
+        level = root.level
+        root.addHandler(sink)
+        root.setLevel(logging.DEBUG)
+        try:
+            status, got = self.question("What are the actions?")
+        finally:
+            root.removeHandler(sink)
+            root.setLevel(level)
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        (text,) = self.provider.sent
+        self.assertIn("What are the actions?", text)
+        self.assertIn("ZQ-KEEP-RISK-1", text)                 # the other passages still go (the actions passage holding the key is the one left out)
+        self.assertNotIn(FAKE_KEY, text)
+        self.assertNotIn("ZQ-KEYROW", text)
+        self.assertIn(ask.secret_note(1), got["notes"])
+        self.assertNotIn(FAKE_KEY, repr(got))
+        self.assertNotIn(FAKE_KEY, "\n".join(sink.lines))
 
     def _args(self):
         from clark import store as st

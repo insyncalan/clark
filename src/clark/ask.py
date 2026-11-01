@@ -71,7 +71,7 @@ class Request:
     passages: tuple = ()          # ((id, label), ...)
     hidden: dict = field(default_factory=dict)
     dropped_turns: int = 0        # how many of the oldest earlier turns were left out to fit MAX_REQUEST (the panel may say so)
-    left_out_secret: int = 0      # how many passages were left out because they looked like a key or a password (a count only)
+    left_out_secret: int = 0      # how many passages were left out because they looked like a key or a password (a count only; never shown as a number)
     kept: tuple = ()              # the position (in the passages as given) of each passage sent, in order, so a caller can match them
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
 
@@ -490,7 +490,8 @@ def secret_note(count):
     """The plain-words line for `Request.left_out_secret`. "" for none."""
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
-    return f"{count} {'passage was' if count == 1 else 'passages were'} left out because {'it' if count == 1 else 'they'} looked like a key or a password."
+    return ("Part of your report was left out because it looks like a password or a key, so the answer may be missing something. "
+            "Take the password out of the item if you want it included.")
 
 
 def dropped_note(count):
