@@ -648,7 +648,7 @@ class Inserts(Base):
         self.refused({**add("actions", description="X"), "id": "ABC-A-001"}, "That change doesn't take 'id'.")
         self.refused(add("actions", description="X") | {"values": "text"}, "Send the new row's values as an object.")
         self.refused(add("actions", description="X") | {"values": ["x"]}, "Send the new row's values as an object.")
-        self.refused(add("use_cases", title="X", headline="Y"), changes.BAD_OP)
+        self.refused(add("use_cases", title="X", headline="Y"), changes.UC_REF_WORDS)      # #455: a use case can be added (its own writer), but needs its ID
         self.refused(add("documents", title="X"), changes.BAD_OP)
         self.refused(add("workstreams", name="X"), changes.BAD_KIND)
         self.refused(add("report_hidden"), "That change doesn't take 'values'.")

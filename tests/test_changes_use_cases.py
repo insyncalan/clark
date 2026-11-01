@@ -223,23 +223,80 @@ class NoCreateNoDelete(unittest.TestCase):
         self.uc = self.demo.use_case
         self.change = changes.make_change(self.s.path, [], USER)
 
-    def test_new_move_and_delete_are_refused_for_use_cases_and_nothing_is_made(self):
+    def test_move_and_delete_are_refused_for_use_cases_and_nothing_is_made(self):
         before = self.s.read("use_cases", "ABC")
-        for op, more in (("new", {"values": {"title": "Extra", "status": "Flag"}}), ("move", {"id": self.uc, "before": None}),
-                         ("delete", {"id": self.uc})):
+        for op, more in (("move", {"id": self.uc, "before": None}), ("delete", {"id": self.uc})):
             with self.subTest(op=op):
                 status, body = self.change({"project": "ABC", "kind": "use_cases", "op": op, **more})
                 self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.BAD_OP))
         self.assertEqual(self.s.read("use_cases", "ABC"), before)
 
-    def test_the_kind_has_only_update_here_and_no_route_has_a_use_case_add_or_remove(self):
-        self.assertEqual(set(changes.CHANGE_KINDS["use_cases"]) - {"archive", "restore"}, {"update"})
+    def test_the_kind_has_only_update_and_new_here_and_no_route_has_a_use_case_add_or_remove(self):
+        self.assertEqual(set(changes.CHANGE_KINDS["use_cases"]) - {"archive", "restore"}, {"update", "new"})      # #455: new, for the dashboard's Add use case
         routes = list(sv.GET_ROUTES) + list(sv.POST_ROUTES)
         self.assertEqual([r for r in routes if "use" in r or "case" in r], ["/api/use-cases"])
         self.assertIn("/api/use-cases", sv.GET_ROUTES)
         self.assertNotIn("/api/use-cases", sv.POST_ROUTES)
         for r in routes:
             self.assertFalse(any(w in r for w in ("add", "create", "delete", "remove", "new")), r)
+
+
+class New(unittest.TestCase):
+    """#455: Add use case on the dashboard: one new use case through the one writer, on the dashboard, with no Undo (a use case is
+    archived, never deleted)."""
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.s = self.demo.store
+        self.change = changes.make_change(self.s.path, [], USER)
+
+    def add(self, values, project="ABC"):
+        return self.change({"project": project, "kind": "use_cases", "op": "new", "values": values})
+
+    def test_a_new_use_case_has_its_id_from_clark_its_reference_and_is_on_the_dashboard(self):
+        status, body = self.add({"ref": "3.1", "title": "Report checks", "status": "Flag", "headline": "Two left"})
+        self.assertEqual((status, body["ok"], body["apply_id"], body["undoable"]), (200, True, None, False), body)
+        row = self.s.read("use_cases", ref=body["ref"])
+        self.assertRegex(body["ref"], r"^ABC-U-\d{3}$")
+        self.assertEqual((row["ref"], row["title"], row["status"], row["headline"], row["client_visible"], row["project"]),
+                         ("3.1", "Report checks", "Flag", "Two left", 1, "ABC"))
+        self.assertEqual(body["use_case"]["ref"], "3.1")
+        self.assertGreater(row["sort_order"], self.s.read("use_cases", ref=self.demo.use_case)["sort_order"])    # the end of the list
+
+    def test_status_and_headline_default_and_the_name_is_needed(self):
+        _, body = self.add({"ref": "3.2", "title": "Only a name"})
+        row = self.s.read("use_cases", ref=body["ref"])
+        self.assertEqual((row["status"], row["headline"]), ("On track", ""))
+        for values, words in (({"ref": "3.3"}, changes.UC_NAME_WORDS), ({"ref": "3.3", "title": "  "}, changes.UC_NAME_WORDS),
+                              ({"title": "No ref"}, changes.UC_REF_WORDS), ({"ref": "x" * 21, "title": "T"}, changes.UC_REF_WORDS),
+                              ({"ref": "3.\n4", "title": "T"}, changes.UC_REF_WORDS),
+                              ({"ref": "3.4", "title": "T", "status": "Done"}, changes.UC_STATUS_WORDS),
+                              ({"ref": "3.4", "title": "T" * 121}, changes.UC_NAME_WORDS)):
+            with self.subTest(values=values):
+                before = len(self.s.read("use_cases", "ABC"))
+                status, got = self.add(values)
+                self.assertEqual((status, got["ok"], got["message"]), (400, False, words))
+                self.assertEqual(len(self.s.read("use_cases", "ABC")), before, "nothing was written")
+
+    def test_an_id_already_used_is_refused(self):
+        self.assertEqual(self.add({"ref": "5.1", "title": "First"})[0], 200)
+        status, got = self.add({"ref": "5.1", "title": "Second"})
+        self.assertEqual((status, got["message"]), (400, changes.UC_REF_USED))
+        status, got = self.add({"ref": " 5.1 ", "title": "Third"})
+        self.assertEqual((status, got["message"]), (400, changes.UC_REF_USED))
+
+    def test_a_field_that_cannot_be_set_and_an_archived_project_are_refused(self):
+        for values in ({"ref": "6.1", "title": "T", "client_visible": 0}, {"ref": "6.1", "title": "T", "standing": "<p>x</p>"},
+                       {"ref": "6.1", "title": "T", "id": "ABC-U-099"}):
+            with self.subTest(values=values):
+                status, got = self.add(values)
+                self.assertEqual((status, got["ok"]), (400, False))
+        status, got = self.change({"project": "ABC", "kind": "use_cases", "op": "new", "values": {"ref": "6.1", "title": "T"}, "id": "ABC-U-009"})
+        self.assertEqual((status, got["ok"]), (400, False))
+        with self.s.step("dashboard", USER) as st:
+            st.archive("projects", "ABC")
+        status, got = self.add({"ref": "6.2", "title": "T"})
+        self.assertEqual((status, got["message"]), (400, changes.PROJECT_NOT_ACTIVE))
 
 
 if __name__ == "__main__":

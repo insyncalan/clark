@@ -3,7 +3,7 @@
 // (an accordion): where it stands, the open next steps as "Owner: what it is", and "See all N work items". Read-only here: changing a
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { data, rows, openWork, fromFile, show, project } from "../stores/report.js";
 import { format } from "../router.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
@@ -36,23 +36,27 @@ export function refText(ref) {
 }
 
 // A row and "See all" are buttons by role, not <button> elements: a published file has no button but its tabs (and nothing in it edits).
+// In Edit a row holds its own controls (the status button, the headline's box): a press on one of them is theirs, not the row's.
+const mine = (e) => e.target !== e.currentTarget && !!e.target.closest("textarea, button, [role=menu], .dd");
 const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); run(); } };
 
-function Row({ s, shown, toggle }) {
+function Row({ s, shown, toggle, ed }) {
   const { u } = s, id = `uc-${u.id}`, label = u.ref ? `Use case ${u.ref}` : "";
   // "See all N" counts the open items and the link opens the open ones: one list, `s.open`, for both.
   const n = s.open.length, go = () => openWork(setFilter(initial(), "use_case", [label], false));
   return (
     <li class={`ucrow${shown ? " open" : ""}`} data-uc={u.id}>
-      <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id} onClick={toggle} onKeyDown={(e) => press(e, toggle)}>
+      <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
+        onClick={(e) => { if (ed && mine(e)) return; toggle(); }} onKeyDown={(e) => { if (ed && e.target !== e.currentTarget) return; press(e, toggle); }}>
         {u.ref ? <span class="ucref num" data-ref>{refText(u.ref)}</span> : <span></span>}
         <span class="uctitle">{u.title}</span>
-        <span class="uchead">{u.headline}</span>
-        <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>
+        {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
+        {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
         <span class="ucsteps num">{s.steps.length === 1 ? "1 next step" : s.steps.length ? `${s.steps.length} next steps` : "No open steps"}</span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>
+          {ed ? <ed.Name u={u} /> : null}
           <h3>Where it stands</h3>
           {fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Nothing written yet."}</p>}
           <h3>Next steps</h3>
@@ -72,13 +76,18 @@ function More({ n }) {
   return <p class="ucmore"><a href={format({ view: "usecases", project: project.value })} data-uc-more onClick={go}>{n === 1 ? "1 more on the Use cases page" : `${n} more on the Use cases page`}</a></p>;
 }
 
-export function UseCases({ onExport }) {
+export function UseCases({ onExport, tools }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
+  const ed = tools && tools.ucEdit && !fromFile.value ? tools.ucEdit : null;       // Edit's parts (#455); View and a published file have none
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
+  const fresh = ed ? ed.added.value : "";                                           // a use case just added opens its row
+  useEffect(() => {
+    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); ed.added.value = ""; }
+  }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
-  if (!list.length) return <><p class="muted" data-nouc>{off ? "No use cases are on the dashboard." : "No use cases yet."}</p><More n={off} /></>;
+  if (!list.length) return <><p class="muted" data-nouc>{off ? "No use cases are on the dashboard." : "No use cases yet."}</p>{ed ? <ed.FromRecord n={off} /> : null}<More n={off} /></>;
   const flip = (id) => { const n = new Set(open); if (n.has(id)) n.delete(id); else n.add(id); setOpen(n); };
   return (
     <div class="uc" data-uc-section>
@@ -90,7 +99,8 @@ export function UseCases({ onExport }) {
         </span>
         {onExport ? <button type="button" class="bib ucexport" data-uc-export data-tip="Export to Excel (the use cases are one sheet of it)" aria-label="Export to Excel. The use cases are one sheet of the workbook." onClick={onExport}><Icon name="dl" /></button> : null}
       </div>
-      <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} />)}</ul>
+      <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      {ed ? <ed.FromRecord n={off} /> : null}
       <More n={off} />
     </div>
   );

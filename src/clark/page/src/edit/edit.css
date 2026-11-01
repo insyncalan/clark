@@ -449,3 +449,23 @@ textarea.tpl-field { resize: vertical; }
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
+
+/* The Dashboard's use case summary in Edit (#455): the status button, the headline and the name changed in place, the growing Add
+   button in the header, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
+.uc-add { flex: none; margin-left: auto; }
+.ucw-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; cursor: pointer; border-radius: var(--radius-sm); padding: 1px 4px; margin: -1px -4px; }
+.ucw-btn:hover { background: var(--grey-200); }
+.ucw-btn:focus-visible { outline: 2px solid var(--brand-blue); }
+.ucst .dd { position: relative; }
+.uchead-ed { min-width: 0; }
+.uchead-in.ucd-in { color: var(--text-muted); font-size: var(--size-body); font-weight: var(--weight-light); }
+.uchead-in.ucd-in:focus-visible { color: var(--text); }
+.ucx-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.ucx-ref { white-space: nowrap; }
+.ucx-in.ucd-in { flex: 1 1 260px; min-width: 0; width: auto; font-size: var(--size-h3); font-weight: var(--weight-medium); }
+.ucm { width: min(520px, 100%); }
+.ucm-form { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-3) var(--space-4); align-items: center; padding: var(--space-3) var(--space-5) var(--space-4); }
+.ucm .field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ucm .field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ucm .ad-foot { justify-content: flex-end; }
+@media (max-width: 900px) { .ucm-form { grid-template-columns: minmax(0, 1fr); } }

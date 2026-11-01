@@ -20,7 +20,8 @@ import { refOf } from "../logic/useCasesList.js";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
-const NAME_MAX = 120, HEAD_MAX = 300, SHOW = 8;
+export const NAME_MAX = 120, HEAD_MAX = 300;
+const SHOW = 8;
 const EYE = { on: "On the dashboard", off: "Not on the dashboard" };
 
 const refWords = (u) => refOf(u) || "Use case";
@@ -66,7 +67,7 @@ function whatWas(h) {
 
 // A one-line or short text field changed in place: a text box that looks like the text it holds. Enter saves it, so does leaving
 // it; Esc puts the old text back. It grows with what is typed and never scrolls sideways. `ro` draws the text as text.
-function Line({ value, label, cls, field, max, empty, ro, onSave, problem }) {
+export function Line({ value, label, cls, field, max, empty, ro, onSave, problem }) {
   const el = useRef(null), cancelled = useRef(false), now = useRef(value);
   now.current = value;
   const fit = () => { const t = el.current; if (t) { t.style.height = "auto"; t.style.height = `${t.scrollHeight}px`; } };
