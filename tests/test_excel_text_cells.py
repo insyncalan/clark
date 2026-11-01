@@ -1,9 +1,9 @@
-"""#85: text that starts like a formula stays text through an export and an import, and is never a formula. Fictional data only.
+"""#351 (and #85, which began it): text that starts like a formula is a text cell, shown exactly as typed (no apostrophe), and never a formula. Fictional data only.
 
-This file holds only what the export does today: the same bytes for the same rows and day, the file's hash in the record, the
-look-alike characters and the font and wrap of a text cell left alone, a file from the first release still reading back, and the
-export-then-import round trip of text that starts with = + - @ or a tab. It reads the workbook back with openpyxl. It cannot
-open Excel, Numbers or LibreOffice.
+The cell is stored as a string (an inline string in the XML, never <f>), and, when the text starts with = + - @ TAB or a line
+break, its style carries quotePrefix, which Excel shows with no apostrophe and which keeps a later edit of the cell text.
+This file reads the saved XML and reads the workbook back with openpyxl. It cannot open Excel, Numbers or LibreOffice: how those
+show the cell needs a human look.
 
 Run: python3 dev/run_tests.py test_excel_text_cells
 """
@@ -11,18 +11,22 @@ import hashlib
 import shutil
 import tempfile
 import unittest
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
+from xml.etree import ElementTree as ET
 
 import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
 from _demo import USER, DemoStore
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from clark import excel
+from clark import excel_cover as cover
 from clark import excel_import as xi
 from clark import page
 
+NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 FIXED_ID = "0123456789ab4def8123456789abcdef"
 ON = "2030-06-01"
 
@@ -39,9 +43,43 @@ def tearDownModule():
     shutil.rmtree(_NO_BRAND, ignore_errors=True)
 
 
-# text that could be taken for a formula
+# text that must show as typed and carry the quote prefix
 GUARDED = ("=SUM(1)", "+1", "-note", "@SUM(A1)", "\tTabbed", "=", "-", "+", "@", "=1+1", '=HYPERLINK("http://x.invalid","hi")',
            "- a bullet", "-- two dashes", "=cmd|' /C calc'!A0")
+# text that is plain text to Excel: no quote prefix, and no change either
+PLAIN = ("plain", " =1", "  -x", "a=b", "5-3", "#N/A", "＝1+1", "＋x", "－x", "＠x", " =1", "​=1", "'quoted",
+         "x ", "")
+
+
+def parts(path):
+    """{member name: bytes} of the saved workbook."""
+    with zipfile.ZipFile(path) as z:
+        return {n: z.read(n) for n in z.namelist()}
+
+
+def sheet_member(path, title):
+    """The XML member of the sheet called `title`."""
+    files = parts(path)
+    wb = ET.fromstring(files["xl/workbook.xml"])
+    rels = ET.fromstring(files["xl/_rels/workbook.xml.rels"])
+    sheet = next(s for s in wb.find("m:sheets", NS) if s.get("name") == title)
+    rid = sheet.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id")
+    target = next(r.get("Target") for r in rels if r.get("Id") == rid)
+    return "xl/" + target.lstrip("/").replace("xl/", "")
+
+
+def xml_cell(path, title, ref):
+    """(the cell's t attribute, its text, whether its style has quotePrefix, whether it holds an <f>) read from the saved XML."""
+    files = parts(path)
+    root = ET.fromstring(files[sheet_member(path, title)])
+    c = next(c for c in root.iter("{%s}c" % NS["m"]) if c.get("r") == ref)
+    xfs = ET.fromstring(files["xl/styles.xml"]).find("m:cellXfs", NS)
+    xf = xfs[int(c.get("s", "0"))]
+    text = "".join(t.text or "" for t in c.iter("{%s}t" % NS["m"]))
+    if c.get("t") == "s":
+        shared = ET.fromstring(files["xl/sharedStrings.xml"])
+        text = "".join(t.text or "" for t in shared[int(c.find("m:v", NS).text)].iter("{%s}t" % NS["m"]))
+    return c.get("t"), text, xf.get("quotePrefix") == "1", c.find("m:f", NS) is not None
 
 
 def action(text, **more):
@@ -59,10 +97,56 @@ class DataSheets(unittest.TestCase):
         self.path.unlink() if self.path.exists() else None
         excel.export(self.path, "DEMO", {"actions": [action(text, **more)]}, self.state, on=ON)
 
+    def test_guarded_text_is_a_string_cell_with_the_quote_prefix_and_never_a_formula(self):
+        for text in GUARDED:
+            with self.subTest(text=text):
+                self.export(text)
+                t, shown, prefix, has_formula = xml_cell(self.path, "Actions", "B2")
+                self.assertEqual(t, "inlineStr")                    # a string, not <f> and not a number
+                self.assertEqual(shown, text, "the saved text is exactly what was typed: no apostrophe")
+                self.assertTrue(prefix, "the style carries quotePrefix")
+                self.assertFalse(has_formula)
+                c = load_workbook(self.path)["Actions"]["B2"]
+                self.assertEqual((c.value, c.data_type, c.quotePrefix), (text, "s", True))
+                self.assertEqual(excel.read_workbook(self.path)["actions"][0]["description"], text)
+                self.assertNotIn(b"<f>", b"".join(v for n, v in parts(self.path).items() if "worksheets/sheet" in n))
+                self.assertNotIn(b"<f ", b"".join(v for n, v in parts(self.path).items() if "worksheets/sheet" in n))
+
+    def test_the_xml_of_a_formula_looking_cell(self):
+        self.export("=SUM(1)")
+        sheet = parts(self.path)[sheet_member(self.path, "Actions")].decode("utf-8")
+        self.assertRegex(sheet, r'<c r="B2" s="\d+" t="inlineStr"><is><t>=SUM\(1\)</t></is></c>')
+
+    def test_other_text_is_a_string_cell_without_the_quote_prefix(self):
+        for text in PLAIN:
+            if not text:
+                continue
+            with self.subTest(text=text):
+                self.export(text)
+                t, shown, prefix, has_formula = xml_cell(self.path, "Actions", "B2")
+                self.assertEqual((t, shown, prefix, has_formula), ("inlineStr", text, False, False))
+                self.assertEqual(excel.read_workbook(self.path)["actions"][0]["description"], text)
+
+    def test_a_carriage_return_or_line_feed_first_is_a_string_with_the_quote_prefix(self):
+        for lead in ("\r", "\n", "\r\n"):
+            with self.subTest(lead=repr(lead)):
+                self.export(lead + "=1+1")
+                t, shown, prefix, has_formula = xml_cell(self.path, "Actions", "B2")
+                self.assertEqual((t, shown.lstrip("\n"), prefix, has_formula), ("inlineStr", "=1+1", True, False))
+                self.assertEqual(excel.read_workbook(self.path)["actions"][0]["description"], "\n=1+1")    # a CR is stored as a line feed
+
     def test_full_width_look_alikes_are_left_alone(self):
         self.export("＝1+1")
         c = load_workbook(self.path)["Actions"]["B2"]
         self.assertEqual((c.value, c.data_type, c.quotePrefix), ("＝1+1", "s", False))
+
+    def test_very_long_text_is_kept_whole(self):
+        for text in ("=" + "x" * 30000, "-" + "y" * 9000):
+            with self.subTest(length=len(text)):
+                self.export(text)
+                t, shown, prefix, has_formula = xml_cell(self.path, "Actions", "B2")
+                self.assertEqual((t, shown, prefix, has_formula), ("inlineStr", text, True, False))
+                self.assertEqual(excel.read_workbook(self.path)["actions"][0]["description"], text)
 
     def test_the_style_keeps_the_font_and_the_wrap(self):
         self.export("=SUM(1)")
@@ -71,6 +155,22 @@ class DataSheets(unittest.TestCase):
         other = load_workbook(self.path)["Actions"]["B2"]
         self.assertEqual((plain.font.name, plain.alignment.wrap_text, plain.alignment.vertical),
                          (other.font.name, other.alignment.wrap_text, other.alignment.vertical))
+
+    def test_every_text_column_is_protected(self):
+        self.export("-x", owner="=y", client_message="@z")
+        ws = load_workbook(self.path)["Actions"]
+        head = {c.value: c.column for c in ws[1]}
+        for label, want in (("Description", "-x"), ("Owner", "=y"), ("Client wording", "@z")):
+            c = ws.cell(row=2, column=head[label])
+            self.assertEqual((c.value, c.data_type, c.quotePrefix), (want, "s", True), label)
+
+    def test_the_lists_sheet_is_protected_too(self):
+        self.export("x", workstream="=Build")
+        ws = load_workbook(self.path)["Lists"]
+        cells = [c for row in ws.iter_rows(min_row=2) for c in row if c.value == "=Build"]
+        self.assertTrue(cells)
+        for c in cells:
+            self.assertEqual((c.data_type, c.quotePrefix), ("s", True))
 
     def test_the_same_rows_and_day_give_the_same_bytes_with_guarded_text(self):
         rows = {"actions": [action(text) for text in GUARDED[:4]]}
@@ -95,11 +195,87 @@ class DataSheets(unittest.TestCase):
 
 
 class OneCell(unittest.TestCase):
+    def test_protect_text_cell_makes_a_string_of_what_openpyxl_would_make_a_formula(self):
+        ws = Workbook().active
+        c = ws["A1"]
+        c.value = "=1+1"
+        self.assertEqual(c.data_type, "f")                  # what openpyxl does by itself
+        excel.protect_text_cell(c)
+        self.assertEqual((c.value, c.data_type, c.quotePrefix), ("=1+1", "s", True))
+
+    def test_numbers_and_blanks_are_left_alone(self):
+        ws = Workbook().active
+        ws["A1"], ws["A2"] = -5, None
+        for c in (ws["A1"], ws["A2"]):
+            excel.protect_text_cell(c)
+        self.assertEqual((ws["A1"].data_type, ws["A1"].quotePrefix), ("n", False))
+        self.assertFalse(ws["A2"].quotePrefix)
+
+    def test_text_goes_in_as_typed_and_comes_back_for_every_text(self):
+        for text in GUARDED + PLAIN + ("'=1", "''=1", "''", "'", "'\t=1", "'-x", "'''-x"):
+            with self.subTest(text=text):
+                cell = excel.to_cell("description", text)
+                if text.startswith(("=", "+", "-", "@", "\t")):
+                    self.assertEqual(cell, text, "no apostrophe in front")
+                self.assertEqual(excel.from_cell("description", cell) if cell else None, text or None)
+
     def test_a_file_from_the_first_release_still_reads_back(self):
         # that release wrote =1+1 as '=1+1; the import still takes the apostrophe off
         for old, text in (("'=1+1", "=1+1"), ("'-note", "-note"), ("'@x", "@x"), ("''=1", "'=1"), ("'quoted", "'quoted")):
             self.assertEqual(excel.from_cell("description", old), text)
             self.assertEqual(xi.from_cell("description", old, "TEXT")[0], text)
+
+
+class TheCover(unittest.TestCase):
+    def test_cover_text_that_starts_like_a_formula_is_a_string_with_the_quote_prefix(self):
+        for lead in ("=", "+", "-", "@"):
+            with self.subTest(lead=lead):
+                project = {"name": lead + "Name", "current_state": "<p>" + lead + "Now.</p>"}
+                sections = [{"type": "current", "title": lead + "Section"}]
+                wb = Workbook()
+                path = Path(tempfile.mkdtemp(prefix="clark-text-cells-")) / "cover.xlsx"
+                self.addCleanup(shutil.rmtree, path.parent, True)
+                ws = excel.write_cover(wb, cover.lines(project, sections, [], datetime(2030, 6, 1, 9, 0)))
+                wb.save(path)
+                seen = {c.value: c for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
+                for want in (lead + "Name", lead + "Section", lead + "Now."):
+                    self.assertIn(want, seen)
+                    self.assertEqual((seen[want].data_type, seen[want].quotePrefix), ("s", True), want)
+                self.assertNotIn(b"<f>", b"".join(v for n, v in parts(path).items() if "worksheets/sheet" in n))
+                self.assertGreater(ws.max_row, 1)
+
+
+    def test_cover_text_that_starts_with_an_apostrophe_and_a_formula_character_gets_no_extra_apostrophe(self):
+        project = {"name": "'=Name", "current_state": "<p>'+Now.</p>"}
+        wb = Workbook()
+        path = Path(tempfile.mkdtemp(prefix="clark-text-cells-")) / "cover.xlsx"
+        self.addCleanup(shutil.rmtree, path.parent, True)
+        excel.write_cover(wb, cover.lines(project, [{"type": "current", "title": "'=Section"}], [], datetime(2030, 6, 1, 9, 0)))
+        wb.save(path)
+        seen = {c.value for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
+        for want in ("'=Name", "'=Section", "'+Now."):
+            self.assertIn(want, seen)
+        self.assertFalse([v for v in seen if isinstance(v, str) and v.startswith("''")])
+
+
+class TheHistorySheet(unittest.TestCase):
+    def test_history_text_that_starts_like_a_formula_is_a_string_with_the_quote_prefix(self):
+        keys = [key for _, key, _ in excel.HISTORY_COLUMNS]
+        rows = [{k: lead + k for k in keys} for lead in ("=", "+", "-", "@", "\t")]
+        view = {"footnote": "=Note", "rows": rows, "closing": "-Closing", "empty": ""}
+        wb = Workbook()
+        path = Path(tempfile.mkdtemp(prefix="clark-text-cells-")) / "history.xlsx"
+        self.addCleanup(shutil.rmtree, path.parent, True)
+        excel.write_history(wb, view)
+        wb.save(path)
+        cells = [c for row in load_workbook(path)[excel.HISTORY_NAME].iter_rows(min_row=3) for c in row if c.value]
+        self.assertTrue(cells)
+        for c in cells:
+            self.assertEqual((c.data_type, c.quotePrefix), ("s", True), c.value)
+        note = load_workbook(path)[excel.HISTORY_NAME]["A1"]      # the fixed note comes first, so it has no quote prefix
+        self.assertEqual((note.data_type, note.quotePrefix), ("s", False))
+        self.assertNotIn(b"<f>", b"".join(v for n, v in parts(path).items() if "worksheets/sheet" in n))
+        self.assertEqual(xml_cell(path, excel.HISTORY_NAME, "A3")[0], "inlineStr")
 
 
 class RoundTrip(unittest.TestCase):
