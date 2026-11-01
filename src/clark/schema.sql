@@ -316,8 +316,8 @@ CREATE TABLE IF NOT EXISTS publications (
 -- trigger, so an insert that lands on a taken number or seq is refused as well.
 CREATE TRIGGER IF NOT EXISTS publications_no_delete BEFORE DELETE ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication is never deleted'); END;
-CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF number, project, word, file_sha256, by_user ON publications
-BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file hash and publisher never change'); END;
+CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, checks, number, project, word, file_sha256, by_user ON publications
+BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file, date, week, checks and publisher never change'); END;
 CREATE TRIGGER IF NOT EXISTS publications_never_replaced BEFORE INSERT ON publications
 WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number) OR seq = NEW.seq)
 BEGIN SELECT RAISE(ABORT, 'a publication is never replaced'); END;

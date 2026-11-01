@@ -91,7 +91,9 @@ class TheCounter(unittest.TestCase):
         seq = self.log()
         con = self.s.con
         for sql in ("DELETE FROM publications", "UPDATE publications SET number = 9", "UPDATE publications SET project = 'XYZ'",
-                    "UPDATE publications SET word = 1", "UPDATE publications SET file_sha256 = '%s'" % ("b" * 64)):
+                    "UPDATE publications SET word = 1", "UPDATE publications SET file_sha256 = '%s'" % ("b" * 64),
+                    "UPDATE publications SET seq = 99", "UPDATE publications SET at = '2020-01-01'", "UPDATE publications SET week_ending = '2020-01-03'",
+                    "UPDATE publications SET local_path = '/x/z.html'", "UPDATE publications SET checks = 'passed'"):
             with self.assertRaises(sqlite3.DatabaseError, msg=sql):
                 con.execute(sql)
         with self.assertRaises(sqlite3.DatabaseError):                   # REPLACE would remove the row without the delete trigger
