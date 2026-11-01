@@ -295,12 +295,14 @@ class Saving(ServerTest):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/publish", "/api/client-folder", "/api/preview",
                                                   "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
                                                   "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
-                                                  "/api/ask/change/apply"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e
+                                                  "/api/ask/change/apply", "/api/section-image"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #96 R1 the picture one
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/backups/preview": 1024,
+        self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
+                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,

@@ -12,6 +12,8 @@ Routes:
 - GET  /api/milestones   ?project=<CODE>: that project's milestones for the Calendar and its list (#146), read only: the `milestones` seam (milestone_feed.py); without the seam, not found
 - POST /api/change       one change to a project's report sections (#65); the logic is `change(req)`, from clark.changes
 - POST /api/undo         reverse one earlier step of the report's (#65); the logic is `undo(req)`
+- POST /api/section-image  one picture into a section template's slot, or out of it (#96 R1): one step, one Undo; the logic is
+                         `section_image(req)`, from clark.changes (the picture's checks are there); its own body limit
 - POST /api/here         "still here" from an open page (#71); stops a launcher-started server when no page is left
 - POST /api/publish      Publish (#43): Local, and the client folder only when the body says `to_client: true`; publish_flow.py
 - POST /api/client-folder  choose or clear the project's client folder (#43); never writes into it
@@ -88,6 +90,7 @@ BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 CHANGE_BODY_LIMIT = 2 * 64 * 1024 + 4 * 1024   # #96: twice the largest section content (64 KB; the body is a string inside the request, so each quote and backslash is escaped twice) plus 4 KB; a test ties it to the registry
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+                     "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
@@ -502,6 +505,11 @@ def undo_route(handler, req):
     return seam_route(handler, handler.server.undo, req)
 
 
+def section_image_route(handler, req):
+    """POST /api/section-image (#96 R1). Checked like change_route before this runs, with its own body limit."""
+    return seam_route(handler, handler.server.section_image, req)
+
+
 # #71: the six files a browser fetches with no token (it sends no custom header for a manifest, a worker script or an icon).
 # Their own table, GET only, matched by exact path (the query is dropped), fixed bytes read once, no data and no token in them.
 # {route: (bytes, content type, extra headers)}. The server imports no other clark module (a guard test), so __main__ gives it
@@ -717,7 +725,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/movement": movement_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"),
               "/api/profile": profile_route("get")}
-POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
+POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
@@ -904,17 +912,18 @@ class LocalServer(ThreadingHTTPServer):
     server_bind calls socket.getfqdn(host), which can stall for 30 s on some Macs.) `data_for(code)` is the store's read
     of one project (None when there is none); `projects()` lists them as rows with a code and a name; `page_html()` gives
     the page's HTML (#35 supplies the bundle); `change(req)` and `undo(req)` (#65) answer POST /api/change and /api/undo
-    with (status, body), each on a store of its own (None: those routes answer 503); `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163); `word_import(req)` and `word_export(req)` (#48) answer POST /api/word-import and /api/word-export the same way as `change` and `undo`."""
+    with (status, body), each on a store of its own (None: those routes answer 503); `section_image(req)` (#96 R1) answers POST /api/section-image the same way; `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163); `word_import(req)` and `word_export(req)` (#48) answer POST /api/word-import and /api/word-export the same way as `change` and `undo`."""
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None,
-                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None):
+                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, section_image=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
         self.change, self.undo = change, undo
+        self.section_image = section_image    # changes.make_section_image (#96 R1); None: that route answers 503 saving_off
         self.word_import, self.word_export = word_import, word_export
         self.page_html = page_html or placeholder_html
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
@@ -961,7 +970,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, word_import=None, word_export=None,
-          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None):
+          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, section_image=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -969,7 +978,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
-                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask)
+                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, section_image=section_image)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
