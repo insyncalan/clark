@@ -186,7 +186,14 @@ class Words(unittest.TestCase):
                                   "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again"])
+                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Asking",             # #47: the switch and its folders, below the client folder
+                                  "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
+                                  "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
+                                  "Turn on asking", "Folders asking may read",
+                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
+                                  "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
+                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is."])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)

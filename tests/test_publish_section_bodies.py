@@ -21,7 +21,8 @@ SEPARATORS = MARK + "\u2028" + MARK + "\u2029"                  # refused when a
 
 
 def body(*words):
-    return json.dumps({"rows": [{"what": w, "from": w, "by": w} for w in words]})
+    """A body both content types take: for needs, rows of the shape its checker rebuilds (the text goes in `what` and `from`)."""
+    return json.dumps({"v": 1, "rows": [{"what": w, "kind": "decision", "from": w[:100], "by": "", "hidden": 0} for w in words]})
 
 
 class Published(Api):
@@ -50,13 +51,14 @@ class Published(Api):
 
 
 class Kept(Published):
-    def test_a_good_body_keeps_the_section_with_its_place_and_title_only(self):
+    def test_a_good_needs_body_keeps_its_shown_rows_and_a_tracker_body_keeps_its_place_and_title_only(self):
         needs = self.section("needs")
         tracker = self.section("tracker")
         self.write(needs, body("one"))
         self.write(tracker, body("two"))
         got = self.sections()
-        self.assertEqual(got[needs], {"id": needs, "type": "needs", "title": "Needs from you", "beside": 0})
+        self.assertEqual(got[needs], {"id": needs, "type": "needs", "title": "Needs from you", "beside": 0,
+                                      "rows": [{"what": "one", "kind": "decision", "from": "one", "by": ""}]})
         self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0})
 
     def test_an_empty_body_is_left_out(self):
@@ -133,9 +135,9 @@ class Kept(Published):
 
 
 class NothingOfABodyReachesTheFile(Published):
-    def test_a_body_full_of_markup_is_not_in_the_file_in_any_spelling(self):
+    def test_a_tracker_body_full_of_markup_is_not_in_the_file_in_any_spelling(self):
         needs, tracker = self.section("needs"), self.section("tracker")
-        self.write(needs, body(*HOSTILE))
+        self.write(needs, body("one"))
         self.write(tracker, json.dumps({"groups": [{"name": h, "lines": [{"text": h}]} for h in HOSTILE]}))
         baseline_scripts = self.baseline()
         text = self.file()
@@ -143,10 +145,10 @@ class NothingOfABodyReachesTheFile(Published):
         self.assertEqual(len(re.findall(r"<script\b", text)), baseline_scripts)
         for marker in HOSTILE + [MARK, "Example team"]:
             for spelling in spellings(marker):
-                self.assertNotIn(spelling, text, marker)
+                self.assertNotIn(spelling, text, marker)         # the tracker's content is not published yet; needs holds only "one"
         data = self.data_block(text)
         self.assertEqual({s["type"] for s in data["sections"] if s["id"] in (needs, tracker)}, {"needs", "tracker"})
-        self.assertNotIn("body", json.dumps([s for s in data["sections"] if s["id"] in (needs, tracker)]))
+        self.assertNotIn("body", json.dumps([s for s in data["sections"] if s["id"] in (needs, tracker)]))      # a needs row is published as rows, never as a body
 
     def baseline(self):
         return len(re.findall(r"<script\b", self.file()))
@@ -185,26 +187,26 @@ class NothingOfABodyReachesTheFile(Published):
         self.assertNotIn("clean_html(", content)
 
 
-class ThePageDoesNotBreakOnTheNewTypes(unittest.TestCase):
-    """The page needs no change in this base: the live page says 'Not shown on this page yet.' for a type it can't draw, and a
-    published file leaves that type out. Read from the page's source, so no browser is needed."""
+class ThePageDrawsNeedsAndLeavesTheTrackerQuiet(unittest.TestCase):
+    """The live page says 'Not shown on this page yet.' for a type it can't draw (the tracker, until #189), and a published file
+    leaves that type out; needs is drawn (#121). Read from the page's source, so no browser is needed."""
 
     PAGE = store_module.Path(publish.__file__).parent / "page" / "src" / "components"
 
     def test_the_live_page_has_a_quiet_line_for_every_type_it_does_not_draw(self):
         src = (self.PAGE / "Section.jsx").read_text(encoding="utf-8")
         self.assertIn('<p class="quiet">Not shown on this page yet.</p>', src)
-        self.assertNotIn("needs", src)
+        self.assertIn('section.type === "needs"', src)
         self.assertNotIn("tracker", src)
 
     def test_a_published_file_draws_no_type_it_does_not_know(self):
         src = (self.PAGE / "Dashboard.jsx").read_text(encoding="utf-8")
         line = next(l for l in src.splitlines() if "const fileDraws" in l)
         self.assertTrue(line.rstrip().endswith(": false);"), line)             # every other type: not drawn, so left out of the file
-        self.assertNotIn("needs", line)
+        self.assertIn("needs", line)
         self.assertNotIn("tracker", line)
 
-    def test_the_page_writes_no_body(self):
+    def test_the_page_writes_no_body_of_a_text_section(self):
         rich = (self.PAGE.parent / "edit" / "richSave.js").read_text(encoding="utf-8")
         self.assertIn("export const RICH_WRITES = {};", rich)
 
