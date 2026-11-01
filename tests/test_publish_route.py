@@ -387,7 +387,9 @@ class TheClientFolderChangedWhileTheSaveWindowIsOpen(Base):
         self.rig.publisher.choose_save_file = dialog
 
     def data_files(self):
-        return sorted(p.name for p in self.rig.data_dir.iterdir() if not p.name.startswith("clark.db") and p.name != "backups")
+        # published-copies is clark's own folder of kept pages (#443), written by the store after the record; what these tests guard
+        # against is a client-folder file landing next to the database, which would be in this folder's parent, not in it
+        return sorted(p.name for p in self.rig.data_dir.iterdir() if not p.name.startswith("clark.db") and p.name not in ("backups", "published-copies"))
 
     def test_a_link_to_clarks_data_folder_swapped_in_copies_nothing(self):
         def swap():
