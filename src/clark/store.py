@@ -31,7 +31,7 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-SCHEMA_VERSION = 4          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 5          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 5 (#51): a project has a contact for the published page's Draft email; 4: a section may be of type needs or tracker (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -1687,9 +1687,27 @@ def migrate_section_bodies(con):
     _report_sections_allow_content_types(con)
 
 
+# The two columns version 5 adds, exactly as schema.sql has them (a test keeps the two the same); whole fixed statements, so
+# no SQL is built from a name.
+CONTACT_COLUMNS = (
+    ("contact_name", "ALTER TABLE projects ADD COLUMN contact_name TEXT CHECK (contact_name IS NULL OR length(contact_name) <= 80)"),
+    ("contact_email", "ALTER TABLE projects ADD COLUMN contact_email TEXT CHECK (contact_email IS NULL OR length(contact_email) BETWEEN 3 AND 254)"),
+)
+
+
+def migrate_to_5(con):
+    """Schema version 4 to 5 (#51): the project's contact, the outside address a published page's Draft email is addressed to
+    (one per project). Two nullable columns on projects, each added only when it is not there yet (a half-applied copy is safe).
+    Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    have = columns(con, "projects")
+    for name, statement in CONTACT_COLUMNS:
+        if name not in have:
+            con.execute(statement)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies))
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_5))
 
 
 def migration_plan(version, table=None):
