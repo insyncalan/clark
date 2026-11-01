@@ -259,7 +259,7 @@
     "w": "Top bar › ask clark · [[/]] · [[Mod+J]]",
     "go": "ask",
     "s": [
-     "Open **ask clark** from the top bar, or press [[/]] when you aren’t typing in a box. It opens down the right-hand side.",
+     "Open **ask clark** from the top bar, or press [[/]] when you aren’t typing in a box and the peek is closed. It opens down the right-hand side.",
      "Press **Check this report**. It lists what to look at: an overdue action left off the page, a health that doesn’t match the milestones, a missing reason, items on the page with no latest update, a use case On track with overdue work, an empty Summary, and no supporting documents from this week.",
      "Some notes come with a button that fixes them at once, such as **Show them** or **Set it to At risk**. Each fix has **Undo**.",
      "Ask anything else in your own words, or press a suggestion: **What’s overdue?**, **Which risks are red?**, **Next milestone?**, **Summarise this week** (with **Use it as the Summary**) and **Use cases**. Item IDs in an answer open the item.",

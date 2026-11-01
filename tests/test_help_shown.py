@@ -137,7 +137,7 @@ class AgainstThePage(unittest.TestCase):
         """On the whole source (nothing held) the same checks fail: ask clark is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), Import and Export when Export did (#147), and the peek when Sneak peek did (#42); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
         everything = " ".join(list(strings(RAW["howto"]["tasks"])) + list(strings(RAW["start"])))
         absent = [n for n, shown, proof in FEATURES if re.search(shown, everything) and not re.search(proof, self.CODE)]
-        for want in ("ask clark", "Sneak peek"):
+        for want in ("Sneak peek",):            # "ask clark" left this list when its panel reached the page (#47a), and the peek when it did (#42), as Publish did (#43)
             self.assertIn(want, absent)
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
