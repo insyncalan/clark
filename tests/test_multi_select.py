@@ -18,14 +18,14 @@ from test_sizes import DATA, published_page  # noqa: E402
 from test_page import navigate  # noqa: E402
 import _testpage as testpage  # noqa: E402
 from test_work_board_page import Base as PageBase, FIXED  # noqa: E402
-from test_work_filters import click, where  # noqa: E402
+from test_work_filters import click, set_line, where  # noqa: E402
 from test_work_items import bundled  # noqa: E402
 
 LOGIC = SRC / "clark" / "page" / "src" / "logic" / "selection.js"
 ALT, CTRL, META, SHIFT = 1, 2, 4, 8
 MOD = META if sys.platform == "darwin" else CTRL       # Cmd on a Mac (where Ctrl and a click is the right-click menu), Ctrl elsewhere
 KEYS = {"Enter": (13, "\r", "Enter"), " ": (32, " ", "Space"), "Escape": (27, "", "Escape"), "ArrowDown": (40, "", "ArrowDown"),
-        "ArrowUp": (38, "", "ArrowUp"), "a": (65, "a", "KeyA"), "Tab": (9, "", "Tab")}
+        "ArrowUp": (38, "", "ArrowUp"), "a": (65, "a", "KeyA"), "Tab": (9, "", "Tab"), "Backspace": (8, "", "Backspace")}
 
 
 def press(cdp, sid, name, mods=0):
@@ -183,8 +183,12 @@ class Page(Base):
     def load(self, cdp, width=1400, edit=True, mode="all"):
         sid = self.visit(cdp, width=width, edit=edit)
         if mode != "open":
-            click(cdp, sid, f"[data-show={mode}]")
-            self.until(cdp, sid, f"document.querySelector('[data-show={mode}]').getAttribute('aria-pressed') === 'true'", "the switch")
+            click(cdp, sid, "#fline-input")                 # no is: chip means every item, open or closed
+            for _ in range(5):
+                if cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0:
+                    break
+                press(cdp, sid, "Backspace")
+            self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "every item shown")
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length > 5", "the rows")
         return sid
 
@@ -259,14 +263,12 @@ class Page(Base):
             press(cdp, sid, "Escape")
             self.assertEqual(self.picked(cdp, sid), [], "Esc clears it")
 
-    def test_select_all_keys_in_a_box_are_the_box_s_own(self):
+    def test_select_all_keys_in_the_filter_line_are_its_own(self):
         with chrome() as cdp:
             sid = self.load(cdp)
-            click(cdp, sid, "[data-fb]")
-            self.until(cdp, sid, "!!document.querySelector('.fbox')", "a filter's box")
-            cdp.js("(document.querySelector('.fbox input') || document.querySelector('.fbox button')).focus()", sid)
+            click(cdp, sid, "#fline-input")
             press(cdp, sid, "a", CTRL)
-            self.assertEqual(self.picked(cdp, sid), [], "Ctrl+A in a filter box is the browser's")
+            self.assertEqual(self.picked(cdp, sid), [], "Ctrl+A in the filter line is the browser's")
 
     def test_group_ticks_checked_part_checked_and_off_when_collapsed(self):
         for width in (1400, 900):
@@ -320,12 +322,12 @@ class Page(Base):
             self.assertTrue(set(hidden) <= set(self.picked(cdp, sid)))
             self.assertFalse(cdp.js("!!document.querySelector('#sel-all')", sid), "no offer once all are picked")
             self.assertEqual(cdp.js("document.querySelector('#sel-count').textContent", sid), f"{len(every)} selected")
-            tap(cdp, sid, "[data-type=action]")
-            self.until(cdp, sid, "document.querySelector('[data-type=action]').getAttribute('aria-pressed') === 'true'", "only actions")
+            set_line(cdp, sid, "type:action")
+            self.until(cdp, sid, "[...document.querySelectorAll('#work-list tr[data-id]')].every(r => r.dataset.kind === 'action')", "only actions")
             actions = [r["id"] for r in self.data["actions"]]
             self.until(cdp, sid, f"JSON.stringify(clarkPage.selected().slice().sort()) === {json.dumps(json.dumps(sorted(actions)).replace(' ', ''))}",
                        "the selection followed the filters to the actions")
-            tap(cdp, sid, "[data-type=all]")
+            set_line(cdp, sid, "")
             self.until(cdp, sid, f"clarkPage.selected().length === {len(every)}", "and back")
 
     def test_filtering_drops_rows_no_longer_shown(self):
@@ -338,7 +340,7 @@ class Page(Base):
             tap(cdp, sid, self.rsel(act[0]))
             for d in dec:
                 tap(cdp, sid, self.rsel(d), MOD)
-            tap(cdp, sid, "[data-type=decision]")
+            set_line(cdp, sid, "type:decision")
             self.until(cdp, sid, f"clarkPage.selected().length === {len(dec)}", "the action left")
             self.assertEqual(sorted(self.picked(cdp, sid)), sorted(dec))
             self.assertEqual(cdp.js("document.querySelector('#sel-note').textContent", sid), "1 left the selection")

@@ -4,9 +4,10 @@
 // and nothing else: no fetch, no token, no Settings tab, and "today" is the date it was published (as_at).
 import { signal, computed } from "@preact/signals";
 import * as route from "../router.js";
-import { rowsOf } from "../workItems.js";
-import { decode, encode, fits, setPublished } from "../filters.js";
+import { rowsOf, todayIso } from "../workItems.js";
+import { decode, encode, fits, hasReviewDates, setPublished } from "../filters.js";
 import { searchIndex } from "../clientView.js";
+import * as FL from "../logic/filterLine.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
@@ -26,7 +27,8 @@ const filterText = signal(start.f);                  // the Work items filters' 
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
 // Work items' filters (filters.js) live in the address as `f` and nowhere else: the state is read from the text each time it changes,
-// so a reload, Back and Forward bring the filters back with the page. `openFilter` is which filter's box is open ("" for none).
+// so a reload, Back and Forward bring the filters back with the page. The published file keeps this older bar (#69; the filter line is
+// for the app only, #153): `openFilter` is which filter's box is open ("" for none).
 export const filterState = computed(() => decode(f.value));
 export const openFilter = signal("");
 export const filterNote = signal("");                // a plain line when a filter could not be added; "" otherwise
@@ -48,6 +50,32 @@ export const rows = computed(() => (data.value ? rowsOf(data.value) : []));
 export const query = signal("");
 export const found = computed(() => (data.value ? searchIndex(data.value) : {}));
 export function setQuery(text) { query.value = String(text == null ? "" : text); }
+
+// The one filter line (#153). The address still holds the older state in `f` (so every link, tile and Back works as before); the line
+// is that state written as words, plus what the older state cannot hold (a search word, `today`), kept for the session per project.
+// Storage may be refused (a private window, a file): then the line is still right for the page, and only the memory is lost.
+const session = () => { try { return window.sessionStorage; } catch (e) { return null; } };
+export const local = () => { try { return window.localStorage; } catch (e) { return null; } };
+const memo = signal(0);                              // bumped when the kept line changes, so lineText is read again
+export const me = signal("");                        // the signed-in person's name: the page has no source for it yet, so "owner:me" says so
+// The project's own lists, from the data the page already holds: workstream names in the project's order, milestones in their own order with the date each is working to.
+export const filterCtx = () => {
+  const d = data.value;
+  return {
+    today: fromFile.value && asAt.value ? asAt.value : todayIso(), me: me.value, quietReady: hasReviewDates(rows.value),
+    workstreams: d ? (d.workstreams || []).map((w) => w.name).filter(Boolean) : [],
+    milestones: d ? (d.milestones || []).map((m) => ({ name: m.name, date: m.forecast_date || m.baseline_date || "" })).filter((m) => m.name) : [],
+  };
+};
+
+/** The line on the page: the one kept for this project when it is the address's state, else the address's state as words. */
+export const lineText = computed(() => {
+  void memo.value;
+  const st = decode(filterText.value), mem = project.value ? FL.lineGet(session(), project.value) : FL.BASE;
+  return encode(FL.toState(mem, rows.value, filterCtx()).state) === encode(st) ? mem : FL.fromState(st);
+});
+/** The line kept for this project in this session (the start line when none). */
+export const rememberedLine = () => (project.value ? FL.lineGet(session(), project.value) : FL.BASE);
 
 export const counts = computed(() => {
   const d = data.value;
@@ -103,7 +131,7 @@ function settle() {
 
 // Back and Forward (the trackpad swipe, the mouse buttons, the keyboard) with something still open on the page. What is being typed
 // (a section's title) is kept: the field is left first, so it is saved as a click on a tab saves it, to the project it belongs to,
-// before the page moves, and the message says so, with Undo. A menu, a filter's box or a drag closes, and nothing is chosen. The
+// before the page moves, and the message says so, with Undo. A menu or a drag closes, and nothing is chosen. The
 // peek has an entry of its own (closing it is a Back), so the page redraws after this as it would anyway.
 function leave() {
   const el = document.activeElement;
@@ -122,8 +150,28 @@ export function show(next) {
   go({ view: next, project: project.value, item: "", ms: "", f: "" });
 }
 
+// The older state without the `is:` words and Freshness values the line cannot answer yet. Never throws: a state of any shape gives a state.
+function withoutUnusable(want) {
+  try {
+    const ctx = filterCtx(), r = rows.value, ok = (w) => !FL.parse(`is:${w}`, r, ctx).errors.length;
+    const back = { quiet: "stale", incomplete: "incomplete" }, word = { stale: "quiet", incomplete: "incomplete", gap: "incomplete" };
+    const out = { ...want, is: (Array.isArray(want.is) ? want.is : []).filter((w) => ok(word[w] || w)) };
+    const f = want.filters && typeof want.filters === "object" ? want.filters : {};
+    if (Array.isArray(f.reviewed)) {
+      const keep = f.reviewed.filter((v) => ok(word[v] || "x"));
+      out.filters = { ...f };
+      if (keep.length) out.filters.reviewed = keep; else delete out.filters.reviewed;
+    }
+    return out;
+  } catch (e) { return want; }
+}
+
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
-export function openWork(state) {
+export function openWork(want) {
+  // A word the page cannot answer yet (is:quiet, for the Freshness tile) would leave an error on the line: land on the same list without it.
+  // (The Publish dialog's Show them and the Freshness tile both come here, so a Freshness value the line cannot use yet is left out the same way.)
+  const state = fromFile.value ? want : withoutUnusable(want);        // a published file has the older bar, not the line
+  if (!fromFile.value && project.value && fits(state)) { FL.linePut(session(), project.value, FL.fromState(state)); memo.value++; }
   go({ view: "work", project: project.value, item: "", ms: "", f: fits(state) ? encode(state) : "" });
 }
 
@@ -178,8 +226,8 @@ export function setFilters(text) {
   go({ ...where(), f: text }, { replace: true });
 }
 
-/** A filter change from the Work items page: the state is encoded (filters.js) into `f`. If it would not fit in the address, nothing
- *  changes and a plain line says why. */
+/** A filter change from the published file's bar (#69): the state is encoded (filters.js) into `f`. If it would not fit in the
+ *  address, nothing changes and a plain line says why. */
 export function setFilterState(next) {
   if (!fits(next)) {
     refusals.value++;
@@ -188,6 +236,22 @@ export function setFilterState(next) {
   }
   filterNote.value = "";
   setFilters(encode(next));
+}
+
+/** A change of the line (#153): the line goes to the session, and its older-state form to the address, as any filter change does.
+ *  False (nothing changes, a plain line says why) when it would not fit in the address. */
+export function setLine(line) {
+  const next = FL.toState(line, rows.value, filterCtx()).state;
+  if (!fits(next)) {
+    refusals.value++;
+    filterNote.value = "That filter would not fit in the page's address, so it was not added. Remove another filter first.";
+    return false;
+  }
+  filterNote.value = "";
+  if (project.value) FL.linePut(session(), project.value, line);
+  memo.value++;
+  setFilters(encode(next));
+  return true;
 }
 
 // Open a project chosen from the list: one new entry, so the address takes its code (a reload keeps it) and its data is read.

@@ -2,4 +2,5 @@
 import * as fl from "@src/logic/filterLine.js";
 import * as filters from "@src/filters.js";
 import * as tiles from "@src/glanceTiles.js";
-window.T = { fl, filters, tiles };
+import * as report from "@src/stores/report.js";
+window.T = { fl, filters, tiles, report };
