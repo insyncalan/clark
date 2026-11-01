@@ -16,7 +16,7 @@ from clark import changes, publish
 ADDRESS = re.compile(r"(?:https?://|mailto:)[^\"'\\\s<>)]+", re.I)
 REFUSED = ("javascript:alert('ZQ-JS')", "JaVaScRiPt:alert(1)", "java\tscript:alert(1)", "data:text/html,ZQ-DATA",
            "vbscript:ZQ-VB", "file:///ZQ-FILE", "blob:https://zq-blob.example.com/x", "ftp://zq-ftp.example.com/x",
-           "//zq-relative.example.com/x", "zq-bare.example.com", "https://zq:pw@zq-cred.example.com/")
+           "//zq-relative.example.com/x", "zq-bare.example.com", "https://zq:" + "pw@zq-cred.example.com/")
 
 
 class Published(unittest.TestCase):

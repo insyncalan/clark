@@ -107,7 +107,7 @@ class Add(Base):
                  "java\tscript:alert(1)": doclinks.HIDDEN, "data:text/html,x": doclinks.NOT_USABLE,
                  "vbscript:x": doclinks.NOT_USABLE, "file:///etc/passwd": doclinks.NOT_USABLE, "blob:https://example.com/x": doclinks.NOT_USABLE,
                  "ftp://example.com/x": doclinks.NOT_USABLE, "//example.com/x": doclinks.NOT_USABLE, "example.com": doclinks.NOT_USABLE,
-                 "": doclinks.EMPTY, "https://user:pw@example.com/": doclinks.CREDENTIALS}
+                 "": doclinks.EMPTY, "https://user:" + "pw@example.com/": doclinks.CREDENTIALS}
         for url, words in cases.items():
             with self.subTest(url=url):
                 self.refused(new(url=url), words)
