@@ -48,7 +48,7 @@ class Bar(Base):
                 p.until("!!document.querySelector('#week-ending')", "the date field")
                 self.assertEqual(p.js("document.querySelector('#report-state').textContent"), "Editing · each change saves on its own")
                 self.assertEqual(p.js("document.querySelector('#report-hint').textContent"), "Drag to move, + to add a template")
-                self.assertEqual(p.js("document.querySelector('#week-ending').type"), "date")
+                self.assertEqual(p.js("document.querySelector('#week-ending').type"), "text")
                 self.assertEqual(p.js("document.querySelector('#week-ending').labels.length"), 1, "the field has its label")
 
     def test_a_new_week_is_saved_and_undone(self):
@@ -56,14 +56,31 @@ class Bar(Base):
             p = self.show(cdp)
             p.edit()
             before = self.week()
-            p.js("(() => { const e = document.querySelector('#week-ending'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, '2031-05-09'); e.dispatchEvent(new Event('change', { bubbles: true })); })()")
+            self.type_week(p, "09-05-2031")
             p.saved()
             self.assertEqual(self.week(), "2031-05-09")
             self.assertEqual(p.toast(), "Week ending changed to 09-05-2031.")
-            self.assertEqual(p.js("document.querySelector('#week-ending').value"), "2031-05-09")
+            self.assertEqual(p.js("document.querySelector('#week-ending').value"), "09-05-2031")
             p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelector('#week-ending').value === %r" % (before or ""), "the date came back")
+            p.until("document.querySelector('#week-ending').value === %r" % ("-".join(reversed(before.split("-"))) if before else ""), "the date came back")
             self.assertEqual(self.week(), before)
+
+    def type_week(self, p, text):
+        p.js("(() => { const e = document.querySelector('#week-ending'); e.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, %s); e.blur(); })()" % json.dumps(text))
+
+    def test_a_typed_entry_that_is_not_a_day_keeps_the_old_date_and_says_so(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            before = self.week()
+            shown = "-".join(reversed(before.split("-"))) if before else ""
+            for bad in ("31-02-2031", "tomorrow", "2031/5"):
+                with self.subTest(bad=bad):
+                    self.type_week(p, bad)
+                    p.until("/clark can read/.test(document.body.textContent)", "the plain words")
+                    self.assertIn("The old week ending date was kept.", p.js("document.body.textContent"))
+                    self.assertEqual(p.js("document.querySelector('#week-ending').value"), shown)
+                    self.assertEqual(self.week(), before)
 
     def test_the_route_refuses_a_date_that_is_not_one(self):
         for bad in ("2031-02-30", "tomorrow", "09-05-2031", 20310509, None):
