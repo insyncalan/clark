@@ -71,6 +71,24 @@ class AboutYou(Base):
              "window.fetch = (u, o) => (String(u).includes('/api/profile') && o && o.method === 'POST') "
              f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ window.__answered++; ok(r); }}, d ? d[Math.min(window.__sentn++, d.length - 1)] : {ms}))) : f(u, o); }})()")
 
+    def gate_saves(self, p):
+        """Hold every answer to a save until let_through lets it go. Each answer is read in full first, so it is whole when the test
+        releases it. window.__held collects the answers waiting, in the order the saves were sent."""
+        p.js("(() => { window.__held = []; window.__answered = 0; const f = window.fetch; "
+             "window.fetch = (u, o) => (String(u).includes('/api/profile') && o && o.method === 'POST') "
+             "? f(u, o).then((r) => r.clone().text().then(() => new Promise((ok) => window.__held.push(() => { window.__answered++; ok(r); })))) : f(u, o); })()")
+
+    def let_through(self, p, n):
+        """Wait until clark has answered the n-th save, then hand that answer to the page."""
+        p.until(f"window.__held.length >= {n}", f"clark answered save {n}")
+        p.js(f"window.__held[{n - 1}]()")
+        p.until(f"window.__answered >= {n}", f"the page was handed the answer to save {n}")
+
+    def settle(self, p):
+        """Let the page finish what it does after an answer: a few turns of its event loop and its drawing."""
+        p.js("(() => { window.__turns = 0; const go = () => { if (++window.__turns < 6) setTimeout(() => requestAnimationFrame(go), 0); }; go(); })()")
+        p.until("window.__turns >= 6", "the page settled")
+
     def top(self, p):
         return p.js("(() => { const w = document.querySelector('#profile-menu .who'); if (w) return {name: w.querySelector('b').textContent, "
                     "email: (w.querySelector('small') || {}).textContent || '', title: w.title}; "
@@ -190,25 +208,30 @@ class AboutYou(Base):
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
 
     def test_C_a_refusal_shows_under_its_own_box_in_either_order(self):
-        """#237: a save carries both boxes, so a refusal about the email must not land under the name, nor blank the email's message."""
-        bad = "That email address is not complete. Check it, or leave it empty. Nothing was saved."
+        """#237: a save carries both boxes, so a refusal about one box must not land under the other, nor blank its message. The first box is
+        refused and shows its message; the other box is then saved with the refused text still carried, and that second answer is refused for
+        the same box. Each answer is held and let go by the test, in order, so nothing here depends on timing."""
+        bad = {"email": "That email address is not complete. Check it, or leave it empty. Nothing was saved.",
+               "name": "Your name is too long. Use 60 characters or fewer. Nothing was saved."}
+        refused = {"email": "nope", "name": "N" * 61}
+        fine = {"email": "sam@example.com", "name": "Sam Lee"}
         said = lambda f: f"document.querySelector('#about-{f}').closest('.fld').querySelector('.fld-bad').textContent"
-        for first in ("email", "name"):
+        for first, second in (("email", "name"), ("name", "email")):
             with self.subTest(first=first), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p)
-                if first == "email":
-                    self.type_into(p, "email", "nope")
-                    p.until(f"{said('email')} !== ''", "the email refusal shows")
-                    self.type_into(p, "name", "Sam Lee")
-                else:
-                    self.type_into(p, "name", "Sam Lee", leave="none")
-                    self.type_into(p, "email", "nope")
-                p.until(f"{said('email')} !== ''", "the email refusal shows")
-                self.assertEqual(p.js(said("email")), bad)
-                self.assertEqual(p.js(said("name")), "", "the name box has no message")
-                self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee", "the name keeps what was typed")
-                self.assertEqual(p.js("document.querySelector('#about-email').value"), "nope", "the email keeps what was typed")
+                self.gate_saves(p)
+                self.type_into(p, first, refused[first])
+                self.let_through(p, 1)
+                p.until(f"{said(first)} !== ''", "the first refusal shows under its own box")
+                self.assertEqual(p.js(said(first)), bad[first])
+                self.type_into(p, second, fine[second])                  # the refused text is still carried in the first box
+                self.let_through(p, 2)                                   # the answer to this second save reaches the page
+                self.settle(p)
+                self.assertEqual(p.js(said(first)), bad[first], "the refusal stays under the box it is about")
+                self.assertEqual(p.js(said(second)), "", "the other box has no message")
+                self.assertEqual(p.js(f"document.querySelector('#about-{first}').value"), refused[first], "the refused box keeps what was typed")
+                self.assertEqual(p.js(f"document.querySelector('#about-{second}').value"), fine[second], "the other box keeps what was typed")
 
     def test_C_the_menu_still_opens_when_the_first_click_is_lost(self):
         """The helper that opens the menu must survive a click the page never took (a slow computer right after a load): the first click is

@@ -116,7 +116,9 @@ def set_profile(data_dir, name, email):
     not shaped like an address, and then writes nothing. The file is replaced in one step (platform.write_file), and a file that can't
     be read is never replaced."""
     if name is not None and not isinstance(name, str) or email is not None and not isinstance(email, str):
-        raise ProfileRefused(NAME_BAD, "name" if not isinstance(name, str) and name is not None else "email")
+        if name is not None and not isinstance(name, str):
+            raise ProfileRefused(NAME_BAD, "name")
+        raise ProfileRefused(EMAIL_BAD, "email")
     clean_name, clean_email = _one_line(name or ""), _one_line(email or "")
     if clean_name is None:
         raise ProfileRefused(NAME_BAD, "name")

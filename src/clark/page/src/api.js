@@ -139,8 +139,9 @@ export async function readData(project) {
 }
 
 // Your name and email (#180, Settings › Personal › About you), kept in clark's own settings on this computer. getProfile answers
-// {name, email} or null; saveProfile answers {ok: true, name, email} or {ok: false, message, field}: `field` is the box a refusal is about (name or email, or null); a refusal is in the route's own plain
-// words (ending "Nothing was saved."), any other failure in plainChange's.
+// {name, email} or null; saveProfile answers {ok: true, name, email} or {ok: false, message, field}: `field` is the box a refusal is
+// about (name or email, or null); a refusal is in the route's own plain words (ending "Nothing was saved."), any other failure in
+// plainChange's.
 export async function getProfile() {
   try {
     const r = await fetch("/api/profile", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
