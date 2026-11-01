@@ -66,13 +66,31 @@ HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?privat
 # Sunshine2026"): a key word, is or was, then a mixed value of 8 or more characters.
 QUOTED_PHRASE = r"""(?i)""" + _PW + r"""\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([^"\n]{8,80})"|'([^'\n]{8,80})')"""
 PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|secret)\b)["']?[ \t]{1,3}(?:is|was)[ \t]{1,3}["'(]?([^\s"'`$<>{}()\[\],;]{8,})"""
+# A quoted value of 6 or more letters right after a key word (#243): `the password is "<letters>"`. The key word may carry a prefix
+# (DB_PASSWORD, client_secret, userPassword: `_` or a lower-case letter before a capital) but not a word glued on in front
+# ("Secretary" is not one). After the key word only a suffix that still names the secret is allowed (`secret_key`, `password_prod`);
+# `secretName`, `secrets` and `password_auth` are settings about a secret, not the secret, and pass. A connector follows: `:` or `=`
+# (a quote may sit before it, a JSON key), or is / was. "secret" needs one of those; a password word alone may also stand just before
+# the quote (`the wifi password "Sunshine"`), except straight after a colon (`Subject: Password "Expired"` is a heading). The value
+# sits in one matching pair (double, single, backtick, curly or typographic single) of letters only. A few schema and placeholder
+# words are what a config puts there, not a password.
+_QS = r"""["'`\u201c\u201d\u2018\u2019]"""
+_LETTERS_ONLY = r"""[^\W\d_]{6,}"""
+_PAIR = (r"""(?:"LETTERS"|'LETTERS'|`LETTERS`|\u201cLETTERS\u201d|\u2018LETTERS\u2019)""").replace("LETTERS", _LETTERS_ONLY)
+_PLACEHOLDER = r"""(?!["'`\u201c\u2018](?:string|text|password|secret|hidden|required|optional|none|null|true|false|inherit)["'`\u201d\u2019])"""
+_LEFT = r"""(?:(?<![A-Za-z0-9])|(?-i:(?<=[a-z0-9])(?=[PS])))"""
+_PWORD = r"""(?:passw(?:or)?d|pwd|passcode|passphrase|pw(?![A-Za-z]))"""
+_SUFFIX = r"""(?:[_-]?(?:key|value|text|string|phrase|word|plain|prod|production|dev|test|staging|new|old|current|confirm|[0-9])){0,6}"""
+LETTER_QUOTED = (r"""(?i)""" + _LEFT + r"""(?:(?:""" + _PWORD + r"""|secret)""" + _SUFFIX + r"""(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{1,20}\b(?:is|was)\b)[ \t]{0,20}"""
+                 r"""|(?<!:)(?<!:[ \t])(?<!:[ \t]{2})""" + _PWORD + r"""(?![A-Za-z0-9_])[ \t]{1,20})""" + _PLACEHOLDER + _PAIR)
+# Known gaps, kept as Tech Debt: an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
+# a bare 40-character hex string with no key word, a key word with some other suffix (`password_backup: "..."`) and a bare password
+# word after a colon (`Note: password "..."`) are not caught; guessing them would drop too many ordinary files.
 # A file's name: a key word, then - _ . or a space and a mixed value of 8 or more characters ("notes-password-Hunter2xyz9.txt").
 NAME_SECRET = r"""(?i)""" + _KEY + r"""[-_. ]([A-Za-z0-9]{8,})"""
 # The one ordinary name taken out before a file name is screened (#374): "secret_santa" (with an optional 4-digit year) as the whole
 # name or the whole name before its extension, so "secret_santa2025.xlsx" is a file name; "secret_santa_key=..." is still read.
 _SANTA = re.compile(r"(?<![^/])secret_santa(?:\d{4})?(?=\.[A-Za-z0-9]{1,5}$|$)")
-# Known gaps, kept as Tech Debt: a secret of letters only ("correcthorsebattery") and a bare 40-character hex string with no key
-# word are not caught; guessing them would drop too many ordinary files.
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 
 # The publish scan's address shape starts at every letter and can take a long time on a long run of letters, so here it starts at
@@ -85,6 +103,7 @@ _UNQUOTED = re.compile(UNQUOTED_LOCAL)
 _CELL = re.compile(CELL_LOCAL)
 _PHRASE = re.compile(QUOTED_PHRASE)
 _PROSE = re.compile(PROSE_SECRET)
+_LETTERS = re.compile(LETTER_QUOTED)
 _SHORT = re.compile(SHORT_PASSWORD)
 _NAME = re.compile(NAME_SECRET)
 _RUN = re.compile(BASE64_RUN)
@@ -189,7 +208,7 @@ def _key_words(text):
     for m in _PROSE.finditer(text):
         if _mixed(m.group(1).rstrip(".!?:")):
             return True
-    return False
+    return _LETTERS.search(text) is not None
 
 
 def _one(text):

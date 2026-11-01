@@ -171,6 +171,54 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_a_letters_only_quoted_password_is_refused(self):
+        word = "orange" + "bicycle"
+        for q1, q2 in (('"', '"'), ("'", "'"), ("`", "`"), ("\u201c", "\u201d"), ("\u2018", "\u2019")):
+            for lead in ("password: ", "pwd=", "passphrase: ", "secret: ", "pw = ", "the password is ", "The wifi password was ", "password "):
+                with self.subTest(lead + q1):
+                    self.assertTrue(secret_screen.looks_like_secret(lead + q1 + word + q2))
+        self.assertTrue(secret_screen.looks_like_secret("Notes.\nPassword: \"" + "swordfish" + "\" (shared)"))
+
+    def test_a_short_or_unquoted_word_after_a_password_word_is_not_refused(self):
+        for text in ('password "ok"', 'the password "must" be long', "password: reset", "the password policy is reviewed each year",
+                     'the token "refresh" is renewed', 'a "required" field', 'pass `revert` to the call', 'password: "two words here"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_near_misses_of_the_quoted_letters_rule_pass(self):
+        """The key word must start a word, a bare secret needs a connector, the two quotes must be one pair, and a config's own
+        placeholder values are not passwords."""
+        for text in ('password "abcde"', "Secretary 'Harrington'", 'secrets: "inherit"', 'the secret "ingredient"', 'password: "string"',
+                     'click "Forgot password" "Submit"', "the password is 'orangebicycle\"", 'secret "orangebicycle"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_a_prefixed_or_suffixed_key_word_with_a_quoted_letters_value_is_refused(self):
+        """The commonest config shapes: a prefix such as DB_ or client_, camel case, and a suffix that still names the secret."""
+        word = "orange" + "bicycle"
+        for key in ("DB_PASSWORD=", "client_secret: ", "db_password: ", "userPassword: ", "mysql_pwd=", "admin_pw: ", "api_secret=",
+                    "secret_key: ", "clientSecret = ", "DB_PASSWORD_PROD=", "password_new: ", '"db_password": '):
+            with self.subTest(key):
+                self.assertTrue(secret_screen.looks_like_secret(key + '"' + word + '"'))
+                self.assertTrue(secret_screen.looks_like_secret(key + "'" + word + "'"))
+
+    def test_the_false_refusals_of_ordinary_text_pass(self):
+        """A word that only starts with a key word, a setting about a secret, a heading, and another language's word are not secrets."""
+        for text in ("Secretary 'Clinton' arrived", 'the secret "ingredient"', 'password: "string"', 'secretName: "postgres"', 'secrets: "inherit"',
+                     'secreto "abierto"', 'password_auth: "enabled"', 'Subject: Password "Expired"', 'password_hint: "favourite"',
+                     'passwords: "abcdefgh"', 'secretary: "Harrington"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_a_letters_only_value_in_another_alphabet_of_letters_is_refused(self):
+        self.assertTrue(secret_screen.looks_like_secret('password is "contrase\u00f1a"'))
+
+    def test_six_letters_are_refused_and_five_are_not(self):
+        self.assertTrue(secret_screen.looks_like_secret('password "abcdef"'))
+        self.assertFalse(secret_screen.looks_like_secret('password "abcde"'))
+        self.assertTrue(secret_screen.looks_like_secret('the secret is "orangebicycle"'))
+        self.assertTrue(secret_screen.looks_like_secret('"password": "orangebicycle"'))
+
     def test_the_address_shape_still_finds_an_address(self):
         self.assertTrue(secret_screen.looks_like_secret("see s3://user:" + PW + "@host/x"))
 
