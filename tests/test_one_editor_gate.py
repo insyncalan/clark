@@ -118,7 +118,13 @@ class PageGate(unittest.TestCase):
     def serve(self, html):
         s = Running(data_for=self.data, page_html=lambda: html, change=self.change, undo=changes.make_undo(self.store.path, [], USER))
         self.addCleanup(s.close)
+        s.httpd.section_body = self.body_write
         return s
+
+    def body_write(self, req):
+        """POST /api/section-body (#273): a section's content, answered as the update of `body` it stands for, so every check below reads self.sent as before."""
+        return self.change({"project": req.get("project"), "kind": "report_sections", "op": "update", "id": req.get("id"),
+                            "changes": {"body": req.get("body")}, **({"place": req["place"]} if "place" in req else {})})
 
     def change(self, req):
         if self.body_writes:

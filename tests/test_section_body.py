@@ -4,6 +4,7 @@ the cap at both routes (token first), and the page sending body edits to it.
 
 Run: python3 dev/run_tests.py test_section_body
 """
+import importlib
 import json
 import re
 import sqlite3
@@ -13,7 +14,8 @@ from _paths import SRC
 from clark import changes, history, server as sv
 from test_changes import Api, KIND
 from test_changes_section_bodies import BODY, MARK, TRACKER, text
-from test_server import Running
+
+Running = importlib.import_module("test_server").Running      # the plain server harness only; this file drives no browser
 
 OTHER = "ZQ-OTHER-MARK"
 

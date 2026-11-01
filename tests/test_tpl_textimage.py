@@ -95,7 +95,7 @@ class Checker(unittest.TestCase):
         self.assertEqual(refused(self, KIND, {"v": 1, "caption": "x" * 301}), textimage.LONG_LINE)
         self.assertEqual(refused(self, KIND, {"v": 1, "side": "middle"}), textimage.BAD_SIDE)
         self.assertNotIn("<script>", refused(self, KIND, {"v": 1, "caption": "<script>\n</script>"}), "a refusal never quotes")
-        self.assertTrue(textimage.TEXT_LIMIT + 8 * 1024 <= sv.ROUTE_BODY_LIMITS["/api/change"], "the words fit the change route")
+        self.assertTrue(textimage.TEXT_LIMIT + 8 * 1024 <= sv.ROUTE_BODY_LIMITS["/api/section-body"], "the words fit the section-body route")
         self.assertGreater(textimage.LIMIT, (textimage.PICTURE_MAX + 2) // 3 * 4 + textimage.TEXT_LIMIT, "a picture and its words fit")
 
     def test_published_picks_the_words_and_the_picture_and_leaves_an_empty_one_out(self):
