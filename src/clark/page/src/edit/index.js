@@ -9,6 +9,7 @@ import { SneakPeek as Words, SneakButton as WordsButton } from "./SneakPeek.jsx"
 import { PeekTabs, PeekActivity } from "./PeekActivity.jsx";
 import { Cell } from "./cells/Cell.jsx";
 import { Board, LayoutSwitch } from "./Board.jsx";
+import { ArchivedItems } from "./ArchivedItems.jsx";
 import { Publish } from "./Publish.jsx";
 import { ProfileMenu, exportExcel } from "./ProfileMenu.jsx";
 import { ProjectSwitch } from "./ProjectSwitch.jsx";
@@ -34,4 +35,4 @@ import { installKeys, openHelp, closeHelp, helpOpen } from "../help/helpStore.js
 import { templateEdit } from "./templates/index.js";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
-export const EDIT = { glance: GLANCE, Personal, RichField, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ProfileMenu, ProjectSwitch, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, UseCasesPage, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };
+export const EDIT = { glance: GLANCE, Personal, RichField, NeedsEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, ArchivedItems, Publish, ProfileMenu, ProjectSwitch, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, UseCasesPage, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys } };

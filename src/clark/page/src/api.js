@@ -214,3 +214,26 @@ export async function readArchivedUseCase(project, id) {
   const list = r.ok && r.body.data && Array.isArray(r.body.data.use_cases) ? r.body.data.use_cases : null;
   return list ? { ok: true, row: list.find((u) => u && (u.id === id || u.ref === id)) || null } : { ok: false };
 }
+
+// B-5: the archived work items of a project (the archived read of /api/data) and Restore of one. {ok: true, data} or {ok: false};
+// Restore answers {ok: true, reply} or {ok: false, message}.
+export async function getArchived(project) {
+  const r = await get(`/api/data?project=${encodeURIComponent(project)}&archived=only`);
+  return r.ok && r.body.data ? { ok: true, data: r.body.data } : { ok: false };
+}
+
+export async function sendRestore(project, table, id) {
+  try {
+    const r = await fetch("/api/change", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project, kind: table, op: "restore", id, place: "menu" }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
+    return { ok: false, message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
+  }
+}
