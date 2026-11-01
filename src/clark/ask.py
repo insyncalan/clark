@@ -71,6 +71,8 @@ class Request:
     passages: tuple = ()          # ((id, label), ...)
     hidden: dict = field(default_factory=dict)
     dropped_turns: int = 0        # how many of the oldest earlier turns were left out to fit MAX_REQUEST (the panel may say so)
+    left_out_secret: int = 0      # how many passages were left out because they looked like a key or a password (a count only)
+    kept: tuple = ()              # the position (in the passages as given) of each passage sent, in order, so a caller can match them
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
 
     @property
@@ -184,14 +186,18 @@ def build_request(question, passages, earlier=()):
         raise AskRefused(SECRET)
     if any(r == "user" and _secret(t) for r, t in turns):
         raise AskRefused(SECRET_EARLIER)
-    chosen = []
-    for p in passages or ():
+    chosen, kept, secret_out = [], [], 0
+    for n, p in enumerate(passages or ()):
         label, text = (p.label, p.text) if isinstance(p, Passage) else (p[0], p[1]) if isinstance(p, (tuple, list)) and len(p) == 2 else (None, None)
         if not _label_ok(label) or not isinstance(text, str):
             raise AskRefused(BAD_INPUT)
         if len(text) > MAX_PASSAGE:
             raise AskRefused(TOO_MUCH)
+        if _secret(text) or _secret(label):          # the last point before the provider: a passage that looks like a key is dropped, not sent
+            secret_out += 1
+            continue
         chosen.append((label, text))
+        kept.append(n)
     if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:
         raise AskRefused(TOO_MUCH)
 
@@ -203,7 +209,7 @@ def build_request(question, passages, earlier=()):
         if dropped >= len(turns):
             raise AskRefused(TOO_MUCH)
         dropped += 1
-    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped)
+    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped, left_out_secret=secret_out, kept=tuple(kept))
 
 
 def _assemble(question, turns, chosen):
@@ -478,6 +484,13 @@ def _squash(text):
 def leaks(text, canary):
     """True when `text` (all the reply's parts joined) holds the canary, whatever the capitals or what is between its characters."""
     return bool(canary) and _squash(canary) in _squash(text)
+
+
+def secret_note(count):
+    """The plain-words line for `Request.left_out_secret`. "" for none."""
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+        return ""
+    return f"{count} {'passage was' if count == 1 else 'passages were'} left out because {'it' if count == 1 else 'they'} looked like a key or a password."
 
 
 def dropped_note(count):
