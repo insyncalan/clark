@@ -5,7 +5,8 @@
 import { signal, computed } from "@preact/signals";
 import * as route from "../router.js";
 import { rowsOf } from "../workItems.js";
-import { decode, encode, fits } from "../filters.js";
+import { decode, encode, fits, setPublished } from "../filters.js";
+import { searchIndex } from "../clientView.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
@@ -42,6 +43,10 @@ export const projects = signal([]);                 // [{code, name}] from GET /
 export const projectsState = signal("loading");     // loading | ready | failed
 
 export const rows = computed(() => (data.value ? rowsOf(data.value) : []));
+// The published file's search words (#69): memory only, never kept anywhere. The index is read from the file's own rows, by id.
+export const query = signal("");
+export const found = computed(() => (data.value ? searchIndex(data.value) : {}));
+export function setQuery(text) { query.value = String(text == null ? "" : text); }
 
 export const counts = computed(() => {
   const d = data.value;
@@ -206,6 +211,7 @@ export function isFile() {
 
 function openPublished(p) {
   fromFile.value = true;
+  setPublished(true);                                     // the client's seven filters, no Client filter, Earlier for a finished item
   mode.value = "view";
   if (p === "bad") { tabs.value = []; status.value = "failed"; message.value = "This report's data could not be read."; return; }
   tabs.value = VIEWS.filter((v) => p.tabs.includes(v));
