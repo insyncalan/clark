@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -385,6 +385,9 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
         LOG.info("started on port %d", port)
+        updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port, migration_backup=store.migration_backup, open_db=store)   # demo data is never updated
+        if updates_seam is not None:
+            updates_seam.watch()              # records how an update or undo that started this server ended, once the helper is done
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
                      err=err,
@@ -404,6 +407,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
                      activity=activity_read.make_read(store.path, store.data_for),
                      brand_picture=page.brand_picture,
+                     updater=updates_seam,
                      **handlers)
         LOG.info("stopped with code %d", done)
         if done == 0:

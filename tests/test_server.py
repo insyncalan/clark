@@ -298,7 +298,8 @@ class Saving(ServerTest):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/sneak/read", "/api/publish", "/api/client-folder", "/api/preview",
                                                   "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/page-error", "/api/logging", "/api/logging/open-folder", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
                                                   "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
-                                                  "/api/ask/change/apply", "/api/section-image", "/api/section-file", "/api/people", "/api/people/undo"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read; #96 R1 the picture one, R2 the section file
+                                                  "/api/ask/change/apply", "/api/section-image", "/api/section-file", "/api/people", "/api/people/undo",
+                                                  "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read; #96 R1 the picture one, R2 the section file
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/sneak/read"], sv.sneak_route)
@@ -315,7 +316,9 @@ class Saving(ServerTest):
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
-                                                "/api/people": 4 * 1024, "/api/people/undo": 1024})     # #96: a project and a section only
+                                                "/api/people": 4 * 1024, "/api/people/undo": 1024,
+                                                "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024,
+                                                "/api/update/undo": 1024})     # #96: a project and a section only
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
