@@ -580,38 +580,44 @@ class Live(unittest.TestCase):
             self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "status"), "Red", "an overdue issue is Red, as in View")
             self.assertEqual(self.cell_text(cdp, sid, "TUL-D-016", "status"), "Pending")
 
-    def test_the_peek_has_the_same_status_picker_as_the_table(self):
+    def peek_picker(self, width):
         """#448 (row 55, system/prototype/peek.js:256): the peek's Status row opens the table's picker; one pick, one step, one Undo."""
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.open_page(cdp, width)
-                cdp.js("clarkPage.openPeek('TUL-007', 'item')", sid)
-                pcell = "#peek [data-cell='peek:TUL-007:status']"
-                self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's Status row is a picker in Edit")
-                self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").textContent", sid), "Red")
-                self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").getAttribute('aria-label')", sid), "Status of TUL-007: Red. Change")
-                click(cdp, sid, pcell)
-                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the peek's menu opened")
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 1, "one picker open, not the table's too")
-                self.assertEqual(self.menu_state(cdp, sid), [["Open", "Closed", "Cancelled", "rating:Red", "rating:Amber", "rating:Green"], ["Open", "rating:Red"]], "the table's own choices")
-                before = self.steps()
-                click(cdp, sid, "[data-pop] [data-value=Closed]")
-                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
-                self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
-                self.changed_once(before, "status from the peek")
-                self.assertEqual(self.toast(cdp, sid), "Status of TUL-007 changed to Closed.")
-                self.until(cdp, sid, f"document.querySelector(\"{pcell}\").textContent === 'Closed'", "the peek's cell says Closed")
-                self.assertEqual(cdp.js("(document.querySelector('#peek [data-pk-rating]') || {}).textContent", sid), " · Red", "a closed risk keeps its rating word in the peek")
-                self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Closed", "the table's cell says it too")
-                # the rating of the now closed risk, from the peek
-                click(cdp, sid, pcell)
-                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened on a closed risk")
-                click(cdp, sid, "[data-pop] [data-value='rating:Amber']")
-                self.until(cdp, sid, "(document.querySelector('#peek [data-pk-rating]') || {}).textContent === ' · Amber'", "the peek says Closed · Amber")
-                self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
-                self.undo(cdp, sid, "rating from the peek", "TUL-007 is back to Red.")
-                self.until(cdp, sid, "(document.querySelector('#peek [data-pk-rating]') || {}).textContent === ' · Red'", "Undo draws Closed · Red again in the peek")
-                self.assertEqual(self.row("raid", "TUL-007")["priority"], "High")
+        with chrome() as cdp:
+            sid = self.open_page(cdp, width)
+            cdp.js("clarkPage.openPeek('TUL-007', 'item')", sid)
+            pcell = "#peek [data-cell='peek:TUL-007:status']"
+            self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's Status row is a picker in Edit")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").textContent", sid), "Red")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").getAttribute('aria-label')", sid), "Status of TUL-007: Red. Change")
+            click(cdp, sid, pcell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the peek's menu opened")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 1, "one picker open, not the table's too")
+            self.assertEqual(self.menu_state(cdp, sid), [["Open", "Closed", "Cancelled", "rating:Red", "rating:Amber", "rating:Green"], ["Open", "rating:Red"]], "the table's own choices")
+            before = self.steps()
+            click(cdp, sid, "[data-pop] [data-value=Closed]")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
+            self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
+            self.changed_once(before, "status from the peek")
+            self.assertEqual(self.toast(cdp, sid), "Status of TUL-007 changed to Closed.")
+            self.until(cdp, sid, f"document.querySelector(\"{pcell}\").textContent === 'Closed'", "the peek's cell says Closed")
+            self.assertEqual(cdp.js("(document.querySelector('#peek [data-pk-rating]') || {}).textContent", sid), " · Red", "a closed risk keeps its rating word in the peek")
+            self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Closed", "the table's cell says it too")
+            # the rating of the now closed risk, from the peek
+            click(cdp, sid, pcell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened on a closed risk")
+            click(cdp, sid, "[data-pop] [data-value='rating:Amber']")
+            self.until(cdp, sid, "(document.querySelector('#peek [data-pk-rating]') || {}).textContent === ' · Amber'", "the peek says Closed · Amber")
+            self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
+            self.undo(cdp, sid, "rating from the peek", "TUL-007 is back to Red.")
+            self.until(cdp, sid, "(document.querySelector('#peek [data-pk-rating]') || {}).textContent === ' · Red'", "Undo draws Closed · Red again in the peek")
+            self.assertEqual(self.row("raid", "TUL-007")["priority"], "High")
+
+    # One test for each width: each starts on a fresh store, since the first leaves TUL-007 closed.
+    def test_the_peek_has_the_same_status_picker_as_the_table(self):
+        self.peek_picker(1400)
+
+    def test_the_peek_has_the_same_status_picker_as_the_table_at_900(self):
+        self.peek_picker(900)
 
     def test_a_pick_in_the_peek_is_about_the_open_item_even_with_two_rows_selected(self):
         """#448: the peek's picker never turns into the table's bulk change (#196)."""
@@ -640,7 +646,7 @@ class Live(unittest.TestCase):
                 sid = self.open_page(cdp, width, edit=False)
                 cdp.js("clarkPage.openPeek('TUL-008', 'item')", sid)
                 self.until(cdp, sid, "!!document.querySelector('#peek [data-pk-rating]')", "the peek says the rating word")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Amber")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Amber")
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "View has no picker")
                 labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
                 self.assertNotIn("Shown to client", labels)
