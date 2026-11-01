@@ -261,13 +261,14 @@ def font_css(folders=None):
 
 
 EDIT_CSS = SRC / "edit" / "edit.css"       # styles of the Edit parts only (#136): in the served page, never in the published one
+EDIT_ENTRIES = (ENTRY, "main-test.jsx")   # the served page and the browser tests' copy of it (served sources plus a test hook)
 
 
 def page_css(entry=ENTRY_VIEW):
     """The CSS the page inlines: the font, the demo brand's tokens and the shell's own styles; for the served page (entry main.jsx)
-    also the Edit parts' (edit/edit.css), so a published file holds none of their class names."""
+    and its test copy (main-test.jsx) also the Edit parts' (edit/edit.css), so a published file holds none of their class names."""
     css = font_css() + TOKENS.read_text(encoding="utf-8") + (PAGE / "shell.css").read_text(encoding="utf-8")
-    if entry == ENTRY:
+    if entry in EDIT_ENTRIES:
         css += EDIT_CSS.read_text(encoding="utf-8")
     return strip_css_comments(css)             # the built page carries no comment: a source comment can name a person
 
