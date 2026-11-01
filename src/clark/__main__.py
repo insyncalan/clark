@@ -16,6 +16,7 @@ The logic is in main() so a test can run it with fakes; everything that touches 
 """
 import argparse
 import errno
+import logging
 import os
 import re
 import shutil
@@ -25,7 +26,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, idle, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
+
+LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
 HERE = Path(__file__).resolve().parent
 VENDOR = HERE.parents[1] / "vendor"       # the bundled Python libraries (openpyxl); put last on the path, so they never hide the system's own
@@ -297,6 +300,20 @@ def use_case_ids_on_file(store):
     return ids
 
 
+def start_log(data_folder, projects, home=None, scratch=None):
+    """The daily log for this run (#110): the log folder of the platform (inside the temporary demo folder with --demo, so a
+    demo leaves nothing in the real log), the level kept in the data folder, and clark's standard loggers routed into it.
+    (log, handler, Logs) or (None, None, None) when the log folder cannot be named (a system clark is not built for yet): clark
+    never stops for want of a log."""
+    try:
+        folder = Path(scratch) / "logs" if scratch else platform.log_dir(home)
+    except platform.PlatformError:
+        return None, None, None
+    routes = set(server.GET_ROUTES) | set(server.POST_ROUTES) | {"/health", server.CSP_REPORT_ROUTE}
+    log = clog.Log(folder, data=data_folder, routes=routes)
+    return log, clog.install(log), log_routes.Logs(log, counts=lambda: {"projects": len(projects())})
+
+
 def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.open_url, home=None, onedrive_roots=None,
          change=None, undo=None, environ=None, is_free=port_free, word_import=None, word_export=None):
     """Run the launcher; the exit code. `serve`, `open_url`, `home` (for the default data folder) and `onedrive_roots` are
@@ -309,7 +326,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         return restore_main(given[1:], out, err, home, onedrive_roots)
     p = parser()
     args = p.parse_args(argv)
-    store, scratch, code = None, None, None
+    store, scratch, code, handler = None, None, None, None
     try:
         try:
             if args.demo and args.data:
@@ -348,11 +365,14 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
         server.set_data_mark(appfiles.data_mark(store.path.parent))
         shown = ServerOutput(out, code, open_url if args.open else None, err)
+        projects = projects_of(store.path, roots)
+        log, handler, logs = start_log(store.path.parent, projects, home, scratch)
+        LOG.info("started on port %d", port)
         updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port, migration_backup=store.migration_backup, open_db=store)   # demo data is never updated
         if updates_seam is not None:
             updates_seam.watch()              # records how an update or undo that started this server ended, once the helper is done
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
-                     projects=projects_of(store.path, roots), out=shown,
+                     projects=projects, out=shown,
                      err=err,
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
                      profile=who,
@@ -364,7 +384,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      milestones=milestone_feed.make_feed(store.data_for),
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store)),
-                     safety=safety.Safety(store.path, roots),
+                     safety=safety.Safety(store.path, roots), logs=logs,
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
@@ -372,6 +392,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      brand_picture=page.brand_picture,
                      updater=updates_seam,
                      **handlers)
+        LOG.info("stopped with code %d", done)
         if done == 0:
             print("Stopped.", file=out, flush=True)
         return done
@@ -379,6 +400,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         print("Stopped.", file=out, flush=True)
         return 0
     finally:
+        if handler is not None:
+            logging.getLogger("clark").removeHandler(handler)
         if store is not None:
             store.close()
         if scratch is not None:

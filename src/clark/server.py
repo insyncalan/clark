@@ -24,6 +24,9 @@ Routes:
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
+- POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (#110; log_routes.py)
+- GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
+- POST /api/logging      set Normal or Debug (#110); POST /api/logging/open-folder shows the log folder
 - POST /api/draft-email  Draft email (#50): the ticks and the email text from the builder; read only, never sends (draft_email_feed.make)
 - POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, never any words of the email (draft_email_feed.make_sent)
 - POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
@@ -101,6 +104,7 @@ ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/sneak/re
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
@@ -296,6 +300,35 @@ def csp_take(n):
         CSP_REPORTS["n"] += room
         CSP_REPORTS["dropped"] += n - room
         return room
+
+
+class Refused:
+    """Requests turned away before authorised() let them in (#234): counted, never a line of their own, so a page on another
+    site looping requests at this port cannot fill the day's log. Once `interval` seconds are up, the next one writes the
+    count in one line: a number only, nothing of any request (no path, query, header or Origin). `clock` is monotonic, so a
+    clock stepping back never holds the line back; tests pass their own."""
+
+    def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic):
+        self.interval, self.clock, self.lock = interval, clock, threading.Lock()
+        self.since, self.n = None, 0
+
+    def count(self):
+        with self.lock:
+            now = self.clock()
+            n = 0
+            if self.since is None or now - self.since >= self.interval:
+                n, self.since, self.n = self.n, now, 0
+            self.n += 1
+        if n:
+            LOG.warning("%d requests were turned away and not logged one by one", n)
+
+
+REFUSED = Refused()
+
+
+def refused_count():
+    """One more request turned away (see Refused)."""
+    REFUSED.count()
 
 
 def csp_report_route(handler):
@@ -739,6 +772,18 @@ def ask_route(method):
     return route
 
 
+def logs_route(method):
+    """A route that hands its request to the server's logs seam (log_routes.Logs, #110), which answers (status, body). Without
+    one there is nothing to ask: not found. What may be logged and what a report holds are decided in log.py, not here."""
+    def route(handler, *req):
+        logs = getattr(handler.server, "logs", None)
+        if logs is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = getattr(logs, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
 def word_import_route(handler, req):
     """POST /api/word-import (#48). Checked like change_route before this runs: the token, the Host, no other site's Origin, JSON
     only, a Content-Length and the route's own size limit."""
@@ -794,14 +839,16 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"),
-              "/api/profile": profile_route("get"), "/api/update": update_route("status")}
+              "/api/profile": profile_route("get"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
-                "/api/profile": profile_route("save"), "/api/update/review": update_route("review"),
+                "/api/profile": profile_route("save"), "/api/page-error": logs_route("page_error"),
+                "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
+                "/api/update/review": update_route("review"),
                 "/api/update/install": update_route("install"), "/api/update/arm-undo": update_route("arm_undo"),
                 "/api/update/undo": update_route("undo"), "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),
@@ -816,10 +863,22 @@ class Handler(BaseHTTPRequestHandler):
     default_request_version = "HTTP/1.0"               # clark: a request line that doesn't parse still gets headers
     timeout = 30                                       # clark: an idle or half-sent request never holds a thread
 
+    def parse_request(self):
+        self.let_in = False                            # set by authorised(); fresh for each request (#234)
+        return super().parse_request()
+
+    def log_request(self, code="-", size="-"):
+        """A reply to a request authorised() did not let in (any /api/ call before its token passed, and any refusal: a 403,
+        a doubled header, an unknown method, an oversized header) is counted, not a line of its own (#234)."""
+        if not getattr(self, "let_in", False) and ((getattr(self, "path", "") or "").startswith("/api/")
+                                                   or (isinstance(code, int) and code >= 400)):
+            return refused_count()
+        return super().log_request(code, size)
+
     def log_message(self, fmt, *args):
         """Quiet: one log line per API call; safe when the request line didn't parse. (creaite log_message)"""
         path = getattr(self, "path", "") or ""
-        if path.startswith("/api/") and path.split("?")[0] != HERE_ROUTE:       # the page's heartbeat is not logged
+        if path.startswith("/api/") and path.split("?")[0] not in (HERE_ROUTE, "/api/page-error"):   # the heartbeat is not logged; a page error's own capped line is its record
             LOG.info("%s %s", ascii(getattr(self, "command", "") or "")[1:-1], ascii(path.split("?")[0])[1:-1])   # escaped: no raw bytes
 
     def send_error(self, code, message=None, explain=None):
@@ -900,6 +959,7 @@ class Handler(BaseHTTPRequestHandler):
         if not token_ok(sent):
             self.send(403, error_body("stale", stale=True))
             return False
+        self.let_in = True
         return True
 
     def run_route(self, route, *args):
@@ -988,7 +1048,7 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, sneak=None, activity=None, word_import=None, word_export=None,
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, updater=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
@@ -997,6 +1057,7 @@ class LocalServer(ThreadingHTTPServer):
         self.change, self.undo, self.sneak = change, undo, sneak
         self.word_import, self.word_export = word_import, word_export
         self.page_html = page_html or placeholder_html
+        self.logs = logs                      # log_routes.Logs (#110); None: those routes answer not found
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
         self.movement = movement              # store.milestone_moves (#136): the owner-only Movement read; None: no such route
         self.activity = activity              # activity(code, item) -> the peek's Activity rows, or None (#42); None: no such route
@@ -1042,14 +1103,14 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, sneak=None, activity=None, word_import=None, word_export=None,
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, updater=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
-                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, sneak=sneak, activity=activity,
+                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, updater=updater)
     except OSError as e:

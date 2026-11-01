@@ -22,6 +22,7 @@ export function Milestones({ tools }) {
 export function Settings({ tools }) {
   const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
+  const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
@@ -30,6 +31,7 @@ export function Settings({ tools }) {
       <Empty title="Settings">Settings are not ready yet.</Empty>
       {ClientFolder ? <ClientFolder /> : null}
       {Personal ? <Personal /> : null}
+      {Diagnostics ? <Diagnostics /> : null}
       {Safety ? <Safety /> : null}
       {Update ? <Update /> : null}
       {AskSettings ? <AskSettings /> : null}
