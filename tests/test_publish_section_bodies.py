@@ -244,7 +244,7 @@ class ThePageDrawsNeedsAndLeavesTheTrackerQuiet(unittest.TestCase):
     def test_a_published_file_draws_no_type_it_does_not_know(self):
         src = (self.PAGE / "Dashboard.jsx").read_text(encoding="utf-8")
         line = next(l for l in src.splitlines() if "const fileDraws" in l)
-        self.assertTrue(line.rstrip().endswith(": false);"), line)             # every other type: not drawn, so left out of the file
+        self.assertTrue(line.rstrip().endswith("!!KINDS[s.type] && rowsFor(s.type).length > 0);"), line)   # every other type: drawn only when it is a known kind with rows, so an unknown one is left out of the file
         self.assertIn("needs", line)
         self.assertNotIn("tracker", line)
 
