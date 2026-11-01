@@ -13,6 +13,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -38,6 +39,17 @@ class Running:
         self.httpd.server_close()
 
     def api(self, method, path, body=None, token=None, extra=None, ctype="application/json"):
+        """One request. macOS can reset a connection the server refused early (an oversized body) or not yet accepted:
+        retry that, a few times with short sleeps, then fail with the real error."""
+        for attempt in range(4):
+            try:
+                return self._once(method, path, body, token, extra, ctype)
+            except (ConnectionResetError, ConnectionRefusedError, http.client.RemoteDisconnected):
+                if attempt == 3:
+                    raise
+                time.sleep(0.1 * (attempt + 1))
+
+    def _once(self, method, path, body, token, extra, ctype):
         conn = http.client.HTTPConnection(sv.HOST, self.port, timeout=20)
         try:
             conn.putrequest(method, path, skip_host=True, skip_accept_encoding=True)
