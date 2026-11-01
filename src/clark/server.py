@@ -6,7 +6,7 @@ function. Later items add their routes to GET_ROUTES and POST_ROUTES, where the 
 Routes:
 - GET  /health           {"ok": true} only (and "this_data" when asked with X-Clark-Data, #71); the Host is checked as everywhere
 - GET  /                 the page, with this run's token in a JSON data block (id="clark-boot"), never run as a script
-- GET  /api/projects     the projects the page can ask for: [{"code", "name"}], from the store (`projects`, #31)
+- GET  /api/projects     the projects the page can ask for: [{"code", "name", "open"?}], from the store (`projects`, #31); `open` is the count of open work items (#439)
 - GET  /api/data         ?project=<CODE>: one project's data, from the store (`data_for`, #31)
 - GET  /api/movement     ?project=<CODE>: Milestones Movement (#136), owner only, never published: the view of the store's `milestone_moves` read (movement_read.py); without the seam, not found
 - GET  /api/activity     ?project=<CODE>&item=<ID>: one item's changes for the peek's Activity tab (#42), owner only, never published (activity_read.py); without the seam, not found
@@ -520,7 +520,7 @@ PROJECT_NAME_LIMIT = 200
 
 
 def projects_route(handler):
-    """GET /api/projects[?archived=1]: the code and name of each project, nothing else, so the page can choose which one to ask for.
+    """GET /api/projects[?archived=1]: the code and name of each project (and, when the list gives one, how many work items are open), nothing else, so the page can choose which one to ask for.
     Only a code of the shape the store accepts is listed (3 to 7 capital letters or digits), a row that isn't a dict is
     skipped, a name that is not text falls back to the code, a name is cut at PROJECT_NAME_LIMIT characters, and the list stops at
     PROJECT_LIST_LIMIT."""
@@ -548,7 +548,14 @@ def projects_route(handler):
             name = None
         if not isinstance(name, str) or not name.strip():           # only text is a name; anything else falls back to the code
             name = code
-        out.append({"code": code, "name": name[:PROJECT_NAME_LIMIT]})
+        one = {"code": code, "name": name[:PROJECT_NAME_LIMIT]}
+        try:
+            count = row["open"]
+        except (KeyError, TypeError, IndexError):
+            count = None
+        if type(count) is int and count >= 0:                       # #439: the open work items, for the switcher; left out when not a plain count
+            one["open"] = count
+        out.append(one)
     return handler.send(200, {"ok": True, "projects": out})
 
 
