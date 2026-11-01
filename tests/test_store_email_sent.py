@@ -1,4 +1,4 @@
-"""#50 item 5: the "I sent it" record (Store.log_email_sent, Store.email_sent_for, schema version 4, provisional). Design:
+"""#50 item 5: the "I sent it" record (Store.log_email_sent, Store.email_sent_for, schema version 5, provisional). Design:
 docs/handoff/design-50-sent.md. Fictional data only. Run: python3 dev/run_tests.py test_store_email_sent
 
 What is asserted: a version-2 file moves up keeping every row and matches a new database; one press is one row and its item rows in
@@ -251,12 +251,42 @@ class Migration(unittest.TestCase):
         self.assertEqual(shape(path), shape(fresh.store.path))
         self.assertTrue(shape(path))
 
+    def test_a_version_4_file_with_a_word_row_and_a_section_bodies_row_moves_up_and_keeps_every_route_and_place(self):
+        """Step 5 builds two tables and touches nothing else: item_events is not rebuilt, so the route 'word' (step 3) and every place
+        stay allowed, and the report_sections type CHECK of step 4 keeps 'needs' and 'tracker'."""
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        path = demo.store.path
+        demo.store.close()
+        con = sqlite3.connect(path, isolation_level=None)
+        for t in ("email_sent_items", "email_sent"):
+            con.execute(f"DROP TABLE {t}")
+        con.execute("UPDATE meta SET v = '4' WHERE k = 'schema_version'")
+        con.execute("INSERT INTO item_events (at, item_id, kind, route, place, actor) VALUES ('x', 'ABC-A-001', 'change', 'word', 'board', 'you')")
+        con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-900', 'needs', 'Needs', 900)")
+        sql_of = lambda c, name: c.execute("SELECT sql FROM sqlite_master WHERE name = ?", (name,)).fetchone()[0]
+        events_sql, sections_sql = sql_of(con, "item_events"), sql_of(con, "report_sections")
+        events = con.execute("SELECT * FROM item_events ORDER BY event_id").fetchall()
+        con.close()
+        s = open_store(path, onedrive_roots=[])
+        self.addCleanup(s.close)
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "5")
+        self.assertEqual((sql_of(s.con, "item_events"), sql_of(s.con, "report_sections")), (events_sql, sections_sql))
+        self.assertEqual([tuple(r) for r in s.con.execute("SELECT * FROM item_events ORDER BY event_id")], events)
+        self.assertEqual(s.con.execute("SELECT type FROM report_sections WHERE id = 'ABC-S-900'").fetchone()[0], "needs")
+        self.assertEqual(s.con.execute("SELECT count(*) FROM email_sent").fetchone()[0], 0)
+        for route in ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate", "word"):
+            s.con.execute("INSERT INTO item_events (at, item_id, kind, route, actor) VALUES ('x', 'ABC-A-001', 'change', ?, 'you')", (route,))
+        for place in ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board"):
+            s.con.execute("INSERT INTO item_events (at, item_id, kind, route, place, actor) VALUES ('x', 'ABC-A-001', 'change', 'word', ?, 'you')", (place,))
+        s.con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-901', 'tracker', 'Tracker', 901)")
+
     def test_the_frozen_statements_match_what_schema_sql_creates_today(self):
         mine = sqlite3.connect(":memory:")
         theirs = sqlite3.connect(":memory:")
         try:
             mine.execute("CREATE TABLE projects (code TEXT PRIMARY KEY)")
-            for statement in store_module.VERSION_4_DDL:
+            for statement in store_module.VERSION_5_DDL:
                 mine.execute(statement)
             theirs.execute("CREATE TABLE projects (code TEXT PRIMARY KEY)")
             for statement in store_module._statements(store_module.SCHEMA.read_text(encoding="utf-8")):

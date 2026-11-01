@@ -23,7 +23,7 @@ from unittest import mock
 
 from _paths import ROOT, SRC
 
-from clark import appfiles, idle, server as sv
+from clark import appfiles, idle, page, server as sv
 from run_support import chrome_command, chrome_path, remove_profile, start_chrome, stop_chrome
 
 PROJECTS = [{"code": "DEMO", "name": "Demo programme", "client_name": "Not for the page", "week_ending": "2026-10-30"},
@@ -126,6 +126,9 @@ class Running:
         return self.ask(method, path, h, body, host=host)
 
 
+PICTURE = b"\x89PNG\r\n\x1a\n" + b"fictional picture"       # what the tests' brand folder holds (#98)
+
+
 def echo(handler, req):
     """A POST route for the tests (no POST route exists in #33 yet)."""
     return handler.send(200, {"ok": True, "got": req})
@@ -221,6 +224,22 @@ class Token(ServerTest):
                     else:       # /api/change and /api/undo (#65) answer an empty request in words (400 or 503), never 403
                         self.assertNotEqual(status, 403, f"{method} {path} with the token")
 
+    def test_the_only_routes_without_a_token_are_the_listed_ones(self):
+        """#98: a route that needs no token is on this list and nowhere else. Everything in the two route tables is under
+        /api/ (so authorised() covers it, test above); the brand's picture is the one new GET without a token, and it is a
+        fixed list of names, answered with the Host, Origin and Sec-Fetch-Site checks instead."""
+        for r in [*sv.GET_ROUTES, *sv.POST_ROUTES]:
+            self.assertTrue(r.startswith("/api/"), r)
+        free = {("GET", "/health"), ("GET", "/"), ("POST", sv.CSP_REPORT_ROUTE),
+                *(("GET", sv.BRAND_PREFIX + n) for n in page.PICTURES)}
+        self.assertEqual(sorted(page.PICTURES), ["cover.jpeg", "cover.jpg", "cover.png", "cover.webp"])
+        with mock.patch.object(self.s.httpd, "brand_picture", lambda name: (PICTURE, page.PICTURES[name])):
+            for method, path in sorted(free):
+                if method == "GET":
+                    self.assertEqual(self.s.ask("GET", path)[0], 200, path)       # no token sent
+                    self.assertEqual(self.s.ask("GET", path, host="evil.example")[0], 403, path)
+                    self.assertEqual(self.s.api("POST", path, b"{}")[0], 404, f"{path} is GET only")
+
     def test_no_message_names_a_keyboard_shortcut(self):
         """A shortcut is wrong on other systems: plain words say 'Reload the page'."""
         for text in [sv.STALE_PAGE, *(m for m in sv.MESSAGES.values() if isinstance(m, str))]:
@@ -272,15 +291,18 @@ class Saving(ServerTest):
             return 409, {"ok": False, "message": "That step has been undone already.", "code": "undone"}
         return Running(change=change, undo=undo)
 
-    def test_the_post_routes_are_exactly_change_undo_the_publish_ones_the_two_backup_ones_and_profile(self):
+    def test_the_post_routes_are_exactly_change_undo_the_publish_ones_the_two_backup_ones_profile_and_the_two_word_ones(self):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/publish", "/api/client-folder", "/api/preview",
-                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/draft-email", "/api/draft-email/sent"})     # #43, #111, #147, #180, #50
+                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export"})     # #43, #111, #147, #180, #50; #48 added the Word two
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
+        self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
+        self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024,
-                                                "/api/backups/restore": 1024, "/api/profile": 2 * 1024,
-                                                "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024})     # #111, #180, #50
-        for route in ("/api/save", "/api/changes", "/api/change/", "/api/import"):
+                                                "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/word-export": 1024,     # #111, #180; #48
+                                                "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
+                                                "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024})
+        for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
     def test_no_seam_is_503(self):
@@ -531,6 +553,9 @@ class Headers(ServerTest):
             yield "200 health", self.s.ask("GET", "/health")
             yield "200 page", self.s.ask("GET", "/")
             yield "200 api", self.s.api("GET", "/api/data?project=DEMO")
+            with mock.patch.object(self.s.httpd, "brand_picture", lambda name: (PICTURE, "image/png")):
+                yield "200 picture", self.s.ask("GET", "/assets/cover.png")
+            yield "404 picture", self.s.ask("GET", "/assets/cover.png")
             yield "403", self.s.ask("GET", "/", host="evil.example")
             yield "404", self.s.ask("GET", "/nothing")
             yield "415", self.s.api("POST", "/api/echo", b"{}", ctype="text/plain")
@@ -558,7 +583,7 @@ class Headers(ServerTest):
         self.assertEqual(len(policies), 2)
         self.assertIn("frame-ancestors 'none'", policies)
         full = next(p for p in policies if p != "frame-ancestors 'none'")
-        self.assertEqual(full, sv.csp_policy(data))
+        self.assertEqual(full, sv.csp_policy(data, f"127.0.0.1:{self.s.port}"))
         h = sv.csp_hashes(data.decode())
         self.assertEqual(len(h["script"]), 1)
         self.assertIn(f"script-src {h['script'][0]};", full)
@@ -576,6 +601,21 @@ class Headers(ServerTest):
         self.assertIn("report-uri /csp-report", policy)
         self.assertIn("worker-src 'self'", policy)
         self.assertNotIn("blob:", re.search(r"worker-src ([^;]*)", policy).group(1))
+
+    def test_images_come_from_data_blob_and_the_brand_route_only(self):
+        """#98: img-src has no 'self' (so no other path of this server is an image source), only the brand route and the app icons' folder, under the Host
+        asked for; a Host that is not this machine's adds nothing."""
+        html = sv.with_boot(sv.PLACEHOLDER)
+        img = lambda p: re.search(r"img-src ([^;]*)", p).group(1)
+        self.assertEqual(img(sv.csp_policy(html)), "data: blob:")
+        self.assertEqual(img(sv.csp_policy(html, "127.0.0.1:8766")), "data: blob: http://127.0.0.1:8766/assets/ http://127.0.0.1:8766/app/")
+        self.assertEqual(img(sv.csp_policy(html, "[::1]:9")), "data: blob: http://[::1]:9/assets/ http://[::1]:9/app/")
+        for host in ("evil.example", "127.0.0.1:8766 https://evil.example", "127.0.0.1;x", "", None):
+            self.assertEqual(img(sv.csp_policy(html, host)), "data: blob:", repr(host))
+        for host in ("localhost", f"localhost:{self.s.port}", f"[::1]:{self.s.port}"):
+            _, msg, _ = self.s.ask("GET", "/", host=host)
+            policy = next(p for p in msg.get_all("Content-Security-Policy") if p != "frame-ancestors 'none'")
+            self.assertEqual(img(policy), f"data: blob: http://{host}/assets/ http://{host}/app/")
 
     def test_a_500_names_only_the_kind_of_fault(self):
         with mock.patch.object(self.s.httpd, "data_for", side_effect=RuntimeError("/Users/someone/secret")), \
@@ -600,6 +640,7 @@ class Headers(ServerTest):
             ("not_allowed", self.s.ask("GET", "/", host="evil.example")),
             ("not_allowed", self.s.ask("GET", "/api/data?project=DEMO")),
             ("not_found", self.s.ask("GET", "/nothing")),
+            ("picture_not_found", self.s.ask("GET", "/assets/cover.png")),
             ("send_json", self.s.api("POST", "/api/echo", b"{}", ctype="text/plain")),
             ("bad_request", self.s.api("POST", "/api/echo", b"{not json")),
             ("length_required", self.s.api("POST", "/api/echo", extra={"Content-Type": "application/json"})),
