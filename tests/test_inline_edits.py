@@ -209,14 +209,14 @@ def key(cdp, sid, name, alt=False):
     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
 
 
-def click(cdp, sid, selector):
+def click(cdp, sid, selector, mods=0):
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
     box = cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()", sid)
     assert box, f"{selector} is not on the page"
     x, y = box
     cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
-    cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": 1}, sid)
-    cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
+    cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": 1, "modifiers": mods}, sid)
+    cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1, "modifiers": mods}, sid)
 
 
 def dblclick(cdp, sid, selector):
@@ -543,11 +543,9 @@ class Live(unittest.TestCase):
         mod = 4 if sys.platform == "darwin" else 2                       # Cmd on a Mac, Ctrl elsewhere
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
-            for ref, mods in (("TUL-007", 0), ("TUL-010", mod)):
-                x, y = cdp.js(f"(() => {{ const b = document.querySelector(\"tr[data-id='{ref}'] .c-item .t\").getBoundingClientRect(); return [b.x + 5, b.y + b.height / 2]; }})()", sid)
-                for kind, buttons in (("mousePressed", 1), ("mouseReleased", 0)):
-                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1, "modifiers": mods}, sid)
-            self.until(cdp, sid, "document.querySelectorAll(\"tr[data-id].picked\").length === 2", "two risks and issues selected")
+            for ref, mods, n in (("TUL-007", 0, 1), ("TUL-010", mod, 2)):      # as test_multi_select does: scroll to it, click its title, and wait for it to be picked before the next (the selection bar pushes the rows down)
+                click(cdp, sid, f"tr[data-id='{ref}'] .c-item .t", mods)
+                self.until(cdp, sid, f"document.querySelectorAll(\"tr[data-id].picked\").length === {n} && document.querySelector(\"tr[data-id='{ref}']\").classList.contains('picked')", f"{ref} picked, {n} in all")
             before, other = self.steps(), self.row("raid", "TUL-010")
             click(cdp, sid, "[data-cell='TUL-007:status']")
             self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
