@@ -10,31 +10,11 @@ import unittest
 from _paths import ROOT, SRC  # noqa: F401
 
 from clark import publish, to_client  # noqa: E402
+from _growth import assert_growth  # noqa: E402
 from test_publish import ICON_LINK, TOUCH_LINK  # noqa: E402,F401
 from test_publish_scan_gaps import real  # noqa: E402
 
 HEADROOM = 20
-
-GROWTH_LIMIT = 3.5      # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8. Above 3.5 means the work is growing faster than linear (a square fails; linear measures 1.8 to 2.2).
-GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
-
-
-def growth_ratio(work, n, tries=3):
-    """Time work(n) and work(2 * n) in CPU time (time.process_time, so a busy machine does not count against it), best of
-    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR))."""
-    import time
-
-    def best(size):
-        found = None
-        for _ in range(tries):
-            start = time.process_time()
-            work(size)
-            spent = time.process_time() - start
-            found = spent if found is None else min(found, spent)
-        return found
-    small, big = best(n), best(2 * n)
-    return small, big, big / max(small, GROWTH_FLOOR)
-
 
 def measure(call, text):
     """The steps `call(text)` spends, counted on a Work that never stops."""
@@ -140,9 +120,7 @@ class Budget(unittest.TestCase):
         for name, (shape, n) in self.SHAPES.items():
             def work(size, shape=shape):
                 self.assertEqual(publish.outside_addresses(shape(size)), [publish.TOO_BIG_FOUND])
-            small, big, ratio = growth_ratio(work, n)
-            print("%s: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (name, small, big, ratio))
-            self.assertLessEqual(ratio, GROWTH_LIMIT, "%s: t(n)=%.3f t(2n)=%.3f" % (name, small, big))
+            assert_growth(self, work, n, name)
 
     def test_the_message_is_plain_words(self):
         msg = publish.TOO_BIG_FOUND
@@ -152,26 +130,6 @@ class Budget(unittest.TestCase):
 
     def test_a_clean_text_under_the_budget_still_passes(self):
         self.assertEqual(publish.outside_addresses("<p>hello</p>" * 100), [])
-
-
-class TheGrowthCheckTellsLinearFromCubic(unittest.TestCase):
-    """The helper above is only worth trusting if it passes a linear cost and fails a cubic one (known pure-Python costs)."""
-    def test_linear_work_passes_and_cubic_work_fails_the_limit(self):
-        def linear(n):
-            total = 0
-            for i in range(n * 400000):
-                total += i
-            return total
-
-        def cubic(n):
-            total = 0
-            for i in range(n):
-                for j in range(n):
-                    for k in range(n):
-                        total += 1
-            return total
-        self.assertLessEqual(growth_ratio(linear, 3)[2], GROWTH_LIMIT)
-        self.assertGreater(growth_ratio(cubic, 160)[2], GROWTH_LIMIT)
 
 
 if __name__ == "__main__":

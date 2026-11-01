@@ -17,6 +17,7 @@ from html.parser import HTMLParser
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 from clark import sanitise
 from clark.sanitise import MAX_CHARS, MAX_DEPTH, SanitiseError, clean_html, plain_text
+from _growth import assert_growth
 
 TAGS = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"}
 VOID = {"br", "hr", "input"}
@@ -82,27 +83,6 @@ def audit(out):
     if re.search("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", out):
         problems.append("control character")
     return problems
-
-
-GROWTH_LIMIT = 3.5      # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8. Above 3.5 means the work is growing faster than linear (a square fails; linear measures 1.8 to 2.2).
-GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
-
-
-def growth_ratio(work, n, tries=3):
-    """Time work(n) and work(2 * n) in CPU time (time.process_time, so a busy machine does not count against it), best of
-    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR))."""
-    import time
-
-    def best(size):
-        found = None
-        for _ in range(tries):
-            start = time.process_time()
-            work(size)
-            spent = time.process_time() - start
-            found = spent if found is None else min(found, spent)
-        return found
-    small, big = best(n), best(2 * n)
-    return small, big, big / max(small, GROWTH_FLOOR)
 
 
 class Base(unittest.TestCase):
@@ -786,16 +766,22 @@ class Limits(Base):
                 "headings": "<h1>a<h2>b<h3>c" * (n // 15), "sections": "<svg/><math/>" * (n // 13), "doctype": "<!DOCTYPE " + "a " * (n // 2 - 10),
             }
 
-        for label in shapes(MAX_CHARS):
+        # Only the cleaner is timed: both sizes of every shape are built first, and the audit runs after the timing, on the last output.
+        sizes = (MAX_CHARS // 2, MAX_CHARS)
+        built = {size: shapes(size) for size in sizes}
+        for label in built[MAX_CHARS]:
+            outputs = {}
+
             def work(size, label=label):
+                source = built[size][label][:size]
                 try:
-                    out = clean_html(shapes(size)[label][:size])
+                    outputs[size] = clean_html(source)
                 except SanitiseError:
-                    return                                                       # refused: fine, and fast
-                self.assertEqual(audit(out), [], label)
-            small, big, ratio = growth_ratio(work, MAX_CHARS // 2)
-            print("%s: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (label, small, big, ratio))
-            self.assertLessEqual(ratio, GROWTH_LIMIT, "%s: t(n)=%.3f t(2n)=%.3f" % (label, small, big))
+                    outputs[size] = None                                         # refused: fine, and fast
+            assert_growth(self, work, MAX_CHARS // 2, label, tries=5)
+            for size in sizes:
+                if outputs[size] is not None:
+                    self.assertEqual(audit(outputs[size]), [], "%s at %d" % (label, size))
 
 
 # ===== plain_text =====
@@ -976,26 +962,6 @@ class Module(unittest.TestCase):
     def test_the_allow_list_is_the_one_in_the_issue(self):
         self.assertEqual(set(sanitise.ALLOWED), TAGS)
         self.assertEqual(set(sanitise.VOID), VOID)
-
-
-class TheGrowthCheckTellsLinearFromCubic(unittest.TestCase):
-    """The helper above is only worth trusting if it passes a linear cost and fails a cubic one (known pure-Python costs)."""
-    def test_linear_work_passes_and_cubic_work_fails_the_limit(self):
-        def linear(n):
-            total = 0
-            for i in range(n * 400000):
-                total += i
-            return total
-
-        def cubic(n):
-            total = 0
-            for i in range(n):
-                for j in range(n):
-                    for k in range(n):
-                        total += 1
-            return total
-        self.assertLessEqual(growth_ratio(linear, 3)[2], GROWTH_LIMIT)
-        self.assertGreater(growth_ratio(cubic, 160)[2], GROWTH_LIMIT)
 
 
 if __name__ == "__main__":

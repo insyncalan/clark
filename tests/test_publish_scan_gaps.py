@@ -14,7 +14,8 @@ from _paths import ROOT, SRC, TOOLS  # noqa: F401
 
 from clark import page, publish, to_client  # noqa: E402
 from clark.publish import PublishError  # noqa: E402
-from test_publish import GROWTH_LIMIT, ICON_LINK, TOUCH_LINK, growth_ratio, made  # noqa: E402
+from _growth import assert_growth  # noqa: E402
+from test_publish import ICON_LINK, TOUCH_LINK, made  # noqa: E402
 
 OPENER = '<script type="application/json" id="clark-data">'
 _BASE = []
@@ -192,9 +193,7 @@ class Gaps(unittest.TestCase):
                            ("srcset commas", lambda n: '<img srcset="' + "," * n + '">'), ("srcset words", lambda n: '<img srcset="' + "a " * n + '">'),
                            ("style attrs", lambda n: '<a style="' * n), ("ampersands", lambda n: '<a href="' + "&" * n + '">'),
                            ("image-set", lambda n: "<style>" + "image-set(" * n + "</style>")):
-            small, big, ratio = growth_ratio(lambda size, make=make: publish.outside_addresses(make(size)), 30000)
-            print("%s: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (name, small, big, ratio))
-            self.assertLessEqual(ratio, GROWTH_LIMIT, "%s: t(n)=%.3f t(2n)=%.3f" % (name, small, big))
+            assert_growth(self, lambda size, make=make: publish.outside_addresses(make(size)), 30000, name)
 
 
 FOREIGN = ("<svg><style><![CDATA[ /* </style> */ @import url(//evil/x.css); ]]></style></svg>",
