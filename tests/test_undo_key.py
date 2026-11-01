@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _real_server import real_server
+from _real_server import USER, real_server  # noqa: F401  (USER: test_activity_undo reads it as tuk.USER)
 from clark import page, server as sv
 from clark.store import open_store
 from test_server import CHROME, chrome, wait
