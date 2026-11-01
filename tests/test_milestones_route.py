@@ -38,6 +38,10 @@ def rows_for_feed():
 
 
 class Feed(unittest.TestCase):
+    def test_a_project_with_only_archived_milestones_gives_an_empty_list(self):
+        got = feed.editor_rows({"milestones": [row(id="DEMO-M-009", baseline_date="2026-08-14", archived=1)]}, ON)
+        self.assertEqual(got["milestones"], [])
+
     def test_only_the_page_fields_leave(self):
         got = feed.editor_rows({"milestones": rows_for_feed(), "workstreams": []}, ON)
         self.assertEqual(got["as_at"], ON)
@@ -152,9 +156,20 @@ class Route(unittest.TestCase):
         status, got = self.rig.call("/api/milestones?project=NOPE")
         self.assertEqual((status, got["code"], got["message"]), (404, "project_not_found", sv.MESSAGES["project_not_found"]))
 
-    def test_a_request_over_one_kib_is_refused(self):
-        status, _ = self.rig.call("/api/milestones?project=DEMO&" + "a" * 2048)
-        self.assertGreaterEqual(status, 400)
+    def test_a_very_long_request_line_is_refused_and_nothing_is_read(self):
+        # a GET has no body limit of its own: the standard library's 64 KiB request line is the only size limit (414)
+        conn = http.client.HTTPConnection(sv.HOST, self.rig.httpd.server_port, timeout=20)
+        try:
+            conn.request("GET", "/api/milestones?project=DEMO&" + "a" * 70000,
+                         headers={"Host": f"127.0.0.1:{self.rig.httpd.server_port}", sv.TOKEN_HEADER: sv.TOKEN})
+            self.assertEqual(conn.getresponse().status, 414)
+        finally:
+            conn.close()
+        self.assertEqual(self.rig.calls, [])
+
+    def test_a_long_extra_parameter_is_400_and_nothing_is_read(self):
+        status, got = self.rig.call("/api/milestones?project=DEMO&" + "a" * 2048)
+        self.assertEqual((status, got["code"]), (400, "bad_project_code"))
         self.assertEqual(self.rig.calls, [])
 
     def test_without_the_seam_it_is_404(self):
