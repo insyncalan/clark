@@ -25,7 +25,7 @@
      background and on its Changed highlight in light and in dark (tests/test_peek_icons.py). Amber takes the text shade, since the plain amber is 2.2:1 on white. */
   --icon-red: var(--status-red); --icon-amber: var(--status-amber-text); --icon-green: var(--status-green); --icon-blue: var(--brand-blue); --icon-grey: var(--grey-700);
   /* how clear a section's control is at rest (#101): faint in light, clearer in dark, where .3 is close to invisible */
-  --sh-rest: .3;
+  --sh-rest: .3; --tile-ctl: 41px; --tile-tag: 54px;
 }
 /* dark mode: the same tokens, redrawn for a dark page; the top bar and the report cover stay dark. The values are written twice because CSS cannot
    share them: once for data-theme=dark (chosen) and once for data-theme=auto (follow the computer). tests/test_page.py keeps the two copies equal. */
