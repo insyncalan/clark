@@ -659,6 +659,45 @@ class PublishedList(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('#work').textContent.includes('Shown to client')", sid), False)
 
 
+def close_the_risk(plant):
+    """#448: PUB-001, shown to the client, is closed and rated Amber (impact and likelihood Medium)."""
+    r = next(r for r in plant["data"]["raid"] if r["id"] == "PUB-001")
+    r.update(status="Closed", closed="2026-10-14", impact="Medium", likelihood="Medium", priority="Medium", client_visible=1)
+
+
+class ClosedRiskPublished(unittest.TestCase):
+    """#448 done-when 5: a closed, rated risk reaches a client's file with its rating, and with nothing internal."""
+
+    def test_the_published_row_keeps_its_rating_and_carries_only_the_allowed_columns(self):
+        import test_publish as tp
+        from clark import publish
+        plant, pub, text = tp.made(close_the_risk)
+        row = next(r for r in pub["data"]["raid"] if r["id"] == "PUB-001")
+        self.assertEqual((row["status"], row["priority"], row["impact"], row["likelihood"]), ("Closed", "Medium", "Medium", "Medium"))
+        self.assertLessEqual(set(row), set(publish.PUBLISH_FIELDS["raid"]), "nothing outside the allow-list is on the row")
+        for flag in ("client_visible", "archived", "internal_note", "source"):
+            self.assertNotIn(flag, row)
+        for key, marker in plant["markers"].items():
+            for spelling in tp.fx.spellings(marker):
+                self.assertNotIn(spelling, text, f"the planted internal text {key} is not in the file")
+        self.assertNotIn("PUB-002", [r["id"] for r in pub["data"]["raid"]], "a risk not shown to the client is still absent")
+
+    def test_the_published_peek_says_closed_and_the_rating_word(self):
+        import tempfile
+        import test_publish as tp
+        _plant, _pub, text = tp.made(close_the_risk)
+        for width in (1400, 900):
+            with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+                path = Path(tmp) / "report.html"
+                path.write_text(text, encoding="utf-8")
+                sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-rating]')", sid)), "the peek of the closed risk drew")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Amber")
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "no picker in a published file")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent).includes('Shown to client')", sid), False)
+                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
+
+
 def pub_block(data):
     from clark import publish
     return publish.data_block({"data": data["data"], "sections": data["sections"], "tabs": data["tabs"]}, data["as_at"])

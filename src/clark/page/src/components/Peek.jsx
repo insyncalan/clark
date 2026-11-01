@@ -7,7 +7,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile } from "../stores/report.js";
 import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
-import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso } from "../workItems.js";
+import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
 import { itemIds, milestoneIds, around } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
@@ -27,8 +27,10 @@ function Row({ name, children, ref_, key_ }) {          // key_: which field thi
   return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-flash={hit ? "1" : undefined}><dt>{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
 }
 
-function ItemFields({ row, editing }) {
+function ItemFields({ row, editing, Cell }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
+  // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"), here and in a published file.
+  const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) && row.priority ? colourOf(row.priority).word : "";
   return (
     <dl class="pk-fields">
       <Row name="Type">{KIND_WORDS[row.kind] || row.kind}</Row>
@@ -37,7 +39,10 @@ function ItemFields({ row, editing }) {
         <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
       </Row>
       {row.kind !== "decision" ? <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.priority)}>{text(row.priority)}</Toned></Row> : null}
-      <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}><span class={`pill ${pill.class}`}>{pill.text}</span></Toned></Row>
+      <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}>
+        {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
+        {kept ? <span class="pk-rating" data-pk-rating> · {kept}</span> : null}
+      </Toned></Row>
       <Row name="Workstream">{text(row.workstream)}</Row>
       <Row name="Milestone">{text(row.milestone)}</Row>
       <Row name="Use case">{text(row.uc)}</Row>
@@ -140,7 +145,7 @@ export function Peek({ tools }) {
       {Tabs ? <Tabs /> : null}
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
-          {row ? <ItemFields row={row} editing={editing} /> : <MilestoneFields m={m} />}
+          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} /> : <MilestoneFields m={m} />}
         </div>}
       {Words && wordsOpen.value && row ? <Words key={row.id} row={row} /> : null}
     </aside>

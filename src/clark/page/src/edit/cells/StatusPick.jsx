@@ -7,7 +7,7 @@ import { statusChoices, statusNote, ratingChoices } from "../itemEdit.js";
 import { colourOf } from "../../workItems.js";
 
 export function StatusPick({ row, anchor, onPick, onClose }) {
-  // An open risk or issue also has a Rating section (Red, Amber, Green): its colour is set from impact and likelihood (D-12).
+  // A risk or issue also has a Rating section, whatever its status (#448) (Red, Amber, Green): its colour is set from impact and likelihood (D-12).
   // Status and Rating are two labelled groups of the one menu, each with its own tick.
   const rating = ratingChoices(row);
   const choices = statusChoices(row).map((s) => ({ value: s, text: s, note: statusNote(row, s) }));
