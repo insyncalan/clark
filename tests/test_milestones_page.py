@@ -322,7 +322,7 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('[data-cal-say]').textContent", sid), "", "nothing announced on load")
             self.assertEqual(cdp.js("document.querySelector('[data-cal-say]').getAttribute('aria-live')", sid), "polite")
             cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-cal-say]').textContent", sid) == "Showing November 2026"))
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-cal-say]').textContent", sid) == "Now on November 2026"))
 
     def test_the_calendar_has_no_hard_coded_fallback_year(self):
         src = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "components" / "MsCalendar.jsx").read_text(encoding="utf-8")
@@ -589,7 +589,8 @@ class FarDates(unittest.TestCase):
             const wide = MS.monthStarts("2000-01-01", "2100-12-01");
             return {rows: rows.map((r) => r.id), far: MS.farRows(rows).map((r) => r.id), span, months: MS.monthStarts(span.start, span.end).length,
                     dates: MS.markDates(rows), edge, wide: wide.length, wideFirst: wide[0], note: MS.FAR_NOTE,
-                    buckets: MS.buckets("month", c.today, "2027-01-01").length};
+                    buckets: MS.buckets("month", c.today, "2027-01-01").length,
+                    home: [MS.homeDay(rows, c.today), MS.homeDay(rows, "2101-05-05"), MS.homeDay([], "2101-05-05"), MS.homeDay([], "1987-03-09")]};
         }""" + ")(" + json.dumps({"cases": cls.cases, "today": TODAY}) + ")")
         with chrome() as cdp:
             sid = page_target(cdp)
@@ -607,6 +608,13 @@ class FarDates(unittest.TestCase):
         self.assertEqual(len(self.js["far"]), len(FAR), "every far, mistyped or unreal date is named in the note, none is drawn")
         self.assertEqual(self.js["edge"], [True, True, False, False], "2000 to 2100 is the range")
         self.assertEqual(self.js["note"], "Left off the timeline because the date looks wrong")
+
+    def test_the_calendar_opens_on_today_else_the_earliest_mark_else_the_year_of_today(self):
+        today, far_with_marks, far_no_marks, early_no_marks = self.js["home"]
+        self.assertEqual(today, TODAY, "today in range: open on today")
+        self.assertEqual(far_with_marks, TODAY, "today out of range: the earliest dated mark")
+        self.assertEqual(far_no_marks, "2101-01-01", "no marks: the year of the given today, not a fixed year")
+        self.assertEqual(early_no_marks, "1987-01-01", "the year follows the given today")
 
     def test_the_axis_never_has_more_than_200_names(self):
         self.assertLessEqual(self.js["wide"], 200, "a hundred years is thinned to at most 200 names")

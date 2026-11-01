@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "preact/hooks";
 import { recall, remember } from "../logic/remember.js";
 import { MsMark } from "./MsMark.jsx";
 import { Icon } from "./Icon.jsx";
-import { calendarChips, buckets, neighbour, periodChips, addDays, showDate, MONTHS, inRange, markDates } from "../logic/milestones.js";
+import { calendarChips, buckets, neighbour, periodChips, addDays, showDate, MONTHS, homeDay } from "../logic/milestones.js";
 import { dayNumber } from "../workItems.js";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -53,7 +53,7 @@ export function MsCalendar({ rows, today, open, place, client }) {
   const [scale, setScale] = useState(() => { const s = client || !place ? null : recall(`msv.calv.${place}`, null); return SCALE_KEYS.includes(s) ? s : "month"; });
   const chips = calendarChips(rows);
   // Where to open when today is out of range: the earliest dated mark, else the start of the year of `today` (the clock is read once, in workItems.js).
-  const home = () => inRange(today) ? today : (markDates(rows).sort()[0] || `${String(today).slice(0, 4)}-01-01`);
+  const home = () => homeDay(rows, today);
   const [at, setAt] = useState(home);        // any day inside the period shown
   const [far, setFar] = useState(false);
   const [moved, setMoved] = useState(false);   // true once the person has changed the period, so it is announced then and not on load
@@ -95,7 +95,7 @@ export function MsCalendar({ rows, today, open, place, client }) {
   return (
     <div class="cal" data-scale={scale} data-at={here.key} onKeyDown={keys} ref={box} tabIndex={0} role="group" aria-label="Milestone calendar" aria-describedby="cal-hint">
       <span id="cal-hint" class="sr-only">Left and Right arrows or Page Up and Page Down move to the earlier or later period.</span>
-      <span class="sr-only" role="status" aria-live="polite" data-cal-say>{moved ? `Showing ${here.label}` : ""}</span>
+      <span class="sr-only" role="status" aria-live="polite" data-cal-say>{moved ? `Now on ${here.label}` : ""}</span>
       <div class="cal-bar">
         <button type="button" class="ib" data-cal="-1" aria-label="Earlier" onClick={() => go(-1)}><Icon name="left" /></button>
         <button type="button" class="ib" data-cal="1" aria-label="Later" onClick={() => go(1)}><Icon name="right" /></button>

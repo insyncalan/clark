@@ -126,6 +126,9 @@ export const FAR_NOTE = "Left off the timeline because the date looks wrong";
 export const inRange = (iso) => typeof iso === "string" && dayNumber(iso) !== null && +iso.slice(0, 4) >= YEAR_MIN && +iso.slice(0, 4) <= YEAR_MAX;
 const allMarks = (rows) => rows.flatMap((r) => [r.marks.solid, r.marks.ghost]).filter(Boolean);
 export const markDates = (rows) => allMarks(rows).map((m) => m.date).filter(inRange);
+// Where the Calendar opens: today when today is in range, else the earliest dated mark, else the first of the year of `today`
+// (the clock is read once, in workItems.js, and passed in; this never reads it).
+export const homeDay = (rows, today) => inRange(today) ? today : (markDates(rows).sort()[0] || `${String(today).slice(0, 4)}-01-01`);
 // The rows with a mark outside the range: the Timeline leaves them off its axis and names them in the note.
 export const farRows = (rows) => rows.filter((r) => [r.marks.solid, r.marks.ghost].some((m) => m && !inRange(m.date)));
 
