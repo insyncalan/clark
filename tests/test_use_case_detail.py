@@ -26,7 +26,7 @@ import build_page  # noqa: E402
 from clark import __main__ as launcher, changes, page, server as sv, use_cases_read  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_inline_edits import EMPTY_BRANDING, KEYS, click, key, need_chrome  # noqa: E402,F401
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -198,7 +198,7 @@ class Detail(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js(expr, sid), seconds), what)
 
     def toast(self, cdp, sid):
-        return cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid)
+        return wait_toast(lambda: cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid))
 
     def undo(self, cdp, sid):
         before = self.steps()
