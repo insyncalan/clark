@@ -9,6 +9,7 @@ import { decode, encode, fits, setPublished } from "../filters.js";
 import { searchIndex } from "../clientView.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
+import { archivedRow } from "./archived.js";
 
 export const VIEWS = route.VIEWS;
 export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }, clientreport: "Client Requested Report View", settings: "Settings" };   // the published tab is "Use Cases"
@@ -81,7 +82,7 @@ function apply(s) {
 
 // Whether the loaded data has a work item (`milestone` false) or a milestone with this id.
 function known(d, id, milestone) {
-  return !!d && (milestone ? d.milestones.some((m) => m.id === id) : [...d.actions, ...d.raid, ...d.decisions].some((r) => r.id === id));
+  return !!d && (milestone ? d.milestones.some((m) => m.id === id) : [...d.actions, ...d.raid, ...d.decisions].some((r) => r.id === id) || !!archivedRow(project.value, id));   // an archived item opens too (read only), once the Edit page has read it
 }
 
 // Move to `s` through the router and draw it. Drawn from `s` itself (made well-formed as the router makes it), not from the

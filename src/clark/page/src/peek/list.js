@@ -1,6 +1,7 @@
 // The list the peek steps through: the rows the Work items page shows now (filters and order as drawn), as ids. A peek opened by
 // an address (a reload, a link) steps through the same list. A milestone steps through the project's milestones in their order.
-import { filterState, data } from "../stores/report.js";
+import { filterState, data, project } from "../stores/report.js";
+import { archivedRows } from "../stores/archived.js";
 import { sortRows, todayIso } from "../workItems.js";
 import { applyFilters } from "../filters.js";
 import { work, itemRows, contextFor } from "../stores/work.js";
@@ -14,6 +15,11 @@ export function itemIds() {
   if (g === "nothing") return sortRows(rows, today).map((r) => r.id);
   const ctx = contextFor(today, st.type);
   return columnsFor(g, rows, ctx).flatMap((c) => (isCollapsed(w, g, c.key) ? [] : sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today))).map((r) => r.id);
+}
+
+// An archived item steps through the archived items, in the order the Archived list draws them.
+export function archivedIds() {
+  return archivedRows(project.value).map((r) => r.id);
 }
 
 export function milestoneIds() {

@@ -206,7 +206,7 @@ export function WorkItems({ tools }) {
       {allRows.value.length === 0
         ? <p class="muted">{tools ? `This project has no work items yet. Use ${plan.word} to add the first.` : "This report has no work items."}</p>
         : <>
-            <Switches><GroupBy board={board} />{fromFile.value ? <SearchBox /> : null}{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+            <Switches>{tools && tools.ArchivedPill && !fromFile.value ? <tools.ArchivedPill /> : null}<GroupBy board={board} />{fromFile.value ? <SearchBox /> : null}{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
             <FilterBar />
             <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
           </>}

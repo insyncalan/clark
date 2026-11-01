@@ -4,11 +4,12 @@
 // The address holds which item is open (router.js, #63); Previous and Next replace that entry, Esc and Close go through
 // closePeek(). The width is dragged from the left edge (keys too), double-click resets it.
 import { useEffect, useRef } from "preact/hooks";
-import { data, rows, peek, openPeek, closePeek, mode, fromFile } from "../stores/report.js";
+import { data, rows, project, peek, openPeek, closePeek, mode, fromFile } from "../stores/report.js";
 import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso } from "../workItems.js";
-import { itemIds, milestoneIds, around } from "../peek/list.js";
+import { itemIds, milestoneIds, archivedIds, around } from "../peek/list.js";
+import { archivedRow } from "../stores/archived.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
@@ -83,7 +84,9 @@ export function Peek({ tools }) {
   const box = useRef(null), back = useRef(null);
   const editing = !!tools && !fromFile.value && mode.value === "edit";
   // The words box changes work items only (sneak.py refuses a milestone), so a milestone peek has no sparkle and no `//`.
-  const forItem = !!p && p.kind !== "milestone";
+  // An archived item (Edit parts only; a published file never has one) opens read only: no words box, and one Restore in the note.
+  const arch = !!p && p.kind !== "milestone" && !!tools && !fromFile.value && !rows.value.some((r) => r.id === p.id) ? archivedRow(project.value, p.id) : null;
+  const forItem = !!p && p.kind !== "milestone" && !arch;
   const Words = editing && forItem && tools.Words, WordsBtn = editing && forItem && tools.WordsButton;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
@@ -119,12 +122,12 @@ export function Peek({ tools }) {
   const milestone = p.kind === "milestone";
   const row = milestone ? null : rows.value.find((r) => r.id === p.id);
   const m = milestone ? (data.value.milestones || []).find((x) => x.id === p.id) : null;
-  if (!row && !m) return null;
-  const near = around(milestone ? milestoneIds() : itemIds(), p.id);
+  if (!row && !m && !arch) return null;
+  const near = around(milestone ? milestoneIds() : arch ? archivedIds() : itemIds(), p.id);
   const go = (id) => id && openPeek(id, p.kind);
-  const title = row ? row.title : m.name;
+  const title = row ? row.title : arch ? arch.title : m.name;
   return (
-    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={box} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id}>
+    <aside class={`peek${wide.value ? " wide" : ""}${arch ? " pk-ro" : ""}`} id="peek" ref={box} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id} data-archived={arch ? "1" : undefined}>
       <Edge />
       <div class="pk-bar">
         <button type="button" class="pkp-btn" data-pk-prev title="Previous item" aria-label="Previous item" disabled={!near.prev} onClick={() => go(near.prev)}><Icon name="chevleft" /></button>
@@ -135,12 +138,13 @@ export function Peek({ tools }) {
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
+      {arch && tools.ArchivedNote ? <tools.ArchivedNote row={arch} /> : null}
       <h2 class="pk-title">{title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {Tabs ? <Tabs /> : null}
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
-          {row ? <ItemFields row={row} editing={editing} /> : <MilestoneFields m={m} />}
+          {row ? <ItemFields row={row} editing={editing} /> : arch ? (tools.ArchivedFields ? <tools.ArchivedFields row={arch} /> : null) : <MilestoneFields m={m} />}
         </div>}
       {Words && wordsOpen.value && row ? <Words key={row.id} row={row} /> : null}
     </aside>

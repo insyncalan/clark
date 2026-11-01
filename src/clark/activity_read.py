@@ -37,8 +37,13 @@ def make_read(path, data_for):
     `path` is clark.db; `data_for(code)` is Store.data_for."""
     def read(code, item_id):
         data = data_for(code)
-        if data is None or not has_item(data, item_id):
+        if data is None:
             return None
+        if not has_item(data, item_id):
+            # An archived item's history is kept in full and the peek shows it read only (#126), so look in the archived rows too.
+            archived = data_for(code, archived="only")
+            if archived is None or not has_item(archived, item_id):
+                return None
         con = connect(path, readonly=True)
         try:
             view = history.activity_for_item(con, item_id, "all", ROW_LIMIT)

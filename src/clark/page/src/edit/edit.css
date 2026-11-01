@@ -429,19 +429,31 @@ textarea.tpl-field { resize: vertical; }
 .tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-small); }
 .tpl-empty { margin: 0; }
 
-/* Show archived on Work items (B-5): a pill with the count, then muted rows with the word Archived and a Restore button */
-.archived { margin-top: 16px; }
-.arch-box { margin-top: 8px; border: 1px solid var(--grey-200); border-radius: var(--radius); padding: 4px 12px; background: var(--surface); }
-.arch-rows { list-style: none; margin: 0; padding: 0; }
-.arch-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: start; padding: 8px 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }
-.arch-row:first-child { border-top: 0; }
-.arch-open { all: unset; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; cursor: pointer; font-size: 14px; color: var(--text-muted); }
-.arch-open:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
-.arch-open .meta { font-size: 13px; }
-.arch-read { grid-column: 1 / -1; display: grid; grid-template-columns: 90px 1fr; gap: 2px 12px; margin: 4px 0 0; font-size: 14px; }
-.arch-read dt { color: var(--text-muted); }
-.arch-read dd { margin: 0; }
-.arch-restore { grid-row: 1; grid-column: 2; }
+/* Show archived on Work items (B-5), as the prototype (system/prototype/app.css, "Archive and Restore"): a pill in the bar with the
+   count, muted rows with the word Archived, and the read-only peek with its one Restore. Tokens only, so dark follows. */
+.arch-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-muted); font: inherit; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.arch-pill:hover { color: var(--text); }
+.arch-pill:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
+.arch-pill em { font-style: normal; font-size: 12px; }
+.arch-pill .i { width: 14px; height: 14px; }
+.tag.arch { gap: 4px; align-items: center; background: var(--grey-100); color: var(--text-muted); border: 1px solid var(--border); }
+.tag.arch .i { width: 12px; height: 12px; }
+.arch-box { margin-top: 18px; }
+.arch-h { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; font-size: 16px; font-weight: 500; color: var(--text-muted); }
+.arch-h span { font-size: 13px; font-weight: 400; }
+table.items.arch tr.arch td, table.items.arch tr.arch td .meta { color: var(--text-muted); }
+table.items.arch tr.arch { cursor: pointer; }
+table.items.arch tr.arch:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+table.items.arch tr.arch.sel td { background: var(--brand-blue-tint); }
+table.items .c-arch { width: 116px; }
+.pk-archnote { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 12px 0 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--grey-100); color: var(--text); font-size: 14px; }
+.pk-archnote p { margin: 0; flex: 1 1 220px; }
+.pk-ro .pk-title { color: var(--text-muted); }
+.pk-rofacts .pk-row dd { color: var(--text); }
+.pk-lab { margin: 12px 0 4px; font-size: var(--size-small); color: var(--text-muted); }
+.pk-update { white-space: pre-wrap; }
+.pk-saved { margin: 16px 0 0; font-size: var(--size-small); }
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }
