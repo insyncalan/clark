@@ -110,6 +110,11 @@ class Pg:
     def toast(self):
         return wait_toast(lambda: self.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
 
+    def toast_is(self, text):
+        """Wait until the toast on screen says `text`. Use it where the toast read next is the second in a test: an earlier toast is
+        still showing, and toast() would return that one at once."""
+        self.until(f"((document.querySelector('.toast-text') || {{}}).textContent || '') === {json.dumps(text)}", f"the toast says: {text}")
+
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
@@ -419,6 +424,7 @@ class Sections(Base):
             self.assertTrue(p.js(hidden), "only the step that was undone")
             p.menu("ABC-S-002", "show")
             p.until("!" + hidden, "Show brings it back")
+            p.toast_is("Section included in the published page.")
             self.assertEqual(p.toast(), "Section included in the published page.")
 
     def test_rename_in_place_as_plain_text(self):
@@ -730,6 +736,7 @@ class Sections(Base):
             p.key("ArrowUp", ALT, code="ArrowUp", vk=38)               # the second half goes just above the pair; the first is alone
             p.until("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", "stepped out")
             self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-006": 0})
+            p.toast_is("Moved Next week up.")
             self.assertEqual(p.toast(), "Moved Next week up.")
             self.assertTrue(wait(lambda: on("ABC-S-007"), 5))
             p.js("document.querySelector('[data-id=\"ABC-S-011\"] [data-drag]').focus()")

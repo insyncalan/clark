@@ -553,6 +553,7 @@ class Box(Base):
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual(self.beside_flags(), flags, "Summary is on its own row again")
             self.assertEqual(p.js("document.querySelectorAll('.sec.slot-left').length"), 1, "only the first pair is left")
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
             self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 0, "nothing more to undo")
 
@@ -617,6 +618,7 @@ class Box(Base):
             self.assertGreater(undos[0], undos[1], "the flag first, then the new section")
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag is as it was")
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
 
     def test_a_failed_second_request_says_so_plainly_and_undo_removes_the_section(self):
@@ -634,6 +636,7 @@ class Box(Base):
             p.until("document.querySelectorAll('.sec').length === 11", "Undo removed the section")
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one step to take back: the flag was never changed")
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
 
     def test_if_the_first_undo_fails_the_section_stays_and_the_toast_says_so(self):
