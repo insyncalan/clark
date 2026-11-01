@@ -2360,6 +2360,11 @@ class Store:
             out["glance_tiles"] = [dict(r) for r in con.execute(              # #45: the tiles' place, hidden flag and outline; no archived column
                 "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                 "ORDER BY sort_order, tile", (code,))]
+            out["hidden"] = []                              # the eye's state, for the page only (publish_inputs has its own): ids of THIS project's rows left off the report
+            for r in con.execute("SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,)).fetchall():
+                found = item_row(con, r["item_id"], LINKABLE + ("use_cases",))
+                if found is not None and found["project"] == code:      # a row that is gone is not listed
+                    out["hidden"].append(r["item_id"])
             # #96: what publish keeps out, so a template's live part in the served View leaves out what the file leaves out (FR-11):
             # the ids hidden from the report by the eye, and the label rules (as publish_inputs reads them).
             out["report_hidden"] = [r["item_id"] for r in con.execute(
