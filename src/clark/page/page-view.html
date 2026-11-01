@@ -927,6 +927,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pub-msg .error { color: var(--status-red-text); }
 .pub-msg .success { color: var(--status-green-text); }
 .pub-msg .info, .pub-msg .note { color: var(--text-muted); }
+
+.pub-msg .working { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.spin { flex: none; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
+@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin 900ms linear infinite; } }
+@keyframes pub-spin { to { transform: rotate(360deg); } }
+.pub-msg .success { display: flex; align-items: center; gap: 8px; }
+.pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
+.pub-tick .i { width: 11px; height: 11px; stroke-width: 3; }
 .dlg-f { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .btn.pri { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .btn.pri:disabled { opacity: .55; cursor: default; }
