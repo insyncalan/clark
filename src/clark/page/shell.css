@@ -3,6 +3,7 @@
    tests/test_font.py fails if one is). */
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
+html[data-mode="view"] { scrollbar-gutter: stable; }          /* a drawn (Linux, Windows) scrollbar comes and goes with the list's length: its room is always kept, so the centred page never shifts; View only, the editor's menus are sized to the whole window */
 body { margin: 0; background: var(--grey-50); color: var(--text); font: var(--weight-light) var(--size-body)/var(--leading) var(--font); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 a { color: var(--status-blue-text); }
@@ -124,6 +125,23 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc-top { all: unset; box-sizing: border-box; display: block; width: 100%; margin-top: 6px; padding: 7px 8px; border-top: 1px solid var(--grey-100); font-size: var(--size-small); color: var(--text-muted); cursor: pointer; }
 .toc-top:hover { color: var(--text); }
 .toc-top:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* At 900 px and narrower the rail gives way to an "On this page" button at the bottom right of the window, which opens the same list
+   above it (the narrow contents button). The button is the rail's own button, so the keys and the focus rules are the same. Drawn on both pages (the
+   editor and a published file). It sits clear of the toasts (bottom left); the page keeps 72 px free under its last line (main, above). */
+.toc-ico, .toc-lbl { display: none; }
+@media (max-width: 900px) {
+  .toc { right: var(--space-4); bottom: var(--space-4); top: auto; transform: none; }
+  .toc-lines { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3); border: 1px solid var(--grey-700); border-radius: 999px; background: var(--surface); color: var(--text); font-size: var(--size-small); box-shadow: var(--shadow); }
+  /* The fade is on the hover state only, so switching between light and dark never animates the button from white. */
+  .toc-lines:hover, .toc.open .toc-lines { background: var(--grey-100); transition: background-color var(--dur-instant) var(--ease-out); }
+  .toc.open .toc-lines { opacity: 1; }
+  .toc-lines i { display: none; }
+  .toc-ico, .toc-lbl { display: inline-block; }
+  .toc-card { right: 0; top: auto; bottom: calc(100% + var(--space-2)); width: min(290px, calc(100vw - 32px)); max-height: calc(100vh - var(--topbar) - 96px); overflow-y: auto; transform: translateY(8px); }
+  .toc.open .toc-card { transform: none; }
+  .toc li button { min-height: 32px; }
+}
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) { .toc-card, .toc.open .toc-card { transition: none; transform: none; } .toc-lines { transition: none; } }
 
 /* The project-record picker (FR-16, #67): one panel, never wider than its place. */
 .picker { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(560px, 90vh); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
@@ -525,6 +543,8 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 
 /* Work items: Group by, the table or board icon switch, grouped table headings (#68). Tokens only. */
 .vctl { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.vctl .search input { box-sizing: border-box; width: 220px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; }
+.vctl .search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .btn.gb { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; }
 .btn.gb .i { width: 14px; height: 14px; }
 .seg.icons button, .bib { all: unset; box-sizing: border-box; position: relative; display: inline-grid; place-items: center; width: 34px; height: 32px; cursor: pointer; color: var(--text-muted); }
