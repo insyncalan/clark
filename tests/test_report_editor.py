@@ -18,6 +18,7 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from _editor_checks import edit_elements
+from _real_server import real_server
 from _paths import SRC, TOOLS
 import _testpage as testpage
 
@@ -176,8 +177,7 @@ class Base(unittest.TestCase):
         self.real_undo = changes.make_undo(self.store.path, [], USER)
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
-                         change=self.seam(self.real_change, "change"), undo=self.seam(self.real_undo, "undo"))
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)               # a fault on purpose is logged by the server
         quiet.start()

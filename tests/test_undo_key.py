@@ -14,10 +14,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _demo import USER
-from clark import changes, page, server as sv
+from _real_server import real_server
+from clark import page, server as sv
 from clark.store import open_store
-from test_server import CHROME, Running, chrome, wait
+from test_server import CHROME, chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
@@ -54,15 +54,14 @@ class UndoKey(unittest.TestCase):
         self.addCleanup(self.store.close)
         self.path = self.folder / "clark.db"
         self.sent = []
-        real_change, real_undo = changes.make_change(self.path, [], USER), changes.make_undo(self.path, [], USER)
 
         def seam(real, which):
             def call(req):
                 self.sent.append((which, req))
                 return real(req)
             return call
-        self.s = Running(data_for=self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
-                         page_html=lambda: page.page_html(EMPTY_BRANDING), change=seam(real_change, "change"), undo=seam(real_undo, "undo"))
+        self.s = real_server(self.path, self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
+                             page_html=lambda: page.page_html(EMPTY_BRANDING), seam=seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
