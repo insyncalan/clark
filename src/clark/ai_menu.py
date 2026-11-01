@@ -141,6 +141,23 @@ def menu(place):
             "ask": item("custom")}
 
 
+def place_offered(place, address="", own_domains=()):
+    """Whether the AI is offered in a place. Every place but the email is always offered. The email is offered only when the
+    recipient is on one of the user's own domains: an email to someone outside is not offered until its client check can see what
+    the email may say to that person. The rule is the Draft email page's own (draft_email.is_outside), not a second one: no address,
+    or an address on no own domain, counts as outside."""
+    place_of(place)
+    if place != "email":
+        return True
+    from clark import draft_email
+    return not draft_email.is_outside(address, own_domains)
+
+
+def menu_for(place, address="", own_domains=()):
+    """menu(place), or None when the AI is not offered there (place_offered)."""
+    return menu(place) if place_offered(place, address, own_domains) else None
+
+
 def whole_field_menu(place):
     """The toolbar's AI offers the same options on the whole field (Alt+/ opens the same list)."""
     return menu(place)
@@ -420,32 +437,127 @@ def _words(text):
     return {m.group().lower() for t in _forms(text) for m in INTERNAL_WORDS.finditer(t)}
 
 
-def _client_problem(text, original, people=()):
-    """For a client message: a plain message when the suggestion holds VIP in any spelling, a path or marker that is always internal,
-    or adds an item ID (however written), internal wording or a name the text didn't have: a capitalised word only when it is a known person's
-    name (`people`) or stands in a run of capitalised words (creaite's check names only the people it knows). Text is read decoded, without emphasis marks, and folded by `normal`. Blocking, as creaite's
-    client check is (it drops the reply). The store-aware checks come with the page wiring."""
+# What a client check found, in plain words. The category is named and the thing itself is not: an item code, a person's name or a
+# marker is never repeated back, because the message is shown on the card and may be read aloud or copied. Only a word from the
+# fixed list of internal words is named, since those are not secrets.
+FOUND_MARKER, FOUND_CODE, FOUND_NAME = "an internal marker", "an item code", "a person's name"
+FOUND_WORD = "the word "
+_NAMED_WORDS = ("internal", "sensitive", "health", "red", "amber", "rag", "confidential", "restrict")
+
+
+def client_message(found):
+    """The card's line for a blocked client message: it names what was found and says how to go on."""
+    what = list(dict.fromkeys(found))
+    words = [w[len(FOUND_WORD):] for w in what if w.startswith(FOUND_WORD)]
+    parts = [w for w in what if not w.startswith(FOUND_WORD)]
+    if words:
+        parts.append((FOUND_WORD if len(words) == 1 else "the words ") + " and ".join(words))
+    if not parts:
+        return CLIENT_MESSAGE
+    joined = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    return f"The suggestion added {joined}, which a client should not see, so it was not shown. Try again."
+
+
+def _word_found(held):
+    """How the check names one internal word it found: the word itself when it is one of the fixed list, else a general line."""
+    for w in _NAMED_WORDS:
+        if held.startswith(w):
+            return FOUND_WORD + w
+    return "wording meant for the team"
+
+
+class Known:
+    """What the project itself knows, for the client check: its codes (the project's), its item codes (every milestone, action, risk,
+    decision and use case) and the people it names (owners, who made a decision, the sponsor). Plain data, built by `known_from_data`;
+    a check given one is exact about codes and names, and a check given none falls back to the shape rules."""
+
+    def __init__(self, codes=(), ids=(), people=()):
+        self.codes = tuple(sorted({str(c) for c in codes or () if c}))
+        self.ids = frozenset(str(i) for i in ids or () if i)
+        self.people = tuple(dict.fromkeys(str(p).strip() for p in people or () if p and str(p).strip()))
+
+    def exists(self, ref):
+        return ref in self.ids
+
+
+def known_from_data(data):
+    """A Known from the shape the store's read gives (publish.read_inputs(...)["data"], or the same rows from store.data_for):
+    {"project": {...}, "milestones": [...], "actions": [...], "raid": [...], "decisions": [...], "use_cases": [...]}. Pure: it
+    reads nothing itself."""
+    data = data or {}
+    codes, ids, people = [], [], []
+    project = data.get("project") or {}
+    codes.append(project.get("code"))
+    people.append(project.get("sponsor"))
+    for table, who in (("milestones", "owner"), ("actions", "owner"), ("raid", "owner"), ("decisions", "made_by"), ("use_cases", None)):
+        for row in data.get(table) or ():
+            ids.append(row.get("id"))
+            if who:
+                people.append(row.get(who))
+    return Known(codes, ids, people)
+
+
+def known_for(store, code):
+    """The Known for one project, read through publish's own read (one read-only transaction; nothing private is asked for). The one
+    place the AI service builds it; an unknown or unreadable project gives None, so the check stays on the shape rules."""
+    from clark import publish
+    try:
+        return known_from_data(publish.read_inputs(store, code)["data"])
+    except Exception:  # noqa: BLE001  a store that cannot be read leaves the strict shape check in place
+        return None
+
+
+def _client_ids(text, known):
+    """Every item code a text holds: with a Known, the strict form anywhere and the loose forms of the project's real codes that
+    are real items (edit_ai.loose_ids); without one, any code of the right shape."""
+    if known is None:
+        return _loose_ids(text)
+    out = set()
+    for t in _forms(text):
+        out |= edit_ai.loose_ids(known.codes, known.exists, t)
+    return out
+
+
+def _full_names(text, known):
+    """The known people whose whole name (two words or more) a text holds, in any case or spacing."""
+    t = " ".join(edit_ai.normal(text).lower().split())
+    return {p for p in known.people
+            if len(p.split()) > 1 and re.search(r"(?<!\w)%s(?!\w)" % re.escape(" ".join(edit_ai.normal(p).lower().split())), t)}
+
+
+def _client_findings(text, original, people=(), known=None):
+    """What a client message adds that the user's own text did not hold, as a list of plain phrases (empty when nothing)."""
+    people = tuple(people or ()) + (known.people if known else ())
+    found = []
     forms = _forms(text)
-    if any(VIP_RE.search(f) or VIP_LOOSE.search(f) or VIP_SPACED.search(f) for f in forms):
-        return CLIENT_MESSAGE
-    if any(ALWAYS_BLOCKED.search(f) for f in forms):
-        return CLIENT_MESSAGE
-    if _loose_ids(text) - _loose_ids(original):
-        return CLIENT_MESSAGE
-    if _words(text) - _words(original):
-        return CLIENT_MESSAGE
-    known = _caps(original, first=True, people=people)
-    for f in forms:
-        if _caps(f, first=True, people=people) - known:
-            return CLIENT_MESSAGE
-    return ""
+    if any(VIP_RE.search(f) or VIP_LOOSE.search(f) or VIP_SPACED.search(f) or ALWAYS_BLOCKED.search(f) for f in forms):
+        found.append(FOUND_MARKER)
+    if _client_ids(text, known) - _client_ids(original, known):
+        found.append(FOUND_CODE)
+    found += [_word_found(w) for w in sorted(_words(text) - _words(original))]
+    held = _caps(original, first=True, people=people)
+    if any(_caps(f, first=True, people=people) - held for f in forms) or \
+            (known and any(_full_names(f, known) - _full_names(original, known) for f in _forms(text))):
+        found.append(FOUND_NAME)
+    return found
+
+
+def _client_problem(text, original, people=(), known=None):
+    """For a client message: a plain message naming what the suggestion added, or "" when it added nothing a client should not see.
+    Looked for: VIP in any spelling, a path or marker that is always internal, an item code however written, internal wording, and a
+    name (a capitalised word only when it is a known person's name or stands in a run of capitalised words; a known person's whole
+    name in any case). Only what the user's own text did not already hold counts, so a reply may keep what was written. With a `Known`
+    the codes and names are the project's own; without one the shape rules stand. Text is read decoded, without emphasis marks, and
+    folded by `normal`. Blocking, as creaite's client check is (it drops the reply)."""
+    found = _client_findings(text, original, people, known)
+    return client_message(found) if found else ""
 
 
 def _fail(message, option=None):
     return {"ok": False, "text": "", "notes": [], "message": message, "option": option}
 
 
-def check_reply(reply, original, option, place, people=()):
+def check_reply(reply, original, option, place, people=(), known=None):
     """A reply checked before it is shown: {ok, text, notes, message, option}. ok is False (with a plain message and no text) for an
     empty reply, one far too long, one with web code in it, one with characters the reader can't see that the text didn't have,
     one that is the text unchanged, one with a link or address the text didn't have, or (for a plain place) one that turned the
@@ -471,7 +583,7 @@ def check_reply(reply, original, option, place, people=()):
             return _fail("The suggestion had hidden code in it, so it was not used. Try again.", option)
     if place == "client_message":
         try:
-            problem = _client_problem(text, original, people)
+            problem = _client_problem(text, original, people, known)
         except Exception:  # noqa: BLE001  a check that breaks fails closed
             return _fail("The suggestion couldn't be checked for a client, so it was not shown.", option)
         if problem:
@@ -624,7 +736,7 @@ class Provider:
         raise NotImplementedError
 
 
-def suggest(provider, option, text, place, instruction="", people=()):
+def suggest(provider, option, text, place, instruction="", people=(), known=None):
     """Ask the provider for one suggestion: {ok, text, notes, message, option}. This is the one-shot path, with no card; the card path
     is AiSession.begin then deliver, which runs the same build_prompt and check_reply (the page asks the provider itself). The provider is given the prompt and no tools
     (`tools=()`); nothing else. If AI can't run, the message says why and the provider is not asked."""
@@ -643,7 +755,7 @@ def suggest(provider, option, text, place, instruction="", people=()):
         reply = provider.ask(req["prompt"], tools=tuple(req["tools"]))
     except Exception:  # noqa: BLE001  any provider fault is one plain line, never its text
         return _fail("No suggestion came back. Try again.", option)
-    return check_reply(reply, req["original"], option, place, people)
+    return check_reply(reply, req["original"], option, place, people, known)
 
 
 # ------------------------------------------------------------------------------------------------------- the suggestion card
@@ -672,7 +784,8 @@ class AiSession:
     `text_between(start, end)` and `replace(start, end, text)` (the second one step of its history); it is touched only by
     `accept`. `stats` counts offered, used and rejected: counts only, never text."""
 
-    def __init__(self, people=()):
+    def __init__(self, people=(), known=None):
+        self.known = known                     # a Known (known_for), or None for the shape rules
         self.people = tuple(people or ())      # the known people's names (the store's), for the client message check
         self.card = None
         self.stats = Counter()
@@ -721,7 +834,7 @@ class AiSession:
         if card is not self.card or card.status != "running":
             return False
         try:
-            res = check_reply(reply, card.original, card.option, card.place, self.people)
+            res = check_reply(reply, card.original, card.option, card.place, self.people, self.known)
         except Exception:  # noqa: BLE001  a check that breaks fails the card; it never stays "running"
             card.status, card.message = "failed", "The suggestion couldn't be checked, so it was not shown."
             return True

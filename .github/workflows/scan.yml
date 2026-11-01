@@ -64,12 +64,18 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           # '1' only for a pull request whose head is in another repository (also when that repository was deleted); a push is not a fork.
+          # A pull request is scanned at its OWN head, not at GitHub's synthetic merge commit (which GitHub authors with the
+          # pull request author's personal address, so every real pull request would be refused). A push is scanned at HEAD.
+          PR_HEAD: ${{ github.event.pull_request.head.sha || '' }}
           CI_SCAN_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '1' || '' }}
         run: |
           # A first push of a branch has no "before" (all zeros): scan against the commit before it.
           case "$BASE" in ""|0000000000000000000000000000000000000000) BASE="$(git -C pr rev-parse HEAD~1)";; esac
+          # For a pull request, start where its branch left the base: only the commits its author made are read.
+          HEAD_SHA="${PR_HEAD:-HEAD}"
+          if [ -n "$PR_HEAD" ]; then BASE="$(git -C pr merge-base "$BASE" "$PR_HEAD")" || exit 1; fi
           # The scan program always comes from the BASE branch. If the base has none, stop: a pull request's own copy is never run.
           # (The variable is only set after the scan is on the base branch, so this is not reached in normal use.)
           SCAN=trusted/dev/tools/ci_scan.py
           if [ ! -f "$SCAN" ]; then echo "CI scan stopped: the base branch has no scan program, so this change cannot be checked. Merge the scan first."; exit 1; fi
-          python3 -I "$SCAN" --repo pr --base "$BASE" --head HEAD
+          python3 -I "$SCAN" --repo pr --base "$BASE" --head "$HEAD_SHA"

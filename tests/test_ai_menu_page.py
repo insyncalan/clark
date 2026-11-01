@@ -19,7 +19,7 @@ sys.path.insert(0, str(TOOLS))
 import esbuild  # noqa: E402
 from test_server import chrome  # noqa: E402
 
-from clark import ai_menu  # noqa: E402     # the real server module, never a copy: if it breaks, this test must fail, not pass on a frozen file
+from clark import ai_menu, draft_email  # noqa: E402     # the real server module, never a copy: if it breaks, this test must fail, not pass on a frozen file
 
 LOGIC = ROOT / "src" / "clark" / "page" / "src" / "logic"
 PLACES = ["current", "notes", "plain", "email", "client_message"]
@@ -151,6 +151,47 @@ class Menu(unittest.TestCase):
         self.assertEqual(self.page.ev("AM.optionName('custom', '  make   it   kinder ')"), "make it kinder")
         self.assertEqual(self.page.ev("AM.optionName('custom', '')"), "Ask…")
         self.assertLessEqual(len(self.page.ev("AM.optionName('custom', 'x '.repeat(100))")), 60)
+
+
+class EmailPlace(unittest.TestCase):
+    """The email place is offered only when the Draft email route says the address is on one of the user's own domains."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.page = Page().__enter__()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.page.__exit__(None, None, None)
+
+    def test_offered_only_when_the_address_is_known_to_be_inside(self):
+        self.assertTrue(self.page.ev("AM.placeOffered('email', false)"))
+        self.assertFalse(self.page.ev("AM.placeOffered('email', true)"))
+
+    def test_not_knowing_counts_as_outside(self):
+        for unknown in ("undefined", "null", "'no'", "0", "''"):
+            self.assertFalse(self.page.ev(f"AM.placeOffered('email', {unknown})"), unknown)
+        self.assertIsNone(self.page.ev("AM.menuFor('email')"))
+
+    def test_every_other_place_is_offered_whatever_the_address(self):
+        for place in PLACES:
+            if place != "email":
+                for outside in ("true", "false", "undefined"):
+                    self.assertTrue(self.page.ev(f"AM.placeOffered('{place}', {outside})"), (place, outside))
+                    self.assertEqual(self.page.ev(f"AM.menuFor('{place}', {outside})"), ai_menu.menu(place))
+
+    def test_the_menu_is_the_servers_menu_when_offered_and_none_when_not(self):
+        self.assertEqual(self.page.ev("AM.menuFor('email', false)"), ai_menu.menu("email"))
+        self.assertIsNone(self.page.ev("AM.menuFor('email', true)"))
+        self.assertIsNone(self.page.ev("AM.menuFor('nowhere', false)"))
+
+    def test_the_page_and_the_server_agree_for_every_case(self):
+        own = ["example.test"]
+        for address in ("sam@example.test", "dana@partner.test", "", "sam@mail.example.test"):
+            outside = draft_email.is_outside(address, own)
+            for place in PLACES:
+                self.assertEqual(self.page.ev(f"AM.placeOffered({json.dumps(place)}, {json.dumps(outside)})"),
+                                 ai_menu.place_offered(place, address, own), (place, address))
 
 
 if __name__ == "__main__":
