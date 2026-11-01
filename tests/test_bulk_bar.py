@@ -14,7 +14,8 @@ from _paths import SRC
 
 from test_multi_select import CTRL, META, MOD, SHIFT, press, tap  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
-from test_work_board_page import Base  # noqa: E402
+import _testpage as testpage  # noqa: E402
+from test_work_board_page import Base as PageBase  # noqa: E402
 from test_work_filters import click  # noqa: E402
 from test_work_items import bundled  # noqa: E402
 
@@ -33,6 +34,14 @@ def special(cdp, sid, key, code, vk, mods=0):
     common = {"key": key, "code": code, "windowsVirtualKeyCode": vk, "modifiers": mods}
     cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **common}, sid)
     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+
+
+class Base(PageBase):
+    """The served page carries no window.clarkPage, so these tests load the test page, which adds it."""
+
+    def setUp(self):
+        super().setUp()
+        self.s.httpd.page_html = lambda: testpage.html()
 
 
 class Rules(unittest.TestCase):
