@@ -129,7 +129,7 @@ class Dialog(Base):
             self.assertIn("The page as it prints: its tabs one after another, no controls.", p.dialog_text())
             self.assertNotIn("Save as PDF", p.dialog_text(), "the print-box line shows only when the tick is on")
             p.js("document.querySelector('#pub-client').click()")
-            p.until("document.querySelector('#pub-warn')", "the line about the client")
+            p.until("!!document.querySelector('#pub-warn')", "the line about the client")
             p.js("document.querySelector('#pub-pdf').click()")
             p.until("!!document.querySelector('#pub-pdf-note')", "the print-box line")
             self.assertEqual(p.js("document.querySelector('#pub-pdf-note').innerText"), "Your browser’s print box opens; choose Save as PDF.")

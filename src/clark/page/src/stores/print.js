@@ -34,7 +34,7 @@ export async function printReport() {
 // A published file opened with ?print=1 prints itself once its data has drawn (one time).
 export function printWhenAsked() {
   watchPrint();
-  if (typeof location === "undefined" || !wantsPrint(location.search)) return;
+  if (typeof location !== "object" || !wantsPrint(location.search)) return;
   let done = false;
   const stop = status.subscribe((v) => {
     if (v !== "ready" || done) return;

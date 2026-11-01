@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -200,12 +201,16 @@ class Browser(unittest.TestCase):
             sid = open_page(cdp, self.path.as_uri(), 1400, "light")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
             seen = set()
-            for i in range(len(cdp.js("[...document.querySelectorAll('.tab')]", sid) or [])):
+            names = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.textContent.trim())", sid) or []
+            for i in range(len(names)):
                 cdp.js(f"document.querySelectorAll('.tab')[{i}].click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelectorAll('.tab')[{i}].getAttribute('aria-selected') === 'true'", sid)), f"{names[i]} is the open tab")
+                time.sleep(0.3)      # the tab's page is drawn after the tab is marked, so read it only once it has settled
                 seen |= set(re.findall(r"[^\W\d_]{4,}", cdp.js("document.getElementById('main').innerText", sid) or ""))
             self.printed(cdp, sid)
             stacked = set(re.findall(r"[^\W\d_]{4,}", cdp.js("document.getElementById('main').innerText", sid) or ""))
-            extra = {w for w in stacked - seen if w.lower() not in ("published",)}
+            titled = {w for n in names for w in re.findall(r"[^\W\d_]{4,}", n)}      # the print gives each tab its name as a heading
+            extra = {w for w in stacked - seen - titled if w.lower() not in ("published",)}
             self.assertEqual(extra, set(), "nothing in the print that no tab draws")
 
     def test_a_page_with_the_flag_opens_the_print_box_once_it_has_drawn_and_a_page_without_it_does_not(self):
