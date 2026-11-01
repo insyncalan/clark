@@ -451,7 +451,7 @@
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
      "Right-click a tile in Edit for **Tile colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
     ],
-    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or a risk is red, amber when something waits, and green otherwise."
+    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise."
    },
    {
     "id": "keep-the-use-cases",
@@ -865,7 +865,7 @@
        [
         "High risks and issues",
         "Open risks and issues of Urgent or High priority",
-        "Red when any is red; amber when some are open; green when none"
+        "Red when any is rated Urgent or High; amber when some are open but none is that high; green when none are open"
        ],
        [
         "Decisions needed",
