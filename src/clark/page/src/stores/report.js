@@ -26,7 +26,10 @@ const filterText = signal(start.f);                  // the Work items filters' 
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
 // Work items' filters (filters.js) live in the address as `f` and nowhere else: the state is read from the text each time it changes,
-// so a reload, Back and Forward bring the filters back with the page.
+// so a reload, Back and Forward bring the filters back with the page. The published file keeps this older bar (#69; the filter line is
+// for the app only, #153): `openFilter` is which filter's box is open ("" for none).
+export const filterState = computed(() => decode(f.value));
+export const openFilter = signal("");
 export const filterNote = signal("");                // a plain line when a filter could not be added; "" otherwise
 export const refusals = signal(0);                   // counts the refusals, so a ticked box that was not kept is drawn unticked again
 export const status = signal(project.value ? "loading" : "none");   // none | loading | ready | missing | failed
@@ -87,7 +90,7 @@ const where = () => ({ view: view.value, project: project.value, item: item.valu
 // stays on the file's project and opens its first tab, as a reload of that address does.
 function apply(s) {
   if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
-  if (s.view !== view.value || s.project !== project.value) { filterNote.value = ""; }
+  if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
   view.value = s.view;
   item.value = s.item;
   ms.value = s.ms;
@@ -134,6 +137,7 @@ function leave() {
   const typing = !!el && el !== document.body && (el.isContentEditable || el.tagName === "TEXTAREA" ||
     (el.tagName === "INPUT" && /^(text|search)$/.test(el.type)));
   if (typing && typeof el.blur === "function") el.blur();
+  openFilter.value = "";
   dropAt.value = undefined;
   moves.value++;
 }
@@ -165,8 +169,8 @@ function withoutUnusable(want) {
 export function openWork(want) {
   // A word the page cannot answer yet (is:quiet, for the Freshness tile) would leave an error on the line: land on the same list without it.
   // (The Publish dialog's Show them and the Freshness tile both come here, so a Freshness value the line cannot use yet is left out the same way.)
-  const state = withoutUnusable(want);
-  if (project.value && fits(state)) { FL.linePut(session(), project.value, FL.fromState(state)); memo.value++; }
+  const state = fromFile.value ? want : withoutUnusable(want);        // a published file has the older bar, not the line
+  if (!fromFile.value && project.value && fits(state)) { FL.linePut(session(), project.value, FL.fromState(state)); memo.value++; }
   go({ view: "work", project: project.value, item: "", ms: "", f: fits(state) ? encode(state) : "" });
 }
 
@@ -219,6 +223,18 @@ export function setProject(code) {
  *  caller encodes it, and an untrustworthy text becomes ''). It rewrites the entry, so Back never stops on a filter. */
 export function setFilters(text) {
   go({ ...where(), f: text }, { replace: true });
+}
+
+/** A filter change from the published file's bar (#69): the state is encoded (filters.js) into `f`. If it would not fit in the
+ *  address, nothing changes and a plain line says why. */
+export function setFilterState(next) {
+  if (!fits(next)) {
+    refusals.value++;
+    filterNote.value = "That filter would not fit in the page's address, so it was not added. Remove another filter first.";
+    return;
+  }
+  filterNote.value = "";
+  setFilters(encode(next));
 }
 
 /** A change of the line (#153): the line goes to the session, and its older-state form to the address, as any filter change does.

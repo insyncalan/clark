@@ -11,14 +11,14 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
-import { data, rows as allRows, filterNote, openPeek, mode, fromFile, f, lineText, setLine, rememberedLine, filterCtx, query, setQuery, found, asAt } from "../stores/report.js";
-import { searchRows } from "../clientView.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, f, lineText, setLine, rememberedLine, filterCtx, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
 import { itemRows } from "../stores/work.js";
 import { KIND_WORDS, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
-import { countText, addPlan } from "../filters.js";
+import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
+import { Switches, FilterBar } from "./WorkFilters.jsx";
 import * as FL from "../logic/filterLine.js";
 import { FilterLine } from "./FilterLine.jsx";
 import { NewTile } from "./NewTile.jsx";
@@ -156,15 +156,14 @@ function SearchBox() {
   );
 }
 
+// The published file's list (#69): the older filter bar's chips, search, as-at day. The filter line is the app's only (#153).
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell, Bulk }) {
-  const line = lineText.value, today = fromFile.value && asAt.value ? asAt.value : todayIso(), ctx = filterCtx();
-  const rows = searchRows(itemRows.value, found.value, query.value);        // a published file's search words (#69); the editor has none
-  const st = FL.toState(line, rows, ctx).state;
-  const filtered = FL.apply(rows, line, ctx);
-  const words = query.value.trim() !== "";
-  const clear = () => { setQuery(""); setLine(FL.BASE); };
-  const can = FL.canClear(line, rows, ctx) || words;
+function PublishedList({ Board, Cell, Bulk }) {
+  const st = filterState.value, today = fromFile.value && asAt.value ? asAt.value : todayIso();
+  const filtered = applyFilters(itemRows.value, st, today);
+  const cs = chips(st);
+  const words = query.value.trim() !== "", canClearAll = canClear(st) || words;
+  const clear = () => { setQuery(""); setFilterState(clearAll(filterState.value)); };    // a published file keeps the type and Open / Closed / All
   const board = !!Board && work.value.view === "board";
   const matching = filtered.map((r) => r.id);
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
@@ -175,9 +174,40 @@ function List({ Board, Cell, Bulk }) {
       {Bulk ? <Bulk.Layer /> : null}
       <div class="factive">
         <span id="work-count" class="num">{countText(filtered.length, st.mode)}</span>
+        {cs.map((c) => (
+          <span class="fchip" key={c.field} data-chip={c.field}>{c.text}
+            <button type="button" data-fx={c.field} aria-label={`Remove the ${c.name} filter`} onClick={() => setFilterState(removeFilter(filterState.value, c.field))}>{"×"}</button>
+          </span>
+        ))}
         {words ? <span class="fchip" data-chip="search">{`Search: ${query.value.trim()}`}
           <button type="button" data-fx="search" aria-label="Remove the search" onClick={() => setQuery("")}>{"×"}</button>
         </span> : null}
+        {canClearAll ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
+      </div>
+      {filtered.length === 0
+        ? <div class="empty"><p class="muted">No items match these filters.</p>{canClearAll ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} />}
+    </div>
+  );
+}
+
+// The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
+function List({ Board, Cell, Bulk }) {
+  const line = lineText.value, today = todayIso(), ctx = filterCtx(), rows = itemRows.value;
+  const st = FL.toState(line, rows, ctx).state;
+  const filtered = FL.apply(rows, line, ctx);
+  const clear = () => setLine(FL.BASE);
+  const can = FL.canClear(line, rows, ctx);
+  const board = !!Board && work.value.view === "board";
+  const matching = filtered.map((r) => r.id);
+  // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
+  useLayoutEffect(() => { if (selecting()) sel.sync(drawnOrder(), matching); });
+  return (
+    <div id="work-list">
+      {selecting() ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
+      {Bulk ? <Bulk.Layer /> : null}
+      <div class="factive">
+        <span id="work-count" class="num">{countText(filtered.length, st.mode)}</span>
         {can ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
       </div>
       {filtered.length === 0
@@ -189,13 +219,13 @@ function List({ Board, Cell, Bulk }) {
 
 export function WorkItems({ tools }) {
   useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
-  const d = data.value, plan = addPlan(FL.toState(lineText.value, allRows.value, filterCtx()).state.type), Board = tools && tools.Board;
+  const d = data.value, plan = addPlan(fromFile.value ? filterState.value.type : FL.toState(lineText.value, allRows.value, filterCtx()).state.type), Board = tools && tools.Board;
   const Cell = tools && tools.Cell && mode.value === "edit" && !fromFile.value ? tools.Cell : null;
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => {
     const kept = rememberedLine();
-    if (!f.value && kept !== FL.BASE && allRows.value.length) setLine(kept);
+    if (!fromFile.value && !f.value && kept !== FL.BASE && allRows.value.length) setLine(kept);
   }, []);
   return (
     <section class="frame work" id="work">
@@ -210,9 +240,17 @@ export function WorkItems({ tools }) {
       {allRows.value.length === 0
         ? <p class="muted">{tools ? `This project has no work items yet. Use ${plan.word} to add the first.` : "This report has no work items."}</p>
         : <>
-            <div class="wbar"><div class="vctl"><GroupBy board={board} />{fromFile.value ? <SearchBox /> : null}{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</div></div>
-            <FilterLine />
-            <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
+            {fromFile.value
+              ? <>
+                  <Switches><GroupBy board={board} /><SearchBox />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <FilterBar />
+                  <PublishedList Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
+                </>
+              : <>
+                  <div class="wbar"><div class="vctl"><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</div></div>
+                  <FilterLine />
+                  <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
+                </>}
           </>}
     </section>
   );
