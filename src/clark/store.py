@@ -2534,7 +2534,7 @@ class Store:
         is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
         anything is written: a project that isn't here or is archived, a mode that isn't one of the three, no id or more than 50, an
         id that is not a work item (action, risk or issue, decision) of this project, a day that is not a real date or is more than
-        one day ahead of today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
+        one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
         transaction. Returns the record's number."""
         if not str(by_user or "").strip():
             raise Invalid("Add your name under Settings, Personal, About you, then try again.")
@@ -2552,11 +2552,12 @@ class Store:
                 raise ValueError
             sent = date.fromisoformat(str(day))
         except ValueError:
-            raise Invalid("The day the email was sent must be a real date.") from None
-        if sent < date(2020, 1, 1):
-            raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again.")
-        if sent > (today or date.today()) + timedelta(days=1):
-            raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again.")
+            raise Invalid("The date this page sent is not a real date. Reload the page and try again. Nothing was saved.") from None
+        now = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
+        if sent < now - timedelta(days=1):
+            raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.")
+        if sent > now + timedelta(days=1):
+            raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
             raise Invalid("clark is busy saving another change. Wait a moment, then press I sent it again.")
         try:

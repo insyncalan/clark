@@ -520,7 +520,7 @@ class Sent(unittest.TestCase):
         reader = feed.make(self.store.data_for, profile=profile, clock=lambda: NOW,
                            chased=lambda code: feed.chase_counts_of(self.store.email_sent_for(code)))
         first = reader({"project": "ABC", "mode": "chase", "picked": [self.a]})[1]["draft"]["text"]
-        for day in ("2026-10-20", "2026-10-22", "2026-10-26"):
+        for day in ("2026-10-27", "2026-10-28", "2026-10-29"):
             self.post(self.good(ids=[self.a], day=day))
         self.post(self.good(ids=[self.a], mode="update_request"))
         after = reader({"project": "ABC", "mode": "chase", "picked": [self.a]})[1]["draft"]["text"]
