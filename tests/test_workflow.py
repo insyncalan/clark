@@ -3,11 +3,14 @@
 Run: python3 dev/run_tests.py test_workflow   (quick tier)
 
 Read as text (standard library only, no YAML library): the triggers, read-only permissions, no secrets and never
-`pull_request_target`, Ubuntu 24.04 with the newest Python on every file and Python 3.9 on the quick tier, macOS on
-release branches and by hand and required there, one shard per Python, and one "Tests passed" job that is green only
-if every required job is.
+`pull_request_target`, Ubuntu 24.04: the newest Python runs `--push origin/<base>` on a pull request and every file on
+a push to main, a release branch or by hand; Python 3.9 on the quick tier on every run; macOS on release branches and by
+hand, required there, with a static name; and one "Tests passed" job that is green only if every required job is and
+posts nothing for a cancelled run.
 """
 import re
+import subprocess
+import sys
 import unittest
 
 from _paths import ROOT
@@ -114,20 +117,47 @@ class Workflow(unittest.TestCase):
         self.assertIn("group: tests-", concurrency)
         self.assertRegex(concurrency, r"cancel-in-progress: true")
 
-    def test_ubuntu_24_04_newest_python_on_every_file_and_3_9_on_the_quick_tier(self):
+    def test_ubuntu_24_04_newest_python_auto_scope_and_3_9_on_the_quick_tier(self):
         tests = self.jobs["tests"]
         self.assertRegex(tests, r"runs-on: ubuntu-24\.04\b")
         self.assertNotIn("ubuntu-latest", self.text)
         rows = re.findall(r"- \{(python: .*)\}", tests)
         self.assertEqual(len(rows), 2, rows)
         found = {re.search(r'python: "([\d.x]+)"', r).group(1): re.search(r'scope: "([^"]*)"', r).group(1) for r in rows}
-        self.assertEqual(found, {"3.x": "", "3.9": "--quick"})
+        self.assertEqual(found, {"3.x": "auto", "3.9": "--quick"})
         self.assertIn("python-version: ${{ matrix.python }}", tests)
-        self.assertIn('python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8', tests)
+        self.assertIn("name: ubuntu-24.04 \u00b7 Python ${{ matrix.python }} \u00b7 shard ${{ matrix.shard }}/${{ matrix.shards }}", tests)
+
+    def test_a_pull_request_runs_push_scope_and_the_full_suite_runs_elsewhere(self):
+        tests = self.jobs["tests"]
+        self.assertIn('if [ "$SCOPE" = "auto" ]; then\n            SCOPE=""', tests)
+        self.assertIn('if [ "$EVENT" = "pull_request" ]; then\n              SCOPE="--push origin/$BASE"', tests)
+        self.assertIn('case "$HEAD_REF" in\n                release-*|v*-release*) SCOPE="" ;;', tests)
+        self.assertIn('python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', tests)
+
+    def test_a_pull_request_fetches_the_whole_history_so_the_base_is_there(self):
+        self.assertIn("fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}", self.jobs["tests"])
+
+    def test_the_branch_and_base_reach_the_shell_only_through_env(self):
+        for job, body in self.jobs.items():
+            for step in re.split(r"\n      - ", body):
+                m = re.search(r"\n        run: (.*?)(?=\n        \w[\w-]*:|\Z)", step, re.S)
+                if m:
+                    self.assertNotIn("${{", m.group(1), f"{job}: an expression inside a run script")
+        tests = self.jobs["tests"]
+        self.assertIn("HEAD_REF: ${{ github.head_ref }}", tests)
+        self.assertIn("BASE: ${{ github.base_ref }}", tests)
+
+    def test_the_quick_tier_holds_the_no_real_names_and_reuse_record_tests(self):
+        # No paths-ignore, and 3.9 runs only the quick tier: so a documents-only change still reaches these two on every run.
+        out = subprocess.run([sys.executable, str(ROOT / "dev" / "run_tests.py"), "--quick", "--list"], cwd=ROOT,
+                             capture_output=True, text=True, timeout=120).stdout.split()
+        self.assertIn("test_no_real_names.py", out)
+        self.assertIn("test_app_files.py", out)               # the reuse record's rows (docs/REUSE-FROM-CREAITE.md)
 
     def test_one_shard_per_python_to_start_with(self):
-        for job in ("tests", "macos"):
-            self.assertEqual(set(re.findall(r"shard: (\d+), shards: (\d+)", self.jobs[job])), {("1", "1")}, job)
+        self.assertEqual(set(re.findall(r"shard: (\d+), shards: (\d+)", self.jobs["tests"])), {("1", "1")})
+        self.assertIn("shard 1/1", self.jobs["macos"])
 
     def test_macos_on_release_branches_and_by_hand_and_required_there(self):
         mac = self.jobs["macos"]
@@ -137,6 +167,8 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("--quick", mac)
         self.assertNotIn("continue-on-error", mac)
         self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
+        self.assertIn("name: macos-latest \u00b7 Python 3.x \u00b7 shard 1/1", mac)      # static: no unresolved ${{ matrix }} when skipped
+        self.assertNotIn("matrix", mac)
 
     def test_chrome_is_found_as_creaite_finds_it(self):
         for job in ("tests", "macos"):
@@ -152,7 +184,8 @@ class Workflow(unittest.TestCase):
         self.assertIn("name: Tests passed", passed)
         needs = re.search(r"needs: \[([^\]]*)\]", passed).group(1)
         self.assertEqual({n.strip() for n in needs.split(",")}, set(self.jobs) - {"passed"})
-        self.assertRegex(passed, r"if: always\(\)")
+        self.assertIn("if: ${{ !cancelled() }}", passed)         # a run cancelled by a newer one posts no red gate
+        self.assertNotIn("always()", passed)
         self.assertIn("TESTS: ${{ needs.tests.result }}", passed)
         self.assertIn("MACOS: ${{ needs.macos.result }}", passed)
         self.assertIn(f"WANT_MACOS: ${{{{ ({WANTS_MACOS}) && '1' || '' }}}}", passed)
@@ -163,7 +196,7 @@ class Workflow(unittest.TestCase):
 
     def test_untrusted_text_reaches_the_shell_only_through_the_environment(self):
         for ln in self.text.splitlines():
-            if "github.event.inputs" in ln or "github.head_ref" in ln:
+            if "github.event.inputs" in ln or "github.head_ref" in ln or "github.base_ref" in ln:
                 self.assertRegex(ln.strip(), r"^(if:|[A-Z_]+:|run-name:|- \{?python|group:)", ln)
 
 
