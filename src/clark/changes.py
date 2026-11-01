@@ -179,6 +179,8 @@ NO_DECISION_FIELD = {"workstream": "A decision isn't part of a workstream.", "mi
                      "priority": "A decision has no priority."}
 ITEM_VALUE_WORDS = "That value isn't one clark can use."
 LATEST_UPDATE_MAX = 1000                  # the most characters a latest update may have
+LATEST_LONG_WORDS = f"A latest update can be at most {LATEST_UPDATE_MAX} characters. Shorten it and try again."
+LATEST_HIDDEN_WORDS = "That has a hidden character in it. Take it out and try again."     # a latest update may have line breaks, so ITEM_TEXT_WORDS would be wrong
 ITEM_TEXT_WORDS = "Use plain text, with no line breaks or hidden characters."
 ITEM_BAD_KINDS = frozenset({"Cc", "Cf", "Cs", "Co", "Zl", "Zp"})   # as the store's section titles: control, format, surrogate, private use, separators
 NOT_A_DATE = "That isn't a date. Pick a day from the calendar."
@@ -340,12 +342,15 @@ def _checked_item_changes(fields):
     short. The store checks the rest (the words a status may take, a real date, an active workstream, this project's
     milestone); its refusals are put into plain words in _do_item_change."""
     fields = {k: (None if k == "use_case" and v == "" else v) for k, v in fields.items()}    # an empty use case clears the link
-    latest = fields.pop("latest_update", False)                    # the peek's Latest update: plain text, line breaks allowed, up to 1000 characters, blank clears it
-    if latest is not False:
-        if latest is not None and (not isinstance(latest, str) or len(latest) > LATEST_UPDATE_MAX):
+    sent_latest = "latest_update" in fields                        # a JSON false is a value to refuse, not a field left out
+    latest = fields.pop("latest_update", None)                     # the peek's Latest update: plain text, line breaks allowed, up to 1000 characters, blank clears it
+    if sent_latest:
+        if latest is not None and not isinstance(latest, str):
             raise Refused(ITEM_VALUE_WORDS)
+        if isinstance(latest, str) and len(latest) > LATEST_UPDATE_MAX:
+            raise Refused(LATEST_LONG_WORDS)
         if isinstance(latest, str) and not _plain_text(latest.replace("\n", "")):
-            raise Refused(ITEM_TEXT_WORDS)
+            raise Refused(LATEST_HIDDEN_WORDS)
         latest = unicodedata.normalize("NFC", latest).strip() or None if isinstance(latest, str) else None
     for k, v in fields.items():
         if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 200):
@@ -353,7 +358,7 @@ def _checked_item_changes(fields):
         if isinstance(v, str) and not _plain_text(v):
             raise Refused(ITEM_TEXT_WORDS)
     out = {k: (unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else v) for k, v in fields.items()}
-    if latest is not False:
+    if sent_latest:
         out["latest_update"] = latest
     return out
 

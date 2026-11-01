@@ -62,11 +62,36 @@ class Server(unittest.TestCase):
 
     def test_too_long_or_hidden_characters_are_refused_and_nothing_is_written(self):
         was = self.latest()
-        for text in ("x" * (changes.LATEST_UPDATE_MAX + 1), "a​b", "a\x00b", "a‮b", 5):
+        for text in ("x" * (changes.LATEST_UPDATE_MAX + 1), "a​b", "a\x00b", "a‮b", "a\tb", "a\rb", "a\ud800b", 5, False, True, ["x"], {"a": 1}):
             code, body = self.send(text)
             self.assertEqual((code, body["ok"]), (400, False), repr(text)[:20])
         self.assertEqual(self.latest(), was)
         self.assertEqual(self.send("x" * changes.LATEST_UPDATE_MAX)[0], 200, "the limit itself is allowed")
+
+    def test_each_refusal_says_what_is_wrong_in_its_own_plain_sentence(self):
+        said = lambda text: self.send(text)[1]["message"]
+        self.assertEqual(said("x" * (changes.LATEST_UPDATE_MAX + 1)), changes.LATEST_LONG_WORDS)
+        self.assertIn(str(changes.LATEST_UPDATE_MAX), changes.LATEST_LONG_WORDS)
+        for text in ("a​b", "a\x00b", "a‮b", "a\tb", "line one\nline two\u200b"):
+            self.assertEqual(said(text), changes.LATEST_HIDDEN_WORDS, repr(text))
+        self.assertEqual(said(5), changes.ITEM_VALUE_WORDS)
+        self.assertNotIn("line breaks", changes.LATEST_HIDDEN_WORDS, "line breaks are allowed in a latest update, so it never says to remove them")
+        self.assertNotEqual(changes.LATEST_HIDDEN_WORDS, changes.ITEM_TEXT_WORDS)
+
+    def test_a_good_owner_with_a_bad_latest_update_writes_nothing(self):
+        was = next(a for a in self.store.data_for(self.code)["actions"] if a["id"] == OVERDUE)
+        code, body = self.change({"project": self.code, "kind": "actions", "op": "update", "id": OVERDUE,
+                                  "changes": {"owner": "Someone Else", "latest_update": "a\tb"}, "place": "peek"})
+        self.assertEqual((code, body["ok"]), (400, False))
+        now = next(a for a in self.store.data_for(self.code)["actions"] if a["id"] == OVERDUE)
+        self.assertEqual((now["owner"], now["latest_update"]), (was["owner"], was["latest_update"]))
+
+    def test_other_routes_do_not_take_a_latest_update(self):
+        for req in ({"kind": "actions", "op": "bulk", "ids": [OVERDUE], "changes": {"latest_update": "x"}, "place": "peek"},
+                    {"kind": "actions", "op": "new", "values": {"title": "Something", "latest_update": "x"}, "place": "peek"}):
+            code, body = self.change({"project": self.code, **req})
+            self.assertEqual((code, body["ok"]), (400, False), req["op"])
+        self.assertNotIn("x", (self.latest() or ""))
 
     def test_the_last_updated_stamp_moves_on_with_a_change_and_with_its_undo(self):
         stamp = lambda: next(a for a in self.store.data_for(self.code)["actions"] if a["id"] == OVERDUE)["updated_at"]
@@ -104,6 +129,29 @@ class Source(unittest.TestCase):
             self.assertIn(line, built, line)
         for line in ("Move a week on", "Last updated", "Latest update drafted", "pk-warnbar"):
             self.assertNotIn(line, view, "the published page carries none of it: " + line)
+
+    def test_the_page_says_the_two_new_refusals_in_its_own_words(self):
+        report = (ROOT / "src/clark/page/src/stores/report.js").read_text(encoding="utf-8")
+        for sentence in (changes.LATEST_LONG_WORDS, changes.LATEST_HIDDEN_WORDS):
+            self.assertIn(json.dumps(sentence) + ":", report, "plainChange knows the server's sentence, or the page would say 'could not be made'")
+
+    def test_a_refusal_keeps_the_typed_text_and_the_page_checks_hidden_characters_first(self):
+        edit = ROOT / "src/clark/page/src/edit"
+        jsx = (edit / "PeekLatest.jsx").read_text(encoding="utf-8")
+        helper = (edit / "peekLatest.js").read_text(encoding="utf-8")
+        self.assertIn("\\p{Cc}", helper)
+        self.assertIn('replace(/\\n/g, "")', helper, "a line break is allowed in a latest update")
+        save = jsx[jsx.index("const save ="):jsx.index("const draft =")]
+        self.assertLess(save.index("changeCell("), save.rindex("stop()"), "the box closes only after clark has answered")
+        self.assertIn("refused:", save)
+        self.assertEqual(save.count("stop()"), 2, "closed when unchanged and when saved, never before the request")
+
+    def test_each_change_is_sent_with_its_own_place(self):
+        jsx = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertEqual(jsx.count('place: "peek"'), 2, "a move and a saved update")
+        self.assertEqual(jsx.count('place: "draft"'), 1)
+        self.assertIn('done.place || "cell"', (ROOT / "src/clark/page/src/stores/changes.js").read_text(encoding="utf-8"))
+        self.assertTrue({"peek", "draft"} <= set(changes.PLACES))
 
     def test_the_peek_hands_both_parts_to_edit_only(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
@@ -257,6 +305,17 @@ class Browser(unittest.TestCase):
             self.assertTrue(wait(lambda: "1000 characters at most" in cdp.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent", sid)))
             self.assertEqual(sent, [])
             self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid), "the box keeps what was typed")
+
+    def test_a_hidden_character_is_refused_in_words_and_the_box_keeps_the_text(self):
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OVERDUE)
+            click(cdp, sid, "[data-pk-latest-text]")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)))
+            cdp.js("(t => { t.value = 'Pasted\\twith a tab'; t.dispatchEvent(new Event('input', {bubbles: true})); })(document.activeElement)", sid)
+            key(cdp, sid, "Enter")
+            self.assertTrue(wait(lambda: "hidden character" in cdp.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent", sid)))
+            self.assertEqual(sent, [], "nothing was sent")
+            self.assertEqual(cdp.js("(document.querySelector('[data-pk-latest-in]') || {value: null}).value", sid), "Pasted\twith a tab", "the box keeps what was typed")
 
     def test_the_last_updated_stamp_is_shown_in_local_time_and_follows_a_change(self):
         a = self.action(OVERDUE)

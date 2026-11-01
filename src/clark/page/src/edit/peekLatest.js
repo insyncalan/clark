@@ -46,10 +46,16 @@ export function draftFor({ due, status, owner, milestone }, today) {
   return parts.filter(Boolean).join(" ");
 }
 
-/** What the Latest update box can't take, in words, or "" when the text is fine: the same limit clark checks. */
+// A character no one can see (control, format such as a zero-width space or a right-to-left override, surrogate, private use, line and
+// paragraph separators), as clark/changes.py refuses (ITEM_BAD_KINDS). A line break is allowed in a latest update, so "\n" is taken out first.
+const HIDDEN = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Zl}\p{Zp}]/u;
+
+/** What the Latest update box can't take, in words, or "" when the text is fine: the same limit and the same hidden characters clark refuses. */
 export function latestProblem(text) {
   const n = Array.from(text).length;
-  return n > LATEST_MAX ? `A latest update can be ${LATEST_MAX} characters at most, and this one has ${n}. It was not saved. Shorten it and try again.` : "";
+  if (n > LATEST_MAX) return `A latest update can be ${LATEST_MAX} characters at most, and this one has ${n}. It was not saved. Shorten it and try again.`;
+  if (HIDDEN.test(text.replace(/\n/g, ""))) return "That update has a hidden character in it, often from copying and pasting. It was not saved. Type it again, then press Enter.";
+  return "";
 }
 
 /** The text to save: line ends as \n, trimmed; "" clears it. */

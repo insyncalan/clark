@@ -171,12 +171,14 @@ export function undo(applyId, code = project.value) {
 // #80: change fields of one work item, in one step. `table` is actions, raid or decisions; `changes` the fields to set. The page
 // draws the item as clark saved it (the reply's item), never its own guess. `done.text` is what the toast says; it carries Undo
 // when the step can be undone, and `done.back` is what the toast says after that Undo. A decision that is made has none (the reply says so): with `done.always` the toast still says what
-// happened. Otherwise a change that altered nothing says nothing.
+// happened. Otherwise a change that altered nothing says nothing. `done.place` is where the page says it was made (the history says
+// "in the peek", "with a draft"; "cell" when not given). `done.refused(message)`, when given, hears a refusal in place of the toast, so
+// a box that is still open can show it beside what was typed.
 export function changeCell(table, id, changes, done) {
   const code = project.value;
   return enqueue(async () => {
-    const r = await sendCellChange(code, table, id, changes, "cell");
-    if (!r.ok) { say("problem", r.message); return null; }
+    const r = await sendCellChange(code, table, id, changes, done.place || "cell");
+    if (!r.ok) { if (typeof done.refused === "function") done.refused(r.message); else say("problem", r.message); return null; }
     const item = r.reply.item;
     const d = data.value;
     if (d && project.value === code && Array.isArray(d[table])) {
