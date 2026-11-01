@@ -118,7 +118,7 @@ class ReviewTest(Rig):
                 shutil.copyfile(self.download, self.chosen)
                 status, body = self.up.review({"from": "file"})
                 self.assertEqual((409, key), (status, body["code"]))
-                self.assertEqual(updates.MESSAGES[key].format(ours="mac"), body["message"])
+                self.assertEqual(updates.MESSAGES[key].format(ending="mac"), body["message"])
 
     def test_choose_a_browser_copy_and_cancel(self):
         self.chosen = self.downloads / "clark-0.3.1-mac (1).zip"

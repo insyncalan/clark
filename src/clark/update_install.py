@@ -29,6 +29,7 @@ Standard library only, Python 3.9. A sentence a person reads never starts with t
 the words zip, manifest or SHA.
 """
 import hashlib
+import io
 import json
 import os
 import re
@@ -79,6 +80,13 @@ class InstallError(Exception):
         self.message = MESSAGES[key]
         self.detail = detail
         super().__init__(self.message)
+
+
+def parse_int(text):
+    """json's reader for whole numbers in clark's own records, refusing a very long one (as updates.py does for a release's)."""
+    if len(text.lstrip("-")) > updates.MAX_INT_DIGITS:
+        raise ValueError("number too long")
+    return int(text)
 
 
 def stamp_now(now=None):
@@ -225,7 +233,7 @@ def back_up(app_dir, data_dir, db_path, stamp, from_version, to_version, plan_=N
 
 def read_set(folder):
     try:
-        doc = json.loads((Path(folder) / RECORD).read_text(encoding="utf-8"), parse_int=updates.parse_int)
+        doc = json.loads((Path(folder) / RECORD).read_text(encoding="utf-8"), parse_int=parse_int)
     except (OSError, ValueError):
         return None
     return doc if isinstance(doc, dict) else None
@@ -279,7 +287,7 @@ def stage(release, app_dir, stamp, fault=None):
     folder = staging_dir(app_dir, stamp)
     try:
         folder.mkdir()
-        with zipfile.ZipFile(release.path) as zf:
+        with zipfile.ZipFile(io.BytesIO(release.data) if release.data else release.path) as zf:      # the bytes that were checked
             infos = {i.filename: i for i in zf.infolist()}
             for rel in sorted(release.files):
                 row = release.files[rel]

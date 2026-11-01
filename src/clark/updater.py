@@ -138,7 +138,7 @@ class Updater:
 
     def _read(self, name):
         try:
-            doc = json.loads((self.data / ui.UPDATES / name).read_text(encoding="utf-8"), parse_int=updates.parse_int)
+            doc = json.loads((self.data / ui.UPDATES / name).read_text(encoding="utf-8"), parse_int=ui.parse_int)
         except (OSError, ValueError):
             return None
         return doc if isinstance(doc, dict) else None
