@@ -284,10 +284,10 @@ def _screen(text, depth=0):
     if "%" in text:
         seen += [urllib.parse.unquote_plus(t) for t in seen]
     for t in dict.fromkeys(seen):
-        if _one(t, depth) or _one(_BREAKS.sub("", t), depth, joined=True):
+        if _one(t, depth):
             return True
-        if _cut_bare(t):
-            return True
+        if _BREAKS.search(t) and (_one(_BREAKS.sub("", t), depth, joined=True) or _cut_bare(t)):
+            return True                                   # (no break: the joined text is the same text, and read already)
     return False
 
 
