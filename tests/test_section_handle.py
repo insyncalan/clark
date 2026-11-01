@@ -1,9 +1,9 @@
-"""Issue 130, point 2 (laptop widths): the section handle sits clear of the section's content and rests at about .75 where it sits in the card's padding, and the section is as wide in Edit as in View.
+"""Issue 130, point 2 (laptop widths): the section handle sits clear of the section's content and rests at about .85 in light and .75 in dark where it sits in the card's padding, and the section is as wide in Edit as in View.
 
 Run: python3 dev/run_tests.py test_section_handle
 The real page and a real server over the fictional demo report (the same harness as tests/test_report_editor.py), in headless Chrome at
 1400 px and 900 px, light and dark. By bounding boxes: the handle sits inside the frame, ends before the section's heading starts, and
-at 900 px sits in the card's own left padding and rests at about .75; the section card's left edge and width are the same in View and Edit.
+at 900 px sits in the card's own left padding and rests at about .85 in light and .75 in dark; the section card's left edge and width are the same in View and Edit.
 The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
 import time
@@ -59,7 +59,8 @@ class SectionHandle(Base):
                         c = r["ctl"]
                         self.assertGreaterEqual(c[0], outer, f"{where}: the handle is inside the card's frame")
                         if w < GUTTER:
-                            self.assertAlmostEqual(r["rest"], .75, delta=.05, msg=f"{where}: rests at about .75 below the gutter width")
+                            want = .85 if scheme == "light" else .75                 # #285: .85 in light, .75 in dark (--sh-rest-narrow, brand/tokens.css)
+                            self.assertAlmostEqual(r["rest"], want, delta=.05, msg=f"{where}: rests at about {want} below the gutter width")
                         # nothing of the section's own content, only its padding, is under the handle
                         self.assertLessEqual(c[2], r["heads"][0][0], f"{where}: the handle ends before the heading starts")
                         if w <= 900:
