@@ -74,6 +74,7 @@ MESSAGES = {
     "send_json": f"That could not be read. {RELOAD}",
     "length_required": f"That could not be read. {RELOAD}",
     "too_large": "That is too big for clark to take. Try again with less in it.",
+    "change_too_large": "That is too big to save. Shorten a line or remove some lines, then try again.",
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
@@ -93,7 +94,8 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
-ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 4 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+CHANGE_BODY_LIMIT = 16 * 1024      # #189: unchanged from before; a tracker's own caps are in section_bodies
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 4 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
@@ -992,7 +994,10 @@ class Handler(BaseHTTPRequestHandler):
         except LengthRequired:
             return self.send(411, error_body("length_required"))
         except TooLarge:
-            return self.send(400, error_body("too_large"))
+            sent = error_body("too_large")
+            if self.path.split("?")[0] == "/api/change":
+                sent["message"] = MESSAGES["change_too_large"]      # a section's content is the one thing that grows: say what to do (the code stays too_large)
+            return self.send(400, sent)
         except ValueError:
             return self.send(400, error_body("bad_request"))
         api = here_route if route == HERE_ROUTE else POST_ROUTES.get(route)      # /api/here has its own statement, outside POST_ROUTES
