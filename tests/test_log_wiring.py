@@ -275,8 +275,8 @@ class SettingsRoutes(Rig):
         self.assertIn("test_log_wiring.py", b["report"])
 
     def test_a_write_to_a_save_route_is_a_save_but_a_read_of_it_is_a_read(self):
-        self.raise_one("server", "POST /api/projects failed")
-        self.raise_one("server", "GET /api/projects failed")
+        self.raise_one("server", "POST /api/people failed")
+        self.raise_one("server", "GET /api/people failed")
         status, b = self.api("GET", "/api/diagnostics")
         self.assertEqual(sorted(e["what"] for e in b["errors"]), ["Loading part of the page did not work.", "Saving a change did not work."])
 
