@@ -3,7 +3,7 @@
 // later. A change is sent through api.js as kind actions, raid or decisions, op update (clark/changes.py, #68): only
 // the fields it accepts are named here. A RAID item's priority comes from its impact and likelihood and a decision has none, so
 // their Priority cell is not a picker.
-import { dueField, showDate, dayNumber } from "../workItems.js";
+import { dueField, showDate, dayNumber, pillOf } from "../workItems.js";
 
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const STATUSES = {
@@ -64,6 +64,17 @@ export function fieldName(row, field) {
   return field === "priority" ? "Priority" : "Status";
 }
 
+// B-13: the Status cell shows the live look, so a pick that leaves the cell reading something else says so and why (an action
+// past its due date reads Overdue, one due within 7 days reads Due soon, a risk or issue reads the colour its impact and likelihood give).
+function stillShows(row, value, today) {
+  const was = pillOf(row, today).text, live = pillOf({ ...row, status: value }, today).text;
+  if (live === value) return "";
+  const why = live === "Overdue" ? "because the due date has passed." : live === "Due soon" ? "because the due date is within 7 days."
+    : row.kind === "action" ? "" : "from its impact and likelihood.";
+  const lead = ` It ${was === live ? "still " : ""}shows ${live}`;
+  return why ? (why.startsWith("from") ? `${lead}, which comes ${why}` : `${lead} ${why}`) : "";
+}
+
 /**
  * The change one pick makes: {changes, words, back} to send, {error} to say in the picker and send nothing, or null when the pick
  * is the value the row already has. `words` is what the toast says; `back` what its Undo says, the value the cell goes back to.
@@ -112,7 +123,7 @@ export function changeFor(row, field, value, today) {
     }
     const words = row.kind === "decision" && value === "Made"
       ? `${row.id} is now made, on ${showDate(changes.date || row.date)}. This can't be undone. To change it, record a new decision.`
-      : `Status of ${row.id} changed to ${value}.`;
+      : `Status of ${row.id} changed to ${value}.${stillShows(row, value, today)}`;
     return { changes, words, back: `Status of ${row.id} is back to ${row.status}.` };
   }
   return { error: "Only the owner, due date, priority and status can be changed here. Nothing was changed." };

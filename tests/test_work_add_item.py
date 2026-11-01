@@ -1,4 +1,4 @@
-"""Gap list B-8: the Add menu on Work items makes the item, opens it in the item panel and says "<ID> added" with Undo.
+"""Gap list B-8: the Add menu on Work items makes the item, opens it in the item panel and says "<ID> added." with Undo.
 
 Run: python3 dev/run_tests.py test_work_add_item
 The browser tests start headless Chrome through the harness against a real server whose change and undo are the real
@@ -7,6 +7,7 @@ fail, never skip, without it. Before this change every pick said it was coming l
 """
 import unittest
 
+from _demo import USER
 from clark import changes, publish
 from test_report_editor import Base, Pg
 from test_server import chrome
@@ -56,7 +57,8 @@ class AddMenu(Base):
                         if table == "raid":
                             self.assertEqual(row["type"], kind.capitalize())
                         self.assertEqual(row["client_visible"], 1, "client-visible to start with, as every work item is (D-3); the eye hides it")
-                        self.assertEqual(p.toast(), f"{row['id']} added")
+                        self.assertEqual(p.toast(), f"{row['id']} added. " + ("Due date and priority are placeholders. Change them in the list." if kind == "action" else
+                                         "The needed-by date is a placeholder. Change it in the list." if kind == "decision" else "The due date is a placeholder. Change it in the list."))
                         p.until(f"(window.clarkPage.peek() || {{}}).id === '{row['id']}'", "the new item opened in its panel")
                         p.until(f"!!document.querySelector('#work tr[data-id=\"{row['id']}\"]')", "the new row is in the table")
                         p.js("document.querySelector('[data-undo]').click()")
@@ -64,6 +66,48 @@ class AddMenu(Base):
                         self.assertEqual(set(self.items(table)), set(before), "Undo removed exactly what was made")
                         p.until(f"!document.querySelector('#work tr[data-id=\"{row['id']}\"]')", "the row left the table")
                         self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
+
+    def with_filter(self, cdp, f):
+        p = Pg.at(self, cdp, self.s.port, f"#work&p=ABC&f={f}")
+        p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "the rows drew")
+        p.js("window.clarkPage.closePeek(); document.querySelector('[data-mode=edit]').click()")
+        p.until("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true' && !window.clarkPage.peek()", "Edit, no panel open")
+        return p
+
+    def test_with_a_filter_on_the_new_row_is_shown_and_its_title_has_the_keyboard(self):
+        with chrome() as cdp:
+            p = self.with_filter(cdp, "owner:Sam%20Example")
+            p.js("document.querySelector('#search, [data-search]') && 0")
+            self.assertFalse(p.js("!!document.querySelector('#work tbody tr[data-id=\"ABC-A-002\"]')"))
+            before = set(self.items("actions"))
+            self.pick(p, "action")
+            p.saved()
+            ref = next(k for k in self.items("actions") if k not in before)
+            self.assertEqual(self.items("actions")[ref]["workstream"], "Build", "the first active workstream, as the prototype has it")
+            p.until(f"!!document.querySelector('#work tr[data-id=\"{ref}\"]')", "the filter was cleared, so the new row is in the list")
+            self.assertNotIn("owner", p.js("location.hash"), "no filter is left in the address")
+            p.until(f"(window.clarkPage.peek() || {{}}).id === '{ref}'", "its panel opened")
+            p.until("document.activeElement && document.activeElement.classList.contains('pk-title')", "the panel's title has the keyboard")
+            self.assertEqual(p.js("String(getSelection())"), "New action", "and its words are selected")
+
+    def test_with_one_workstream_filtered_the_new_item_goes_in_it(self):
+        with self.demo.store.step("dashboard", USER) as st:
+            st.create("workstreams", {"project": "ABC", "name": "Run", "source": "demo"})
+        self.demo.action(workstream="Run", owner="Kim Example")      # a row in Run, so the filtered list draws
+        with chrome() as cdp:
+            p = self.with_filter(cdp, "workstream:Run")
+            before = set(self.items("actions"))
+            self.pick(p, "action")
+            p.saved()
+            ref = next(k for k in self.items("actions") if k not in before)
+            self.assertEqual(self.items("actions")[ref]["workstream"], "Run")
+            p.until(f"!!document.querySelector('#work tr[data-id=\"{ref}\"]')", "the new row is in the list")
+            p.clear_toast()
+            self.sent.clear()
+            self.pick(p, "decision")
+            p.saved()
+            req = next(r for which, r in self.sent if which == "change")
+            self.assertNotIn("workstream", req["values"], "a decision has no workstream")
 
     def test_the_request_names_only_the_new_rows_own_fields(self):
         with chrome() as cdp:

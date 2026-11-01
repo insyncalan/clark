@@ -45,7 +45,7 @@ export function Glance({ tools }) {
   const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles).filter((t) => editing || !t.hidden);
   const Wrap = editing ? tools.glance.Cell : Cell;
   const order = list.map((t) => t.key);
-  return (
+  const tiles = (
     <div class="glance" data-glance>
       {list.map((t, i) => (
         <Wrap key={t.key} tile={t} order={order} index={i}>
@@ -54,4 +54,6 @@ export function Glance({ tools }) {
       ))}
     </div>
   );
+  // In Edit a line under the tiles says how to move one (A-D19; the prototype's words, views.js:241): nothing else on a tile says it can be moved.
+  return editing ? <>{tiles}<tools.glance.Note /></> : tiles;
 }

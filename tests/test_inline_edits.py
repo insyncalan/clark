@@ -86,6 +86,21 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.change(self.MADE, "due", "2026-10-21")["changes"], {"date": "2026-10-21"})
         self.assertEqual(self.change(self.MADE, "owner", "")["changes"], {"made_by": None}, "a decider may be cleared")
 
+    def test_a_status_pick_says_when_the_cell_will_still_read_something_else(self):
+        """B-13: the cell shows the live look, so the toast says why a pick leaves it reading Overdue, Due soon or a risk's colour."""
+        late = {**self.ACTION, "due_date": "2026-10-20"}
+        self.assertEqual(self.change(late, "status", "Delayed")["words"],
+                         "Status of ABC-A-001 changed to Delayed. It still shows Overdue because the due date has passed.")
+        soon = {**self.ACTION, "status": "Delayed"}
+        self.assertEqual(self.change(soon, "status", "Open")["words"],
+                         "Status of ABC-A-001 changed to Open. It shows Due soon because the due date is within 7 days.")
+        far = {**self.ACTION, "due_date": "2026-12-20"}
+        self.assertEqual(self.change(far, "status", "Delayed")["words"], "Status of ABC-A-001 changed to Delayed.", "Delayed reads Delayed: nothing to add")
+        self.assertEqual(self.change(late, "status", "Closed")["words"], "Status of ABC-A-001 changed to Closed.", "a closed action is never overdue")
+        closed_risk = {**self.RISK, "status": "Closed"}
+        self.assertRegex(self.change(closed_risk, "status", "Open")["words"],
+                         r"^Status of ABC-007 changed to Open\. It shows \w+, which comes from its impact and likelihood\.$")
+
     def test_what_undo_says_is_the_value_the_cell_goes_back_to(self):
         self.assertEqual(self.change(self.RISK, "due", "2026-12-01")["back"], "Due date of ABC-007 is blank again.")
         self.assertEqual(self.change(self.PENDING, "owner", "Ada Quillfeather")["back"], "Decider of ABC-D-001 is blank again.")
@@ -453,7 +468,8 @@ class Live(unittest.TestCase):
                 # an action given Delayed reads Delayed in the cell (live look: Delayed unless it is overdue)
                 acell = "[data-cell='TUL-A-001:status']"
                 live = self.cell_text(cdp, sid, "TUL-A-001", "status")
-                self.assertIn(live, ("Open", "Due soon", "Overdue"), "an action reads its live look")
+                self.assertEqual(live, "Due soon", "an action due on 2026-11-02, read on 2026-10-28, reads its live look (Due soon, not the raw status Open)")
+                self.assertEqual(cdp.js(f"document.querySelector(\"{acell}\").getAttribute('aria-label')", sid), "Status of TUL-A-001: Due soon. Change", "the name says what is seen")
                 click(cdp, sid, acell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the action's status menu opened")
                 click(cdp, sid, "[data-pop] [data-value=Delayed]")

@@ -306,6 +306,26 @@ class EditTiles(Setup):
             self.undo(p)
             self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"])
 
+    def test_edit_says_a_tile_can_be_moved_and_a_move_or_a_colour_keeps_the_keyboard_on_the_tile(self):
+        said = "Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. Hidden tiles are left out of the published page."
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertEqual(p.js("document.querySelectorAll('[data-tile-note]').length"), 0, "View has no note")
+            p.edit()
+            self.assertEqual(p.js("document.querySelector('[data-tile-note]').textContent"), said)
+            self.assertEqual(p.js("document.querySelector('[data-tile-note]').previousElementSibling.matches('[data-glance]')"), True, "under the tiles")
+            self.assertEqual(p.js("document.querySelectorAll('.glance > .tcell [data-tile-hint]').length"), len(self.tiles(p)), "every tile carries the hint for a screen reader")
+            self.assertIn("hold Alt and press the arrow keys", p.js("document.querySelector('[data-tile=overdue]').title"))
+            p.js("document.querySelector('[data-tile=overdue] .fig').focus()")
+            p.key("ArrowRight", ALT, code="ArrowRight", vk=39)
+            p.saved()
+            p.until("document.activeElement && document.activeElement.matches('[data-tile=overdue] .fig')", "after a move the tile's figure has the keyboard")
+            p.js("document.querySelector('[data-tile=overdue]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))")
+            p.until("!!document.querySelector('.tilemenu')", "the colour menu")
+            p.js("document.querySelector('.tilemenu [data-outline=G]').click()")
+            p.saved()
+            p.until("document.activeElement && document.activeElement.matches('[data-tile=overdue] .fig')", "after a colour pick the tile's figure has the keyboard")
+
     def test_dragging_a_tile_moves_it(self):
         with chrome() as cdp:
             p = self.show(cdp)
@@ -512,7 +532,7 @@ class Published(Setup):
 class PublishedPage(unittest.TestCase):
     def test_page_view_html_holds_nothing_that_only_the_owner_has(self):
         text = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Dashboard sections", "Slim gaps"):
+        for owner_only in ("data-tile-grip", "data-tile-note", "data-tile-hint", "Drag a tile to reorder it", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Dashboard sections", "Slim gaps"):
             self.assertNotIn(owner_only, text, owner_only)
 
 

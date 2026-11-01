@@ -403,7 +403,7 @@ export function Board({ rows, today, type }) {
                     <h4 class="col-h">
                       <GroupTick ids={c.cards.map((cd) => cd.id)} label={b.lane ? `${c.label} in ${ln.label || "No " + LANE_WORDS[b.lane].toLowerCase()}` : c.label} shut={shut || c.cards.length === 0} />
                       <button type="button" class="col-b" aria-expanded={shut ? "false" : "true"} aria-label={`${c.label}, ${c.count}${shut ? ", collapsed" : ""}`} data-toggle={c.key}
-                        aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" title="Drag to move the column, or Alt with the arrow keys"
+                        aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" title="Drag to move the column, or hold Alt and press the left or right arrow."
                         onPointerDown={(e) => headDown(e, c, ln)} onKeyDown={(e) => headKey(e, c, ln)} onClick={() => headClick(c)}>
                         <span class="dot" aria-hidden="true"></span><span class="cl">{c.label}</span><span class="cn num">{c.count}</span>
                       </button>

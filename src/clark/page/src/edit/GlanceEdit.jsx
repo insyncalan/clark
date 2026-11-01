@@ -10,6 +10,7 @@ import { note } from "./notes.js";
 import { hideTile, outlineTile, moveTile, stepOne, dropTile, pendingHealth, pickHealth, sendHealth, sendReason } from "./glanceActions.js";
 
 const THRESHOLD = 4;
+const MOVE_HINT = "Drag to move, or hold Alt and press the arrow keys. Right-click for the outline colour.";
 
 // The tile `key` dragged to (x, y): { before: key | null, mark: { key, side } } from where the pointer is among the tiles.
 function target(order, key, x, y) {
@@ -68,7 +69,7 @@ function Cell({ tile, order, children }) {
     stepOne(tile.key, dir, order);
   };
   return (
-    <div class={`tcell${tile.key === "health" ? " health" : ""}${tile.hidden ? " is-hidden" : ""}${drop}`} data-tile={tile.key} ref={box} data-tile-drag aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
+    <div class={`tcell${tile.key === "health" ? " health" : ""}${tile.hidden ? " is-hidden" : ""}${drop}`} data-tile={tile.key} ref={box} data-tile-drag aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" title={MOVE_HINT}
       onKeyDown={onKey} onPointerDown={(e) => startDrag(e, box.current, tile.key, order)}
       onContextMenu={(e) => { e.preventDefault(); setMenu(true); }}>
       {tile.key === "health" ? null : (
@@ -79,6 +80,7 @@ function Cell({ tile, order, children }) {
         </button>
       )}
       {children}
+      <span class="sr" data-tile-hint>{MOVE_HINT}</span>
       {tile.hidden ? <span class="tag hid thid">Hidden from the published report</span> : null}
       {menu ? (
         <MenuPanel label={`Outline colour for ${title}`} cls="left tilemenu" anchor={box.current} onClose={() => setMenu(false)}>
@@ -91,6 +93,11 @@ function Cell({ tile, order, children }) {
       ) : null}
     </div>
   );
+}
+
+// The line under the tiles in Edit (A-D19), in the prototype's words (views.js:241): nothing else on a tile says it can be moved.
+function Note() {
+  return <p class="note" data-edit-only data-tile-note>Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. Hidden tiles are left out of the published page.</p>;
 }
 
 const ITEMS = [["On track", "g"], ["At risk", "a"], ["Off track", "r"]];
@@ -127,4 +134,4 @@ function Reason({ health, reason }) {
   );
 }
 
-export const GLANCE = { Cell, HealthPill, Reason };
+export const GLANCE = { Cell, HealthPill, Reason, Note };
