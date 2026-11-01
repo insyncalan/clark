@@ -185,6 +185,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
 @media (max-width: 900px) { table.items .c-type { width: 116px; } table.items .c-due { width: 134px; } }
+/* A Type badge is one word and stays on one line: never "Dependenc / y". Above the phone layout only (there the cell is a card and the word may wrap). */
+@media (min-width: 641px) { table.items .type { white-space: nowrap; overflow-wrap: normal; } }
 
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -682,9 +684,15 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ib:hover { color: var(--text); background: var(--grey-100); } .ib:focus-visible { outline: 2px solid var(--brand-blue); }
 .ib[aria-current="true"] { color: var(--heading); background: var(--grey-100); } .ib:disabled { opacity: .4; cursor: default; }
 .ib .i { width: 16px; height: 16px; }
+/* the Timeline / Calendar switch: the icon and its word, in the muted text colour (the bars beside it leave room for it) */
+.msv-b { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 10px; border-radius: var(--radius); font-size: var(--size-small); color: var(--text-muted); cursor: pointer; }
+.msv-b:hover { color: var(--text); } .msv-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.msv-b[aria-current="true"] { color: var(--heading); background: var(--grey-100); font-weight: var(--weight-medium); }
+.msv-b .i { width: 16px; height: 16px; }
+@media (max-width: 700px) { .msv-sw { position: static; justify-content: flex-end; margin: 0 0 6px; padding: 0; } .mv-bar, .cal-bar { padding-right: 0; } }   /* narrow: the switch is a row of its own */
 .grow { flex: 1; }
 .ms-i { width: 100%; height: 100%; display: block; }
-.mv-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding-right: 70px; font-size: var(--size-small); color: var(--text-muted); flex-wrap: wrap; }
+.mv-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding-right: 210px; font-size: var(--size-small); color: var(--text-muted); flex-wrap: wrap; }
 .mv-wrap { position: relative; border-top: 1px solid var(--grey-200); border-bottom: 1px solid var(--grey-200); overflow-x: auto; overflow-y: hidden; min-height: 110px; max-height: 900px; resize: vertical; background: var(--grey-50); }
 .mv-strip { position: relative; height: 100%; }
 .mv-month { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); padding: 2px 0 0 6px; line-height: 16px; white-space: nowrap; }
@@ -715,7 +723,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-prog { display: flex; align-items: center; gap: 8px; font-size: var(--size-small); }
 .pbar { flex: 1; height: 6px; border-radius: 3px; background: var(--grey-100); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--brand-blue); }
 .msl-all { display: inline-block; margin: 8px 0 0 4px; }
-.cal-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding-right: 70px; flex-wrap: wrap; }
+.cal-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding-right: 210px; flex-wrap: wrap; }
 .cal-t { font-weight: var(--weight-medium); margin-left: 8px; color: var(--heading); }
 .cal-dow, .cal-g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .cal-dow span { font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); padding: 0 6px 6px; }
