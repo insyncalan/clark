@@ -78,9 +78,9 @@
     rows('use cases').forEach(r => {
       const id = get(r, 'ID'), title = get(r, 'Use case'); if (!id || !title) { plan.skip++; return; }
       const ex = D.S.usecases.find(u => u.code === p.code && u.id === id), std = get(r, 'Where it stands');
-      /* a use case's status is one of the schema's three; an older sheet's "Done" comes in as On track, and the check says so */
-      const st = get(r, 'Status'); if (/^done$/i.test(st.trim())) plan.done.push(id);
-      const v = { id, ref: get(r, 'Shown as'), title, status: ['On track', 'Flag', 'High risk'].find(s => s.toLowerCase() === st.toLowerCase()) || 'On track', headline: get(r, 'Headline'),
+      /* a use case's status is one of four, Done among them (#412): a sheet's Done comes in as Done */
+      const st = get(r, 'Status');
+      const v = { id, ref: get(r, 'Shown as'), title, status: ['On track', 'Flag', 'High risk', 'Done'].find(s => s.toLowerCase() === st.toLowerCase()) || 'On track', headline: get(r, 'Headline'),
         standing: std ? std.split(/\n+/).map(t => `<p>${esc(t)}</p>`).join('') : (ex?.standing || ''), client: get(r, 'Client-visible') === '' ? true : yes(get(r, 'Client-visible')) };
       (ex ? plan.upd : plan.add).push({ kind: 'uc', ex, v });
     });
@@ -95,7 +95,6 @@
       <div class="dlg-b"><div class="stat"><span><b>${plan.add.length}</b>new</span><span><b>${plan.upd.length}</b>updated</span><span><b>${plan.skip}</b>skipped (no name)</span>${plan.arch.length ? `<span><b>${plan.arch.length}</b>left alone (archived)</span>` : ''}</div>
       <p style="margin:0 0 8px">Work items: ${ia} new, ${iu} updated · Milestones: ${ma} new, ${mu} updated · Use cases: ${ua} new, ${uu} updated</p>
       ${plan.arch.length ? `<p class="imp-arch" style="margin:0 0 8px">${plan.arch.map(esc).join(', ')} ${plan.arch.length === 1 ? 'is' : 'are'} archived, so ${plan.arch.length === 1 ? 'its row is' : 'their rows are'} left alone. Restore ${plan.arch.length === 1 ? 'it' : 'them'} first to update ${plan.arch.length === 1 ? 'it' : 'them'} from a sheet.</p>` : ''}
-      ${plan.done.length ? `<p class="imp-done" style="margin:0 0 8px">Use case${plan.done.length === 1 ? '' : 's'} ${plan.done.map(esc).join(', ')} ${plan.done.length === 1 ? 'says' : 'say'} Done in the sheet. A use case is On track, Flag or High risk, so ${plan.done.length === 1 ? 'it comes' : 'they come'} in as On track.</p>` : ''}
       ${[...plan.add, ...plan.upd].slice(0, 8).map(({ kind, ex, v }) => `<div style="padding:6px 0;border-top:1px solid var(--grey-100)">${kind === 'item' ? `<span class="type ${v.type}">${v.type}</span>` : `<span class="tag">${kind === 'ms' ? 'Milestone' : 'Use case'}</span>`} ${esc(v.title || v.name)} <span class="muted">· ${ex ? 'updates ' + esc(ex.id || ex.name) : 'new'}</span></div>`).join('')}
       ${n > 8 ? `<p class="muted">and ${n - 8} more</p>` : ''}</div>
       <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri" ${n ? '' : 'disabled'}>Import ${n} rows</button></div></form>`, d => C.$('#impF', d).addEventListener('submit', ev => {
@@ -155,8 +154,8 @@
       if (s.type === 'milestones') {
         if (forWord) b = tbl(['Milestone', 'State', 'Date', 'Progress'], ms.map(m => { const stt = D.msState(m); return [esc(m.clientText || m.name), `<span class="st-${{ Achieved: 'g', 'On track': 'g', 'At risk': 'a', Slipped: 'r', Overdue: 'r', Forecast: 'b' }[stt]}">${D.msWord(stt, true)}</span>`, stt === 'Achieved' ? 'Achieved ' + D.fd(m.achievedOn) : D.fd(m.agreed) + (D.slip(m) > 0 ? ` <span class="st-r">(expected ${D.fd(D.expected(m))})</span>` : ''), m.progress == null ? '' : m.progress + '%']; }));
         else { const host = document.createElement('div'); host.style.cssText = 'position:absolute;left:-9999px;width:900px'; document.body.appendChild(host); C.timeline(host, ms, { key: 'pub' }); const tl = host.innerHTML; host.remove();
-          const was = C.store.get('msAll.pub', false); C.store.set('msAll.pub', true); const list = C.msListHtml(ms, false, 'pub'); C.store.set('msAll.pub', was);
-          b = `${C.msViewsHtml(ms, 'pub', `<div class="tl">${tl.replace(/<span class="mv-zoom">.*?<\/span>(?=<\/div><div class="mv-wrap")/s, '')}</div>`)}${list.replace(/<button class="link msl-all"[^>]*>.*?<\/button>/, '')}`; }
+          const list = C.msListHtml(ms, false, 'pub');
+          b = `${C.msViewsHtml(ms, 'pub', `<div class="tl">${tl.replace(/<span class="mv-zoom">.*?<\/span>(?=<\/div><div class="mv-wrap")/s, '')}</div>`)}${list}`; }
       }
       if (s.type === 'text') b = `<div class="prose">${s.html || '<p class="muted">Nothing recorded.</p>'}</div>`;
       if (s.type === 'raid' || s.type === 'actions' || s.type === 'decisions') b = forWord
@@ -175,8 +174,8 @@
     const lists = forWord ? '' : ['actions', 'raid', 'decisions'].map(t => `<section><h2>${{ actions: 'Actions', raid: 'Risks and issues', decisions: 'Decisions' }[t]}</h2>${C.itemListHtml(t, false).replace(/data-open=/g, 'data-item=')}</section>`).join('');
     let msView = '';
     if (!forWord) { const host = document.createElement('div'); host.style.cssText = 'position:absolute;left:-9999px;width:900px'; document.body.appendChild(host); C.timeline(host, ms, { key: 'pub' }); const tl = host.innerHTML; host.remove();
-      const was = C.store.get('msAll.pub', false); C.store.set('msAll.pub', true); const list = C.msListHtml(ms, false, 'pub'); C.store.set('msAll.pub', was);
-      msView = `<section><h2>Milestones</h2>${C.msViewsHtml(ms, 'pub', `<div class="tl">${tl.replace(/<span class="mv-zoom">.*?<\/span>(?=<\/div><div class="mv-wrap")/s, '')}</div>`)}${list.replace(/<button class="link msl-all"[^>]*>.*?<\/button>/, '')}</section>`; }
+      const list = C.msListHtml(ms, false, 'pub');
+      msView = `<section><h2>Milestones</h2>${C.msViewsHtml(ms, 'pub', `<div class="tl">${tl.replace(/<span class="mv-zoom">.*?<\/span>(?=<\/div><div class="mv-wrap")/s, '')}</div>`)}${list}</section>`; }
     const vals = k => [...new Set(its.map(x => ({ owner: x.owner, status: C.look(x)[1], priority: x.priority, dueb: !x.due ? 'No date' : D.days(x.due) < 0 ? 'Overdue' : D.days(x.due) <= 7 ? 'Due in 7 days' : 'Later', ws: x.ws })[k]).filter(Boolean))].sort();
     /* the Use Cases tab (#162): only the use cases on the dashboard, view only */
     const ucTab = forWord ? '' : `<section><h2>Use Cases</h2>${C.ucPubHtml(p)}</section>`;
@@ -254,6 +253,8 @@ const ch=document.getElementById('cfChips');if(ch){ch.innerHTML='<span>'+n+' ite
 ch.querySelectorAll('[data-cfx]').forEach(b=>b.addEventListener('click',()=>{delete CF.f[b.dataset.cfx];cfSave()}));const cl=document.getElementById('cfClear');cl&&cl.addEventListener('click',()=>{CF.t='all';CF.f={};if(W)W.value='';cfSave()})}}
 function cfSave(){try{localStorage.setItem('clark.cf',JSON.stringify(CF))}catch(e){}cfRun()}
 document.querySelectorAll('[data-ft]').forEach(b=>b.addEventListener('click',()=>{CF.t=b.dataset.ft;cfSave()}));document.querySelectorAll('[data-cf]').forEach(sl=>sl.addEventListener('change',()=>{CF.f[sl.dataset.cf]=sl.value;cfSave()}));W&&W.addEventListener('input',cfRun);cfRun();
+/* the milestones list shows five rows; Show all N lists the rest, and the same button takes it back */
+document.querySelectorAll('[data-msmore]').forEach(b=>{const rows=()=>[...b.parentNode.querySelectorAll('.msl-row[data-more]')],n=rows().length+5;b.addEventListener('click',()=>{const on=b.getAttribute('aria-expanded')!=='true';rows().forEach(r=>{r.hidden=!on});b.setAttribute('aria-expanded',on?'true':'false');b.textContent=on?'Show the first 5':'Show all '+n})});
 ${C.UCP_JS}`;
     return `<!doctype html><html lang="en-GB" data-dash="${C.store.get('secs', 'slim')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(o.p.name)}: week ending ${D.fd(o.week)}</title>
 <link rel="icon" href="data:image/svg+xml,${encodeURIComponent(CLARK_ICON)}"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@800&display=swap" rel="stylesheet"><style>${pubCss(o.body + o.lists + o.msView + o.ucTab + o.glance)}\n${(window.BRAND || {}).tokens || ''}\n${CSS}:root{--cover:${cover ? `url(${cover})` : 'none'}}\n${printCss(opts.n)}</style></head><body>
@@ -303,7 +304,7 @@ table{border-collapse:collapse;width:100%} th{background:#3B5BDB;color:#fff;text
     const localPath = loc.local || `~/Documents/clark/${p.name}/Reports`;
     /* before publishing: open items with no owner or no date, and open items not reviewed in 14 days (FR-35a). It warns; it never blocks. */
     const gaps = C.items().filter(D.gap), stale = C.items().filter(D.notReviewed), nextN = D.pubNext(p);
-    const warnHtml = (gaps.length || stale.length) ? `<div class="pubwarn" id="pubChecks" role="status">${gaps.length ? `<p id="pubGaps"><span>${gaps.length} ${gaps.length === 1 ? 'item has' : 'items have'} no owner or date.</span> <button type="button" class="link" data-show="gap">Show them</button></p>` : ''}${stale.length ? `<p id="pubStale"><span>${stale.length} open ${stale.length === 1 ? 'item was' : 'items were'} not reviewed in ${D.STALE_DAYS} days.</span> <button type="button" class="link" data-show="stale">Show them</button></p>` : ''}<small>This is a warning only: you can still publish.</small></div>` : '';
+    const warnHtml = (gaps.length || stale.length) ? `<div class="pubwarn" id="pubChecks" role="status">${gaps.length ? `<p id="pubGaps"><span>${gaps.length} ${gaps.length === 1 ? 'item has' : 'items have'} no owner or date.</span> <button type="button" class="link" data-show="gap">Show them</button></p>` : ''}${stale.length ? `<p id="pubStale"><span>${stale.length} open ${stale.length === 1 ? 'item was' : 'items were'} not reviewed in ${D.staleDays(p.code)} days.</span> <button type="button" class="link" data-show="stale">Show them</button></p>` : ''}<small>This is a warning only: you can still publish.</small></div>` : '';
     C.dialog(`<form id="pubF"><div class="dlg-h"><h2>Publish the report</h2><p>${esc(p.name)} · week ending ${D.fd(week)} · this will be Publication ${nextN}${last ? ` · last published ${D.fd(last.at.slice(0, 10))}${last.client ? ', to the client' : ', locally'}` : ''}</p></div>
       <div class="dlg-b">${warnHtml}<div class="pubopts">
         <label class="pubopt"><input type="checkbox" id="pubLocal" checked disabled><span><b>Local</b><small>Always. ${window.showSaveFilePicker ? 'You choose the folder and name in the save window; it opens where you last saved' : 'Saved to your downloads'}</small></span></label>

@@ -223,7 +223,7 @@
     { id: 'keep-the-use-cases', g: 'The report', t: 'Keep the use case summary', w: 'Dashboard › Use case summary', go: 'dashboard', s: [
       'The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.',
       'Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all work items** opens Work items filtered to that use case.',
-      'In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag** or **High risk**.',
+      'In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.',
       'In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.',
       '**Delete use case** asks first. Its work items stay and lose the link.' ] },
     { id: 'work-the-use-cases', g: 'The report', t: 'Work through every use case', w: 'Use cases', go: 'usecases', s: [
@@ -231,7 +231,7 @@
       'The eye says **On the dashboard** or **Not on the dashboard**. It is the same switch as the one on the Dashboard: a use case that is on shows in the Use case summary and on the published page. One that is off stays on this page, muted. The Dashboard says how many more are here.',
       'Select a row to open that use case on its own page. **Use cases** at the top, or the Back button of your browser, brings you back to the list.',
       'With the keyboard, [[Tab]] reaches the list once. [[Up]] and [[Down]] move from row to row, [[Home]] and [[End]] go to the first and last, [[Right]] moves to the eye and [[Left]] back to the name. [[Enter]] opens a use case, and [[Space]] or [[Enter]] on the eye switches it. [[Esc]] on a use case goes back to the row you came from.',
-      'On a use case: click **Where it stands** (and the one line above it) to write it in the editor, press **Change status** to choose **On track**, **Flag** or **High risk**, and open any work item to see it beside the page. **Take off the dashboard** and **Put on the dashboard** do what the eye does. The linked milestones, the owner and the history of changes (who, how and when) are there too. Every change is one step with **Undo**.',
+      'On a use case: click **Where it stands** (and the one line above it) to write it in the editor, press **Change status** to choose **On track**, **Flag**, **High risk** or **Done**, and open any work item to see it beside the page. **Take off the dashboard** and **Put on the dashboard** do what the eye does. The linked milestones, the owner and the history of changes (who, how and when) are there too. Every change is one step with **Undo**.',
       'Narrow the list with the search box, the **Status** pill, and **All**, **On the dashboard** or **Not on the dashboard**. **Sort** orders by reference, status or open work items. The count above the list says how many are shown. Your choices are kept for each project.',
       '**Add a use case** asks for a reference, a name and a status. **Export to Excel** saves the use cases sheet.',
       '**Archive this use case** is at the foot of a use case. It takes it out of the lists, the counts, the Dashboard and the published page; nothing is deleted. **Show archived** under the list shows the archived ones, and **Restore** brings one back.' ] },
@@ -328,7 +328,9 @@
     ['[[/]] in an editor', 'The command menu, at the start of a line or after a space. [[Up]], [[Down]], [[Enter]] and [[Esc]] work in it'],
     ['[[Up]]', 'In an empty Sneak peek box: your last instruction'],
     ['[[Up]] [[Down]] [[Enter]]', 'In any menu: move and choose. [[Esc]] closes it'],
-    ['[[V]] [[E]]', 'On the Dashboard: View mode and Edit mode, as the **View** and **Edit** buttons do (when you aren’t typing in a box, and no menu, box or peek is open)'],
+    ['[[V]] [[E]]', 'On the Dashboard: View mode and Edit mode, as the **View** and **Edit** buttons do (when you aren’t typing in a box, and no menu, box or peek is open). The letter keys V, E, C and [[/]] all follow one switch: **Single-key shortcuts** in Settings, Personal. With it off they do nothing; arrows, Enter, Esc, Space and anything with Ctrl or Cmd still work'],
+    ['[[Mod+K]]', 'Anywhere, even in a box: the command palette. Type to find a command, a page, a project, a work item (by its ID or words in its title) or a milestone; [[Up]] and [[Down]] move, [[Enter]] opens or runs, [[Esc]] or [[Mod+K]] again closes it. It works when Single-key shortcuts are off'],
+    ['[[Mod+Z]] on a page', 'On the Dashboard, Work items and Milestones: undo the last change, the same step as the **Undo** in the message. Not while typing in a box or an editor, which keep their own undo'],
     ['[[Alt+Up]] [[Alt+Down]]', 'Dashboard in Edit, on a section’s grip: move the section'],
     ['[[Enter]] or [[Space]]', 'Dashboard in Edit, on a section’s grip: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them'],
     ['[[Alt+Left]] [[Alt+Right]]', 'Dashboard in Edit, on a tile: move the tile. On a board column’s heading: move the column'],
@@ -486,7 +488,7 @@
         ['Risk, Issue', 'Open, Closed, Cancelled', 'Its colour from its priority: Urgent or High red, Medium amber, Low green'],
         ['Decision', 'Pending, Made, Withdrawn', 'Pending (blue), Made (green), Withdrawn (grey)'] ]],
       ['p', 'Choosing Red, Amber or Green on a risk or issue sets its priority. Priorities are Urgent, High, Medium and Low.'],
-      ['p', 'Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red).'] ] },
+      ['p', 'Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).'] ] },
     { id: 'sneak-peek', g: 'Working with items', t: 'Sneak peek', w: 'An open peek › the sparkle or [[/]] [[/]]', b: [
       ['tbl', ['You type', 'It changes'], [
         ['due Friday · move to next week · by 12-12-2026 · on in 3 days', 'The due date (today, tomorrow, next week, in n days or weeks, a weekday, next Monday, DD-MM-YYYY)'],
@@ -595,7 +597,7 @@
     if (k === 'types') return `<h3 class="hp-h3">Badges and words</h3><div class="hp-tw"><table class="hp-t"><thead><tr><th>Mark</th><th>Means</th></tr></thead><tbody>
       ${Object.entries(C.D.TYPES).map(([t, n]) => `<tr><td><span class="type ${t}">${t}</span></td><td>${esc(n)}</td></tr>`).join('')}
       <tr><td><span class="pill r">Overdue</span> <span class="pill a">Due soon</span> <span class="pill b">Open</span> <span class="pill g">Made</span> <span class="pill n">Closed</span></td><td>A work item’s state, in words and colour</td></tr>
-      <tr><td>${['On track', 'Flag', 'High risk'].map(s => C.ucWord ? C.ucWord(s) : esc(s)).join(' ')}</td><td>A use case’s status</td></tr>
+      <tr><td>${['On track', 'Flag', 'High risk', 'Done'].map(s => C.ucWord ? C.ucWord(s) : esc(s)).join(' ')}</td><td>A use case’s status</td></tr>
       <tr><td><span class="tag cl">${C.icon('eye', 's')}Client</span></td><td>Shown to the client</td></tr>
       <tr><td><span class="tag">Internal only</span></td><td>A milestone not shown to the client</td></tr>
       <tr><td><span class="av">JE</span></td><td>An owner’s initials</td></tr></tbody></table></div>`;

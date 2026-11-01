@@ -86,11 +86,21 @@
   /* ── toast with undo ── */
   let tT, undoFn = null, expireFn = null;
   /* toast(msg, undo, {onExpire}): onExpire runs when the toast goes without Undo (or another toast takes its place) */
+  /* every change that offers Undo also goes on a short list, so Cmd or Ctrl+Z can take back the last one after its message has gone (#197);
+     each step runs once, whichever way it is taken back */
+  const steps = [];
   C.toast = (msg, undo, o = {}) => {
     if (expireFn) { const f = expireFn; expireFn = null; f(); }
+    if (undo) { const rec = { msg, done: false, fn: undo }; steps.push(rec); if (steps.length > 50) steps.shift(); undo = () => { if (rec.done) return; rec.done = true; rec.fn(); }; }
     const t = C.$('#toast'); C.$('#toastMsg').textContent = msg; undoFn = undo || null; C.$('#toastUndo').hidden = !undo; expireFn = o.onExpire || null;
-    t.classList.add('on'); clearTimeout(tT); tT = setTimeout(() => { t.classList.remove('on'); undoFn = null; if (expireFn) { const f = expireFn; expireFn = null; f(); } }, undo ? 6500 : 2800);
+    t.classList.add('on'); clearTimeout(tT); tT = setTimeout(() => { t.classList.remove('on'); undoFn = null; if (expireFn) { const f = expireFn; expireFn = null; f(); } }, o.ms || (undo ? 6500 : 2800));
   };
+  /* Cmd or Ctrl+Z: the last change that can still be undone; with none, it says so */
+  C.undoClear = () => { steps.length = 0; };   /* a reset of the demo data leaves nothing to undo: the old steps point at records that are gone */
+  C.undoLast = () => { let r; while ((r = steps.pop())) { if (r.done) continue; r.done = true; r.fn(); C.refresh(); C.toast('Undone: ' + r.msg); return true; } C.toast('Nothing to undo'); return false; };
+  /* Single-key shortcuts (#193): on unless turned off in Settings › Personal; kept in this browser like the colour theme, read live */
+  C.keysOn = () => C.store.get('singleKeys', true) !== false;
+  C.keyHint = k => C.keysOn() ? ` (${k})` : '';
   /* the eye: the row stays (greyed) while Undo is offered; then it leaves the editor */
   C.hideLater = (rows, undo, msg) => { [].concat(rows).filter(Boolean).forEach(r => r.classList.add('leaving')); C.toast(msg, undo, { onExpire: () => C.refresh() }); };
   document.addEventListener('DOMContentLoaded', () => C.$('#toastUndo').addEventListener('click', () => { const u = undoFn; undoFn = null; expireFn = null; clearTimeout(tT); C.$('#toast').classList.remove('on'); if (u) { u(); if (!(C.edIsOpen && C.edIsOpen())) C.refresh(); } }));   // an editor still open keeps its text; the page catches up when it closes
@@ -300,7 +310,10 @@
     if (openPop) { if (e.key === 'Escape') { e.preventDefault(); C.closePop(); return; } if (openPop.el._key && openPop.el._key(e)) return; }
     if (C.$('#dlg').open) return;
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); C.askToggle(); return; }
-    if (e.key === '/' && !e.metaKey && !e.ctrlKey && !C.typing(document.activeElement)) {
+    /* Cmd or Ctrl+Z on the Dashboard, Work items and Milestones undoes the last change; a box or an editor keeps its own undo (#197) */
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !e.repeat && !e.isComposing && e.key.toLowerCase() === 'z' && ['dashboard', 'work', 'milestones'].includes(UI.view)
+      && !openPop && !C.typing(document.activeElement) && !(C.edIsOpen && C.edIsOpen()) && !C.palOpen?.()) { e.preventDefault(); C.undoLast(); return; }
+    if (e.key === '/' && C.keysOn() && !e.metaKey && !e.ctrlKey && !C.typing(document.activeElement)) {
       e.preventDefault();
       /* creaite's keys: "//" in a peek opens Sneak peek; a single "/" opens ask clark */
       if (UI.peek && !C.askIsOpen()) { if (slashT) { clearTimeout(slashT); slashT = 0; C.sneakOpen(); } else slashT = setTimeout(() => { slashT = 0; C.askOpen(); }, 450); }
@@ -352,7 +365,7 @@
         { html: `${C.icon('gear')} Settings`, onPick: () => C.go('settings') },
         { html: `${C.icon('info')} Help`, onPick: () => C.help.open() },
         { html: `${C.icon('moon')} Dark mode`, selected: dark, onPick: () => { C.themeSet(dark ? 'light' : 'dark'); if (UI.view === 'settings') C.render(); } }], { align: 'right' }); });
-    C.$('#resetDemo').addEventListener('click', async () => { await D.reset(); UI.code = 'PDF'; C.closePeek(); C.askReset && C.askReset(); C.go('dashboard'); C.toast('Demo data reset'); });
+    C.$('#resetDemo').addEventListener('click', async () => { await D.reset(); C.undoClear(); UI.code = 'PDF'; C.closePeek(); C.askReset && C.askReset(); C.go('dashboard'); C.toast('Demo data reset'); });
     const h = navParse(location.hash);
     if (h.p && C.live().some(p => p.code === h.p)) UI.code = h.p;
     UI.view = VIEWS[h.v] ? h.v : C.store.get('view', 'dashboard');
