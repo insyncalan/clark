@@ -2,10 +2,10 @@
 // filled to Actual with a marker at Planned. Every figure is worked out in logic/clientReport.js from the milestones; what each means
 // is said on the page, and "Not set" is shown when there is nothing to measure (never an invented number).
 // This file and Plans.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
-import { data, fromFile } from "../../stores/report.js";
+import { data } from "../../stores/report.js";
 import { HEALTH_WORDS } from "../../glanceTiles.js";
 import { showDate } from "../../workItems.js";
-import { progress, gapWords } from "../../logic/clientReport.js";
+import { progress, gapWords, clientRules } from "../../logic/clientReport.js";
 
 const PILL = { g: "g", a: "a", r: "r" };
 
@@ -13,8 +13,8 @@ const PILL = { g: "g", a: "a", r: "r" };
 const place = (planned) => (planned >= 88 ? " end" : planned <= 12 ? " start" : "");
 
 export function Overall({ on }) {
-  const d = data.value, client = fromFile.value;
-  const { overall, groups } = progress(d.milestones, on, client);
+  const d = data.value;
+  const { overall, groups } = progress(d.milestones, on, true, clientRules(d));   // the client's milestones and words, as the file shows them
   const lines = groups.reduce((n, g) => n + g.lines.length, 0);
   const health = d.project.health || "", rag = HEALTH_WORDS[health] || "n", reason = d.project.health_reason || "";
   const gap = gapWords(overall);

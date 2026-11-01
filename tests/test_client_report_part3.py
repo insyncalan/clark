@@ -39,16 +39,19 @@ class Source(unittest.TestCase):
         self.assertIn('row.priority === "Urgent" || colourOf(row.priority).colour === "red" ? "Yes" : null', js)
         self.assertNotIn('"No"', js)
 
-    def test_back_on_track_comes_from_the_due_date_and_what_is_done_from_the_response(self):
+    def test_back_on_track_comes_from_the_due_date_and_the_working_note_is_never_read(self):
         js = text("logic", "clientRisks.js")
         self.assertIn("dayNumber(row.due_date) === null ? null : row.due_date", js)
-        self.assertIn("row.response_action", js)
+        for name in ("clientRisks.js", "clientReport.js"):
+            self.assertNotIn("response_action", text("logic", name), name + ": the response is a working note, never in a report")
+        self.assertNotIn("response_action", text("components", "clientreport", "Risks.jsx"))
 
-    def test_the_rows_left_out_are_closed_archived_and_not_for_the_client(self):
-        js = text("logic", "clientRisks.js")
-        self.assertIn("!isOpen(r)", js)
-        self.assertIn("Number(r.archived) === 1", js)
-        self.assertIn("Number(r.client_visible) === 0", js)
+    def test_the_rows_pass_mains_gate(self):
+        """The rows are the ones the published file would hold: main's mirror of publish.select (logic/publishable.js)."""
+        self.assertIn('publishable(r, "raid", rules)', text("logic", "clientRisks.js"))
+        self.assertIn('publishable(m, "milestones", rules)', text("logic", "clientReport.js"))
+        for name in ("Overall.jsx", "Plans.jsx", "Risks.jsx"):
+            self.assertIn("clientRules(", text("components", "clientreport", name), name)
 
     def test_the_placeholder_says_it_in_plain_words(self):
         self.assertIn("The delivery progress template is not built yet.", text("components", "clientreport", "Delivery.jsx"))
@@ -128,6 +131,10 @@ class Drawn(unittest.TestCase):
             st.create("raid", {**base, "type": "Risk", "description": "Medium risk to watch", "impact": "Medium", "likelihood": "Low"})
             st.create("raid", {**base, "type": "Assumption", "description": "Everyone has a laptop", "impact": "Low", "likelihood": "Low"})
             st.create("raid", {**base, "type": "Risk", "description": "Hidden from the client", "impact": "High", "likelihood": "High", "client_visible": 0})
+            left = st.create("raid", {**base, "type": "Risk", "description": "Left out of the report", "impact": "High", "likelihood": "High"})
+            st.create("report_hidden", {"project": "ABC", "item_id": left})
+            st.create("raid", {**base, "type": "Risk", "description": "Says it the client's way", "impact": "Low", "likelihood": "Low",
+                               "client_message": "The client's own words", "due_date": "2026-11-30"})
             gone = st.create("raid", {**base, "type": "Issue", "description": "Already closed issue", "impact": "Low", "likelihood": "Low"})
         with self.store.step("dashboard", USER) as st:
             st.update("raid", gone, {"status": "Closed", "closed": "2026-10-05"})
@@ -160,13 +167,16 @@ class Drawn(unittest.TestCase):
             self.assertLess(abs(hi[0] - nx[0]), 3, f"the pair is one column: {where}")
             self.assertGreaterEqual(nx[1], hi[3] - 1, f"the pair is stacked: {where}")
         words = js("[...document.querySelectorAll('#cr-raid [data-word]')].map(function(e){return [e.dataset.word, e.querySelector('.pill').textContent, e.querySelector('.wl-title').textContent]})")
-        self.assertEqual([w[:2] for w in words], [["Delay", "Delay"], ["Risk", "Risk"], ["Risk", "Risk"], ["Monitor", "Monitor"], ["Monitor", "Monitor"]], where)
+        self.assertEqual([w[:2] for w in words], [["Delay", "Delay"], ["Risk", "Risk"], ["Risk", "Risk"], ["Monitor", "Monitor"], ["Monitor", "Monitor"], ["Monitor", "Monitor"]], where)
         titles = [w[2] for w in words]
         self.assertEqual(titles[0], "Design sign-off is running late")
-        for left_out in ("Everyone has a laptop", "Hidden from the client", "Already closed issue"):
+        for left_out in ("Everyone has a laptop", "Hidden from the client", "Already closed issue", "Left out of the report", "Says it the client's way"):
             self.assertNotIn(left_out, titles, where)
-        rows = js("[...document.querySelectorAll('#cr-raid .wl-row')].map(function(e){return [e.querySelector('.cr-back').textContent, e.querySelector('.cr-esc').textContent, e.querySelector('.wl-resp').textContent, e.querySelector('.idl').textContent]})")
-        self.assertEqual(rows[0][:3], ["Back on track by 13-11-2026", "Escalate: —", "A weekly call between both leads."], where)
+        self.assertIn("The client's own words", titles, "a row's client message is what the client reads: " + where)
+        page = js("document.getElementById('clientreport').innerText")
+        self.assertNotIn("A weekly call between both leads.", page, "the response is a working note, never on this page: " + where)
+        rows = js("[...document.querySelectorAll('#cr-raid .wl-row')].map(function(e){return [e.querySelector('.cr-back').textContent, e.querySelector('.cr-esc').textContent, e.querySelector('.wl-resp') ? 'shown' : '—', e.querySelector('.idl').textContent]})")
+        self.assertEqual(rows[0][:3], ["Back on track by 13-11-2026", "Escalate: —", "—"], where)
         self.assertEqual(rows[1][1], "Escalate: Yes", "a High priority risk is Red: " + where)
         self.assertEqual(rows[2][0], "Back on track by —", where)
         self.assertEqual(rows[3][0], "Review by 15-11-2026", where)

@@ -4,17 +4,14 @@
 // cleanHtml), and in Edit through the dashboard's own editor (tools.RichField) once that is switched on. A published file's text was
 // cleaned when it was published and is drawn as the dashboard draws it.
 import { data, mode, fromFile } from "../../stores/report.js";
+import { sectionFor } from "../../logic/clientReport.js";
 
 const HIGHLIGHTS = /highlight|this week/i;
 const NEXT = /next week/i;
 
-/** The text section the words come from: the first text section whose title matches. Not by position, because a section can be moved. */
-export function sectionFor(sections, pattern) {
-  return (sections || []).find((s) => s.type === "text" && pattern.test(String(s.title || ""))) || null;
-}
 
 function Words({ pattern, fallback, tools }) {
-  const sec = sectionFor(data.value.report_sections, pattern);
+  const sec = sectionFor(data.value.report_sections, pattern, data.value.report_hidden);
   if (!sec) return <p class="quiet" data-empty="no-section">{`Nothing here yet. Add a "${fallback}" text section on the Dashboard and write it there.`}</p>;
   const empty = `Nothing written yet. Write it in the "${sec.title}" section on the Dashboard.`;
   const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;

@@ -14,6 +14,15 @@
 //   over every line (no agreed date counts as 0). A group's total is the same average over its own lines.
 //   Behind: Planned minus Achieved, when Achieved is lower (a missing Achieved counts as 0).
 import { milestoneRows, CANCELLED } from "./milestones.js";
+import { rulesFor, publishable } from "./publishable.js";
+
+/** The client's rules for this project (main's gate, logic/publishable.js, the page's mirror of publish.select): a row this view
+ *  draws or counts must be one the published file would hold, so a hidden row never shows and never moves a figure. */
+export function clientRules(data) {
+  const d = data || {};
+  return rulesFor({ code: d.project && d.project.code, hidden: (d.report_hidden || []).map((h) => (h && h.item_id) || h),
+    labelRules: d.label_rules, labels: d.labels, sections: d.report_sections });
+}
 
 export const OTHER = "Other milestones";
 export const ONLY = "Milestones";
@@ -34,11 +43,13 @@ export function total(lines) {
   return { actual: avg(lines.map((l) => l.achieved || 0)), planned: avg(lines.map((l) => l.planned || 0)) };
 }
 
-/** {overall, groups} for the milestones `list` (data.milestones) as at `on`; `client` is a published file's rows. Cancelled and archived
- *  milestones are left out. Groups are the milestones' workstreams, in the order their first line falls by date; one with no
+/** {overall, groups} for the milestones `list` (data.milestones) as at `on`, in the client's words when `client` is true. Only the
+ *  milestones `rules` (clientRules) would publish are used: archived, not for the client, report-hidden, Sensitive or excluded by a
+ *  label, or in a hidden Milestones section are left out, as are cancelled ones. With no `rules` nothing is left out by them. Groups are the milestones' workstreams, in the order their first line falls by date; one with no
  *  workstream is in "Other milestones" (or "Milestones" when no milestone has a workstream). */
-export function progress(list, on, client) {
-  const rows = milestoneRows(list, on, client).filter((r) => r.status !== CANCELLED && r.state !== CANCELLED);
+export function progress(list, on, client, rules) {
+  const kept = rules ? (list || []).filter((m) => publishable(m, "milestones", rules)) : list;
+  const rows = milestoneRows(kept, on, client).filter((r) => r.status !== CANCELLED && r.state !== CANCELLED);
   const ws = Object.fromEntries((list || []).map((m) => [m.id, typeof m.workstream === "string" ? m.workstream.trim() : ""]));
   const named = rows.some((r) => ws[r.id]);
   const order = [], by = {};
@@ -64,3 +75,10 @@ export function gapWords(overall) {
 
 /** What a line's behind-plan mark says out loud (for a screen reader; the mark itself is "▼n"). */
 export const behindWords = (n) => `${n} ${n === 1 ? "point" : "points"} behind plan`;
+
+/** The text section the words come from: the first shown text section whose title matches. Not by position, because a section can
+ *  be moved. A section the owner hid, or left out of the client's report (report_hidden), is never used. */
+export function sectionFor(sections, pattern, hidden) {
+  const out = new Set(((hidden || [])).map((h) => (h && h.item_id) || h));
+  return (sections || []).find((s) => s.type === "text" && !(s.hidden === 1 || s.hidden === true) && !out.has(s.id) && pattern.test(String(s.title || ""))) || null;
+}

@@ -79,6 +79,13 @@ LIST = [ms("M-1", "Kick-off", status="Done", baseline_date="2026-10-01", actual_
         ms("M-3", "No date yet", forecast_date="2027-01-10"),
         ms("M-4", "Dropped", status="Cancelled", baseline_date="2026-10-05", workstream="Build"),
         ms("M-5", "Hidden away", baseline_date="2026-10-05", archived=1, workstream="Build")]
+# Every way a milestone is kept from the client (logic/publishable.js, the page's mirror of publish.select): none may show or count.
+HIDDEN = [ms("M-6", "Not for the client", baseline_date="2026-10-05", client_visible=0, workstream="Build"),
+          ms("M-7", "Left out of the report", baseline_date="2026-10-05", workstream="Build"),
+          ms("M-8", "Marked Sensitive", baseline_date="2026-10-05", workstream="Build"),
+          ms("M-9", "Excluded by a label", baseline_date="2026-10-05", workstream="Build")]
+DATA = {"project": {"code": "ABC"}, "report_hidden": [{"item_id": "M-7"}], "labels": {"M-8": ["Sensitive"], "M-9": ["Internal"]},
+        "label_rules": [{"name": "Internal", "behaviour": "exclude"}], "report_sections": []}
 ON = "2026-10-20"
 
 
@@ -106,6 +113,24 @@ class Logic(unittest.TestCase):
         self.assertEqual(build["total"], {"actual": 70, "planned": 100})
         self.assertEqual(other["total"], {"actual": 0, "planned": 0})
         self.assertEqual(got["overall"], {"actual": 47, "planned": 67}, "every line counts the same, across all groups")
+
+    def test_a_hidden_milestone_never_shows_and_never_moves_a_figure(self):
+        rules = f"CR.clientRules({json.dumps(DATA)})"
+        with_hidden = self.run_js(f"CR.progress({json.dumps(LIST + HIDDEN)}, {json.dumps(ON)}, true, {rules})")
+        without = self.run_js(f"CR.progress({json.dumps(LIST)}, {json.dumps(ON)}, true, {rules})")
+        self.assertEqual(with_hidden, without, "hidden milestones change nothing the client sees")
+        names = [l["text"] for g in with_hidden["groups"] for l in g["lines"]]
+        for gone in ("Not for the client", "Left out of the report", "Marked Sensitive", "Excluded by a label"):
+            self.assertNotIn(gone, names)
+        hidden_section = dict(DATA, report_sections=[{"type": "milestones", "hidden": 1}])
+        self.assertEqual(self.run_js(f"CR.progress({json.dumps(LIST)}, {json.dumps(ON)}, true, CR.clientRules({json.dumps(hidden_section)}))"),
+                         {"overall": None, "groups": []}, "a hidden Milestones section leaves no milestone on this page")
+
+    def test_a_hidden_text_section_is_never_the_source_of_the_pair(self):
+        secs = [{"id": "S-1", "type": "text", "title": "This week", "hidden": 1}, {"id": "S-2", "type": "text", "title": "Highlights", "hidden": 0},
+                {"id": "S-3", "type": "text", "title": "Next week", "hidden": 0}]
+        self.assertEqual(self.run_js(f"CR.sectionFor({json.dumps(secs)}, /highlight|this week/i, []).id"), "S-2", "the owner hid S-1")
+        self.assertIsNone(self.run_js(f"CR.sectionFor({json.dumps(secs)}, /next week/i, [{{'item_id': 'S-3'}}])"), "S-3 is left out of the report")
 
     def test_the_end_date_is_the_achieved_date_then_the_forecast_then_the_agreed_date(self):
         got = self.run_js(f"CR.progress({json.dumps(LIST)}, {json.dumps(ON)}, false).groups.map(g => g.lines.map(l => l.end))")

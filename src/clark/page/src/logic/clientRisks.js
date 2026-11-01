@@ -3,6 +3,7 @@
 // field for "Escalate" or "Back on track by" (a typed version needs a guarded change; see the note in the pull request), so each
 // is worked out from what a row already says, or shown as a dash.
 import { dayNumber, isOpen, colourOf } from "../workItems.js";
+import { publishable } from "./publishable.js";
 
 export const DELAY = "Delay", RISK = "Risk", MONITOR = "Monitor";
 const RANK = { [DELAY]: 0, [RISK]: 1, [MONITOR]: 2 };
@@ -30,20 +31,22 @@ export function backOnTrack(row) {
   return dayNumber(row.due_date) === null ? null : row.due_date;
 }
 
-/** What is being done: the row's response, trimmed, or null. */
-export function doingOf(row) {
-  const t = typeof row.response_action === "string" ? row.response_action.trim() : "";
-  return t || null;
+/** The words the client reads for a row: its client message when there is one, else its description. The response (a working
+ *  note, never published) is never used. */
+export function titleOf(row) {
+  const m = typeof row.client_message === "string" ? row.client_message.trim() : "";
+  return m || row.description;
 }
 
-/** The rows the page shows: open risks and issues that are not archived and not marked as left out of the client's report,
- *  Delays first, then Risks, then Monitor; inside a word by date (no date last), then by id. */
-export function riskRows(raid) {
+/** The rows the page shows: open risks and issues the published file would hold (`rules`, clientReport.clientRules: not archived,
+ *  for the client, not report-hidden, no Sensitive or excluding label, Risks section shown), Delays first, then Risks, then Monitor;
+ *  inside a word by date (no date last), then by id. With no `rules` only archived and not-for-the-client rows are left out. */
+export function riskRows(raid, rules) {
   const out = [];
   for (const r of raid || []) {
     const word = wordOf(r);
-    if (!word || !isOpen(r) || Number(r.archived) === 1 || Number(r.client_visible) === 0) continue;
-    out.push({ id: r.id, word, tone: TONE[word], title: r.description, owner: r.owner, due: backOnTrack(r), escalate: escalateOf(r), doing: doingOf(r) });
+    if (!word || !isOpen(r) || Number(r.archived) === 1 || Number(r.client_visible) === 0 || (rules && !publishable(r, "raid", rules))) continue;
+    out.push({ id: r.id, word, tone: TONE[word], title: titleOf(r), owner: r.owner, due: backOnTrack(r), escalate: escalateOf(r) });
   }
   return out.sort((x, y) => RANK[x.word] - RANK[y.word] || (x.due === y.due ? 0 : x.due === null ? 1 : y.due === null ? -1 : x.due < y.due ? -1 : 1) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
 }
