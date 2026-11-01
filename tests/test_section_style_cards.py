@@ -11,6 +11,7 @@ Chrome is required: these tests fail, never skip, without it.
 """
 import json
 import re
+import time
 import unittest
 
 from _paths import SRC
@@ -36,6 +37,38 @@ window.__token = (name) => { const s = document.createElement('i'); s.style.colo
 """
 GROUP = "document.querySelector('#personal [data-secstyles]')"
 CARDS = "[...document.querySelectorAll('#personal [data-secstyles] .secpick')]"
+
+
+def stable(p, expr, seconds=2.0, every=0.05):
+    """Sample a page expression until two samples in a row are equal (a colour eased by a transition has arrived), at most `seconds`;
+    returns the last sample, so an assertion on it fails with the real value."""
+    last = p.js(expr)
+    end = time.time() + seconds
+    while time.time() < end:
+        time.sleep(every)
+        now = p.js(expr)
+        if now == last:
+            return now
+        last = now
+    return last
+
+
+def settled(p, expr, what, seconds=15):
+    """p.until, but a page that is navigating (a reload in flight) is waited out: Chrome says 'Inspected target navigated or closed'
+    to a call made in that gap, and the next poll sees the new page. Any other error still fails."""
+    def ask():
+        try:
+            return p.js(expr)
+        except RuntimeError as e:
+            if "navigated or closed" in str(e):
+                return False
+            raise
+    end = time.time() + seconds
+    while time.time() < end:
+        if ask():
+            return
+        time.sleep(0.1)
+    p.t.fail(what)
 
 
 class Cards(Base):
@@ -122,7 +155,7 @@ class Cards(Base):
             p.until("document.documentElement.dataset.secstyle === 'card'", "a click on the card chooses it")
             self.assertEqual(self.chosen(p), ["card"])
             p.js("window.__before = 1; location.reload()")
-            p.until("window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
+            settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
             self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "card", "kept for the page")
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu [data-kind=settings]')", "menu")
@@ -155,8 +188,8 @@ class Cards(Base):
                 p.js(f"document.querySelector('input[name=secstyle][value={pick}]').closest('label').click()")
                 p.until(f"document.querySelector('input[name=secstyle][value={pick}]').checked && document.documentElement.dataset.secstyle === '{pick}'", f"{pick} chosen")
                 # the edge eases from one colour to the other, so it is read once it has arrived
-                p.until(f"{CARDS}.every(c => (getComputedStyle(c.querySelector('.secpick-card')).borderTopColor === __token('--brand-blue')) === c.querySelector('input').checked && (getComputedStyle(c.querySelector('.secpick-card')).boxShadow === 'none') === !c.querySelector('input').checked)", "the edges settled")
-                got = p.js(f"{CARDS}.map(c => {{ const k = c.querySelector('.secpick-card'), s = getComputedStyle(k), t = getComputedStyle(c.querySelector('.secpick-tick')), r = c.querySelector('.secpick-tick').getBoundingClientRect(); "
+                p.until(f"{CARDS}.every(c => (getComputedStyle(c.querySelector('.secpick-card')).borderTopColor === __token('--brand-blue')) === c.querySelector('input').checked && (getComputedStyle(c.querySelector('.secpick-card')).boxShadow === 'none') === !c.querySelector('input').checked && (!c.querySelector('input').checked || getComputedStyle(c.querySelector('.secpick-card')).boxShadow.includes(__token('--brand-blue'))))", "the edges settled")
+                got = stable(p, f"{CARDS}.map(c => {{ const k = c.querySelector('.secpick-card'), s = getComputedStyle(k), t = getComputedStyle(c.querySelector('.secpick-tick')), r = c.querySelector('.secpick-tick').getBoundingClientRect(); "
                            "return {on: c.querySelector('input').checked, edge: s.borderTopColor, edgeW: parseFloat(s.borderTopWidth), ring: s.boxShadow, tick: t.display !== 'none' && r.width > 10 && r.height > 10, "
                            "tickBg: t.backgroundColor, tickFg: t.color, blue: __token('--brand-blue')}; })")
                 self.assertEqual([g["on"] for g in got], [i == pick for i in IDS])

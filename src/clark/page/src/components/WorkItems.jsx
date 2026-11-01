@@ -11,7 +11,7 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile } from "../stores/report.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -151,12 +151,22 @@ function GroupBy({ board }) {
   );
 }
 
+// The published file's search box (#69): it filters as the client types and is never re-created by a click, so nothing moves.
+function SearchBox() {
+  return (
+    <label class="search"><span class="sr">Search work items</span>
+      <input id="q" type="search" placeholder="Search work items" autocomplete="off" value={query.value} onInput={(e) => setQuery(e.currentTarget.value)} />
+    </label>
+  );
+}
+
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
 function List({ Board, Cell }) {
-  const st = filterState.value, today = todayIso();
+  const st = filterState.value, today = fromFile.value && asAt.value ? asAt.value : todayIso();
   const filtered = applyFilters(itemRows.value, st, today);
   const cs = chips(st);
-  const clear = () => setFilterState(clearAll());
+  const words = query.value.trim() !== "", canClearAll = canClear(st) || words;
+  const clear = () => { setQuery(""); setFilterState(clearAll(filterState.value)); };    // a published file keeps the type and Open / Closed / All
   const board = !!Board && work.value.view === "board";
   const matching = filtered.map((r) => r.id);
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
@@ -171,10 +181,13 @@ function List({ Board, Cell }) {
             <button type="button" data-fx={c.field} aria-label={`Remove the ${c.name} filter`} onClick={() => setFilterState(removeFilter(filterState.value, c.field))}>{"×"}</button>
           </span>
         ))}
-        {canClear(st) ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
+        {words ? <span class="fchip" data-chip="search">{`Search: ${query.value.trim()}`}
+          <button type="button" data-fx="search" aria-label="Remove the search" onClick={() => setQuery("")}>{"×"}</button>
+        </span> : null}
+        {canClearAll ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
       </div>
       {filtered.length === 0
-        ? <div class="empty"><p class="muted">No items match these filters.</p>{canClear(st) ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
+        ? <div class="empty"><p class="muted">No items match these filters.</p>{canClearAll ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
         : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} />}
     </div>
   );
@@ -198,7 +211,7 @@ export function WorkItems({ tools }) {
       {allRows.value.length === 0
         ? <p class="muted">{tools ? `This project has no work items yet. Use ${plan.word} to add the first.` : "This report has no work items."}</p>
         : <>
-            <Switches><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+            <Switches><GroupBy board={board} />{fromFile.value ? <SearchBox /> : null}{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
             <FilterBar />
             <List Board={Board} Cell={Cell} />
           </>}
