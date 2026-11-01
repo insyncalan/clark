@@ -176,7 +176,7 @@ table.items th { text-align: left; font-weight: 400; font-size: 13px; letter-spa
 table.items td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 .sec:focus { outline: none; }
 table.items th:first-child, table.items td:first-child { padding-left: 4px; }
-table.items .c-type { width: 116px; }
+table.items .c-eye { width: 44px; }
 table.items .c-owner { width: 170px; }
 table.items .c-due { width: 134px; }
 table.items .c-prio { width: 104px; }
@@ -221,9 +221,16 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-@media (max-width: 900px) { table.items .c-type { width: 116px; } table.items .c-due { width: 134px; } }
-/* A Type badge is one word and stays on one line: never "Dependenc / y". Above the phone layout only (there the cell is a card and the word may wrap). */
-@media (min-width: 641px) { table.items .type { white-space: nowrap; overflow-wrap: normal; } }
+@media (max-width: 900px) { table.items .c-due { width: 134px; } }
+/* The letter badge before an item's title (#456; prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
+   longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
+.kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 13px; font-weight: 400; flex: none; background: var(--grey-100); color: var(--grey-700); }
+.kb.k-action { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.kb.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
+.kb.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
+.kb.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
+.tcell { display: flex; align-items: center; gap: 10px; }
+.tcell .tx { min-width: 0; }
 
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -288,18 +295,20 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
   table.items thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   table.items tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 6px 12px; padding: 10px 4px; border-top: 1px solid var(--grey-100); }
   table.items td, table.items td:first-child { display: block; min-width: 0; width: auto; padding: 0; border-top: 0; }
-  table.items .c-type { grid-column: 1 / 2; grid-row: 1; }
-  table.items .c-owner { grid-column: 2 / 4; grid-row: 1; }
-  table.items .c-item { grid-column: 1 / 4; grid-row: 2; }
+  table.items .c-item { grid-column: 1 / 4; grid-row: 1; }
+  table.items .c-owner { grid-column: 1 / 4; grid-row: 2; }
+  table.items tr { position: relative; }
+  table.items tr.has-eye .c-item { padding-right: 32px; }
+  table.items td.c-eye { position: absolute; top: 6px; right: 2px; grid-column: auto; padding: 0; }
+  table.items tr.colh { display: none; }
   table.items .c-status { grid-column: 1; grid-row: 3; }
   table.items .c-due { grid-column: 2; grid-row: 3; }
   table.items .c-prio { grid-column: 3; grid-row: 3; }
-  table.items td.c-type, table.items td.c-item, table.items td.c-owner, table.items td.c-due, table.items td.c-prio, table.items td.c-status { width: auto; overflow-wrap: anywhere; }
+  table.items td.c-item, table.items td.c-owner, table.items td.c-due, table.items td.c-prio, table.items td.c-status { width: auto; overflow-wrap: anywhere; }
   table.items td.c-status .pill { white-space: normal; max-width: 100%; }
-  table.items tr.grp { display: block; padding: 8px 4px; }
+  table.items tr.grp { display: block; padding: 0; }
   table.items tr.grp th { display: block; min-width: 0; width: auto; padding: 0; text-align: left; overflow-wrap: anywhere; }
-  table.items td.c-type::before, table.items td.c-owner::before, table.items td.c-status::before, table.items td.c-due::before, table.items td.c-prio::before { display: block; font-size: 13px; color: var(--text-muted); }
-  table.items td.c-type::before { content: "Type"; }
+  table.items td.c-owner::before, table.items td.c-status::before, table.items td.c-due::before, table.items td.c-prio::before { display: block; font-size: 13px; color: var(--text-muted); }
   table.items td.c-owner::before { content: "Owner"; }
   table.items td.c-status::before { content: "Status"; }
   table.items td.c-due::before { content: "Due"; }
@@ -543,7 +552,15 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .seg.icons button:focus-visible, .bib:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bib .i, .seg.icons .i { width: 18px; height: 18px; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; padding: 4px 8px; border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: 13px; line-height: 1.4; white-space: nowrap; pointer-events: none; }
-table.items.grouped tr.grp th { padding: 10px 4px 6px; border-top: 1px solid var(--grey-200); text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--heading); background: var(--surface); }
+/* Each group is its own bordered card (#456; prototype `.group`): a grey heading bar, then the column names and the rows. */
+.wgroup { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); margin-bottom: 12px; overflow: hidden; }
+.wgroup table.items { margin-top: 0; }
+.wgroup table.items th:first-child, .wgroup table.items td:first-child { padding-left: 16px; }
+table.items.grouped tr.grp th { padding: 10px 16px; border-top: 0; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--heading); background: var(--grey-50); }
+table.items tbody tr.grp, table.items tbody tr.colh { cursor: default; }
+table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: 8px; text-align: center; vertical-align: middle; }
+table.items .weye { width: 28px; height: 28px; }
+table.items .weye[aria-pressed="true"] { color: var(--status-blue-text); }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .grp-b .i { width: 14px; height: 14px; transition: transform var(--dur-instant) var(--ease-out); }

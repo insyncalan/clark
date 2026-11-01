@@ -957,7 +957,7 @@
       [
        [
         "Item",
-        "The type badge, the title, a Client tag, then the ID, use case and milestone"
+        "A letter for the kind of item (point at it for the word), the title, then the ID, use case and milestone"
        ],
        [
         "Owner",
