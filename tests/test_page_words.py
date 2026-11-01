@@ -184,6 +184,10 @@ class Words(unittest.TestCase):
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
                                   "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
                                   "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
+                                  "Data",               # A-S11: the Data card sits between Keys and Backups
+                                  "Export saves this project's actions, risks and issues, decisions and milestones as an Excel workbook, so you can look at them or keep a copy. "
+                                  "Your browser saves the file; nothing is sent or published.",
+                                  "Export workbook",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
