@@ -3,6 +3,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import re
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -85,6 +86,55 @@ class Check(unittest.TestCase):
             self.assertIn("no SHA-256", out[0])
         self.assertEqual(mod.problems([good("v0.4.0", body="Beta, no digest")]), [])    # older releases are not asked for it
 
+    def _with_digest(self, digest, body_digest, tag="v0.5.0"):
+        v = tag.lstrip("v")
+        return good(tag, body=f"clark is Beta until version 1.0.\n{body_digest}",
+                    assets=[{"name": f"clark-{v}-mac.zip", "size": 5, "created_at": "2026-11-02T09:00:00Z", "digest": digest}])
+
+    def test_the_digest_in_the_text_must_be_the_zips_own(self):
+        real = "ab12" * 16
+        notes = []
+        self.assertEqual(mod.problems([self._with_digest("sha256:" + real, real)], None, notes), [])
+        self.assertEqual(notes, [])                                                        # a real comparison: nothing to say
+        self.assertEqual(mod.problems([self._with_digest("sha256:" + real, "To check: " + real.upper())]), [])   # case does not matter
+
+    def test_a_wrong_digest_in_the_text_fails_with_a_plain_line(self):
+        real = "ab12" * 16
+        wrong = real[:-1] + "f"                                                            # one character different
+        out = mod.problems([self._with_digest("sha256:" + real, wrong)])
+        self.assertEqual(len(out), 1)
+        self.assertIn("the SHA-256 in the release text is not the zip's", out[0])
+        self.assertIn(real, out[0])
+        self.assertIn("dev/RELEASING.md step 9", out[0])
+        out = mod.problems([self._with_digest("sha256:" + real, "a1" * 32)])               # some other 64-hex string
+        self.assertEqual(len(out), 1)
+        self.assertIn("not the zip's", out[0])
+
+    def test_no_digest_in_the_text_still_says_so_when_github_gives_a_digest(self):
+        out = mod.problems([self._with_digest("sha256:" + "ab12" * 16, "none here")])
+        self.assertEqual(len(out), 1)
+        self.assertIn("no SHA-256", out[0])
+
+    def test_a_missing_digest_field_falls_back_to_the_loose_check_and_says_so(self):
+        notes = []
+        self.assertEqual(mod.problems([good("v0.5.0")], None, notes), [])                  # the fixture's asset has no digest field
+        self.assertEqual(len(notes), 1)
+        self.assertIn("GitHub gives no SHA-256", notes[0])
+        self.assertIn("compare it with the release text yourself", notes[0])
+        for bad in (None, "", "md5:" + "ab" * 16, "sha256:short"):                         # not a usable sha256 digest either
+            notes = []
+            rel = self._with_digest(bad, "a1" * 32)
+            self.assertEqual(mod.problems([rel], None, notes), [], bad)
+            self.assertEqual(len(notes), 1, bad)
+        nobody = good("v0.5.0", body="Beta, no digest")                                    # the fallback still needs a digest in the text
+        self.assertEqual(len(mod.problems([nobody], None, [])), 1)
+
+    def test_the_command_prints_the_fallback_note(self):
+        code, said = self._main([good("v0.5.0")], ["v0.5.0"])
+        self.assertEqual(code, 0)
+        self.assertIn("Note: v0.5.0: GitHub gives no SHA-256", said)
+        self.assertIn("Every published release has its download attached.", said)
+
     def test_a_zip_attached_after_publishing_fails_from_0_5_0_on(self):
         late = [{"name": "clark-0.5.0-mac.zip", "size": 5, "created_at": "2026-11-02T10:30:00Z"}]
         out = mod.problems([good("v0.5.0", assets=late)])
@@ -147,6 +197,36 @@ class Check(unittest.TestCase):
             self.assertIn("You should see", step, step[:40])
         for word in ("DIR", "Papers", "radar", "ticket PR"):
             self.assertNotIn(word, text)
+
+    def _exit(self, **run_kwargs):
+        err = io.StringIO()
+        with mock.patch.object(mod.subprocess, "run", **run_kwargs), contextlib.redirect_stderr(err), \
+                contextlib.redirect_stdout(io.StringIO()):
+            return mod.main([]), err.getvalue()
+
+    def test_gh_exiting_non_zero_exits_2_with_a_plain_line(self):
+        code, said = self._exit(return_value=mock.Mock(returncode=1, stdout="", stderr="HTTP 401"))
+        self.assertEqual(code, 2)
+        self.assertIn("The releases can't be read (is gh signed in?)", said)
+        self.assertIn("gh auth login", said)
+
+    def test_gh_missing_from_the_path_exits_2_with_a_plain_line_not_a_traceback(self):
+        code, said = self._exit(side_effect=FileNotFoundError(2, "No such file or directory: 'gh'"))
+        self.assertEqual(code, 2)
+        self.assertIn("the gh command was not found", said)
+        self.assertNotIn("Traceback", said)
+
+    def test_an_answer_that_is_not_json_exits_2(self):
+        code, said = self._exit(return_value=mock.Mock(returncode=0, stdout="<html>"))
+        self.assertEqual(code, 2)
+        self.assertIn("can't be read", said)
+
+    def test_every_github_step_in_the_checklist_names_the_repository(self):
+        text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
+        steps = [ln for ln in text.splitlines() if re.match(r"\d+\. ", ln) and ("GitHub" in ln or "github.com" in ln or "the draft" in ln)]
+        self.assertGreaterEqual(len(steps), 6)
+        for ln in steps:
+            self.assertIn("insyncalan/clark", ln, ln[:60])
 
 
 if __name__ == "__main__":
