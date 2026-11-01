@@ -67,8 +67,8 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('.hp-job, .hp-steps li, .hp-first li').length"), 0, "no held entry on Start here")
             self.assertTrue(p.js("!!document.querySelector('#hp-later')"))
             p.js("document.querySelector('#hpTab-howto').click()")
-            p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the two tasks the page can do")
-            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), 2)
+            p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the three tasks the page can do")
+            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), 3)
             self.assertEqual(p.js("!!document.querySelector('#hp-later')"), False)
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelectorAll('.hp-ref').length > 0", "Reference drew")
@@ -87,7 +87,7 @@ class Panel(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('#hpRes .hp-resg h3')].map(h => h.textContent)"), ["Reference"])
             p.js("document.querySelector('#hpRes a.hp-r').click()")
             p.until("!document.querySelector('#hpRes') && !!document.querySelector('.hp-found')", "the result opened in place and flashed")
-            for word in ("peek", "publish", "sneak"):
+            for word in ("peek", "sneak"):                                   # "publish" is in the Needs from you task (a row left out is not on the published page); test_help_logic pins that result exactly
                 p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
                 p.type(word)
                 p.until("!!document.querySelector('.hp-none')", f"a held word ({word}) finds nothing")

@@ -91,7 +91,7 @@ function Row({ row, today, Cell, stop }) {
       <td class="c-item">
         {picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}
         <span class="t">{row.title}</span>
-        <span class="meta">{metaOf(row)}{row.client ? <span class="tag cl">Shown to client</span> : null}</span>
+        <span class="meta">{metaOf(row)}{row.client && !fromFile.value ? <span class="tag cl">Shown to client</span> : null}</span>
       </td>
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
