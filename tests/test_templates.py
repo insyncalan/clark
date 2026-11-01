@@ -608,6 +608,23 @@ class Box(Base):
             self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag is as it was")
             self.assertEqual(p.toast(), "Undone.")
 
+    def test_a_stale_beside_add_that_clark_refuses_reads_the_page_again(self):
+        """The page was out of date (a section was added elsewhere); clark refuses the beside add, and the page shows what clark holds."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+
+            def refuse_after_a_change_elsewhere(req):
+                if req.get("op") == "new":
+                    self.real_change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "text", "title": "Added elsewhere"},
+                                      "after": "ABC-S-003", "place": "report"})
+                    return 400, {"ok": False, "message": "x", "code": "refused"}
+                return self.real_change(req)
+            self.failure = refuse_after_a_change_elsewhere
+            self.place_beside(p, "ABC-S-011")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
+            p.until("document.querySelectorAll('.sec').length === 12", "the page was read again and shows the section added elsewhere")
+
     def test_the_plain_add_is_one_step_and_one_undo(self):
         with chrome() as cdp:
             p = self.visit(cdp)
