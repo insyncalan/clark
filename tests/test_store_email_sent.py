@@ -390,6 +390,14 @@ class Refusals258(Base):
                 for banned in ("calendar", "Check the date", "reply-by", day):
                     self.assertNotIn(banned, words)
 
+    def test_a_local_day_that_differs_from_the_servers_utc_day_is_accepted(self):
+        # A page just past local midnight sends the next day while the server's day has not turned; both sides of that are in range.
+        utc_day = TODAY
+        for local in (utc_day + timedelta(days=1), utc_day - timedelta(days=1)):
+            with self.subTest(local=str(local)):
+                self.assertNotEqual(local, utc_day)
+                self.assertTrue(self.send(day=str(local)))
+
     def test_the_day_is_bounded_by_the_servers_clock_not_the_pages(self):
         self.refuses("too far in the past", day="2019-12-31")
         self.refuses("too far in the past", day="2020-01-01")
