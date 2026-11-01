@@ -19,7 +19,7 @@ class HoldsIgnoreUpdatedAt(unittest.TestCase):
         self.ref = self.demo.action()
         self.step = self.demo.update("actions", self.ref, {"status": "Delayed"})
         self.changes = [dict(r) for r in self.con.execute(
-            "SELECT rowid, field, new_value FROM change_log WHERE apply_id = ? AND field = 'status'", (self.step,))]
+            "SELECT rowid, field, new_value FROM change_log WHERE apply_id = ? AND field IN ('status', 'updated_at')", (self.step,))]
         self.rowid = max(r["rowid"] for r in self.changes)
 
     def test_baseline_holds_and_nothing_later(self):
