@@ -291,9 +291,11 @@ class Saving(ServerTest):
             return 409, {"ok": False, "message": "That step has been undone already.", "code": "undone"}
         return Running(change=change, undo=undo)
 
-    def test_the_post_routes_are_exactly_change_undo_the_publish_ones_the_two_backup_ones_profile_and_the_two_word_ones(self):
+    def test_the_post_routes_are_exactly_change_undo_the_publish_ones_the_two_backup_ones_profile_the_two_word_ones_and_the_ask_settings(self):
         self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/publish", "/api/client-folder", "/api/preview",
-                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export"})     # #43, #111, #147, #180, #50; #48 added the Word two
+                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
+                                                  "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
+                                                  "/api/ask/change/apply"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
@@ -301,7 +303,10 @@ class Saving(ServerTest):
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
-                                                "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024})
+                                                "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
+                                                "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                                                "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024})     # #47, #47e
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 

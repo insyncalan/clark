@@ -1,0 +1,15 @@
+-- clark's database, the settings step (#47): the statements migrate_settings runs, FROZEN. It is the step that takes a file to
+-- version 6 (the next free number after #123's 5 on main).
+-- Never edit this file for a later version: add a later migration step instead.
+--
+-- app_settings: one row for this computer, never more. It holds the choices that are a promise about THIS computer, whichever
+-- project is open. ask_enabled is the safety switch for asking: 1 is on (the starting value), 0 is off, and nothing is sent to
+-- Claude while it is off. The row is made here, so the writer only ever changes it.
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  ask_enabled INTEGER NOT NULL DEFAULT 1 CHECK (ask_enabled IN (0,1)),
+  updated_at  TEXT                    -- set by the writer when the switch changes; empty until then (a new file is the same every time)
+);
+
+INSERT OR IGNORE INTO app_settings (id) VALUES (1);

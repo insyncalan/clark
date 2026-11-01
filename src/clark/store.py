@@ -31,19 +31,21 @@ from clark.order import GAP
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
-# Step 5 (#50, the sent record) is PROVISIONAL: it takes the next free number after 4 while the step for the client contact (5) is not on main yet; when that lands, this becomes 6 (SCHEMA_VERSION, the literal in MIGRATIONS and the name migrate_to_5).
-SCHEMA_VERSION = 5          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#50): the sent record (provisional). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
+SCHEMA_VERSION = 7          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email (renumber at merge; the order is ruled by the Head). the number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
-          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents")
+          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders")
+SETTINGS_TABLES = ("app_settings",)     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
 # clark: - promises, + use_cases, and + the report's own tables (#65, one amendment: the route admits only report_sections)
 KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "actions": ("id",), "raid": ("id",),
         "decisions": ("id",), "use_cases": ("id",), "links": ("from_item", "to_item", "kind"), "labels": ("name",),
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
-        "documents": ("project", "id")}
+        "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",)}
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
     "projects": ("code", "name"),
@@ -60,10 +62,13 @@ REQUIRED_NEW = {
     "report_sections": ("project", "type", "title"),                    # clark (#65)
     "glance_tiles": ("project", "tile"),                                # clark: its sort_order is a rule (0 is a number)
     "report_hidden": ("project", "item_id"),
+    "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
+    "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
     "documents": ("project", "title", "url"),                           # clark (#126): registered so it can be archived; see DOCUMENTS_LATER
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")   # what Step.archive takes (#126)
 DOCUMENTS_LATER = "Documents can only be archived or restored here."
+SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
                  "needs", "tracker")            # the eleven of schema.sql's CHECK ('needs' and 'tracker' carry content: section_bodies.py)
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
@@ -111,7 +116,7 @@ BLANKABLE = {"decisions": ("date", "needed_by", "replaces", "reasoning", "option
              "milestones": ("state", "state_reason", "owner", "actual_date", "client_message", "description", "internal_note",
                             "movement", "workstream")}
 CLOSING = {"actions": CLOSED_STATUSES, "raid": CLOSED_STATUSES}          # statuses that set `closed`
-DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden")
+DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders")
 # the only rows a step deletes (Head ruling on #31; #65: + the report's own tables; delete_row refuses a section that isn't text)
 MAX_SECTIONS = 100                                                       # a project's sections (#65)
 TITLE_LIMIT = 120                                                        # a section's title, in characters
@@ -120,7 +125,8 @@ CANCEL_CHANGES = {"actions": {"status": "Cancelled"}, "raid": {"status": "Cancel
 
 # clark: a step's route, as item_events records it (data-model.md), and the vias it is written with. "word" (#48, Head ruling Q4): a Word import.
 ROUTES = ("dashboard", "assistant", "excel", "undo", "client", "team", "migrate", "word")
-PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board")      # + board (#126)
+PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board",      # + board (#126)
+          "eye", "draft", "email", "text", "ask")                                           # + #123: with the eye, a draft, a sent email, selected text, ask clark
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
@@ -154,7 +160,7 @@ OP_MADE = "insert"                    # the log's word for a row a step made; th
 SEED_VIA = "seed"                     # clark (#65): the via of the default sections a step makes (_seed_sections); an Undo never removes them
 PENDING_VIA = "revert:pending"        # an undo's rows until it knows which rows it put back
 REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "links", "item_labels", "labels",
-                  "report_sections")
+                  "report_sections", "source_folders")
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
 REVERT_CREATED += ("report_hidden",)    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
@@ -180,6 +186,26 @@ def clock():
     return datetime.now(timezone.utc)
 
 
+def local_offset():
+    """The machine's offset from UTC at this moment as '+HH:MM' or '-HH:MM' (#123); a test replaces this one function. The step's
+    own clock is used, so a test that fixes the time gets the offset of that instant."""
+    off = clock().astimezone().utcoffset() or timedelta(0)
+    minutes = int(off.total_seconds() // 60)
+    sign = "+" if minutes >= 0 else "-"
+    return f"{sign}{abs(minutes) // 60:02d}:{abs(minutes) % 60:02d}"
+
+
+OFFSET_RE = r"[+-](?:(?:0[0-9]|1[0-3]):(?:00|15|30|45)|14:00)"     # a real offset (mirrors applies.utc_offset's CHECK); UTC is '+00:00', never 'Z' or '-00:00'
+
+
+def checked_offset(text):
+    """`text` when it is a real offset from UTC ('+HH:MM' or '-HH:MM', at most 14 hours, in quarter hours), else None, which the
+    history shows as "Time zone not recorded": a machine that reports an odd offset never stops a step being written."""
+    if isinstance(text, str) and re.fullmatch(OFFSET_RE, text) and text != "-00:00":
+        return text
+    return None
+
+
 def now():
     """UTC to the millisecond, so steps within one second keep their order (clark: UTC, as datetime('now') in schema.sql)."""
     return clock().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -197,7 +223,7 @@ def shown(iso):
 
 def _table(table):
     """`table` if it is one the writer knows; the only way a table name reaches SQL."""
-    if table not in TABLES:
+    if table not in TABLES and table not in SETTINGS_TABLES:
         raise Invalid(f"unknown table {table!r}")
     return table
 
@@ -321,7 +347,7 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived"})
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled"})
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -559,6 +585,24 @@ def _hidden_item(con, table, row, changed):
         raise Invalid("That isn't an item of this project.")
 
 
+def _source_folder(con, table, row, changed):
+    """clark (#47): a folder asking may read is a whole path with a place in the list, and not one clark keeps off limits."""
+    path = row.get("path")
+    if type(row.get("sort_order")) is not int:
+        raise Invalid("A folder needs its place in the list (sort_order, a whole number).")
+    if not isinstance(path, str) or not path.startswith("/") or len(path) > 1000 or any(unicodedata.category(c).startswith("C") for c in path):
+        raise Invalid("A folder is a full path on this computer, one line, starting with /.")
+    if path.rstrip("/") == "":
+        raise Invalid("The top of the disk can't be a folder for asking.")
+    if "|" in path:                                     # key_of joins (project, path) with '|', so a '|' would split the key wrongly
+        raise Invalid("A folder whose name has a | in it can't be used for asking.")
+    from clark import reach
+    file = next((r[2] for r in con.execute("PRAGMA database_list") if r[1] == "main"), "")
+    why = reach.never_inside(path, Path(file).parent if file else None)
+    if why:
+        raise Invalid(f"Asking can't read that folder: it is, or holds, a place clark keeps closed ({why}).")
+
+
 _ITEM_RULES = (_item_workstream, _project_exists, _milestone_link, _use_case_link)
 ROW_RULES = {
     "actions": _ITEM_RULES,
@@ -574,6 +618,7 @@ ROW_RULES = {
     "report_sections": (_project_exists, _section_rules),                    # clark (#65)
     "glance_tiles": (_project_exists, _tile_rules),
     "report_hidden": (_project_exists, _hidden_item),
+    "source_folders": (_project_exists, _source_folder),                     # clark (#47)
 }
 
 
@@ -774,6 +819,8 @@ def write_item(con, item, step):
         raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
     if table == "documents" and op in ("new", "update") and not reverting:    # clark (#126): no ID scheme, no url rule (doclinks) yet; only an Undo of an archive or restore writes it
         raise Invalid(DOCUMENTS_LATER)
+    if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
+        raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
     if op == "new":
         if not reverting:
@@ -1315,7 +1362,7 @@ def referred_to(con, key):
 
 def why_not(con, r, reverted, done_ids, undoing_a_revert):
     """Why a change_log row can't be put back at all, or None."""
-    if r["tbl"] not in TABLES:
+    if r["tbl"] not in TABLES and r["tbl"] not in SETTINGS_TABLES:
         return "can't be undone"
     if not undoing_a_revert and r["rowid"] in reverted:
         return "already undone"
@@ -1687,11 +1734,64 @@ def migrate_section_bodies(con):
     _report_sections_allow_content_types(con)
 
 
+def migrate_settings(con):
+    """The settings step (#47): the app_settings table with its one row (ask_enabled, on). The statements are schema_v6.sql's, so
+    a second run changes nothing: the table and the row are made only if missing. It changes no existing value. Runs inside the
+    caller's transaction and does not touch the version (the runner does). It is step 6 in MIGRATIONS."""
+    for statement in _statements(SCHEMA_V6.read_text(encoding="utf-8")):
+        con.execute(statement)
+
+
+# #123: applies.utc_offset and the wider places, step 5 (the next free number after Word's 3 and the section bodies' 4). Frozen: never
+# reads schema.sql. The rebuilt item_events keeps every route and place the earlier steps allow (Word's 'word' among them), so a file
+# that already holds such a row still migrates and opens.
+HISTORY_VERSION = 5
+VERSION_5_ITEM_EVENTS = """CREATE TABLE item_events_v5 (
+  event_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         TEXT NOT NULL,
+  apply_id   INTEGER REFERENCES applies(apply_id),
+  item_id    TEXT NOT NULL,
+  change     INTEGER,
+  kind       TEXT NOT NULL CHECK (kind IN ('change','reject')),
+  route      TEXT NOT NULL CHECK (route IN ('dashboard','assistant','excel','undo','client','team','migrate','word')),
+  place      TEXT CHECK (place IS NULL OR place IN ('peek','cell','bulk','menu','report','dashboard','excel','board','eye','draft','email','text','ask')),
+  origin     TEXT CHECK (origin IS NULL OR origin IN ('report','sneak')),
+  actor      TEXT NOT NULL CHECK (actor IN ('you','clark')),
+  src_ref    TEXT CHECK (src_ref IS NULL OR (length(src_ref) <= 300 AND instr(src_ref, char(10)) = 0)),
+  undoes     INTEGER REFERENCES item_events(event_id)
+)"""
+VERSION_5_NEW_WORDS = ("'word'", "'eye'", "'draft'", "'email'", "'text'", "'ask'")     # the table is made again unless its definition names all of these
+
+
+def migrate_to_history(con):
+    """Schema version 4 to 5 (#123): applies.utc_offset (NULL on every old row: the zone was not recorded, and +00:00 would claim
+    UTC), and item_events made again with the wider places, ids kept, sequence kept, both indexes made again. Each part is skipped
+    when it is already done. Inside the caller's transaction; the runner writes the version."""
+    if "utc_offset" not in [r[1] for r in con.execute("PRAGMA table_info(applies)")]:
+        con.execute("ALTER TABLE applies ADD COLUMN utc_offset TEXT CHECK (utc_offset IS NULL OR "
+                    "(length(utc_offset) = 6 AND utc_offset GLOB '[+-][0-9][0-9]:[0-9][0-9]' AND substr(utc_offset, 2, 2) <= '14' "
+                    "AND substr(utc_offset, 5, 2) IN ('00','15','30','45') AND (substr(utc_offset, 2, 2) < '14' OR substr(utc_offset, 5, 2) = '00') "
+                    "AND utc_offset <> '-00:00'))")
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'item_events'").fetchone()
+    if have is not None and not all(w in have[0] for w in VERSION_5_NEW_WORDS):
+        seq = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'item_events'").fetchone()
+        con.execute(VERSION_5_ITEM_EVENTS)
+        con.execute("INSERT INTO item_events_v5 (event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                    "SELECT event_id, at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes FROM item_events ORDER BY event_id")
+        con.execute("DROP TABLE item_events")
+        con.execute("ALTER TABLE item_events_v5 RENAME TO item_events")
+        if seq is not None:
+            con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = 'item_events'", (seq[0],))
+            con.execute("INSERT INTO sqlite_sequence (name, seq) SELECT 'item_events', ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'item_events')", (seq[0],))
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_item ON item_events(item_id)")
+    con.execute("CREATE INDEX IF NOT EXISTS item_events_change ON item_events(change)")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
-# The version-5 tables of the "I sent it" record (#50), frozen here: a later change to schema.sql must not change what this step
-# builds (tests/test_store_email_sent.py pins it to what schema.sql creates today). PROVISIONAL number: see SCHEMA_VERSION.
-VERSION_5_DDL = (
+# The tables of the "I sent it" record (#50, step 7), frozen here: a later change to schema.sql must not change what this step
+# builds (tests/test_store_email_sent.py pins it to what schema.sql creates today).
+EMAIL_SENT_DDL = (
     """CREATE TABLE IF NOT EXISTS email_sent (
   seq     INTEGER PRIMARY KEY AUTOINCREMENT,
   project TEXT NOT NULL REFERENCES projects(code),
@@ -1722,14 +1822,15 @@ BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
 )
 
 
-def migrate_to_5(con):
-    """Schema version 4 to 5 (#50; PROVISIONAL number, see SCHEMA_VERSION): the two tables and the triggers of the "I sent it" record.
+def migrate_email_sent(con):
+    """Schema version 6 to 7 (#50): the two tables and the triggers of the "I sent it" record.
     Every statement is IF NOT EXISTS, so a half-applied copy is safe. It touches no other table (item_events is not rebuilt, so every route and place a file allows stays). Runs inside the caller's transaction and does not touch the version (the runner does)."""
-    for statement in VERSION_5_DDL:
+    for statement in EMAIL_SENT_DDL:
         con.execute(statement)
 
 
-MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_5))
+MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
+              (7, migrate_email_sent))
 
 
 def migration_plan(version, table=None):
@@ -2321,9 +2422,35 @@ class Store:
         return [{"table": r["tbl"], "key": r["item_id"], "field": r["field"], "via": r["via"], "op": r["op"]} for r in self.con.execute(
             "SELECT tbl, item_id, field, via, op FROM change_log WHERE apply_id = ? ORDER BY rowid", (apply_id,))]
 
+    def step_actors(self, apply_id):
+        """Who made step `apply_id`, read only (#47e): the set of item_events actors for it ('you', 'clark'); empty when it wrote no
+        event or is not there. So /api/undo takes a step on the assistant route only when ask clark itself made it."""
+        return {r[0] for r in self.con.execute("SELECT DISTINCT actor FROM item_events WHERE apply_id = ?", (apply_id,))}
+
     def history(self, ref):
         from clark import history
         return history.history(self.con, ref)
+
+    def settings_ready(self):
+        """True when this file has the settings step's table with its one row (#47). A file without them makes the settings route
+        say so instead of failing, and asking reads as off (ASK_WHEN_MISSING)."""
+        try:
+            have = self.con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'app_settings'").fetchone()
+            return bool(have and self.con.execute("SELECT 1 FROM app_settings WHERE id = 1").fetchone())
+        except sqlite3.Error:
+            return False
+
+    def ask_enabled(self):
+        """True only while asking is on for this computer (#47): the one row's switch is 1. The server calls this before anything is
+        sent to a model. It never fails open: a file with no such table or row, a value that is not exactly 1, or any database
+        error reads as ASK_WHEN_MISSING (off). Read only."""
+        try:
+            if not self.settings_ready():
+                return ASK_WHEN_MISSING
+            row = self.con.execute("SELECT ask_enabled FROM app_settings WHERE id = 1").fetchone()
+        except sqlite3.Error:
+            return ASK_WHEN_MISSING
+        return row is not None and row[0] == 1
 
     def milestone_moves(self, code):
         """#136: the date and state history of a project's live milestones, for Movement (owner only: never published, never in
@@ -2416,8 +2543,8 @@ class Step:
     def apply_id(self):
         """This step's applies row, made the first time something is logged."""
         if self._apply_id is None:
-            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device) VALUES (?, '[]', ?, ?)",
-                                   (now(), self.by_user, self.store.device))
+            cur = self.con.execute("INSERT INTO applies (at, proposals, by_user, device, utc_offset) VALUES (?, '[]', ?, ?, ?)",
+                                   (now(), self.by_user, self.store.device, checked_offset(local_offset())))
             self._apply_id = cur.lastrowid
         return self._apply_id
 
