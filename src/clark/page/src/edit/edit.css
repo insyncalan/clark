@@ -74,6 +74,21 @@
 .bask-q { margin: 0 0 14px; font-size: var(--size-body); color: var(--heading); }
 .bask-b { display: flex; gap: 8px; justify-content: flex-end; }
 
+/* Hand over (#199): the tick column (a 16 px box in a 24 px target, as the group ticks), the bar and its "Hand over to" box. Tokens only. */
+table.items .c-pick { width: 36px; }
+table.items td.c-pick { vertical-align: middle; }
+.rtick-hit { display: inline-grid; place-items: center; width: 24px; height: 24px; cursor: pointer; }
+.rtick { width: 16px; height: 16px; margin: 0; accent-color: var(--brand-blue); cursor: pointer; }
+.rtick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.handbar { flex-wrap: wrap; gap: 8px 12px; padding-right: 14px; }
+.handbar .hb-to { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
+.handbar .hb-to input { width: 220px; max-width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.handbar .hb-to input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.handbar .btn { min-height: 32px; }
+.handbar #hand-go[aria-disabled="true"] { opacity: .55; cursor: default; }
+@media (max-width: 900px) { .handbar .hb-to { flex: 1 1 100%; } .handbar .hb-to input { flex: 1; width: auto; } }
+@media (max-width: 640px) { table.items td.c-pick { grid-column: 1 / 4; } }
+
 /* The ask panel (#47a, look #214): full height on the right, over the page. A light panel with a soft wash (the prototype's "Wash" look): a
    dark head, a glow of the brand blue rising from the bottom, your questions as blue bubbles, answers as plain text, the suggestions as ONE
    row that scrolls sideways, and while it works the working line takes that row's place so the box never moves. Tokens only, so light and
