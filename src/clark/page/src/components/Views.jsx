@@ -24,6 +24,7 @@ export function Settings({ tools }) {
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
+  const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   return (
     <>
       <Empty title="Settings">Settings are not ready yet.</Empty>
@@ -31,6 +32,7 @@ export function Settings({ tools }) {
       {Personal ? <Personal /> : null}
       {Safety ? <Safety /> : null}
       {Update ? <Update /> : null}
+      {AskSettings ? <AskSettings /> : null}
     </>
   );
 }

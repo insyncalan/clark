@@ -33,8 +33,12 @@ class Appearance(Base):
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
 
     def open_menu(self, p):
-        p.js("document.querySelector('#profile-btn').click()")
-        p.until("!!document.querySelector('#profile-menu')", "the menu opened")
+        """Open the profile menu, clicking again if the first click is lost: right after a page load the button is already in the page before
+        the page's own script has taken it, so a click on a slow computer does nothing. It never clicks twice within a second (a second click
+        would close a menu that is still drawing), and it stops at once when the menu is there."""
+        p.until("(() => { if (document.querySelector('#profile-menu')) return true; "
+                "if (Date.now() - (window.__menuTried || 0) > 1000) { window.__menuTried = Date.now(); document.querySelector('#profile-btn').click(); } "
+                "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
     def in_settings(self, p):
         return p.js("[...document.querySelectorAll('#personal [data-appearance] input')].filter(i => i.checked).map(i => i.value)")

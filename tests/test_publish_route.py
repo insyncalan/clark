@@ -856,12 +856,12 @@ class OnlyOneRouteWritesIntoTheClientFolder(Base):
         self.assertEqual(self.rig.listing(self.rig.client), [])
 
     def test_every_route_is_listed_and_the_set_is_what_the_issue_expects(self):
-        self.assertEqual(sorted(sv.POST_ROUTES), ["/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder",
-                                                  "/api/preview", "/api/profile", "/api/publish", "/api/undo", "/api/update/arm-undo",
-                                                  "/api/update/install", "/api/update/review", "/api/update/undo", "/api/word-export",
-                                                  "/api/word-import"])     # #111: the two backup routes; #147: preview; #180: profile; #48: the two Word routes (word-export is the second route that can write into the client folder, through to_client, with its own tests in test_word_route)
-        self.assertEqual(sorted(sv.GET_ROUTES), ["/api/backups", "/api/data", "/api/export", "/api/movement", "/api/profile",
-                                                 "/api/projects", "/api/publication", "/api/update", "/api/use-cases"])     # #147: export; #136: movement; #180: profile
+        self.assertEqual(sorted(sv.POST_ROUTES), ["/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry", "/api/ask/stop",
+                                                  "/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder",
+                                                  "/api/draft-email", "/api/draft-email/sent", "/api/preview", "/api/profile", "/api/publish", "/api/sneak/read", "/api/undo", "/api/update/arm-undo", "/api/update/install", "/api/update/review", "/api/update/undo", "/api/word-export",
+                                                  "/api/word-import"])     # #111: the two backup routes; #147: preview; #180: profile; #48: the two Word routes (word-export is the second route that can write into the client folder, through to_client, with its own tests in test_word_route); #47: asking, its switch and its folders (none writes a file); #50: the Draft email two; #47e: the dry run and Apply of a suggested change (the change goes through the store's one undoable step); #42: the sneak peek's read
+        self.assertEqual(sorted(sv.GET_ROUTES), ["/api/activity", "/api/ask-enabled", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/data", "/api/export", "/api/milestones", "/api/movement", "/api/profile",
+                                                 "/api/projects", "/api/publication", "/api/update", "/api/use-cases"])     # #147: export; #136: movement; #180: profile; #47: asking; #42: activity
 
     def test_no_route_takes_the_client_folder_from_the_request(self):
         status, got = self.rig.publish(to_client=True, client_folder=str(self.rig.root / "Elsewhere"))

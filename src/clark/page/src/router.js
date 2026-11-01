@@ -76,6 +76,7 @@ export function format(state) {
 try { history.scrollRestoration = "manual"; } catch (e) { /* the page works with the browser's default */ }
 
 let seen = "";                                             // the hash the page last drew, so one move is never handled twice
+let moves = 0;                                             // counts every move (navigate, Back, Forward): back()'s stuck check reads it
 
 function here() {
   try { return location.hash; } catch (e) { return ""; }
@@ -106,6 +107,7 @@ export function navigate(state, { replace = false } = {}) {
   const mark = (opened && !replace) || (replace && (next.item || next.ms) && peekWasPushed()) ? { clarkPeek: MARK } : null;
   try { history.scrollRestoration = "manual"; } catch (e) { /* as above */ }
   seen = hash;                                             // set first: location.hash = ... can fire popstate inside the call
+  moves++;
   try {
     if (replace) history.replaceState(mark, "", hash); else history.pushState(mark, "", hash);
   } catch (e) {
@@ -114,12 +116,14 @@ export function navigate(state, { replace = false } = {}) {
   return true;
 }
 
-/** Step Back one entry (the browser's Back); the handler given to onPop then redraws. If `stuck` is given and the address has not
- *  moved a moment later (there was no earlier entry to go to: back() then does nothing and fires nothing), it is called once. */
+/** Step Back one entry (the browser's Back); the handler given to onPop then redraws. If `stuck` is given and nothing has moved a
+ *  moment later (there was no earlier entry to go to: back() then does nothing and fires nothing), it is called once. "Nothing has
+ *  moved" is no Back, Forward or navigate at all, not only the same address: closing a peek and opening the same item again within
+ *  the wait is the same address, and the late fallback must not close the peek just opened (#42). */
 export function back(stuck) {
-  const from = here();
+  const from = here(), at = moves;
   try { history.back(); } catch (e) { return false; }
-  if (stuck) setTimeout(() => { if (here() === from) stuck(); }, STUCK_MS);
+  if (stuck) setTimeout(() => { if (moves === at && here() === from) stuck(); }, STUCK_MS);
   return true;
 }
 
@@ -129,6 +133,7 @@ export function onPop(handler) {
     const now = here();
     if (now === seen) return;                              // popstate and hashchange both fire for one move: draw once
     seen = now;
+    moves++;
     try { handler(parse(now)); } catch (e) { /* a faulty handler must not break the next move */ }
   };
   seen = here();
