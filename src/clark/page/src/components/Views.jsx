@@ -19,15 +19,42 @@ export function Milestones({ tools }) {
   );
 }
 
+// The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
+// focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
+const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Safety", "Backups", "safety-h"]];
+
+function goToCard(headId) {
+  const head = document.getElementById(headId);
+  if (!head) return;
+  const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  (head.closest("section") || head).scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
+  head.focus({ preventScroll: true });
+}
+
+function SettingsHead({ cards }) {
+  return (
+    <section class="frame set-head">
+      <h1>Settings</h1>
+      <p class="muted">Where reports are published, how clark looks for you, and your backups. More settings are still to come.</p>
+      {cards.length ? (
+        <nav aria-label="Settings sections">
+          <ul class="set-nav">{cards.map(([, name, headId]) => <li key={headId}><button type="button" class="set-chip" onClick={() => goToCard(headId)}>{name}</button></li>)}</ul>
+        </nav>
+      ) : null}
+    </section>
+  );
+}
+
 export function Settings({ tools }) {
-  const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
+  const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43)
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
+  const cards = CARDS.filter(([tool]) => tools && tools[tool]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   return (
     <>
-      <Empty title="Settings">Settings are not ready yet.</Empty>
+      <SettingsHead cards={cards} />
       {ClientFolder ? <ClientFolder /> : null}
       {Personal ? <Personal /> : null}
       {Diagnostics ? <Diagnostics /> : null}

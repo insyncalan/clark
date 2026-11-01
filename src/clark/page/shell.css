@@ -890,6 +890,12 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: 16px; }
+.set-head p { margin: 0; }
+.set-nav { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.set-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
+.set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
+.set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
+.setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .folder-now { overflow-wrap: anywhere; }

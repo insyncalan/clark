@@ -357,7 +357,7 @@ class RealBrowser(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#settings&p=TUL")
-            self.assertTrue(wait(lambda: "Settings are not ready yet." in (cdp.js("document.querySelector('main').innerText", sid) or "")))
+            self.assertTrue(wait(lambda: "More settings are still to come." in (cdp.js("document.querySelector('main').innerText", sid) or "")))
         gate = (SRC / "clark" / "page" / "src" / "components" / "Views.jsx").read_text(encoding="utf-8")
         self.assertIn("Opening {project.value}.", gate)
         self.assertNotIn("Loading work items", gate)
