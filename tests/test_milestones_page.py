@@ -382,6 +382,108 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: self.title(cdp, sid) == "Q4 2026"))
             self.assertEqual(cdp.js("document.querySelectorAll('[data-cal-far]').length", sid), 0)
 
+    def view(self, cdp, width, theme):
+        port = self.serve()
+        sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
+        cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
+        cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)))
+        return sid
+
+    def active(self, cdp, sid):
+        return cdp.js("(() => { const a = document.activeElement; return a ? (a.classList.contains('cal') ? 'cal' : a.tagName) : 'none'; })()", sid)
+
+    def test_focus_stays_in_the_calendar_after_a_move_a_quarter_month_or_go_to_today(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.view(cdp, width, theme)
+                    cdp.js("document.querySelector('.cal').focus()", sid)
+                    for name in ("ArrowRight", "PageDown", "ArrowLeft"):
+                        self.key(cdp, sid, name)
+                        time.sleep(0.15)
+                        self.assertEqual(self.active(cdp, sid), "cal", f"{name} keeps focus on the calendar")
+                    cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
+                    cdp.js("document.querySelector('.cal-qm').focus()", sid)
+                    cdp.js("document.querySelector('.cal-qm').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "month"))
+                    time.sleep(0.2)
+                    self.assertEqual(self.active(cdp, sid), "cal", "a Quarter month click keeps focus on the calendar")
+                    for _ in range(300):
+                        self.key(cdp, sid, "PageDown")
+                    cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
+                    for _ in range(300):
+                        self.key(cdp, sid, "PageDown")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cal-home]')", sid)))
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-cal-home], [data-cal-empty] button').length", sid), 1, "one Go to today button")
+                    cdp.js("document.querySelector('[data-cal-home]').focus()", sid)
+                    cdp.js("document.querySelector('[data-cal-home]').click()", sid)
+                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-cal-far]')", sid)))
+                    time.sleep(0.2)
+                    self.assertEqual(self.active(cdp, sid), "cal", "Go to today keeps focus on the calendar")
+
+    def test_the_ghost_chip_reads_the_name_once_and_no_chip_text_is_cut_or_overlaps(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.view(cdp, width, theme)
+                    cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
+                    got = cdp.js("""(() => {
+                        const out = {ghost: [], cut: [], overlap: []};
+                        for (const c of document.querySelectorAll('.cal-ms')) {
+                            const sp = c.querySelector('span'), w = c.querySelector('.cal-w');
+                            if (c.dataset.ghost === '1') out.ghost.push([sp.textContent, c.getAttribute('aria-label'), w.textContent]);
+                            const shown = (e) => e && getComputedStyle(e).display !== 'none';
+                            if (c.scrollWidth > c.clientWidth + 1) out.cut.push(c.dataset.ms);
+                            if (shown(sp) && sp.scrollWidth > sp.clientWidth + 1) out.cut.push(c.dataset.ms);
+                            if (shown(sp) && shown(w)) { const a = sp.getBoundingClientRect(), b = w.getBoundingClientRect();
+                                if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) out.overlap.push(c.dataset.ms); }
+                        }
+                        return out; })()""", sid)
+                    self.assertEqual(got["cut"], [], "no chip text is cut off")
+                    self.assertEqual(got["overlap"], [], "the name and the status word never overlap")
+                    for visible, label, word in got["ghost"]:
+                        self.assertFalse(visible.startswith("Expected"), "the name is not squeezed by a repeated prefix")
+                        self.assertTrue(label.startswith("Expected: "), "the accessible name still says the status")
+                        self.assertEqual(word, "Expected")
+
+    def test_the_quarter_month_button_has_a_visible_focus_ring(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.view(cdp, width, theme)
+                    cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-qm')", sid)))
+                    cdp.js("document.querySelector('.cal').focus()", sid)
+                    for _ in range(60):                       # a real Tab, so the browser treats it as keyboard focus
+                        if cdp.js("document.activeElement.classList.contains('cal-qm')", sid):
+                            break
+                        for kind in ("rawKeyDown", "keyUp"):
+                            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9}, sid)
+                        time.sleep(0.03)
+                    ring = cdp.js("""(() => { const b = document.activeElement;
+                        const s = getComputedStyle(b); return [b.classList.contains('cal-qm') && b.matches(':focus-visible'), s.outlineStyle, parseFloat(s.outlineWidth), s.outlineColor]; })()""", sid)
+                    self.assertTrue(ring[0], "focus-visible matches")
+                    self.assertEqual(ring[1], "solid")
+                    self.assertGreaterEqual(ring[2], 2)
+                    self.assertNotIn(ring[3], ("rgba(0, 0, 0, 0)", "transparent"))
+
+    def test_shift_arrows_and_typing_in_a_field_or_editable_do_not_move_the_period(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            before = self.title(cdp, sid)
+            fire = ("(tag, init) => { const el = document.createElement(tag); if (tag === 'div') el.contentEditable = 'true'; "
+                    "document.querySelector('.cal').appendChild(el); el.dispatchEvent(new KeyboardEvent('keydown', Object.assign({key: 'ArrowRight', bubbles: true, cancelable: true}, init))); el.remove(); }")
+            for tag, init in (("input", {}), ("textarea", {}), ("div", {}), ("span", {"shiftKey": True})):
+                cdp.js(f"({fire})('{tag}', {json.dumps(init)})", sid)
+            cdp.js("document.querySelector('.cal').dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true}))", sid)
+            time.sleep(0.3)
+            self.assertEqual(self.title(cdp, sid), before, "none of those moved the period")
+            self.key(cdp, sid, "ArrowRight")
+            self.assertTrue(wait(lambda: self.title(cdp, sid) != before), "a plain arrow still does")
+
     def test_a_slipped_milestone_also_shows_on_its_expected_day_in_the_calendar(self):
         slipped = [r for r in self.expected("MOSS") if r["marks"]["ghost"]]
         self.assertTrue(slipped)
@@ -465,6 +567,10 @@ class Published(unittest.TestCase):
             self.assertRegex(cdp.js("document.querySelector('.cal-ms').title", sid), r"\d{2}-\d{2}-\d{4}", "a chip's tooltip carries its date")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.cal-ms')].filter(e => e.tagName === 'BUTTON' || getComputedStyle(e).cursor === 'pointer').length", sid), 0,
                              "calendar chips are plain text in a file")
+            cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
+            self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.indexOf('msv') >= 0)", sid), [], "a published file remembers nothing")
+            self.assertEqual(cdp.js("document.querySelectorAll('.cal input, .cal textarea, .cal select, .cal [contenteditable]').length", sid), 0, "the calendar is read only")
 
 FAR = ["0001-01-01", "0026-10-01", "0099-12-31", "1999-12-31", "2101-01-01", "2126-03-01", "9999-12-31", "10000-01-01", "2026-02-30", "soon"]
 
