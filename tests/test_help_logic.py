@@ -112,7 +112,7 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
         self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 26)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 27)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -156,7 +156,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 26 + 30)
+        self.assertEqual(len(p), 7 + 27 + 30)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -237,8 +237,8 @@ class Logic(unittest.TestCase):
     # ---- the keys and the icons ----
     def test_keys_list(self):
         keys, mac = self.r["keys"], self.r["keysMac"]
-        self.assertEqual(len(keys), 21)
-        self.assertEqual(len(mac), 21)
+        self.assertEqual(len(keys), 22)
+        self.assertEqual(len(mac), 22)
         row = next(k for k in keys if "J" in k["keys"] and "ask clark" in k["does"])
         self.assertEqual(row["keys"], "Ctrl+J")
         self.assertEqual(next(k for k in mac if k["does"] == row["does"])["keys"], "⌘+J")
@@ -300,6 +300,8 @@ class Shown(unittest.TestCase):
         self.assertTrue(set(s["links"]["inside"]) <= set(howto + ref), "a link inside Help points at a held entry")
         for q in ("peek", "sneak"):                                 # features the page does not have yet: held words find nothing
             self.assertEqual(s["q"][q], [], q)
+        self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-use-the-tiles", "howto-read-the-milestones", "ref-layouts", "ref-milestone-states"],
+                         "the Publish task is shown now, and the entries that say a row or a tile left out is not on the published page")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):

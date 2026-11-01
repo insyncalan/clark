@@ -90,19 +90,28 @@ class Held(unittest.TestCase):
             for why in LATER[part].values():
                 self.assertTrue(why.strip())
 
+    def test_the_held_list_is_indented_evenly(self):
+        """Every held id sits two spaces in, like its neighbours (a stray space once crept onto one line)."""
+        text = (HELP / "helpLater.json").read_text(encoding="utf-8")
+        ids = set(LATER["howto"]) | set(LATER["reference"])
+        for n, line in enumerate(text.splitlines(), 1):
+            m = re.match(r'^( *)"([^"]+)": "', line)
+            if m and m.group(2) in ids:
+                self.assertEqual(len(m.group(1)), 2, f"helpLater.json line {n}: {m.group(2)} is not indented by two spaces")
+
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["publish-the-report", "find-work-items", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "use-the-tiles", "read-the-milestones"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["publish-the-report", "find-work-items", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "use-the-tiles", "read-the-milestones"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "section-templates", "at-a-glance", "layouts", "work-items", "status-words", "milestone-states", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], [])
-        self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
+        self.assertEqual(len(s["reference"]["keys"]), 22 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (26, 30, 21))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (27, 30, 22))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -129,10 +138,10 @@ class AgainstThePage(unittest.TestCase):
                 self.assertRegex(self.CODE, proof, f"Help talks about {name}, which the page does not have yet")
 
     def test_the_check_has_teeth_on_the_whole_source(self):
-        """On the whole source (nothing held) the same checks fail: the peek is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), and Import and Export when Export did (#147); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
+        """On the whole source (nothing held) the same checks fail: ask clark is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), Import and Export when Export did (#147), and the peek when Sneak peek did (#42); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
         everything = " ".join(list(strings(RAW["howto"]["tasks"])) + list(strings(RAW["start"])))
         absent = [n for n, shown, proof in FEATURES if re.search(shown, everything) and not re.search(proof, self.CODE)]
-        for want in ("the peek", "ask clark", "Sneak peek"):
+        for want in ("Sneak peek",):            # "ask clark" left this list when its panel reached the page (#47a), and the peek when it did (#42), as Publish did (#43)
             self.assertIn(want, absent)
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
@@ -140,7 +149,8 @@ class AgainstThePage(unittest.TestCase):
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now); 69 once main's Help wording (PR 19 Appearance, PR 51 use cases) and #82's rewording both sit on the page: the count fell as bold names were reworded, so lower this only when a feature lands
         # 69 re-measured after the reader's fixes (cut search, eye column, cover and the unmounted picker; the held picker is not in this whole-source count): unchanged, because the words cut were not bold names; the proofs above, not this count, now guard those parts
         # 66 after merging main's section templates (#96) with #82: the templates' words and the reworded bold names now name things on the page (measured on the merged tree); lower this only when a feature lands
-        self.assertGreaterEqual(len(names), 66)
+        # 60 on the merge of #82 with main's ask-for-what-you-need task and the palette key (measured on the merged tree): #82's rewording cut bold names the page does not have, so the floor is lower than main's 63; lower it again only when a named feature is removed
+        self.assertGreaterEqual(len(names), 60)
 
     def test_a_bold_name_elsewhere_is_not_proof_a_part_is_on_the_page(self):
         """The bold-name check only finds a name somewhere in the page code. These check that the part itself is there (mounted,
@@ -161,7 +171,7 @@ class AgainstThePage(unittest.TestCase):
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
-        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Enter]] or [[Space]]", "[[Alt+Left]] [[Alt+Right]]", "[[Enter]] or [[Space]]", "[[Home]] [[End]]"])
+        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Enter]] or [[Space]]", "[[Alt+Left]] [[Alt+Right]]", "[[Enter]] or [[Space]]", "[[Home]] [[End]]", "[[Mod+K]]"])
 
 
 class NeverDelete(unittest.TestCase):
