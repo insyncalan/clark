@@ -116,6 +116,12 @@ class Seam(unittest.TestCase):
             self.assertTrue(body["draft"]["text"].rstrip().endswith("Sam"))
             self.assertTrue(body["draft"]["ready"], body["draft"]["problems"])
 
+    def test_the_answer_says_whether_the_address_is_outside_the_own_domains(self):
+        """The AI menu reads this one answer (#72) to offer its email place for an own address only; no address counts as outside."""
+        for email, outside in ((INSIDE, False), (OUTSIDE, True), ("", True)):
+            _, body = ask({"project": "ABC", "email": email})
+            self.assertIs(body["outside"], outside, email)
+
     def test_the_offered_items_are_the_open_ones_and_a_pending_decision_only(self):
         _, body = ask({"project": "ABC", "email": INSIDE})
         ids = [i["id"] for i in body["items"]]
