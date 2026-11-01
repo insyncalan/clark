@@ -170,10 +170,11 @@ class AskService:
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
-        notes = [n for n in (ask.dropped_note(request.dropped_turns),
+        notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret),
                              left_out_note(data.left_out + found.left_out), *folder_notes(found)) if n]
-        folder_ids = {pid for pid, _label in request.passages[len(data.passages):]}
-        texts = {pid: p.text for (pid, _label), p in zip(request.passages, tuple(data.passages) + tuple(found.passages))}
+        sent = tuple(data.passages) + tuple(found.passages)      # request.kept maps each passage sent to its place here (some may be left out)
+        folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
+        texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
         held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
         return 200, {"ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label} for pid, label in request.passages if pid in reply.cites],
