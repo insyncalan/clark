@@ -160,6 +160,9 @@ WALK_THROUGH = [
     ("#257", "Passwords and keys in other forms are refused", "live only",
      "needs ask clark switched on with a real provider and a folder on disk",
      "Ask a question with a made-up password in another language, an ordinary password-policy question, and a question about a folder holding a file with a password in its name (sheet line 13)."),
+    ("#192", "The Client Requested Report View tab shows only what a client may see and reads well at both widths", "judgement",
+     "only a person can judge the snapshot reads as meant for the client",
+     "Open the tab beside Use cases at 1400 px with the demo project, read every part for internal words, ids or 'Not set', check a milestone kept off the client report is not named; at 900 px it reads 'Client report' and nothing overlaps, light and dark."),
 ]
 
 
