@@ -137,6 +137,89 @@ class HistoryManyIds(unittest.TestCase):
         finally:
             demo.close()
 
+    def _renamed(self, demo):
+        """Two items renamed to hyphenless IDs "AB" and "ABC", with an undone step on AB, a label and a link between them."""
+        s = demo.store
+        a, b = demo.action(), demo.action(description="Second")
+        demo.update("actions", a, {"owner": "Sam Example"})
+        undone = demo.update("actions", a, {"priority": "High"})
+        s.undo(undone, USER)                                              # an undone change, and the undo itself
+        with s.step("dashboard", USER) as st:
+            st.update("actions", b, {"labels": "Sensitive"})
+            st.create("links", {"from_item": a, "to_item": b, "source": "demo"})
+        for old, new in ((a, "AB"), (b, "ABC")):
+            s.con.execute("UPDATE change_log SET item_id = replace(item_id, ?, ?)", (old, new))
+        s.con.commit()
+        return s
+
+    def test_an_undone_step_reads_the_same_on_the_chunked_path(self):
+        """#252 (Hawkeye): undone_by and in_force come out the same as history()'s when the IDs go in several chunks."""
+        from clark import history
+        demo = DemoStore()
+        try:
+            s = self._renamed(demo)
+            ids = ["AB"] + ["NOHYPHEN%d" % n for n in range(250)] + ["ABC"]          # AB and ABC in different chunks
+            many = history.history_many(s.con, ids)
+            self.assertEqual(many["AB"], history.history(s.con, "AB"))
+            self.assertEqual(many["ABC"], history.history(s.con, "ABC"))
+            self.assertTrue(any(e["undone_by"] and not e["in_force"] for e in many["AB"]), "no undone step was read")
+            self.assertTrue(any(e["is_undo"] for e in many["AB"]))
+        finally:
+            demo.close()
+
+    def test_exactly_one_chunk_and_one_over(self):
+        """#252 (Hawkeye): 100 hyphenless IDs fill one chunk; 101 spill into a second. Both read the same as history()."""
+        from clark import history
+        demo = DemoStore()
+        try:
+            s = self._renamed(demo)
+            for total in (history.BARE_CHUNK, history.BARE_CHUNK + 1):
+                for order in ("AB first", "ABC last"):
+                    fill = ["NOHYPHEN%d" % n for n in range(total - 2)]
+                    ids = ["AB"] + fill + ["ABC"] if order == "AB first" else fill + ["ABC", "AB"]
+                    self.assertEqual(len(ids), total)
+                    many = history.history_many(s.con, ids)
+                    for i in ("AB", "ABC"):
+                        with self.subTest(total=total, order=order, item=i):
+                            self.assertEqual(many[i], history.history(s.con, i))
+                            self.assertTrue(len(many[i]) >= 2)
+        finally:
+            demo.close()
+
+    def test_another_projects_id_gets_nothing_and_takes_nothing(self):
+        """#252 (Hawkeye): an ID from a project that has no rows reads empty, and the project that has them is unchanged."""
+        from clark import history
+        demo = DemoStore()
+        try:
+            a = demo.action()
+            demo.update("actions", a, {"owner": "Sam Example"})
+            ids = [a, "XYZ-1", "XYZ-A-2", "XYZ"]
+            many = history.history_many(demo.store.con, ids)
+            self.assertEqual(many[a], history.history(demo.store.con, a))
+            self.assertTrue(many[a])
+            for i in ids[1:]:
+                self.assertEqual(many[i], [])
+        finally:
+            demo.close()
+
+    def test_many_project_codes_do_not_break_the_query(self):
+        """#252 (Hawkeye): the project codes were unbounded in the first chunk; 600 of them hit SQLite's limits."""
+        from clark import history
+        demo = DemoStore()
+        try:
+            s = demo.store
+            a = demo.action()
+            demo.update("actions", a, {"owner": "Sam Example"})
+            code = a.split("-", 1)[0]
+            ids = [a] + ["P%d-A-1" % n for n in range(600)] + ["P%d-A-2" % n for n in range(600)]
+            many = history.history_many(s.con, ids)
+            self.assertEqual(set(many), set(ids))
+            self.assertEqual(many[a], history.history(s.con, a))
+            self.assertTrue(many[a], "the item for code %s got no history" % code)
+            self.assertEqual(many["P599-A-1"], [])
+        finally:
+            demo.close()
+
 
 if __name__ == "__main__":
     unittest.main()
