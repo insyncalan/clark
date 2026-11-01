@@ -127,15 +127,19 @@ class Logic(unittest.TestCase):
             "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
         })
 
-    def test_what_the_store_takes_is_what_the_list_says(self):
-        """ACCEPTS is the store's real answer: text is taken; every other template's type is refused by the real route."""
-        self.assertEqual(self.t("ACCEPTS"), {"types": ["text"]})
-        self.assertEqual(self.t("TEMPLATES.filter(T.templates.available).map(x => x.id)"), ["text"])
+    def test_a_stub_type_is_placeable_only_when_ready(self):
+        """#96 R0: the store takes every template's type (the real change route makes one); a template is placeable only when its
+        catalogue entry is ready, and Text is the only one ready so far (tests/test_section_registry.py has the rest)."""
         from clark import changes, store
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title"), "new still takes a type and a title only")
         for x in self.t("TEMPLATES"):
-            if x["type"] != "text":
-                self.assertNotIn(x["type"], store.SECTION_TYPES, f"{x['id']} needs a section type the store does not have yet (design note, section 6)")
+            self.assertIn(x["type"], store.SECTION_TYPES, x["id"])
+            self.assertIn(x["type"], changes.NEW_SECTION_TYPES, x["id"])
+            self.assertIn(x["type"], self.t("ACCEPTS")["types"], x["id"])
+            self.assertIs(x["ready"], x["type"] == "text", x["id"])
+        self.assertEqual(self.t("TEMPLATES.filter(T.templates.available).map(x => x.id)"), ["text"])
+        self.assertEqual(self.t("TEMPLATES.map(x => ({...x, ready: true})).filter(T.templates.available).map(x => x.id)"), FIRST_SLICE,
+                         "ready is the one switch")
 
     # ── search, kinds, counts, recently used ─────────────────────────────────
 

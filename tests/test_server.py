@@ -298,7 +298,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024,
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/change": 72 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024})
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
@@ -380,7 +380,7 @@ class Saving(ServerTest):
     def test_change_and_undo_limits_and_415(self):
         running = self.seams()
         self.addCleanup(running.close)
-        for route, limit in (("/api/change", 16 * 1024), ("/api/undo", 1024)):
+        for route, limit in (("/api/change", 72 * 1024), ("/api/undo", 1024)):      # #96: 72 KB, the largest section content is 64 KB
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(limit + 1)}
             status, _, data = running.ask("POST", route, over, b"{}")
             self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"), route)       # refused from its length

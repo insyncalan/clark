@@ -396,7 +396,7 @@ class Migration(unittest.TestCase):
         try:
             con = s.con
             self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
-            self.assertEqual(store_module.SCHEMA_VERSION, store_module.HISTORY_VERSION)
+            self.assertGreaterEqual(store_module.SCHEMA_VERSION, store_module.HISTORY_VERSION)    # later steps (#96's section templates) follow it
             self.assertIn("utc_offset", [r[1] for r in con.execute("PRAGMA table_info(applies)")])
             self.assertEqual(con.execute("SELECT utc_offset FROM applies WHERE apply_id = 1").fetchone()[0], None, "old rows: zone not recorded")
             self.assertEqual([r[0] for r in con.execute("SELECT event_id FROM item_events ORDER BY event_id")], list(range(1, events + 1)))
@@ -498,7 +498,7 @@ class Migration(unittest.TestCase):
         def late(c):
             store_module.migrate_to_history(c)
             raise RuntimeError("forced")
-        table = tuple(store_module.MIGRATIONS[:-1]) + ((store_module.HISTORY_VERSION, late),)
+        table = tuple((n, late if n == store_module.HISTORY_VERSION else f) for n, f in store_module.MIGRATIONS)
         with mock.patch.object(store_module, "MIGRATIONS", table), self.assertRaises(Invalid):
             open_store(path, onedrive_roots=[])
         con = sqlite3.connect(str(path))
@@ -508,7 +508,8 @@ class Migration(unittest.TestCase):
 
     def test_the_step_does_not_read_the_live_schema(self):
         src = Path(store_module.__file__).read_text(encoding="utf-8")
-        body = src[src.index("def migrate_to_history"):src.index("MIGRATIONS = (")]
+        start = src.index("def migrate_to_history")
+        body = src[start:src.index("\n\n\n", start)]                  # the step's own function, up to the next top-level part
         self.assertNotIn("schema.sql", body)
         self.assertNotIn("SCHEMA.", body)
         self.assertNotIn("_statements(", body)
@@ -556,8 +557,10 @@ class Source(unittest.TestCase):
         self.assertTrue(set(changes.PLACES) <= set(store_module.PLACES))
         routes = set(__import__("re").findall(r"'([a-z]+)'", store_module.VERSION_5_ITEM_EVENTS.split("route      TEXT")[1].split("IN (")[1].split(")")[0]))
         self.assertEqual(routes, set(store_module.ROUTES), "the rebuilt table keeps every route, 'word' among them")
-        self.assertEqual([n for n, _ in store_module.MIGRATIONS], [2, 3, 4, 5])
-        self.assertEqual((store_module.SCHEMA_VERSION, store_module.HISTORY_VERSION), (5, 5))
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS][:4], [2, 3, 4, 5])           # later steps (#96) follow, with no gap
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
+        self.assertIn((store_module.HISTORY_VERSION, store_module.migrate_to_history), store_module.MIGRATIONS)
+        self.assertEqual(store_module.HISTORY_VERSION, 5)
         for p in ("peek", "board", "eye", "draft", "email", "text", "cell", "report", "menu"):
             self.assertIn(p, changes.PLACES)
 
