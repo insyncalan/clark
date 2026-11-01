@@ -2320,7 +2320,7 @@ class TheGuardInThePublish(Base):
                 self.assertFalse(has_listed(out.split("Checks:")[1]))
 
 
-GROWTH_LIMIT = 6        # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8. Above 6 means the work is growing faster than a square.
+GROWTH_LIMIT = 3.5      # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8. Above 3.5 means the work is growing faster than linear (a square fails; linear measures 1.8 to 2.2).
 GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
 
 
