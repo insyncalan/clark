@@ -21,7 +21,7 @@ export const bodyOf = (items) => JSON.stringify({ v: 1, items });
 // would keep (logic/publishable.js), so what View shows is what the client reads (FR-11).
 export function shownWork(data, fromFile) {
   if (fromFile) return new Set(rowsOf(data || {}).map((r) => r.id));
-  const rules = rulesFor({ code: data && data.project && data.project.code, hidden: data && data.hidden, labelRules: data && data.label_rules, labels: data && data.labels, sections: data && data.report_sections });
+  const rules = rulesFor({ code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h), labelRules: data && data.label_rules, labels: data && data.labels, sections: data && data.report_sections });
   return new Set(["actions", "raid", "decisions"].flatMap((k) => keptRows(data, k, rules).map((r) => r.id)));
 }
 

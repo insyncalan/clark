@@ -55,7 +55,7 @@ export function metaOf(row, kind) {
 // The rules for the served page's data. The published file needs none: it holds only the rows publish kept.
 export function rulesOf(data) {
   return rulesFor({
-    code: data && data.project && data.project.code, hidden: (data && data.report_hidden) || [], labelRules: (data && data.label_rules) || [],
+    code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h), labelRules: (data && data.label_rules) || [],
     labels: (data && data.labels) || {}, sections: (data && data.report_sections) || [],
   });
 }
