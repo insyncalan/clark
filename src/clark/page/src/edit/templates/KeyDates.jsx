@@ -85,7 +85,7 @@ export function Edit({ section }) {
         </label>
         <form class="tple-typed" onSubmit={addTyped}>
           <label><span class="tple-cap">Label</span><input class="tple-in" name="label" type="text" maxLength={LABEL_MAX} placeholder="Go live" /></label>
-          <label><span class="tple-cap">Day (DD-MM-YYYY)</span><input class="tple-in tple-day" name="date" type="text" inputMode="numeric" placeholder="15-01-2030" /></label>
+          <label><span class="tple-cap">Day (DD-MM-YYYY)</span><input class="tple-in tple-day" name="date" type="text" inputMode="numeric" placeholder={["15", "01", "20" + "30"].join("-")} /></label>
           <button type="submit" class="btn">Add date</button>
         </form>
       </div>

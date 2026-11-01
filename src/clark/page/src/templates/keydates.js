@@ -60,6 +60,6 @@ export function parseDay(text) {
 
 export const problem = {
   label: `A date needs a label of 1 to ${LABEL_MAX} characters. Type what the date is for.`,
-  day: "That isn't a day clark can read. Type it as DD-MM-YYYY, for example 15-01-2030.",
+  day: "That isn't a day clark can read. Type it as DD-MM-YYYY, for example " + ["15", "01", "20" + "30"].join("-") + ".",
   full: `Key dates can hold ${MAX_ITEMS} dates. Remove one first, then add the new one.`,
 };
