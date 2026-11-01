@@ -78,7 +78,7 @@ class Updater:
     """One per server. `choose`, `downloads`, `clock`, `python`, `start` and `server_pid` are seams for the tests."""
 
     def __init__(self, data_dir, db_path, port, app_dir=None, system=None, version=None, schema=None, choose=None,
-                 downloads=None, clock=time.monotonic, python=None, start=None, server_pid=None, home=None, migration_backup=None):
+                 downloads=None, clock=time.monotonic, python=None, start=None, server_pid=None, home=None, migration_backup=None, open_db=None):
         self.data = Path(data_dir)
         self.db = Path(db_path)
         self.port = port
@@ -91,6 +91,7 @@ class Updater:
         self.home = home
         self.clock = clock
         self.python, self.start = python, start
+        self.store = open_db                               # the server's open database: an undo that restores the data closes it
         self.server_pid = server_pid or os.getpid()
         self.migration_backup = migration_backup           # the copy this start's migration took (store.bring_up_to_date), else None
         self.lock = threading.Lock()
@@ -309,8 +310,8 @@ class Updater:
                 undo_set = ui.back_up(self.app, self.data, self.db, stamp, self.version, to, kind="undo")
                 staging = ui.stage_undo(folder, self.app, stamp)
                 self._write(PENDING, {"kind": "undo", "stamp": stamp, "set": folder.name, "undo_set": undo_set.name, "to": to})
+                ui.restore_data(self.db, record, self.store)      # last step before the hand-over, so a failure hands nothing over
                 self._hand_over(staging, stamp, self.version, to, undo_set)
-                ui.restore_data(self.db, record)                  # the helper is waiting for this server to stop; then it swaps the files
             except (updates.UpdateError, ui.InstallError) as e:
                 return self._stopped(stamp, e)
             return 200, {"ok": True, "restart": True, "message": UNDOING.format(to=to)}

@@ -86,6 +86,32 @@ class Migrated(Rig):
         self.assertEqual(1, len(kept))                           # the newer database is kept whole, not deleted
         self.assertTrue(any(rows(f, "projects")[-1][0] == "NEW" for f in kept[0].glob("clark.db")))
 
+    def test_undo_restores_the_data_while_the_server_still_has_its_database_open(self):
+        self.installed()
+        s = open_store(self.db, onedrive_roots=[])
+        now = self.make(version="0.3.1", migration_backup=s.migration_backup, open_db=s)       # the store stays open, as in a running server
+        now.settle()
+        armed = now.arm_undo({})[1]
+        status, done = now.undo({"arm_id": armed["arm_id"]})
+        self.assertEqual((200, True), (status, done["restart"]))
+        self.assertEqual("1", version(self.db))
+        self.assertEqual(self.before, {t: rows(self.db, t) for t in ("projects", "documents")})
+        self.assertEqual(h.OK, self.run_helper()[0])
+
+    def test_a_restore_that_fails_hands_nothing_over_and_leaves_the_marker_and_data_as_they_were(self):
+        self.installed()
+        now, _ = self.new_start()
+        after = {t: rows(self.db, t) for t in ("projects", "documents")}
+        started = len(self.started)
+        armed = now.arm_undo({})[1]
+        with mock.patch.object(backup, "restore_path", side_effect=Invalid("could not be copied")):
+            status, said = now.undo({"arm_id": armed["arm_id"]})
+        self.assertEqual((409, "data_restore"), (status, said["code"]))
+        self.assertEqual(started, len(self.started))             # the helper was never started
+        self.assertFalse(h.marker_path(self.data).exists())
+        self.assertEqual(after, {t: rows(self.db, t) for t in ("projects", "documents")})
+        self.assertEqual(str(store_module.SCHEMA_VERSION), version(self.db))
+
     def test_the_app_only_undo_is_not_offered_because_the_old_version_cannot_open_the_newer_data(self):
         self.installed()
         now, _ = self.new_start()
@@ -107,7 +133,7 @@ class Migrated(Rig):
         self.assertEqual(after, {t: rows(self.db, t) for t in ("projects", "documents")})
         self.assertFalse(h.marker_path(self.data).exists())
 
-    def test_a_restore_that_fails_after_the_hand_over_says_so_and_leaves_the_data_as_it_is(self):
+    def test_a_restore_that_fails_says_so_and_leaves_the_data_as_it_is(self):
         self.installed()
         now, _ = self.new_start()
         armed = now.arm_undo({})[1]

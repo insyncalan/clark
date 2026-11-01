@@ -433,7 +433,7 @@ def check_restore(db_path, record):
             raise InstallError("data_gone", str(e))
 
 
-def restore_data(db_path, record):
+def restore_data(db_path, record, open_db=None):
     """The undo of a migrated update: put the copy taken before the migration back over the database, replacing it (the newer
     file is kept whole in the backups folder). Nothing when the update kept the data layout. InstallError("data_restore")
     when it could not be done, and the database is then as it was."""
@@ -441,7 +441,7 @@ def restore_data(db_path, record):
     if found is None:
         return
     try:
-        backup.restore_before_update(db_path, found.get("backup"), confirmed=True)
+        backup.restore_before_update(db_path, found.get("backup"), confirmed=True, store=open_db)
     except store.Invalid as e:
         raise InstallError("data_restore", str(e))
 
