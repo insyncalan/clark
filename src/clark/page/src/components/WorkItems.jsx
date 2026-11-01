@@ -46,7 +46,7 @@ function keys(e, row) {
   if (t !== tr && !cell) return;
   if (selecting() && pickKeys(e, row.id, (id) => focusRow(tr, id, cell), { space: !cell })) return;
   if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || (selecting() && e.shiftKey)) return;
-  if (!cell && e.key === "Enter") { openPeek(row.id, "item"); return; }
+  if (!cell && (e.key === "Enter" || (e.key === "ArrowRight" && mode.value !== "edit"))) { e.preventDefault(); openPeek(row.id, "item"); return; }   // Right opens the peek in View; in Edit it walks the cells
   const rows = Array.from(tr.closest("table").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups, never a group heading
   const cells = Array.from(tr.querySelectorAll("[data-cell]")), c = cells.indexOf(cell);
   const field = cell ? cell.dataset.cell.slice(cell.dataset.cell.lastIndexOf(":") + 1) : "";

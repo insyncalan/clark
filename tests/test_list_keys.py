@@ -60,7 +60,7 @@ class Keys(ie.Live):
                 self.assertEqual(cdp.js("document.querySelectorAll('#work tr[data-id][tabindex=\"0\"]').length", sid), 1, "one tab stop")
                 self.assertIn("solid", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
 
-    def test_enter_opens_the_cursor_rows_peek_and_left_and_right_do_nothing_in_view(self):
+    def test_enter_opens_the_cursor_rows_peek_(self):
         for width in (1400, 900):
             with self.subTest(width=width), ie.chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
@@ -68,12 +68,49 @@ class Keys(ie.Live):
                 cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
                 key(cdp, sid, "ArrowDown")
                 self.assertEqual(cdp.js(FOCUS, sid), rows[1])
-                for name in ("ArrowRight", "ArrowLeft"):
-                    key(cdp, sid, name)
-                    self.assertEqual(cdp.js(FOCUS, sid), rows[1], f"{name} leaves the row cursor where it is")
-                    self.assertFalse(cdp.js("location.hash.includes('item=')", sid), f"{name} does not open a peek")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Enter opens the cursor row's peek")
+
+    def test_right_opens_the_peek_and_up_down_left_and_esc_work_inside_it(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                rows = cdp.js(ROWS, sid)
+                cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
+                key(cdp, sid, "ArrowRight")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens the peek")
+                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "focus is in the peek")
+                key(cdp, sid, "ArrowDown")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Down steps to the next item")
+                key(cdp, sid, "ArrowUp")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Up steps back")
+                key(cdp, sid, "ArrowDown")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Down again")
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "!location.hash.includes('item=')", "Esc closes the peek")
+                self.until(cdp, sid, f"{FOCUS} === '{rows[1]}'", "focus returns to the row the peek followed to")
+                key(cdp, sid, "ArrowRight")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Right opens it again")
+                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "focus is in the peek")
+                key(cdp, sid, "ArrowLeft")
+                self.until(cdp, sid, "!location.hash.includes('item=')", "Left closes the peek")
+
+    def test_the_first_and_last_row_stop_the_peek_steps_and_the_cursor(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                rows = cdp.js(ROWS, sid)
+                cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
+                key(cdp, sid, "ArrowUp")
+                self.assertEqual(cdp.js(FOCUS, sid), rows[0], "Up on the first row stays")
+                key(cdp, sid, "End")
+                self.assertEqual(cdp.js(FOCUS, sid), rows[-1])
+                key(cdp, sid, "ArrowDown")
+                self.assertEqual(cdp.js(FOCUS, sid), rows[-1], "Down on the last row stays")
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[-1]}')", "the last row's peek")
+                key(cdp, sid, "ArrowDown")
+                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[-1]}')", sid), "Down in the last item's peek stays on it")
 
     def test_in_edit_the_row_keeps_its_cells_and_enter_on_a_cell_opens_its_picker(self):
         for width in (1400, 900):

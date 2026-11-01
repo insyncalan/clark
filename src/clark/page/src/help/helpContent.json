@@ -1737,7 +1737,7 @@
    ],
    [
     "[[Enter]]",
-    "On a row or a card: open it. In Edit, [[Enter]] on a cell opens that cell’s picker, and [[Right]] and [[Left]] move across the cells of the row"
+    "On a row or a card: open it. On a table row in View, [[Right]] opens it too. With the peek open, [[Up]] and [[Down]] step to the previous and next item, [[Left]] closes it and [[Esc]] closes it and returns to the row. In Edit, [[Enter]] on a cell opens that cell’s picker, and [[Right]] and [[Left]] move across the cells of the row"
    ]
   ],
   "icons": [

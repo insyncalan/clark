@@ -9,6 +9,7 @@ import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekS
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso } from "../workItems.js";
 import { itemIds, milestoneIds, around } from "../peek/list.js";
+import { cursor } from "../listKeys.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
@@ -108,6 +109,20 @@ export function Peek({ tools }) {
         return;
       }
       const t = e.target, inField = t && t.nodeType === 1 && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+      const plain = !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && !document.querySelector("[role=menu]") && !(t && t.closest && t.closest("[role=separator]"));
+      if (plain && !inField && (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft")) {   // the list's keys while the peek is open (#194)
+        e.preventDefault();
+        if (e.key === "ArrowLeft") { closePeek(); return; }
+        const cur = peek.value, ms = cur && cur.kind === "milestone", n = cur ? around(ms ? milestoneIds() : itemIds(), cur.id) : {}, to = e.key === "ArrowUp" ? n.prev : n.next;
+        if (!to) return;
+        openPeek(to, cur.kind);
+        if (!ms) {                                       // the cursor follows, so closing returns to this row
+          cursor.value = to;
+          const row = document.querySelector(`#work tr[data-id="${to}"]`) || document.querySelector(`#work-board [data-id="${to}"] .bc-main`);
+          if (row) back.current = row;
+        }
+        return;
+      }
       if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !inField && Words) {
         if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; } else last = performance.now() || 1;
       } else if (e.key !== "Shift") last = 0;
