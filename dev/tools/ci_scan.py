@@ -47,7 +47,11 @@ USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)")
 # picture cannot carry an archive or a program after its end. (A comment segment inside it is still read by the content scans.)
 # The chunk types the repo's own pictures use, and the safe ancillary ones. Anything else is refused: eXIf, the text chunks
 # (tEXt, zTXt, iTXt: anything could be hidden in them) and any private or unknown chunk can carry data a reader never sees.
-PNG_CHUNKS = frozenset([b"IHDR", b"PLTE", b"IDAT", b"IEND", b"tRNS", b"gAMA", b"cHRM", b"sRGB", b"iCCP", b"pHYs", b"bKGD"])
+# Each type also has the size its format gives it, so a listed chunk cannot carry a payload it has no room for: the fixed ones are
+# exact, the rest have a ceiling. (IDAT is the picture itself, so only the 5 MB file limit bounds it; iCCP holds a colour profile.)
+PNG_CHUNK_SIZES = {b"IHDR": (13, 13), b"PLTE": (3, 768), b"IDAT": (0, pp.MAX_BYTES), b"IEND": (0, 0), b"tRNS": (0, 256),
+                   b"gAMA": (4, 4), b"cHRM": (32, 32), b"sRGB": (1, 1), b"iCCP": (0, 65536), b"pHYs": (9, 9), b"bKGD": (1, 6)}
+PNG_CHUNKS = frozenset(PNG_CHUNK_SIZES)
 
 
 def _png_ok(d):
@@ -58,6 +62,8 @@ def _png_ok(d):
         size, kind = int.from_bytes(d[i:i + 4], "big"), d[i + 4:i + 8]
         if kind not in PNG_CHUNKS:                # not on the list, so a picture carrying one is refused
             return False
+        if not PNG_CHUNK_SIZES[kind][0] <= size <= PNG_CHUNK_SIZES[kind][1] or (kind == b"PLTE" and size % 3):
+            return False                          # a size its type cannot have
         if i + 12 + size > len(d) or zlib.crc32(d[i + 4:i + 8 + size]) != int.from_bytes(d[i + 8 + size:i + 12 + size], "big"):
             return False                          # a chunk whose check value is wrong
         i += 12 + size
