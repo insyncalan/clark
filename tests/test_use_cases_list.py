@@ -122,7 +122,7 @@ class Tab(Setup):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#dashboard&p=ABC")
             p.ready()
-            self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.textContent)"), ["Dashboard", "Work items", "Milestones", "Use cases", "Settings"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.innerText)"), ["Dashboard", "Work items", "Milestones", "Use cases", "Client Requested Report View", "Settings"])
             p.js("document.querySelector('[data-view=usecases]').click()")
             p.until("location.hash === '#usecases&p=ABC' && !!document.querySelector('#usecases .ucl-row')", "the tab opened the page at its own address")
             self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Use cases")
@@ -183,14 +183,17 @@ class Published(Setup):
         p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
         return p
 
-    def test_a_published_file_has_no_tab_no_route_and_no_page_and_keeps_the_selected_use_cases(self):
+    def test_a_published_file_has_a_view_only_tab_and_no_route_and_no_editor_page_and_keeps_the_selected_use_cases(self):
         path = self.publish()
         for hash_ in ("", "#usecases&p=ABC", "#usecases&p=ABC&uc=1.1"):
             with self.subTest(hash=hash_), chrome() as cdp:
                 p = self.draw(cdp, path, hash_)
-                self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.textContent)"), ["Dashboard", "Work items", "Milestones"])
+                self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.textContent)"), ["Dashboard", "Work items", "Milestones", "Use Cases"])
                 self.assertEqual(p.js("document.querySelectorAll('#usecases, #usecase, .ucl-row, [data-uc-more], .ucmore').length"), 0)
-                self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Dashboard", "an address of the Use cases page opens the first tab")
+                if hash_:
+                    self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Use Cases", "an address of the Use cases page opens the file's own tab")
+                    continue
+                self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Dashboard")
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases", "the file shows the selected use cases only")
                 self.assertNotIn("Supplier portal", p.js("document.body.innerText"))
 
