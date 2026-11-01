@@ -56,6 +56,24 @@
 .pa-what ins { color: var(--status-green-text); text-decoration: underline; }
 .pa-none { padding: 12px 0; margin: 0; }
 
+/* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
+.selbar { flex-wrap: wrap; row-gap: 6px; }
+.sb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.sb-a { padding: 3px 10px; min-height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 13px; cursor: pointer; }
+.sb-a:hover { border-color: var(--grey-500); }
+.sb-a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.sb-a[aria-disabled="true"] { color: var(--text-muted); border-style: dashed; cursor: default; }
+.sb-why { font-size: var(--size-small); }
+.cpop.bmenu { min-width: 220px; }
+.bmenu .bm-h { padding: 6px 12px 4px; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
+.bmenu .bm-why { padding: 6px 12px; font-size: var(--size-small); color: var(--text-muted); }
+.bmenu .sep { height: 1px; margin: 4px 0; background: var(--border); }
+.bmenu .menu-item { display: flex; flex-wrap: wrap; align-items: center; }
+.bask-back { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.4); }
+.bask { min-width: 280px; max-width: min(420px, calc(100vw - 32px)); padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.bask-q { margin: 0 0 14px; font-size: var(--size-body); color: var(--heading); }
+.bask-b { display: flex; gap: 8px; justify-content: flex-end; }
+
 /* The ask panel (#47a, look #214): full height on the right, over the page. A light panel with a soft wash (the prototype's "Wash" look): a
    dark head, a glow of the brand blue rising from the bottom, your questions as blue bubbles, answers as plain text, the suggestions as ONE
    row that scrolls sideways, and while it works the working line takes that row's place so the box never moves. Tokens only, so light and
