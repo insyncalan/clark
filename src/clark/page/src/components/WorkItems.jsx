@@ -11,7 +11,8 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
-import { data, rows as allRows, filterNote, openPeek, mode, fromFile, f, lineText, setLine, rememberedLine, filterCtx } from "../stores/report.js";
+import { data, rows as allRows, filterNote, openPeek, mode, fromFile, f, lineText, setLine, rememberedLine, filterCtx, query, setQuery, found, asAt } from "../stores/report.js";
+import { searchRows } from "../clientView.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -146,22 +147,37 @@ function GroupBy({ board }) {
   );
 }
 
+// The published file's search box (#69): it filters as the client types and is never re-created by a click, so nothing moves.
+function SearchBox() {
+  return (
+    <label class="search"><span class="sr">Search work items</span>
+      <input id="q" type="search" placeholder="Search work items" autocomplete="off" value={query.value} onInput={(e) => setQuery(e.currentTarget.value)} />
+    </label>
+  );
+}
+
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell }) {
-  const line = lineText.value, today = todayIso(), ctx = filterCtx(), rows = itemRows.value;
+function List({ Board, Cell, Bulk }) {
+  const line = lineText.value, today = fromFile.value && asAt.value ? asAt.value : todayIso(), ctx = filterCtx();
+  const rows = searchRows(itemRows.value, found.value, query.value);        // a published file's search words (#69); the editor has none
   const st = FL.toState(line, rows, ctx).state;
   const filtered = FL.apply(rows, line, ctx);
-  const clear = () => setLine(FL.BASE);
-  const can = FL.canClear(line, rows, ctx);
+  const words = query.value.trim() !== "";
+  const clear = () => { setQuery(""); setLine(FL.BASE); };
+  const can = FL.canClear(line, rows, ctx) || words;
   const board = !!Board && work.value.view === "board";
   const matching = filtered.map((r) => r.id);
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
   useLayoutEffect(() => { if (selecting()) sel.sync(drawnOrder(), matching); });
   return (
     <div id="work-list">
-      {selecting() ? <SelectBar sel={sel} matching={matching} /> : null}
+      {selecting() ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
+      {Bulk ? <Bulk.Layer /> : null}
       <div class="factive">
         <span id="work-count" class="num">{countText(filtered.length, st.mode)}</span>
+        {words ? <span class="fchip" data-chip="search">{`Search: ${query.value.trim()}`}
+          <button type="button" data-fx="search" aria-label="Remove the search" onClick={() => setQuery("")}>{"×"}</button>
+        </span> : null}
         {can ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
       </div>
       {filtered.length === 0
@@ -172,7 +188,7 @@ function List({ Board, Cell }) {
 }
 
 export function WorkItems({ tools }) {
-  useEffect(() => { if (selecting()) installSelectionRules(); }, []);
+  useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const d = data.value, plan = addPlan(FL.toState(lineText.value, allRows.value, filterCtx()).state.type), Board = tools && tools.Board;
   const Cell = tools && tools.Cell && mode.value === "edit" && !fromFile.value ? tools.Cell : null;
   const board = !!Board && work.value.view === "board";
@@ -194,9 +210,9 @@ export function WorkItems({ tools }) {
       {allRows.value.length === 0
         ? <p class="muted">{tools ? `This project has no work items yet. Use ${plan.word} to add the first.` : "This report has no work items."}</p>
         : <>
-            <div class="wbar"><div class="vctl"><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</div></div>
+            <div class="wbar"><div class="vctl"><GroupBy board={board} />{fromFile.value ? <SearchBox /> : null}{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</div></div>
             <FilterLine />
-            <List Board={Board} Cell={Cell} />
+            <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
           </>}
     </section>
   );

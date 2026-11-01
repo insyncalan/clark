@@ -5,7 +5,8 @@
 import { signal, computed } from "@preact/signals";
 import * as route from "../router.js";
 import { rowsOf, todayIso } from "../workItems.js";
-import { decode, encode, fits, hasReviewDates } from "../filters.js";
+import { decode, encode, fits, hasReviewDates, setPublished } from "../filters.js";
+import { searchIndex } from "../clientView.js";
 import * as FL from "../logic/filterLine.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
@@ -41,6 +42,10 @@ export const projects = signal([]);                 // [{code, name}] from GET /
 export const projectsState = signal("loading");     // loading | ready | failed
 
 export const rows = computed(() => (data.value ? rowsOf(data.value) : []));
+// The published file's search words (#69): memory only, never kept anywhere. The index is read from the file's own rows, by id.
+export const query = signal("");
+export const found = computed(() => (data.value ? searchIndex(data.value) : {}));
+export function setQuery(text) { query.value = String(text == null ? "" : text); }
 
 // The one filter line (#153). The address still holds the older state in `f` (so every link, tile and Back works as before); the line
 // is that state written as words, plus what the older state cannot hold (a search word, `today`), kept for the session per project.
@@ -53,7 +58,7 @@ export const me = signal("");                        // the signed-in person's n
 export const filterCtx = () => {
   const d = data.value;
   return {
-    today: todayIso(), me: me.value, quietReady: hasReviewDates(rows.value),
+    today: fromFile.value && asAt.value ? asAt.value : todayIso(), me: me.value, quietReady: hasReviewDates(rows.value),
     workstreams: d ? (d.workstreams || []).map((w) => w.name).filter(Boolean) : [],
     milestones: d ? (d.milestones || []).map((m) => ({ name: m.name, date: m.forecast_date || m.baseline_date || "" })).filter((m) => m.name) : [],
   };
@@ -249,6 +254,7 @@ function published() {
 
 function openPublished(p) {
   fromFile.value = true;
+  setPublished(true);                                     // the client's seven filters, no Client filter, Earlier for a finished item
   mode.value = "view";
   if (p === "bad") { tabs.value = []; status.value = "failed"; message.value = "This report's data could not be read."; return; }
   tabs.value = VIEWS.filter((v) => p.tabs.includes(v));
