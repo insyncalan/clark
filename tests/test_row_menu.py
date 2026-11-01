@@ -533,6 +533,20 @@ class Menu(board.Base):
             rows = self.store.email_sent_for("ABC")
             self.assertEqual([r["ids"] for r in rows], [[a]])
 
+    def test_a_double_press_of_i_sent_it_makes_one_post_and_one_record(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            cdp.js("(() => { const b = [...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)); b.click(); b.click(); })()", sid)
+            self.until(cdp, sid, "/sent/i.test(document.querySelector('.de-note').textContent)", "the note")
+            time.sleep(0.8)
+            self.assertEqual(len(self.sent_calls), 1, "one POST /api/draft-email/sent for two presses")
+            self.assertEqual([r["ids"] for r in self.store.email_sent_for("ABC")], [[a]], "one record")
+            self.assertFalse(cdp.js("[...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)).disabled", sid), "ready again after the save")
+
     def test_on_the_board_and_in_full_screen(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
