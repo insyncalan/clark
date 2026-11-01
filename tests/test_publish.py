@@ -35,6 +35,7 @@ from clark import page, platform, publish, store as store_module  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from clark.publish import PublishError  # noqa: E402
 from clark.server import csp_hashes  # noqa: E402
+from _growth import assert_growth  # noqa: E402
 from test_server import _Pipe, chrome, wait as _wait  # noqa: E402  (the #33 browser harness, shared)
 
 
@@ -494,13 +495,11 @@ class TheFile(Plant):
         self.assertEqual(publish.outside_addresses("<STYLE>a{background:URL(DATA:image/png;base64,AA)}</STYLE>"), [])
 
     def test_the_style_scan_is_linear_on_endless_end_tag_lookalikes(self):
-        # #106: the old lazy regex took 3.2 s on 40,000 of these (and minutes at the 5 MB limit); a linear scan takes milliseconds.
-        n = 40000
-        for name, text in (("end tags with no >", "<style>" + "</style " * n), ("starts with no >", "<style " * n),
-                           ("starts and ends", "<style>" + "</style x>" * n), ("starts alone", "<style>" * n)):
-            began = time.perf_counter()
-            publish.outside_addresses(text)
-            self.assertLess(time.perf_counter() - began, 1.0, name)
+        # #106: the old lazy regex took 3.2 s on 40,000 of these (and minutes at the 5 MB limit). The old check was a wall-clock limit (1 s
+        # for 40,000); it is now the growth from 40,000 to 160,000 repeats in CPU time (growth_ratio, as in test_publish_public).
+        for name, make in (("end tags with no >", lambda n: "<style>" + "</style " * n), ("starts with no >", lambda n: "<style " * n),
+                           ("starts and ends", lambda n: "<style>" + "</style x>" * n), ("starts alone", lambda n: "<style>" * n)):
+            assert_growth(self, lambda size, make=make: publish.outside_addresses(make(size)), 40000, name)
 
     def test_style_dash_x_is_not_an_end_tag(self):
         self.assertEqual(publish.style_texts("<style>a{}</style-x>b{}</style>"), ["a{}</style-x>b{}"])

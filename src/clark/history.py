@@ -65,7 +65,7 @@ def history(con, item_id):
     return build_events(rows, reverted_rowids(con))
 
 
-BATCH = 100                                                # ids per query in history_many
+BARE_CHUNK = 100                       # project codes and IDs with no hyphen per query: 300 parameters and OR terms at most, well under SQLite's limits
 
 
 def history_many(con, ids):
@@ -76,17 +76,23 @@ def history_many(con, ids):
     if not ids:
         return {}
     wanted = set(ids)
-    found = {}
-    for at in range(0, len(ids), BATCH):                   # a bounded number of terms per query: SQLite refuses a very long OR
-        part = ids[at:at + BATCH]
-        codes = sorted({i.split("-", 1)[0] for i in part if "-" in i})
-        bare = [i for i in part if "-" not in i]           # no code to match by: ask the three ways history() asks
-        terms = ["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes) + ["c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?"] * len(bare)
-        args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")] + [x for i in bare for x in (i, i + "|%", "%|" + i + "|%")]
-        for r in con.execute(ROW_SQL + " AND (" + " OR ".join(terms) + ")", args):
-            found[r["rowid"]] = r
-    rows = sorted(found.values(), key=lambda r: (r["event_id"], r["rowid"]))
+    codes = sorted({i.split("-", 1)[0] for i in ids if "-" in i})
+    bare = [i for i in ids if "-" not in i]               # an ID with no hyphen has no code to cut: ask for it as history() does
     mine = {i: [] for i in ids}
+    # SQLite caps an expression's depth (1000) and its parameters: a code adds two OR terms and a bare ID three, so both go in chunks
+    # of BARE_CHUNK. A row two chunks both match is read once; the rows are put back in event order.
+    terms = [("c.item_id LIKE ? OR c.item_id LIKE ?", [c + "-%", "%|" + c + "-%"]) for c in codes] \
+        + [("c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?", [i, i + "|%", "%|" + i + "|%"]) for i in bare]
+    chunks = [terms[n:n + BARE_CHUNK] for n in range(0, len(terms), BARE_CHUNK)]
+    seen, rows = set(), []
+    for chunk in chunks:
+        where = " AND (" + " OR ".join(t[0] for t in chunk) + ")"
+        for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", [x for t in chunk for x in t[1]]):
+            if len(chunks) == 1 or r["rowid"] not in seen:
+                seen.add(r["rowid"])
+                rows.append(r)
+    if len(chunks) > 1:
+        rows.sort(key=lambda r: r["event_id"])
     for r in rows:
         key = str(r["item_id"])
         if "|" not in key:                                  # the usual row: keyed by its own item alone
