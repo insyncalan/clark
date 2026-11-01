@@ -7,10 +7,10 @@ import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 
 export const STYLES = [
-  ["slim", "Slim gaps", "Sections close together, divided by a thin line."],
-  ["roomy", "Roomy gaps", "More space between sections."],
-  ["grey", "Grey headers", "Each section's title sits on a grey band."],
-  ["card", "One card", "All the sections inside a single card."],
+  ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
+  ["roomy", "Roomy gaps", "The same, with more space between the sections."],
+  ["grey", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups."],
+  ["card", "One card", "All the sections in one long card."],
 ];
 
 export const APPEARANCES = [                                 // the ruled order: System first, the default
@@ -79,7 +79,21 @@ export function Personal() {
   return (
     <section class="frame personal" id="personal" aria-labelledby="personal-h">
       <h2 id="personal-h">Personal</h2>
-      <p class="muted">These are for you, on this computer. This changes the page you edit. The published page uses Slim gaps for now.</p>
+      <p class="muted">These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.</p>
+      <fieldset class="styles secstyles" role="radiogroup" data-secstyles>
+        <legend>Dashboard sections</legend>
+        {STYLES.map(([id, name, line]) => (
+          <label key={id} class={`secpick sk-${id}`}>
+            <input type="radio" name="secstyle" value={id} checked={style.value === id} onChange={() => setStyle(id)} />
+            <span class="secpick-card">
+              <span class="secpick-pic" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="secpick-name"><b>{name}</b>
+                <span class="secpick-tick" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg></span></span>
+              <small>{line}</small>
+            </span>
+          </label>
+        ))}
+      </fieldset>
       <fieldset class="styles" data-appearance>
         <legend>Appearance</legend>
         {APPEARANCES.map(([id, name, line]) => (
@@ -88,13 +102,6 @@ export function Personal() {
         ))}
       </fieldset>
       <AboutYou />
-      <fieldset class="styles">
-        <legend>Section style</legend>
-        {STYLES.map(([id, name, line]) => (
-          <label key={id} class="stylepick"><input type="radio" name="secstyle" value={id} checked={style.value === id} onChange={() => setStyle(id)} />
-            <span><b>{name}</b><small>{line}</small></span></label>
-        ))}
-      </fieldset>
       <fieldset class="keys">
         <legend>Keys</legend>
         <label class="stylepick"><input type="checkbox" checked={singleKeys.value} onChange={(e) => setSingleKeys(e.currentTarget.checked)} />

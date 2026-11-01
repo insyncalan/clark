@@ -54,6 +54,25 @@ async function postItem(path, body) {
 export const sendChange = (project, req) => post("/api/change", { project, kind: KIND, ...req }, !req.kind || req.kind === KIND ? hasSections : () => true);
 export const sendUndo = (project, applyId) => post("/api/undo", { project, apply_id: applyId });
 
+// Undo several (the Activity tab): `steps` are the steps of the rows chosen. A preview changes nothing; a run is one new change that
+// puts them all back. {ok: true, reply} or {ok: false, message, confirm}: `confirm` is true when the server wants the second
+// confirm (more than 25). Its refusals are fixed plain sentences, so a short one is shown as it is.
+export async function sendUndoMany(project, steps, { preview = false, confirm = false } = {}) {
+  try {
+    const r = await fetch("/api/undo", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify(preview ? { project, steps, preview: true } : confirm ? { project, steps, confirm: true } : { project, steps }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true && Array.isArray(reply.undo) && Array.isArray(reply.skipped)) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
+    return { ok: false, confirm: r.status === 409 && !!reply && reply.code === "confirm", message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, confirm: false, message: plainChange(0) };
+  }
+}
+
 // "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Answers
 // {ok: true} or {ok: false, message}; a refusal comes back in the route's own plain words, any other failure in plainChange's.
 export async function sendEmailSent(project, entry) {
@@ -153,6 +172,28 @@ export const sendCellChange = (project, table, id, changes, place) =>
 // A board move (#68): `req` is {kind: actions | raid | decisions, op, id, changes, place} as logic/board.js moveFor builds it.
 export const sendItemChange = (project, req) => postItem("/api/change", { ...req, project });
 
+// #196: one change to several work items (op "bulk"). {ok: true, reply} with the changed, unchanged and left-out items, or
+// {ok: false, message, code, leftOut, count}: clark's own fixed refusal is shown as it is (a short plain sentence); `code` is
+// "confirm" when clark asks before more than 25, and "none_can" when none of them can take it.
+export async function sendBulk(project, req) {
+  try {
+    const r = await fetch("/api/change", {
+      method: "POST",
+      headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ ...req, project }),
+      cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true && Array.isArray(reply.changed)) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
+    return { ok: false, message: mine ? said : plainChange(r.ok ? 500 : r.status, reply), code: reply && typeof reply.code === "string" ? reply.code : "",
+             leftOut: reply && Array.isArray(reply.left_out) ? reply.left_out : [], count: reply && Number.isInteger(reply.count) ? reply.count : 0 };
+  } catch (e) {
+    return { ok: false, message: plainChange(0), code: "", leftOut: [], count: 0 };
+  }
+}
+
 // One change to a milestone from the Movement block (#136), in the Movement place (clark/changes.py). {ok: true, reply} or
 // {ok: false, message, known}: `known` is true when the message is clark's own fixed refusal (shown as it is).
 export async function sendMilestoneChange(project, req) {
@@ -171,4 +212,27 @@ export async function sendMilestoneChange(project, req) {
   } catch (e) {
     return { ok: false, message: plainChange(0), known: false };
   }
+}
+
+// The Use cases page's own reads (#157). Both are GETs of routes that exist: /api/use-cases (each use case carries its history) and
+// /api/data with archived=only (the archived use cases, which the page's usual read leaves out). {ok, ...} or {ok: false}: a read
+// that fails is never a throw and the page says so in its own words.
+async function get(path) {
+  try {
+    const r = await fetch(path, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const body = await r.json().catch(() => null);
+    return r.ok && body && body.ok === true ? { ok: true, body } : { ok: false };
+  } catch (e) {
+    return { ok: false };
+  }
+}
+export async function readUseCaseHistory(project, id) {
+  const r = await get(`/api/use-cases?project=${encodeURIComponent(project)}`);
+  const one = r.ok && Array.isArray(r.body.use_cases) ? r.body.use_cases.find((u) => u && u.id === id) : null;
+  return one && Array.isArray(one.history) ? { ok: true, lines: one.history } : { ok: false };
+}
+export async function readArchivedUseCase(project, id) {
+  const r = await get(`/api/data?project=${encodeURIComponent(project)}&archived=only`);
+  const list = r.ok && r.body.data && Array.isArray(r.body.data.use_cases) ? r.body.data.use_cases : null;
+  return list ? { ok: true, row: list.find((u) => u && (u.id === id || u.ref === id)) || null } : { ok: false };
 }

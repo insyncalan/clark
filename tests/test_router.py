@@ -120,7 +120,7 @@ class Pure(Browser):
         got = self.run_in_page("""JSON.stringify([R.parse('#work&p=PDF&item=A-12'), R.parse('#milestones&p=PDF&ms=M-3'),
             R.parse('settings'), R.parse(''), R.parse('#nope&p=PDF'), R.parse('#work&p=PDF&p=QRS&item=A-12&item=A-13'),
             R.parse('#settings&p=PDF&item=A-12'), R.parse('#work&item=A-1&ms=M-3'), R.parse('#work&p=pdf')])""")
-        e = lambda v, p="", i="", m="": {"view": v, "project": p, "item": i, "ms": m, "f": ""}  # noqa: E731
+        e = lambda v, p="", i="", m="": {"view": v, "project": p, "item": i, "ms": m, "f": "", "uc": ""}  # noqa: E731
         self.assertEqual(json.loads(got), [e("work", "PDF", "A-12"), e("milestones", "PDF", "", "M-3"), e("settings"), e("dashboard"),
                                            e("dashboard", "PDF"), e("work", "PDF", "A-12"), e("settings", "PDF"), e("work", "", "A-1"),
                                            e("work")])
@@ -131,6 +131,18 @@ class Pure(Browser):
             R.format({view:'settings',project:'PDF',item:'A-12'})])""")
         self.assertEqual(json.loads(got), ["#work&p=PDF&item=A-12", "#milestones&p=PDF&ms=M-3", "#settings", "#dashboard",
                                            "#settings&p=PDF"])
+
+    def test_uc_is_one_use_cases_key_and_no_other_page_has_it(self):
+        got = self.run_in_page("""JSON.stringify([R.parse('#usecases&p=PDF&uc=1.2'), R.parse('#usecases&p=PDF'), R.parse('#usecases&p=PDF&uc=PDF-U-003'),
+            R.parse('#work&p=PDF&uc=1.2'), R.parse('#usecases&p=PDF&uc=a%20b'), R.parse('#usecases&p=PDF&uc=1.2&uc=1.3'), R.parse('#usecases&p=PDF&uc=' + 'x'.repeat(70)),
+            R.parse('#usecases&p=PDF&uc=1.2&item=A-12'), R.parse('#usecases&p=PDF&uc=.1'),
+            R.format({view:'usecases', project:'PDF', uc:'1.2'}), R.format({view:'usecases', project:'PDF'}), R.format({view:'work', project:'PDF', uc:'1.2'}),
+            R.format({view:'usecases', project:'PDF', uc:'a b'}), R.format({view:'usecases', project:'PDF', uc:'1.2', item:'A-12'})])""")
+        e = lambda v, p="PDF", uc="", i="": {"view": v, "project": p, "item": i, "ms": "", "f": "", "uc": uc}  # noqa: E731
+        self.assertEqual(json.loads(got), [e("usecases", uc="1.2"), e("usecases"), e("usecases", uc="PDF-U-003"), e("work"), e("usecases"), e("usecases", uc="1.2"),
+                                           e("usecases"), e("usecases", uc="1.2", i="A-12"), e("usecases"),
+                                           "#usecases&p=PDF&uc=1.2", "#usecases&p=PDF", "#work&p=PDF", "#usecases&p=PDF", "#usecases&p=PDF&uc=1.2&item=A-12"],
+                         "a use case key is read on the Use cases page only, as one clean word; a peek can sit beside it")
 
     def test_hostile_hashes_never_throw_and_round_trip_to_a_stable_hash_only_address(self):
         hostile = json.dumps(HOSTILE + ["#work&item=" + "%41" * 70, "#work&item=A-" + "9" * 70])
@@ -164,7 +176,7 @@ class Pure(Browser):
             R.parse('#work&f=x&p=PDF'), R.parse('#work&p=PDF&f='), R.parse('#work&p=PDF&f'), R.parse('f=x'),
             R.format({view:'work', project:'PDF'}), R.format({view:'work', project:'PDF', f:'overdue'}),
             R.format({view:'work', project:'PDF', item:'A-12', f:'a%20b'}), R.format({view:'dashboard', f:'x'})]""")
-        e = lambda v, p="", i="", f="": {"view": v, "project": p, "item": i, "ms": "", "f": f}  # noqa: E731
+        e = lambda v, p="", i="", f="": {"view": v, "project": p, "item": i, "ms": "", "f": f, "uc": ""}  # noqa: E731
         self.assertEqual(got, [e("work", "PDF"), e("work", "PDF", f="overdue"), e("work", "PDF", "A-12", "a%20b"),
                                e("work", "PDF", f="x"), e("work", "PDF"), e("work", "PDF"), e("dashboard"),
                                "#work&p=PDF", "#work&p=PDF&f=overdue", "#work&p=PDF&item=A-12&f=a%20b", "#dashboard&f=x"])
@@ -198,7 +210,7 @@ class Pure(Browser):
               out[k] = [R.parse('#work&p=PDF&item=A-12&f=' + v), R.parse('#work&f=' + v + '&p=PDF&item=A-12'),
                         R.format({{view:'work', project:'PDF', item:'A-12', f: v}})]; }});
             return out; }})()""")
-        want = {"view": "work", "project": "PDF", "item": "A-12", "ms": "", "f": ""}
+        want = {"view": "work", "project": "PDF", "item": "A-12", "ms": "", "f": "", "uc": ""}
         for name, (tail, head, formatted) in got.items():
             self.assertEqual(tail, want, name)
             self.assertEqual(head, want, name)
@@ -212,7 +224,7 @@ class Pure(Browser):
             R.parse('#milestones&p=PDF&ms=M-3&f=a&ms=M-4&view=work'), R.parse('#work&p=PDF&f=a&f=b'),
             R.format({view:'work', project:'PDF', item:'A-12', f:'a&p=QRS'}), R.format({view:'work', project:'PDF', item:'A-12', f:'a&item=A-13'}),
             R.format({view:'work', project:'PDF', ms:'M-3', f:'a=b'}), R.format({view:'work', project:'PDF', f:'a#b'})]""")
-        e = lambda v, p, i, m, f: {"view": v, "project": p, "item": i, "ms": m, "f": f}  # noqa: E731
+        e = lambda v, p, i, m, f: {"view": v, "project": p, "item": i, "ms": m, "f": f, "uc": ""}  # noqa: E731
         self.assertEqual(got, [e("work", "PDF", "A-12", "", "x"), e("work", "PDF", "", "", ""),
                                e("work", "PDF", "A-12", "", "a%26p%3DQRS%26item%3DA-13"), e("work", "PDF", "A-12", "", "a%3Db"),
                                e("milestones", "PDF", "", "M-3", "a"), e("work", "PDF", "", "", "a"),
@@ -255,7 +267,7 @@ class Pure(Browser):
                 for item, ms in (("", ""), ("A-12", ""), ("", "M-3")):
                     for f in fs:
                         states.append({"view": view, "project": proj, "item": item if view != "settings" else "",
-                                       "ms": ms if view != "settings" else "", "f": f})
+                                       "ms": ms if view != "settings" else "", "f": f, "uc": ""})
         got = self.js_json(f"""(function () {{ var bad = [];
             JSON.parse({json.dumps(json.dumps(states))}).forEach(function (s, n) {{
               var h = R.format(s), back = R.parse(h);
@@ -399,7 +411,7 @@ class Navigate(Browser):
             self.ev("R.navigate({view:'milestones', project:'PDF'})")
             self.ev("history.back()")
             self.until("location.hash", "#work&p=PDF&item=A-12", "back from file://")
-            self.assertEqual(self.ev("R.current()"), {"view": "work", "project": "PDF", "item": "A-12", "ms": "", "f": ""})
+            self.assertEqual(self.ev("R.current()"), {"view": "work", "project": "PDF", "item": "A-12", "ms": "", "f": "", "uc": ""})
             self.no_errors()
 
     # ---- `f`: a filter change rewrites the entry (#64a) ----
@@ -408,7 +420,7 @@ class Navigate(Browser):
         with chrome() as cdp:
             self.visit(cdp, "#work&p=PDF&item=A-12&f=a%26b%3Dc")
             self.assertEqual(self.ev("location.protocol"), "file:")
-            self.assertEqual(self.ev("R.current()"), {"view": "work", "project": "PDF", "item": "A-12", "ms": "", "f": "a%26b%3Dc"})
+            self.assertEqual(self.ev("R.current()"), {"view": "work", "project": "PDF", "item": "A-12", "ms": "", "f": "a%26b%3Dc", "uc": ""})
             self.no_errors()
         with chrome() as cdp:
             self.visit(cdp, "#work&p=PDF&f=%zz")
