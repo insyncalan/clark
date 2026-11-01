@@ -22,10 +22,12 @@ class TocButton(Base):
         return p
 
     def test_at_900_it_is_a_button_at_the_bottom_right_and_the_lines_are_gone(self):
+        # The gap is measured from the edge a person sees: clientWidth leaves out a drawn (Linux, Windows) scrollbar, which
+        # innerWidth counts, so the same 16 px holds with or without one.
         with chrome() as cdp:
             p = self.at(cdp, 900)
             got = p.js(f"(function(){{var r={BTN}.getBoundingClientRect(), s=getComputedStyle({BTN}), t=document.querySelector('.toc-lbl');"
-                       "return [Math.round(innerWidth - r.right), Math.round(innerHeight - r.bottom), r.height >= 24, r.width >= 24, "
+                       "return [Math.round(document.documentElement.clientWidth - r.right), Math.round(innerHeight - r.bottom), r.height >= 24, r.width >= 24, "
                        f"parseFloat(getComputedStyle(t).fontSize) >= 13, t.textContent, {BTN}.getAttribute('aria-expanded'), "
                        f"[...document.querySelectorAll('.toc-lines i')].every(i => getComputedStyle(i).display === 'none'), s.borderTopWidth];}})()")
             self.assertEqual(got, [16, 16, True, True, True, "On this page", "false", True, "1px"])
