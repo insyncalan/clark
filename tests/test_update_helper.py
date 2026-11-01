@@ -12,6 +12,7 @@ import http.server
 import json
 import os
 import re
+import shutil
 import signal
 import socket
 import stat
@@ -111,6 +112,21 @@ def snapshot(base):
             elif rel not in (f"updates/{h.LOG_NAME}", f"updates/{h.RESULT_NAME}", f"updates/{h.MARKER_NAME}"):
                 out[rel] = (p.read_bytes(), stat.S_IMODE(p.stat().st_mode))
     return out
+
+
+def make_meta_db(path, schema, db_id, extra=False):
+    """A small real database with the meta table the helper reads, and a table of projects; `extra` adds a row made later."""
+    import sqlite3
+    Path(path).unlink(missing_ok=True)
+    con = sqlite3.connect(str(path))
+    con.execute("CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT)")
+    con.executemany("INSERT INTO meta VALUES (?, ?)", [("schema_version", str(schema)), ("db_id", db_id)])
+    con.execute("CREATE TABLE projects (code TEXT PRIMARY KEY, name TEXT)")
+    con.execute("INSERT INTO projects VALUES ('AAA', 'Example Programme')")
+    if extra:
+        con.execute("INSERT INTO projects VALUES ('BBB', 'Added later')")
+    con.commit()
+    con.close()
 
 
 class FakeSeams(h.Seams):
@@ -358,6 +374,38 @@ class FaultEveryStepTest(unittest.TestCase, PlainWordsMixin):
             self.assertEqual(snapshot(fx.app), fx.before)
             self.assertIn("The new version didn't start.", result["message"])
             self.assertIn("version 0.3.0 has been restored", result["message"])
+            self.assertEqual(snapshot(fx.data), fx.data_before)       # no migration ran: the data is not touched, and no step claims it was
+            self.assertNotIn("data", result)
+            self.assertFalse(list((fx.data / "backups").glob("replaced-*")) if (fx.data / "backups").exists() else [])
+
+    def test_the_new_version_migrating_and_then_not_answering_gets_its_data_back_as_well(self):
+        """#280: the helper's own rig, with a small real database: the new version moves it to layout 3 after a copy, then does
+        not answer in 15 seconds. The way back restores the copy (the full cases are in test_update_rollback_data)."""
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            db = fx.data / "clark.db"
+            db.unlink()
+            make_meta_db(db, 2, "i1")
+            seams = FakeSeams()
+            seams.server_answers = lambda *a, **k: False
+
+            def start(app_dir, data_dir, port, log_path, original=seams.start_server):
+                if not seams.started:                                   # the new version's start: it migrates after a copy
+                    (fx.data / "backups").mkdir(exist_ok=True)
+                    shutil.copyfile(db, fx.data / "backups" / "clark-20261029T120001Z-migrate.db")
+                    make_meta_db(db, 3, "i1", extra=True)
+                return original(app_dir, data_dir, port, log_path)
+            seams.start_server = start
+            code, result = run_with(fx, None, seams)
+            self.assertEqual((code, result["data"]), (h.ROLLED_BACK, "restored"))
+            self.assertEqual(h.read_db_state(db), {"schema": 2, "db_id": "i1"})
+            self.assertEqual(len(seams.started), 2)                     # the new one, then the old one again
+            self.assertEqual(snapshot(fx.app), fx.before)
+            self.assertIn("with your data as it was before the update", result["message"])
+            aside = list((fx.data / "backups").glob("replaced-*"))
+            self.assertEqual(len(aside), 1)
+            self.assertEqual(h.read_db_state(aside[0] / "clark.db"), {"schema": 3, "db_id": "i1"})
+            self.assertEqual([], list(fx.data.glob("clark.db.restoring*")))
             self.assertPlain(result["message"])
 
     def test_a_failed_health_check_puts_the_old_back(self):
