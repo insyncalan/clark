@@ -59,9 +59,17 @@ PROBE = """(() => {
   r.jobs = H.jobs(); r.first = H.firstTen().length; r.loop = H.loopSteps().length;
   const one = (title, q) => H.search([{ tab: "howto", id: "t", title, tw: H.wordsOf(title), lw: [] }], q).length;
   r.stem = [one("The item", "items"), one("The entry", "entries"), one("The box", "boxes"), one("The items", "item"), one("The itch", "items"), one("An ox", "ox")];
+  const long = "Open the board with the key, then drag a card to a new column and the status changes with it, and nothing else on the card moves; an Undo in the message puts it back to where it was";
+  r.mark = { plain: H.markParts("Press the Keys to search", "keys"), two: H.markParts("Undo the change, then undo again", "undo change"), none: H.markParts("Nothing to find", "zzz"),
+    stem: H.markParts("Three items and one entry", "items entries"), accent: H.markParts("Café menu", "cafe"), markup: H.markParts("<b>x</b> keys", "keys"),
+    short: H.markParts("a b keys", "a"), empty: H.markParts("", "keys"), nul: H.markParts(null, "keys"), late: H.markParts(long, "undo"), early: H.markParts(long, "board") };
   r.dyn = H.buildIndex({ types: ["Zebra badge"] }).filter((e) => e.lines.includes("Zebra badge")).map((e) => e.id);
   return r;
 })()"""
+
+
+CONTENT_LONG = ("Open the board with the key, then drag a card to a new column and the status changes with it, and nothing else on the card "
+                "moves; an Undo in the message puts it back to where it was")
 
 
 def bundled():
@@ -235,6 +243,23 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.r["dyn"], ["ref-icons"])
 
     # ---- the keys and the icons ----
+    def test_a_result_marks_the_words_that_matched(self):
+        """C-H9: the prototype marks the matched word in a title and a line (help.js `mark`), as text parts, never markup."""
+        m = self.r["mark"]
+        join = lambda parts: "".join(p["t"] for p in parts)
+        hits = lambda parts: [p["t"] for p in parts if p["hit"]]
+        self.assertEqual(m["plain"], [{"t": "Press the ", "hit": False}, {"t": "Keys", "hit": True}, {"t": " to search", "hit": False}])
+        self.assertEqual(hits(m["two"]), ["Undo", "change", "undo"], "every word of the search is marked, in the line's own capitals")
+        self.assertEqual(m["none"], [{"t": "Nothing to find", "hit": False}])
+        self.assertEqual(hits(m["stem"]), ["items", "entry"], "a plural finds the singular and the other way round")
+        self.assertEqual(hits(m["accent"]), ["Café"], "accents are ignored in matching, kept in the words")
+        self.assertEqual(join(m["markup"]), "<b>x</b> keys", "the text is kept as it is; the page draws it as text")
+        self.assertEqual(hits(m["short"]), [], "a one-letter word is not searched for")
+        self.assertEqual((m["empty"], m["nul"]), ([], []))
+        self.assertEqual(join(m["early"]), CONTENT_LONG, "a match near the start keeps the whole line")
+        self.assertEqual(m["late"][0], {"t": "…", "hit": False}, "a match late in a long line starts a little before it, with an ellipsis")
+        self.assertTrue(hits(m["late"]) == ["Undo"] and join(m["late"][1:]) in CONTENT_LONG)
+
     def test_keys_list(self):
         keys, mac = self.r["keys"], self.r["keysMac"]
         self.assertEqual(len(keys), 33)
