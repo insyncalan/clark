@@ -127,18 +127,17 @@ class PageErrorRoute(Rig):
 
 class RefusedRequests(Rig):
     """#234: a page on another site looping requests at this port (no token, its own Origin) writes no line per request, so
-    it cannot fill the day's log and push out a real fault. At most one line a minute says how many were turned away."""
+    it cannot fill the day's log and push out a real fault. One line a minute, written when the minute ends, says how many
+    were turned away; nothing is written at the first one."""
 
     def setUp(self):
         super().setUp()
         handler = clog.install(self.log)
         self.addCleanup(logging.getLogger("clark").removeHandler, handler)
         self.ticks = [1000.0]
-        patch = mock.patch.object(sv, "REFUSED", sv.Refused(clock=lambda: self.ticks[0]))
+        patch = mock.patch.object(sv, "REFUSED", sv.Refused(clock=lambda: self.ticks[0], timer=None))
         patch.start()
         self.addCleanup(patch.stop)
-        sv.refused_count()                                    # a minute that has just begun (the first refusal starts it)
-        sv.REFUSED.n = 0
 
     def foreign(self, method, path, host=None):
         """One request as another site's page sends it with mode no-cors: its own Origin, cross-site, no token."""
@@ -167,16 +166,77 @@ class RefusedRequests(Rig):
             host = f"{MARK.lower()}.example" if i % 5 == 4 else None          # some with another site's Host too
             self.assertEqual(self.foreign(method, paths[i % len(paths)], host), 403)
 
+    def lines(self):
+        return self.text().splitlines()
+
     def test_twenty_five_foreign_requests_write_no_line(self):
         self.flood(25)
         self.assertEqual(self.text(), "")
 
     def test_the_minute_is_said_in_one_line_with_nothing_of_the_requests(self):
         self.flood(25)
+        self.assertEqual(self.text(), "")                                    # nothing at the first one, nothing while it runs
         self.ticks[0] += sv.CSP_REPORT_WINDOW + 1                           # the minute is up
-        self.flood(3)
-        (line,) = self.text().splitlines()
-        self.assertRegex(line, r" WARN  server +25 requests were turned away and not logged one by one$")
+        self.flood(3)                                                       # the next window opens; its count is not written yet
+        (line,) = self.lines()
+        self.assertRegex(line, r" WARN  server +25 requests were turned away in the last 60 seconds\.$")
+        self.assertNotIn(MARK.lower(), line.lower())
+        self.assertNotIn("/api/", line)
+        self.assertNotIn("example", line)
+
+    def test_one_is_said_in_the_singular(self):
+        self.flood(1)
+        self.assertEqual(self.text(), "")
+        self.ticks[0] += sv.CSP_REPORT_WINDOW + 1
+        self.flood(1)
+        (line,) = self.lines()
+        self.assertRegex(line, r" WARN  server +1 request was turned away in the last 60 seconds\.$")
+        self.assertNotIn("requests", line)
+
+    def test_a_flush_writes_the_one_line_and_a_second_flush_writes_nothing(self):
+        self.flood(4)
+        sv.REFUSED.flush()
+        sv.REFUSED.flush()
+        (line,) = self.lines()
+        self.assertRegex(line, r" WARN  server +4 requests were turned away in the last 60 seconds\.$")
+
+    def test_the_words_follow_the_interval(self):
+        with mock.patch.object(sv, "REFUSED", sv.Refused(interval=30, clock=lambda: self.ticks[0], timer=None)):
+            sv.refused_count()
+            sv.refused_count()
+            self.ticks[0] += 31
+            sv.refused_count()
+            self.ticks[0] += 31
+            sv.refused_count()
+        first, second = self.lines()
+        self.assertRegex(first, r" WARN  server +2 requests were turned away in the last 30 seconds\.$")
+        self.assertRegex(second, r" WARN  server +1 request was turned away in the last 30 seconds\.$")
+
+    def quiet_window(self, interval):
+        """A real clock and a short interval, so a window ends by itself with no later request to end it."""
+        patch = mock.patch.object(sv, "REFUSED", sv.Refused(interval=interval))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def lines_after_quiet(self):
+        """The log's lines once one has appeared (or after 5 seconds), then a pause to see that no second line follows."""
+        wait(lambda: self.text() != "", 5)
+        threading.Event().wait(1.5)
+        return self.lines()
+
+    def test_one_refusal_then_a_quiet_spell_gives_one_line_with_count_one(self):
+        self.quiet_window(2.0)
+        self.assertEqual(self.foreign("GET", f"/api/{MARK.lower()}?q={MARK}"), 403)
+        self.assertEqual(self.text(), "")                                    # nothing at the refusal itself
+        (line,) = self.lines_after_quiet()
+        self.assertRegex(line, r" WARN  server +1 request was turned away in the last 2 seconds\.$")
+        self.assertNotIn(MARK.lower(), line.lower())
+
+    def test_a_burst_then_silence_gives_one_line_with_the_burst_count(self):
+        self.quiet_window(2.0)
+        self.flood(7)
+        (line,) = self.lines_after_quiet()
+        self.assertRegex(line, r" WARN  server +7 requests were turned away in the last 2 seconds\.$")
         self.assertNotIn(MARK.lower(), line.lower())
         self.assertNotIn("/api/", line)
         self.assertNotIn("example", line)
