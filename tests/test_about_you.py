@@ -15,9 +15,11 @@ import unittest
 
 from _paths import SRC
 from test_publish_dialog import Base, PAGE_SRC
-from test_server import chrome
+from test_server import Running, chrome, wait
+from test_work_items import bundled, page_target
 
 WIDTHS = (1400, 900)
+WORDS = SRC / "clark" / "page" / "src" / "edit" / "aboutYouWords.js"
 NAME_LINE = "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional."
 EMAIL_LINE = "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
 
@@ -328,6 +330,149 @@ class AboutYou(Base):
             self.assertEqual(p.js("document.querySelector('#about-email').value"), "keep@example.test")
 
 
+    # ----- #429: the toast after a save, and its Undo -----
+
+    def toast(self, p):
+        """The toast now showing: {text, undo (whether it has an Undo button), kind}, or None."""
+        return p.js("(() => { const t = document.querySelector('.toasts .toast'); return t ? {text: t.querySelector('.toast-text').textContent, "
+                    "undo: !!t.querySelector('[data-undo]'), kind: t.dataset.kind} : null; })()")
+
+    def wait_toast(self, p, text):
+        p.until(f"(() => {{ const t = document.querySelector('.toasts .toast .toast-text'); return !!t && t.textContent === {json.dumps(text)}; }})()",
+                f"the toast says {text}")
+
+    def press_undo(self, p):
+        p.js("document.querySelector('.toasts .toast [data-undo]').click()")
+
+    def test_C_the_toast_is_on_screen_with_its_undo_at_1400_and_900(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            for i, w in enumerate(WIDTHS):
+                p.width(w)
+                self.type_into(p, "name", f"Sam Lee {i}")
+                self.wait_toast(p, "Name saved.")
+                self.assertEqual(p.js("(() => { const r = document.querySelector('.toasts .toast [data-undo]').getBoundingClientRect(); "
+                                      "return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight && r.width > 0; })()"), True, f"Undo is on screen at {w}")
+
+    def test_C_a_save_that_changed_something_says_so_with_undo_and_undo_says_what_went_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.wait_toast(p, "Name saved.")
+            self.assertEqual(self.toast(p), {"text": "Name saved.", "undo": True, "kind": "done"}, "the toast does not repeat the value")
+            self.press_undo(p)
+            self.wait_toast(p, "Name is blank again.")
+            self.assertEqual(self.toast(p)["undo"], False, "the Undo's own line has nothing more to undo")
+            self.assertEqual(self.saved().get("profile_name"), "")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "")
+            self.handled(p, "")                    # the menu's top line follows: the name is gone, so the link is back
+            self.type_into(p, "email", "sam@example.test")
+            self.wait_toast(p, "Email saved.")
+            self.type_into(p, "name", "Sam Lee")
+            self.wait_toast(p, "Name saved.")
+            p.js("document.querySelector('.toasts [data-dismiss]').click()")       # so the next "Name saved." is the new one, not this one
+            p.until("!document.querySelector('.toasts .toast')", "the toast is closed")
+            self.type_into(p, "name", "Sam Q Lee")
+            self.wait_toast(p, "Name saved.")
+            self.press_undo(p)
+            self.wait_toast(p, "Name is back to Sam Lee.")
+            self.assertEqual(self.saved(), {"profile_name": "Sam Lee", "profile_email": "sam@example.test"}, "on clark, not just in the box")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee")
+            self.handled(p, "Sam Lee", "sam@example.test")
+
+    def test_C_both_boxes_in_one_save_say_so_and_one_undo_takes_both_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee", leave="none")
+            self.type_into(p, "email", "sam@example.test")
+            self.wait_toast(p, "Name and email saved.")
+            self.press_undo(p)
+            self.wait_toast(p, "Name and email are back as they were.")
+            self.assertEqual(self.saved(), {"profile_name": "", "profile_email": ""})
+            self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["", ""])
+
+    def test_C_emptying_a_box_says_cleared_and_undo_brings_the_old_value_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Pat Kim", leave="none")
+            self.type_into(p, "email", "pat@example.test")
+            self.wait_toast(p, "Name and email saved.")
+            self.type_into(p, "email", "")
+            self.wait_toast(p, "Email cleared.")
+            self.assertEqual(self.saved(), {"profile_name": "Pat Kim", "profile_email": ""})
+            self.press_undo(p)
+            self.wait_toast(p, "Email is back to pat@example.test.")
+            self.assertEqual(self.saved(), {"profile_name": "Pat Kim", "profile_email": "pat@example.test"})
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "pat@example.test")
+
+    def test_C_nothing_changed_or_a_refusal_makes_no_toast(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.wait_toast(p, "Name saved.")
+            p.js("document.querySelector('.toasts [data-dismiss]').click()")
+            p.until("!document.querySelector('.toasts .toast')", "the toast is closed")
+            self.slow_saves(p, ms=1)
+            for text in ("Sam Lee", "  Sam Lee  ", "Sam   Lee"):        # the same value, or only spaces added or taken away
+                before = p.js("window.__answered")
+                self.type_into(p, "name", text)
+                p.until(f"window.__answered > {before}", "clark has answered")
+                time.sleep(0.3)
+                self.assertIsNone(self.toast(p), f"{text!r} changed nothing")
+            before = p.js("window.__answered")
+            self.type_into(p, "email", "not an address")
+            p.until(f"window.__answered > {before}", "clark has answered the refusal")
+            p.until("document.querySelector('#about-email').parentNode.querySelector('.fld-bad').textContent.length > 0", "the refusal shows under its box")
+            time.sleep(0.3)
+            self.assertIsNone(self.toast(p), "a refusal is said under its box and nowhere else")
+            self.assertEqual(self.saved(), {"profile_name": "Sam Lee", "profile_email": ""})
+
+
+class Words(unittest.TestCase):
+    """#429: the toast's words on their own, through the page's own module (aboutYouWords.js) in Chrome."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.stack = chrome()
+        cdp = cls.cdp = cls.stack.__enter__()
+        cls.server = Running(page_html=lambda: "<!doctype html><title>t</title>")
+        cls.sid = page_target(cdp)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{cls.server.port}/"}, cls.sid)
+        assert wait(lambda: cdp.js("document.readyState === 'complete'", cls.sid))
+        cdp.js(bundled(WORDS, "W"), cls.sid)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.close()
+        cls.stack.__exit__(None, None, None)
+
+    def say(self, before, after):
+        return json.loads(self.cdp.js(f"JSON.stringify((() => {{ const c = W.changedFields({json.dumps(before)}, {json.dumps(after)}); "
+                                      f"return [c.length, W.savedWords(c), c.length ? W.backWords(c, {json.dumps(before)}) : '']; }})())", self.sid))
+
+    def test_the_words_for_each_case(self):
+        blank, sam = {"name": "", "email": ""}, {"name": "Sam Lee", "email": "sam@example.test"}
+        self.assertEqual(self.say(blank, {"name": "Sam Lee", "email": ""}), [1, "Name saved.", "Name is blank again."])
+        self.assertEqual(self.say(blank, {"name": "", "email": "sam@example.test"}), [1, "Email saved.", "Email is blank again."])
+        self.assertEqual(self.say(blank, sam), [2, "Name and email saved.", "Name and email are back as they were."])
+        self.assertEqual(self.say(sam, blank), [2, "Name and email cleared.", "Name and email are back as they were."])
+        self.assertEqual(self.say(sam, {"name": "Sam Lee", "email": ""}), [1, "Email cleared.", "Email is back to sam@example.test."])
+        self.assertEqual(self.say(sam, {"name": "", "email": "sam@example.test"}), [1, "Name cleared.", "Name is back to Sam Lee."])
+        self.assertEqual(self.say(sam, {"name": "Pat", "email": ""}), [2, "Name saved. Email cleared.", "Name and email are back as they were."])
+        self.assertEqual(self.say(sam, {"name": "", "email": "pat@example.test"}), [2, "Name cleared. Email saved.", "Name and email are back as they were."])
+
+    def test_nothing_changed_says_nothing(self):
+        sam = {"name": "Sam Lee", "email": "sam@example.test"}
+        self.assertEqual(self.say(sam, sam), [0, "", ""])
+        self.assertEqual(self.say(sam, {"name": " Sam Lee ", "email": "sam@example.test "}), [0, "", ""], "spaces at the ends are not a change")
+        self.assertEqual(self.say({"name": "", "email": ""}, {"name": "  ", "email": ""}), [0, "", ""])
+
+
 class Source(unittest.TestCase):
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
@@ -335,10 +480,16 @@ class Source(unittest.TestCase):
             self.assertIn(words, text)
         self.assertIn("Add your name in Settings", (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
 
+    def test_the_toast_is_wired_to_the_save(self):
+        text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
+        for code in ("saySettings(\"done\", savedWords(changes)", "changedFields(before, r)", "backWords(changes, before)"):
+            self.assertIn(code, text)
+        self.assertIn("t.back ? <button", (PAGE_SRC / "edit" / "ToastBody.jsx").read_text(encoding="utf-8"))
+
     def test_a_published_file_has_none_of_it(self):
         from clark import page
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
-        for word in ("About you", "Your email", "/api/profile", "Add your name in Settings"):
+        for word in ("About you", "Your email", "/api/profile", "Add your name in Settings", "Name saved", "is blank again"):
             self.assertNotIn(word, view)
 
 

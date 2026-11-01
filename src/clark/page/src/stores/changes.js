@@ -6,7 +6,7 @@ import { data, project, reread } from "./report.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendBulk, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
 
-// null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
+// null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in, settings?: true and back?: a function (saySettings) }
 export const toast = signal(null);
 // Counts the undos that worked, so the Movement block (edit/Movement.jsx) reads its milestones again after one.
 export const undone = signal(0);
@@ -30,6 +30,16 @@ export function say(kind, text, undo = null, code = project.value) {
   clearTimeout(timer);
   const id = ++counter;
   toast.value = { id, kind, text, undo, code };
+  if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
+}
+
+// A toast from Settings (#429, edit/Personal.jsx: the profile boxes). It is shown in View as well as in Edit (Settings is open in both; a change to
+// a report is Edit's only), and its Undo, when it has one, is `back`: the page's own way back (a function), because the profile is kept in
+// clark's settings, not in a report, so it is no step of the change log and Cmd or Ctrl+Z (undoLast) does not take it.
+export function saySettings(kind, text, back = null) {
+  clearTimeout(timer);
+  const id = ++counter;
+  toast.value = { id, kind, text, undo: null, back, settings: true, code: project.value };
   if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
 }
 

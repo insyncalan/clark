@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, loadProfile, profileKnown, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
+import { saySettings } from "../stores/changes.js";
+import { changedFields, savedWords, backWords } from "./aboutYouWords.js";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
@@ -21,6 +23,7 @@ export const APPEARANCES = [                                 // the ruled order:
 
 // About you (#180): the two optional boxes. Each is saved when it is left (or on Enter); a refusal says why under the box and writes
 // nothing, and what was typed stays in the box so it can be mended. Emptying the name returns the menu's top line to its link.
+// A good save that changed something says so in a toast with Undo (#429, aboutYouWords.js); one that changed nothing, or was refused, says nothing there.
 const UNREAD = "Your saved name and email could not be read. Reload the page and try again. Nothing was saved.";
 
 function AboutYou() {
@@ -46,6 +49,7 @@ function AboutYou() {
     const sent = { name: field === "name" ? (name.current ? name.current.value : typed.name) : now("name"),
                    email: field === "email" ? (email.current ? email.current.value : typed.email) : now("email") };
     const seen = { ...edits.current };
+    const before = { name: profile.value.name, email: profile.value.email };       // what clark had when this save was sent: what Undo puts back
     const r = await setProfile(sent.name, sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
@@ -58,10 +62,24 @@ function AboutYou() {
       // a box that still holds what was sent now agrees with clark again, so it follows clark again
       for (const f of ["name", "email"]) if (edits.current[f] === seen[f]) typedIn.current[f] = false;
       setSaid({ name: "", email: "" });
+      const changes = changedFields(before, r);
+      if (changes.length) saySettings("done", savedWords(changes), () => undoSave(before, r, changes));
       return;
     }
     if (edits.current[field] !== seen[field]) return;      // the box was typed in since (even back to the same words): the refusal is not about what it holds now
     setSaid({ name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
+  };
+  // The toast's Undo: the boxes the toast spoke of go back to what they were, the other box stays as clark has it now. Like a save, it speaks only
+  // if it is the newest, and it puts a value back in a box only if the box still holds the one that was saved.
+  const undoSave = async (before, saved, changes) => {
+    const went = new Set(changes.map((c) => c.field)), now = profile.value, seen = { ...edits.current };
+    const r = await setProfile(went.has("name") ? before.name : now.name, went.has("email") ? before.email : now.email);
+    if (!r.newest) return;
+    if (!r.ok) { saySettings("problem", r.message); return; }
+    setTyped((t) => ({ name: went.has("name") && t.name === saved.name ? r.name : t.name, email: went.has("email") && t.email === saved.email ? r.email : t.email }));
+    for (const f of went) if (edits.current[f] === seen[f]) typedIn.current[f] = false;
+    setSaid({ name: "", email: "" });
+    saySettings("done", backWords(changes, before));
   };
   const box = (field, label, type, line, ref) => (
     <div class="fld">
