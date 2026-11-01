@@ -27,6 +27,7 @@ function AboutYou() {
   const [said, setSaid] = useState({ name: "", email: "" });
   useEffect(() => { loadProfile(); }, []);
   const typedIn = useRef({ name: false, email: false });
+  const edits = useRef({ name: 0, email: 0 });          // how many times each box has been typed in: a box has moved if this has changed, whatever it now says
   // The boxes follow what clark has when it is read late (a read that finished after Settings opened), but only a box nobody has typed in:
   // a person who keeps typing while a save is on its way must never see the box go back to what was saved (and a box typed in before that
   // effect ran must not be emptied by it). A saved value is put back in its box by save(), below, and only when the box still holds what was sent.
@@ -37,6 +38,7 @@ function AboutYou() {
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
+    const seen = { ...edits.current };
     const r = await setProfile(sent.name, sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
@@ -46,11 +48,12 @@ function AboutYou() {
       // what clark kept (it may be tidied, such as spaces cut off the ends) goes back in a box only if the box still holds what was sent:
       // a box changed since is left as it is
       setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
+      // a box that still holds what was sent now agrees with clark again, so it follows clark again
+      for (const f of ["name", "email"]) if (edits.current[f] === seen[f]) typedIn.current[f] = false;
       setSaid({ name: "", email: "" });
       return;
     }
-    const mine = field === "name" ? name : email;
-    if ((mine.current ? mine.current.value : typed[field]) !== sent[field]) return;
+    if (edits.current[field] !== seen[field]) return;      // the box was typed in since (even back to the same words): the refusal is not about what it holds now
     setSaid({ name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
   };
   const box = (field, label, type, line, ref) => (
@@ -58,7 +61,7 @@ function AboutYou() {
       <label for={`about-${field}`}>{label}</label>
       <input id={`about-${field}`} ref={ref} type={type} value={typed[field]} autocomplete={field === "name" ? "name" : "email"} data-about={field}
         aria-describedby={`about-${field}-line`} aria-invalid={said[field] ? "true" : undefined}
-        onInput={(e) => { const v = e.currentTarget.value; typedIn.current[field] = true; setTyped((t) => ({ ...t, [field]: v })); }}
+        onInput={(e) => { const v = e.currentTarget.value; typedIn.current[field] = true; edits.current[field]++; setTyped((t) => ({ ...t, [field]: v })); }}
         onBlur={() => save(field)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(field); } }} />
       <small id={`about-${field}-line`}>{line}</small>
       <p class="fld-bad" role="alert">{said[field]}</p>

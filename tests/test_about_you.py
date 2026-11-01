@@ -259,6 +259,53 @@ class AboutYou(Base):
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
             self.handled(p, "Sam Lee")
 
+    def test_C_a_refusal_is_not_shown_for_a_box_typed_in_since_even_back_to_the_same_words(self):
+        """The box has moved if it was typed in after the save was sent, whatever it says now: a refusal that arrives late must not show."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, delays=[1200])
+            self.type_into(p, "name", "N" * 61)                      # sent, refused, answered late
+            self.type_into(p, "name", "N", leave="none")
+            self.type_into(p, "name", "N" * 61, leave="none")        # back to the refused words, not sent
+            p.until("window.__answered >= 1", "the refusal was answered")
+            time.sleep(0.3)
+            bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
+            self.assertEqual(p.js(bad), "", "no refusal over a box typed in since")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61)
+
+    def test_C_the_email_box_keeps_a_newer_refusal_and_an_older_refusal_arriving_late_does_not_show_over_a_good_save(self):
+        """The same two late-answer rules as the name box, for the email box."""
+        bad = "document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent"
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, delays=[2000, 300])
+            self.type_into(p, "email", "a@b@c")                      # sent first, refused, answered last
+            self.type_into(p, "email", "sam@example.com")            # sent second, answered first
+            p.until("window.__answered >= 1", "the good save was answered")
+            p.until("window.__answered >= 2", "the older refused save was answered too")
+            time.sleep(0.3)
+            self.assertEqual(p.js(bad), "", "no refusal over the saved email")
+            self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), None)
+            self.assertEqual(self.saved().get("profile_email"), "sam@example.com")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "email", "sam@example.com")
+            p.until("document.querySelector('#about-email').value === 'sam@example.com'", "typed")
+            time.sleep(0.5)
+            self.slow_saves(p, delays=[2000, 300])
+            self.type_into(p, "email", "sam@example.org")            # good, sent first, answered last
+            self.type_into(p, "email", "a@b@c")                      # refused, answered first
+            p.until("window.__answered >= 1", "the refusal was answered")
+            p.until(f"{bad} !== ''", "the refusal shows")
+            p.until("window.__answered >= 2", "the older good save was answered too")
+            time.sleep(0.3)
+            self.assertNotEqual(p.js(bad), "", "the refusal is still shown")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "a@b@c")
+            self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
+
 
 class Source(unittest.TestCase):
     def test_the_words_are_pinned(self):

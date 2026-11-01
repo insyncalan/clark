@@ -12,7 +12,7 @@ export async function loadProfile() {
   if (asked) return;
   asked = true;
   const got = await getProfile();
-  if (got) profile.value = got; else asked = false;       // a failed read is tried again the next time something asks
+  if (got) { if (!applied) profile.value = got; } else asked = false;       // a failed read is tried again the next time something asks
 }
 
 let sent = 0, applied = 0;                              // saves sent so far; the newest save whose answer the menu has been given
