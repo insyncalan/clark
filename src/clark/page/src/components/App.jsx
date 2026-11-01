@@ -13,12 +13,14 @@ export function App({ tools }) {
   const Layer = tools && tools.HelpLayer;                // Help (#82) sits over the open page; a published file has none
   const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none
   const body = status.value === "ready" ? <Page tools={tools} /> : <Gate />;
+  const AddDialog = tools && tools.AddDialog;
   return (
     <>
       <TopBar tools={tools} />
       <main id="main">{Layer ? <Layer>{body}</Layer> : body}</main>
       {Toast ? <Toast /> : null}
       {Pal ? <Pal /> : null}
+      {AddDialog ? <AddDialog /> : null}
     </>
   );
 }
