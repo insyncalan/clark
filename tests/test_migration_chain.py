@@ -80,8 +80,20 @@ class TheChain(Base):
             s.close()
         self.assertEqual(seen, list(range(2, store_module.SCHEMA_VERSION + 1)))
         self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
-        self.assertEqual(rows(path, "projects"), before["projects"])
+        width = len(before["projects"][0])
+        self.assertEqual([r[:width] for r in rows(path, "projects")], before["projects"])
         self.assertEqual([r[:6] for r in rows(path, "documents")], [r[:6] for r in before["documents"]])
+
+    def test_the_row_comparison_ignores_a_column_a_later_step_appends(self):
+        path = make_v1(self.dir)
+        before = rows(path, "projects")
+        con = sqlite3.connect(str(path))
+        con.execute("ALTER TABLE projects ADD COLUMN later_column TEXT DEFAULT 'x'")
+        con.commit()
+        con.close()
+        width = len(before[0])
+        self.assertNotEqual(rows(path, "projects"), before)
+        self.assertEqual([r[:width] for r in rows(path, "projects")], before)
 
     def test_a_brought_up_file_has_the_same_tables_columns_indexes_and_keys_as_a_new_one(self):
         def shape(path):
