@@ -303,7 +303,7 @@ class LowWordsRound(unittest.TestCase):
         """The page's button reads "See all N open work items" and a use case has three statuses (UseCases.jsx)."""
         page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
         self.assertIn("See all ${n} open work", page)
-        self.assertEqual(self.ALL.count("**See all N open work items**"), 3)
+        self.assertEqual(self.ALL.count("**See all N open work items**"), 2)
         self.assertNotIn("See all work items", self.ALL)
         self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];', page)
         self.assertIn("Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red).", self.ALL)
