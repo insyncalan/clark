@@ -13,7 +13,7 @@ function measure(list) {
   });
 }
 
-export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0 }) {
+export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0, counts = {} }) {
   const list = entries(sections, hiddenSections);
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(null);
@@ -32,6 +32,12 @@ export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0 }) 
     if (onJump) { onJump(e.id); return; }
     const el = document.getElementById(e.anchor);
     if (el && el.scrollIntoView) el.scrollIntoView({ block: "start" });
+  };
+  // Back to the top of the page (the sticky bar stays); the list closes and the focus leaves it, as after a jump.
+  const top = () => {
+    setOpen(false);
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    window.scrollTo(0, 0);
   };
   const links = () => Array.from(root.current ? root.current.querySelectorAll("button[data-id]") : []);
   const focusAt = (i) => setTimeout(() => { const l = links()[i]; if (l) l.focus(); }, 0);   // after the list has opened (a closed one can't take focus)
@@ -56,7 +62,7 @@ export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0 }) 
       onMouseEnter={() => setOpen(true)} onMouseLeave={() => { if (!root.current.contains(document.activeElement)) setOpen(false); }}
       onFocusIn={() => { if (quiet.current) quiet.current = false; else setOpen(true); }} onFocusOut={leave}>
       <button type="button" class="toc-lines" ref={button} aria-expanded={open ? "true" : "false"} aria-controls="toc-card" aria-label="Contents" onClick={() => setOpen(true)}>
-        {list.map((e) => <i key={e.id} data-tl={e.id} class={e.id === current ? "on" : ""}></i>)}
+        {list.map((e) => <i key={e.id} data-tl={e.id} class={`${e.id === current ? "on" : ""}${counts[e.id] && counts[e.id].hot ? " hot" : ""}`.trim()}></i>)}
       </button>
       <div class="toc-card" id="toc-card" inert={!open}>   {/* inert at once when closed: Tab cannot enter it before the fade ends */}
         <div class="toc-h">On this page</div>
@@ -66,10 +72,12 @@ export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0 }) 
               <button type="button" data-id={e.id} class={e.id === current ? "on" : ""} aria-current={e.id === current ? "true" : undefined}
                 onClick={() => { setOpen(false); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); jump(e); }}>
                 <span>{e.title}</span>
+                {counts[e.id] ? <em class={counts[e.id].hot ? "hot" : ""}>{counts[e.id].text}</em> : null}
               </button>
             </li>
           ))}
         </ul>
+        <button type="button" class="toc-top" onClick={top}>Back to top <span aria-hidden="true">↑</span></button>
       </div>
     </nav>
   );
