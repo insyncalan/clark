@@ -214,3 +214,19 @@ export async function readArchivedUseCase(project, id) {
   const list = r.ok && r.body.data && Array.isArray(r.body.data.use_cases) ? r.body.data.use_cases : null;
   return list ? { ok: true, row: list.find((u) => u && (u.id === id || u.ref === id)) || null } : { ok: false };
 }
+
+// {ok: true, applyId} or {ok: false, message}: never a throw. `op` is "archive" or "restore".
+export async function sendProjectArchive(code, op) {
+  try {
+    const r = await fetch("/api/change", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project: code, kind: "projects", op, id: code }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true) return { ok: true, applyId: reply.apply_id || null };
+    const said = reply && typeof reply.message === "string" && reply.message.length <= 240 && (r.status === 400 || r.status === 409) ? reply.message : "";
+    return { ok: false, message: said || plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
+  }
+}
