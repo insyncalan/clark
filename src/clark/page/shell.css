@@ -3,7 +3,7 @@
    tests/test_font.py fails if one is). */
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
-html { scrollbar-gutter: stable; }          /* a drawn (Linux, Windows) scrollbar comes and goes with the list's length: its room is always kept, so the centred page never shifts */
+html[data-mode="view"] { scrollbar-gutter: stable; }          /* a drawn (Linux, Windows) scrollbar comes and goes with the list's length: its room is always kept, so the centred page never shifts; View only, the editor's menus are sized to the whole window */
 body { margin: 0; background: var(--grey-50); color: var(--text); font: var(--weight-light) var(--size-body)/var(--leading) var(--font); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 a { color: var(--status-blue-text); }
