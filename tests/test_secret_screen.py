@@ -193,6 +193,26 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_a_prefixed_or_suffixed_key_word_with_a_quoted_letters_value_is_refused(self):
+        """The commonest config shapes: a prefix such as DB_ or client_, camel case, and a suffix that still names the secret."""
+        word = "orange" + "bicycle"
+        for key in ("DB_PASSWORD=", "client_secret: ", "db_password: ", "userPassword: ", "mysql_pwd=", "admin_pw: ", "api_secret=",
+                    "secret_key: ", "clientSecret = ", "DB_PASSWORD_PROD=", "password_new: ", '"db_password": '):
+            with self.subTest(key):
+                self.assertTrue(secret_screen.looks_like_secret(key + '"' + word + '"'))
+                self.assertTrue(secret_screen.looks_like_secret(key + "'" + word + "'"))
+
+    def test_the_false_refusals_of_ordinary_text_pass(self):
+        """A word that only starts with a key word, a setting about a secret, a heading, and another language's word are not secrets."""
+        for text in ("Secretary 'Clinton' arrived", 'the secret "ingredient"', 'password: "string"', 'secretName: "postgres"', 'secrets: "inherit"',
+                     'secreto "abierto"', 'password_auth: "enabled"', 'Subject: Password "Expired"', 'password_hint: "favourite"',
+                     'passwords: "abcdefgh"', 'secretary: "Harrington"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_a_letters_only_value_in_another_alphabet_of_letters_is_refused(self):
+        self.assertTrue(secret_screen.looks_like_secret('password is "contrase\u00f1a"'))
+
     def test_six_letters_are_refused_and_five_are_not(self):
         self.assertTrue(secret_screen.looks_like_secret('password "abcdef"'))
         self.assertFalse(secret_screen.looks_like_secret('password "abcde"'))

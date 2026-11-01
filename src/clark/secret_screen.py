@@ -55,18 +55,26 @@ HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?privat
 # Sunshine2026"): a key word, is or was, then a mixed value of 8 or more characters.
 QUOTED_PHRASE = r"""(?i)""" + _PW + r"""\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([^"\n]{8,80})"|'([^'\n]{8,80})')"""
 PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|secret)\b)["']?[ \t]{1,3}(?:is|was)[ \t]{1,3}["'(]?([^\s"'`$<>{}()\[\],;]{8,})"""
-# A quoted value of 6 or more letters right after a key word (#243): `the password is "<letters>"`. The key word starts a word (so
-# "Secretary" is not one); "secret" counts only as a whole word followed by `:`, `=`, is or was ("secrets: ..." and `the secret
-# "ingredient"` pass); a quote straight after the key word counts only before `:` or `=` (a JSON key), so two separate quoted strings
-# such as `click "Forgot password" "Submit"` do not join. The value sits in one matching pair (double, single, backtick, curly or
-# typographic single) with letters only between. A few schema and placeholder words are what a config puts there, not a password.
+# A quoted value of 6 or more letters right after a key word (#243): `the password is "<letters>"`. The key word may carry a prefix
+# (DB_PASSWORD, client_secret, userPassword: `_` or a lower-case letter before a capital) but not a word glued on in front
+# ("Secretary" is not one). After the key word only a suffix that still names the secret is allowed (`secret_key`, `password_prod`);
+# `secretName`, `secrets` and `password_auth` are settings about a secret, not the secret, and pass. A connector follows: `:` or `=`
+# (a quote may sit before it, a JSON key), or is / was. "secret" needs one of those; a password word alone may also stand just before
+# the quote (`the wifi password "Sunshine"`), except straight after a colon (`Subject: Password "Expired"` is a heading). The value
+# sits in one matching pair (double, single, backtick, curly or typographic single) of letters only. A few schema and placeholder
+# words are what a config puts there, not a password.
 _QS = r"""["'`\u201c\u201d\u2018\u2019]"""
-_PAIR = (r"""(?:"[A-Za-z]{6,}"|'[A-Za-z]{6,}'|`[A-Za-z]{6,}`|\u201c[A-Za-z]{6,}\u201d|\u2018[A-Za-z]{6,}\u2019)""")
+_LETTERS_ONLY = r"""[^\W\d_]{6,}"""
+_PAIR = (r"""(?:"LETTERS"|'LETTERS'|`LETTERS`|\u201cLETTERS\u201d|\u2018LETTERS\u2019)""").replace("LETTERS", _LETTERS_ONLY)
 _PLACEHOLDER = r"""(?!["'`\u201c\u2018](?:string|text|password|secret|hidden|required|optional|none|null|true|false|inherit)["'`\u201d\u2019])"""
-LETTER_QUOTED = (r"""(?i)\b(?:""" + r"""(?:passw(?:or)?d|pwd|passcode|passphrase|pw(?![A-Za-z]))\w{0,40}(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{0,20}(?:\b(?:is|was)\b)?)"""
-                 r"""|secret""" + r"""(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{1,20}\b(?:is|was)\b))[ \t]{0,20}""" + _PLACEHOLDER + _PAIR)
-# Known gaps, kept as Tech Debt: an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only and
-# a bare 40-character hex string with no key word are not caught; guessing them would drop too many ordinary files.
+_LEFT = r"""(?:(?<![A-Za-z0-9])|(?-i:(?<=[a-z0-9])(?=[PS])))"""
+_PWORD = r"""(?:passw(?:or)?d|pwd|passcode|passphrase|pw(?![A-Za-z]))"""
+_SUFFIX = r"""(?:[_-]?(?:key|value|text|string|phrase|word|plain|prod|production|dev|test|staging|new|old|current|confirm|[0-9])){0,6}"""
+LETTER_QUOTED = (r"""(?i)""" + _LEFT + r"""(?:(?:""" + _PWORD + r"""|secret)""" + _SUFFIX + r"""(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{1,20}\b(?:is|was)\b)[ \t]{0,20}"""
+                 r"""|(?<!:)(?<!:[ \t])(?<!:[ \t]{2})""" + _PWORD + r"""(?![A-Za-z0-9_])[ \t]{1,20})""" + _PLACEHOLDER + _PAIR)
+# Known gaps, kept as Tech Debt: an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
+# a bare 40-character hex string with no key word, a key word with some other suffix (`password_backup: "..."`) and a bare password
+# word after a colon (`Note: password "..."`) are not caught; guessing them would drop too many ordinary files.
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 
 # The publish scan's address shape starts at every letter and can take a long time on a long run of letters, so here it starts at
