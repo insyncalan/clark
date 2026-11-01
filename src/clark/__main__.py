@@ -401,6 +401,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
+                     # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system
+                     # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
                      brand_picture=page.brand_picture,
                      **handlers)

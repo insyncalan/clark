@@ -20,7 +20,7 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 import test_ask_route as route_base
 from test_ai_key_refusal import ATTACKS, REFUSED, SECRET_PART, TEXT
 from test_ai_menu import FakeProvider
-from clark import ai_menu as am, ask, server as sv
+from clark import ai_menu as am, ai_service, ask, server as sv
 
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
@@ -131,13 +131,13 @@ class SelectedText(unittest.TestCase):
 class EveryRouteThatSendsText(unittest.TestCase):
     """The inventory, so a new caller cannot appear unscreened: the only call sites of a provider's `ask` in src/clark."""
 
-    def test_the_only_provider_call_sites_are_the_two_screened_ones(self):
+    def test_the_only_provider_call_sites_are_the_three_screened_ones(self):
         found = {}
         for path in sorted(Path(SRC, "clark").glob("*.py")):
             for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
                 if re.search(r"\bprovider\.ask\(", line) and not line.lstrip().startswith(("#", "def ", '"""')):
                     found[path.name] = found.get(path.name, 0) + 1
-        self.assertEqual(found, {"ai_menu.py": 1, "ask.py": 1})
+        self.assertEqual(found, {"ai_menu.py": 1, "ai_service.py": 1, "ask.py": 1})
 
     def test_ask_provider_is_reached_only_after_build_request(self):
         src = inspect.getsource(route_base.ask_service.AskService.ask)
@@ -148,9 +148,15 @@ class EveryRouteThatSendsText(unittest.TestCase):
         self.assertLess(src.index("build_prompt("), src.index("provider.ask("))
         self.assertIn("check_request(", inspect.getsource(am.build_prompt))
 
-    def test_the_server_has_no_route_for_the_selection(self):
+    def test_ai_service_screens_for_a_secret_before_the_provider(self):
+        src = inspect.getsource(ai_service.AiService.suggest)
+        self.assertLess(src.index("looks_like_secret("), src.index("provider.ask("))
+
+    def test_the_server_has_no_route_for_the_selection_except_the_three_ai_ones(self):
+        # #72 slice 4: the three /api/ai/* routes exist (off in the launcher: no ai=, so they answer 404); each is screened above
         routes = set(sv.GET_ROUTES) | set(sv.POST_ROUTES)
-        self.assertEqual({r for r in routes if "suggest" in r or "edit" in r or r.startswith("/api/ai")}, set())
+        self.assertEqual({r for r in routes if "suggest" in r or "edit" in r or r.startswith("/api/ai")},
+                         {"/api/ai/status", "/api/ai/suggest", "/api/ai/stop"})
 
 
 if __name__ == "__main__":

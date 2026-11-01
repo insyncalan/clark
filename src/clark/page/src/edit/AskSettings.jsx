@@ -4,6 +4,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
+import { AiSettings } from "./AiSettings.jsx";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
 
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
@@ -62,6 +63,7 @@ export function AskSettings() {
 
   const list = Array.isArray(folders) ? folders : [];
   return (
+    <>
     <section class="frame setting" id="ask-settings">
       <h2>Asking</h2>
       <p class="muted">Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.</p>
@@ -88,5 +90,7 @@ export function AskSettings() {
       ) : null}
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
     </section>
+    <AiSettings />
+    </>
   );
 }
