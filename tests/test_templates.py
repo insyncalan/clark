@@ -218,21 +218,13 @@ class Logic(unittest.TestCase):
         stale = [sec("a", "Summary"), sec("z", "Last", beside=1)]
         self.assertEqual(len(self.t(f"plan({lit(stale)}, 'text', 'z', true)")["requests"]), 1, "beside needs no clearing: clark sets the pairing")
 
-    def test_a_flag_left_on_the_last_section_is_cleared_so_the_new_one_does_not_pair_with_it(self):
-        stale = [sec("a", "Summary"), sec("z", "Last", beside=1)]
-        p = self.t(f"plan({lit(stale)}, 'text', 'z', false)")
-        self.assertEqual(p["requests"][1], {"op": "update", "id": "z", "changes": {"beside": 0}, "place": "report"})
-        self.assertEqual(len(self.t(f"plan({lit(S)}, 'text', 'e', false)")["requests"]), 1, "no flag, nothing to clear")
-
-    def test_at_the_end_a_flag_left_on_the_last_section_is_cleared_too(self):
-        """Adding at the end (after = null): a stale beside flag on the lone last section is cleared, so the new one does not pair with it."""
-        last = [sec("a", "Summary"), sec("b", "Decisions", type="decisions", beside=1)]
-        p = self.t(f"plan({lit(last)}, 'text', null, false)")
-        self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": None, "place": "report"},
-                                         {"op": "update", "id": "b", "changes": {"beside": 0}, "place": "report"}])
-        clean = [sec("a", "Summary"), sec("b", "Decisions", type="decisions")]
-        self.assertEqual(len(self.t(f"plan({lit(clean)}, 'text', null, false)")["requests"]), 1)
-        self.assertEqual(len(self.t("plan([], 'text', null, false)")["requests"]), 1, "an empty report")
+    def test_a_plain_add_below_a_last_section_with_a_stale_flag_is_one_request(self):
+        """clark clears the stale flag in the same step (#244), so the page sends the one `new` and nothing else."""
+        for sections, after in (([sec("a", "Summary"), sec("z", "Last", beside=1)], "'z'"),
+                                ([sec("a", "Summary"), sec("b", "Decisions", type="decisions", beside=1)], "null")):
+            p = self.t(f"plan({lit(sections)}, 'text', {after}, false)")
+            self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": None if after == "null" else "z", "place": "report"}])
+            self.assertNotIn("partial", p)
 
     def test_the_event_name_is_written_once_in_the_page_code(self):
         """The add-section event name is written once, in addSection.js (the gutter); addDialog.js re-exports it."""
@@ -588,11 +580,11 @@ class Box(Base):
             self.assertEqual(self.sent[-1][1].get("beside"), None, "alone: no beside")
 
     def stale_flag_on_the_last_section(self):
-        """A leftover pairing flag on the last section (the page ignores it): the one case where a plain add is two requests."""
+        """A leftover pairing flag on the last section (the page ignores it)."""
         code, _ = self.real_change({"project": "ABC", "kind": "report_sections", "op": "update", "id": "ABC-S-011", "changes": {"beside": 1}, "place": "report"})
         self.assertEqual(code, 200)
 
-    def test_a_plain_add_below_a_stale_flag_is_two_requests_and_one_undo(self):
+    def test_a_plain_add_below_a_stale_flag_is_one_request_and_one_undo(self):
         self.stale_flag_on_the_last_section()
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -601,51 +593,16 @@ class Box(Base):
             p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
             new = [i for i in p.ids() if i not in IDS][0]
-            self.assertEqual([r[1]["op"] for r in self.sent], ["new", "update"])
-            self.assertEqual(self.sent[-1][1]["changes"], {"beside": 0})
+            self.assertEqual([r[1]["op"] for r in self.sent], ["new"], "one request")
             self.assertEqual(self.beside_flags()["ABC-S-011"], 0)
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-full')"), True, "on its own row")
-            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1, "one Undo for the one action")
+            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1)
             p.js("document.querySelector('[data-undo]').click()")
             p.until("document.querySelectorAll('.sec').length === 11", "the section is gone after one click")
-            undos = [r[1]["apply_id"] for r in self.sent if r[0] == "undo"]
-            self.assertEqual(len(undos), 2, "both steps were undone")
-            self.assertGreater(undos[0], undos[1], "the flag first, then the new section")
+            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one undo")
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag is as it was")
             self.assertEqual(p.toast(), "Undone.")
-
-    def test_a_failed_second_request_says_so_plainly_and_undo_removes_the_section(self):
-        self.stale_flag_on_the_last_section()
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.edit()
-            self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"}) if req.get("op") == "update" else self.real_change(req)
-            self.open_box(p, "ABC-S-011")
-            p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "the section was added and the toast offers Undo")
-            self.assertEqual(p.toast(), "The section was added, but it could not be put on its own row. Undo removes it.")
-            self.failure = None
-            p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "Undo removed the section")
-            self.assertEqual(self.ids_in_store(), IDS)
-            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one step to take back: the flag was never changed")
-            self.assertEqual(p.toast(), "Undone.")
-
-    def test_if_the_first_undo_fails_the_section_stays_and_the_toast_says_so(self):
-        self.stale_flag_on_the_last_section()
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.edit()
-            self.open_box(p, "ABC-S-011")
-            p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
-            self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"})
-            p.js("document.querySelector('[data-undo]').click()")
-            p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
-            self.assertTrue(p.toast().endswith("The section was not removed."), p.toast())
-            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "stopped after the first Undo failed")
-            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12)
 
     def test_the_plain_add_is_one_step_and_one_undo(self):
         with chrome() as cdp:

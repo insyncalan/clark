@@ -52,7 +52,6 @@ export const MESSAGES = {
   needsFull: "This template needs the full width. Place it on its own row.",
   later: "Coming with a later release.",
   unknown: "That template isn't in the list.",
-  notAlone: "The section was added, but it could not be put on its own row. Undo removes it.",
 };
 
 const FIT_WORDS = { full: "Full width", half: "Half width" };
@@ -117,9 +116,8 @@ export function besideState(sections, after, template) {
 }
 
 // The requests to make to add template `id` below section `after` (null: at the end), alone or beside that section as its second
-// half. { ok: true, requests, words, partial } or { ok: false, message }. Beside is one request (`new` takes `beside`, and clark sets the pairing in the same step). A section added alone below a
-// last section that carries a stale pairing flag needs a second request to clear it, because `new` does not clear it; `partial` is
-// what the toast says if that second request fails. Today a template other than the available ones is refused here, in words,
+// half. { ok: true, requests, words } or { ok: false, message }. Always one request: `new` takes `beside`, and clark sets the pairing
+// (or clears a stale one on the last section) in the same step. Today a template other than the available ones is refused here, in words,
 // before anything is sent.
 export function plan(sections, id, after, beside = false) {
   const t = find(id);
@@ -133,10 +131,6 @@ export function plan(sections, id, after, beside = false) {
     return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, beside: 1, place: "report" }],
              words: `${t.name} added, beside the section above.`, template: t };
   }
-  const requests = [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, place: "report" }];
-  const all = rows(sections), tail = all.length ? all[all.length - 1] : null;
-  const last = a.id === null ? (tail && tail[tail.length - 1]) : sections.find((s) => s.id === a.id);      // null is "at the end": below the final section
-  const lone = last && all.some((r) => r.length === 1 && r[0].id === last.id);
-  if (lone && last.beside) requests.push({ op: "update", id: last.id, changes: { beside: 0 }, place: "report" });   // a flag on the last section is ignored by the page; the new section after it would pair with it
-  return { ok: true, requests, words: `${t.name} added.`, partial: MESSAGES.notAlone, template: t };
+  // clark clears a stale pairing flag on the last section in the same step (#244), so this is one request and one Undo.
+  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
 }
