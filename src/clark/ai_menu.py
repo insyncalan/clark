@@ -29,7 +29,7 @@ import unicodedata
 from collections import Counter
 from urllib.parse import unquote
 
-from clark import edit_ai, sanitise
+from clark import edit_ai, sanitise, secret_screen
 from clark.edit_ai import Refused
 
 MAX_TEXT = 12000            # characters of selected text
@@ -190,17 +190,31 @@ def _hidden_set(text):
             or unicodedata.category(c) == "Cf"}
 
 
+SECRET_MESSAGE = "That looks like a password or a key, so it wasn't sent. Take it out and try again."
+
+
+def _secret(text):
+    """Whether a text holds something that looks like a secret (a key, a token, a private key block or a labelled password). It
+    is a yes or no: the match is never kept, shown or logged."""
+    return secret_screen.looks_like_secret(str(text or ""))
+
+
 def _instruction(option, instruction):
     """The user's own instruction (Ask…), spaces squeezed; needed for Ask…, capped; ignored for every other option."""
     if option != "custom":
         return ""
-    clean = " ".join(str(instruction or "").split())
+    raw = str(instruction or "")
+    if _secret(raw):                  # screened as typed, before any squeezing could join or split a line
+        raise Refused(SECRET_MESSAGE)
+    clean = " ".join(raw.split())
     if _unsafe(clean):
         raise Refused(HIDDEN_MESSAGE)
     if not clean:
         raise Refused("Say what you want done with the text.")
     if len(clean) > MAX_INSTRUCTION:
         raise Refused(f"Keep the instruction under {MAX_INSTRUCTION} characters.")
+    if _secret(clean):
+        raise Refused(SECRET_MESSAGE)
     return clean
 
 
@@ -210,6 +224,9 @@ def check_request(option, text, place, instruction=""):
     if not isinstance(option, str) or option not in PLACES[place]:
         raise Refused("That option isn't offered here.")
     text = str(text or "")
+    if (_secret(text) or _secret(" ".join(text.split()))      # the text as given, and its squeezed form, before anything else
+            or (option == "custom" and _secret(str(instruction or "")))):
+        raise Refused(SECRET_MESSAGE)
     if not text.strip():
         raise Refused("Select some text first.")
     if _unsafe(text):
@@ -674,6 +691,8 @@ class AiSession:
                 raise Refused("Select the text again.")
             option, text, place, instruction = check_request(option, text, place, instruction)
         except Refused as e:
+            if _secret(str(instruction or "")):
+                instruction = ""          # the card's heading is never the key
             self.card = Card(self._n, option, instruction, place, str(text or ""), start, end, "failed", str(e))
             self.card.key = confidential_key
             return self.card
