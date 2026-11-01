@@ -4,7 +4,7 @@
 // them yet. `api` is a seam for the tests; the page passes none.
 import { useEffect, useState } from "preact/hooks";
 import { project as openCode, openProjectAt } from "../stores/report.js";
-import { say, undone } from "../stores/changes.js";
+import { say, undone, enqueue } from "../stores/changes.js";
 import { listProjects, readProject, sendProjectArchive } from "./projectsApi.js";
 import * as L from "../logic/projectsTable.js";
 
@@ -24,19 +24,22 @@ export function Projects({ api = REAL }) {
   useEffect(() => { load(); }, [undone.value]);          // read again after an Undo (the toast's), which puts a project back
 
   async function change(row, op) {
+    if (op === "archive" && row.code === openCode.value) return;     // the open project stays: the table offers no Archive for it
     setBusy(row.code);
-    const r = await api.archive(row.code, op);
-    if (!r.ok) { say("problem", r.message); setBusy(""); return; }
-    await load();
+    await enqueue(async () => {                                      // in order with every other change and Undo
+      const r = await api.archive(row.code, op);
+      if (!r.ok) { say("problem", r.message); return; }
+      await load();
+      say("done", op === "archive" ? L.archivedWords(row.name) : L.restoredWords(row.name), r.applyId, row.code);
+    });
     setBusy("");
-    say("done", op === "archive" ? L.archivedWords(row.name) : L.restoredWords(row.name), r.applyId, row.code);
   }
 
   const rows = showGone ? [...state.live, ...state.gone] : state.live;
   return (
     <section class="frame setting projects" id="projects">
       <div class="proj-head">
-        <h2>{L.TITLE}</h2>
+        <h2 id="projects-h" tabIndex={-1}>{L.TITLE}</h2>
         <button type="button" class="btn sm" id="show-archived" aria-pressed={showGone ? "true" : "false"} onClick={() => setShowGone(!showGone)}>
           {showGone ? L.LABELS.hide : L.countLabel(state.gone.length)}
         </button>
@@ -46,7 +49,7 @@ export function Projects({ api = REAL }) {
       {state.phase === "failed" ? <p class="error" role="alert">{L.FAILED} <button type="button" class="btn sm" onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {state.phase === "ready" && !rows.length ? <p class="muted" id="projects-none">{state.gone.length ? L.ALL_ARCHIVED : L.NONE}</p> : null}
       {rows.length ? (
-        <table class="items proj-table" id="projects-table">
+        <table class="items proj-table" id="projects-table" aria-label={L.TITLE}>
           <thead><tr>{L.COLUMNS.map((c) => <th key={c} scope="col">{c}</th>)}<th scope="col" aria-label="Actions"></th></tr></thead>
           <tbody>
             {rows.map((r) => (
@@ -62,7 +65,9 @@ export function Projects({ api = REAL }) {
                   ) : (
                     <>
                       {r.code !== openCode.value ? <button type="button" class="btn sm" data-open onClick={() => openProjectAt(r.code, "dashboard")}>{L.LABELS.open}</button> : null}
-                      <button type="button" class="btn sm" data-archive disabled={!!busy} onClick={() => change(r, "archive")}>{L.LABELS.archive}</button>
+                      {r.code === openCode.value
+                        ? <span class="muted" data-open-note>{L.OPEN_NOTE}</span>
+                        : <button type="button" class="btn sm" data-archive disabled={!!busy} onClick={() => change(r, "archive")}>{L.LABELS.archive}</button>}
                     </>
                   )}
                 </td>

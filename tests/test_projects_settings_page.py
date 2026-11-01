@@ -133,7 +133,10 @@ class Browser(unittest.TestCase):
                         self.assertIn(self.names[r["code"]], r["cells"][0])
                         self.assertEqual(r["cells"][1], r["code"])
                         self.assertEqual(r["cells"][4], str(sum(len(d[k]) for k in ("actions", "raid", "decisions"))))
-                        self.assertIn("Archive", r["buttons"])
+                        if r["code"] == "TUL":
+                            self.assertNotIn("Archive", r["buttons"], "the open project cannot be archived from the table")
+                        else:
+                            self.assertIn("Archive", r["buttons"])
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways page scroll")
                     self.assertIn("Open now", cdp.js("document.querySelector('tr[data-project=TUL]').innerText", sid))
                     self.assertNotIn("Open", cdp.js("[...document.querySelectorAll('tr[data-project=TUL] button')].map(b => b.textContent)", sid))
@@ -162,6 +165,29 @@ class Browser(unittest.TestCase):
             cdp.js("document.querySelector('tr[data-project=MOSS] [data-restore]').click()", sid)
             self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS]:not(.arch)')", "the restored row")
             self.assertEqual(self.sent[-1]["op"], "restore")
+
+    def test_the_open_project_has_no_archive_and_says_how_to_archive_it(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port, 1400)
+            self.assertEqual(cdp.js("document.querySelectorAll('tr[data-project=TUL] [data-archive]').length", sid), 0)
+            self.assertIn("Open another project to archive this one.", cdp.js("document.querySelector('tr[data-project=TUL] [data-open-note]').textContent", sid))
+            cdp.js("document.querySelector('tr[data-project=MOSS] [data-open]').click()", sid)
+            self.until(cdp, sid, "location.hash.includes('p=MOSS')", "the other project")
+            cdp.js("location.hash = '#settings&p=MOSS'", sid)
+            self.until(cdp, sid, "document.querySelector('tr[data-project=TUL] [data-archive]') && !document.querySelector('tr[data-project=MOSS] [data-archive]')", "Archive moved to the other row")
+            self.assertEqual(self.sent, [])
+
+    def test_the_heading_can_be_focused_and_the_table_is_labelled(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port, 1400)
+            self.assertEqual(cdp.js("(() => { const h = document.querySelector('#projects-h'); h.focus(); return [h.tagName, h.tabIndex, document.activeElement === h]; })()", sid), ["H2", -1, True])
+            self.assertEqual(cdp.js("document.querySelector('#projects-table').getAttribute('aria-label')", sid), "Projects")
+
+    def test_an_archive_goes_through_the_change_queue(self):
+        text = (SRC_DIR / "edit" / "Projects.jsx").read_text(encoding="utf-8")
+        self.assertIn("await enqueue(", text)
 
     def test_open_goes_to_that_project_s_dashboard(self):
         s = self.serve()

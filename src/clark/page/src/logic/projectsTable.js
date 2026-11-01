@@ -11,6 +11,7 @@ export const FAILED = "The list of projects could not be read. Reload the page. 
 export const NO_CLIENT = "—";
 export const LABELS = { open: "Open", archive: "Archive", restore: "Restore", show: "Show archived", hide: "Hide archived", tryAgain: "Try again" };
 export const OPEN_NOW = "Open now";
+export const OPEN_NOTE = "Open another project to archive this one.";
 export const ARCHIVED = "Archived";
 
 // One row of the table from a project's name and code (GET /api/projects) and its data (GET /api/data): its client's name, the names of

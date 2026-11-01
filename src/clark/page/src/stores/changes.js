@@ -53,7 +53,7 @@ async function readAgain(code, what) {
 }
 
 // Runs `task` after every earlier one has finished, whether it worked or not.
-function enqueue(task) {
+export function enqueue(task) {
   const run = tail.then(task);
   tail = run.catch(() => {});
   return run;
