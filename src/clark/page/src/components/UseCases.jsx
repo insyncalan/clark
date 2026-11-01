@@ -7,6 +7,7 @@ import { useState } from "preact/hooks";
 import { data, rows, openWork, openPeek, fromFile } from "../stores/report.js";
 import { isOpen, dueField, showDate } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
+import { Icon } from "./Icon.jsx";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -27,6 +28,11 @@ export function summary(d, all) {
   });
 }
 
+/** The reference as it is read in the small box: references that were merged ("1.3, 1.4" or "1.3 and 1.4") read "1.3 + 1.4". */
+export function refText(ref) {
+  return String(ref || "").split(/\s*(?:,|;|\+|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean).join(" + ");
+}
+
 // A row and "See all" are buttons by role, not <button> elements: a published file has no button but its tabs (and nothing in it edits).
 const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); run(); } };
 
@@ -37,7 +43,7 @@ function Row({ s, shown, toggle }) {
   return (
     <li class={`ucrow${shown ? " open" : ""}`} data-uc={u.id}>
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id} onClick={toggle} onKeyDown={(e) => press(e, toggle)}>
-        <span class="ucref num">{u.ref}</span>
+        {u.ref ? <span class="ucref num" data-ref>{refText(u.ref)}</span> : <span></span>}
         <span class="uctitle">{u.title}</span>
         <span class="uchead">{u.headline}</span>
         <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>
@@ -65,7 +71,7 @@ function Row({ s, shown, toggle }) {
   );
 }
 
-export function UseCases() {
+export function UseCases({ onExport }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
   const list = summary(d, rows.value);
   const strip = fromFile.value && d.glance && d.glance.strip;
@@ -81,6 +87,7 @@ export function UseCases() {
         <span class="meter" role="img" aria-label={STATUSES.filter(([k]) => counts[k]).map(([k]) => `${counts[k]} ${k}`).join(", ")}>
           {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
         </span>
+        {onExport ? <button type="button" class="bib ucexport" data-uc-export data-tip="Export to Excel (the use cases are one sheet of it)" aria-label="Export to Excel. The use cases are one sheet of the workbook." onClick={onExport}><Icon name="dl" /></button> : null}
       </div>
       <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} />)}</ul>
     </div>
