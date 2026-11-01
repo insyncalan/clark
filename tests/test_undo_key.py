@@ -223,6 +223,44 @@ class UndoKey(unittest.TestCase):
             self.until(cdp, sid, "/back to Urgent\\.$/.test((document.querySelector('.toast-text') || {}).textContent || '')", "still there to undo")
             self.assertEqual(self.undos_sent(), n + 1)
 
+    KEPT = ("(async () => ({local: Object.entries(localStorage), session: Object.entries(sessionStorage), cookie: document.cookie, "
+            "idb: ((await indexedDB.databases()) || []).map(d => d.name), caches: window.caches ? await caches.keys() : []}))()")
+
+    def kept(self, cdp, sid):
+        """Everything the page could keep in the browser: both storages, cookies, IndexedDB database names and caches."""
+        return cdp.call("Runtime.evaluate", {"expression": self.KEPT, "returnByValue": True, "awaitPromise": True}, sid)["result"]["value"]
+
+    def test_the_list_of_changes_is_in_memory_only(self):
+        """#279: the list the key undoes from is not sent to the server and not kept in the browser. The page is run: a change is
+        made (that request is the change itself), then the page is reloaded, and the key has nothing to undo."""
+        posts = []
+        real_post = sv.Handler.do_POST
+
+        def post(handler):
+            path = handler.path.split("?")[0]
+            if path != sv.HERE_ROUTE:                     # the page's "still here" every few seconds carries no changes
+                posts.append(path)
+            return real_post(handler)
+        with mock.patch.object(sv.Handler, "do_POST", post), chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            before = self.kept(cdp, sid)
+            self.pick(cdp, sid, "Low")
+            self.assertEqual([which for which, _ in self.sent], ["change"], "the change was sent, as it must be")
+            self.assertEqual(posts, ["/api/change"], "and nothing else was posted: the list stays on the page")
+            self.assertEqual(self.kept(cdp, sid), before, "nothing was kept in the browser")
+            cdp.js("window.__before_reload = true", sid)
+            cdp.call("Page.reload", {}, sid)
+            self.until(cdp, sid, "window.__before_reload === undefined && document.querySelectorAll('#work tbody tr').length > 0",
+                       "the page was read again")
+            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Edit shows the cells' pickers")
+            cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
+            press_z(cdp, sid, CTRL)
+            self.until(cdp, sid, f"(document.querySelector('.toast-text') || {{}}).textContent === {json.dumps(NOTHING)}",
+                       "the new page knows of no change to undo")
+            self.assertEqual((self.undos_sent(), posts, self.priority()), (0, ["/api/change"], "Low"), "and sent nothing")
+            self.assertEqual(self.kept(cdp, sid), before, "still nothing kept")
+
 
 if __name__ == "__main__":
     unittest.main()
