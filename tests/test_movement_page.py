@@ -161,6 +161,8 @@ class Base(unittest.TestCase):
 
     def open_movement(self, p):
         p.js("document.querySelector('[data-mode=edit]').click()")
+        p.until("!!document.querySelector('[data-mspv=move]')", "the Plan / Movement switch drew")
+        p.js("document.querySelector('[data-mspv=move]').click()")
         p.until("!!document.querySelector('#movement .mvm-sentence')", "Movement drew")
 
     def toast(self, p):
@@ -195,6 +197,27 @@ class Block(Base):
             self.assertEqual(p.js("document.querySelector('#mv-why').textContent"), "This milestone hasn't slipped, so its agreed date can't be moved yet.")
             p.js("document.querySelector('[data-mode=view]').click()")
             p.until("!document.querySelector('#movement')", "View removes it")
+
+    def test_plan_movement_switch_is_edit_only_and_remembered(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertEqual(p.js("!!document.querySelector('[data-mspage-switch]')"), False, "View has no switch")
+            p.js("document.querySelector('[data-mode=edit]').click()")
+            p.until("!!document.querySelector('[data-mspage-switch]')", "Edit has the switch")
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-mspv]')].map(b => b.textContent)"), ["Plan", "Movement"])
+            self.assertEqual(p.js("document.querySelector('[data-mspv=plan]').getAttribute('aria-pressed')"), "true")
+            self.assertEqual(p.js("!!document.querySelector('.msv') && !document.querySelector('#movement')"), True, "Plan shows the milestones, not Movement")
+            self.assertIn("Every milestone sits on the line", p.js("document.querySelector('[data-mspage-hint]').textContent"))
+            p.js("document.querySelector('[data-mspv=move]').click()")
+            p.until("!!document.querySelector('#movement .mvm-sentence')", "Movement drew")
+            self.assertEqual(p.js("!document.querySelector('.msv')"), True, "Movement replaces the Plan")
+            self.assertEqual(p.js("document.querySelector('[data-mspv=move]').getAttribute('aria-pressed')"), "true")
+            self.assertIn("never published", p.js("document.querySelector('#movement').textContent"))
+            self.assertIn("Undo", p.js("document.querySelector('[data-mspage-hint]').textContent"))
+            p.js("document.querySelector('[data-mspv=plan]').click()")
+            p.until("!!document.querySelector('.msv') && !document.querySelector('#movement')", "back to the Plan")
+            p.js("document.querySelector('[data-mode=view]').click()")
+            p.until("!document.querySelector('[data-mspage-switch]') && !!document.querySelector('.msv')", "View is the Plan alone")
 
     def test_hold_is_recorded_with_its_toast_and_undo(self):
         with chrome() as cdp:
@@ -304,6 +327,8 @@ class Block(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.js("document.querySelector('[data-mode=edit]').click()")
+            p.until("!!document.querySelector('[data-mspv=move]')", "the switch is there")
+            p.js("document.querySelector('[data-mspv=move]').click()")
             p.until("!!document.querySelector('#movement')", "the block is there")
             self.assertEqual(p.js("document.querySelector('#movement [role=status]').textContent"), "Loading Movement.")
             self.fail_read = True
