@@ -12,8 +12,10 @@ import contextlib
 import json
 import re
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _demo import USER
 from _paths import ROOT, SRC
@@ -46,6 +48,21 @@ def bare_page():
         _PAGE["html"] = (f'<!doctype html>\n<html lang="en-GB"><head><meta charset="utf-8"><title>t</title></head>\n'
                          f'<body><div id="root"></div>\n<script>{script}</script>\n</body></html>\n')
     return _PAGE["html"]
+
+
+PURE_LIBRARY = ("base64", "binascii", "re")      # #96: standard library parts that read no file and no database
+STUBS = tuple(t for t in section_kinds.TYPES if not section_kinds.REGISTRY[t].READY)   # the real stubs left (none once every template is built)
+STAND_IN = "callout"      # a real type that a test turns back into a stub, while no real stub is left
+
+
+@contextlib.contextmanager
+def fake_stub(kind=STAND_IN):
+    """`kind` is a stub for the length of the block, as base.py's stub contract writes one: any body passes the generic walls and
+    nothing of it is ever published. Patches the registry and the tables section_bodies builds from it, and puts them back."""
+    stub = types.SimpleNamespace(READY=False, LIMIT=base.STUB_LIMIT, EMPTY="", check=base.stub_check, published=base.stub_published)
+    with mock.patch.dict(section_kinds.REGISTRY, {kind: stub}), mock.patch.dict(section_bodies.CHECKERS, {kind: stub.check}), \
+            mock.patch.dict(section_bodies.EMPTY, {kind: stub.EMPTY}), mock.patch.dict(section_bodies.LIMITS, {kind: stub.LIMIT}):
+        yield kind
 
 
 def schema_types():
@@ -87,7 +104,7 @@ class PythonSide(unittest.TestCase):
 
     def test_a_template_saved_through_the_change_route_fits_its_limit(self):
         """The route's body limit is above the largest content (with room for the request around it and its escaping)."""
-        biggest = max(m.LIMIT for m in section_kinds.REGISTRY.values())
+        biggest = max(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_kinds.REGISTRY.values())   # a picture template's words; its pictures come by their own route
         limit = sv.ROUTE_BODY_LIMITS["/api/change"]
         self.assertEqual(limit, 2 * biggest + 4 * 1024)
         # worst case: a stored body of quotes and backslashes, escaped once in the stored text and again as a string in the request
@@ -132,27 +149,35 @@ class PythonSide(unittest.TestCase):
             tree = ast.parse(f.read_text(encoding="utf-8"))
             used = {n.module or "" for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)} | \
                    {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
-            self.assertTrue(all(u.startswith("clark.section_kinds") for u in used), (f.name, used))
+            self.assertTrue(all(u.startswith("clark.section_kinds") or u in PURE_LIBRARY for u in used), (f.name, used))
 
 
 class StubNeverPublished(Api):
+    """Every real stub, or (once every template is built) a real type turned back into a stub for the test (fake_stub)."""
+
+    def setUp(self):
+        super().setUp()
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.stubs = STUBS or (stack.enter_context(fake_stub()),)
+
     def test_a_stub_section_with_a_body_is_left_out_of_the_file_and_its_neighbour_takes_the_full_row(self):
-        for t in section_kinds.TYPES:
+        for t in self.stubs:
             with self.subTest(type=t):
                 made = self.ok("new", values={"type": t, "title": f"Fictional {t}"}, after=None)["ref"]
                 status, got = self.change(self.req(changes.UPDATE, id=made, changes={"body": json.dumps({"v": 1, "words": ["Fictional words"]})}))
                 self.assertEqual(status, 200, got)
         built = publish.build(self.s, "ABC", now="2030-01-15")
-        types = {s["type"] for s in built["published"]["sections"]}
-        self.assertEqual(types & set(section_kinds.TYPES), set(), "no stub section is in the file")
+        kinds = {s["type"] for s in built["published"]["sections"]}
+        self.assertEqual(kinds & set(self.stubs), set(), "no stub section is in the file")
         text = built["body"].decode("utf-8")
         self.assertNotIn("Fictional words", text)
-        for t in section_kinds.TYPES:
+        for t in self.stubs:
             self.assertNotIn(f"Fictional {t}", text)
 
     def test_a_pair_with_a_stub_half_is_not_a_pair_in_the_file(self):
         text_ref = self.ok("new", values={"type": "text", "title": "Fictional notes"}, after=None)["ref"]
-        stub_ref = self.ok("new", values={"type": "callout", "title": "Fictional callout"}, after=text_ref, beside=1)["ref"]
+        stub_ref = self.ok("new", values={"type": self.stubs[0], "title": "Fictional stub"}, after=text_ref, beside=1)["ref"]
         self.change(self.req(changes.UPDATE, id=stub_ref, changes={"body": json.dumps({"v": 1})}))
         con_rows = {r["id"]: r for r in self.s.read("report_sections", "ABC")}
         self.assertEqual(con_rows[text_ref]["beside"], 1, "the two share a row in the report")
@@ -352,30 +377,41 @@ class PageSide(unittest.TestCase):
 
 
 class InThePage(PageBase):
-    """A stub section in the page clark serves: Edit shows its labelled empty state; View leaves it out, as the file does."""
+    """A stub section in the page clark serves: Edit shows its labelled empty state; View leaves it out, as the file does. Once
+    every template is built no stub is left to place, so the served page carries no stub part, and an empty template section
+    (one with no content yet) is what View leaves out instead."""
 
-    def add_stub(self, kind="callout", title="Fictional callout"):
+    def add_section(self, kind, title):
         with self.store.step("dashboard", USER) as st:
             return st.create("report_sections", {"project": "ABC", "type": kind, "title": title, "sort_order": 999})
 
     def test_view_leaves_a_stub_out_and_edit_shows_its_empty_state_in_words(self):
-        ref = self.add_stub()
+        kind = STUBS[0] if STUBS else STAND_IN
+        ref = self.add_section(kind, "Fictional section")
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(ref)}]')"), "View: a stub is not shown")
-            self.assertNotIn("Fictional callout", p.js("document.querySelector('#report').textContent"))
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(ref)}]')"), "View: a stub or an empty template is not shown")
+            self.assertNotIn("Fictional section", p.js("document.querySelector('#report').textContent"))
             p.edit()
-            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-stub')", "Edit: the stub's empty state")
-            self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-stub').textContent"),
-                             "This template can't be filled in yet. It stays out of the published page, so you can remove it or keep it for later.")
-            self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}]').dataset.type"), "callout")
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}]')", "Edit: the section is there to fill in")
+            self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}]').dataset.type"), kind)
+            stub_shown = p.js(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-stub')")
+            if STUBS:
+                p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-stub')", "Edit: the stub's empty state")
+                self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-stub').textContent"),
+                                 "This template can't be filled in yet. It stays out of the published page, so you can remove it or keep it for later.")
+            else:
+                self.assertFalse(stub_shown, "a built template shows its own Edit part, never the stub's words")
             p.view()
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(ref)}]')"))
 
     def test_the_published_page_carries_no_template_edit_part(self):
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
         served = (SRC / "clark" / "page" / "page.html").read_text(encoding="utf-8")
-        self.assertIn("can't be filled in yet", served)
+        if STUBS:
+            self.assertIn("can't be filled in yet", served)
+        else:
+            self.assertNotIn("can't be filled in yet", served, "no template is a stub, so the stub's Edit part is not in the page")
         self.assertNotIn("can't be filled in yet", view)
         self.assertNotIn("tpl-stub", view)
 

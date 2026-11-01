@@ -21,6 +21,9 @@ def check(kind, body):
     return sb.check(kind, body, BODY_RULES)
 
 
+PURE_LIBRARY = ("base64", "binascii", "re")      # #96: standard library parts that read no file and no database
+
+
 class Registry(unittest.TestCase):
     def test_one_checker_per_content_type_keyed_by_type(self):
         self.assertEqual(set(sb.CHECKERS), set(TYPES))
@@ -40,7 +43,7 @@ class Registry(unittest.TestCase):
             tree = ast.parse(f.read_text(encoding="utf-8"))
             used = {n.module or "" for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)} | \
                    {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
-            self.assertTrue(all(m.startswith("clark.section_kinds") for m in used), (f.name, used))
+            self.assertTrue(all(m.startswith("clark.section_kinds") or m in PURE_LIBRARY for m in used), (f.name, used))
 
     def test_a_type_with_no_checker_has_no_content(self):
         for kind in ("text", "raid", "docs", "other"):
