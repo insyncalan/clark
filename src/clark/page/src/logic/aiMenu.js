@@ -76,6 +76,14 @@ export function menu(place) {
   };
 }
 
+// Whether the AI is offered in a place. The email place is offered only when the recipient is known to be on one of the user's own
+// domains: `outside` is the Draft email route's own answer (draft_email.is_outside), and anything but false (not known, no address)
+// counts as outside. Every other place is always offered. The server holds the same rule (ai_menu.place_offered).
+export const placeOffered = (place, outside) => placeKnown(place) && (place !== "email" || outside === false);
+
+// menu(place), or null when the AI is not offered there.
+export const menuFor = (place, outside) => (placeOffered(place, outside) ? menu(place) : null);
+
 // The name an option is shown under (the card's heading). Ask… shows the person's own words, cut short.
 export function optionName(option, instruction) {
   if (option === "custom") {
