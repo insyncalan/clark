@@ -201,6 +201,15 @@ def open_data(folder, onedrive_roots):
     except OSError as e:
         raise Quiet(f"The data folder {folder} can't be made ({backup.plain_reason(e)}). Check you may write there, or choose "
                     f"another folder with --data.") from e
+    platform.hold_data_lock(folder)                       # a second clark on this folder is refused here, before the database is touched
+    try:
+        return _open_store(folder, onedrive_roots)
+    except BaseException:
+        platform.release_data_lock(folder)
+        raise
+
+
+def _open_store(folder, onedrive_roots):
     try:
         return clark_store.open_store(folder / DB_NAME, onedrive_roots=onedrive_roots)
     except clark_store.Unfinished as e:                   # its own words say where the database you had is (F1)
@@ -258,17 +267,24 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
             print(backup.RESTORE_HELP, file=out, flush=True)
             return 0
         database = folder / DB_NAME
+        locked = folder.is_dir()
+        if locked:
+            platform.hold_data_lock(folder, restoring=True)       # a clark open on this folder refuses the restore, before the database is touched
         held = None
-        if database.exists() and database.stat().st_size > 0:        # never open an empty file: that would build a new database in it
-            try:
-                held = clark_store.open_store(database, onedrive_roots=onedrive_roots)
-            except clark_store.Invalid:
-                held = None                   # too damaged to open: that is when a restore is needed, and it is moved aside whole
         try:
-            done = backup.restore_path(database, args.name, folder / "backups", onedrive_roots, held)
+            if database.exists() and database.stat().st_size > 0:    # never open an empty file: that would build a new database in it
+                try:
+                    held = clark_store.open_store(database, onedrive_roots=onedrive_roots)
+                except clark_store.Invalid:
+                    held = None               # too damaged to open: that is when a restore is needed, and it is moved aside whole
+            try:
+                done = backup.restore_path(database, args.name, folder / "backups", onedrive_roots, held)
+            finally:
+                if held is not None:
+                    held.close()
         finally:
-            if held is not None:
-                held.close()
+            if locked:
+                platform.release_data_lock(folder)
         if not done["replaced"]:
             where = ""
         elif done["backed_up"]:
@@ -292,11 +308,12 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
 
 
 def use_case_ids_on_file(store):
-    """The rule for Use Cases' on_dashboard, as a function of the project code: today publish.select's own choice. When
-    publish.client_use_cases exists (#168) this is the one place to point at it."""
+    """The rule for Use Cases' on_dashboard, as a function of the project code: the use cases the published file's Use Cases
+    tab carries, which publish.client_use_cases decides (select stores its answer as use_case_pages). The route never
+    repeats the rule."""
     def ids(code):
         chosen = publish.select(publish.read_inputs(store, code))
-        return {u["id"] for u in chosen["data"]["use_cases"]}
+        return {p["id"] for p in chosen["data"]["use_case_pages"]}
     return ids
 
 
@@ -416,6 +433,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
             logging.getLogger("clark").removeHandler(handler)
         if store is not None:
             store.close()
+            platform.release_data_lock(store.path.parent)
         if scratch is not None:
             shutil.rmtree(scratch, ignore_errors=True)
 

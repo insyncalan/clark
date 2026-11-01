@@ -20,6 +20,7 @@ import test_ask_passages as tp
 import test_ask_route as tr
 import test_docx_read as tdx
 from clark import ask, ask_passages, ask_service, secret_screen, store as st
+from _growth import assert_growth
 
 PW = "Hunt" + "er2-Zq-99x"
 FAMILIES = {
@@ -63,27 +64,6 @@ FAMILIES = {
     "quoted passphrase with spaces": "pass" + 'word = "correct horse 9 battery"',
     "long token near a word": "the api " + "key is " + "Xk9" + "Qm2Lp7" * 5 + "Zt4Rw8Vb1Nc",
 }
-
-GROWTH_LIMIT = 3.5      # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8. Above 3.5 means the work is growing faster than linear (a square fails; linear measures 1.8 to 2.2).
-GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
-
-
-def growth_ratio(work, n, tries=3):
-    """Time work(n) and work(2 * n) in CPU time (time.process_time, so a busy machine does not count against it), best of
-    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR))."""
-    import time
-
-    def best(size):
-        found = None
-        for _ in range(tries):
-            start = time.process_time()
-            work(size)
-            spent = time.process_time() - start
-            found = spent if found is None else min(found, spent)
-        return found
-    small, big = best(n), best(2 * n)
-    return small, big, big / max(small, GROWTH_FLOOR)
-
 
 class Screen(unittest.TestCase):
     def test_each_family_is_caught(self):
@@ -129,7 +109,7 @@ class Screen(unittest.TestCase):
         self.assertTrue(secret_screen.looks_like_secret(text))
 
     # The old check was a wall-clock limit (VERY_LARGE_OLD_LIMIT, 30 s, for the full-size texts); a loaded runner took 74.6 s. It is now the
-    # growth from n to 2n in CPU time, with the same ten shapes at n tenths of the old size. Kept as documentation, no longer asserted.
+    # growth from n to 4n in CPU time, with the same ten shapes at n tenths of the old size. Kept as documentation, no longer asserted.
     VERY_LARGE_OLD_LIMIT = 30
 
     def test_a_very_large_text_is_screened_quickly(self):
@@ -139,19 +119,13 @@ class Screen(unittest.TestCase):
                          "a://" * (25_000 * tenths), "http://" + "a" * (100_000 * tenths), "x://a:" + "b" * (100_000 * tenths),
                          "authorization: " + " " * (100_000 * tenths)):
                 secret_screen.looks_like_secret(text)
-        small, big, ratio = growth_ratio(work, 1)
-        print("very large text: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (small, big, ratio))
-        self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
+        assert_growth(self, work, 1, "very large text")
 
     def test_a_run_of_key_words_takes_time_that_grows_with_the_size(self):
-        def took(n):
-            start = time.monotonic()
-            secret_screen.looks_like_secret("token" * n)
-            return time.monotonic() - start
-        took(1000)
-        small, big = took(8000), took(64000)                     # eight times the text: a square would take sixty-four times
-        self.assertLess(big, max(small * 24, 2.0))
-        self.assertLess(took(200000), 30)
+        # The old check was wall-clock: eight times the text had to take under 24 times as long (or 2 s), and 200,000 words under 30 s.
+        # It is now the growth from n to 4n in CPU time, over 16,000 to 400,000 words.
+        for n in (16000, 100000):
+            assert_growth(self, lambda size: secret_screen.looks_like_secret("token" * size), n, "key words %d" % n)
 
     def test_many_ordinary_long_runs_are_not_a_secret(self):
         import uuid
@@ -171,8 +145,120 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_a_letters_only_quoted_password_is_refused(self):
+        word = "orange" + "bicycle"
+        for q1, q2 in (('"', '"'), ("'", "'"), ("`", "`"), ("\u201c", "\u201d"), ("\u2018", "\u2019")):
+            for lead in ("password: ", "pwd=", "passphrase: ", "secret: ", "pw = ", "the password is ", "The wifi password was ", "password "):
+                with self.subTest(lead + q1):
+                    self.assertTrue(secret_screen.looks_like_secret(lead + q1 + word + q2))
+        self.assertTrue(secret_screen.looks_like_secret("Notes.\nPassword: \"" + "swordfish" + "\" (shared)"))
+
+    def test_a_short_or_unquoted_word_after_a_password_word_is_not_refused(self):
+        for text in ('password "ok"', 'the password "must" be long', "password: reset", "the password policy is reviewed each year",
+                     'the token "refresh" is renewed', 'a "required" field', 'pass `revert` to the call', 'password: "two words here"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_near_misses_of_the_quoted_letters_rule_pass(self):
+        """The key word must start a word, a bare secret needs a connector, the two quotes must be one pair, and a config's own
+        placeholder values are not passwords."""
+        for text in ('password "abcde"', "Secretary 'Harrington'", 'secrets: "inherit"', 'the secret "ingredient"', 'password: "string"',
+                     'click "Forgot password" "Submit"', "the password is 'orangebicycle\"", 'secret "orangebicycle"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_a_prefixed_or_suffixed_key_word_with_a_quoted_letters_value_is_refused(self):
+        """The commonest config shapes: a prefix such as DB_ or client_, camel case, and a suffix that still names the secret."""
+        word = "orange" + "bicycle"
+        for key in ("DB_PASSWORD=", "client_secret: ", "db_password: ", "userPassword: ", "mysql_pwd=", "admin_pw: ", "api_secret=",
+                    "secret_key: ", "clientSecret = ", "DB_PASSWORD_PROD=", "password_new: ", '"db_password": '):
+            with self.subTest(key):
+                self.assertTrue(secret_screen.looks_like_secret(key + '"' + word + '"'))
+                self.assertTrue(secret_screen.looks_like_secret(key + "'" + word + "'"))
+
+    def test_the_false_refusals_of_ordinary_text_pass(self):
+        """A word that only starts with a key word, a setting about a secret, a heading, and another language's word are not secrets."""
+        for text in ("Secretary 'Clinton' arrived", 'the secret "ingredient"', 'password: "string"', 'secretName: "postgres"', 'secrets: "inherit"',
+                     'secreto "abierto"', 'password_auth: "enabled"', 'Subject: Password "Expired"', 'password_hint: "favourite"',
+                     'passwords: "abcdefgh"', 'secretary: "Harrington"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_a_letters_only_value_in_another_alphabet_of_letters_is_refused(self):
+        self.assertTrue(secret_screen.looks_like_secret('password is "contrase\u00f1a"'))
+
+    def test_six_letters_are_refused_and_five_are_not(self):
+        self.assertTrue(secret_screen.looks_like_secret('password "abcdef"'))
+        self.assertFalse(secret_screen.looks_like_secret('password "abcde"'))
+        self.assertTrue(secret_screen.looks_like_secret('the secret is "orangebicycle"'))
+        self.assertTrue(secret_screen.looks_like_secret('"password": "orangebicycle"'))
+
     def test_the_address_shape_still_finds_an_address(self):
         self.assertTrue(secret_screen.looks_like_secret("see s3://user:" + PW + "@host/x"))
+
+    def test_encoded_and_other_language_forms_are_caught(self):
+        import base64
+        import urllib.parse
+        line = "pass" + "word=" + PW
+        for name, text in (("base64", base64.b64encode(line.encode()).decode()),
+                           ("url-encoded", "q=" + urllib.parse.quote(line, safe="")),
+                           ("url-encoded and quoted", urllib.parse.quote("pass" + 'word: "' + PW + '"', safe="")),
+                           ("German", "Pass" + "wort: " + PW), ("German quoted", "Kenn" + 'wort = "' + PW + '"'),
+                           ("French", "mot de " + "passe : " + PW), ("Spanish", "contra" + "seña: " + PW),
+                           ("Russian", "пар" + "оль: " + PW), ("Arabic", "كلمة " + "المرور: " + PW),
+                           ("short secret key", "SECRET" + "_KEY=" + "ab12cd34ef56gh7")):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.looks_like_secret("Notes.\n" + text + "\nMore notes."))
+
+    def test_a_secret_in_a_file_name_is_caught(self):
+        for name in ("notes-pass" + "word-" + PW.replace("-", "") + ".txt", "pass" + "word=" + PW + ".md"):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.name_looks_like_secret("saved/" + name))
+        for name in ("pass" + "word-reset-2026.docx", "Q4 plan v2.docx", "token_policy.md", "secret santa list.txt"):
+            with self.subTest(name):
+                self.assertFalse(secret_screen.name_looks_like_secret("saved/" + name))
+
+    def test_the_listed_ordinary_names_are_accepted(self):
+        for name in ("secret_santa2025.xlsx", "secret_santa", "Secretary="):
+            with self.subTest(name):
+                self.assertFalse(secret_screen.name_looks_like_secret("saved/" + name))
+
+    def test_real_looking_passwords_in_names_and_text_are_still_refused(self):
+        for name in ("pass" + "word-Sunshine2026.txt", "pwd_Winter2024.docx", "token-AbCd2024EfGh.txt", "pass" + "word-ab2019cd",
+                     "secret_santa_key=Hunter2xyz9", "Secretary=Hunter2xyz9", "secretly_key=Hunter2xyz9", "SecretaryKey=Hunter2xyz9",
+                     "secret_santa2025_Hunter2xyz9.txt", "notes-secret_santa2025.xlsx", "secret_santa2025x.xlsx", "secret_santaHunter2xyz9.txt", "secret-Hunter2xyz9.txt", "token_Hunter2xyz9.md",
+                     "pin-Hunter2026x9.txt", "password.Hunter2xyz9.txt", "Kenn" + "wort_Hunter2xyz9.docx",
+                     "notes-pass" + "word-" + PW.replace("-", "") + ".txt", "api_key_rotation2026.md", "pin_board2026.docx"):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.name_looks_like_secret("saved/" + name))
+        for text in ("SECRET" + "_KEY=" + "ab12cd34ef56gh7", "client_" + "secret: " + PW, "secret" + "Key=Hunter2xyz9",
+                     "my_secret_value=Hunter2xyz9", "secrets: Hunter2xyz9", "Secret: Hunter2xyz9", "api_key_rotation=" + PW * 2,
+                     "pass" + "word: Sunshine2026", "Pass" + "word=Summer2025", "Secretary=Jane2026x", "secret_santa: round2025"):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+
+    def test_hidden_character_and_double_encoded_passwords_are_caught(self):
+        for name, text in (("zero-width space, encoded", "pass%E2%80%8Bword%3D" + PW),
+                           ("encoded twice", "pass" + "word%253D" + PW), ("encoded twice, plus form", "pass" + "word%253D" + PW.replace("-", "%252D"))):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.looks_like_secret("q=" + text))
+
+    def test_other_languages_act_like_english_on_a_word_after_the_key_word(self):
+        for text in ("pass" + "word: see below", "Sen" + "ha: ver abaixo", "Has" + "ło: patrz niżej"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+        for text in ("pass" + "word: (see below)", "Sen" + "ha: (ver abaixo)"):
+            with self.subTest(text):
+                self.assertEqual(secret_screen.looks_like_secret(text), True)
+
+    def test_the_other_spelling_of_the_spanish_word_is_caught(self):
+        self.assertTrue(secret_screen.looks_like_secret("contra" + "senna: " + PW))
+
+    def test_forms_not_screened_on_purpose_stay_clean(self):
+        for text in ("The token: 2026 plan covers three workstreams.", "Mot de " + "passe oublié ? Cliquez ici.",
+                     "100% done, 50%25 left", "token: ab12cd34 ef56gh78", "secret: ab12cd"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
 
 
 class FromFolders(tp.Folders):
@@ -193,6 +279,12 @@ class FromFolders(tp.Folders):
         self.assertEqual(got.passages, ())
         self.assertEqual(sorted(got.secret_labels), ["saved/split.docx", "saved/w.docx"])
 
+    def test_a_file_whose_name_holds_a_secret_is_left_out(self):
+        self.put(self.box, "notes-pass" + "word-" + PW.replace("-", "") + ".txt", "ZQ-NAME the plan is fine")
+        got = self.run_it()
+        self.assertNotIn("ZQ-NAME", self.text_of(got))
+        self.assertEqual(got.safety, 1)
+
     def test_a_normal_file_is_unchanged(self):
         self.put(self.box, "a.md", "ZQ-A Release 2.5.1 on 31-10-2026; token: 2026 plan.")
         got = self.run_it()
@@ -200,12 +292,14 @@ class FromFolders(tp.Folders):
         self.assertEqual((got.safety, got.secret_labels), (0, ()))
 
     def test_a_secret_far_down_a_long_file_is_still_found_and_it_is_fast(self):
-        self.put(self.box, "long.txt", "plain words here\n" * 40000 + "pass" + "word=" + PW)
-        start = time.monotonic()
-        got = self.run_it()
-        self.assertLess(time.monotonic() - start, 30)
-        self.assertEqual(got.passages, ())
-        self.assertEqual(got.secret_labels, ("saved/long.txt",))
+        # The old check was wall-clock (30 s for 40,000 lines); the secret must still be found at both sizes, and the growth from 10,000 to
+        # 40,000 lines in CPU time is judged by growth_ratio.
+        def work(lines):
+            self.put(self.box, "long.txt", "plain words here\n" * lines + "pass" + "word=" + PW)
+            got = self.run_it()
+            self.assertEqual(got.passages, ())
+            self.assertEqual(got.secret_labels, ("saved/long.txt",))
+        assert_growth(self, work, 10000, "long file")
 
     def test_removing_the_screen_lets_the_secret_through(self):
         self.put(self.box, "s.txt", "ZQ-S pass" + "word=" + PW)
@@ -233,26 +327,6 @@ class OnTheRoute(tp.OnTheRoute):
         self.assertGreaterEqual(got["left_out_for_safety"], 2)
         for blob in (json.dumps(got), "\n".join(logs.output)):
             self.assertNotIn(PW, blob)
-
-
-class TheGrowthCheckTellsLinearFromCubic(unittest.TestCase):
-    """The helper above is only worth trusting if it passes a linear cost and fails a cubic one (known pure-Python costs)."""
-    def test_linear_work_passes_and_cubic_work_fails_the_limit(self):
-        def linear(n):
-            total = 0
-            for i in range(n * 400000):
-                total += i
-            return total
-
-        def cubic(n):
-            total = 0
-            for i in range(n):
-                for j in range(n):
-                    for k in range(n):
-                        total += 1
-            return total
-        self.assertLessEqual(growth_ratio(linear, 3)[2], GROWTH_LIMIT)
-        self.assertGreater(growth_ratio(cubic, 160)[2], GROWTH_LIMIT)
 
 
 if __name__ == "__main__":
