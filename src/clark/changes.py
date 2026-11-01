@@ -15,16 +15,21 @@ What it does, and does not:
   does ALL its work under one lock: for an undo, the check that the step is the report's and the undo itself are one
   does not make an empty database, when clark.db isn't there.
 - The reply carries only what the page needs of each section: id, type, title, beside, hidden, sort_order. Never its body.
+- A section may be added as text, needs or tracker (NEW_SECTION_TYPES, an allow-list). An update may write `body` only for a
+  needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type; each save replaces
+  the whole body in one step with one Undo. A needs or tracker section may be deleted like a text one (Undo-able, kept in
+  change_log): "we archive, we never delete" is about work items and is not breached.
 
 `change(req)` and `undo(req)` return (status, body); the server sends them. make_change / make_undo build them for one
 database file; the launcher passes those to server.serve. Standard library only, Python 3.9.
 """
 import re
 import threading
+from contextlib import contextmanager
 import unicodedata
 from pathlib import Path
 
-from clark import backup, milestone_rows, milestones, order, platform, sanitise
+from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies
 from clark import store as clark_store
 from clark.store import Invalid
 
@@ -39,7 +44,7 @@ NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK = "new update move delete arch
 NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a report row can be added to (use cases: never from here)
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 CHANGE_KINDS = {
-    "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside"), MOVE: ("beside",), DELETE: ()},
+    "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood; `archived` is in no list.
@@ -105,10 +110,12 @@ OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "be
            ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",)}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
 MAX_FLAGS = 4                             # a move may set the `beside` of at most this many sections (the moved one, its old partner, its new one, the one before)
-PLACES = tuple(p for p in ("menu", "cell", "report", "board") if p in clark_store.PLACES)   # where the change was made (the step's place); "board" counts once the store knows it
+PLACES = tuple(p for p in ("menu", "cell", "report", "board", "peek", "eye", "draft", "email", "text") if p in clark_store.PLACES)   # where the page says the change was made (the step's place); #123: + peek, eye, draft, email, text. Not bulk, dashboard, excel or ask: no screen of the page is those (ask clark and Excel import write through their own routes)
 MOVEMENT_PLACE = "movement"               # #136: a Movement change is written as place "dashboard" with the src_ref "Movement" (no schema change)
 MADE_OP = clark_store.OP_MADE            # the log's word for a row a step made: the store's own constant
 VIA = "dashboard"                         # the route of every step made here; an undo is never undone from here
+ASSISTANT = "assistant"                   # #47e: the route of a step ask clark makes (make_ask_change); history says "via ask clark"
+ASK_ACTOR = "clark"                       # #47e: and its actor (store.ACTORS)
 SHOWN = ("id", "type", "title", "beside", "hidden", "sort_order")      # what a reply says of a section: never its body
 DEFAULT_TITLE = "New section"             # the title of a section added with none (server side: the page need not send one)
 LOCK = threading.Lock()                   # one change or undo at a time in this process; across processes the store's
@@ -182,7 +189,10 @@ UC_HEADLINE_WORDS = f"A headline can be at most {UC_HEADLINE_LIMIT} characters, 
 UC_STATUS_WORDS = "A use case's status can be On track, Flag or High risk."
 UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
-ONLY_TEXT = "Only a text section can be added."
+NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new section may be: an allow-list, never the request's own spelling
+NEW_TYPE_WORDS = "That kind of section can't be added."
+NO_BODY_HERE = "That kind of section can't take content this way."
+BODY_NOT_TEXT = "A section's content must be sent as text."
 KEEPS_TYPE = "A section keeps its type."
 FLAG_WORDS = "That must be 0 or 1."
 NO_UNDO = "That step can't be undone from here."
@@ -326,11 +336,30 @@ def _store_words(e):
 
 
 def _checked_changes(fields):
-    """An update's fields with their values checked: the title as the store keeps it, a flag as 0 or 1."""
+    """An update's fields with their values checked: the title as the store keeps it, a flag as 0 or 1, a body as text (what
+    the body holds is checked by the checker of the stored section's type, inside the step: see _section_body)."""
     out = {}
     for k, v in fields.items():
-        out[k] = _flag(v) if k in FLAG_FIELDS else clark_store.section_title(v)
+        if k == "body":
+            if not isinstance(v, str):
+                raise Refused(BODY_NOT_TEXT)
+            out[k] = v
+        else:
+            out[k] = _flag(v) if k in FLAG_FIELDS else clark_store.section_title(v)
     return out
+
+
+def _section_body(section, body):
+    """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
+    (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
+    takes a body here; a text section's body write stays closed until its own item opens it. A refusal is plain words and never
+    quotes the content. The store checks it again on write (every write, an Undo too)."""
+    if section["type"] not in section_bodies.CHECKERS:
+        raise Refused(NO_BODY_HERE)
+    try:
+        return clark_store.check_section_body(section["type"], body)
+    except Invalid as e:
+        raise Refused(str(e)) from None
 
 
 # ── The change ────────────────────────────────────────────────────────────────
@@ -466,8 +495,9 @@ def _do_change(store, by_user, req):
     changes = None
     if op == NEW:
         values = _fields(req.get("values"), kind, op, columns, "the new section's values")
-        if values.get("type", "text") != "text":
-            raise Refused(ONLY_TEXT)
+        new_type = next((t for t in NEW_SECTION_TYPES if t == values.get("type", "text")), None)    # the allow-list's own spelling
+        if new_type is None:
+            raise Refused(NEW_TYPE_WORDS)
         title = clark_store.section_title(values["title"]) if "title" in values else DEFAULT_TITLE
         after = _id_or_none(req.get("after"), STALE)
         beside = _flag(req["beside"]) if "beside" in req else 0
@@ -493,12 +523,14 @@ def _do_change(store, by_user, req):
                 _mine(after, ids, STALE)
                 if not _on_its_own(rows, after):
                     raise Refused(STALE)                            # it has a partner now: nothing is written, the page redraws
-            ref = _add(st, project, rows, ids, title, after)
+            ref = _add(st, project, rows, ids, title, after, new_type)
             if beside:
                 st.update(table, after, {"beside": 1})              # the same step: one Undo removes the section and the pairing
         else:
             _mine(ref, ids, NOT_MINE)
             if op == UPDATE:
+                if "body" in changes:                               # read from the stored section inside the step, so the body meets its own type's checker
+                    changes["body"] = _section_body(next(r for r in rows if r["id"] == ref), changes["body"])
                 st.update(table, ref, changes)
             elif op == MOVE:
                 if before is not None:
@@ -1031,8 +1063,9 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
                  "project": {"health": now["health"], "health_reason": now["health_reason"]}}
 
 
-def _add(st, project, rows, ids, title, after):
-    """Make a text section just after section `after` (None: at the end); its id. When no whole number fits between its
+def _add(st, project, rows, ids, title, after, kind="text"):
+    """Make a section of type `kind` (text, needs or tracker) just after section `after` (None: at the end); its id. A needs or
+    tracker section starts with the body the registry gives it (section_bodies.EMPTY), never one from the request. When no whole number fits between its
     neighbours, the rows are renumbered in the same step (clark.order)."""
     if after is not None:
         _mine(after, ids, STALE)
@@ -1042,7 +1075,8 @@ def _add(st, project, rows, ids, title, after):
         probe = rows + [{"id": "", "sort_order": end}]              # the new row, at the end, then moved up to its place
         renumber = order.section_slot(probe, "", ids[ids.index(after) + 1])
         new_place = renumber.pop("", end)
-    ref = st.create("report_sections", {"project": project, "type": "text", "title": title, "sort_order": new_place})
+    start = {"body": section_bodies.EMPTY[kind]} if section_bodies.EMPTY.get(kind) else {}
+    ref = st.create("report_sections", {"project": project, "type": kind, "title": title, "sort_order": new_place, **start})
     for other, place in renumber.items():
         st.update("report_sections", other, {"sort_order": place})
     return ref
@@ -1106,7 +1140,7 @@ def _eligible(rows, project):
         return (r["table"] == "decisions" and bool(items["decisions"].fullmatch(str(r["key"])))
                 and (r.get("op") == MADE_OP or r.get("field") in ("client_visible", "updated_at")))
     if any(r["table"] == "milestones" and r.get("op") != MADE_OP and r.get("field") in CHANGE_KINDS["milestones"][UPDATE] for r in rows):
-        return all(r["via"] == VIA and movement_row(r) for r in rows)      # nothing else in it: not a mix of families
+        return all(r["via"] in (VIA, ASSISTANT) and movement_row(r) for r in rows)      # nothing else in it (#47e: ask clark's step too)
 
     def of_item(r):
         return r["table"] in items and bool(items[r["table"]].fullmatch(str(r["key"]))) and (r["table"], str(r["key"])) not in flagged
@@ -1124,9 +1158,9 @@ def _eligible(rows, project):
     picked = any(r.get("field") == "note" and r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"]))) for r in rows)
     if (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
         return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA) and pick_row(r) for r in rows)
-    if any(item_field_row(r) for r in rows):                        # a step of work-item fields: nothing else in it
-        return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA)
-                   and (item_field_row(r) or item_stamp_row(r)) for r in rows)
+    if any(item_field_row(r) for r in rows):                        # a step of work-item fields: nothing else in it (#47e: ask clark's too)
+        return all((r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
+                   and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r)) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
     page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "note"))
                       for r in rows)
@@ -1204,6 +1238,8 @@ def _field_words(entry, name):
         return f"{name} is hidden from the client again" if to == "0" else f"{name} is shown to the client again"
     if f == "title":
         return f"the title of {name}"
+    if f == "body":
+        return f"the content of {name}"                             # never the content itself
     if f == "sort_order":
         return f"the place of {name}"
     if f == "hidden":
@@ -1323,11 +1359,14 @@ def _do_undo(store, by_user, req):
     if not isinstance(req, dict):
         raise Refused(NOT_JSON_OBJECT)
     for k in req:
-        if k not in ("project", "apply_id"):
+        if k not in ("project", "apply_id", "place"):
             raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
     project = req.get("project")
     if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
         raise Refused(BAD_PROJECT, code="bad_project_code")
+    place = req.get("place")                                        # #123: where the Undo was pressed; the step's route is "undo" whatever it is
+    if place is not None and (not isinstance(place, str) or place not in PLACES):
+        raise Refused(BAD_PLACE)
     step = req.get("apply_id")
     if type(step) is not int or not 1 <= step < 2 ** 63:
         raise Refused(NO_UNDO)                                      # the same words as every other step that isn't ours
@@ -1336,10 +1375,12 @@ def _do_undo(store, by_user, req):
     step_rows = store.step_rows(step)
     if not _eligible(step_rows, project):                           # a missing step, another project's and another route's
         raise Refused(NO_UNDO)                                      # all say the same: nothing tells which exist
+    if any(r["via"] == ASSISTANT for r in step_rows) and store.step_actors(step) != {ASK_ACTOR}:
+        raise Refused(NO_UNDO)                                      # #47e: an assistant-route step is ours only when ask clark made it
     names = {r["id"]: r["title"] for r in _sections(store, project)}
     _name_use_cases(store, step_rows, names)                        # #164
     try:                                                            # still inside the caller's one lock
-        done = store.undo(step, by_user)
+        done = store.undo(step, by_user, place=place)
     except Invalid as e:
         text = str(e)
         if "undone already" in text or "undid an undo" in text:
@@ -1415,7 +1456,7 @@ def _call(path, onedrive_roots, by_user, work, req):
 
 def make_change(path, onedrive_roots=None, by_user=None):
     """The `change` the server calls for POST /api/change, for the database at `path`. `by_user` is a name or a function
-    that gives one (default: the login name, platform.login_name; Settings can override it later)."""
+    that gives one (the server passes the profile name, falling back to the login name, platform.login_name, which is also the default here)."""
     def change(req):
         return _call(path, onedrive_roots, by_user, _do_change, req)
     return change
@@ -1426,3 +1467,108 @@ def make_undo(path, onedrive_roots=None, by_user=None):
     def undo(req):
         return _call(path, onedrive_roots, by_user, _do_undo, req)
     return undo
+
+
+# ── ask clark's changes (#47e part 1) ─────────────────────────────────────────
+# ask clark's own modules never open the database for writing (tests/test_ask_route.py). A change they have checked comes here, to
+# make_ask_change, and goes through the SAME path as a hand edit (_do_change: the allow-list, the plain-text rule, the store's own
+# rules), with these differences, all made here and nowhere else:
+# - only a new or changed work item or milestone (ASK_KINDS, ASK_OPS): no archive, restore, delete, place or rebaseline;
+# - every step is written with route "assistant" and actor "clark", and no place;
+# - the switch is read again INSIDE the step, after BEGIN IMMEDIATE (store.ask_enabled: off when it can't say), so off writes nothing;
+# - the row before and after are read from the data inside that step, never from the request;
+# - `dry=True` (the default) runs it all in a step that is always rolled back (Store.step(dry=True)): what would be saved, saving nothing;
+# - an Apply may carry `expect`, the `before` its dry run showed: if the row is not that now, nothing is written.
+ASK_KINDS = ("actions", "raid", "decisions", "milestones")
+ASK_OPS = (NEW, UPDATE)
+# The fields ask clark may give, per kind and op: narrower than CHANGE_KINDS (no use case link, no client wording, no state, no
+# Movement, no agreed date moved: that is a rebaseline). Checked here, the one guarded chokepoint; ask_apply reads it from here.
+# A RAID item's `type` is set from the suggestion's kind (risk, issue and so on), never named by it.
+ASK_FIELDS = {
+    "actions": {NEW: ("description", "owner", "priority", "due_date", "workstream", "milestone"),
+                UPDATE: ("description", "owner", "priority", "due_date", "status", "workstream", "milestone")},
+    "raid": {NEW: ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone"),
+             UPDATE: ("description", "owner", "due_date", "status", "workstream", "milestone")},
+    "decisions": {NEW: ("decision", "made_by", "status", "date", "needed_by"),
+                  UPDATE: ("decision", "made_by", "status", "date", "needed_by")},
+    "milestones": {NEW: ("name", "owner", "baseline_date", "workstream"),
+                   UPDATE: ("forecast_date", "actual_date", "status")},
+}
+ASK_KEYS = {NEW: ("project", "kind", "op", "values"), UPDATE: ("project", "kind", "op", "id", "changes")}
+ASK_PART = {NEW: "values", UPDATE: "changes"}
+ASK_OFF = "Asking is off, so nothing was changed. Turn it on in Settings first."
+ASK_NOT_YET = "That change can't be made by asking yet. Nothing was changed. Make it yourself on the board."
+ASK_CHANGED = "That item has changed since the change was shown. Nothing was changed. Look at the change again."
+ASK_SHOWN = {t: ("id",) + tuple(dict.fromkeys(CHANGE_KINDS[t][NEW] + CHANGE_KINDS[t][UPDATE] + ("type", "status", "closed", "priority", "raised")))
+             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out)
+
+
+class _Dry(Exception):
+    """Ends a dry run's step, which the store then rolls back."""
+
+
+class _AskStore:
+    """The store as _do_change sees it for ask clark: every read is the store's own; a step is ask clark's (see above)."""
+
+    def __init__(self, store, dry, expect, table, ref):
+        self._store, self.dry, self.expect, self.table, self.ref = store, dry, expect, table, ref
+        self.before = self.after = None
+
+    def __getattr__(self, name):
+        return getattr(self._store, name)
+
+    def shown(self, ref):
+        row = self._store.read(self.table, ref=ref) if isinstance(ref, str) else None
+        return None if row is None else {k: row[k] for k in ASK_SHOWN[self.table] if k in row}
+
+    @contextmanager
+    def step(self, via, by_user, place=None, src_ref=None):
+        if via != VIA:
+            raise Invalid("not a step of a change")
+        with self._store.step(ASSISTANT, by_user, actor=ASK_ACTOR, dry=self.dry) as st:      # BEGIN IMMEDIATE
+            if self._store.ask_enabled() is not True:
+                raise Refused(ASK_OFF, 409, "asking_off")
+            self.before = self.shown(self.ref) if self.ref is not None else None
+            if self.expect is not None and self.before != self.expect:
+                raise Refused(ASK_CHANGED, 409, "changed")
+            yield st
+            made = self.ref
+            if made is None and st.peek_apply_id() is not None:
+                made = next((r["key"] for r in self._store.step_rows(st.peek_apply_id())
+                             if r["table"] == self.table and r["op"] == MADE_OP), None)
+            self.ref, self.after = made, self.shown(made)
+            if self.dry:
+                raise _Dry()
+
+
+def _do_ask(store, by_user, req, dry, expect):
+    project, kind, op, place = _shape(req)
+    if kind not in ASK_KINDS or op not in ASK_OPS or any(k not in ASK_KEYS[op] for k in req):
+        raise Refused(ASK_NOT_YET, code="not_yet")
+    part = req.get(ASK_PART[op])
+    if not isinstance(part, dict) or any(f not in ASK_FIELDS[kind][op] for f in part):
+        raise Refused(ASK_NOT_YET, code="not_yet")
+    if store.ask_enabled() is not True:
+        raise Refused(ASK_OFF, 409, "asking_off")
+    ref = req.get("id") if op == UPDATE else None
+    if op == UPDATE and not _belongs(kind, ref, project):
+        raise Refused(NO_MILESTONE if kind == "milestones" else ITEM_NOT_MINE)
+    if expect is not None and not isinstance(expect, dict):
+        raise Refused(STALE)
+    ask = _AskStore(store, dry, expect, kind, ref)
+    try:
+        _status, body = _do_change(ask, by_user, req)
+    except _Dry:
+        return 200, {"ok": True, "dry": True, "kind": kind, "ref": ask.ref, "before": ask.before, "after": ask.after}
+    apply_id = body.get("apply_id")
+    return 200, {"ok": True, "dry": False, "kind": kind, "ref": ask.ref, "apply_id": apply_id,
+                 "undoable": bool(body.get("undoable", apply_id is not None)), "before": ask.before, "after": ask.after}
+
+
+def make_ask_change(path, onedrive_roots=None, by_user=None):
+    """The one way ask clark saves (#47e): `ask_change(req, dry=True, expect=None)` takes a request in /api/change's form, for a
+    work item or milestone only. A dry run (the default) says {ok, dry, kind, ref, before, after} and saves nothing; `dry=False`
+    saves it as one step (route "assistant", actor "clark") and adds apply_id and undoable, for /api/undo."""
+    def ask_change(req, dry=True, expect=None):
+        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_ask(store, who, r, dry is not False, expect), req)
+    return ask_change

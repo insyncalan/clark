@@ -16,6 +16,13 @@ deliberate edit of ICON_LINKS (tests/test_icons.py fails until the table and the
 The fonts are Inter and Montserrat (vendor/fonts/inter/ and vendor/fonts/montserrat/, SIL Open Font License): the build inlines them as @font-face rules with the woff2
 as base64 `data:` URIs at the top of the demo block, so the page is still one file and the policy's `font-src 'self' data:`
 is enough. A user's own brand sets `--font`; the font-face rules stay, so naming "Inter" or "Montserrat" in it works.
+
+The brand's pictures (#98). A user's tokens.css can say `--image-cover: url("assets/cover.jpg")`, a path relative to the page,
+which is served from /. The server answers GET /assets/<name> for the names in PICTURES and no others, from the `assets`
+folder beside the user's tokens.css (brand_picture below); the brand's own path in the page is not changed, so the published
+file (which takes the same page text) carries no new address. The name is looked up in PICTURES, never joined onto a path.
+The brand block goes after the element with id="brand-demo" (DEMO_ID), found by that id and not by one exact string; a page
+without that element, when there is a local brand, raises PageError rather than leaving the brand out without a word.
 """
 import re
 from pathlib import Path
@@ -26,7 +33,10 @@ PAGE = HERE / "page.html"
 VIEW_PAGE = HERE / "page-view.html"      # #65: the same page with no Edit part and no route that changes anything
 BRANDING = ROOT / "system" / "branding"
 LOCAL_TOKENS = ("tokens.css", "design-system/tokens.css")     # the first that exists
-MARK = "</style>\n</head>"
+DEMO_ID = "brand-demo"            # the named hook: the local brand is layered after the element with this id
+PICTURE_DIR = "assets"            # beside the user's tokens.css
+PICTURES = {"cover.png": "image/png", "cover.jpg": "image/jpeg", "cover.jpeg": "image/jpeg", "cover.webp": "image/webp"}
+PICTURE_MAX_BYTES = 5 * 1024 * 1024
 CLIENT_BRAND = ":root { --logo-icon: none; }\n"      # before the user's tokens, so theirs win
 
 
@@ -65,14 +75,69 @@ def escape_style(css):
     return STYLE_UNSAFE.sub("<\\\\", css)
 
 
-def local_tokens(branding=None):
-    """The text of the user's own brand tokens, or None when there isn't one."""
+def local_tokens_file(branding=None):
+    """The user's own tokens.css as a Path (the first of LOCAL_TOKENS that exists), or None."""
     base = Path(branding) if branding is not None else BRANDING
     for name in LOCAL_TOKENS:
-        p = base / name
-        if p.is_file():
-            return strip_css_comments(p.read_text(encoding="utf-8"))
+        if (base / name).is_file():
+            return base / name
     return None
+
+
+def local_tokens(branding=None):
+    """The text of the user's own brand tokens, or None when there isn't one."""
+    p = local_tokens_file(branding)
+    return None if p is None else strip_css_comments(p.read_text(encoding="utf-8"))
+
+
+def looks_like(ctype, head):
+    """Whether the first bytes of a file are the kind of picture `ctype` says (PNG, JPEG or WebP)."""
+    if ctype == "image/png":
+        return head.startswith(b"\x89PNG\r\n\x1a\n")
+    if ctype == "image/jpeg":
+        return head.startswith(b"\xff\xd8\xff")
+    return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+
+
+def brand_picture(name, branding=None):
+    """(bytes, content type) of one of the brand's pictures, or None. `name` must be one of PICTURES; the file is
+    <the user's tokens.css folder>/assets/<name>, and it must still be inside the pictures folder (itself inside the brand folder) after symlinks are
+    followed, be a regular file, be at most PICTURE_MAX_BYTES, and begin with the bytes its type needs. None for anything
+    else (no tokens.css, no file, a link out of the folder, a wrong type): the server answers 404."""
+    ctype = PICTURES.get(name)
+    tokens = local_tokens_file(branding)
+    if ctype is None or tokens is None:
+        return None
+    base = (Path(branding) if branding is not None else BRANDING).resolve()
+    try:
+        folder = (tokens.parent / PICTURE_DIR).resolve()
+        found = (tokens.parent / PICTURE_DIR / name).resolve()
+        if not folder.is_relative_to(base) or not found.is_relative_to(folder) or not found.is_file():       # inside the pictures folder, which is inside the brand folder
+            return None
+        with open(found, "rb") as f:
+            data = f.read(PICTURE_MAX_BYTES + 1)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return (data, ctype) if len(data) <= PICTURE_MAX_BYTES and looks_like(ctype, data[:16]) else None
+
+
+class PageError(Exception):
+    """The built page is not the shape clark expects. Said in words, with what to do next."""
+
+
+DEMO_OPEN = re.compile(r"<style\b[^>]*?\sid\s*=\s*[\"']?" + DEMO_ID + r"[\"']?(?=[\s>/])[^>]*>", re.I)
+STYLE_CLOSE = re.compile(r"</style\s*>", re.I)
+
+
+def after_demo_block(html):
+    """The index just after the closing tag of the demo block, found by its id (any spacing, attribute order or line ending),
+    or raises PageError."""
+    m = DEMO_OPEN.search(html)
+    end = STYLE_CLOSE.search(html, m.end()) if m else None
+    if end is None:
+        raise PageError(f'The page has no <style id="{DEMO_ID}"> block, so your brand cannot be layered over it. Rebuild the '
+                        "page (python3 dev/tools/build_page.py) and start clark again.")
+    return end.end()
 
 
 def page_html(branding=None, view=False):
@@ -83,4 +148,5 @@ def page_html(branding=None, view=False):
     if css is None:
         return html
     css = escape_style(css)
-    return html.replace(MARK, f'</style>\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n</style>\n</head>', 1)
+    i = after_demo_block(html)
+    return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n</style>' + html[i:]

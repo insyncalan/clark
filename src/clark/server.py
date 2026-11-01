@@ -9,8 +9,11 @@ Routes:
 - GET  /api/projects     the projects the page can ask for: [{"code", "name"}], from the store (`projects`, #31)
 - GET  /api/data         ?project=<CODE>: one project's data, from the store (`data_for`, #31)
 - GET  /api/movement     ?project=<CODE>: Milestones Movement (#136), owner only, never published: the view of the store's `milestone_moves` read (movement_read.py); without the seam, not found
+- GET  /api/activity     ?project=<CODE>&item=<ID>: one item's changes for the peek's Activity tab (#42), owner only, never published (activity_read.py); without the seam, not found
+- GET  /api/milestones   ?project=<CODE>: that project's milestones for the Calendar and its list (#146), read only: the `milestones` seam (milestone_feed.py); without the seam, not found
 - POST /api/change       one change to a project's report sections (#65); the logic is `change(req)`, from clark.changes
 - POST /api/undo         reverse one earlier step of the report's (#65); the logic is `undo(req)`
+- POST /api/sneak/read  words about one work item as from → to changes (#42); read only, plain code (clark.sneak)
 - POST /api/here         "still here" from an open page (#71); stops a launcher-started server when no page is left
 - POST /api/publish      Publish (#43): Local, and the client folder only when the body says `to_client: true`; publish_flow.py
 - POST /api/client-folder  choose or clear the project's client folder (#43); never writes into it
@@ -21,6 +24,12 @@ Routes:
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
+- POST /api/draft-email  Draft email (#50): the ticks and the email text from the builder; read only, never sends (draft_email_feed.make)
+- POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, never any words of the email (draft_email_feed.make_sent)
+- POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
+- POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
+- GET  /assets/<name>    the brand's picture (#98): only cover.png, cover.jpg, cover.jpeg and cover.webp, from the local brand folder; no
+                         token (an <img> can't send one), but the Host, Origin and Sec-Fetch-Site are checked; 404 when there is none
 - GET  /api/profile      the name and email typed in Settings › Personal (#180), from the data folder's settings.json; without the seam, not found
 - POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
 - POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
@@ -65,20 +74,28 @@ MESSAGES = {
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
+    "picture_not_found": "Your brand's picture could not be found. Put it in the assets folder next to your brand's tokens.css, "
+                         "named cover.jpg, cover.png or cover.webp, then reload the page.",
     "bad_project_code": "Use a project code of 3 to 7 capital letters or digits.",
     "project_not_found": "There is no project with that code. Check the code in the address, or choose a project from the list.",     # = changes.NO_PROJECT (a test keeps the two equal)
     "bad_archived": "That way of showing archived records isn't available. Reload the page and try again.",
     "server_error": "Something went wrong, and nothing was changed. Try again, or restart clark.",
     "no_backups": "Backups can't be shown right now. Restart clark the usual way and try again.",
     "saving_off": "Saving is switched off, so that change was not kept. Restart clark the usual way to turn it on.",
+    "item_not_found": f"That item could not be found. {RELOAD}",
+    "reading_off": "Changing items with words is not available right now, and nothing was changed. Restart clark the usual way to turn it on.",
 }
 # The standard library's error status → the code of the plain reply (Handler.send_error). Any other 400 to 499 is
 # bad_request and any 500 or more server_error.
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
-ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+ROUTE_BODY_LIMITS = {"/api/change": 16 * 1024, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                     "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
+                     "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
+                     "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024}      # #48
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
@@ -196,15 +213,18 @@ def csp_hashes(html):
         at = stop
 
 
-def csp_policy(html):
+def csp_policy(html, host=None):
     """The enforced policy for one page: this page's script and style hashes, nothing from outside this machine.
-    style="" attributes stay allowed (style-src-attr 'unsafe-inline'), which Preact and Tiptap need."""
+    style="" attributes stay allowed (style-src-attr 'unsafe-inline'), which Preact and Tiptap need. Images come from data:,
+    blob: and, under the Host the page was asked for (host_allowed, so nothing else is let in), the brand's /assets/ route and the app's own
+    icons under /app/ (the manifest's, which the browser fetches as images) only."""
     h = csp_hashes(html if isinstance(html, str) else html.decode("utf-8", "surrogateescape"))
     scripts = " ".join(h["script"]) or "'none'"
+    images = ["data:", "blob:"] + ([f"http://{host}{BRAND_PREFIX}", f"http://{host}{APP_ICON_PREFIX}"] if host_allowed(host) else [])
     return "; ".join([
         "default-src 'self'", f"script-src {scripts}", "worker-src 'self'",
         "style-src 'self' 'unsafe-inline'", " ".join(["style-src-elem 'self'"] + h["style"]), "style-src-attr 'unsafe-inline'",
-        "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self'", "object-src 'none'",
+        " ".join(["img-src"] + images), "font-src 'self' data:", "connect-src 'self'", "object-src 'none'",
         "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'", f"report-uri {CSP_REPORT_ROUTE}"])
 
 
@@ -299,6 +319,33 @@ def csp_report_route(handler):
 # ===== end of the script policy =====
 
 
+# ===== The brand's pictures (#98) =====
+BRAND_PREFIX = "/assets/"
+APP_ICON_PREFIX = "/app/"                 # the app icons (appfiles.ICONS): an image source too, or the browser cannot show the manifest's icons
+BRAND_PICTURES = ("cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
+
+
+def brand_picture_route(handler, name):
+    """GET /assets/<name>, for a name in BRAND_PICTURES only (the dispatcher checks): the brand's picture. No token, since an
+    <img> or a CSS url() can't send one, so the same local checks as /csp-report (csp_local: Host, a local address, no other
+    site's Origin or Sec-Fetch-Site). The file comes from the `brand_picture` seam (page.brand_picture, given by the launcher), which never builds a path from a request."""
+    if not csp_local(handler):
+        return handler.send(403, error_body("not_allowed"))
+    if handler.requestline.split()[1:2] != [handler.path]:      # newer Pythons fold "//assets/x" into "/assets/x": not this route
+        return handler.send(404, error_body("not_found"))
+    got = handler.server.brand_picture(name)
+    if got is None:
+        return handler.send(404, error_body("picture_not_found"))
+    data, ctype = got
+    handler.send_response(200)
+    handler.send_header("Content-Type", ctype)
+    handler.send_header("Content-Length", str(len(data)))
+    handler.end_headers()
+    handler.wfile.write(data)
+    return None
+# ===== end of the brand's pictures =====
+
+
 # ===== The page and the data (the seams to #35 and #31) =====
 PLACEHOLDER = """<!doctype html>
 <html lang="en-GB"><head><meta charset="utf-8"><title>clark</title>
@@ -360,6 +407,54 @@ def movement_route(handler):
     if view is None:
         return handler.send(404, error_body("project_not_found"))
     return handler.send(200, {"ok": True, "project": code, "movement": view})
+
+
+ITEM_ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[A-Z]-)?\d{3,6}")      # #42: a work item's or milestone's ID, at most 16 characters
+
+
+def activity_route(handler):
+    """GET /api/activity?project=<CODE>&item=<ID> (#42): one item's changes, newest first, for the peek's Activity tab (Edit only).
+    The read is a seam (`activity`, activity_read.make_read): it checks the item is the project's, reads history on a read-only
+    connection and keeps only who, how, when and what changed. No body is accepted (400); each parameter once, nothing else, a
+    code and an ID of the stored shape with the ID inside the project (400); a missing project or item 404; without the seam
+    the route is not there (404)."""
+    read = getattr(handler.server, "activity", None)
+    if read is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    codes, items = query.get("project") or [""], query.get("item") or [""]
+    code, item = codes[0], items[0]
+    if (set(query) != {"project", "item"} or len(codes) != 1 or len(items) != 1 or not PROJECT_CODE.fullmatch(code)
+            or not ITEM_ID.fullmatch(item) or not item.startswith(code + "-")):
+        return handler.send(400, error_body("bad_request"))
+    view = read(code, item)
+    if view is None:
+        return handler.send(404, error_body("item_not_found"))
+    return handler.send(200, {"ok": True, "project": code, "item": item, "activity": view})
+
+
+def milestones_route(handler):
+    """GET /api/milestones?project=<CODE> (#146): the milestones the Calendar and its list draw, read only. The read is a seam
+    (`milestones`, milestone_feed.make_feed over the store's data_for); this server imports nothing from clark. Only the fields the
+    page needs leave (no internal note, reason or description). No body is accepted (400), a malformed code or another parameter
+    is 400, a missing project 404, and without the seam the route is not there (404). Nothing from the request is used as a path.
+    The published file never calls it: its rows come from its own data block."""
+    read = getattr(handler.server, "milestones", None)
+    if read is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    given = query.get("project") or [""]
+    code = given[0]
+    if len(given) > 1 or set(query) - {"project"} or not PROJECT_CODE.fullmatch(code):
+        return handler.send(400, error_body("bad_project_code"))
+    body = read(code)
+    if body is None:
+        return handler.send(404, error_body("project_not_found"))
+    return handler.send(200, {"ok": True, "project": code, **body})
 
 
 ARCHIVED_VIEWS = ("hide", "show", "only")          # what ?archived= may be on /api/data (#126); never passed on unchecked
@@ -434,6 +529,19 @@ def change_route(handler, req):
 def undo_route(handler, req):
     """POST /api/undo (#65). Checked like change_route before this runs."""
     return seam_route(handler, handler.server.undo, req)
+
+
+def sneak_route(handler, req):
+    """POST /api/sneak/read (#42): typed words about one work item as from → to changes. Read only: the seam (clark.sneak) reads
+    the project's data and the words with plain code and writes nothing. A refusal of the words is 200 with ok false and plain
+    words; no seam is the 503 of the other routes."""
+    ok = isinstance(req, dict) and set(req) <= {"project", "id", "text"}
+    code, item, text = (req.get(k) for k in ("project", "id", "text")) if ok else (None, None, None)
+    if not (isinstance(code, str) and PROJECT_CODE.fullmatch(code) and isinstance(item, str) and isinstance(text, str)):
+        return handler.send(400, error_body("bad_request"))
+    if handler.server.sneak is None:
+        return handler.send(503, error_body("reading_off"))                 # a read, so not "saving is switched off"
+    return seam_route(handler, handler.server.sneak, req)
 
 
 # #71: the six files a browser fetches with no token (it sends no custom header for a manifest, a worker script or an icon).
@@ -565,6 +673,64 @@ def safety_route(method):
     return route
 
 
+def draft_email_route(seam_name):
+    """POST /api/draft-email and /api/draft-email/sent (#50): hand the request to the server's seam of that name, which answers
+    (status, body). The first writes nothing and sends nothing; the second records one "I sent it" (ids, mode, day; never any text of
+    the email). With no seam there is nothing to ask: not found. Checked like change_route before this runs (token, Host, Origin,
+    JSON only, a Content-Length, the route's own limit)."""
+    def route(handler, req):
+        seam = getattr(handler.server, seam_name)
+        if seam is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = seam(req)
+        return handler.send(status, body)
+    return route
+
+
+def ask_folders_route(method):
+    """GET and POST /api/ask-folders (#47): the folders asking may read. The server's `ask_folders` (ask_folders.AskFolders)
+    answers (status, body); without one there is nothing to ask: not found. The token, the Host, the Origin, JSON only and the
+    length are checked before this runs; the checks of the folder and the only write are in ask_folders.py and the store."""
+    def route(handler, *req):
+        service = getattr(handler.server, "ask_folders", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        if not req:                          # a GET: the project comes from the address
+            req = ((parse_qs(urlsplit(handler.path).query).get("project") or [""])[0],)
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
+def app_settings_route(method):
+    """GET and POST /api/ask-enabled (#47): asking's on/off switch for this computer. The server's `app_settings`
+    (app_settings.AppSettings) answers (status, body); without one there is nothing to ask: not found. The token, the Host, the
+    Origin, JSON only and the length are checked before this runs; the value checks and the only write are in app_settings.py and
+    the store."""
+    def route(handler, *req):
+        service = getattr(handler.server, "app_settings", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
+def ask_route(method):
+    """POST /api/ask, GET /api/ask/status and POST /api/ask/stop (#47): a question about the open project, whether asking can
+    answer, and Stop. The server's `ask` (ask_service.AskService) answers (status, body): it reads the switch from the store before
+    anything is sent, so nothing leaves while asking is off; without one there is nothing to ask: not found. The token, the Host,
+    the Origin, JSON only and the length are checked before this runs; no model code is in this module. #47e: POST
+    /api/ask/change/dry and /apply hand the dry run and Apply of a suggested change to the same service, which never asks a model."""
+    def route(handler, *req):
+        service = getattr(handler.server, "ask", None)
+        if service is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = getattr(service, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
 def word_import_route(handler, req):
     """POST /api/word-import (#48). Checked like change_route before this runs: the token, the Host, no other site's Origin, JSON
     only, a Content-Length and the route's own size limit."""
@@ -590,12 +756,18 @@ def profile_route(method):
 
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
-              "/api/movement": movement_route, "/api/profile": profile_route("get")}
-POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/publish": publisher_route("publish"),
+              "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"),
+              "/api/profile": profile_route("get")}
+POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
-               "/api/profile": profile_route("save"),
-               "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
+                "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
+                "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
+                "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
+                "/api/profile": profile_route("save"), "/api/draft-email": draft_email_route("draft_email"),
+                "/api/draft-email/sent": draft_email_route("draft_email_sent"),
+                "/api/word-import": word_import_route, "/api/word-export": word_export_route}     # later items: /api/import
 # ===== end of the page and the data =====
 
 
@@ -653,7 +825,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", f"{ctype}; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         if ctype == "text/html":
-            extra = {"Content-Security-Policy": csp_policy(data), **(extra or {})}
+            extra = {"Content-Security-Policy": csp_policy(data, self.headers.get("Host")), **(extra or {})}
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -717,7 +889,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send(403, error_body("not_allowed"))
 
     def do_GET(self):
-        """GET /health, the page, and the API's GET routes (token first, also before a 404 under /api/)."""
+        """GET /health, the page, the brand's pictures, and the API's GET routes (token first, also before a 404 under /api/)."""
         if not self.headers_ok():
             return None
         if not self.host_ok():
@@ -733,6 +905,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.run_route(open_route, route)
         if route == PREVIEW_ROUTE:
             return self.run_route(preview_page_route)
+        if route.startswith(BRAND_PREFIX) and route[len(BRAND_PREFIX):] in BRAND_PICTURES:
+            return self.run_route(brand_picture_route, route[len(BRAND_PREFIX):])
         api = GET_ROUTES.get(route)
         if api or route.startswith("/api/"):
             if not self.authorised():
@@ -772,23 +946,32 @@ class LocalServer(ThreadingHTTPServer):
     server_bind calls socket.getfqdn(host), which can stall for 30 s on some Macs.) `data_for(code)` is the store's read
     of one project (None when there is none); `projects()` lists them as rows with a code and a name; `page_html()` gives
     the page's HTML (#35 supplies the bundle); `change(req)` and `undo(req)` (#65) answer POST /api/change and /api/undo
-    with (status, body), each on a store of its own (None: those routes answer 503); `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163); `word_import(req)` and `word_export(req)` (#48) answer POST /api/word-import and /api/word-export the same way as `change` and `undo`."""
+    with (status, body), each on a store of its own (None: those routes answer 503); `sneak(req)` (#42) answers POST /api/sneak/read the same way, reading only; `publisher` answers the publish routes (#43); `use_cases(code)` reads one project's use cases (#163); `word_import(req)` and `word_export(req)` (#48) answer POST /api/word-import and /api/word-export the same way as `change` and `undo`; `activity(code, item)` reads one item's changes (#42)."""
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, profile=None, word_import=None, word_export=None):
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, sneak=None, activity=None, word_import=None, word_export=None,
+                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
-        self.change, self.undo = change, undo
+        self.change, self.undo, self.sneak = change, undo, sneak
         self.word_import, self.word_export = word_import, word_export
         self.page_html = page_html or placeholder_html
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
         self.movement = movement              # store.milestone_moves (#136): the owner-only Movement read; None: no such route
+        self.activity = activity              # activity(code, item) -> the peek's Activity rows, or None (#42); None: no such route
+        self.milestones = milestones          # milestone_feed.make_feed (#146): the Calendar's rows; None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
+        self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
+        self.draft_email = draft_email        # #50: builds a Draft email for a request, read only; None until the launcher gives one
+        self.draft_email_sent = draft_email_sent      # #50: records "I sent it" (ids, mode, day; no text); None until the launcher gives one
         self.safety = safety                  # safety.Safety (#111): the backup list, Preview and Restore; None: those routes answer 503
+        self.ask_folders = ask_folders        # ask_folders.AskFolders (#47); None: the folder routes answer 404
+        self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
+        self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -820,14 +1003,16 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, profile=None, word_import=None, word_export=None):
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, sneak=None, activity=None, word_import=None, word_export=None,
+          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
-                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, profile=profile,
-                            word_import=word_import, word_export=word_export)
+                            publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, sneak=sneak, activity=activity,
+                            word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
+                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

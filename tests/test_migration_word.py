@@ -126,7 +126,7 @@ class OldDatabase(unittest.TestCase):
         def broken(con):
             store_module.migrate_to_3(con)
             raise RuntimeError("stopped")
-        with mock.patch.object(store_module, "MIGRATIONS", ((2, store_module.migrate_to_2), (3, broken))):
+        with mock.patch.object(store_module, "MIGRATIONS", ((2, store_module.migrate_to_2), (3, broken), *store_module.MIGRATIONS[2:])):       # the later steps stay in the table: the runner refuses a table that ends short
             with self.assertRaisesRegex(Invalid, "Nothing was changed") as seen:
                 open_store(self.path, onedrive_roots=[])
         self.assertNotIn("RuntimeError", str(seen.exception))
@@ -147,9 +147,9 @@ class OldDatabase(unittest.TestCase):
         self.assertIn("'board'", item_events_sql(self.path))
         self.assertEqual(tables(self.path), self.before)
 
-    def test_the_word_step_is_the_one_numbered_3_and_is_the_last_the_app_ships(self):
-        self.assertEqual(store_module.MIGRATIONS[-1], (3, store_module.migrate_to_3))
-        self.assertEqual(store_module.SCHEMA_VERSION, 3)      # renumber with the step if #120 or #115 land first
+    def test_the_word_step_is_the_one_numbered_3(self):
+        self.assertIn((3, store_module.migrate_to_3), store_module.MIGRATIONS)
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS][:2], [2, 3])      # Word's number is fixed: a later step takes the next number after it
 
     def test_a_file_from_a_newer_clark_is_still_refused_and_left_alone(self):
         con = sqlite3.connect(self.path)
