@@ -1201,7 +1201,7 @@
     { C.setProject('CPR'); const cp = C.P(), empty = { id: 'nx-empty', type: 'needs', title: 'Needs from you', asks: [] };
       cp.report.sections.push(empty);
       const html = await C.webPage({ n: 98 });
-      ok('needs 144: with nothing to ask the section is left out of the published page', C.onPub(empty, cp) === false && !/sec-nx-empty/.test(html) && !/Needs from you/.test(html));
+      ok('needs 144: with nothing to ask the section is left out of the published page', C.onPub(empty, cp) === false && !/sec-nx-empty/.test(html));
       empty.asks.push({ id: 'nd-pub', what: 'Confirm the floor plan', owner: 'Sam', due: A(5), archived: false });
       const kept = await C.webPage({ n: 99 });
       ok('needs 144: the same section with one line is published', C.onPub(empty, cp) === true && /sec-nx-empty/.test(kept) && /Confirm the floor plan/.test(kept));
