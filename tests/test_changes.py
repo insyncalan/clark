@@ -1175,6 +1175,17 @@ class Items(Api):
         self.no(self.item("actions", self.a), "Say what to change.")
         self.no({**self.item("actions", self.a), "changes": ["status"]}, "Send the changes as an object.")
 
+    def test_a_risks_new_impact_and_likelihood_say_back_the_priority_worked_out(self):
+        body = self.go("raid", self.r, impact="Medium", likelihood="Medium")
+        self.assertEqual({k: body["item"][k] for k in ("impact", "likelihood", "priority")}, {"impact": "Medium", "likelihood": "Medium", "priority": "Medium"})
+        self.assertEqual(body["item"]["priority"], self.s.read("raid", ref=self.r)["priority"], "the reply says what the store holds")
+        self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["update"], "said back, never taken")
+        self.no(self.item("raid", self.r, priority="Low"), changes.NO_RAID_PRIORITY)
+        status, back = self.undone(body["apply_id"])
+        self.assertEqual(status, 200, back)
+        row = self.s.read("raid", ref=self.r)
+        self.assertEqual((row["impact"], row["likelihood"], row["priority"]), ("High", "Medium", "High"), "Undo puts all three back")
+
     def test_a_risks_priority_and_a_decisions_workstream_have_their_own_words(self):
         self.no(self.item("raid", self.r, priority="Low"), changes.NO_RAID_PRIORITY)
         self.assertEqual(changes.NO_RAID_PRIORITY, "A risk or issue's priority comes from its impact and likelihood. Change those in its details.", "the prototype never says RAID")
