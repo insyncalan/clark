@@ -489,6 +489,34 @@ class Live(unittest.TestCase):
                 self.assertNotEqual((r["impact"], r["likelihood"]), ("Low", "Low"), "Undo puts impact and likelihood back")
                 self.assertEqual(r["priority"], store_priority(r["impact"], r["likelihood"]))
 
+    def rating_drawn(self, cdp, sid, ref):
+        """The row's Priority cell and the Rating ticked in its status picker (opened and shut again)."""
+        prio = cdp.js(f"document.querySelector(\"tr[data-id='{ref}'] .c-prio\").textContent", sid)
+        click(cdp, sid, f"[data-cell='{ref}:status']")
+        self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
+        ticked = cdp.js("[...document.querySelectorAll(\"[data-pop] [role=menuitemradio][aria-checked=true]\")].map(b => b.dataset.value).filter(v => v.startsWith('rating:'))", sid)
+        key(cdp, sid, "Escape")
+        self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the menu shut")
+        return [prio, ticked]
+
+    def test_a_rating_pick_redraws_the_colour_from_the_reply_and_undo_puts_it_back(self):
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cdp.js("window.__replies = []; const f = window.fetch; window.fetch = async (...a) => { const r = await f(...a);"
+                   " if (String(a[0]).endsWith('/api/change')) r.clone().json().then(j => window.__replies.push(j)); return r; }", sid)
+            self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["High", ["rating:Red"]], "a Red risk to start with")
+            click(cdp, sid, "[data-cell='TUL-007:status']")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
+            click(cdp, sid, "[data-pop] [data-value='rating:Amber']")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
+            self.until(cdp, sid, "window.__replies.length === 1", "the change replied")
+            item = cdp.js("window.__replies[0].item", sid)
+            self.assertEqual((item["impact"], item["likelihood"], item.get("priority")), ("Medium", "Medium", "Medium"), "the reply carries the worked-out priority")
+            self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["Medium", ["rating:Amber"]], "the cell shows Amber at once, no reload")
+            self.undo(cdp, sid, "rating", "TUL-007 is back to Red.")
+            self.until(cdp, sid, "document.querySelector(\"tr[data-id='TUL-007'] .c-prio\").textContent === 'High'", "Undo draws it Red again")
+            self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["High", ["rating:Red"]])
+
     def test_a_pending_decision_made_gets_todays_date_and_no_undo(self):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
