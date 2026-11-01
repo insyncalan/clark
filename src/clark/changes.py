@@ -38,6 +38,7 @@ import unicodedata
 from pathlib import Path
 
 from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
+from clark import people as people_rules
 from clark import store as clark_store
 from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
@@ -1907,7 +1908,7 @@ def make_undo(path, onedrive_roots=None, by_user=None):
 # fields are checked by the store (people rules); this checks only the shape of the request, then one step, one Undo.
 PERSON_FIELDS = ("name", "email", "organisation", "role", "label", "aliases", "kind", "needs_details")
 PEOPLE_SHAPES = {"add": PERSON_FIELDS, "edit": ("id", "changes"), "rename": ("id", "name"), "merge": ("from", "into"),
-                 "archive": ("id",), "restore": ("id",)}
+                 "archive": ("id",), "restore": ("id",), "paste": ("rows",)}
 PEOPLE_SOURCE = "People list"
 BAD_PERSON = "That isn't a person clark knows. Reload the page and try again."
 NO_PEOPLE_UNDO = "That step can't be undone from here."
@@ -1934,9 +1935,60 @@ def _person_ref(value):
     return value
 
 
+PASTE_FIELDS = ("name", "email", "organisation", "role")     # #454: the four columns the People card's Paste from Excel takes
+PASTE_NONE = "There is nothing to add. Paste rows copied from Excel: name, email, organisation, role."
+PASTE_MANY = f"That is more than {people_rules.ROW_LIMIT} rows. Paste fewer rows at a time. Nothing was changed."
+PASTE_BAD_ROW = "One of the rows isn't details clark can use. Check the rows and try again. Nothing was changed."
+
+
+def _paste_people(st, rows):
+    """#454: rows of name, email, organisation and role (the People card's Paste from Excel), applied in the caller's ONE step, so one
+    Undo takes the whole paste back. A name already on the live list (the people rules' exact match on a name or alias, never fuzzy)
+    gets the details that were pasted: a blank cell leaves what is there alone. Any other name is added, Needs details when it has no
+    email. Every field goes through the same writer and checks as an add or an edit (the email rule, one email per person, the
+    limits). One row that can't be used refuses the whole paste, in words that name the person, and nothing is written. Returns
+    (added, updated)."""
+    if not isinstance(rows, list) or not rows:
+        raise Refused(PASTE_NONE)
+    if len(rows) > people_rules.ROW_LIMIT:
+        raise Refused(PASTE_MANY)
+    added = updated = 0
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("name"), str) or any(k not in PASTE_FIELDS for k in row):
+            raise Refused(PASTE_BAD_ROW)
+        given = {k: _person_value(k, v) for k, v in row.items()}
+        name = " ".join(given["name"].split())
+        if not name:
+            raise Refused("A row has no name. Give each person a name. Nothing was changed.")
+        shown = name if len(name) <= 40 else name[:40] + "…"
+        try:
+            have = st.store.people(archived=None)
+            found = people_rules.resolve(name, have)
+            if found["status"] == "many":
+                raise Refused(f"More than one person is called {shown}. Change the name to say which one, then paste again. Nothing was changed.")
+            email, bad = people_rules.clean_email(given.get("email"))
+            if bad:
+                raise Refused(f"{shown}: {bad} Nothing was changed.")
+            details = {"email": email or None, "organisation": " ".join((given.get("organisation") or "").split()) or None,
+                       "role": " ".join((given.get("role") or "").split()) or None}
+            if found["status"] == "one":
+                now = next(p for p in have if p["id"] == found["id"])
+                changes = {k: v for k, v in details.items() if v and v != now.get(k)}
+                if changes:
+                    st.edit_person(found["id"], changes)
+                    updated += 1
+            else:
+                st.add_person(source=PEOPLE_SOURCE, name=name, needs_details=0 if email else 1, **{k: v for k, v in details.items() if v})
+                added += 1
+        except Invalid as e:                                    # a store rule (one email per person ...), said with the person's name
+            raise Refused(f"{shown}: {e} Nothing was changed.") from None
+    return added, updated
+
+
 def _do_people(store, by_user, req):
-    """POST /api/people: {"op": add | edit | rename | merge | archive | restore, ...}. One step; answers the new apply_id (the Undo's
-    handle), the person's id where there is one, how many work items a rename or merge carried, and the list as it now is."""
+    """POST /api/people: {"op": add | edit | rename | merge | archive | restore | paste, ...}. One step; answers the new apply_id (the
+    Undo's handle; None when a paste changed nothing), the person's id where there is one, how many work items a rename or merge
+    carried, how many people a paste added and updated, and the list as it now is."""
     if not isinstance(req, dict):
         raise Refused(NOT_JSON_OBJECT)
     op = req.get("op")
@@ -1946,9 +1998,12 @@ def _do_people(store, by_user, req):
     for k in req:
         if k not in allowed:
             raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
-    ref, count = None, 0
+    ref, count, pasted = None, 0, {}
     with store.step("dashboard", by_user) as st:
-        if op == "add":
+        if op == "paste":
+            added, updated = _paste_people(st, req.get("rows"))
+            pasted = {"added": added, "updated": updated}
+        elif op == "add":
             fields = {k: _person_value(k, v) for k, v in req.items() if k != "op"}
             ref = st.add_person(source=PEOPLE_SOURCE, **fields)
         elif op == "edit":
@@ -1970,7 +2025,7 @@ def _do_people(store, by_user, req):
             ref = _person_ref(req.get("id"))
             st.restore_person(ref)
         apply_id = st.peek_apply_id()
-    return 200, {"ok": True, "apply_id": apply_id, "id": ref, "items": count, "people": store.people(archived=None)}
+    return 200, {"ok": True, "apply_id": apply_id, "id": ref, "items": count, **pasted, "people": store.people(archived=None)}
 
 
 def _do_people_undo(store, by_user, req):

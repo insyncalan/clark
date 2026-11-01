@@ -315,7 +315,7 @@ class Saving(ServerTest):
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
-                                                "/api/people": 4 * 1024, "/api/people/undo": 1024})     # #96: a project and a section only
+                                                "/api/people": 256 * 1024, "/api/people/undo": 1024})     # #96: a project and a section only; #454: /api/people takes a paste of up to 500 rows
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
