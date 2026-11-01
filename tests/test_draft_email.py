@@ -468,6 +468,11 @@ class Outside(unittest.TestCase):
         self.assertTrue(de.is_outside("", OWN))
         self.assertTrue(de.is_outside("not-an-address", OWN))
 
+    def test_a_subdomain_of_an_own_domain_is_own_too_but_a_look_alike_is_not(self):
+        self.assertFalse(de.is_outside("sam@mail.example.test", OWN))
+        self.assertTrue(de.is_outside("sam@notexample.test", OWN))
+        self.assertTrue(de.is_outside("sam@example.test.other.org", OWN))
+
     def test_internal_items_start_unticked_for_an_outside_address(self):
         items = [LATE, INTERNAL]
         self.assertEqual(de.default_picked(items, OUTSIDE, OWN), ["ABC-A-001"])

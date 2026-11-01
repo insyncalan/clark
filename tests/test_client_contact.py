@@ -1,4 +1,4 @@
-"""#51 (the owner, 31-10-2026): the project's one client contact, set on the Publish screen, and the Draft email it puts in a published
+"""#51: the project's one client contact, set on the Publish screen, and the Draft email it puts in a published
 page. One contact per project; no warning about the address on the Publish screen.
 
 Run: python3 dev/run_tests.py test_client_contact
@@ -91,6 +91,20 @@ class Rules(unittest.TestCase):
             self.assertEqual(settings.own_domains(d), ["team.example.com", "a.example.org"])
             Path(d, settings.FILE).write_text(json.dumps({settings.OWN_DOMAINS: "team.example.com"}), encoding="utf-8")
             self.assertEqual(settings.own_domains(d), [])
+
+    def test_the_saved_profile_email_domain_counts_as_own_with_no_list(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(settings.own_domains(d), [])           # no profile email: nothing extra
+            settings.set_profile(d, "Sam Lee", "sam@team.example.com")
+            self.assertEqual(settings.own_domains(d), ["team.example.com"])
+            Path(d, settings.FILE).write_text(json.dumps({settings.OWN_DOMAINS: ["a.example.org", "Team.Example.com"],
+                                                          settings.PROFILE_EMAIL: "sam@team.example.com"}), encoding="utf-8")
+            self.assertEqual(settings.own_domains(d), ["a.example.org", "team.example.com"])    # once, not twice
+            own = settings.own_domains(d)
+            self.assertEqual(draft_email.contact_problem("Dana", TEAM, own), "own_domain")
+            self.assertEqual(draft_email.contact_problem("Dana", "x@mail.team.example.com", own), "own_domain")
+            self.assertIsNone(draft_email.contact_problem("Dana", DANA["email"], own))
 
 
 class Route(unittest.TestCase):

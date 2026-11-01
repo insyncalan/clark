@@ -1,8 +1,8 @@
 """The migration step that lets report_sections hold the types 'needs' and 'tracker' (the shared base for 'Needs from you' and
 'Progress tracker'; src/clark/store.py, guarded).
 
-The step is number 4, after Word's 3. Its number is written as a literal in MIGRATIONS and SCHEMA_VERSION says 4; a step that lands
-before it renumbers it (both places). The other tests read SCHEMA_VERSION and the version just before it, so they follow a renumber.
+The step is number 4, after Word's 3. Its number is written as a literal in MIGRATIONS (STEP below); a step that lands before it
+renumbers it. The other tests read STEP and the version just before it. Steps after it (5 is the client contact) run on open too.
 
 Run: python3 dev/run_tests.py test_store_section_bodies_migration
 """
@@ -20,7 +20,8 @@ from clark import backup, changes, store as store_module
 from clark.store import Invalid, connect, migrate, open_store
 from test_store_migration import make_v1, version
 
-BEFORE = str(store_module.SCHEMA_VERSION - 1)       # the version this step brings a file from
+STEP = 4                                            # this step's number
+BEFORE = str(STEP - 1)       # the version this step brings a file from
 NOW = str(store_module.SCHEMA_VERSION)
 TYPES_BEFORE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
 
@@ -29,8 +30,8 @@ def make_before(folder):
     """A file at the version just before this step: a version-1 file brought up by the earlier steps only. Its report_sections
     has the old type CHECK. The copy that bringing it up took is removed, so tests count only their own."""
     path = make_v1(folder)
-    earlier = tuple(m for m in store_module.MIGRATIONS if m[0] < store_module.SCHEMA_VERSION)
-    with mock.patch.object(store_module, "SCHEMA_VERSION", store_module.SCHEMA_VERSION - 1), \
+    earlier = tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)
+    with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), \
             mock.patch.object(store_module, "MIGRATIONS", earlier):
         open_store(path, onedrive_roots=[]).close()
     shutil.rmtree(Path(folder) / "backups", ignore_errors=True)
@@ -83,9 +84,9 @@ class Base(unittest.TestCase):
 
 
 class TheNumber(Base):
-    def test_the_step_is_number_4_and_the_version_is_4(self):
+    def test_the_step_is_number_4_and_the_version_is_at_least_4(self):
         self.assertIn((4, store_module.migrate_section_bodies), store_module.MIGRATIONS)
-        self.assertEqual(store_module.SCHEMA_VERSION, 4)         # both written out: a step that lands first renumbers this one, on purpose, in both places
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 4)         # written out: a step that lands first renumbers this one, on purpose
         self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
 
     def test_the_step_is_named_for_what_it_does_not_for_its_number(self):
@@ -98,7 +99,9 @@ class TheNumber(Base):
         con = sqlite3.connect(str(path))
         before = {r[0]: r[1] for r in con.execute("SELECT name, sql FROM sqlite_master WHERE name != 'report_sections' AND name NOT LIKE 'sqlite_%'")}
         con.close()
-        open_store(path, onedrive_roots=[]).close()
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP), \
+                mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] <= STEP)):     # this step only
+            open_store(path, onedrive_roots=[]).close()
         con = sqlite3.connect(str(path))
         after = {r[0]: r[1] for r in con.execute("SELECT name, sql FROM sqlite_master WHERE name != 'report_sections' AND name NOT LIKE 'sqlite_%'")}
         con.close()
@@ -280,7 +283,7 @@ class Migrating(Base):
         def orphan(con):
             store_module._report_sections_allow_content_types(con)
             con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('NOP', 'NOP-S-001', 'text', 'T', 1)")
-        with mock.patch.object(store_module, "MIGRATIONS", (*store_module.MIGRATIONS[:-1], (store_module.SCHEMA_VERSION, orphan))):
+        with mock.patch.object(store_module, "MIGRATIONS", tuple((STEP, orphan) if m[0] == STEP else m for m in store_module.MIGRATIONS)):
             with self.assertRaises(Invalid) as e:
                 open_store(path, onedrive_roots=[])
         self.assertEqual(str(e.exception), store_module.MIGRATE_INCONSISTENT)
@@ -327,7 +330,7 @@ class UndoAcrossTheStep(Base):
     def test_steps_made_before_the_step_are_undone_after_it(self):
         """A section made, hidden, moved and deleted at the old version are each undone after the file is brought up."""
         path = make_before(self.dir)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", store_module.SCHEMA_VERSION - 1):
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1):
             s = open_store(path, onedrive_roots=[])
             with s.step("dashboard", USER) as st:
                 st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})

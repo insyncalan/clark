@@ -115,7 +115,7 @@ export function sortItems(items, today) {
 
 // ---- who and what may go in an email ----
 export function host(address) { const p = str(address).split("@"); return p.length > 1 ? p[1].trim().toLowerCase() : ""; }
-export function isOutside(address, own) { const h = host(address); return !h || !(own || []).map((d) => str(d).trim().toLowerCase()).includes(h); }
+export function isOutside(address, own) { const h = host(address); return !h || !(own || []).map((d) => str(d).trim().toLowerCase()).filter(Boolean).some((d) => h === d || h.endsWith("." + d)); }
 export function barred(item, outside = true) {
   if (item.hidden) return true;
   const said = skeleton(["text", "response", "update"].map((k) => str(item[k])).join(" ")).toLowerCase();

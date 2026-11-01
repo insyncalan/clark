@@ -587,8 +587,8 @@ class FailedMigrationWords(unittest.TestCase):
         self.assertNotIn("(", str(caught.exception))
 
 
-class Version3Contact(unittest.TestCase):
-    """#51: schema version 3 gives a project its one client contact (two nullable columns on projects)."""
+class Version5Contact(unittest.TestCase):
+    """#51: schema version 5 gives a project its one client contact (two nullable columns on projects)."""
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="clark-test-"))
@@ -601,22 +601,49 @@ class Version3Contact(unittest.TestCase):
         finally:
             con.close()
 
+    def at_version(self, path, number):
+        """Bring a version-1 file up as far as `number` only (the earlier steps; not the contact's)."""
+        steps = tuple(m for m in store_module.MIGRATIONS if m[0] <= number)
+        with mock.patch.object(store_module, "SCHEMA_VERSION", number), mock.patch.object(store_module, "MIGRATIONS", steps):
+            open_store(path, onedrive_roots=[]).close()
+
+    def test_the_contact_step_is_number_5_after_words_3_and_the_section_bodies_4(self):
+        self.assertIn((5, store_module.migrate_to_5), store_module.MIGRATIONS)
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS][:4], [2, 3, 4, 5])
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 5)
+
     def test_a_new_database_has_the_contact_columns(self):
         with DemoStore() as s:
             self.assertIn("contact_email", store_module.columns(s.con, "projects"))
             self.assertIn("contact_name", store_module.columns(s.con, "projects"))
 
-    def test_a_version_2_file_gains_them_keeps_its_rows_and_is_version_3(self):
+    def test_a_version_4_file_gains_them_keeps_its_rows_and_is_version_5(self):
         path = make_v1(self.dir)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", 2), mock.patch.object(store_module, "MIGRATIONS", ((2, store_module.migrate_to_2),)):
-            open_store(path, onedrive_roots=[]).close()
-        self.assertEqual((version(path), self.contact_columns(path)), ("2", []))
+        self.at_version(path, 4)
+        self.assertEqual((version(path), self.contact_columns(path)), ("4", []))
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "3")
+            self.assertEqual(version(path), "5")
             self.assertEqual(self.contact_columns(path), ["contact_name", "contact_email"])
             row = s.read("projects", ref="ABC")
             self.assertEqual((row["name"], row["contact_name"], row["contact_email"]), ("Example Programme", None, None))
+        finally:
+            s.close()
+
+    def test_a_version_4_file_with_a_word_row_and_a_section_bodies_row_goes_through_to_5_and_opens(self):
+        path = make_v1(self.dir)
+        self.at_version(path, 4)
+        con = sqlite3.connect(str(path), isolation_level=None)
+        con.execute("INSERT INTO item_events (at, item_id, kind, route, actor) VALUES ('2026-10-02', 'ABC-A-001', 'change', 'word', 'you')")
+        con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-900', 'needs', 'Needs from you', 900)")
+        con.close()
+        s = open_store(path, onedrive_roots=[])
+        try:
+            self.assertEqual(version(path), "5")
+            self.assertEqual(self.contact_columns(path), ["contact_name", "contact_email"])
+            self.assertEqual(s.con.execute("SELECT count(*) FROM item_events WHERE route = 'word'").fetchone()[0], 1)
+            self.assertEqual(s.con.execute("SELECT type FROM report_sections WHERE id = 'ABC-S-900'").fetchone()[0], "needs")
+            self.assertEqual(s.con.execute("PRAGMA integrity_check").fetchone()[0], "ok")
         finally:
             s.close()
 
@@ -626,7 +653,7 @@ class Version3Contact(unittest.TestCase):
         con.execute(store_module.CONTACT_COLUMNS[0][1])
         con.close()
         open_store(path, onedrive_roots=[]).close()
-        self.assertEqual(version(path), "3")
+        self.assertEqual(version(path), CURRENT)
         self.assertEqual(self.contact_columns(path), ["contact_name", "contact_email"])
 
     def test_the_step_adds_exactly_what_schema_sql_has(self):

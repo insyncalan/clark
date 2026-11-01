@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS projects (
   layout          TEXT NOT NULL DEFAULT 'boxed' CHECK (layout IN ('boxed','spine','cover')),             -- clark: report layout
   publish_local   TEXT,                                   -- clark: the local folder last used
   publish_client  TEXT,                                   -- clark: the client's SharePoint folder, as synced on this machine
-  contact_name    TEXT CHECK (contact_name IS NULL OR length(contact_name) <= 80),            -- clark: (#51, version 3) the project contact's name
-  contact_email   TEXT CHECK (contact_email IS NULL OR length(contact_email) BETWEEN 3 AND 254),   -- clark: (#51, version 3) the outside address a published page's Draft email goes To
+  contact_name    TEXT CHECK (contact_name IS NULL OR length(contact_name) <= 80),            -- clark: (#51, version 5) the project contact's name
+  contact_email   TEXT CHECK (contact_email IS NULL OR length(contact_email) BETWEEN 3 AND 254),   -- clark: (#51, version 5) the outside address a published page's Draft email goes To
   updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
@@ -408,7 +408,7 @@ These are copied from `tracker.py`'s `suggested_state` and `milestone_state` at 
 - A project does not have to be closed first: archiving it sets `active = 0` itself and archives everything in it (Restore puts `active` back as it was). Archive and Restore are each one step with one Undo, and the history keeps every row.
 - Archived rows are left out of the default views, the counts, the Excel export and the published page. The reads take an `archived` choice: live rows (the default for the page), archived rows only, or all.
 - The version 2 migration also adds the board place to the history (`item_events.place`). It takes a safety copy first and refuses to run if it cannot.
-- Schema version 3 (#51) adds `projects.contact_name` and `projects.contact_email`: the project's one client contact (the owner, 31-10-2026), saved as an ordinary step from the Publish screen. Publish reads it and puts it in the file only after `draft_email.client_contact` passes it; `publish_inputs` never reads it.
+- Schema version 5 (#51) adds `projects.contact_name` and `projects.contact_email`: the project's one client contact, saved as an ordinary step from the Publish screen. Publish reads it and puts it in the file only after `draft_email.client_contact` passes it; `publish_inputs` never reads it.
 - The writer has no delete for these records. What still removes a row: report sections (the owner's exception, with an Undo toast), annotations such as links, labels, tiles and hidden flags, and Undo of something the same step created. Links, labels and report sections are not records in this sense.
 
 ## Excel round trip

@@ -194,9 +194,11 @@ def host(address):
 
 
 def is_outside(address, own_domains):
-    """True when the address is not on one of the user's own domains. No address on record counts as outside."""
+    """True when the address is not on one of the user's own domains or a subdomain of one (mail.team.com is team.com's). No address
+    on record counts as outside."""
     h = host(address)
-    return not h or h not in [str(d).strip().lower() for d in own_domains or []]
+    own = [str(d).strip().lower() for d in own_domains or [] if str(d).strip()]
+    return not h or not any(h == d or h.endswith("." + d) for d in own)
 
 
 def barred(item, outside=True):
