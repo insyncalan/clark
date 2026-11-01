@@ -2626,6 +2626,8 @@ class Store:
             sent = date.fromisoformat(str(day))
         except ValueError:
             raise Invalid("The day the email was sent must be a real date.") from None
+        if sent < date(2020, 1, 1):
+            raise Invalid("The day the email was sent is too long ago to be right. Check the date.")
         if sent > (today or date.today()) + timedelta(days=1):
             raise Invalid("The day the email was sent can't be in the future.")
         if self.con.in_transaction:
@@ -2645,6 +2647,16 @@ class Store:
                            for table in ("actions", "raid", "decisions"))
             if not all(ours(i) for i in ids):
                 raise Invalid("One of the ticked items is not in this project. Reload the page and tick again.")
+            # #258: an item the email could not have been about (left out of the report, closed, or labelled to be kept out) is refused.
+            values = list(ids)
+            if (self.con.execute(f"SELECT 1 FROM report_hidden WHERE project = ? AND item_id IN ({', '.join('?' * len(values))})",
+                                 (code, *values)).fetchone()
+                    or self.sensitive_among(values)
+                    or any(self.con.execute(f"SELECT 1 FROM {_table(t)} WHERE project = ? AND id IN ({', '.join('?' * len(values))}) "
+                                            "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
+                           for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
+                                             ("decisions", ("Withdrawn", "Withdrawn"))))):
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
@@ -2653,6 +2665,15 @@ class Store:
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
+
+    def sensitive_among(self, ids):
+        """True when any of the item ids is labelled Sensitive or carries a label whose behaviour is 'exclude': the one test for
+        what may never go in an email (the sent record refuses it here)."""
+        values = list(ids)
+        if not values:
+            return False
+        return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({', '.join('?' * len(values))}) "
+                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", values).fetchone())
 
     def email_sent_for(self, code, limit=200):
         """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
