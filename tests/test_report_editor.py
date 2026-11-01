@@ -27,7 +27,7 @@ import esbuild  # noqa: E402
 
 from clark import changes, order, page, publish, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -108,7 +108,7 @@ class Pg:
         self.until("!!document.querySelector('[data-undo]')", "the change was saved")
 
     def toast(self):
-        return self.js("(document.querySelector('.toast-text') || {}).textContent || ''")
+        return wait_toast(lambda: self.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
 
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
