@@ -42,5 +42,46 @@ class History(unittest.TestCase):
             demo.close()
 
 
+class HistoryMany(unittest.TestCase):
+    """The batch read (history_many) gives exactly what history() gives, for every row (#158: one pass, not one per item)."""
+
+    def test_the_batch_equals_the_single_item_history_for_every_row(self):
+        from clark import history
+        demo = DemoStore()
+        try:
+            s = demo.store
+            a1, a2, a3 = demo.action(), demo.action(description="Second"), demo.action(description="Third")
+            demo.update("actions", a1, {"owner": "Sam Example"})
+            demo.update("actions", a1, {"priority": "High"})
+            third = demo.update("actions", a1, {"due_date": "2030-01-31"})
+            s.undo(third, USER)                                           # an undone change, and the undo itself
+            demo.update("actions", a2, {"status": "Delayed"})
+            with s.step("assistant", USER, actor="clark", src_ref="mail 1") as st:       # a change ask clark made
+                st.update("actions", a3, {"owner": "Alex Example"})
+            with s.step("dashboard", USER) as st:
+                r = st.create("raid", {"project": "ABC", "type": "Risk", "description": "A risk", "raised": "2026-10-01",
+                                       "source": "demo"})
+                d = st.create("decisions", {"project": "ABC", "decision": "A choice", "status": "Pending", "source": "demo"})
+                st.update("actions", a2, {"labels": "Sensitive"})
+                st.create("links", {"from_item": a1, "to_item": a2, "source": "demo"})   # a1 at the front, a2 at the end
+                st.create("links", {"from_item": a3, "to_item": a1, "source": "demo"})   # a1 at the end
+                st.create("links", {"from_item": r, "to_item": demo.milestone, "source": "demo"})
+            later = demo.update("raid", r, {"description": "A sharper risk"})
+            s.undo(later, USER)
+            demo.update("decisions", d, {"decision": "A better choice"})
+            ids = [a1, a2, a3, r, d, demo.milestone, "ABC-A-999"]
+            many = history.history_many(s.con, ids)
+            self.assertEqual(set(many), set(ids))
+            for i in ids:
+                with self.subTest(item=i):
+                    self.assertEqual(many[i], history.history(s.con, i))
+            self.assertEqual(many["ABC-A-999"], [])
+            self.assertTrue(any(e["table"] == "links" for e in many[a2]))
+            self.assertTrue(any(e["table"] == "links" for e in many[a1]))
+            self.assertEqual(history.history_many(s.con, []), {})
+        finally:
+            demo.close()
+
+
 if __name__ == "__main__":
     unittest.main()
