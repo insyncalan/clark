@@ -325,6 +325,21 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .sec-body ul, .sec-body ol { margin: 0 0 10px; padding-left: 22px; }
 .sec-body a { color: var(--link); }
 .sec-body blockquote { margin: 0 0 10px; padding-left: 12px; border-left: 3px solid var(--grey-200); }
+/* 'Needs from you': a table of what is needed, from whom and by when. It never scrolls sideways: the first column takes what the
+   others leave and wraps. The date's word Overdue is text, so it does not rest on colour alone. */
+.sec-needs { margin: 8px 0 8px; min-width: 0; }
+table.needs { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; }
+table.needs th { text-align: left; font-weight: 400; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-top: 1px solid var(--grey-200); }
+table.needs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
+table.needs th:first-child, table.needs td:first-child { padding-left: 4px; }
+table.needs .n-from { width: 24%; }
+table.needs .n-by { width: 26%; }
+table.needs .n-kind { margin-right: 4px; vertical-align: baseline; }
+table.needs .n-over { margin-left: 2px; }
+.slot-left table.needs .n-from, .slot-right table.needs .n-from { width: 28%; }
+.slot-left table.needs .n-by, .slot-right table.needs .n-by { width: 34%; }
+@media (max-width: 900px) { table.needs .n-from { width: 26%; } table.needs .n-by { width: 30%; } }
+
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
 .sec.is-hidden { border-top-style: dashed; }
 .sec.is-hidden > :not(.sec-ctl) { opacity: .65; }

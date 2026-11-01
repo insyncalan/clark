@@ -241,6 +241,14 @@ const CHANGE_KNOWN = {
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
   "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
+  // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
+  "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
+  "Say what is needed.": "Say what is needed. Nothing was changed.",
+  "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
+  "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
+  "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
+  "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
+  "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";

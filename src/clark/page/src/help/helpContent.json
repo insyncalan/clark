@@ -421,8 +421,22 @@
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
      "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
-     "Only **Text** can be added so far. The other templates are listed with “Coming with a later release.” and cannot be added yet.",
+     "Only **Text** and **Needs from you** can be added so far. The other templates are listed with “Coming with a later release.” and cannot be added yet.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
+    ]
+   },
+   {
+    "id": "ask-for-what-you-need",
+    "g": "The report",
+    "t": "Ask the client for what you need",
+    "w": "Dashboard › Edit › Needs from you",
+    "go": "dashboard+edit",
+    "s": [
+     "On the **Dashboard**, press **Edit**. Add a section from the **Needs from you** template: press the **+** under the section you want it to follow, choose **Needs from you** and press **Add section**.",
+     "Press **Add a row**. Choose whether it is a decision, information or a date. Say what is needed and who it is from, then write the day it is needed by as DD-MM-YYYY, or leave it empty. Press **Add**.",
+     "Each row has **Edit**, **Leave out** (or **Include**) and **Remove**. A row you leave out stays in Edit and is not shown in View or on the published page.",
+     "A date that has passed shows the word **Overdue** beside it. In View and on the published page the section is a table you can read but not change.",
+     "Each row you add, change, leave out or remove is one change with its own **Undo**."
     ]
    },
    {
@@ -755,7 +769,7 @@
      ],
      [
       "p",
-      "**Text** is the only one that can be added so far; the others say “Coming with a later release.” Each template works at the widths shown."
+      "**Text** and **Needs from you** are the only ones that can be added so far; the others say “Coming with a later release.” Each template works at the widths shown."
      ],
      [
       "tbl",
@@ -814,6 +828,11 @@
         "Key dates",
         "What’s coming, from the milestones.",
         "Half or full"
+       ],
+       [
+        "Needs from you",
+        "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.",
+        "Full or half"
        ]
       ]
      ]
