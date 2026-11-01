@@ -30,7 +30,7 @@ import secrets
 import sqlite3
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from clark import ask, ask_apply, ask_data, ask_passages, platform, publish, secret_screen
@@ -69,6 +69,7 @@ class AskService:
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
         self.provider = provider
+        self.owner = object()                        # #284: this service's token; its Stop ends only a run it asked for
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.lock = threading.Lock()                 # the store is opened by one question at a time
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
@@ -107,7 +108,7 @@ class AskService:
         if body not in (None, {}):
             return 400, self.fail("bad_request")
         stop = getattr(self.provider, "stop", None)
-        running = bool(stop()) if callable(stop) else False
+        running = bool(stop(owner=self.owner)) if callable(stop) else False
         return 200, {"ok": True, "stopped": running, "message": MESSAGES["stopping" if running else "not_running"]}
 
     # ----- POST /api/ask -----
@@ -165,7 +166,7 @@ class AskService:
         facts = data.facts
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        reply = ask.ask_provider(self.provider, request, codes=(code,), exists=lambda ref: ref in facts,
+        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner), codes=(code,), exists=lambda ref: ref in facts,
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}

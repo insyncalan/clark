@@ -20,11 +20,16 @@ Every answer is (status, {ok, ...}); a refusal has a stable `code` and a plain `
 import logging
 import threading
 
-from clark import ai_menu, ask, secret_screen
+from clark import ai_menu, ask, ask_claude, secret_screen
 
 LOG = logging.getLogger("clark.ai")
 FIELDS = {"option", "place", "text", "instruction"}
 PROVIDER_LABEL = "Claude"
+# The provider's own plain lines that ask clark shows as they are (a timeout, a sign-out, busy): the same lines here, each with its
+# own code. Any other provider line is not shown (its words could hold the request or a path); that is the generic "failed".
+PROVIDER_LINES = {ask_claude.TOO_SLOW: "timeout", ask_claude.NOT_SIGNED_IN: "not_signed_in",
+                  ask_claude.API_KEY_LOGIN: "not_signed_in", ask_claude.OTHER_LOGIN: "not_signed_in", ask_claude.BUSY: "busy",
+                  ask.STOPPED: "stopped"}
 OPS = {"=": "same", "-": "del", "+": "add"}
 MESSAGES = {
     "bad_request": "That request could not be read. Nothing was sent. Reload the page and try again.",
@@ -34,6 +39,7 @@ MESSAGES = {
     "busy": ai_menu.why_off("busy"),
     "failed": ai_menu.FAULT_MESSAGES["default"],
     "stopped": ai_menu.FAULT_MESSAGES["stopped"],
+    "timeout": ask_claude.TOO_SLOW,
     "not_running": "No suggestion is being made just now.",
     "stopping": "Stopping.",
     "ready": "AI suggestions are on. The text you select and your instruction go to Claude, which Anthropic runs.",
@@ -46,7 +52,9 @@ class AiService:
     def __init__(self, ask_service):
         self.ask_service = ask_service
         self.run_lock = threading.Lock()           # this service's own run; the provider's lock covers a question's run
-        self.stopped = threading.Event()
+        self.guard = threading.Lock()              # #284: the run is registered, and Stop looks at it, only under this
+        self.stopped = threading.Event()           # set by Stop for the run now going; cleared only as a run is registered
+        self.owner = object()                      # this service's token: Stop ends the provider's run only if it is ours
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
@@ -77,15 +85,22 @@ class AiService:
     def stop(self, body=None):
         if body not in (None, {}):
             return 400, self.fail("bad_request")
-        running = self.run_lock.locked()           # only a suggestion's own run is stopped from here, never a question's
+        with self.guard:
+            running = self.run_lock.locked()       # only a suggestion's own run is stopped from here, never a question's
+            if running:
+                self.stopped.set()                 # seen by the provider as it registers (request.cancel), if it has not yet
         if running:
-            self.stopped.set()
             stop = getattr(self.provider, "stop", None)
             if callable(stop):
-                stop()
+                stop(owner=self.owner)             # and, if it has registered, ended there; never another service's run
         return 200, {"ok": True, "stopped": running, "message": MESSAGES["stopping" if running else "not_running"]}
 
     # ----- POST /api/ai/suggest -----
+    @staticmethod
+    def checked_option(option):
+        """The option as ai_menu knows it, else a fixed word: what the log may hold (never the unchecked text of the request)."""
+        return option if option in ai_menu.OPTIONS else "unknown"
+
     @staticmethod
     def read_body(body):
         """(option, place, text, instruction) or None for a body of the wrong shape."""
@@ -102,7 +117,7 @@ class AiService:
         # A password or key in the text or in Ask... is refused as it was given, before any cleaning or squeezing (screen
         # before the line breaks are joined), before the run lock and before the provider. Nothing is echoed or logged but the shape.
         if secret_screen.looks_like_secret(text) or secret_screen.looks_like_secret(instruction):
-            LOG.info("ai suggest refused: secret option=%s place=%s length=%d", option, place, len(text))
+            LOG.info("ai suggest refused: secret option=%s place=%s length=%d", self.checked_option(option), place, len(text))
             return 400, self.fail("secret")
         state = self.state()
         if state != "ready":
@@ -111,19 +126,23 @@ class AiService:
             req = ai_menu.build_prompt(option, text, place, instruction)
         except ai_menu.Refused as e:
             return 400, self.fail("refused", str(e))
-        if not self.run_lock.acquire(blocking=False):
-            return 409, self.fail("busy")
-        try:
+        with self.guard:                             # #284: registered and cleared together, so a Stop is never lost or wiped
+            if not self.run_lock.acquire(blocking=False):
+                return 409, self.fail("busy")
             self.stopped.clear()
+        try:
             if not self.ask_service.enabled():       # the switch again, just before anything leaves
                 return 409, self.fail("off")
             LOG.info("ai suggest option=%s place=%s length=%d", req["option"], req["place"], len(text))
             try:
-                reply = self.provider.ask(ask.Request(text=req["prompt"], question=""))
+                reply = self.provider.ask(ask.Request(text=req["prompt"], question="", owner=self.owner, cancel=self.stopped))
             except Exception:  # noqa: BLE001  a provider fault is one plain line; its text could hold the request
                 reply = ask.Failure(MESSAGES["failed"])
             if self.stopped.is_set():
                 return 200, self.fail("stopped")
+            if isinstance(reply, ask.Failure):       # a plain line of the provider's own is shown as ask clark shows it
+                code = PROVIDER_LINES.get(reply.message)
+                return 200, self.fail(code or "failed", reply.message if code else None)
         finally:
             self.run_lock.release()
         if not isinstance(reply, str):

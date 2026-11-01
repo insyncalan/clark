@@ -17,8 +17,8 @@ from pathlib import Path
 from _paths import SRC
 
 import _publish_fixture as plant
-from clark import ai_menu, ai_service, ask, ask_service, server as sv, store as st
-from test_ask_route import Running
+from clark import ai_menu, ai_service, ask, ask_claude, ask_service, server as sv, store as st
+from test_ask_route import CODE, Running
 
 TEXT = "We will finish the report by Friday and send it to the team for a read."
 MARKER = "ZQ-SELECTED-WORDS-7731"
@@ -41,22 +41,32 @@ class Fake(ask.Provider):
         self.hold = False
         self.stops = 0
         self.fault = None
+        self.current = None                          # the owner of the run now going (a run holds the lock the way a real one does)
+        self.ran = 0                                 # runs that really started (a request cancelled before it registered is not one)
 
     def status(self):
         return {"connected": self.connected, "why": "" if self.connected else "private fault text /Users/x/key"}
 
     def ask(self, request):
+        if request.cancel is not None and request.cancel.is_set():   # as the real provider: a Stop before it registered ends it
+            return ask.Failure(ask.STOPPED)
         self.requests.append(request)
+        self.ran += 1
         if self.fault:
             raise RuntimeError(self.fault)
         if self.hold:
+            self.current = request.owner
             self.entered.set()
             self.release.wait(10)
+            self.current = None
             if self.stops:
                 return ask.Failure(ask.STOPPED)
         return self.reply
 
-    def stop(self):
+    def stop(self, owner=None):
+        """As the real provider: only a run going now, and with an owner given only that owner's run."""
+        if not self.entered.is_set() or self.release.is_set() or (owner is not None and owner is not self.current):
+            return False
         self.stops += 1
         self.release.set()
         return True
@@ -247,6 +257,14 @@ class SecretsAreRefused(Base):
         self.assertNotIn("Use ", logged)
         self.assertIn("option=rewrite", logged)
 
+    def test_an_unchecked_option_is_never_logged(self):
+        with self.assertLogs("clark.ai", "INFO") as cm:
+            status, got = self.suggest(option="rewrite-ZQ-HOSTILE-OPTION-5521", text=f"Use {self.KEY} now")
+        self.assertEqual((status, got["code"]), (400, "secret"))
+        logged = " ".join(cm.output)
+        self.assertNotIn("ZQ-HOSTILE-OPTION", logged)
+        self.assertIn("option=unknown", logged)
+
 
 class OneRunAtATime(Base):
     def test_a_finished_run_frees_the_next(self):
@@ -293,6 +311,144 @@ class Stop(Base):
 
     def test_stop_takes_no_body(self):
         self.assertEqual(self.s.api("POST", "/api/ai/stop", {"x": 1})[0], 400)
+
+
+class Hooked(threading.Event):
+    """An Event whose clear() first runs a hook: a forced interleaving at that exact step, with no sleeps."""
+    hook = None
+
+    def clear(self):
+        if self.hook:
+            self.hook()
+        super().clear()
+
+
+class StopRaces(Base):
+    """#284: a Stop that arrives at any point after the request starts ends the run, and each service's Stop ends only its own."""
+
+    def ai(self):
+        return self.s.httpd.ai
+
+    def test_a_stop_between_taking_the_run_and_clearing_the_stop_state_is_not_lost(self):
+        ai = self.ai()
+        ai.stopped = Hooked()
+        self.provider.hold = True
+        stoppers = []
+
+        def stop_now():                              # a Stop arrives in the gap: after the run lock is taken, before the clear
+            t = threading.Thread(target=ai.stop, daemon=True)
+            t.start()
+            stoppers.append(t)
+            t.join(0.3)                              # it must wait for the run to be registered, not slip in before the clear
+        ai.stopped.hook = stop_now
+        out = []
+        t = threading.Thread(target=lambda: out.append(self.suggest()), daemon=True)
+        t.start()
+        t.join(10)
+        stoppers[0].join(10)
+        self.assertEqual((out[0][1]["ok"], out[0][1]["code"]), (False, "stopped"))
+
+    def test_a_stop_after_the_clear_and_before_the_provider_registers_ends_the_run_before_it_starts(self):
+        ai = self.ai()
+        calls = []
+        real = self.service.enabled
+
+        def enabled():                               # the switch look just before the send: the window before the provider is asked
+            calls.append(1)
+            if len(calls) == 2:
+                self.assertEqual(ai.stop()[1]["stopped"], True)
+            return real()
+        self.service.enabled = enabled
+        status, got = self.suggest()
+        self.assertEqual((status, got["ok"], got["code"]), (200, False, "stopped"))
+        self.assertEqual(self.provider.ran, 0, "the run never started")
+        self.assertEqual(self.suggest()[0], 200, "and the next run is free, with its Stop state clear")
+
+    def test_a_stop_while_the_provider_is_running_ends_it(self):
+        t, out = self.start_held()
+        self.assertEqual(self.s.api("POST", "/api/ai/stop", {})[1]["stopped"], True)
+        t.join(10)
+        self.assertEqual(out[0][1]["code"], "stopped")
+        self.assertEqual(self.provider.stops, 1)
+
+    def test_an_old_stop_does_not_end_the_next_run(self):
+        self.assertEqual(self.s.api("POST", "/api/ai/stop", {})[1]["stopped"], False)
+        self.assertEqual(self.suggest()[1]["ok"], True)
+
+    def test_asks_stop_does_not_end_a_suggestion(self):
+        t, out = self.start_held()
+        status, got = self.s.api("POST", "/api/ask/stop", {})
+        self.assertEqual((status, got["stopped"], got["message"]), (200, False, ask_service.MESSAGES["not_running"]))
+        self.assertEqual(self.provider.stops, 0)
+        self.provider.release.set()
+        t.join(10)
+        self.assertEqual((out[0][0], out[0][1]["ok"]), (200, True), "the suggestion finished on its own")
+
+    def test_the_suggestions_stop_does_not_end_a_question(self):
+        self.provider.hold = True
+        out = []
+        t = threading.Thread(target=lambda: out.append(self.s.api("POST", "/api/ask", {"project": CODE, "question": "How is it going?"})),
+                             daemon=True)
+        t.start()
+        self.assertTrue(self.provider.entered.wait(10), "the question is running")
+        self.assertEqual(self.s.api("POST", "/api/ai/stop", {})[1]["stopped"], False)
+        self.assertEqual(self.provider.stops, 0)
+        self.provider.release.set()
+        t.join(10)
+        self.assertEqual(out[0][0], 200)
+        self.assertNotEqual(out[0][1].get("message"), ask.STOPPED)
+
+    def test_asks_stop_ends_a_question(self):
+        self.provider.hold = True
+        out = []
+        t = threading.Thread(target=lambda: out.append(self.s.api("POST", "/api/ask", {"project": CODE, "question": "How is it going?"})),
+                             daemon=True)
+        t.start()
+        self.assertTrue(self.provider.entered.wait(10))
+        self.assertEqual(self.s.api("POST", "/api/ask/stop", {})[1]["stopped"], True)
+        t.join(10)
+        self.assertEqual(out[0][1]["message"], ask.STOPPED)
+
+    def test_a_suggestion_stop_that_saw_its_run_end_as_a_question_began_does_not_end_the_question(self):
+        ai = self.ai()
+        self.provider.hold = True
+        out = []
+        t = threading.Thread(target=lambda: out.append(self.s.api("POST", "/api/ask", {"project": CODE, "question": "How is it going?"})),
+                             daemon=True)
+        t.start()
+        self.assertTrue(self.provider.entered.wait(10))
+        ai.run_lock.acquire()                        # the suggestion's run looked going when Stop checked, then ended: the question is the provider's now
+        try:
+            ai.stop()
+        finally:
+            ai.run_lock.release()
+        self.assertEqual(self.provider.stops, 0, "the question was not stopped")
+        self.provider.release.set()
+        t.join(10)
+
+
+class TheReplyLines(Base):
+    """#284: a timeout, a sign-out and busy show the plain line ask clark shows for the same case, not the generic 'failed'."""
+
+    def check(self, line, code):
+        self.provider.reply = ask.Failure(line)
+        status, got = self.suggest()
+        self.assertEqual((status, got["ok"], got["code"], got["message"]), (200, False, code, line))
+        self.assertNotEqual(got["message"], ai_service.MESSAGES["failed"])
+
+    def test_a_timeout(self):
+        self.check(ask_claude.TOO_SLOW, "timeout")
+
+    def test_a_sign_out(self):
+        self.check(ask_claude.NOT_SIGNED_IN, "not_signed_in")
+        self.check(ask_claude.API_KEY_LOGIN, "not_signed_in")
+        self.check(ask_claude.OTHER_LOGIN, "not_signed_in")
+
+    def test_busy(self):
+        self.check(ask_claude.BUSY, "busy")
+
+    def test_the_provider_stopped_line_is_the_stopped_line(self):
+        self.check(ask.STOPPED, "stopped")
 
 
 class BadRequests(Base):
