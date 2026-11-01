@@ -406,6 +406,23 @@ class Page(Base):
             self.until(cdp, sid, "!clarkPage.help.isOpen()", "Esc closed Help")
             self.assertEqual(len(self.picked(cdp, sid)), 2, "and left the selection")
 
+    def test_esc_with_the_ask_panel_open_closes_it_first_and_keeps_the_selection(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[0]))
+            tap(cdp, sid, self.rsel(rows[1]), MOD)
+            cdp.js("document.activeElement.blur()", sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "text": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
+            self.until(cdp, sid, "!!document.querySelector('#ask-panel')", "the ask panel opened")
+            press(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#ask-panel')", "one Esc closed the panel")
+            self.assertEqual(len(self.picked(cdp, sid)), 2, "and left the selection")
+            cdp.js("document.activeElement && document.activeElement.blur()", sid)
+            press(cdp, sid, "Escape")
+            self.until(cdp, sid, "clarkPage.selected().length === 0", "the next Esc cleared the selection")
+
     def test_esc_in_an_edit_cell_menu_closes_the_menu_and_keeps_the_selection(self):
         for field in ("status", "priority"):
             with self.subTest(field=field), chrome() as cdp:
