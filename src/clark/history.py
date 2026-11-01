@@ -226,7 +226,7 @@ def original_date(con, item_id, current=None):
 
 # ===== The display rows (#123): one function the peek's Activity tab and the Excel History sheet both call =====
 
-FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Profile."
+FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Personal \u203a About you."
 NO_ZONE = "Time zone not recorded (shown as UTC)"
 ROW_LIMIT = 20000                      # the newest rows the Excel History sheet holds, per project (answered 29-10-2026)
 CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 changes."
