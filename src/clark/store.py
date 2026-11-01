@@ -146,14 +146,14 @@ def review_days_for(project_row):
     return fresh.DEFAULT_DAYS
 
 
-def attach_freshness(con, data, days):
+def attach_freshness(con, data, days, cache=None):
     """Add `freshness` {raised, last_reviewed, days, not_reviewed} (dates YYYY-MM-DD) to each open action, risk or issue and
     decision in `data` (#158). Closed, cancelled, made, withdrawn and archived items get none. Read only: it works from each
-    item's history, read in one pass, and writes nothing."""
+    item's first and latest by-a-person history rows (history.review_events), and writes nothing."""
     from clark import history          # history imports this module, so it is read here
     on = today()
     opened = [row for t in FRESH_TABLES for row in data.get(t, ()) if fresh.is_open(row)]
-    events = history.history_many(con, [row["id"] for row in opened])          # one pass over the log, not one per item
+    events = history.review_events(con, [row["id"] for row in opened], cache)          # only the rows freshness reads, not the whole log
     for row in opened:
         f = fresh.freshness(row, events[row["id"]], on, days)
         row["freshness"] = {"raised": f["raised"], "last_reviewed": f["last_reviewed"], "days": days,
@@ -2289,6 +2289,7 @@ class Store:
         self.path = Path(path)
         self.backups_dir = self.path.parent / "backups"        # beside the database, never inside OneDrive (backup.py checks)
         self._backup_hold = None                               # set by backup.py alone, and only inside `with store.backup_once(...)`
+        self.review_cache = None                               # #251: made by the first data_for (history.ReviewCache)
         self.backup_warning = None                             # plain words when the last daily copy failed (backup.before); else None
         self.migration_backup = None                           # the safety copy taken when this open brought the file up to date; else None
         self.device = con.execute("SELECT v FROM meta WHERE k = 'device'").fetchone()[0]
@@ -2446,7 +2447,10 @@ class Store:
                 "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
             out["label_rules"] = [dict(r) for r in con.execute(
                 "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
-            attach_freshness(con, out, review_days_for(out["project"]))
+            if self.review_cache is None:
+                from clark import history                  # history imports this module, so it is read here
+                self.review_cache = history.ReviewCache()
+            attach_freshness(con, out, review_days_for(out["project"]), self.review_cache)
             return out
         finally:
             con.close()
