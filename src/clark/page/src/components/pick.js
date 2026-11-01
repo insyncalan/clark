@@ -11,7 +11,7 @@ const CONTROL = "a, button, input, select, textarea, label, .ddmenu, .dpick, [da
 // Open things that take Esc and clicks for themselves: a menu, a picker, a date or filter box, a dialog, the peek, Help.
 // Help is found by its panel, not through its store: the published file has no Help, and an import of the store would bundle
 // Help's words into it.
-const OVERLAY = "#help, #ask-panel, .ddmenu, .dpick, .fbox, .pop, [role='dialog'], [aria-modal='true'], [data-peek], .cpop, [data-pop], [role='menu'], [role='listbox']";
+const OVERLAY = "#help, aside[role='complementary'], .ddmenu, .dpick, .fbox, .pop, [role='dialog'], [aria-modal='true'], [data-peek], .cpop, [data-pop], [role='menu'], [role='listbox']";
 
 /** The ids of the rows or cards on the screen, in the order drawn (a collapsed group's are not drawn). */
 export function drawnOrder() { return Array.from(document.querySelectorAll(ITEMS), (e) => e.dataset.id); }
