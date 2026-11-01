@@ -25,7 +25,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, idle, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, idle, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 DB_NAME = "clark.db"
 HERE = Path(__file__).resolve().parent
@@ -342,6 +342,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         who = profile_settings.Profile(store.path.parent)          # #180: the name typed in Settings, else the login name, is the name on each change
         handlers = {"change": change or changes.make_change(store.path, roots, who.who),
                     "undo": undo or changes.make_undo(store.path, roots, who.who),
+                    "sneak": sneak.make_read(store.data_for),
                     "word_import": word_import or word_route.make_word_import(store.path, roots),
                     "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())
@@ -360,6 +361,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
+                     activity=activity_read.make_read(store.path, store.data_for),
                      brand_picture=page.brand_picture,
                      **handlers)
         if done == 0:
