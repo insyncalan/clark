@@ -528,6 +528,36 @@ class Report(Base):
         found = self.log.errors()
         self.assertEqual([(g["count"], g["message"]) for g in found], [(2, "item # failed")])
 
+    def test_the_first_day_of_the_window_counts_from_its_cut_off_time(self):
+        """The day the window starts on is read: a fault on it after the cut-off time counts, one before it does not."""
+        folder = self.tmp / "logs"
+        folder.mkdir()
+        start = NOW - timedelta(days=clog.KEEP_DAYS)
+        before = start - timedelta(hours=1)
+        after = start + timedelta(hours=1)
+        (folder / f"clark-{start.date()}.log").write_text(
+            f"{before:%Y-%m-%d %H:%M:%S} ERROR server       early fault\n{after:%Y-%m-%d %H:%M:%S} ERROR server       late fault\n",
+            encoding="utf-8")
+        self.assertEqual([g["message"] for g in self.log.errors()], ["late fault"])
+
+    def test_errors_keeps_out_of_order_half_written_and_bad_lines_apart(self):
+        folder = self.tmp / "logs"
+        folder.mkdir()
+        (folder / "clark-2026-10-27.log").write_text(
+            "2026-10-27 12:00:00 ERROR server       later fault\n"
+            "2026-10-27 09:00:00 ERROR server       earlier fault\n"
+            "2026-13-45 99:99:99 ERROR server       bad time\n"
+            "2026-10-27 13:00:00 ERROR server       last fault, no newline", encoding="utf-8")
+        found = self.log.errors()
+        self.assertEqual([g["message"] for g in found], ["last fault, no newline", "later fault", "earlier fault"])
+
+    def test_a_lone_carriage_return_in_a_read_line_is_not_a_break(self):
+        folder = self.tmp / "logs"
+        folder.mkdir()
+        path = folder / "clark-2026-10-27.log"
+        path.write_bytes(b"2026-10-27 10:00:00 ERROR server       one\rtwo\n")
+        self.assertEqual(self.log._lines(path), ["2026-10-27 10:00:00 ERROR server       one\rtwo"])
+
     def test_errors_over_a_busy_week_reads_only_the_week_and_is_quick(self):
         folder = self.tmp / "logs"
         folder.mkdir()
