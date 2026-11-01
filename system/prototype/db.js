@@ -143,7 +143,7 @@
   const flush = () => queue;
 
   /* ── the in-memory copy everything reads ── */
-  const S = { projects: [], items: [], milestones: [], usecases: [], history: [], profile: {}, people: {}, pubCopies: {}, ready: false, persistent: false };
+  const S = { projects: [], items: [], milestones: [], usecases: [], history: [], profile: {}, people: {}, pubCopies: {}, pubComments: {}, ready: false, persistent: false };
   const PROFILE = ['name', 'alias', 'email', 'phone', 'org'];   // the user's own details (Settings › Profile); kept in meta, not with the demo data
   let seq = 0;
 
@@ -156,7 +156,7 @@
       const meta = await all('meta');
       S.profile = (meta.find(r => r.k === 'profile') || {}).v || {};
       S.people = (meta.find(r => r.k === 'people') || {}).v || {};
-      S.pubCopies = {}; meta.filter(r => /^pub:/.test(r.k)).forEach(r => { S.pubCopies[r.k] = r.v; });   /* the kept copies of published pages (FR-83a) */
+      S.pubCopies = {}; meta.filter(r => /^pub:/.test(r.k)).forEach(r => { S.pubCopies[r.k] = r.v; }); S.pubComments = {}; meta.filter(r => /^cm:/.test(r.k)).forEach(r => { S.pubComments[r.k.slice(3)] = r.v; });   /* the kept copies of published pages (FR-83a) */
     }
     if (!data) {
       data = seed(); data.history = [];
@@ -186,7 +186,7 @@
   }
   async function reset() {
     if (db) await write(STORES.map(s => [s, 'clear']));
-    const data = seed(); Object.assign(S, data, { history: [], people: {}, pubCopies: {} }); seq = 0;
+    const data = seed(); Object.assign(S, data, { history: [], people: {}, pubCopies: {}, pubComments: {} }); seq = 0;
     if (db) await write([...seedOps(data), ['meta', 'put', { k: 'profile', v: S.profile }]]);   // the profile is the user's, not demo data: a reset keeps it
   }
 
@@ -314,18 +314,18 @@
   const expected = m => { if (m.achievedOn || m.manual === 'Forecast' || !m.agreed) return ''; const f = m.forecast || m.agreed; return [f, m.agreed < TODAY ? TODAY : m.agreed].sort()[1]; };
   const slip = m => { const e = expected(m); return e ? Math.round((new Date(e) - new Date(m.agreed)) / 864e5) : 0; };
 
-  /* ── numbered publications (FR-83a, #120): each publish of a project gets the next number; its page is kept (the last 10 per project) in the
-     browser's database beside the record in the project's list of publications ── */
-  const PUB_KEEP = 10, pubKey = (code, n) => `pub:${code}:${n}`;
+  /* ── numbered publications (FR-83a, #120): each publish of a project gets the next number; its page and a copy of its data are kept in the
+     browser's database beside the record in the project's list of publications. Every publication is kept: nothing is pruned (#342, #348);
+     an old one can be archived (it leaves the list and the pickers) and restored, never deleted ── */
+  const pubKey = (code, n) => `pub:${code}:${n}`;
   const pubNo = (p, i) => { const r = (p.published || [])[i]; return r ? (r.n || i + 1) : 0; };
   const pubNext = p => Math.max(0, ...(p.published || []).map((r, i) => r.n || i + 1)) + 1;
   const pubCopy = (code, n) => S.pubCopies[pubKey(code, n)] || null;
-  function pubKeep(code, n, copy) {
-    const ops = [], key = pubKey(code, n); S.pubCopies[key] = copy; ops.push(['meta', 'put', { k: key, v: copy }]);
-    const mine = Object.keys(S.pubCopies).filter(k => k.startsWith(`pub:${code}:`)).sort((a, b) => +a.split(':')[2] - +b.split(':')[2]);
-    mine.slice(0, Math.max(0, mine.length - PUB_KEEP)).forEach(k => { delete S.pubCopies[k]; ops.push(['meta', 'delete', k]); });
-    return write(ops);
-  }
+  function pubKeep(code, n, copy) { S.pubCopies[pubKey(code, n)] = copy; return write([['meta', 'put', { k: pubKey(code, n), v: copy }]]); }
+  /* client comments tied to a publication and an item (#120): kept per project in meta as cm:<code> */
+  const cmKey = code => `cm:${code}`;
+  const pubComments = code => S.pubComments[code] || [];
+  function pubCommentsSet(code, rows) { const before = pubComments(code); S.pubComments[code] = rows; write([['meta', 'put', { k: cmKey(code), v: rows }]]); return () => { S.pubComments[code] = before; write([['meta', 'put', { k: cmKey(code), v: before }]]); }; }
   const lastSeq = () => seq;
   /* people (FR-31a, v0.5; a light simulation): details kept by name, in meta: { 'Sam Rivers': { email, org, role } } */
   const PERSON = ['email', 'org', 'role'];
@@ -337,6 +337,6 @@
     return () => { S.people = before; write([['meta', 'put', { k: 'people', v: before }]]); };
   }
 
-  window.ClarkDB = { S, load, reset, flush, change, create, remove, archive, batch, setProfile, PROFILE, historyOf, who, whoHow, FN, fieldName, RICH, COMMENT, showVal, when, whenIso, fresh, notReviewed, gap, STALE_DAYS, pubNo, pubNext, pubCopy, pubKeep, PUB_KEEP, lastSeq, setPeople, msState, msWord, nextMsId, migrate, slip, expected, write, clone, defaultReport,
+  window.ClarkDB = { S, load, reset, flush, change, create, remove, archive, batch, setProfile, PROFILE, historyOf, who, whoHow, FN, fieldName, RICH, COMMENT, showVal, when, whenIso, fresh, notReviewed, gap, STALE_DAYS, pubNo, pubNext, pubCopy, pubKeep, pubKey, pubComments, pubCommentsSet, addHistory, lastSeq, setPeople, msState, msWord, nextMsId, migrate, slip, expected, write, clone, defaultReport,
     TYPES, STATUSES, PRIORITIES, TODAY, toIso, addDays, fd, days, stamp, friday, pad };
 })();

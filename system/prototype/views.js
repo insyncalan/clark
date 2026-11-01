@@ -506,7 +506,7 @@
       const p = P(), r = rep(), editing = UI.editing;
       const B = window.BRAND || {}, week = p.week || D.friday();
       return `<div class="rbar"><div class="seg" role="group" aria-label="Mode"><button data-mode="view" aria-pressed="${!editing}" title="View (V)" aria-keyshortcuts="V">View</button><button data-mode="edit" aria-pressed="${editing}" title="Edit (E)" aria-keyshortcuts="E">${C.icon('pencil', 's')} Edit</button></div>
-        <label class="muted" style="font-size:14px;display:flex;align-items:center;gap:8px">Week ending <input class="field" type="date" id="wk" value="${week}" style="width:auto"></label>
+        <label class="muted" style="font-size:14px;display:flex;align-items:center;gap:8px">Week ending <input class="field" type="date" id="wk" value="${week}" style="width:auto"></label>${C.pastPickHtml ? C.pastPickHtml(p) : ''}
         <span class="state">${editing ? 'Editing · each change saves on its own' : (p.published || []).length ? `Published ${D.fd(p.published.slice(-1)[0].at.slice(0, 10))}${p.published.slice(-1)[0].client ? ' to the client' : ' locally'}` : 'Draft · not published yet'}</span>${editing && C.edHint ? '<span class="sh-hint" id="shHint">Drag to move, + to add a template</span>' : ''}<span class="sp"></span>${editing ? (() => { const lp = C.lastPub(p), kept = lp && D.pubCopy(p.code, lp.n); return `<button class="btn sm" id="startLast" ${kept ? '' : 'aria-disabled="true"'} title="${kept ? `Copy the text sections from Publication ${lp.n} (${D.fd(lp.date)})` : lp ? 'The copy of the last publication is no longer kept' : 'Publish once first: there is no last report to start from'}">Start from last week’s report</button>`; })() : ''}
         </div>
       ${editing ? sinceHtml(p) : ''}
@@ -1354,13 +1354,10 @@
   }
 
   /* ── Published reports (FR-83a, #120): every publish of the open project, newest first, with its number, when, where, who and a kept copy to Open.
-     The last 10 pages are kept (in this browser's database); an older publication keeps its row but not its page. ── */
+     Every page and a copy of its data are kept (in this browser's database), none pruned; an old one can be archived and restored (past.js). ── */
   C.openPub = n => { const p = C.P(), cp = D.pubCopy(p.code, n); if (!cp) return C.toast('That copy is no longer kept.');
     const url = URL.createObjectURL(new Blob([cp.html], { type: 'text/html' })); const w = window.open(url, '_blank'); if (!w) C.toast('Your browser blocked the new tab'); setTimeout(() => URL.revokeObjectURL(url), 60000); };
-  const pubsCard = p => { const pubs = (p.published || []).map((r, i) => ({ r, n: D.pubNo(p, i) })).reverse();
-    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. The last ${D.PUB_KEEP} copies are kept.</p>
-      ${pubs.length ? `<table class="set stack ppl"><thead><tr><th>#</th><th>Date and time</th><th>Where</th><th>Who</th><th></th></tr></thead><tbody>${pubs.map(({ r, n }) => `<tr data-pub="${n}"><td class="nm" data-l="Publication"><b style="font-weight:500">${n}</b></td><td data-l="Date and time">${D.fd(r.at.slice(0, 10))} ${esc(r.at.slice(11))}</td><td data-l="Where">${esc(r.where || (r.client ? 'Local and to client' : 'Local'))}${r.word ? ' · Word' : ''}${r.pdf ? ' · PDF' : ''}</td><td data-l="Who">${esc(r.who || 'Not recorded')}</td>
-        <td class="acts">${D.pubCopy(p.code, n) ? `<button class="btn sm" data-pubopen="${n}">Open</button>` : '<span class="muted">Not kept</span>'}</td></tr>`).join('')}</tbody></table>` : '<p class="muted" id="pubsNone">Nothing published yet. Each publish is listed here with its number.</p>'}</div>`; };
+  const pubsCard = p => C.pubsCardHtml(p);   /* the card is drawn in past.js, with the real past views */
   /* ── People (FR-31a, v0.5; a light simulation): a table from the distinct owners in the data, details by name, "Needs details" where the email is empty, and a paste from Excel ── */
   C.peopleRows = () => { const det = D.S.people || {}, names = new Map(C.people(true).map(n => [n.toLowerCase(), n]));
     Object.keys(det).forEach(k => { if (!names.has(k.toLowerCase())) names.set(k.toLowerCase(), k); });
@@ -1452,9 +1449,9 @@
       ${p ? askCard(p) : ''}
       ${p ? `<div class="card" id="publishing"><div class="card-h"><h2>Publishing · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Where Publish saves the report. Local is always used; the client folder only when you tick To client.</p>
         <div class="form"><label for="pubL">Local folder</label><input class="field" id="pubL" value="${esc((p.publish || {}).local || '')}" placeholder="A folder on this computer, for example Reports">
-        <label for="pubC">Client folder (SharePoint)</label><input class="field" id="pubC" type="url" value="${esc((p.publish || {}).client || '')}" placeholder="https://yourcompany.sharepoint.com/sites/…/Client reports"></div></div>
+        <label for="pubC">Client folder (SharePoint)</label><input class="field" id="pubC" type="url" value="${esc((p.publish || {}).client || '')}" placeholder="https://yourcompany.sharepoint.com/sites/…/Client reports">${C.wordTplRowHtml ? C.wordTplRowHtml() : ''}</div></div>
       ${pubsCard(p)}` : ''}
-      <div class="card" id="data"><div class="card-h"><h2>Data</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="sExp">${C.icon('dl', 's')}Export workbook</button><button class="btn" id="sImp">${C.icon('ul', 's')}Import workbook</button><button class="btn danger" id="sReset">Reset the demo data</button></div>
+      <div class="card" id="data"><div class="card-h"><h2>Data</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="sExp">${C.icon('dl', 's')}Export workbook</button><button class="btn" id="sImp">${C.icon('ul', 's')}Import workbook</button><button class="btn" id="sXl">${C.icon('doc', 's')}Excel file layout (preview)</button><button class="btn" id="sWx">${C.icon('doc', 's')}Export to Word…</button><button class="btn" id="sWi">${C.icon('ul', 's')}Import from Word…</button><button class="btn danger" id="sReset">Reset the demo data</button></div>
         <p class="muted" style="font-size:13px;margin:10px 0 0">The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases. ${D.S.persistent ? 'Everything is kept in this browser\'s database.' : 'This browser blocked its database, so changes last for this visit only.'}</p></div>
       ${updCard()}${dgCard()}`;
     },
@@ -1487,7 +1484,8 @@
       C.$$('[data-sn]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); C.settingsGo(a.dataset.sn); }));
       settingsSpy();
       C.$('#sExp').addEventListener('click', () => C.exportExcel()); C.$('#sImp').addEventListener('click', () => C.importExcel());
-      C.$$('[data-pubopen]').forEach(b => b.addEventListener('click', () => C.openPub(+b.dataset.pubopen)));
+      C.$('#sXl').addEventListener('click', () => C.xlsxLayout()); C.$('#sWx').addEventListener('click', () => C.wordExport()); C.$('#sWi').addEventListener('click', () => C.wordImport());
+      C.pubsWire();
       C.$('#ppPasteBtn')?.addEventListener('click', e => { const box = C.$('#ppPaste'), on = box.hidden; box.hidden = !on; e.currentTarget.setAttribute('aria-expanded', on); if (on) C.$('#ppText').focus(); });
       C.$('#ppAdd')?.addEventListener('click', () => { const txt = C.$('#ppText').value, known = new Map(C.peopleRows().map(r => [r.name.toLowerCase(), r.name]));
         const rows = txt.split(/\r?\n/).map(l => l.split('\t').map(c => c.trim())).filter(c => c[0] && !(c[0].toLowerCase() === 'name' && /mail/i.test(c[1] || ''))).map(c => ({ name: known.get(c[0].toLowerCase()) || c[0], email: c[1] || '', org: c[2] || '', role: c[3] || '' }));
