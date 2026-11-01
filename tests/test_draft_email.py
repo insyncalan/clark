@@ -534,7 +534,8 @@ class Outside(unittest.TestCase):
         sens = item("ABC-A-012", "Sensitive matter", "2026-10-20", sensitive=True)
         d = build(items=[LATE, held, hidden, sens], email=OUTSIDE)
         self.assertEqual(d["ids"], ["ABC-A-001"])
-        self.assertEqual(build(items=[sens], email=INSIDE)["ids"], ["ABC-A-012"])           # kept for an own address
+        self.assertEqual(build(items=[sens], email=INSIDE)["ids"], [])                      # Sensitive: barred for an own address too
+        self.assertNotIn("Sensitive matter", build(items=[LATE, sens], email=INSIDE)["text"])
         ok, left = de.offered([LATE, held, hidden, sens], OUTSIDE, OWN)
         self.assertEqual(([i["id"] for i in ok], left), (["ABC-A-001"], 3))
 

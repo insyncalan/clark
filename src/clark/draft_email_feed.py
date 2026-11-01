@@ -45,6 +45,7 @@ BAD_REQUEST = "That could not be read. Reload the page and try again."
 NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list."
 BAD_CODE = "Use a project code of 3 to 7 capital letters or digits."
 BAD_ITEM = "That item could not be found in this project. Reload the page and choose it again."
+NOT_FOR_EMAIL = "One of those items can't go in an email. Reload the page and choose again."
 BAD_PICK = "One of the ticked items is not in this project. Reload the page and tick again."
 BAD_DATE = "Choose the reply-by date from the calendar, or leave it empty."
 BAD_ADDRESS = "That email address is not complete. Check it, or leave it empty."
@@ -77,7 +78,7 @@ def items_of(data, rules=None):
     """The project's open items as the builder reads them (draft_email's words). An action, a risk or issue, and a decision still
     pending; a made or withdrawn decision is not asked for. The one place the store's columns are named for the builder. A row in
     the report's hidden list is marked `hidden` (never in an email), and one with an excluding label (Sensitive always, so it is
-    barred even when no rules are given) is marked `sensitive` (never in an email to an outside address)."""
+    barred even when no rules are given) is marked `sensitive` (never in an email, to anyone)."""
     rules = rules or {}
     hidden = set(rules.get("hidden") or ())
     excluded = {"sensitive"} | {str(n).casefold() for n in rules.get("excluded") or ()}
@@ -152,6 +153,9 @@ def make(data_for, profile=None, clock=None, chased=None, rules_for=None):
             return refuse(404, "bad_item", BAD_ITEM)
         if picked is not None and not set(picked) <= known:
             return refuse(400, "bad_pick", BAD_PICK)
+        # A Sensitive item never goes in an email, to anyone: a request that names one is refused (the list never offers it).
+        if {i["id"] for i in items if i.get("sensitive")} & ({item_id} | set(picked or ())):
+            return refuse(400, "not_for_email", NOT_FOR_EMAIL)
         now, who = clock(), profile()
         today, domains = now[:10], list(who.get("own_domains") or [])
         if item_id is not None:

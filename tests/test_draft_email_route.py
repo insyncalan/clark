@@ -330,11 +330,28 @@ class OnTheRealStore(unittest.TestCase):
         got = self.ask(owner="Dana Hart", email=self.OUT)
         self.assertFalse({self.hidden, self.sensitive} & {i["id"] for i in got["items"]})
 
-    def test_a_sensitive_row_may_go_to_an_own_address_but_a_hidden_one_never_does(self):
+    def test_a_sensitive_row_is_absent_for_an_outside_address(self):
+        got = self.ask(email=self.OUT)
+        self.assertNotIn(self.sensitive, {i["id"] for i in got["items"]})
+        self.assertNotIn("supplier terms", json.dumps(got["draft"]))
+
+    def test_a_sensitive_row_is_absent_for_an_inside_colleague_and_a_hidden_one_too(self):
         got = self.ask(email=INSIDE)
         offered = {i["id"] for i in got["items"]}
-        self.assertIn(self.sensitive, offered)
+        self.assertNotIn(self.sensitive, offered)
+        self.assertNotIn(self.sensitive, got["picked"])
         self.assertNotIn(self.hidden, offered)
+        self.assertNotIn("supplier terms", json.dumps(got["draft"]))
+        self.assertIn(self.plain, offered)                                              # a plain item still appears
+
+    def test_a_request_naming_a_sensitive_id_is_refused_in_fixed_words_and_nothing_is_written(self):
+        before = self.fingerprint()
+        for email in (self.OUT, INSIDE):
+            for ask in ({"item": self.sensitive}, {"picked": [self.plain, self.sensitive]}):
+                status, body = self.seam({"project": "ABC", "email": email, **ask})
+                self.assertEqual((status, body["code"], body["message"]), (400, "not_for_email", feed.NOT_FOR_EMAIL))
+                self.assertNotIn(self.sensitive, body["message"])
+        self.assertEqual(self.fingerprint(), before)
 
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:

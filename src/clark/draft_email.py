@@ -200,9 +200,9 @@ def is_outside(address, own_domains):
     return not h or h not in [str(d).strip().lower() for d in own_domains or []]
 
 
-def barred(item, outside=True):
+def barred(item):
     """True when an item can never go in an email: a hidden row, anything marked confidential or restricted in the words
-    that would be sent, and (to an outside address) a sensitive item even when it is client-visible."""
+    that would be sent, and a sensitive item (to anyone, inside or outside, even when it is client-visible)."""
     if item.get("hidden"):
         return True
     # Read the way a person reads it: a soft hyphen, a zero-width character or a look-alike letter (Cyrillic "е") in the word
@@ -210,7 +210,7 @@ def barred(item, outside=True):
     said = skeleton(" ".join(str(item.get(k) or "") for k in ("text", "response", LATEST))).lower()
     if any(skeleton(w).lower() in said for w in HELD_WORDS):
         return True
-    return bool(outside and item.get("sensitive"))
+    return bool(item.get("sensitive"))
 
 
 def open_items(items):
@@ -226,9 +226,8 @@ def is_internal(item):
 
 def offered(items, address="", own_domains=()):
     """The open items that may be offered for this address: barred ones are left out. Returns (items, left_out count)."""
-    outside = is_outside(address, own_domains)
     open_ = open_items(items)
-    ok = [i for i in open_ if not barred(i, outside)]
+    ok = [i for i in open_ if not barred(i)]
     return ok, len(open_) - len(ok)
 
 
@@ -511,7 +510,7 @@ def build(opts):
     today, hour = now[:10], int(now[11:13] or 0) if len(now) >= 13 else 0
     outside = is_outside(opts.get("email"), opts.get("own_domains"))
     picked = opts.get("picked")
-    items = [i for i in opts.get("items") or [] if not barred(i, outside) and (picked is None or i["id"] in picked)]
+    items = [i for i in opts.get("items") or [] if not barred(i) and (picked is None or i["id"] in picked)]
     items = sort_items(items, today)
     internal_ids = [i["id"] for i in items if outside and is_internal(i)]
     ids = [i["id"] for i in items]
@@ -535,7 +534,7 @@ def build(opts):
         lines += [str(names.get(c) or c).strip(),
                   *_text_rows([i for i in items if (i.get("project") or "") == c], today, include_update), ""]
     lines += [ask, "", SIGN_OFF[mode], sender]
-    offerable = any(not barred(i, outside) for i in opts.get("items") or [])
+    offerable = any(not barred(i) for i in opts.get("items") or [])
     problems = ([] if items else [NOTHING_TICKED if offerable else NO_OPEN_ITEMS]) + ([] if sender else [NO_SENDER])
     return {"to": one_line(opts.get("email")), "internal_ids": internal_ids, "problems": problems, "ready": not problems, "subject": subject(mode, items, today, tone, names, opts.get("reply_by") or ""), "html": html,
             "text": "\n".join(lines), "items": [{k: i[k] for k in ITEM_KEYS if k in i} for i in items], "ids": ids, "tone": tone, "mode": mode}

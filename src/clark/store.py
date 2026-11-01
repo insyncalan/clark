@@ -2547,8 +2547,7 @@ class Store:
             # #258: an item the email could not have been about (left out of the report, closed, or labelled to be kept out) is refused.
             marks = ",".join("?" * len(ids))
             if (self.con.execute(f"SELECT 1 FROM report_hidden WHERE project = ? AND item_id IN ({marks})", (code, *ids)).fetchone()
-                    or self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({marks}) "
-                                        "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", ids).fetchone()
+                    or self.sensitive_among(ids)
                     or any(self.con.execute(f"SELECT 1 FROM {t} WHERE project = ? AND id IN ({marks}) AND (archived = 1 OR status IN ({q}))",
                                             (code, *ids)).fetchone()
                            for t, q in (("actions", "'Closed','Cancelled'"), ("raid", "'Closed','Cancelled'"), ("decisions", "'Withdrawn'")))):
@@ -2561,6 +2560,16 @@ class Store:
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
+
+    def sensitive_among(self, ids):
+        """True when any of the item ids is labelled Sensitive or carries a label whose behaviour is 'exclude': the one test for
+        what may never go in an email (the sent record refuses it here)."""
+        ids = list(ids)
+        if not ids:
+            return False
+        marks = ",".join("?" * len(ids))
+        return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({marks}) "
+                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", ids).fetchone())
 
     def email_sent_for(self, code, limit=200):
         """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
