@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_palette
 The page is the real one served by a real server over two fictional projects. Covers: it opens from anywhere, even a box, and
 Esc or the same keys close it with focus back; every kind of result (command, page, project, work item by ID and by words,
-milestone) with its kind in words; Enter on each; Up and Down wrap and pass over a result that cannot run now, which says why;
+milestone) with its kind in words; Enter on each, and a mouse click on a result (the peek opens, the slash key still works); Up and Down wrap and pass over a result that cannot run now, which says why;
 Help lists the key; the published page has no palette; both widths, light and dark. Chrome is required.
 """
 import re
@@ -42,6 +42,18 @@ class Pg:
     def until(self, expr, what, seconds=15):
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
 
+    def until_new_page(self, expr, what, seconds=15):
+        """until(), but a call made while the page is navigating is waited out: Chrome answers it with 'Inspected target navigated
+        or closed' (seen on the hosted macOS runner), and the next poll sees the new page. Any other error still fails."""
+        def ask():
+            try:
+                return self.js(expr)
+            except RuntimeError as e:
+                if "navigated or closed" in str(e):
+                    return False
+                raise
+        self.t.assertTrue(wait(ask, seconds), what)
+
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
@@ -64,6 +76,13 @@ class Pg:
         self.js("(function(){var q=document.querySelector('#palette-q'); q.value=''; q.focus();})()")
         self.type(text)
         self.until(f"document.querySelector('#palette-q').value === {text!r}", "typed")
+
+    def click(self, selector):
+        """A real mouse click (move, press, release) in the middle of the first element the selector finds."""
+        x, y = self.js(f"(function(){{var r=document.querySelector({selector!r}).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2];}})()")
+        self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, self.sid)
+        for kind, buttons in (("mousePressed", 1), ("mouseReleased", 0)):
+            self.cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, self.sid)
 
     def active(self):
         return self.js("(document.querySelector('#palette .pal-row.on .pal-label') || {}).textContent || ''")
@@ -222,8 +241,10 @@ class Results(Base):
                 self.assertEqual(p.js("[...document.querySelectorAll('#palette .pal-row')].filter(e => /In use/.test(e.textContent)).map(e => e.querySelector('.pal-label').textContent)"),
                                  ["Appearance: " + mode.capitalize()], "the one in use says so")
                 p.key("Escape", 0, "Escape", 27)
+            p.js("window.__old_document = true")
             p.js("location.reload()")
-            p.until("!!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'", "Dark again after a reload")
+            p.until_new_page("window.__old_document === undefined && !!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'",
+                             "Dark again after a reload")
 
     def test_an_item_hidden_from_the_project_is_not_offered(self):
         """The page only holds what the server gave it, and the palette searches that and nothing else."""
@@ -286,6 +307,31 @@ class Enter(Base):
             p = self.visit(cdp, "#settings&p=ABC")
             self.run_first(p, "abc-a-001")
             p.until("location.hash.indexOf('#settings') !== 0 && location.hash.indexOf('item=ABC-A-001') > 0", "left Settings for the item")
+
+
+class Click(Base):
+    def test_a_click_on_a_result_opens_the_peek_and_the_slash_key_still_works_after(self):
+        """The mouse runs a result as Enter does: the palette closes for good (an open one would hold the slash key), the peek opens
+        with focus in it and keeps the slash for its own words box; once the peek is shut the slash opens the ask panel."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.js("document.activeElement && document.activeElement.blur()")
+            p.show()
+            p.find("abc-a-001")
+            p.until("document.querySelectorAll('#palette .pal-row').length === 1", "one result")
+            p.click("#palette .pal-row")
+            p.until("!document.querySelector('#palette')", "the palette closed on the click")
+            p.until("!!document.querySelector('#peek[data-peek=\"ABC-A-001\"]')", "the peek opened on the item")
+            self.assertTrue(p.js("location.hash.indexOf('item=ABC-A-001') > 0"), "the item's peek address")
+            self.assertEqual(p.js("document.querySelectorAll('dialog[open]').length"), 0, "no dialog is left open")
+            p.until("document.activeElement.hasAttribute('data-pk-close')", "focus went into the peek")
+            p.key("/", 0, "Slash", 191)
+            self.assertFalse(p.js("!!document.querySelector('#ask-panel')"), "the peek keeps the slash: one of them does not open the ask panel")
+            p.key("Escape", 0, "Escape", 27)
+            p.until("!document.querySelector('#peek')", "Esc closed the peek")
+            p.js("document.activeElement && document.activeElement.blur()")
+            p.key("/", 0, "Slash", 191)
+            p.until("!!document.querySelector('#ask-panel')", "the slash opens the ask panel once the peek is shut")
 
 
 class Looks(Base):
