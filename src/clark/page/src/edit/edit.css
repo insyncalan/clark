@@ -107,6 +107,22 @@
 .needs-edit .n-add { margin: 8px 0 4px; }
 .needs-edit .btn:disabled { color: var(--text-muted); cursor: default; }
 
+/* The command palette (#198), Edit parts only: a modal box with one search box and the results under it. */
+.pal { width: min(620px, calc(100% - 32px)); margin-top: 10vh; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; }
+.pal[open] { display: flex; }
+.pal-q { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.pal-q input { width: 100%; min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.pal-q input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pal-list { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+.pal-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-height: 32px; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+.pal-row.on { background: var(--grey-100); outline: 1px solid var(--grey-300); }
+.pal-row.off { cursor: default; }
+.pal-row.off .pal-label, .pal-row.off .pal-kind { color: var(--text-muted); }
+.pal-kind { flex: none; min-width: 78px; font-size: var(--size-small); color: var(--text-muted); }
+.pal-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.pal-more, .pal-why { font-size: var(--size-small); }
+.pal-why { flex-basis: 100%; padding-left: 88px; }
+.pal-none { margin: 0; padding: 14px 16px; }
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }

@@ -12,6 +12,7 @@ export function App({ tools }) {
   const Page = PAGES[view.value];
   const Toast = tools && tools.Toast;
   const Layer = tools && tools.HelpLayer;                // Help (#82) sits over the open page; a published file has none
+  const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none
   const Ask = tools && tools.AskPanel;                   // the ask panel (#47a) sits over the open page; a published file has none
   const body = status.value === "ready" ? <Page tools={tools} /> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
@@ -22,6 +23,7 @@ export function App({ tools }) {
       {Ask ? <Ask /> : null}
       {status.value === "ready" ? <Peek tools={tools} /> : null}
       {Toast ? <Toast /> : null}
+      {Pal ? <Pal /> : null}
       {AddDialog ? <AddDialog /> : null}
     </>
   );
