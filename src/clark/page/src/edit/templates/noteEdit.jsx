@@ -9,17 +9,37 @@ export function saveContent(section, value, done) {
   return change({ op: "update", id: section.id, changes: { body: JSON.stringify(value) }, place: "report" }, done);
 }
 
+// One saved write for a template whose content is one object (Callout, Quote). A save is built from the latest words, not the last
+// drawn ones: two quick saves (one after another before the first lands) both keep their words. A refused save puts the drawn words back.
+export function useSaver(section, saved, done) {
+  const key = JSON.stringify(saved);
+  const now = useRef(saved), drawn = useRef(saved), flying = useRef(0);
+  drawn.current = saved;
+  useEffect(() => { if (!flying.current) now.current = drawn.current; }, [key]);
+  return (patch) => {
+    now.current = { ...now.current, ...patch };
+    flying.current += 1;
+    const sent = saveContent(section, { v: 1, ...now.current }, done);
+    Promise.resolve(sent).then((reply) => { flying.current -= 1; if (reply === null || !flying.current) now.current = drawn.current; });
+    return sent;
+  };
+}
+
 // A plain text field (one line, or several in a text area). `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
 export function Field({ value, onCommit, label, multiline = false, max, cls = "" }) {
   const [draft, setDraft] = useState(value);
-  const focused = useRef(false), cancelled = useRef(false);
+  const focused = useRef(false), cancelled = useRef(false), latest = useRef(value);
+  latest.current = value;
   useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
   const done = (el) => {
     focused.current = false;
     if (cancelled.current) { cancelled.current = false; setDraft(value); return; }
     const text = el.value.trim();
     setDraft(text);
-    if (text !== value) onCommit(text);
+    if (text === value) return;
+    // A refused save (the reply is null; the message says why and what to do) puts the saved words back, so the refused text isn't left on screen.
+    const sent = onCommit(text);
+    if (sent && typeof sent.then === "function") sent.then((reply) => { if (reply === null && !focused.current) setDraft(latest.current); });
   };
   const common = {
     class: `tpl-field ${cls}`, value: draft, "aria-label": label, maxLength: max, spellcheck: true,

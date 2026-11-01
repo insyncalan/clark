@@ -37,6 +37,12 @@ def fill(p, selector_js, text):
     p.js("document.activeElement.blur()")
 
 
+def slow_saves(test, seconds=1.0):
+    """Make every save take `seconds` to land (the real change, late), so a person's next keystrokes arrive before it does."""
+    import time
+    test.failure = lambda req: (time.sleep(seconds), test.real_change(req))[1]
+
+
 class DataChecks(Api):
     TYPE = ""                # the store type
     GOOD = {}                # a filled body (the checker keeps it unchanged apart from field order and defaults)

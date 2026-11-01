@@ -39,7 +39,7 @@ export function tidyContacts(v) {
 }
 export const contactsEmpty = (c) => c.people.length === 0;
 // A person's email as a link the file may carry (mailto: only, through the shared check), or "".
-export const mailHref = (email) => (email && !/[\s<>"]/.test(email) ? safeHref(`mailto:${email}`) : "");
+export const mailHref = (email) => (email && !/[\s<>"?%]/.test(email) ? safeHref(`mailto:${email}`) : "");
 
 export function tidyTable(v) {
   const o = v || {};

@@ -19,7 +19,8 @@ class Data(n.DataChecks):
     LIMIT_BODY = {"v": 1, "people": [{"name": "x" * 81}]}
     BAD = ({"v": 1, "people": "Sam"}, {"v": 1, "people": ["Sam"]}, {"v": 1, "people": [{"role": "Fictional lead"}]},
            {"v": 1, "people": [{"name": "Sam", "email": "not an address"}]}, {"v": 1, "people": [{"name": "Sam", "email": "a@b@c.org"}]},
-           {"v": 1, "people": [{"name": "Sam", "email": "<x>@example.org"}]}, {"v": 1, "people": [{"name": "Sam", "phone": "call me"}]},
+           {"v": 1, "people": [{"name": "Sam", "email": "<x>@example.org"}]},
+           {"v": 1, "people": [{"name": "Sam", "email": "sam@example.org?bcc=x@example.org"}]}, {"v": 1, "people": [{"name": "Sam", "email": "sam%0d@example.org"}]}, {"v": 1, "people": [{"name": "Sam", "phone": "call me"}]},
            {"v": 1, "people": [{"name": f"P{i}"} for i in range(9)]}, {"v": 1, "people": [{"name": 5}]})
 
     def test_a_person_with_no_details_is_dropped_and_the_order_is_kept(self):

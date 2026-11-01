@@ -76,6 +76,25 @@ class Page(n.PageChecks):
             p.saved()
             self.assertEqual(len(json.loads(self.body_of(ref))["rows"]), 3)
 
+    def test_typing_survives_a_late_save_and_a_save_that_lands_while_typing(self):
+        ref = self.make(None)
+        n.slow_saves(self)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!{n.field_js(ref, 'Row 1 column 2')}", "the fields")
+            n.fill(p, n.field_js(ref, "Column 1 heading"), "Fictional head")               # its save is one second late
+            p.js(f"(function(){{ var el = {n.field_js(ref, 'Row 1 column 2')}; el.focus(); }})()")
+            p.until(f"document.activeElement === {n.field_js(ref, 'Row 1 column 2')}", "focus")
+            p.type("Fictional typed while it lands")                                            # typing, not yet left, when the save lands
+            p.until("!!document.querySelector('[data-undo]')", "the late save landed")
+            self.assertEqual(p.js(f"{n.field_js(ref, 'Row 1 column 2')}.value"), "Fictional typed while it lands", "the typing was not wiped")
+            self.assertEqual(p.js(f"{n.field_js(ref, 'Column 1 heading')}.value"), "Fictional head")
+            p.js("document.activeElement.blur()")
+            from test_server import wait
+            self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("rows", [[""]])[0][1:] == ["Fictional typed while it lands"], 10), self.body_of(ref))
+            self.assertEqual(json.loads(self.body_of(ref))["cols"][0], "Fictional head")
+
 
 if __name__ == "__main__":
     unittest.main()

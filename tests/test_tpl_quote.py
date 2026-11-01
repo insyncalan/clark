@@ -37,6 +37,22 @@ class Page(n.PageChecks):
             self.assertEqual(p.js(f"document.querySelector('{base} blockquote').textContent"), "Fictional words of thanks.")
             self.assertEqual(p.js(f"document.querySelector('{base} figcaption').textContent"), "Sam Example, Fictional sponsor")
 
+    def test_enter_in_the_quote_words_saves_them_as_one_line(self):
+        ref = self.make(self.GOOD)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            sel = n.field_js(ref, "Quote words")
+            p.until(f"!!{sel}", "the field is there")
+            self.assertEqual(p.js(f"{sel}.tagName"), "INPUT", "one line: Enter can't add a line break")
+            p.js(f"(function(){{ var el = {sel}; el.focus(); el.select(); }})()")
+            p.until(f"document.activeElement === {sel}", "focus")
+            p.type("Fictional enter words")
+            p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "text": "\r"}, p.sid)
+            p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13}, p.sid)
+            p.saved()
+            self.assertEqual(json.loads(self.body_of(ref))["quote"], "Fictional enter words")
+
 
 if __name__ == "__main__":
     unittest.main()

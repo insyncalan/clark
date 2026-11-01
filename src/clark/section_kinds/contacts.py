@@ -22,7 +22,7 @@ TOO_LONG = "A contact's name or role can be 80 characters at most, an email 120 
 BAD_EMAIL = "That email address isn't one address. Use a form like name@example.org."
 BAD_PHONE = "A phone number can have digits, spaces and + ( ) - . only."
 
-_EMAIL_NO = set(" \t<>\"',;:()[]\\")      # characters that are never in one plain address
+_EMAIL_NO = set(" \t<>\"',;:()[]\\?%")      # characters that are never in one plain address
 _PHONE_OK = set("0123456789+()-. ")
 
 
