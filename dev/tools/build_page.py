@@ -80,6 +80,7 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 MAX_MODULE_BYTES = 4 * 1024 * 1024
 MAX_FONT_BYTES = 512 * 1024         # one woff2 file; the vendored ones are about 20 KB each
 WOFF2_MAGIC = b"wOF2"
+SHOWABLE_NAME = re.compile(r"[^\x00-\x1f\x7f/\\:]{1,60}")      # a file name safe to show in a refusal: printable, no path separator
 FONT_FILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.woff2")
 FONT_FIELDS = (                     # (field, the shape it must match in full): nothing else can reach the CSS
     ("family", re.compile(r"[A-Za-z0-9][A-Za-z0-9 _-]{0,63}")),
@@ -226,7 +227,7 @@ def font_bytes(folder, name, where):
     with open(real, "rb") as fh:
         data = fh.read(MAX_FONT_BYTES + 1)       # a file that grows after the stat is still capped
     if len(data) > MAX_FONT_BYTES:
-        raise FontManifestError(too_big)
+        raise FontManifestError(f"{where}: the file grew past {MAX_FONT_BYTES // 1024} KB while it was being read")
     if not data.startswith(WOFF2_MAGIC):
         raise FontManifestError(f"{where}: the file is not a woff2 font (it does not start with the woff2 signature)")
     return data
@@ -246,7 +247,8 @@ def font_css(folders=None):
             raise FontManifestError(f"{manifest}: 'fonts' is not a list")
         for i, f in enumerate(fonts, 1):
             label = f.get("file") if isinstance(f, dict) else None
-            where = f"{manifest}, font {i}" + (f" ({label!r})" if isinstance(label, str) and FONT_FILE.fullmatch(label) else "")
+            shown = label[:60] if isinstance(label, str) and SHOWABLE_NAME.fullmatch(label) else ""     # a typo'd name is named too; a path is never echoed
+            where = f"{manifest}, font {i}" + (f" ({shown!r})" if shown else "")
             if not isinstance(f, dict):
                 raise FontManifestError(f"{where}: the entry is not an object")
             for field, shape in FONT_FIELDS:

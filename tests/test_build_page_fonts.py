@@ -79,6 +79,24 @@ class FontManifestTests(unittest.TestCase):
         (self.folder / "Big.woff2").write_bytes(b"wOF2" + b"\0" * bp.MAX_FONT_BYTES)
         self.assertIn("too big", self.refused(file="Big.woff2"))
 
+    def test_a_typod_file_name_is_named(self):
+        self.assertIn("'Goood.txt'", self.refused(file="Goood.txt"))
+
+    def test_a_file_that_grows_while_read_has_its_own_wording(self):
+        (self.folder / "Grow.woff2").write_bytes(b"wOF2" + b"\0" * bp.MAX_FONT_BYTES)
+        self.manifest(file="Grow.woff2")
+        real = os.stat
+
+        def small(path, *a, **k):          # the size looks fine when checked; the file is bigger when read
+            r = real(path, *a, **k)
+            if str(path).endswith("Grow.woff2"):
+                return mock.Mock(st_mode=r.st_mode, st_size=10)
+            return r
+        with mock.patch("build_page.os.stat", small), self.assertRaises(bp.FontManifestError) as ctx:
+            bp.font_css([self.folder])
+        self.assertIn("grew past", str(ctx.exception))
+        self.assertNotIn("too big", str(ctx.exception))
+
     def test_missing_file_and_directory(self):
         self.assertIn("not there", self.refused(file="Nope.woff2"))
         (self.folder / "Dir.woff2").mkdir()
