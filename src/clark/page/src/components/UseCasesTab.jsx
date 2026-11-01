@@ -8,7 +8,7 @@ export function UseCasesTab() {
   const by = (rows) => Object.fromEntries((rows || []).map((r) => [r.id, r]));
   const cases = by(d.use_cases), steps = by(d.actions), marks = by(d.milestones);
   return (
-    <section class="frame ucpage" id="usecases">
+    <section class="frame ucpage" id="usecases-file">
       <h1>Use Cases</h1>
       {pages.length ? pages.map((p) => {
         const u = cases[p.id];
