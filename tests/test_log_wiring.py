@@ -181,6 +181,34 @@ class RefusedRequests(Rig):
         self.assertNotIn("/api/", line)
         self.assertNotIn("example", line)
 
+    def quiet_window(self, interval):
+        """A real clock and a short interval, so a window ends by itself with no later request to end it."""
+        patch = mock.patch.object(sv, "REFUSED", sv.Refused(interval=interval))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def lines_after_quiet(self):
+        """The log's lines once one has appeared (or after 5 seconds), then a pause to see that no second line follows."""
+        wait(lambda: self.text() != "", 5)
+        threading.Event().wait(1.5)
+        return self.text().splitlines()
+
+    def test_one_refusal_then_a_quiet_spell_gives_one_line_with_count_one(self):
+        self.quiet_window(0.5)
+        self.assertEqual(self.foreign("GET", f"/api/{MARK.lower()}?q={MARK}"), 403)
+        (line,) = self.lines_after_quiet()
+        self.assertRegex(line, r" WARN  server +1 requests were turned away and not logged one by one$")
+        self.assertNotIn(MARK.lower(), line.lower())
+
+    def test_a_burst_then_silence_gives_one_line_with_the_burst_count(self):
+        self.quiet_window(2.0)
+        self.flood(7)
+        (line,) = self.lines_after_quiet()
+        self.assertRegex(line, r" WARN  server +7 requests were turned away and not logged one by one$")
+        self.assertNotIn(MARK.lower(), line.lower())
+        self.assertNotIn("/api/", line)
+        self.assertNotIn("example", line)
+
     def test_a_real_fault_survives_a_flood(self):
         logging.getLogger("clark.server").error("route failed")
         with mock.patch.object(clog, "MAX_BYTES", 4000):
