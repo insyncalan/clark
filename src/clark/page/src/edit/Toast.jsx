@@ -13,10 +13,13 @@ export function Toast() {
     document.addEventListener("keydown", undoKey);
     return () => document.removeEventListener("keydown", undoKey);
   }, []);
-  if (mode.value !== "edit" && view.value === "dashboard") return null;      // View and Edit exist only on the Dashboard: the other pages always show it (ruled 02-11-2026)
+  const editing = mode.value === "edit";
+  const full = editing || view.value !== "dashboard";               // View and Edit exist only on the Dashboard: the other pages always show it (ruled 02-11-2026)
+  useEffect(() => { if (!editing) dismiss(); }, [editing]);       // a message from Edit does not follow the person into View
   const t = toast.value;
+  if (!full && !t) return null;                       // the Dashboard in View has no toast of its own; it shows one only for the report bar's Week ending field (A-D2), which saves from View too
   return (
-    <div class="toasts" data-edit-only role="status" aria-live="polite">
+    <div class="toasts" data-edit-only={full ? true : undefined} role="status" aria-live="polite">
       {t ? (
         <div class={`toast ${t.kind}`} key={t.id} data-kind={t.kind} role={t.kind === "problem" ? "alert" : undefined}>
           <span class="toast-text">{t.text}</span>
@@ -24,7 +27,7 @@ export function Toast() {
           <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={dismiss}>Close</button>
         </div>
       ) : null}
-      <MenuNote />
+      {full ? <MenuNote /> : null}
     </div>
   );
 }

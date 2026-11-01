@@ -40,10 +40,13 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 .frame { width: 100%; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
 .frame h1 { margin: 0 0 var(--space-3); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 /* The report's cover band (A-D1): navy, full width of the frame, the name, the kind of report, the week and the client. */
-.cover { margin: -24px -28px 20px; padding: var(--space-5) 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.cover { display: flow-root; margin: -24px -28px 20px; padding: var(--space-5) 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
 .frame .cover h1 { margin: 0 0 6px; color: var(--white); }
 .cover-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) 10px; font-size: var(--size-small); color: var(--white); }
 .cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
+/* the logo on the cover (prototype views.js:517, app.css:282): a still picture only an own look sets (--cover-mark, --cover-mark-height, from the person's own
+   tokens.css, which a published file carries too); empty and no room by default, so a file for a client holds no picture of clark's. It floats right so a long name wraps beside it. */
+.cover-mark { float: right; width: 160px; height: var(--cover-mark-height); margin: 0 0 8px 16px; background: var(--cover-mark) right center / contain no-repeat; }
 .cover-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
 @media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px var(--space-4) var(--space-4); } }
 html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /* the report frame has only 4 px of top padding here, so the band starts at the frame, not 20 px above it */
