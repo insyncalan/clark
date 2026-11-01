@@ -74,7 +74,9 @@ class Cells(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=TUL&f=mode:all"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr').length", sid) > 0), "the list drew")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-        cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+        # the rules are on the cell buttons (.cell-pick) and the table's columns, not on Edit: when the cells are editable in View too,
+        # there is no Edit to press and the same measure holds
+        cdp.js("if (!document.querySelector('table.items .cell-pick')) document.querySelector('[data-mode=edit]')?.click()", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('table.items .cell-pick')", sid)), "Edit shows the cells' pickers")
         return json.loads(cdp.js(MEASURE, sid))
 
@@ -94,6 +96,8 @@ class Cells(unittest.TestCase):
                         self.assertLessEqual(c["pick"] - c["val"], 12, label + ": the caret has a line of its own (the box is taller than the value)")
                         if c["field"] in ("priority", "status"):
                             self.assertLessEqual(c["val"], 30, label + " is not on one line")
+                        if c["field"] == "priority":
+                            self.assertEqual(c["lines"], 1, label + " is on more than one line ('Mediu / m')")
                         if c["field"] == "due":
                             self.assertLessEqual(c["val"], 48, label + " is taller than the date and its 'In n days' line")
                         if c["field"] == "owner":
