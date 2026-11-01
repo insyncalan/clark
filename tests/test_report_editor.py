@@ -1091,7 +1091,7 @@ class Gutter(Base):
             p.js("document.querySelector('[data-id=\"ABC-S-002\"]').classList.add('is-hidden')")
             self.assertLessEqual(p.js(self.MEASURE + "[1][1]"), p.js(self.MEASURE + "[1][2]"), "a left-out section too")
             p.view()
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('.secs > .sec')).paddingLeft"), "0px", "View is unchanged")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.secs > .sec')).paddingLeft"), "20px", "View keeps the card's own 20 px side padding, not Edit's 32 px (A-D3)")
 
     def test_the_menu_entries_and_their_order(self):
         with chrome() as cdp:
