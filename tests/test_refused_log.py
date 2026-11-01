@@ -26,8 +26,9 @@ from clark import log as clog, server as sv
 NOW = datetime(2030, 1, 1, 9, 0, 0)
 MARK = "ZQREFUSEDMARK"
 FLOOD = 30
-FIRST = re.compile(r" WARN  server +a request was turned away; more are counted")
-SUMMARY = re.compile(r" WARN  server +(\d+) more requests were turned away and not logged one by one$")
+SECS = int(round(sv.CSP_REPORT_WINDOW))
+MANY = re.compile(rf" WARN  server +(\d+) requests were turned away in the last {SECS} seconds\.$")
+ONE = re.compile(rf" WARN  server +1 request was turned away in the last {SECS} seconds\.$")
 
 
 def planted(handler, req):
@@ -102,37 +103,40 @@ class Refusals(unittest.TestCase):
                                                                   (b"Content-Length", b"2")), b"{}")
         self.assertEqual(status, 500)
 
-    def test_a_flood_of_every_kind_writes_one_first_line_and_one_summary_after_the_minute(self):
+    def test_a_flood_of_every_kind_writes_nothing_until_the_window_ends_then_one_line_with_the_count(self):
         total = 0
         for name, status, send in self.kinds():
             for _ in range(FLOOD):
                 self.assertEqual(send(), status, name)
             total += FLOOD
-            self.assertEqual(len(self.entries()[0]), 1, f"{name}: the first refusal's line only, none per request")
-        self.assertRegex(self.entries()[0][0], FIRST)
-        self.ticks[0] += sv.CSP_REPORT_WINDOW + 1                              # the minute is up
-        self.assertEqual(self.kinds()[0][2](), 403)                             # the next refusal writes the count
+            self.assertEqual(self.entries()[0], [], f"{name}: nothing is written while the window is open")
+        self.ticks[0] += sv.CSP_REPORT_WINDOW + 1                              # the window is up
+        self.assertEqual(self.kinds()[0][2](), 403)                             # the next refusal writes the finished window
         lines, text = self.entries()
-        self.assertEqual(len(lines), 3, lines)                                  # first line, the count, and a new first line
-        self.assertEqual(SUMMARY.search(lines[1]).group(1), str(total - 1))
-        self.assertRegex(lines[2], FIRST)
+        self.assertEqual(len(lines), 1, lines)                                  # one line; the new refusal opens a new window
+        self.assertEqual(MANY.search(lines[0]).group(1), str(total))
         self.assertNotIn(MARK.lower(), text.lower())
         self.assertNotIn("/api/", text)
 
-    def test_the_first_refusal_after_a_quiet_spell_writes_a_line(self):
+    def test_a_lone_refusal_after_a_quiet_spell_writes_one_line_when_its_window_ends(self):
         self.assertEqual(self.kinds()[0][2](), 403)
-        lines, _ = self.entries()
+        self.assertEqual(self.entries()[0], [], "nothing is written at the refusal itself")
+        sv.REFUSED.flush()                                                      # what the timer calls when the window is up
+        lines, text = self.entries()
         self.assertEqual(len(lines), 1, lines)
-        self.assertRegex(lines[0], FIRST)
+        self.assertRegex(lines[0], ONE)
+        self.assertNotIn(MARK.lower(), text.lower())
+        sv.REFUSED.flush()                                                      # a window already written is not written twice
+        self.assertEqual(len(self.entries()[0]), 1)
 
     def test_a_last_burst_is_written_by_the_timer_without_another_refusal(self):
         for _ in range(FLOOD):
             self.assertEqual(self.kinds()[0][2](), 403)
-        self.assertEqual(len(self.entries()[0]), 1)
-        sv.REFUSED.flush()                                                      # what the timer calls when the minute is up
+        self.assertEqual(self.entries()[0], [])
+        sv.REFUSED.flush()                                                      # what the timer calls when the window is up
         lines, _ = self.entries()
-        self.assertEqual(len(lines), 2, lines)
-        self.assertEqual(SUMMARY.search(lines[1]).group(1), str(FLOOD - 1))
+        self.assertEqual(len(lines), 1, lines)
+        self.assertEqual(MANY.search(lines[0]).group(1), str(FLOOD))
 
     def test_a_timer_is_started_with_each_window_and_a_stale_one_does_nothing(self):
         started = []
@@ -163,12 +167,14 @@ class Refusals(unittest.TestCase):
                 self.assertEqual(send(), status, name)
             if i == len(kinds) // 2:
                 self.fault()
+        sv.REFUSED.flush()                                                      # the window ends: its one line is written
         lines, text = self.entries()
         self.assertEqual(len([x for x in lines if " ERROR server " in x and "planted-fault failed" in x]), 1, lines)
         self.assertIn("RuntimeError", text)
         self.assertEqual([x for x in lines if " INFO " in x], [x for x in lines if x.endswith(" INFO  server       POST /api/planted-fault")],
                          "the let-in faulted call's own line is the only ordinary line")
-        self.assertEqual(len(lines), 3, lines)                   # and the first refusal's one line
+        self.assertEqual(len(lines), 3, lines)                   # its INFO line, its ERROR line, and the window's one line
+        self.assertEqual(MANY.search(lines[-1]).group(1), str(FLOOD * len(kinds)))
         self.assertNotIn(MARK.lower(), text.lower())
 
     def test_a_call_that_is_let_in_still_writes_its_one_line(self):
