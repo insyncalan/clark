@@ -5,10 +5,13 @@ restore of a document by the route are #126's and stay as they were.
 Run: python3 dev/run_tests.py test_documents_change
 Each test makes a real store in a temporary folder (fictional data, example.com only) and calls the same functions the server calls.
 """
+import json
+import re
 import sqlite3
 import unittest
 
 from _demo import USER, DemoStore
+from _paths import SRC
 from clark import changes, doclinks, store as store_module
 
 LINK = "https://example.com/minutes/week-1"
@@ -250,6 +253,13 @@ class Read(Base):
         self.assertEqual([d["id"] for d in got], [a])
         self.assertEqual(set(got[0]), {"id", "title", "kind", "url", "date", "sort_order", "archived"})
         self.assertEqual([d["id"] for d in self.s.data_for("ABC", archived="only")["documents"]], [b])
+
+
+class OneList(unittest.TestCase):
+    def test_the_page_offers_the_same_kinds_as_the_store_takes(self):
+        text = (SRC / "clark" / "page" / "src" / "logic" / "documents.js").read_text(encoding="utf-8")
+        found = re.search(r"export const KINDS = (\[[^\]]*\]);", text)
+        self.assertEqual(tuple(json.loads(found.group(1))), doclinks.KINDS)
 
 
 if __name__ == "__main__":
