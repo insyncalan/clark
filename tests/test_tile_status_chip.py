@@ -40,7 +40,7 @@ class Source(unittest.TestCase):
         self.assertRegex(jsx, r'<span class="vrow">\s*<span class="v num">\{t\.value\}</span>\s*\{t\.word \? <span class="tw" aria-hidden="true">', "figure then chip, in one row")
         self.assertIn('Project health{t.word ? <span class="tw">{t.word}</span> : null}</span>', jsx, "Project health's chip is in its label row")
         self.assertNotIn("</div>\n      {t.word", jsx, "no chip on a line of its own under Project health")
-        self.assertIn('#report[data-mode="edit"] .fig.health-fig .k { padding-right:', self.css, "in Edit the label row stops short of the move grip")
+        self.assertIn('#report[data-mode="edit"] .fig.health-fig .k { padding-right:', self.css, "in Edit the label row stops short of the eye (A-D19 took the grip away)")
 
     def test_the_chip_uses_tokens_only(self):
         chip = rule(self.css, ".fig .tw")
@@ -73,7 +73,7 @@ class Chip(G.Setup):
         out.push({ key, text: w.textContent, border: cs.borderTopStyle, width: cs.borderTopWidth, size: parseFloat(cs.fontSize),
                    edge: ratio(cs.borderTopColor, ts.backgroundColor), words: ratio(cs.color, ts.backgroundColor), hidden: w.getAttribute('aria-hidden'),
                    label: fig.getAttribute('aria-label'), chip: box(w), fig: box(fig), v: box(fig.querySelector('.v')), k: box(fig.querySelector('.k')),
-                   dd: box(fig.querySelector('.dd')), grip: box(cell.querySelector('.tgrip')), eye: box(cell.querySelector('.teye')) });
+                   dd: box(fig.querySelector('.dd')), eye: box(cell.querySelector('.teye')) });
       }
       return out;
     })()"""
@@ -102,7 +102,8 @@ class Chip(G.Setup):
             self.assertGreater(c["l"], r["k"]["l"] + 80, f"{where}: right of the label, which is at the left")
             self.assertGreater(c["l"] - r["fig"]["l"], (r["fig"]["r"] - c["r"]) + 20, f"{where}: at the right of the row, not the left")
             if mode == "edit":
-                self.assertLessEqual(c["r"], r["grip"]["l"], f"{where}: the move grip does not cover the chip")
+                if r["eye"]:       # Project health has no eye (it cannot be hidden)
+                    self.assertLessEqual(c["r"], r["eye"]["l"], f"{where}: the eye does not cover the chip")
         else:
             self.assertEqual(r["hidden"], "true", where)
             self.assertTrue(r["label"].endswith(". " + r["text"]) or (". " + r["text"] + ". Opens") in r["label"], f"{where}: the spoken name ends with the word, once")
@@ -111,7 +112,8 @@ class Chip(G.Setup):
             self.assertGreater(c["l"] - r["fig"]["l"], (r["fig"]["r"] - c["r"]) + 20, f"{where}: at the right of the row, not the left")
             self.assertLessEqual(c["b"], r["dd"]["t"] + 1, f"{where}: not over the detail line")
             if mode == "edit":
-                self.assertGreaterEqual(c["t"], r["eye"]["b"] - 1, f"{where}: under the grip and eye, not over them")
+                self.assertTrue(r["eye"], f"{where}: the tile has its eye")
+                self.assertGreaterEqual(c["t"], r["eye"]["b"] - 1, f"{where}: under the eye, not over it")
 
     def test_the_word_is_a_chip_beside_the_figure_at_1400_and_900_in_light_and_dark_in_view_and_edit(self):
         for width in (1400, 900):
