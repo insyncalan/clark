@@ -239,7 +239,9 @@ CREATE TABLE IF NOT EXISTS use_cases (
 CREATE TABLE IF NOT EXISTS report_sections (
   project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
   id      TEXT NOT NULL,
-  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker')),
+  type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker',
+                                         'textimage','headline','figures4','figures3','gallery','table','doclinks','linkcard','raid3','raid4',
+                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc')),
   title   TEXT NOT NULL,
   body    TEXT NOT NULL DEFAULT '',
   beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
