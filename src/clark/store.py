@@ -2680,12 +2680,13 @@ class Store:
         return [{"table": r["tbl"], "key": r["item_id"], "field": r["field"], "via": r["via"], "op": r["op"]} for r in self.con.execute(
             "SELECT tbl, item_id, field, via, op FROM change_log WHERE apply_id = ? ORDER BY rowid", (apply_id,))]
 
-    def step_undone(self, apply_id):
+    def step_undone(self, apply_id, reverted=None):
         """Whether step `apply_id` has been undone already: every row it really wrote (not a note, an updated_at stamp or a starting
-        section) has been put back by an undo still in force, the rule undo_many skips a step by. Read only."""
+        section) has been put back by an undo still in force, the rule undo_many skips a step by. Read only. #377: a caller that asks about
+        many steps passes `reverted` (reverted_rowids, computed once) so it is not rescanned for every step."""
         real = [r[0] for r in self.con.execute("SELECT rowid FROM change_log WHERE apply_id = ? AND field NOT IN ('note', 'updated_at') "
                                                "AND via != ?", (apply_id, SEED_VIA))]
-        back = reverted_rowids(self.con) if real else set()
+        back = (reverted if reverted is not None else reverted_rowids(self.con)) if real else set()
         return bool(real) and all(r in back for r in real)
 
     def step_actors(self, apply_id):

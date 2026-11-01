@@ -5,9 +5,11 @@ Each row of the item's changes carries `undo_refused`: the plain reason when Und
 empty string. One test for each route that is refused: an undo, an Excel import, a Word import, a change ask clark did not make
 under its own name, and a change that has been undone already. The page withholds the tick from any row with a reason."""
 import unittest
+from unittest import mock
 
 from _demo import USER, DemoStore
 from clark import activity_read, changes
+from clark import store as clark_store
 
 
 class Refusals(unittest.TestCase):
@@ -68,6 +70,16 @@ class Refusals(unittest.TestCase):
 
     def test_a_step_with_no_rows_is_not_named(self):
         self.assertEqual(changes.undo_refusals(self.store, "ABC", {99999}), {})
+
+    def test_the_reverted_set_is_read_once_per_activity_read(self):
+        """#377: many steps, one scan of the undo history."""
+        for _ in range(4):
+            self.store.undo(self.write("dashboard"), USER)
+        real, calls = clark_store.reverted_rowids, []
+        with mock.patch.object(clark_store, "reverted_rowids", lambda con: calls.append(1) or real(con)):
+            rows = self.read("ABC", self.item)["rows"]
+        self.assertGreater(len({r["step"] for r in rows}), 3)
+        self.assertEqual(len(calls), 1)
 
 
 if __name__ == "__main__":
