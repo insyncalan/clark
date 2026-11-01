@@ -142,6 +142,19 @@ class ServerTest(unittest.TestCase):
         self.s = Running()
         self.addCleanup(self.s.close)
 
+    def wait_until(self, read, want, what, limit=15.0):
+        """Wait, up to `limit` seconds, for `read()` to equal `want`; fail with the last value read. The server sends a reply
+        from inside run_route and only then leaves its `finally` (which takes the count down), so on a loaded machine the
+        client can see the reply a moment before the count has moved (#358): the test waits for the condition, never for a time."""
+        end = time.monotonic() + limit
+        while True:
+            seen = read()
+            if seen == want:
+                return
+            if time.monotonic() >= end:
+                self.fail(f"{what}: wanted {want!r}, still {seen!r} after {limit:g} s")
+            time.sleep(0.01)
+
     def report(self, body, host="default", ctype="application/csp-report", extra=None):
         h = {"Content-Type": ctype, "Content-Length": str(len(body)), **(extra or {})}
         return self.s.ask("POST", sv.CSP_REPORT_ROUTE, h, body, host=host)
@@ -1036,7 +1049,7 @@ class Here(ServerTest):
             raise RuntimeError("x")
         with mock.patch.dict(sv.POST_ROUTES, {"/api/broken": broken}), self.assertLogs("clark.server", "ERROR"):
             self.assertEqual(self.s.api("POST", "/api/broken", b"{}")[0], 500)
-        self.assertFalse(sv.busy())
+        self.wait_until(sv.busy, False, "a failing POST is not left counted as a running job")
         self.assertEqual(self.s.api("POST", "/api/here", b"{}")[0], 200)
         self.assertFalse(sv.busy(), "/api/here is not counted as a job")
 
