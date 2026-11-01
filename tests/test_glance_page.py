@@ -335,7 +335,7 @@ class EditTiles(Setup):
             self.assertEqual(self.rows()["overdue"]["outline"], "")
 
     def test_edit_says_under_the_tiles_what_a_tile_can_do_and_view_says_nothing(self):
-        want = ("Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. "
+        want = ("Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. "
                 "Hidden tiles are left out of the published page.")
         for width in (1400, 900):
             for dark in (False, True):

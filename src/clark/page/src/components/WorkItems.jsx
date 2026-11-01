@@ -199,7 +199,7 @@ export function WorkItems({ tools }) {
       <div class="head">
         <div>
           <h1>Work items</h1>
-          <p class="intro muted" id="work-intro">{tools ? "Select an item to open it beside the list. The eye shows or hides it from the client." : "Select an item to open it beside the list."}</p>
+          <p class="intro muted" id="work-intro">{tools ? "Select an item to open it beside the list. Items marked Shown to client appear on the published page." : "Select an item to open it beside the list."}</p>
         </div>
         {tools ? (
           <div class="hacts">

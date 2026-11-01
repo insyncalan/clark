@@ -37,6 +37,7 @@ def open_list(p, width):
 
 
 class Minimap(Base):
+    SEED = True                              # View keeps Risks and issues, Open actions and Decisions only with a row (seed_rows)
     LISTED = "[...document.querySelectorAll('.toc li button')].map(b => b.dataset.id)"
 
     def listed(self, p):

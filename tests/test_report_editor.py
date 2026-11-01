@@ -35,7 +35,6 @@ TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "Sum
           "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
 IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]
 SECRET = "Server text that a person must never read"
-NOTHING = "Nothing to show this week."                  # a work item section with no row to draw (A-D5)
 QUIET = "Not shown on this page yet."                    # the page clark serves, for every type (#74)
 ALT = 1                                                            # Input.dispatchKeyEvent modifiers: Alt
 
@@ -156,11 +155,26 @@ class Pg:
             self.js("document.activeElement.blur()")
 
 
+def seed_rows(store):
+    """One risk, one action and one decision with client wording, so Risks and issues, Open actions and Decisions have a row and View
+    keeps them (View leaves out a section with nothing to show)."""
+    with store.step("dashboard", USER) as st:
+        st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier may deliver late", "owner": "Mia Hale", "impact": "Low",
+                           "likelihood": "Low", "raised": "2026-10-01", "client_message": "Supplier delivery may slip", "source": "demo"})
+        st.create("actions", {"project": "ABC", "description": "Book the room", "owner": "Omar Reid", "raised": "2026-10-01",
+                              "client_message": "Room booked", "source": "demo"})
+        st.create("decisions", {"project": "ABC", "decision": "Choose the region", "made_by": "Steering group", "status": "Pending",
+                                "client_message": "Region to be chosen", "source": "demo"})
+
+
 class Base(unittest.TestCase):
+    SEED = False                             # a class whose View must keep the three work sections sets this True (seed_rows)
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        if self.SEED:
+            seed_rows(self.store)
         self.real_change = changes.make_change(self.store.path, [], USER)
         self.real_undo = changes.make_undo(self.store.path, [], USER)
         self.sent = []                       # every request the page made that reached the seams: (which, request)
@@ -199,6 +213,8 @@ class Base(unittest.TestCase):
 
 
 class Modes(Base):
+    SEED = True                              # View keeps Risks and issues, Open actions and Decisions only with a row (seed_rows)
+
     def test_editor_modes(self):
         """View and Edit switch with no reload and no navigation; Edit is in memory only (no address, no history entry)."""
         with chrome() as cdp:
@@ -242,12 +258,14 @@ class Modes(Base):
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
             # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
             # drawn says the one plain line
-            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current'].includes(s.dataset.type))"
+            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'raid', 'actions', 'decisions'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
-            want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
+            rows = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => s.dataset.type + ':' + s.querySelectorAll('.wl-row').length)"
+            self.assertEqual(p.js(rows), ["raid:1", "actions:1", "decisions:1"], "View: the three work sections draw their one seeded row each")
+            want = [f"{k}:{QUIET}" for k in kinds]
             self.assertEqual(p.js(quiet), want, "View: one plain line, the same for every type that draws no rows")
             self.assertTrue(p.js("!!document.querySelector('.secs > .sec[data-type=milestones] .msv, .secs > .sec[data-type=milestones] [data-no-milestones]')"),
                             "View: the milestones section is drawn, not the plain line")
@@ -256,6 +274,7 @@ class Modes(Base):
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
                 self.assertEqual(len([f for f in found if what in f]), 11, what)
             self.assertEqual(p.js(quiet), want, "Edit: the same line")
+            self.assertEqual(p.js(rows), ["raid:1", "actions:1", "decisions:1"], "Edit: the same rows")
             self.assertEqual(p.js(texts), [QUIET] * 4, "Edit: the four text sections keep the old line (their editor is a later item)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
@@ -383,6 +402,8 @@ class Keys(Base):
 
 
 class Sections(Base):
+    SEED = True                              # View keeps Risks and issues, Open actions and Decisions only with a row (seed_rows)
+
     def test_hide_is_dropped_in_view_dimmed_in_edit_and_undo_shows_it(self):
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -896,6 +917,7 @@ class Failures(Base):
 
 class Gutter(Base):
     """#101: one quiet control in each section's left margin: a grip with a + under it, and its menu."""
+    SEED = True                              # View keeps Risks and issues, Open actions and Decisions only with a row (seed_rows)
 
     CTL = "document.querySelector('[data-id=\"%s\"] .sec-ctl')"
     MENU_TEXTS = "[...document.querySelectorAll('[data-id=\"%s\"] .menu-item')].map(e => e.textContent)"
