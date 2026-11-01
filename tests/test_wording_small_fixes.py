@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_wording_small_fixes
 - the "page could not be read again" toast says what happened and what to do, without the technical words;
 - the "too big" and "too long" messages give advice that fits every kind of section, not only a tracker;
 - the ask refusal for a secret says "a password or a key" and never repeats the value;
-- an empty View section keeps the prototype's "Nothing recorded." and Use cases keep its "Not written yet.".
+- an empty View section keeps the prototype's "Nothing recorded.".
 """
 import re
 import sys
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from _paths import SRC
 
-from clark import ask, page, section_bodies, server  # noqa: E402
+from clark import ai_menu, ask, page, section_bodies, server  # noqa: E402
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 PROTOTYPE = Path(__file__).resolve().parent.parent / "system" / "prototype"
@@ -78,7 +78,8 @@ class SecretRefusal(unittest.TestCase):
         for words in (ask.SECRET, ask.SECRET_EARLIER):
             self.assertIn("looks like", words)
             self.assertIn("a password or a key", words)
-        self.assertEqual(ask.SECRET, "That looks like a password or a key. It was not sent. Take it out and ask again.")
+        self.assertEqual(ask.SECRET, "That looks like a password or a key, so it wasn't sent. Take it out and try again.")
+        self.assertEqual(ask.SECRET, ai_menu.SECRET_MESSAGE)
 
     def test_a_key_is_refused_in_those_words_and_the_value_is_not_repeated(self):
         text = "my api_key = " + self.SECRET_VALUE
@@ -89,27 +90,18 @@ class SecretRefusal(unittest.TestCase):
 
 
 class EmptyBodies(unittest.TestCase):
-    """The prototype is the floor: View says "Nothing recorded.", Use cases say "Not written yet."."""
+    """The prototype is the floor: View says "Nothing recorded."."""
 
     def test_the_prototype_words_are_what_the_prototype_has(self):
         views = (PROTOTYPE / "views.js").read_text(encoding="utf-8")
-        usecases = (PROTOTYPE / "usecases.js").read_text(encoding="utf-8")
         self.assertIn("Nothing recorded.", views)
-        self.assertIn("Not written yet.", usecases)
 
     def test_an_empty_view_section_says_nothing_recorded(self):
         self.assertIn('Nothing recorded.', source("components/Section.jsx"))
 
-    def test_use_cases_say_not_written_yet_in_each_place(self):
-        for name in ("components/UseCases.jsx", "components/UseCaseDetail.jsx"):
-            text = source(name)
-            self.assertIn("Not written yet.", text, name)
-            self.assertNotIn("Nothing written yet", text, name)
-
-    def test_the_built_page_has_both(self):
+    def test_the_built_page_has_it(self):
         built = Path(page.PAGE).read_text(encoding="utf-8")
         self.assertIn("Nothing recorded.", built)
-        self.assertIn("Not written yet.", built)
 
 
 if __name__ == "__main__":
