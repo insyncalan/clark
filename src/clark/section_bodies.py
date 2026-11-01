@@ -1,8 +1,9 @@
 """A section that carries content: the checker registry (the shared base for 'Needs from you' and 'Progress tracker').
 
-A section of type `needs` or `tracker` keeps its content as JSON text in the section's `body` column. This module is pure (it
-reads no file and no database, and imports nothing from clark): store.py calls it from the section rules, so every write of a
-body, including an Undo that puts one back, passes through the same walls; publish.py calls it again at publish time.
+A section of type `needs` or `tracker`, or of one of the section template types (#96, the registry in section_kinds/), keeps its
+content as JSON text in the section's `body` column. This module is pure (it reads no file and no database, and imports nothing
+from clark but the registry, which is pure too): store.py calls it from the section rules, so every write of a body, including
+an Undo that puts one back, passes through the same walls; publish.py calls it again at publish time.
 
 What this base decides, and nothing more:
 - the content is one JSON object or one JSON list, no longer than the type's byte limit (checked before it is parsed);
@@ -22,22 +23,27 @@ The plug-in points (a later item changes only these, never store.py, changes.py 
   rules.visible(text), the store's text rules (see Rules).
 - EMPTY[type]: the body a new section of that type starts with. Chosen by the store, never taken from the request.
 - LIMITS[type]: the most bytes the stored text may take.
-- published(type, value): what a published file carries of a checked body (a dict that is merged into the section's entry), or
-  None to leave the section out. Needs publishes its shown rows; the tracker publishes nothing of its content yet (see published).
+- published(type, value, ctx): what a published file carries of a checked body (a dict that is merged into the section's entry),
+  or None to leave the section out. Needs publishes its shown rows; the tracker publishes nothing of its content yet (see published).
+
+A section template (#96) is NOT added here: each one is a module in section_kinds/ (its READY, LIMIT, EMPTY, check and
+published; the contract is section_kinds/base.py), and the tables below are built from that registry, which is filled with all
+eighteen types up front. A template's builder changes only its own module.
 """
 import json
 import unicodedata
 
+from clark.section_kinds import REGISTRY as TEMPLATES, TYPES as TEMPLATE_TYPES
+from clark.section_kinds.base import Bad, Context
+
 NEEDS, TRACKER = "needs", "tracker"
-BODY_TYPES = (NEEDS, TRACKER)            # the section types (besides text) that carry content
+BODY_TYPES = (NEEDS, TRACKER) + TEMPLATE_TYPES   # the section types (besides text) that carry content
 MAX_DEPTH = 8                            # lists and objects inside each other, at most
 MAX_DIGITS = 15                          # a whole number of more digits is refused before Python reads it (slow on 3.9)
 DEFAULT_LIMIT = 262144                   # bytes of stored text, unless LIMITS says less
-LIMITS = {NEEDS: 262144, TRACKER: 262144}      # needs: 100 rows of the longest text, each character six ASCII bytes, still fits; tracker: the checker's own caps below keep the widest-letter tracker under this once stored
-
-
-class Bad(ValueError):
-    """The content can't be saved. The message is plain words for a person and never quotes the value."""
+LIMITS = {NEEDS: 262144, TRACKER: 262144, **{t: m.LIMIT for t, m in TEMPLATES.items()}}      # tracker: the checker's own caps keep the widest-letter tracker under this once stored
+# needs: 100 rows of the longest text, each character written as six ASCII bytes, still fits. Bad is the one class of
+# section_kinds/base.py, so a template's refusal and a needs refusal are caught the same way.
 
 
 class Rules:
@@ -381,8 +387,8 @@ def _checked_tracker(value, rules):
             "groups": checked_groups}
 
 
-CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker}
-EMPTY = {NEEDS: "", TRACKER: ""}         # a new section starts with no content at all (for needs that is the same as an empty list: nothing shows, nothing is published)
+CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, **{t: m.check for t, m in TEMPLATES.items()}}
+EMPTY = {NEEDS: "", TRACKER: "", **{t: m.EMPTY for t, m in TEMPLATES.items()}}   # a new section starts with no content at all (for needs that is the same as an empty list: nothing shows, nothing is published); an item may give a richer start
 
 
 def check(kind, body, rules):
@@ -440,14 +446,18 @@ def _published_tracker(value):
             "columns": {k: cols.get(k) is True for k in TRACKER_COLUMNS}, "groups": groups}
 
 
-def published(kind, value):
+def published(kind, value, ctx=None):
     """What the published file carries of a checked body, as a dict merged into the section's entry; None leaves the section
-    out ('an empty template stays out').
+    out ('an empty template stays out'). A section template answers for itself (its module's published, given `ctx`, what
+    publish already kept: a Context); a stub answers None, so it is never in a file.
     needs (#121): {"rows": [{"what", "kind", "from", "by"}]}, the rows that show (a hidden row is absent, not marked), `by` written
     DD-MM-YYYY; None when no row shows. Fields are picked by name, never copied whole, and text only.
     tracker (#189): {"overall", "columns", "groups"}: each group that has at least one line shows, with its lines (a group with no line is
     absent), each field picked by name and kept as the checked text, a whole number of tenths or a count, dates written DD-MM-YYYY;
     None when no group has a line. Totals are never published: the page works them out."""
+    if kind in TEMPLATES:
+        out = TEMPLATES[kind].published(value, ctx if ctx is not None else Context())
+        return out if isinstance(out, dict) and out else None
     if kind == NEEDS:
         rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
         return {"rows": rows} if rows else None
