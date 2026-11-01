@@ -222,6 +222,34 @@ class Screen(unittest.TestCase):
     def test_the_address_shape_still_finds_an_address(self):
         self.assertTrue(secret_screen.looks_like_secret("see s3://user:" + PW + "@host/x"))
 
+    def test_encoded_and_other_language_forms_are_caught(self):
+        import base64
+        import urllib.parse
+        line = "pass" + "word=" + PW
+        for name, text in (("base64", base64.b64encode(line.encode()).decode()),
+                           ("url-encoded", "q=" + urllib.parse.quote(line, safe="")),
+                           ("url-encoded and quoted", urllib.parse.quote("pass" + 'word: "' + PW + '"', safe="")),
+                           ("German", "Pass" + "wort: " + PW), ("German quoted", "Kenn" + 'wort = "' + PW + '"'),
+                           ("French", "mot de " + "passe : " + PW), ("Spanish", "contra" + "seña: " + PW),
+                           ("Russian", "пар" + "оль: " + PW), ("Arabic", "كلمة " + "المرور: " + PW),
+                           ("short secret key", "SECRET" + "_KEY=" + "ab12cd34ef56gh7")):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.looks_like_secret("Notes.\n" + text + "\nMore notes."))
+
+    def test_a_secret_in_a_file_name_is_caught(self):
+        for name in ("notes-pass" + "word-" + PW.replace("-", "") + ".txt", "pass" + "word=" + PW + ".md"):
+            with self.subTest(name):
+                self.assertTrue(secret_screen.name_looks_like_secret("saved/" + name))
+        for name in ("pass" + "word-reset-2026.docx", "Q4 plan v2.docx", "token_policy.md", "secret santa list.txt"):
+            with self.subTest(name):
+                self.assertFalse(secret_screen.name_looks_like_secret("saved/" + name))
+
+    def test_forms_not_screened_on_purpose_stay_clean(self):
+        for text in ("The token: 2026 plan covers three workstreams.", "Mot de " + "passe oublié ? Cliquez ici.",
+                     "100% done, 50%25 left", "token: ab12cd34 ef56gh78", "secret: ab12cd"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
 
 class FromFolders(tp.Folders):
     def test_each_family_in_a_file_is_left_out_whole_and_counted(self):
@@ -240,6 +268,12 @@ class FromFolders(tp.Folders):
         got = self.run_it()
         self.assertEqual(got.passages, ())
         self.assertEqual(sorted(got.secret_labels), ["saved/split.docx", "saved/w.docx"])
+
+    def test_a_file_whose_name_holds_a_secret_is_left_out(self):
+        self.put(self.box, "notes-pass" + "word-" + PW.replace("-", "") + ".txt", "ZQ-NAME the plan is fine")
+        got = self.run_it()
+        self.assertNotIn("ZQ-NAME", self.text_of(got))
+        self.assertEqual(got.safety, 1)
 
     def test_a_normal_file_is_unchanged(self):
         self.put(self.box, "a.md", "ZQ-A Release 2.5.1 on 31-10-2026; token: 2026 plan.")

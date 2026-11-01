@@ -88,6 +88,8 @@ WAITING = [
      "no test for the name-and-email line on main; is #180 in 0.3, and where is its test?"),
     ("#147", "The Preview and Export follow-up items (#147 items 3 and 4) are all met",
      "#179 and #180 are open as its unmet items; is #147 closed by them?"),
+    ("#230", "The board reaches the prototype by v0.7",
+     "a planning question for the owner, not a hand check: is 0.2.1 the current release, and is the gap list the plan?"),
 ]
 
 # (item, check, kind, why, what the person does)
@@ -109,8 +111,6 @@ WALK_THROUGH = [
      "needs Outlook", "Copy a drafted update request and paste it into a new Outlook message."),
     ("#77", "Export opens in Excel and Publish arrives in the client folder", "live only",
      "needs Excel and the synced folder", "Export, open in Excel; Publish To client and check the folder syncs."),
-    ("#230", "The board reaches the prototype by v0.7", "judgement",
-     "a planning question, not a behaviour", "Question for the owner: is 0.2.1 the current release, and is the gap list the plan?"),
 ]
 
 
