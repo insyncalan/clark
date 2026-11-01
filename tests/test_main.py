@@ -421,8 +421,9 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "app_settings", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "people", "people_list", "people_undo", "port", "profile", "projects", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
+        self.assertEqual(sorted(call), ["activity", "app_settings", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "people", "people_list", "people_undo", "port", "profile", "projects", "publisher", "safety", "section_image", "sneak", "undo", "updater", "use_cases",
                                         "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route
+        self.assertTrue(callable(call["updater"].status) and callable(call["updater"].install))
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
         self.assertTrue(callable(call["word_import"]) and callable(call["word_export"]))
         self.assertTrue(callable(call["safety"].listing) and callable(call["safety"].preview) and callable(call["safety"].restore))
@@ -433,6 +434,40 @@ class InProcess(TempFolder):
         self.assertEqual(out.splitlines()[-2:], [f"Open http://127.0.0.1:8123/ to use clark. Leave this window open. "
                                                   f"Press Ctrl+C to stop.", "Stopped."])      # no project yet: no hash
         self.assertNotIn("report editor", out)
+
+    def stopped_update(self, **marker_changes):
+        """A fixture app and data folder with an update's marker in it (nothing swapped yet), changed as asked. (fixture, marker file)"""
+        from test_update_helper import Fixture
+        fx = Fixture(self.tmp)
+        (fx.data / "clark.db").unlink()                      # clark makes a real one on start
+        marker = fx.begin()
+        doc = json.loads(marker.read_text(encoding="utf-8"))
+        doc.update(marker_changes)
+        marker.write_text(json.dumps(doc), encoding="utf-8")
+        return fx, marker
+
+    def test_a_marker_left_by_a_stopped_update_is_finished_before_clark_starts_by_hand(self):
+        fx, marker = self.stopped_update()
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual(code, 0, err)
+        self.assertFalse(marker.exists())
+        self.assertIn("The last update stopped part way, so the old version was put back.", err)
+        self.assertEqual(len(serve.calls), 1)
+
+    def test_a_marker_whose_helper_is_still_running_stops_a_start_by_hand(self):
+        fx, marker = self.stopped_update(phase="ready", helper_pid=os.getpid())
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual(code, 1)
+        self.assertTrue(marker.exists())
+        self.assertIn("An update is still being installed.", err)
+        self.assertEqual(serve.calls, [])
+
+    def test_the_server_the_helper_starts_goes_on_while_the_marker_is_there(self):
+        fx, marker = self.stopped_update(phase="started", helper_pid=os.getpid())
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        self.assertTrue(marker.exists())                     # the helper's to remove, not the server's
+        self.assertEqual(len(serve.calls), 1)
 
     def test_the_launchers_own_store_is_closed_before_serving_so_a_restore_can_take_the_file(self):
         """#111: an open connection would make Restore say another program has the data open; data_for opens its own each time."""

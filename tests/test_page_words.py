@@ -187,6 +187,10 @@ class Words(unittest.TestCase):
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Version and updates",      # Settings › Version and updates: with no updater the server says so
+                                  "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
+                                  "settings and published reports are kept.",
+                                  "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
                                   "Asking",             # #47: the switch and its folders, below the client folder
                                   "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off

@@ -12,6 +12,16 @@ if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; t
   read -r -n 1 -p "Press any key to close this window. " _
   exit 1
 fi
+# An update swaps "src" and "clark" by moving the old one into .clark-old-<time> and then the new one in. If the Mac stopped between
+# the two moves, one of them is missing and nothing below could start. Put the old one back first; the launcher then finishes
+# the update the usual way (it puts everything else back too). Only a missing folder is touched, and only from that folder.
+for part in src clark; do
+  if [ ! -e "$part" ]; then
+    kept=""
+    for found in .clark-old-*/"$part"; do [ -d "$found" ] && kept="$found"; done
+    [ -n "$kept" ] && mv "$kept" "$part"
+  fi
+done
 python3 -m clark.launch "$@"
 status=$?
 if [ "$status" -ne 0 ]; then

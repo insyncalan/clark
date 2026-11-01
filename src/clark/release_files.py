@@ -16,6 +16,7 @@ SHARED = (
     "clark/",                   # the stand-in that hands `python3 -m clark` to src/clark/
     "src/clark/",               # with the built page.html
     "vendor/README.md",         # vendor/manifest.json lists it
+    "vendor/ed25519_verify/",
     "vendor/et_xmlfile/",
     "vendor/fonts/",
     "vendor/licenses/",

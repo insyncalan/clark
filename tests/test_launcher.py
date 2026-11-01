@@ -9,9 +9,11 @@ folder, its clark data and any real Chrome are never touched. clark.command runs
 import http.server
 import json
 import os
+import shutil
 import socket
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -458,6 +460,78 @@ class Command(unittest.TestCase):
         text = self.SCRIPT.read_text(encoding="utf-8")
         for word in ("curl", "wget", "pip", "brew", "sudo", "http"):
             self.assertNotIn(word, text)
+
+
+class StoppedBetweenTwoMoves(unittest.TestCase):
+    """An update swaps src and clark by moving the old folder into .clark-old-<time> and then the new one in. A stop between the
+    two moves leaves no src (or no clark), and then nothing can import clark to finish the update. The real clark.command, in a
+    copy of the release layout, must put the old folder back and let the launcher finish the update. A server that is not clark's
+    holds the port, so the launcher stops after the finish and starts nothing."""
+
+    STAMP = "20261030T101500Z"
+
+    def layout(self, tmp, missing):
+        from clark import update_helper as h
+        app, data = Path(tmp) / "clark-app", Path(tmp) / "data"
+        for name in ("src", "vendor", "clark"):
+            if (ROOT / name).exists():
+                shutil.copytree(ROOT / name, app / name, ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copy2(ROOT / "clark.command", app / "clark.command")
+        files = {p.relative_to(app).as_posix(): p for p in sorted(app.rglob("*")) if p.is_file()}
+        record = {"product": "clark", "version": "0.0.1", "schema_version": 1, "files": {
+            rel: {"sha256": h.sha256_of(p), "size": p.stat().st_size, "mode": "644"} for rel, p in files.items()}}
+        (app / h.MANIFEST).write_text(json.dumps(record), encoding="utf-8")
+        staging = app / (h.STAGING_PREFIX + self.STAMP)
+        (staging / "src" / "clark").mkdir(parents=True)
+        (staging / "src" / "clark" / "__init__.py").write_text("NEW = 1\n", encoding="utf-8")
+        new = {"schema_version": 1, "files": {"src/clark/__init__.py": {
+            "sha256": h.sha256_of(staging / "src" / "clark" / "__init__.py"), "size": 8, "mode": "644"}}}
+        (staging / h.MANIFEST).write_text(json.dumps(new), encoding="utf-8")
+        data.mkdir()
+        h.begin(data, app, staging, self.STAMP, "0.0.1", "0.0.2", 1, 1, 1, "X-Clark-Mark", "m", check=False)
+        old = app / (h.OLD_PREFIX + self.STAMP)
+        old.mkdir()
+        os.rename(app / missing, old / missing)                  # the stop: the old one is away, the new one is not in yet
+        return app, data, old
+
+    def run_command(self, app, data):
+        bin_ = Path(app).parent / "bin"
+        bin_.mkdir()
+        (bin_ / "python3").symlink_to(sys.executable)
+        taken = Fake("html")
+        self.addCleanup(taken.close)
+        return subprocess.run([BASH, str(app / "clark.command"), "--data", str(data), "--port", str(taken.port)],
+                              cwd=str(Path(app).parent), env={"PATH": f"{bin_}:/usr/bin:/bin", "HOME": str(Path(app).parent)},
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
+
+    def check(self, missing):
+        from clark import update_helper as h
+        with tempfile.TemporaryDirectory() as tmp:
+            app, data, old = self.layout(tmp, missing)
+            done = self.run_command(app, data)
+            self.assertNotIn("Traceback", done.stderr + done.stdout)
+            self.assertNotIn("ModuleNotFoundError", done.stderr + done.stdout)
+            self.assertTrue((app / "src" / "clark" / "launch.py").is_file())
+            self.assertTrue((app / "clark" / "__init__.py").is_file())
+            self.assertFalse(h.marker_path(data).exists(), "the update was not finished")
+            self.assertEqual(h.read_result(data)["status"], "rolled_back")
+            self.assertIn("The last update stopped part way, so the old version was put back.", done.stdout)
+            self.assertFalse((app / "src" / "clark" / "newmod.py").exists())
+
+    def test_no_src_after_a_stop_between_the_two_moves_is_recovered_by_the_launcher_file(self):
+        self.check("src")
+
+    def test_no_clark_stand_in_after_a_stop_between_the_two_moves_is_recovered_too(self):
+        self.check("clark")
+
+    def test_a_missing_folder_with_nothing_set_aside_is_left_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            shutil.copy2(ROOT / "clark.command", Path(tmp) / "clark.command")
+            (Path(tmp) / "bin").mkdir()
+            (Path(tmp) / "bin" / "python3").symlink_to(sys.executable)
+            subprocess.run([BASH, str(Path(tmp) / "clark.command"), "--help"], cwd=tmp, stdin=subprocess.DEVNULL,
+                           env={"PATH": f"{Path(tmp) / 'bin'}:/usr/bin:/bin", "HOME": tmp}, capture_output=True, text=True, timeout=60)
+            self.assertFalse((Path(tmp) / "src").exists())
 
 
 class RunsFromTheTopFolder(unittest.TestCase):

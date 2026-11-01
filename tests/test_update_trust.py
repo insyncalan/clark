@@ -12,12 +12,14 @@ import shutil
 import tempfile
 import unittest
 
+import _signing
 from clark import updates
 from test_updates import SYSTEM, listed_files, make_zip
 
 
 class ProvenanceTest(unittest.TestCase):
     def setUp(self):
+        _signing.trust_test_key(self)
         self.tmp = tempfile.mkdtemp(prefix="clark trust ")
         self.addCleanup(shutil.rmtree, self.tmp, True)
 

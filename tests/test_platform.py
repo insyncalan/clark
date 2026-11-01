@@ -126,6 +126,22 @@ class Dialogs(unittest.TestCase):
         self.assertEqual(got, Path("/Users/demo/Weekly report.html"))
         self.assertEqual(run.calls[0][0][3:], ["Save the report", "Weekly- report-.html"])
 
+    def test_the_open_dialog_is_for_one_zip_and_passes_text_as_arguments(self):
+        run = FakeRun(stdout="/Users/demo/Downloads/clark-0.3.1-mac.zip\n")
+        prompt = 'Choose the "update" & go'
+        self.assertEqual(pl.choose_file(prompt, start="/Users/demo/Downloads", run=run, on=pl.MAC),
+                         Path("/Users/demo/Downloads/clark-0.3.1-mac.zip"))
+        args = run.calls[0][0]
+        self.assertEqual(args[:3], ["osascript", "-e", pl.OPEN_SCRIPT])
+        self.assertEqual(args[3:], [prompt, "/Users/demo/Downloads"])
+        self.assertIn('of type {"zip"', pl.OPEN_SCRIPT)
+        self.assertIsNone(pl.choose_file("Choose", run=FakeRun(1, stderr="execution error: User canceled. (-128)"), on=pl.MAC))
+        with self.assertRaisesRegex(pl.PlatformError, "The Open window could not be opened"):
+            pl.choose_file("Choose", run=FakeRun(1, stderr="syntax error"), on=pl.MAC)
+
+    def test_the_downloads_folder(self):
+        self.assertEqual(Path("/Users/demo/Downloads"), pl.downloads_dir(home="/Users/demo", on=pl.MAC))
+
     def test_cancel_is_none_and_a_failure_is_an_error(self):
         cancelled = FakeRun(1, stderr="execution error: User canceled. (-128)")
         self.assertIsNone(pl.choose_folder("Pick", run=cancelled, on=pl.MAC))
@@ -137,7 +153,7 @@ class Dialogs(unittest.TestCase):
     def test_the_scripts_compile(self):
         """Both scripts are valid AppleScript (compiled by osacompile; no dialog is shown)."""
         with tempfile.TemporaryDirectory() as tmp:
-            for i, script in enumerate((pl.FOLDER_SCRIPT, pl.SAVE_SCRIPT)):
+            for i, script in enumerate((pl.FOLDER_SCRIPT, pl.SAVE_SCRIPT, pl.OPEN_SCRIPT)):
                 done = subprocess.run(["osacompile", "-o", os.path.join(tmp, f"{i}.scpt"), "-e", script],
                                       capture_output=True, text=True)
                 self.assertEqual(done.returncode, 0, done.stderr)
@@ -149,7 +165,8 @@ class WindowsIsNotBuiltYet(unittest.TestCase):
                  lambda: pl.open_file(__file__, run=FakeRun(), on=pl.WINDOWS),
                  lambda: pl.reveal_file(__file__, run=FakeRun(), on=pl.WINDOWS),
                  lambda: pl.choose_folder("Pick", run=FakeRun(), on=pl.WINDOWS),
-                 lambda: pl.choose_save_file("Save", "a.html", run=FakeRun(), on=pl.WINDOWS))
+                 lambda: pl.choose_save_file("Save", "a.html", run=FakeRun(), on=pl.WINDOWS),
+                 lambda: pl.choose_file("Choose", run=FakeRun(), on=pl.WINDOWS), lambda: pl.downloads_dir(on=pl.WINDOWS))
         for call in calls:
             with self.assertRaisesRegex(pl.NotBuiltYet, "on Windows is not built yet"):
                 call()
@@ -483,6 +500,24 @@ class MoveUnlessExists(TempHome):
         with self.assertRaises(OSError):
             pl.write_file_unless_exists(self.home / "a.html", "x", link=broken)
         self.assertEqual(list(self.home.iterdir()), [])
+
+
+class RunPythonCheck(unittest.TestCase):
+    def test_it_runs_code_isolated_and_returns_status_and_stderr(self):
+        status, errors = pl.run_python_check(sys.executable, "import sys; sys.stderr.write(sys.argv[1]); sys.exit(3)", ["hello"])
+        self.assertEqual((status, errors), (3, "hello"))
+        self.assertEqual(pl.run_python_check(sys.executable, "pass")[0], 0)
+
+    def test_it_builds_an_argument_list_with_isolation_flags(self):
+        seen = {}
+
+        def run(args, **kw):
+            seen["args"], seen["kw"] = args, kw
+            return subprocess.CompletedProcess(args, 1, b"", b"bad \xff")
+        status, errors = pl.run_python_check("py", "code", [Path("/a"), "b"], timeout=7, run=run)
+        self.assertEqual(seen["args"], ["py", "-I", "-B", "-c", "code", "/a", "b"])
+        self.assertEqual((seen["kw"]["timeout"], seen["kw"].get("shell")), (7, None))
+        self.assertEqual((status, errors), (1, "bad \ufffd"))
 
 
 if __name__ == "__main__":

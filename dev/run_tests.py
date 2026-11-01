@@ -93,7 +93,10 @@ EVERYTHING = ("VERSION", "docs/RULES.md", ".claude/", ".github/", "vendor/", ".g
 # (the store, its schema and history, the server); listing a path that is not on main yet is fine. The workflow is already
 # covered by EVERYTHING (.github/).
 GUARDED = ("src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py", "src/clark/server.py",
-           ".github/workflows/tests.yml")
+           ".github/workflows/tests.yml",
+           # the update trust chain (#282): the pinned key, the signature check, the vendored verifier, the helper, the installer
+           "src/clark/updates.py", "vendor/ed25519_verify/", "src/clark/update_helper.py", "src/clark/update_install.py",
+           "dev/tools/sign_release.py")
 DOCUMENTS = ("docs/",)                # and any *.md: these reach only the tests that name them (see `guard_tests`)
 NAMES_GUARD = "test_no_real_names"    # reads every tracked file, so any change runs it
 FILE_TIMEOUT = float(os.environ.get("CLARK_FILE_TIMEOUT") or 900)   # seconds; 0 means no limit (see --file-timeout)

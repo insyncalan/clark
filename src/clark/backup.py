@@ -752,11 +752,11 @@ UPDATE_GONE = ("The copy of your data taken before the update is no longer there
 UPDATE_NOT_COPY = "{name} is not a copy taken before an update, so it was not put back. Nothing was changed."
 
 
-def restore_before_update(path, name, confirmed=False, folder=None, onedrive_roots=None):
+def restore_before_update(path, name, confirmed=False, folder=None, onedrive_roots=None, store=None):
     """Undo the data side of an update: put back the safety copy `name` that the update's migration took (a `migrate` copy, see
     store.bring_up_to_date), over the newer database at `path`. An older clark cannot open newer data, so this runs before the
     older clark is started, never after; a database still open in a running clark is refused (restore_path's lock and its
-    open check), and nothing is changed.
+    open check), and nothing is changed. A running clark passes its own open `store`, which restore_path closes first.
 
     Until `confirmed` is True it changes nothing and raises Invalid(UPDATE_ASK), which says that changes made since the update
     will be lost: the caller shows that and asks. The restore itself is restore_path's: the copy is written beside the database
@@ -772,7 +772,7 @@ def restore_before_update(path, name, confirmed=False, folder=None, onedrive_roo
         raise Invalid(UPDATE_GONE)
     if confirmed is not True:
         raise Invalid(UPDATE_ASK)
-    done = restore_path(path, name, folder, onedrive_roots)
+    done = restore_path(path, name, folder, onedrive_roots, store)
     return {**done, "said": UPDATE_LOST}
 
 

@@ -302,7 +302,9 @@ class Changed(unittest.TestCase):
         # to src/clark/server.py runs tests/test_server.py and all the rest
         every = sorted(f.name for f in self.files)
         self.assertEqual(set(run_tests.GUARDED), {"src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py",
-                                                   "src/clark/server.py", ".github/workflows/tests.yml"})
+                                                   "src/clark/server.py", ".github/workflows/tests.yml",
+                                                   "src/clark/updates.py", "vendor/ed25519_verify/", "src/clark/update_helper.py",
+                                                   "src/clark/update_install.py", "dev/tools/sign_release.py"})
         for p in run_tests.GUARDED:
             with self.subTest(p):
                 self.assertEqual(self.chosen([p]), every)

@@ -8,3 +8,10 @@
 /tests/test_workflow.py @insyncalan
 /tests/test_no_real_names.py @insyncalan
 /tests/test_publish_public.py @insyncalan
+# The update trust chain (#282): the pinned release key, the signature check and its vendored verifier, the helper that swaps
+# the files, the installer and the signing tool. A change to any of them needs the owner's review.
+/src/clark/updates.py @insyncalan
+/vendor/ed25519_verify/ @insyncalan
+/src/clark/update_helper.py @insyncalan
+/src/clark/update_install.py @insyncalan
+/dev/tools/sign_release.py @insyncalan

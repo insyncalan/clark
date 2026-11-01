@@ -19,6 +19,7 @@ import zipfile
 from pathlib import Path
 
 from _paths import ROOT
+import _signing
 import package
 from clark import release_files, updates
 from clark.updates import UpdateError
@@ -37,7 +38,8 @@ def listed_files(version="0.3.1"):
 
 
 def make_zip(folder, version="0.3.1", files=None, manifest=None, system=SYSTEM, name=None, top=None, tweak=None,
-             modes=None, schema=2, min_from="0.0.0", notes="Fixes a typo.\n", extra=None, skip_manifest=False, rows=None):
+             modes=None, schema=2, min_from="0.0.0", notes="Fixes a typo.\n", extra=None, skip_manifest=False, rows=None,
+             sign=True):
     """Write a fake download into `folder`; its path. `tweak(files)` changes the member bytes AFTER the manifest has been
     made (so a hash then differs); `extra` adds raw members (name -> bytes); `rows(files_doc)` changes the manifest rows."""
     files = dict(listed_files(version) if files is None else files)
@@ -69,6 +71,8 @@ def make_zip(folder, version="0.3.1", files=None, manifest=None, system=SYSTEM, 
             put(member, data)
         if not skip_manifest:
             put(f"{top}/{updates.MANIFEST}", (json.dumps(doc, indent=2) + "\n").encode())
+    if sign:
+        _signing.sign_file(path)         # signed as a release is, so the older rules are still the ones that refuse
     return path
 
 
@@ -96,11 +100,14 @@ def real_download(case, schema=2):
     for patch in (mock.patch.object(package, "SHARED", small), mock.patch.object(release_files, "SHARED", small)):
         patch.start()           # the small list stays the list while the test reads the download back
         case.addCleanup(patch.stop)
-    return package.build("mac", Path(case.tmp) / "out", root=root, dirty=True)
+    built = package.build("mac", Path(case.tmp) / "out", root=root, dirty=True)
+    _signing.sign_file(built)
+    return built
 
 
 class Base(unittest.TestCase):
     def setUp(self):
+        _signing.trust_test_key(self)
         self.tmp = tempfile.mkdtemp(prefix="clark updates ")
         self.addCleanup(shutil.rmtree, self.tmp, True)
 
@@ -200,6 +207,7 @@ class NameTest(Base):
     def test_not_a_zip_and_too_big(self):
         path = Path(self.tmp) / "clark-0.3.1-mac.zip"
         path.write_bytes(b"this is not a zip")
+        _signing.sign_file(path)
         self.refuses(path, "damaged", "This update file is damaged or has been changed. Download it again.")
         from unittest import mock
         with mock.patch.object(updates.os, "open", side_effect=AssertionError("opened")):     # refused before it is opened
@@ -243,6 +251,7 @@ class ManifestTest(Base):
             for i in old.infolist():
                 new.writestr(i, b"{not json" if i.filename.endswith(updates.MANIFEST) else old.read(i))
         os.replace(Path(self.tmp) / "new.zip", path)
+        _signing.sign_file(path)
         self.refuses(path, "damaged")
 
     def test_top_folder_name_and_version_must_agree(self):
@@ -380,6 +389,7 @@ class MemberTest(Base):
                 new.writestr(info, data)
                 if n in encrypt:
                     new.filelist[-1].flag_bits |= 0x1
+        _signing.sign_file(out)             # a hostile file signed by the release key: the older rules must still refuse it
         return out
 
     def test_the_rebuilt_copy_of_a_good_download_still_reads(self):
@@ -432,6 +442,7 @@ class MemberTest(Base):
                 j.create_system, j.external_attr, j.compress_type = 3, i.external_attr, zipfile.ZIP_BZIP2
                 new.writestr(j, old.read(i))
         os.replace(bz, base)
+        _signing.sign_file(base)
         self.refuses(base, "damaged")
 
     def test_total_size_cap_and_a_member_bigger_than_it_says(self):
@@ -486,15 +497,16 @@ class VersionRuleTest(Base):
 
     def test_older_refused(self):
         self.refuses(make_zip(self.tmp, version="0.2.0"), "older",
-                     "Version 0.2.0 is older than the one you have (0.3.0). Choose Install again only if you want it anyway.")
+                     "Version 0.2.0 is older than the one you have (0.3.0), so it wasn't installed. "
+                     "To go back to an older version, download it and replace the clark folder by hand.")
 
     def test_equal_refused_unless_reinstalling(self):
         path = make_zip(self.tmp, version="0.3.0")
         self.refuses(path, "same", "Version 0.3.0 is the one you have already. Choose Install again only if you want it anyway.")
         self.assertTrue(self.read(path, reinstall=True).reinstall)
 
-    def test_older_allowed_when_reinstalling(self):
-        self.assertEqual("0.2.0", self.read(make_zip(self.tmp, version="0.2.0"), reinstall=True).version)
+    def test_older_is_refused_even_when_reinstalling(self):
+        self.refuses(make_zip(self.tmp, version="0.2.0"), "older", reinstall=True)
 
     def test_a_source_copy_may_update_to_its_release(self):
         self.assertEqual("0.1.0", self.read(make_zip(self.tmp, version="0.1.0"), installed="0.1.0.dev0").version)
@@ -507,26 +519,29 @@ class VersionRuleTest(Base):
         os.mkdir(self.tmp)
         self.assertEqual("0.3.1", self.read(make_zip(self.tmp, min_from="0.3.0"), installed="0.3.0").version)
 
-    def test_a_change_to_the_data_layout_is_refused_for_now(self):
-        said = "This update changes how your data is kept, so it can't be installed from here. Nothing was changed. " \
-               "To install it by hand, quit clark, then put the folder from this download in place of your clark folder. " \
-               "Your projects and settings are kept in their own folder, so they stay where they are."
-        self.refuses(make_zip(self.tmp, schema=3), "layout", said)
+    def test_a_newer_data_layout_is_allowed_and_an_older_one_is_refused(self):
+        said = "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."
+        self.assertEqual(3, self.read(make_zip(self.tmp, schema=3)).schema_version)       # the new version brings the data up to date
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
-        self.refuses(make_zip(self.tmp, schema=1), "layout", said)
+        self.assertEqual(4, self.read(make_zip(self.tmp, schema=4), reinstall=True).schema_version)
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
-        self.refuses(make_zip(self.tmp, schema=3), "layout", said, reinstall=True)
+        self.refuses(make_zip(self.tmp, schema=1), "newer_data", said)
+        shutil.rmtree(self.tmp)
+        os.mkdir(self.tmp)
+        self.refuses(make_zip(self.tmp, schema=1), "newer_data", said, reinstall=True)
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
         self.assertEqual(2, self.read(make_zip(self.tmp, schema=2)).schema_version)
 
-    def test_a_layout_change_is_refused_for_a_real_download_too(self):
-        built = real_download(self, schema=3)
+    def test_an_older_layout_is_refused_for_a_real_download_too(self):
+        built = real_download(self, schema=1)
         with self.assertRaises(UpdateError) as said:
             updates.read_release(built, "mac", "0.3.0", 2)
-        self.assertEqual("layout", said.exception.key)
+        self.assertEqual("newer_data", said.exception.key)
+        built = real_download(self, schema=3)
+        self.assertEqual(3, updates.read_release(built, "mac", "0.3.0", 2).schema_version)
 
 
 def install_to(folder, version="0.3.0", files=None):
@@ -954,7 +969,7 @@ class ReadOnceTest(Base):
             return real_zip(target, *a, **k)
         with mock.patch.object(updates.os, "open", counting_open), mock.patch.object(updates.zipfile, "ZipFile", zip_of):
             r = self.read(path)
-        self.assertEqual([str(path)], opened)
+        self.assertEqual([str(path), str(path) + ".sig"], opened)          # the update file once, then its signature file
         self.assertEqual(hashlib.sha256(r.data).hexdigest(), r.zip_sha256)
 
 
@@ -1232,7 +1247,7 @@ class WordsTest(unittest.TestCase):
                 self.assertNotIn("/", text.replace("{", ""), "no file path on screen")
 
     def test_every_failure_has_a_next_step(self):
-        nothing_to_do = {"layout", "git"}       # the next step is in the sentence ("by hand", "Download the latest release")
+        nothing_to_do = {"git"}       # the next step is in the sentence ("by hand", "Download the latest release")
         steps = ("Download", "Choose", "Move", "Install", "Close", "try again")
         for key, text in updates.MESSAGES.items():
             with self.subTest(key=key):

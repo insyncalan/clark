@@ -16,6 +16,7 @@ The logic is in main() so a test can run it with fakes; everything that touches 
 """
 import argparse
 import errno
+import json
 import logging
 import os
 import re
@@ -26,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -191,6 +192,24 @@ def demo_database(folder):
     except demo_data.DemoError as e:
         raise Quiet(str(e)) from e
     return Path(folder) / DB_NAME
+
+
+def finish_unfinished_update(folder, err):
+    """An update that stopped part way leaves its marker in the data folder. Started by hand (python3 -m clark) there is no
+    launcher to finish it, so it is finished here, the same safe way back as the launcher's (launch.finish_update: never
+    forward). The server the update's own helper starts is the one exception: the helper is running and has reached its
+    start step, so that server goes on. True when clark may start."""
+    from clark import launch, update_helper
+    marker = update_helper.marker_path(folder)
+    try:
+        if not marker.exists():
+            return True
+        doc = json.loads(marker.read_text(encoding="utf-8"))
+        if doc.get("phase") == "started" and not update_helper.Seams().process_gone(doc.get("helper_pid")):
+            return True
+    except (OSError, ValueError, AttributeError):
+        pass                                     # a marker that can't be read is for finish_update to deal with
+    return launch.finish_update(folder, lambda text: print(text, file=err, flush=True))
 
 
 def open_data(folder, onedrive_roots):
@@ -358,6 +377,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                 print("Using fictional demo data in a temporary folder; it is removed when you stop.", file=out, flush=True)
             else:
                 folder = Path(args.data).expanduser() if args.data else platform.data_dir(home)
+                if not finish_unfinished_update(folder, err):
+                    return 1
                 store = open_data(folder, onedrive_roots)
                 code = only_project(store)
                 print(f"Using the data in {store.path.parent}", file=out, flush=True)
@@ -385,6 +406,9 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
         LOG.info("started on port %d", port)
+        updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port, migration_backup=store.migration_backup, open_db=store)   # demo data is never updated
+        if updates_seam is not None:
+            updates_seam.watch()              # records how an update or undo that started this server ended, once the helper is done
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
                      err=err,
@@ -404,6 +428,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
                      activity=activity_read.make_read(store.path, store.data_for),
                      brand_picture=page.brand_picture,
+                     updater=updates_seam,
                      **handlers)
         LOG.info("stopped with code %d", done)
         if done == 0:
