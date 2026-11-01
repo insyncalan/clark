@@ -125,7 +125,7 @@ class RealPublishTest(unittest.TestCase):
         markup = "<b>Build</b> & <i>more</i>"
         overall = {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late."}
         full = self.tracker("Progress", {"v": 1, "overall": overall, "columns": {"tasks": True}, "groups": [
-            {"name": markup, "lines": [line(text="<i>x</i>", tasks=5), line(no="2", text="Second", status="planned")]},
+            {"name": markup, "lines": [line(text="<i>x</i>", tasks=5), line(no="2", text="Second", status="planned", weight=100, planned=0, achieved=0)]},
             {"name": "Empty group", "lines": []}]})
         only_overall = self.tracker("Only figures", {"v": 1, "overall": overall, "columns": {}, "groups": []})
         hidden = self.tracker("Hidden", {"v": 1, "overall": {}, "columns": {}, "groups": [{"name": "Gone", "lines": [line(text="Hidden line")]}]}, hidden=1)
