@@ -402,10 +402,10 @@
     "w": "Dashboard › Edit",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a **grip** and, under it, a **+**. They are faint until you point at the section or tab to them.",
-     "Drag the grip to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section, **Delete section**. A section that is left out shows an eye-off mark under its **+**.",
-     "To rearrange the page, pick up a section by its grip and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a phone a pair stacks.",
+     "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
+     "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
+     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section, **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
+     "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a phone a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
     ]
@@ -414,10 +414,10 @@
     "id": "add-a-section-from-a-template",
     "g": "The report",
     "t": "Add a section from a template",
-    "w": "Dashboard › Edit › the + under a section’s grip",
+    "w": "Dashboard › Edit › the + under a section’s move button",
     "go": "dashboard+edit",
     "s": [
-     "On the **Dashboard**, press **Edit**. Press the **+** under the grip of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
+     "On the **Dashboard**, press **Edit**. Press the **+** under the move button of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
      "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
@@ -768,7 +768,7 @@
      ],
      [
       "p",
-      "Add more sections from the **+** under any section’s grip, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit."
+      "Add more sections from the **+** under any section’s move button, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit."
      ]
     ]
    },
@@ -780,7 +780,7 @@
     "b": [
      [
       "p",
-      "Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
+      "Ready-made sections you add in Edit from the **+** under a section’s move button, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
      ],
      [
       "p",
@@ -1658,11 +1658,11 @@
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
-    "Dashboard in Edit, on a section’s grip: move the section"
+    "Dashboard in Edit, on a section’s move button: move the section"
    ],
    [
     "[[Enter]] or [[Space]]",
-    "Dashboard in Edit, on a section’s grip: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them"
+    "Dashboard in Edit, on a section’s move button: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them"
    ],
    [
     "[[Alt+Left]] [[Alt+Right]]",
