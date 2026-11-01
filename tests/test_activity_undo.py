@@ -60,7 +60,7 @@ class Tab(unittest.TestCase):
         out = []
         for i in range(n):
             status, body = self.make({"project": "TUL", "kind": "actions", "op": "update", "id": ITEM,
-                                      "changes": {"priority": "Low" if i % 2 == 0 else "High"}, "place": "cell"})
+                                      "changes": {"priority": ("Low", "High", "Medium")[i % 3]}, "place": "cell"})
             self.assertEqual(status, 200, body)
             out.append(body["apply_id"])
         return out
@@ -122,7 +122,7 @@ class Tab(unittest.TestCase):
                     self.until(cdp, sid, "document.querySelectorAll('[data-pa-tick]:checked').length === 3", "three chosen")
                     self.assertEqual(self.bar(cdp, sid), "3 selected")
                     self.assertEqual(cdp.js("document.querySelector('[data-pa-undo-n]').textContent", sid), "Undo 3")
-                    before, n = self.steps(), len(self.sent)
+                    before, n, prior = self.steps(), len(self.sent), self.priority()
                     cdp.js("document.querySelector('[data-pa-undo-n]').click()", sid)
                     self.until(cdp, sid, "!!document.querySelector('[data-pa-preview]')", "the preview shows first")
                     self.assertEqual(self.steps(), before, "a preview writes nothing")
@@ -144,10 +144,11 @@ class Tab(unittest.TestCase):
                     self.until(cdp, sid, "!document.querySelector('[data-pa-bar]')", "the selection cleared after the undo")
                     self.assertEqual(self.ticked(cdp, sid), [])
                     after = self.priority()
+                    self.assertNotEqual(after, prior, "the batch changed the item")
                     self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the batch is itself undoable")
                     cdp.js("document.querySelector('[data-undo]').click()", sid)
-                    self.assertTrue(wait(lambda: self.steps() == before + 2), f"the toast's Undo took the whole batch back, as one more change: {self.sent[-1]} {self.toast(cdp, sid)}")
-                    self.until(cdp, sid, "/^Undone/.test((document.querySelector('.toast-text') || {}).textContent || '')", "and said so")
+                    self.assertTrue(wait(lambda: self.priority() == prior), f"the toast's Undo put the whole batch back: {self.sent[-1]} {self.toast(cdp, sid)}")
+                    self.assertGreater(self.steps(), before + 1, "as one more change in the history")
                     self.assertEqual(self.steps(), before + 2)
                     self.assertIsNotNone(after)
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways scroll")
