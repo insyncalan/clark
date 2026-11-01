@@ -508,7 +508,7 @@ class Migration(unittest.TestCase):
 
     def test_the_step_does_not_read_the_live_schema(self):
         src = Path(store_module.__file__).read_text(encoding="utf-8")
-        body = src[src.index("def migrate_to_history"):src.index("MIGRATIONS = (")]
+        body = src[src.index("def migrate_to_history"):src.index("def migrate_people")]
         self.assertNotIn("schema.sql", body)
         self.assertNotIn("SCHEMA.", body)
         self.assertNotIn("_statements(", body)
