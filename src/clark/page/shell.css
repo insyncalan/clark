@@ -1029,3 +1029,19 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .tpl-check-row.is-done .tpl-check-text { color: var(--text-muted); text-decoration: line-through; }
 .tpl-check-state { font-size: var(--size-small); color: var(--text-muted); }
 .tpl-check-row.is-done .tpl-check-state { color: var(--status-green-text); }
+
+/* #96 G1 Key figures (figures4, figures3) */
+.tpl-figs { display: grid; gap: 12px; margin-top: 12px; }
+.tpl-figs.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tpl-figs.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tpl-figs .fig { min-width: 0; overflow-wrap: anywhere; }
+.slot-left .tpl-figs.n4, .slot-right .tpl-figs.n4, .slot-left .tpl-slots.n4, .slot-right .tpl-slots.n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.slot-left .tpl-figs.n3, .slot-right .tpl-figs.n3, .slot-left .tpl-slots.n3, .slot-right .tpl-slots.n3 { grid-template-columns: 1fr; }
+.tpl-slots { display: grid; gap: 12px; margin-top: 12px; }
+.tpl-slots.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tpl-slots.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tpl-slot { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; padding: 8px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); }
+.tpl-slot legend { padding: 0 4px; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-slot label { display: flex; flex-direction: column; gap: 2px; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-slot input, .tpl-slot select { min-height: 32px; min-width: 0; padding: 4px 8px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-slot input:focus-visible, .tpl-slot select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
