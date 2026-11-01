@@ -62,20 +62,36 @@ def _day(iso):
         return None
 
 
+def _has_day(stamp):
+    """True when calendar_day(stamp) would give a day. Reading the stamp is enough away from the ends of the calendar, where a
+    zone change cannot overflow (the conversion to the local zone is the slow part, and a history has thousands of stamps)."""
+    try:
+        return 1 < parse(stamp).year < 9999 or calendar_day(stamp) is not None
+    except (ValueError, TypeError, OverflowError):
+        return False
+
+
 def _ordered(events):
-    return sorted((e for e in events or [] if calendar_day(e.get("at")) is not None), key=lambda e: (str(e["at"]), e.get("event_id") or 0))
+    return sorted((e for e in events or [] if _has_day(e.get("at"))), key=lambda e: (str(e["at"]), e.get("event_id") or 0))
+
+
+def _raised(ev, tz=None):
+    return calendar_day(ev[0]["at"], tz).isoformat() if ev else None
+
+
+def _last_reviewed(ev, tz=None):
+    people = [e for e in ev if by_person(e)]
+    return calendar_day(people[-1]["at"], tz).isoformat() if people else None
 
 
 def raised(events, tz=None):
     """The day of the first history row, as YYYY-MM-DD, or None when there is no history."""
-    ev = _ordered(events)
-    return calendar_day(ev[0]["at"], tz).isoformat() if ev else None
+    return _raised(_ordered(events), tz)
 
 
 def last_reviewed(events, tz=None):
     """The day of the latest change made by a person, as YYYY-MM-DD, or None when no person has changed the item."""
-    ev = [e for e in _ordered(events) if by_person(e)]
-    return calendar_day(ev[-1]["at"], tz).isoformat() if ev else None
+    return _last_reviewed(_ordered(events), tz)
 
 
 def days_between(earlier, later):
@@ -87,16 +103,14 @@ def days_between(earlier, later):
 def not_reviewed(row, events, today, days=DEFAULT_DAYS, tz=None):
     """True when the open item has gone more than `days` calendar days since it was last reviewed (or, never reviewed by a
     person, since it was raised). Closed, archived and history-less items are never flagged."""
-    if not is_open(row):
-        return False
-    since = last_reviewed(events, tz) or raised(events, tz)
-    n = days_between(since, today)
-    return n is not None and n > days
+    return freshness(row, events, today, days, tz)["not_reviewed"]
 
 
 def freshness(row, events, today, days=DEFAULT_DAYS, tz=None):
     """What the peek shows: {raised, last_reviewed, days_since, not_reviewed}, dates as YYYY-MM-DD (shown DD-MM-YYYY by the page).
-    `days_since` is counted from last reviewed, else raised, else None."""
-    r, l = raised(events, tz), last_reviewed(events, tz)
-    return {"raised": r, "last_reviewed": l, "days_since": days_between(l or r, today),
-            "not_reviewed": not_reviewed(row, events, today, days, tz)}
+    `days_since` is counted from last reviewed, else raised, else None. The history is put in order once (#158: a page of
+    thousands of items asks for this for each of them)."""
+    ev = _ordered(events)
+    r, l = _raised(ev, tz), _last_reviewed(ev, tz)
+    n = days_between(l or r, today)
+    return {"raised": r, "last_reviewed": l, "days_since": n, "not_reviewed": bool(is_open(row) and n is not None and n > days)}

@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendItemChange, sendCellChange, sendMilestoneChange, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
@@ -15,7 +15,18 @@ let counter = 0, tail = Promise.resolve(), timer = 0;
 const linked = new Map();                // a step made together with an earlier one (changeThen), to that earlier step: its Undo takes both back
 const itemSteps = new Map();             // the steps that changed a work item (#80 cells, #68 board moves), to what their Undo says ("" for "Undone."): their undo reply has no items, so the data is read again
 
+// #197: the steps the toast offered Undo for, newest last, so Cmd or Ctrl+Z (undoKey.js) undoes the last one even after the toast
+// has gone. Kept in memory only; a step leaves it once it is undone (by the key or the toast's button).
+const undoable = [];
+const MAX_KEPT = 50;
+
 export function say(kind, text, undo = null, code = project.value) {
+  if (undo) {
+    const at = undoable.findIndex((s) => s.step === undo);
+    if (at >= 0) undoable.splice(at, 1);
+    undoable.push({ step: undo, code });
+    if (undoable.length > MAX_KEPT) undoable.shift();
+  }
   clearTimeout(timer);
   const id = ++counter;
   toast.value = { id, kind, text, undo, code };
@@ -123,6 +134,8 @@ export function changeItem(req, done) {
 // says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
 // or that it is undone.
 export function undo(applyId, code = project.value) {
+  const at = undoable.findIndex((s) => s.step === applyId);
+  if (at >= 0) undoable.splice(at, 1);
   return enqueue(async () => {
     const earlier = linked.get(applyId);
     let r = await sendUndo(code, applyId);
@@ -196,6 +209,40 @@ export function changeMilestone(req, done) {
   return enqueue(async () => {
     const r = await sendMilestoneChange(code, req);
     if (r.ok && r.reply.apply_id) say("done", done, r.reply.apply_id, code);
+    return r;
+  });
+}
+
+// #197: Cmd or Ctrl+Z. Undoes the newest step of the open project that the toast offered Undo for (the same as its button); with none,
+// it says "Nothing to undo." Resolves to the undo's reply, or null.
+export function undoLast(code = project.value) {
+  for (let i = undoable.length - 1; i >= 0; i--) {
+    if (undoable[i].code === code) {
+      const { step } = undoable[i];
+      if (toast.value && toast.value.undo === step) dismiss();
+      return undo(step, code);
+    }
+  }
+  say("note", "Nothing to undo.");
+  return Promise.resolve(null);
+}
+
+// The Activity tab's Undo N (#232). `preview` reads what would be undone and what left, and changes nothing: {ok, reply} or
+// {ok: false, message}. Without it one new change undoes them all: the page reads the project again, the toast says what went back
+// and carries Undo (which takes the whole batch back), and the Movement block reads its milestones again.
+export function undoSeveral(steps, { preview = false, confirm = false } = {}) {
+  const code = project.value;
+  if (preview) return sendUndoMany(code, steps, { preview: true });
+  return enqueue(async () => {
+    const r = await sendUndoMany(code, steps, { confirm });
+    if (!r.ok) { if (!r.confirm) say("problem", r.message); return r; }
+    redraw(code, r.reply);
+    undone.value++;
+    for (const s of steps) { const at = undoable.findIndex((u) => u.step === s); if (at >= 0) undoable.splice(at, 1); }
+    if (await readAgain(code, "The changes were undone")) {
+      const words = typeof r.reply.words === "string" && r.reply.words ? r.reply.words : "Undone.";
+      say("done", words, r.reply.apply_id || null, code);
+    }
     return r;
   });
 }
