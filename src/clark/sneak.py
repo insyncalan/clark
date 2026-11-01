@@ -31,7 +31,7 @@ NOTHING = ("I couldn't find a change in that. Here I can change the due date, th
 ARCHIVE = re.compile(r"\barchiv\w*\b", re.I)
 DELETE = re.compile(r"\bdelet\w*\b", re.I)
 NO_ARCHIVE = "An item can't be archived from here. Archiving isn't available from the page yet. Nothing was changed."
-NO_DELETE = "Nothing is removed here. Nothing was changed."
+NO_DELETE = "Nothing is removed here. To take an item out of the lists, archive it from its row. Nothing was changed."
 BAD_NAME = "I can't use that as a person's name, so nothing was changed. Type a name, for example “owner Jo Ellis”."
 UNSURE_STATUS = "I can't tell which status you mean, so nothing was changed. Say one status, without “not”, for example “done” or “reopen”."
 NEEDS_DATE = "A decision that is made needs the day it was made. Add a date, for example “made on 30-10-2026”."
@@ -226,7 +226,7 @@ def read(data, item_id, words, now=None, known_owners=None):
     if DELETE.search(rest):
         if not changes:
             return {"ok": False, "message": NO_DELETE}
-        notes.append("Nothing is removed here, so that part was left out.")
+        notes.append("Nothing is removed here (archive the item from its row instead), so that part was left out.")
     if ARCHIVE.search(rest):
         if not changes:
             return {"ok": False, "message": NO_ARCHIVE}

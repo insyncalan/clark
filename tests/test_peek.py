@@ -155,7 +155,7 @@ class Reader(unittest.TestCase):
         self.assertIn("due date, the owner, the priority and the status", self.read("A-1", "gibberish")["message"])
 
     def test_archive_or_delete_in_the_words_says_so_plainly(self):
-        self.assertEqual(self.read("A-1", "please delete this")["message"], "Nothing is removed here. Nothing was changed.")
+        self.assertEqual(self.read("A-1", "please delete this")["message"], "Nothing is removed here. To take an item out of the lists, archive it from its row. Nothing was changed.")
         for words in ("archive it",):
             m = self.read("A-1", words)["message"]
             self.assertFalse(self.read("A-1", words)["ok"])
@@ -609,7 +609,7 @@ class PlainLabels(unittest.TestCase):
     def test_the_confirm_line_names_the_button(self):
         jsx = self.texts()[0]
         self.assertIn("This change needs your OK. Press ", jsx)
-        self.assertIn("to make it, or change your words.", jsx)
+        self.assertIn("to make it (or press Cmd+Enter, Ctrl+Enter on Windows), or change your words.", jsx)
         self.assertNotIn("This needs a confirm", jsx)
 
 

@@ -25,6 +25,17 @@ SRC = ROOT / "src" / "clark" / "page" / "src"
 TOKENS = ROOT / "src" / "clark" / "brand" / "tokens.css"
 
 
+class MissingItem(unittest.TestCase):
+    def test_an_item_the_open_data_lacks_says_so_and_not_could_not_be_read(self):
+        api = (SRC / "edit" / "activityApi.js").read_text(encoding="utf-8")
+        tab = (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
+        self.assertIn("r.status === 404", api)
+        self.assertIn("got.missing", tab)
+        self.assertIn("may be archived", tab)
+        self.assertIn("Press ", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))
+        self.assertIn("Cmd+Enter", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))
+
+
 class FollowRule(unittest.TestCase):
     def run_js(self, body):
         node = shutil.which("node")
@@ -123,6 +134,9 @@ class ActivityBrowser(unittest.TestCase):
                 first = cdp.js("document.querySelector('[data-activity-row] .pa-meta').textContent", sid)
                 self.assertRegex(first, r"\d{2}-\d{2}-\d{4}", "the when is a date the person reads")
                 self.assertNotIn("{", cdp.js("document.querySelector('[data-activity]').textContent", sid), "no raw JSON")
+                stamps = cdp.js("Array.from(document.querySelectorAll('[data-activity-row] .pa-meta')).map(e => (e.textContent.match(/\\d{2}-\\d{2}-\\d{4}( \\d{2}:\\d{2})?/) || [''])[0])", sid)
+                keys = [(s[6:10], s[3:5], s[0:2], s[11:]) for s in stamps]
+                self.assertEqual(keys, sorted(keys, reverse=True), "newest first, in the browser")
                 # the keys: Left goes back to Details, focus stays on the tabs
                 cdp.js("document.querySelector('[data-pk-tab=activity]').focus()", sid)
                 key(cdp, sid, "ArrowLeft")

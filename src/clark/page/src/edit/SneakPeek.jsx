@@ -69,7 +69,7 @@ export function SneakPeek({ row }) {
         {found && found.note ? <p class="muted">{found.note}</p> : null}
         {found && found.confirm ? (
           <p class={`sn-confirm${flash ? " flash" : ""}`} data-sneak-confirm>
-            This change needs your OK. Press <button type="button" class="link" data-sneak-confirm-btn onClick={() => apply(true, false)}>Confirm and apply</button> to make it, or change your words.
+            This change needs your OK. Press <button type="button" class="link" data-sneak-confirm-btn onClick={() => apply(true, false)}>Confirm and apply</button> to make it (or press Cmd+Enter, Ctrl+Enter on Windows), or change your words.
           </p>
         ) : null}
       </div>
