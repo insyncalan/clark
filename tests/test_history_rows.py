@@ -51,6 +51,11 @@ class Rows(unittest.TestCase):
         self.assertEqual(history.how_text("undo", "cell", None), "Undo")
         self.assertEqual(history.how_text("undo", None, None), "Undo")
 
+    def test_undo_several_is_named_on_every_row_of_the_batch(self):
+        """#239: the rows of one Undo several all say so, not just 'Undo'."""
+        self.assertEqual(history.how_text("undo", None, "Undo several"), "Undo (Undo several)")
+        self.assertEqual(history.how_text("undo", "cell", "something else"), "Undo")
+
     def test_excel_file_name_is_cleaned_and_unknown_values_are_plain(self):
         self.assertEqual(history.how_text("excel", "excel", "Excel import: C:\\x\\a  b.xlsx"), "By Excel import (a b.xlsx)")
         self.assertEqual(len(history.how_text("excel", "excel", "Excel import: " + "z" * 300)), len("By Excel import ()") + 60)
