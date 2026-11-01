@@ -97,14 +97,22 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "section-templates", "at-a-glance", "layouts", "work-items", "status-words",
+                          "milestone-states", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
-        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
+
+    def test_every_link_inside_the_shown_help_goes_to_a_shown_place(self):
+        """A link in a shown entry never points at an entry that is still held (it would go nowhere)."""
+        places = {"ref-" + x["id"] for x in SHOWN["reference"]["sections"]} | {"howto-" + x["id"] for x in SHOWN["howto"]["tasks"]}
+        places |= {"start-" + p for p in SHOWN["start"]["parts"]}
+        links = set(re.findall(r"\]\(#([a-z0-9-]+)\)", json.dumps(SHOWN)))
+        self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
         self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 30, 33))
@@ -150,6 +158,7 @@ class AgainstThePage(unittest.TestCase):
         # 66 again on the merge with ask clark's panel (#47a) and the palette's command for it (measured on the merged tree)
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
+        # 60 re-measured on the tree merged with main 3cb136ec: the same as main's floor, so it is kept; the Section styles rewording adds no bold name
         self.assertGreaterEqual(len(names), 60)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
@@ -157,6 +166,59 @@ class AgainstThePage(unittest.TestCase):
         self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
                                 "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
                                 "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]"])
+
+
+GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
+# Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
+COMPUTED = {
+    "3 days late": "Due, built from the date (workItems.js dueCell)",
+    "In 5 days": "Due, built from the date (workItems.js dueCell)",
+    "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
+    "this week\u2019s actions": "an example of what a card might be called, not a label",
+    "decisions needed": "an example of what a card might be called, not a label",
+}
+
+
+def labels_of(entry):
+    """Every control or label a shown entry names: its bold names, its quoted words, and the first cell of each table row."""
+    out = set()
+    for t in strings(entry):
+        out |= set(re.findall(r"\*\*(.+?)\*\*", t)) | set(re.findall(r"\u201c(.+?)\u201d", t))
+    for b in entry["b"] if "b" in entry else []:
+        if b[0] == "tbl":
+            for row in b[2]:
+                out |= set(row[0].split(", "))
+    return {re.sub(r"\s*\(.*?\)\s*$", "", x).strip(" .,:;\u2026") for x in out}
+
+
+class ReleasedLabels(unittest.TestCase):
+    """The check on #82: every label a RELEASED Help entry (How do I, Reference) names must be a word the page itself holds in its source (whole words,
+    in the code of the page and of Help, and the tile titles in glance.py). Held entries are exempt: they are not shown."""
+    PAGE = page_code(include_help=True) + "\n" + strip_comments(GLANCE_PY.read_text(encoding="utf-8"))
+
+    @classmethod
+    def on_page(cls, label):
+        norm = lambda t: re.sub(r"[\u2018\u2019]", "'", t)
+        pat = r"(?<![\w])" + re.escape(norm(label)) + r"(?![\w])"
+        return bool(re.search(pat, norm(cls.PAGE))) or label in COMPUTED
+
+    def missing(self, entries):
+        return sorted({f"{e['id']}: {x}" for e in entries for x in labels_of(e) if not self.on_page(x)})
+
+    def test_every_label_in_a_released_entry_is_on_the_page(self):
+        entries = SHOWN["howto"]["tasks"] + SHOWN["reference"]["sections"]
+        self.assertEqual(self.missing(entries), [], "a released Help entry names something the page does not have: reword it or hold the entry")
+
+    def test_the_check_fails_on_a_made_up_label(self):
+        """Mutation check: a label the page does not have, as a bold name, a quoted word and a table row, is each reported."""
+        bad = {"id": "x", "b": [["p", "Press **Frobnicate** or see \u201cWidget zone\u201d."], ["tbl", ["A", "B"], [["Gizmo row", "c"]]]]}
+        self.assertEqual(self.missing([bad]), ["x: Frobnicate", "x: Gizmo row", "x: Widget zone"])
+
+    def test_the_computed_words_are_still_in_shown_entries(self):
+        """A word excused as computed must still be quoted by a released entry, or it is stale."""
+        every = " ".join(shown_texts())
+        for w in COMPUTED:
+            self.assertIn(w, every)
 
 
 class NeverDelete(unittest.TestCase):

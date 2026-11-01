@@ -323,7 +323,7 @@
     "go": "work",
     "s": [
      "**Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the search switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
+     "The two icons beside Group by switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
      "**Swimlanes** adds rows across the board: None, Workstream or Type.",
      "In Edit, drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes. In View the board shows the cards but does not move them.",
@@ -402,10 +402,10 @@
     "w": "Dashboard › Edit",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a **grip** and, under it, a **+**. They are faint until you point at the section or tab to them.",
-     "Drag the grip to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include**) and, for a text section, **Delete section**. A section that is left out shows an eye-off mark under its **+**.",
-     "To rearrange the page, pick up a section by its grip and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a phone a pair stacks.",
+     "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
+     "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
+     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section, **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
+     "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
     ]
@@ -414,10 +414,10 @@
     "id": "add-a-section-from-a-template",
     "g": "The report",
     "t": "Add a section from a template",
-    "w": "Dashboard › Edit › the + under a section’s grip",
+    "w": "Dashboard › Edit › the + under a section’s move button",
     "go": "dashboard+edit",
     "s": [
-     "On the **Dashboard**, press **Edit**. Press the **+** under the grip of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
+     "On the **Dashboard**, press **Edit**. Press the **+** under the move button of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
      "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
@@ -451,7 +451,7 @@
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
      "Right-click a tile in Edit for **Tile colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
     ],
-    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or a risk is red, amber when something waits, and green otherwise."
+    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise."
    },
    {
     "id": "keep-the-use-cases",
@@ -477,7 +477,7 @@
      "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. Back returns to the list."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top returns to the list."
     ]
    },
    {
@@ -677,11 +677,12 @@
      [
       "ul",
       [
-       "**Publish…**: the Publish box, on the Dashboard. See [Publishing](#ref-publishing).",
+       "**Publish…**: the Publish box, on the Dashboard.",
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
+       "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Settings**.",
-       "**Appearance**: System, Light or Dark; the one in use has a tick."
+       "**Help**: opens this Help."
       ]
      ],
      [
@@ -767,7 +768,7 @@
      ],
      [
       "p",
-      "Add more sections from the **+** under any section’s grip, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit."
+      "Add more sections from the **+** under any section’s move button, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit."
      ]
     ]
    },
@@ -779,7 +780,7 @@
     "b": [
      [
       "p",
-      "Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
+      "Ready-made sections you add in Edit from the **+** under a section’s move button, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
      ],
      [
       "p",
@@ -888,7 +889,7 @@
        [
         "High risks and issues",
         "Open risks and issues of Urgent or High priority",
-        "Red when any is red; amber when some are open; green when none"
+        "Red when any is rated Urgent or High; amber when some are open but none is that high; green when none are open"
        ],
        [
         "Decisions needed",
@@ -899,7 +900,7 @@
      ],
      [
       "p",
-      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Tile colour**."
+      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Outline colour**: Automatic, Green, Amber, Red or No colour."
      ]
     ]
    },
@@ -910,17 +911,17 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections in cards, with the contents at the right edge."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; slim gaps are the standard. It is used on the published report too."
      ],
      [
       "tbl",
       [
-       "Dashboard sections (yours)",
+       "Dashboard sections",
        "What it does"
       ],
       [
        [
-        "Slim gaps (standard)",
+        "Slim gaps",
         "Each section is its own card, with a slim gap that shows the page picture."
        ],
        [
@@ -946,7 +947,7 @@
     "b": [
      [
       "p",
-      "From the top: the import and export icons and **+**; the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; the search; then **Filter by**."
+      "From the top: the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; then **Filter by**."
      ],
      [
       "tbl",
@@ -956,8 +957,12 @@
       ],
       [
        [
+        "Type",
+        "Action, Risk, Issue, Assumption, Dependency or Decision"
+       ],
+       [
         "Item",
-        "The type badge, the title, a Client tag, then the ID, use case and milestone"
+        "The title, then the ID, use case, milestone and workstream, and a **Shown to client** tag"
        ],
        [
         "Owner",
@@ -973,11 +978,7 @@
        ],
        [
         "Status",
-        "The state in words and colour: see [Status words](#ref-status-words)"
-       ],
-       [
-        "The eye",
-        "Client-visible on or off"
+        "The state in words and colour: in View, the pill; in Edit, the status itself; see [Status words](#ref-status-words)"
        ]
       ]
      ],
@@ -1123,6 +1124,11 @@
         "Its colour from its priority: Urgent or High red, Medium amber, Low green"
        ],
        [
+        "Assumption, Dependency",
+        "Open, Closed, Cancelled",
+        "Open (blue); Closed or Cancelled (grey)"
+       ],
+       [
         "Decision",
         "Pending, Made, Withdrawn",
         "Pending (blue), Made (green), Withdrawn (grey)"
@@ -1131,11 +1137,15 @@
      ],
      [
       "p",
-      "Choosing Red, Amber or Green on a risk or issue sets its priority. Priorities are Urgent, High, Medium and Low."
+      "A risk or issue’s colour follows its priority, which is set from impact and likelihood. Priorities are Urgent, High, Medium and Low."
      ],
      [
       "p",
-      "Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey)."
+      "In View and on the published page the pill says the words in the last column. In Edit the Status cell shows the status itself: Open, Delayed, Closed or Cancelled; or Pending, Made or Withdrawn."
+     ],
+     [
+      "p",
+      "Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red)."
      ]
     ]
    },
@@ -1246,7 +1256,7 @@
      ],
      [
       "p",
-      "A state follows the dates unless you set it by hand. Achieved wins; then Forecast and At risk (set by hand); then Overdue once the agreed date has passed; then Slipped when the forecast is later than agreed; otherwise On track."
+      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track."
      ],
      [
       "p",
@@ -1547,8 +1557,7 @@
       "ul",
       [
        "Dates are shown day, month, year: DD-MM-YYYY.",
-       "The week ends on a Friday.",
-       "IDs: actions CODE-A-001, decisions CODE-D-001, risks and issues CODE-001 (one series), milestones CODE-M-001. CODE is the project’s short code.",
+       "IDs: actions CODE-A-001, decisions CODE-D-001, risks, issues, assumptions and dependencies CODE-001, milestones CODE-M-001. Actions, risks, issues and decisions share one numbering, so CODE-A-002 and CODE-002 never both exist. CODE is the project’s short code.",
        "Use cases keep the ID you give them, such as 3.1."
       ]
      ]
@@ -1564,7 +1573,7 @@
       [
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
-       "A link with an arrow takes you to the screen it names.",
+       "A link with a › after it takes you to the screen it names.",
        "[[?]] opens Help from any page; in Help, [[/]] goes to the search box."
       ]
      ]
@@ -1653,11 +1662,11 @@
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
-    "Dashboard in Edit, on a section’s grip: move the section"
+    "Dashboard in Edit, on a section’s move button: move the section"
    ],
    [
     "[[Enter]] or [[Space]]",
-    "Dashboard in Edit, on a section’s grip: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them"
+    "Dashboard in Edit, on a section’s move button: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them"
    ],
    [
     "[[Alt+Left]] [[Alt+Right]]",

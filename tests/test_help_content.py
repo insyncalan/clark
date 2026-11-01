@@ -24,7 +24,8 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
 # 'Add a row' is the button of the Needs from you section (edit/NeedsEdit.jsx), which the prototype does not have; read against the page's own words (logic/needs.js).
-CHECKED_BY_HAND = set(['Add a row', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
+# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) and 'Shown to client' (the tag on a work item row, components/WorkItems.jsx) are read on the page itself; the prototype words them differently
+CHECKED_BY_HAND = set(['Add a row', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Outline colour', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -283,7 +284,8 @@ class LowWordsRound(unittest.TestCase):
 
     def test_the_report_has_no_look_to_choose(self):
         self.assertNotIn("one look", self.ALL)
-        self.assertIn("The report is the cover, then the sections in cards", self.ALL)
+        self.assertIn("The report is the cover, then the sections, with the contents at the right edge", self.ALL)
+        self.assertNotIn("sections in cards", self.ALL)       # the One card style is not cards
 
     def test_no_line_starts_with_ask_clark(self):
         self.assertIn("The check in ask clark warns you when", self.ALL)
