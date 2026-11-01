@@ -20,7 +20,7 @@ Every answer is (status, {ok, ...}); a refusal has a stable `code` and a plain `
 import logging
 import threading
 
-from clark import ai_menu, ask
+from clark import ai_menu, ask, secret_screen
 
 LOG = logging.getLogger("clark.ai")
 FIELDS = {"option", "place", "text", "instruction"}
@@ -28,6 +28,7 @@ PROVIDER_LABEL = "Claude"
 OPS = {"=": "same", "-": "del", "+": "add"}
 MESSAGES = {
     "bad_request": "That request could not be read. Nothing was sent. Reload the page and try again.",
+    "secret": ask.SECRET,
     "off": ai_menu.why_off("off"),
     "not_signed_in": ai_menu.why_off("not_signed_in", PROVIDER_LABEL),
     "busy": ai_menu.why_off("busy"),
@@ -98,6 +99,11 @@ class AiService:
         if got is None:
             return 400, self.fail("bad_request")
         option, place, text, instruction = got
+        # A password or key in the text or in Ask... is refused as it was given, before any cleaning or squeezing (screen
+        # before the line breaks are joined), before the run lock and before the provider. Nothing is echoed or logged but the shape.
+        if secret_screen.looks_like_secret(text) or secret_screen.looks_like_secret(instruction):
+            LOG.info("ai suggest refused: secret option=%s place=%s length=%d", option, place, len(text))
+            return 400, self.fail("secret")
         state = self.state()
         if state != "ready":
             return 409, self.fail(state)

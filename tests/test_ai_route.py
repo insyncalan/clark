@@ -212,6 +212,42 @@ class Refusals(Base):
         self.assertEqual((status, got["code"], got["message"]), (200, "failed", ai_service.MESSAGES["failed"]))
 
 
+class SecretsAreRefused(Base):
+    """A key or password in the text or in Ask... is refused as given (before any squeezing), before the lock and the provider."""
+    KEY = "sk-" + "ant-" + "api03-" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4"
+
+    def refused(self, **kw):
+        status, got = self.suggest(**kw)
+        self.assertEqual((status, got["ok"], got["code"]), (400, False, "secret"), kw)
+        self.assertEqual(got["message"], ai_service.MESSAGES["secret"])
+        self.assertEqual(self.provider.requests, [], "nothing reached the provider")
+        self.assertFalse(self.service.provider.lock.locked() or self.s.httpd.ai.run_lock.locked())
+        self.assertEqual(self.suggest()[0], 200, "the busy lock was not taken: a normal request goes through")
+        self.provider.requests.clear()
+        return got
+
+    def test_a_key_in_the_text(self):
+        got = self.refused(text=f"Use {self.KEY} for the call.")
+        self.assertNotIn("A1b2", json.dumps(got))
+
+    def test_a_password_line_in_the_instruction(self):
+        self.refused(option="custom", instruction="password: " + "hunter" + "2hunter2xx")
+
+    def test_a_csv_column_with_a_password_on_the_next_line(self):
+        self.refused(text="name,password\nann," + "Tr0ub4dor" + "&3xyz\n")
+
+    def test_a_key_split_across_a_line_break(self):
+        self.refused(text="the key is " + self.KEY[:12] + "\n" + self.KEY[12:] + " ok")
+
+    def test_the_log_has_the_shape_never_the_words(self):
+        with self.assertLogs("clark.ai", "INFO") as cm:
+            self.refused(text=f"Use {self.KEY} now")
+        logged = " ".join(cm.output)
+        self.assertNotIn(self.KEY, logged)
+        self.assertNotIn("Use ", logged)
+        self.assertIn("option=rewrite", logged)
+
+
 class OneRunAtATime(Base):
     def test_a_finished_run_frees_the_next(self):
         self.assertEqual(self.suggest()[0], 200)
@@ -261,9 +297,16 @@ class Stop(Base):
 
 class BadRequests(Base):
     def test_a_body_that_is_too_large_is_400(self):
-        status, got = self.s.api("POST", "/api/ai/suggest", b"x" * (33 * 1024))
+        status, got = self.s.api("POST", "/api/ai/suggest", b"x" * (81 * 1024))
         self.assertEqual(status, 400)
         self.assertEqual(self.provider.requests, [])
+
+    def test_a_full_12000_character_selection_in_json_escapes_fits_the_body_limit(self):
+        raw = json.dumps({"option": "rewrite", "place": "plain", "text": "\u00e9" * ai_menu.MAX_TEXT}).encode()     # 6 bytes a character
+        self.assertGreater(len(raw), 32 * 1024)
+        status, got = self.s.api("POST", "/api/ai/suggest", raw)
+        self.assertEqual(status, 200, got)
+        self.assertEqual(len(self.provider.requests), 1)
 
     def test_a_body_of_the_wrong_shape_is_400(self):
         for bad in ([], "text", None, {}, {"option": "rewrite", "place": "plain"}, {"option": "rewrite", "text": TEXT},

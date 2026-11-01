@@ -309,7 +309,7 @@ class Saving(ServerTest):
                                                 "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
-                                                "/api/ai/suggest": 32 * 1024, "/api/ai/stop": 1024})     # #47, #47e; #72
+                                                "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024})     # #47, #47e; #72
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
