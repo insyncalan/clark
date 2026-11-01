@@ -68,11 +68,14 @@ export function pickWords(n, of) {
   return n === of ? `${n} ${noun(n)} ticked` : `${n} of ${of} ${noun(of)} ticked`;
 }
 
-/** The note after I sent it: what was recorded and the day (DD-MM-YYYY). */
-export function sentWords(entry) {
+/** The note after I sent it: what was recorded and the day (DD-MM-YYYY), and whether the history has it. */
+export function sentWords(entry, saved = false, failed = false) {
   const n = (entry.ids || []).length;
   const [y, m, d] = text(entry.date).split("-");
-  return `Marked as sent for ${n} ${n === 1 ? "item" : "items"} on ${d}-${m}-${y}. It is not saved to the history yet.`;
+  if (failed) return "That could not be saved to the history, so nothing was marked as sent. Try again.";
+  const items = `${n} ${n === 1 ? "item" : "items"}`;
+  if (saved) return `Recorded: ${items} marked as sent on ${d}-${m}-${y}. It is in the history.`;      // only after the save worked
+  return `Marked as sent for ${items} on ${d}-${m}-${y}. It is not saved to the history yet.`;
 }
 
 /** What the builder is asked with each time something changes. Only the editor's own inputs; the caller adds the items, the
