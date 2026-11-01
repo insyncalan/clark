@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_view_text_sections
 Before, the page clark serves said "Not shown on this page yet." for these four in View. Now View draws the saved text, cleaned by
-the page's own cleaner (cleanHtml), or "Nothing written yet." when there is none. Edit is unchanged (it still says the old line:
+the page's own cleaner (cleanHtml), or "Nothing recorded." when there is none. Edit is unchanged (it still says the old line:
 the editor on these bodies is a later item), and a published file is unchanged (it already drew a text section's body, cleaned by
 the publish build, and still leaves Current state out). The browser class runs at 1400 and 900, light and dark; the source class
 reads the page's files and needs no browser.
@@ -20,7 +20,7 @@ from test_server import Running, chrome, wait
 
 PAGE_SRC = ROOT / "src" / "clark" / "page" / "src"
 OLD = "Not shown on this page yet."
-EMPTY = "Nothing written yet."
+EMPTY = "Nothing recorded."
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 
 CURRENT = "<p>The pilot is on track and the data is clean.</p>"

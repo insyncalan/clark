@@ -239,11 +239,11 @@ class Modes(Base):
             self.assertEqual(edit_elements(cdp, p.sid), [])
             self.assertEqual(self.sent, [])
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
-            # in View, the four text sections (A-D4: the saved text, or "Nothing written yet.") are drawn; every type still not
+            # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
             # drawn says the one plain line
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
-            self.assertEqual(p.js(texts), ["Nothing written yet."] * 4, "View: a text section with nothing saved says so in plain words")
+            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "View: one plain line, the same for every type")
@@ -969,6 +969,22 @@ class Gutter(Base):
             p.until("Math.abs(getComputedStyle(%s).opacity - 0.75) < 0.01" % (self.CTL % "ABC-S-004"), "following a dark computer: .75")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
             p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.01" % (self.CTL % "ABC-S-004"), "following a light computer: .3")
+
+    def test_below_the_gutter_width_the_control_rests_at_three_quarters_in_both_themes(self):
+        """#130 point 2: in the card's left padding (900 px and below) the control is at about .75 at rest, light and dark; in the
+        margin at 1400 px it keeps the theme's rest strength (.3 light)."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("document.activeElement.blur()")
+            p.mouse("mouseMoved", 5, 5)
+            for scheme, wide in (("light", 0.3), ("dark", 0.75)):
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
+                for w, want in ((1400, wide), (900, 0.75)):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    p.until(f"window.innerWidth === {w}", "resized")
+                    p.until("Math.abs(getComputedStyle(%s).opacity - %s) < 0.01" % (self.CTL % "ABC-S-004", want), f"{scheme} at {w}: {want}")
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
 
     def test_a_hidden_section_dims_its_words_not_its_control(self):
         with chrome() as cdp:
