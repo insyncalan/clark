@@ -43,15 +43,133 @@ def blend(top, bottom, alpha):
     return "#" + "".join("%02X" % round(int(top[i:i + 2], 16) * alpha + int(bottom[i:i + 2], 16) * (1 - alpha)) for i in (1, 3, 5))
 
 
+# ---- reading the shipped CSS (#431) ------------------------------------------------------------------------------------------------------------------
+# The section control's colours are read from the CSS the page ships, never written into the test: the light token block, then each rule the
+# control uses, with var() followed through the tokens. A change to a token or a rule moves what the test sees.
+
+CONTROL_FLOOR = 3.0      # WCAG 1.4.11: a control's icon against what it sits on
+SHELL = ROOT / "src" / "clark" / "page" / "shell.css"
+VIEW_PAGE = ROOT / "src" / "clark" / "page" / "page-view.html"
+
+
+def shipped_css(path):
+    """The CSS in a file, comments removed: a page's own <style> block, or a .css file as it is."""
+    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".html":
+        text = re.search(r"<style[^>]*>(.*?)</style>", text, re.S).group(1)
+    return re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+
+
+def css_rules(css):
+    """Every rule as (conditions, selectors, {property: value}); conditions are the enclosing @media/@supports preludes, outermost first."""
+    rules, stack, start = [], [], 0
+    for i, ch in enumerate(css):
+        if ch == "{":
+            stack.append(css[start:i].strip())
+            start = i + 1
+        elif ch == "}":
+            body = css[start:i]
+            if body.strip() and not body.rstrip().endswith("}"):
+                prelude = stack[-1]
+                declarations = {}
+                for name, value in re.findall(r"(?:^|;)\s*([\w-]+)\s*:\s*([^;]+)", body):
+                    declarations[name.strip()] = value.strip()
+                if not prelude.startswith("@"):
+                    rules.append((tuple(stack[:-1]), [x.strip() for x in prelude.split(",")], declarations))
+            stack.pop()
+            start = i + 1
+    return rules
+
+
+def light_tokens(rules):
+    """The light theme's custom properties: every plain `:root { ... }` block, later ones over earlier."""
+    tokens = {}
+    for conditions, selectors, declarations in rules:
+        if not conditions and selectors == [":root"]:
+            tokens.update({k: v for k, v in declarations.items() if k.startswith("--")})
+    return tokens
+
+
+def resolve(value, tokens):
+    """A value with every var(--name, fallback) replaced by the token's value (or the fallback), followed through chains."""
+    for _ in range(20):
+        match = re.search(r"var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*(?:\([^()]*\)[^()]*)*))?\)", value)
+        if not match:
+            return value.strip()
+        name, fallback = match.group(1), match.group(2)
+        found = tokens.get(name, fallback)
+        if found is None:
+            raise AssertionError("%s has no value and no fallback, in %r" % (name, value))
+        value = value[:match.start()] + found.strip() + value[match.end():]
+    raise AssertionError("var() chain does not end: %r" % value)
+
+
+def last_declared(rules, selector, prop, conditions=()):
+    """The value `prop` has in the last rule that lists exactly `selector` (not its :hover or other states), under exactly these conditions."""
+    found = None
+    for rule_conditions, selectors, declarations in rules:
+        if rule_conditions == tuple(conditions) and selector in selectors and prop in declarations:
+            found = declarations[prop]
+    return found
+
+
+def to_hex(colour, what):
+    colour = colour.strip().upper()
+    if re.fullmatch(r"#[0-9A-F]{3}", colour):
+        colour = "#" + "".join(c * 2 for c in colour[1:])
+    assert re.fullmatch(r"#[0-9A-F]{6}", colour), "%s is %r: this test reads #RGB or #RRGGBB" % (what, colour)
+    return colour
+
+
+def section_control_at_900_px_in_light(css):
+    """What the section control shows at rest at 900 px in Edit in light, from the CSS given (see shipped_css).
+
+    Returns (alpha, {icon name: its colour}, {what it sits on: colour}). The icons are the grip (.handle) and the + (.plus); the control paints no
+    background of its own, so it sits on the card (.frame, --surface) inside the page (body).
+    """
+    rules = css_rules(css)
+    tokens = light_tokens(rules)
+    opacity = last_declared(rules, ".sec-ctl", "opacity")
+    assert opacity, "no .sec-ctl rule sets its opacity"
+    narrow = (last_declared(rules, "#report[data-mode=\"edit\"] .sec > .sec-ctl", "--sh-rest", ("@media (max-width: 900px)",))
+              or last_declared(rules, "#report[data-mode=\"edit\"] .sec.slot-right > .sec-ctl", "--sh-rest", ("@media (max-width: 900px)",)))
+    assert narrow, "no 900 px rule sets --sh-rest on the section control"
+    scope = dict(tokens, **{"--sh-rest": resolve(narrow, tokens)})
+    alpha = float(resolve(opacity, scope))
+    icons = {}
+    for icon in (".handle", ".plus"):
+        colour = last_declared(rules, icon, "color")
+        assert colour, "no rule sets the colour of %s" % icon
+        icons[icon] = to_hex(resolve(colour, tokens), "the colour of " + icon)
+        own = last_declared(rules, icon, "background") or last_declared(rules, icon, "background-color")
+        assert own in (None, "transparent", "none"), "%s now paints a background (%r); this test needs to read it" % (icon, own)
+    card = last_declared(rules, ".frame", "background") or last_declared(rules, ".frame", "background-color")
+    ground = last_declared(rules, "body", "background") or last_declared(rules, "body", "background-color")
+    assert card and ground, "the card (.frame) and the page (body) must each set a background"
+    behind = {"the card": to_hex(resolve(card, tokens), "the card's background"), "the page": to_hex(resolve(ground, tokens), "the page's background")}
+    return alpha, icons, behind
+
+
 class SectionControlAtRest(unittest.TestCase):
-    def test_in_the_card_padding_it_reads_at_text_level_contrast_in_light_and_in_dark(self):
-        """#285: at 900 px and below the section control rests at --sh-rest-narrow (.85 light, .75 dark); its --text-muted icon, drawn at that
-        opacity on the card (--surface), is at least 4.5:1, the text bar and not only the 3:1 bar for a control."""
+    def test_in_light_at_900_px_the_icons_are_at_least_3_to_1_on_the_card_and_on_the_page(self):
+        """#431: the real colours, read from the CSS each file ships (the built pages, and tokens.css with shell.css as the source), drawn at the
+        opacity the 900 px rule gives, are at least 3:1 (WCAG 1.4.11) on the card and on the page, and keep #285's 4.5:1 on the card."""
+        pages = ROOT / "src" / "clark" / "page"
+        for label, css in (("page.html", shipped_css(pages / "page.html")), ("page-view.html", shipped_css(VIEW_PAGE)),
+                           ("tokens.css + shell.css", shipped_css(TOKENS) + "\n" + shipped_css(SHELL))):
+            with self.subTest(label):
+                self.check_light(*section_control_at_900_px_in_light(css))
+
+    def check_light(self, alpha, icons, behind):
+        for icon, colour in icons.items():
+            for place, backdrop in behind.items():
+                shown = ratio(blend(colour, backdrop, alpha), backdrop)
+                self.assertGreaterEqual(shown, CONTROL_FLOOR, "%s %s on %s at %s" % (icon, colour, place, alpha))
+            self.assertGreaterEqual(ratio(blend(colour, behind["the card"], alpha), behind["the card"]), 4.5, "%s on the card, text level" % icon)
+
+    def test_in_dark_at_900_px_the_icon_reads_at_text_level_contrast(self):
+        """#285: in each dark block the --text-muted icon at --sh-rest-narrow (.75) on the card (--surface) is at least 4.5:1."""
         css = TOKENS.read_text(encoding="utf-8")
-        light = css.split(":root[data-theme=dark]")[0]
-        alpha = float(re.search(r"--sh-rest-narrow:\s*([.\d]+)", light).group(1))
-        self.assertAlmostEqual(alpha, 0.85, places=2)
-        self.assertGreaterEqual(ratio(blend("#475577", "#FFFFFF", alpha), "#FFFFFF"), 4.5, "light")
         dark = re.findall(r"--sh-rest-narrow:\s*([.\d]+)", css)
         self.assertEqual(len(dark), 3, "light, dark and following a dark computer")
         for block, a in zip(dark_blocks(css), dark[1:]):
