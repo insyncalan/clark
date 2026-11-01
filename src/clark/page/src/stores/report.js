@@ -282,7 +282,9 @@ const CHANGE_KNOWN = {
   "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
   "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
   "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
-  "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
+  "That content is too long to save.": "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.",
+  // the whole change was over the size clark takes (server.py's words; any kind of section can be that big)
+  "That is too big to save. Make the text shorter, or take some of the list out, then try again.": "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";
