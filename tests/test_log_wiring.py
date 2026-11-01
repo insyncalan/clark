@@ -247,6 +247,11 @@ class SettingsRoutes(Rig):
         ("page", "TypeError: reading", "Part of the page stopped working."),
         ("store", "could not write", "Reading or saving your project data did not work."),
         ("server", "POST /api/sneak/read failed", "Something did not work."),
+        ("server", "POST /api/ask-folders failed", "Something did not work."),      # a write the approved table does not name
+        ("server", "POST /api/ask-enabled failed", "Something did not work."),
+        ("server", "POST /api/a-route-added-later failed", "Something did not work."),
+        ("server", "GET /api/use-cases failed", "Loading part of the page did not work."),
+        ("server", "GET /api/milestones failed", "Loading part of the page did not work."),
         ("scan", "something odd", "Something did not work."),
     ]
 
