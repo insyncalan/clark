@@ -19,18 +19,27 @@ What it does, and does not:
   needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type; each save replaces
   the whole body in one step with one Undo. A needs or tracker section may be deleted like a text one (Undo-able, kept in
   change_log): "we archive, we never delete" is about work items and is not breached.
+- #96 R1, pictures: a section template that holds pictures (its section_kinds module has `with_picture`) never takes one through
+  /api/change: a body sent there may not name `pictures`, may be at most the module's TEXT_LIMIT, and keeps the pictures already
+  stored (read inside the step). A picture is set or taken out only by POST /api/section-image (`section_image(req)`): one slot,
+  read and written in one step with one Undo; the picture is checked by the template's own rules (PNG, JPEG or WebP only, its
+  first bytes, its size, no camera details) before the step and again by the store's checker on write.
+- #96: make_section_file adds a file that section_files.py copied into the client folder to a Documents and links or One document
+  section, as one step with one Undo; its request is made by clark, not by the page (it is no op of /api/change).
 
 `change(req)` and `undo(req)` return (status, body); the server sends them. make_change / make_undo build them for one
 database file; the launcher passes those to server.serve. Standard library only, Python 3.9.
 """
+import json
 import re
 import threading
 from contextlib import contextmanager
 import unicodedata
 from pathlib import Path
 
-from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies
+from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
 from clark import store as clark_store
+from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
 
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
@@ -374,13 +383,108 @@ def _section_body(section, body):
     """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
     (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
     takes a body here; a text section's body write stays closed until its own item opens it. A refusal is plain words and never
-    quotes the content. The store checks it again on write (every write, an Undo too)."""
+    quotes the content. The store checks it again on write (every write, an Undo too). A section that holds pictures (#96 R1)
+    takes its words here and keeps its stored pictures (_keep_pictures)."""
     if section["type"] not in section_bodies.CHECKERS:
         raise Refused(NO_BODY_HERE)
     try:
+        if _picture_kind(section["type"]) is not None:
+            return _keep_pictures(section, body)
         return clark_store.check_section_body(section["type"], body)
     except Invalid as e:
         raise Refused(str(e)) from None
+
+
+# ── Pictures in a section template (#96 R1) ───────────────────────────────────
+
+PICTURES = "pictures"                     # the one field of a picture template's body that only POST /api/section-image sets
+IMAGE_KEYS = ("project", "section", "slot", "image", "place")
+NO_PICTURE_HERE = "That section can't hold a picture."
+PICTURE_NOT_TEXT = "Send the picture as text, or nothing to take it out."
+WORDS_TOO_LONG = "That text is too long to save. Shorten it and try again."
+
+
+def _picture_kind(kind):
+    """The section_kinds module of a template that holds pictures (it has `with_picture`), or None."""
+    module = section_kinds.REGISTRY.get(kind)
+    return module if module is not None and callable(getattr(module, "with_picture", None)) else None
+
+
+def _stored_value(section):
+    """The stored body of a section as a value (None when it has none, or when it no longer checks: then it starts afresh)."""
+    try:
+        text = clark_store.check_section_body(section["type"], section.get("body") or "")
+    except Invalid:
+        return None
+    return json.loads(text) if text else None
+
+
+def _keep_pictures(section, body):
+    """A picture template's words from /api/change, with the pictures already stored kept: the sent body is checked on its own
+    (it may not name `pictures`, and is at most the template's TEXT_LIMIT), then the stored pictures are put back and the whole
+    is checked again. The pictures are read from the row read inside the step, so a picture added meanwhile is never lost."""
+    module = _picture_kind(section["type"])
+    if len(body) > module.TEXT_LIMIT:
+        raise Refused(WORDS_TOO_LONG)
+    text = clark_store.check_section_body(section["type"], body)
+    value = json.loads(text) if text else {"v": 1}
+    if type(value) is not dict:
+        raise Refused(section_bodies.NOT_READABLE)
+    if PICTURES in value:
+        raise Refused(pictures.PICTURES_OWN_WAY)
+    stored = _stored_value(section)
+    if type(stored) is dict and stored.get(PICTURES):
+        value[PICTURES] = stored[PICTURES]
+    return clark_store.check_section_body(section["type"], section_bodies.canonical(value))
+
+
+def _do_section_image(store, by_user, req):
+    """POST /api/section-image: {project, section, slot, image, place}. Sets the picture in one slot of a picture template (or
+    takes it out when `image` is null), as one step with one Undo. The picture is checked by the template's own rules before the
+    step (pictures.picture: a PNG, JPEG or WebP data address, its first bytes, its size, no camera details) and
+    the whole body again by the store's checker on write. The reply is the change route's: apply_id, ref and the sections."""
+    if not isinstance(req, dict):
+        raise Refused(NOT_JSON_OBJECT)
+    for k in req:
+        if k not in IMAGE_KEYS:
+            raise Refused(f"A picture request doesn't take '{_shown(k)}'. Reload the page and try again.")
+    project = req.get("project")
+    if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
+        raise Refused(BAD_PROJECT, code="bad_project_code")
+    place = req.get("place", "report")
+    if not isinstance(place, str) or place not in PLACES:
+        raise Refused(BAD_PLACE)
+    ref, slot, image = req.get("section"), req.get("slot"), req.get("image")
+    if not isinstance(ref, str):
+        raise Refused(NOT_MINE)
+    if not isinstance(slot, str):
+        raise Refused(pictures.BAD_SLOT)
+    if image is not None and not isinstance(image, str):
+        raise Refused(PICTURE_NOT_TEXT)
+    if store.read("projects", ref=project) is None:
+        raise Refused(NO_PROJECT, 404, "project_not_found")
+    table = "report_sections"
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the body read next is the body written
+        rows = _sections(store, project)
+        _mine(ref, [r["id"] for r in rows], NOT_MINE)
+        section = next(r for r in rows if r["id"] == ref)
+        module = _picture_kind(section["type"])
+        if module is None:
+            raise Refused(NO_PICTURE_HERE)
+        try:
+            if image is not None:
+                pictures.picture(image, module.PICTURE_MAX)
+            value = module.with_picture(_stored_value(section), slot, image)
+        except section_base.Bad as e:
+            raise Refused(str(e)) from None
+        try:
+            body = clark_store.check_section_body(section["type"], section_bodies.canonical(value))
+        except Invalid as e:
+            raise Refused(str(e)) from None
+        if body != section.get("body"):
+            st.update(table, ref, {"body": body})
+        apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
+    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
 
 
 # ── The change ────────────────────────────────────────────────────────────────
@@ -1741,6 +1845,54 @@ def make_change(path, onedrive_roots=None, by_user=None):
     def change(req):
         return _call(path, onedrive_roots, by_user, _do_change, req)
     return change
+
+
+def make_section_image(path, onedrive_roots=None, by_user=None):
+    """The `section_image` the server calls for POST /api/section-image (#96 R1), for the database at `path` (see make_change)."""
+    def section_image(req):
+        return _call(path, onedrive_roots, by_user, _do_section_image, req)
+    return section_image
+
+
+# ── A file for a section template (#96, POST /api/section-file) ────────────────
+
+FILE_TYPES = tuple(t for t, m in section_bodies.TEMPLATES.items() if callable(getattr(m, "add_file", None)))   # the templates that hold a file
+NO_FILE_HERE = "That section can't hold a file. Add a Documents and links or One document section, then add the file there."
+
+
+def _do_section_file(store, by_user, req):
+    """Add a file that is already in the client folder to a section, as one step with one Undo (place "report"). `req` is made by
+    clark itself (section_files.py, after it copied the file), never by the page: {project, id, entry: {name, rel, bytes}}. The
+    stored body is read inside the step and the section's own template says where the file goes (its add_file); the result meets
+    the type's checker like any other body write, so the store's rules are the same as a save from the page."""
+    project, ref, entry = req.get("project"), req.get("id"), req.get("entry")
+    if not isinstance(project, str) or store.read("projects", ref=project) is None:
+        raise Refused(NO_PROJECT, 404, "project_not_found")
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    with store.step(VIA, by_user, place="report") as st:
+        rows = _sections(store, project)
+        _mine(ref, [r["id"] for r in rows], NOT_MINE)
+        row = next(r for r in rows if r["id"] == ref)
+        kind = next((t for t in FILE_TYPES if t == row["type"]), None)
+        if kind is None:
+            raise Refused(NO_FILE_HERE)
+        text = _section_body(row, row.get("body") or "")
+        try:
+            value = section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None, entry)
+        except section_bodies.Bad as e:
+            raise Refused(str(e)) from None
+        st.update("report_sections", ref, {"body": _section_body(row, section_bodies.canonical(value))})
+        apply_id = st.peek_apply_id()
+    return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "sections": _shown_rows(_sections(store, project))}
+
+
+def make_section_file(path, onedrive_roots=None, by_user=None):
+    """The step that adds a copied file to a section (see _do_section_file), for the database at `path`. Called by section_files.py
+    only; it is not a route of its own."""
+    def section_file(req):
+        return _call(path, onedrive_roots, by_user, _do_section_file, req)
+    return section_file
 
 
 def make_undo(path, onedrive_roots=None, by_user=None):

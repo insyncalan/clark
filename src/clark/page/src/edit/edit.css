@@ -202,6 +202,111 @@
 .pa-row[data-step] { cursor: pointer; }
 .pa-row.picked { background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
 .pa-row[data-step] .pa-what { user-select: text; }
+/* G5 typed notes (#96): the Edit parts of Callout, Quote, Contacts and Table. Edit only. Tokens only. */
+.tpl-edit { display: flex; flex-direction: column; gap: var(--space-3); margin: 8px 0; min-width: 0; }
+.tpl-lbl { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--size-small); color: var(--text-muted); min-width: 0; }
+.tpl-field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-body); }
+.tpl-field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+textarea.tpl-field { resize: vertical; }
+.tpl-person { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2) var(--space-3); align-items: end; margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; }
+.tpl-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tpl-table-edit th, .tpl-table-edit td { min-width: 120px; }
+.tpl-table-edit th .btn { margin-top: var(--space-1); }
+.tpl-edit .btn { align-self: flex-start; }
+.tpl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Section templates, G4 Dates and lists (#96): the Edit parts of Key dates and Checklist. Tokens only. */
+.tple { margin: 8px 0; min-width: 0; }
+.tple-list { margin: 0 0 12px; padding: 0; list-style: none; }
+.tple-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 0; border-top: 1px solid var(--grey-200); }
+.tple-row:first-child { border-top: 0; }
+.tple-main { display: flex; flex-direction: column; flex: 1 1 200px; min-width: 0; }
+.tple-name { overflow-wrap: anywhere; color: var(--text); font-weight: var(--weight-medium); }
+.tple-sub { font-size: var(--size-small); color: var(--text-muted); }
+.tple-in { min-height: 32px; min-width: 0; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tple-row > .tple-in { flex: 1 1 180px; }
+.tple-row > .tple-day { flex: 0 1 130px; }
+.tple-in:focus-visible, .tple-tick:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tple-tick { width: 18px; height: 18px; margin: 0; accent-color: var(--brand-blue); }
+.tple-x { min-height: 32px; }
+.tple-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 20px; padding-top: 8px; border-top: 1px solid var(--grey-200); }
+.tple-add label { display: grid; gap: 2px; min-width: 0; }
+.tple-typed { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; }
+.tple-cap { font-size: var(--size-small); color: var(--text-muted); }
+.tple-in:disabled { opacity: .6; }
+
+/* G2 RAID cards, Edit (#96): one row of controls per card. Tokens only; a visible focus ring on every control. */
+.rce-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.rce-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.rce-f { display: grid; gap: 2px; min-width: 0; }
+.rce-f span { font-size: var(--size-small); color: var(--text-muted); }
+.rce-f select, .rce-f input { min-height: 32px; min-width: 0; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.rce-f select:focus-visible, .rce-f input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rce-what, .rce-note { grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; }
+.rce-first { margin: 0 0 var(--space-3); }
+
+/* #96 G3 Work items list (workitems): the Edit part (the filter and the live preview). Tokens only. */
+.wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 16px; margin: 4px 0 10px; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.wil-f { min-width: 0; margin: 0; padding: 0; border: 0; }
+.wil-f legend { padding: 0; margin-bottom: 4px; font-size: var(--size-small); color: var(--text-muted); font-weight: var(--weight-medium); }
+.wil-opts { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.wil-opts label { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; color: var(--text); font-size: 14px; cursor: pointer; }
+.wil-opts input:focus-visible, .wil-sel select:focus-visible, .wil-sel input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-sel { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.wil-sel span { font-size: var(--size-small); color: var(--text-muted); font-weight: var(--weight-medium); }
+.wil-sel select, .wil-sel input { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; }
+.wil-capf { grid-column: 1 / -1; }
+.wil-none { margin: 8px 0; padding: 10px 12px; border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: 14px; }
+.wil-live tbody tr, .wil-live li { cursor: pointer; }
+.wil-live tbody tr:hover, .wil-live li:hover { background: var(--grey-50); }
+.wil-live tbody tr:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* Pictures group (#96): the Edit parts of Text and image, Image with caption, Image gallery and Headline band. Edit only; tokens only.
+   .tpl-edit is the typed notes block's (the same column); the picture fields and slots have their own names, apart from Key figures' slots. */
+.tpl-hint { margin: 0; }
+.tpl-pic-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.tpl-pic-field label, .tpl-side legend { font-size: var(--size-small); color: var(--text-muted); font-weight: var(--weight-medium); }
+.tpl-pic-field input, .tpl-pic-field textarea { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-pic-field textarea { resize: vertical; line-height: var(--leading); }
+.tpl-pic-field input:focus-visible, .tpl-pic-field textarea:focus-visible, .tpl-side input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tpl-ti-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.tpl-ti-edit.pic-left .tpl-ti-pic { order: -1; }
+.slot-left .tpl-ti-grid, .slot-right .tpl-ti-grid, .slot-left .tpl-band-btnrow, .slot-right .tpl-band-btnrow { grid-template-columns: minmax(0, 1fr); }
+.tpl-ti-pic { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.tpl-side { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: 0; padding: 0; border: 0; }
+.tpl-side label { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 28px; cursor: pointer; }
+.tpl-pic-slot { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); background: var(--surface-muted); }
+.tpl-pic-slot.has-pic { border-style: solid; }
+.tpl-pic-slot.over { border-color: var(--brand-blue); background: var(--brand-blue-tint); }
+.tpl-pic-slot-img { display: block; width: 100%; height: auto; max-height: 260px; object-fit: contain; border-radius: var(--radius-sm); }
+.tpl-pic-slot-empty { margin: 0; padding: var(--space-4) 0; text-align: center; color: var(--text-muted); font-size: var(--size-small); }
+.tpl-pic-slot-acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tpl-file { display: none; }
+.tpl-gal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.tpl-gal-one { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.tpl-band-btnrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-3); }
+.tpl-total { margin: 0; }
+.tpl-total.near { color: var(--status-amber-text); }
+@media (max-width: 900px) {
+  .tpl-ti-grid, .tpl-band-btnrow { grid-template-columns: minmax(0, 1fr); }
+  .tpl-ti-edit.pic-left .tpl-ti-pic { order: 0; }
+  .tpl-gal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* #96 G7 Files and links templates: Edit parts. Tokens only, so dark mode follows. */
+/* .tpl-edit (the column) and .tpl-actions are the typed notes block's; .tpl-files-edit keeps this group's closer spacing. */
+.tpl-files-edit { gap: var(--space-2); margin: var(--space-2) 0; }
+.tpl-files-edit .tpl-dl { margin: 0; }
+.tpl-files-edit .tpl-remove { flex: none; align-self: center; }
+.tpl-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); max-width: 560px; }
+.tpl-form label { font-size: var(--size-small); color: var(--text-muted); margin-top: var(--space-1); }
+.tpl-form input, .tpl-form textarea { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-form textarea { resize: vertical; }
+.tpl-form input:focus-visible, .tpl-form textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tpl-form .btn { justify-self: start; margin-top: var(--space-2); }
+.tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-small); }
+.tpl-empty { margin: 0; }
+
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }
