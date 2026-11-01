@@ -2,7 +2,7 @@
 // Esc or leaving closes it, a click calls onJump(id). It tracks the scroll to show the current section. The caller puts
 // id={entry.anchor} (entries() in logic/minimap.js) on each section. The entries are buttons, not #links, so the address
 // (and the router that reads it) is never touched; onJump scrolls the page, or with no onJump the section's anchor is scrolled to.
-// At 900 px and narrower (A-D20, #141) the lines give way to an "On this page" button at the bottom right: the same button, the
+// At 900 px and narrower (the narrow contents button) the lines give way to an "On this page" button at the bottom right: the same button, the
 // same list, but only a click, Enter, Space or an arrow key opens it (hover and plain focus do not), a click again, Esc, a click
 // outside, a jump or the focus leaving closes it. The look is in shell.css under the same width.
 import { useState, useRef, useEffect } from "preact/hooks";

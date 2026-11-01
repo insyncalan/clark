@@ -112,7 +112,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc-top:hover { color: var(--text); }
 .toc-top:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 /* At 900 px and narrower the rail gives way to an "On this page" button at the bottom right of the window, which opens the same list
-   above it (A-D20, #141). The button is the rail's own button, so the keys and the focus rules are the same. Drawn on both pages (the
+   above it (the narrow contents button). The button is the rail's own button, so the keys and the focus rules are the same. Drawn on both pages (the
    editor and a published file). It sits clear of the toasts (bottom left); the page keeps 72 px free under its last line (main, above). */
 .toc-ico, .toc-lbl { display: none; }
 @media (max-width: 900px) {

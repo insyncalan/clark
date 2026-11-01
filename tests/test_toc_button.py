@@ -1,4 +1,4 @@
-"""Prototype parity A-D20 (#141), in a real window: at 900 px the contents rail is an "On this page" button at the bottom right, and at
+"""The narrow contents button: in a real window: at 900 px the contents rail is an "On this page" button at the bottom right, and at
 1400 px the rail is as it was. Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_toc_button

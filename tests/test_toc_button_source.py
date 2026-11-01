@@ -1,4 +1,4 @@
-"""Prototype parity A-D20 (#141), the parts that need no browser: the contents rail becomes an "On this page" button at 900 px and
+"""The narrow contents button: the parts that need no browser: the contents rail becomes an "On this page" button at 900 px and
 narrower. These pin the source (the component and the shared stylesheet) and the built pages, so a change that drops the button, the
 focus rules or the tokens is seen without Chrome. The behaviour in a real window is in test_toc_button.py.
 
