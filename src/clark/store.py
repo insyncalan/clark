@@ -1742,6 +1742,46 @@ def migrate_settings(con):
         con.execute(statement)
 
 
+# The tables of the "I sent it" record (#50, step 7), frozen here: a later change to schema.sql must not change what this step
+# builds (tests/test_store_email_sent.py pins it to what schema.sql creates today).
+EMAIL_SENT_DDL = (
+    """CREATE TABLE IF NOT EXISTS email_sent (
+  seq     INTEGER PRIMARY KEY AUTOINCREMENT,
+  project TEXT NOT NULL REFERENCES projects(code),
+  at      TEXT NOT NULL DEFAULT (datetime('now')),
+  day     TEXT NOT NULL CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  mode    TEXT NOT NULL CHECK (mode IN ('update_request','chase','decision')),
+  by_user TEXT NOT NULL
+);""",
+    """CREATE TABLE IF NOT EXISTS email_sent_items (
+  seq     INTEGER NOT NULL REFERENCES email_sent(seq),
+  item_id TEXT NOT NULL CHECK (length(item_id) BETWEEN 1 AND 13),
+  PRIMARY KEY (seq, item_id)
+);""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_update BEFORE UPDATE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_delete BEFORE DELETE ON email_sent
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_no_replace BEFORE INSERT ON email_sent
+WHEN EXISTS (SELECT 1 FROM email_sent WHERE seq = NEW.seq)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_update BEFORE UPDATE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_delete BEFORE DELETE ON email_sent_items
+BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
+    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_replace BEFORE INSERT ON email_sent_items
+WHEN EXISTS (SELECT 1 FROM email_sent_items WHERE seq = NEW.seq AND item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
+)
+
+
+def migrate_email_sent(con):
+    """Schema version 6 to 7 (#50): the two tables and the triggers of the "I sent it" record.
+    Every statement is IF NOT EXISTS, so a half-applied copy is safe. It touches no other table (item_events is not rebuilt, so every route and place a file allows stays). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    for statement in EMAIL_SENT_DDL:
+        con.execute(statement)
+
+
 # #123: applies.utc_offset and the wider places, step 5 (the next free number after Word's 3 and the section bodies' 4). Frozen: never
 # reads schema.sql. The rebuilt item_events keeps every route and place the earlier steps allow (Word's 'word' among them), so a file
 # that already holds such a row still migrates and opens.
@@ -1789,46 +1829,6 @@ def migrate_to_history(con):
 
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
-# The tables of the "I sent it" record (#50, step 7), frozen here: a later change to schema.sql must not change what this step
-# builds (tests/test_store_email_sent.py pins it to what schema.sql creates today).
-EMAIL_SENT_DDL = (
-    """CREATE TABLE IF NOT EXISTS email_sent (
-  seq     INTEGER PRIMARY KEY AUTOINCREMENT,
-  project TEXT NOT NULL REFERENCES projects(code),
-  at      TEXT NOT NULL DEFAULT (datetime('now')),
-  day     TEXT NOT NULL CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-  mode    TEXT NOT NULL CHECK (mode IN ('update_request','chase','decision')),
-  by_user TEXT NOT NULL
-);""",
-    """CREATE TABLE IF NOT EXISTS email_sent_items (
-  seq     INTEGER NOT NULL REFERENCES email_sent(seq),
-  item_id TEXT NOT NULL CHECK (length(item_id) BETWEEN 1 AND 13),
-  PRIMARY KEY (seq, item_id)
-);""",
-    """CREATE TRIGGER IF NOT EXISTS email_sent_no_update BEFORE UPDATE ON email_sent
-BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
-    """CREATE TRIGGER IF NOT EXISTS email_sent_no_delete BEFORE DELETE ON email_sent
-BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
-    """CREATE TRIGGER IF NOT EXISTS email_sent_no_replace BEFORE INSERT ON email_sent
-WHEN EXISTS (SELECT 1 FROM email_sent WHERE seq = NEW.seq)
-BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
-    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_update BEFORE UPDATE ON email_sent_items
-BEGIN SELECT RAISE(ABORT, 'a sent record is never changed'); END;""",
-    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_delete BEFORE DELETE ON email_sent_items
-BEGIN SELECT RAISE(ABORT, 'a sent record is never deleted'); END;""",
-    """CREATE TRIGGER IF NOT EXISTS email_sent_items_no_replace BEFORE INSERT ON email_sent_items
-WHEN EXISTS (SELECT 1 FROM email_sent_items WHERE seq = NEW.seq AND item_id = NEW.item_id)
-BEGIN SELECT RAISE(ABORT, 'a sent record is never replaced'); END;""",
-)
-
-
-def migrate_email_sent(con):
-    """Schema version 6 to 7 (#50): the two tables and the triggers of the "I sent it" record.
-    Every statement is IF NOT EXISTS, so a half-applied copy is safe. It touches no other table (item_events is not rebuilt, so every route and place a file allows stays). Runs inside the caller's transaction and does not touch the version (the runner does)."""
-    for statement in EMAIL_SENT_DDL:
-        con.execute(statement)
-
-
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent))
 
