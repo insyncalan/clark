@@ -25,7 +25,7 @@ export function Section({ section, index, count, slot, anchor, tools, onExport }
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
       </header>
-      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
+      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} edit={tools && tools.useCase} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
         : editing && section.type === "text" && tools.richOn("body")
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
         : fromFile.value && section.type === "text"
