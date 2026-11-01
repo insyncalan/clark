@@ -787,6 +787,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .backup-panel { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .backup-panel p { margin: 0 0 6px; }
 .setting p.error { color: var(--status-red-text); }
+.update-notes { margin: 0 0 6px; max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; color: var(--text); }
+.update-files { margin: 6px 0; }
+.update-files ul { margin: 0 0 6px; overflow-wrap: anywhere; }
+.update-sum { overflow-wrap: anywhere; }
+#update-last p { margin: 0; align-self: center; }
 @media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: 16px; } }
 /* #43: on a phone the Publish button must not push the top bar wider than the window; only top-bar rules, after the phone card rules. */
 @media (max-width: 640px) { .pubbar { gap: 4px; } .pubbtn { padding: 0 8px; font-size: 13px; } .top:has(.pubbar) .logo .wm { display: none; } }   /* the Edit top bar only: the logo keeps its icon (its aria-label names it) */
