@@ -104,7 +104,9 @@ class TakeInTest(Base):
         path, digest = ui.take_in(self.download, self.data, SYSTEM)
         other = self.root / "other"
         other.mkdir()
-        shutil.copyfile(make_zip(other, version="0.3.1", notes="Something else.\n"), path)
+        swapped = make_zip(other, version="0.3.1", notes="Something else.\n")
+        shutil.copyfile(swapped, path)
+        shutil.copyfile(str(swapped) + ".sig", str(path) + ".sig")        # validly signed too: only the digest taken in refuses it
         with self.assertRaises(updates.UpdateError) as said:
             ui.read_taken(path, digest, SYSTEM, "0.3.0", 2)
         self.assertEqual("damaged", said.exception.key)

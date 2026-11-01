@@ -5,6 +5,7 @@ Everything clark needs at run time is here, so nothing is installed from the int
 | Library | Licence | Folder | Used by |
 |---------|---------|--------|---------|
 | openpyxl 3.1.5, plus its dependency et_xmlfile 2.0.0 | MIT (et_xmlfile has parts under PSF-2.0) | `openpyxl/`, `et_xmlfile/`, licences in `licenses/` | Excel export and import (#37, #38) |
+| ed25519_verify 1 (verify only: RFC 8032 Ed25519, strict, pure Python) | public domain (CC0), written for clark | `ed25519_verify/`, licence in `licenses/` | checking the signature on an update (#282) |
 | Preact 10.29.8 with hooks and the JSX runtime, @preact/signals 2.11.2, signals-core 1.14.4 | MIT | `preact/` | the page (#35) |
 | Inter (Regular to ExtraBold) and Montserrat (ExtraBold), Google Fonts, Latin, one static woff2 per weight, each with its OFL licence | SIL Open Font License 1.1 | `fonts/inter/`, `fonts/montserrat/` | the page's fonts, inlined by the build (#35); not from creaite |
 | Tiptap 3.31.3 as one ES module, with every bundled package's licence | MIT | `tiptap/` | the one editor (#41) |

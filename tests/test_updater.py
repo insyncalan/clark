@@ -19,6 +19,7 @@ from _paths import ROOT
 from clark import launch, server as sv, update_helper as h, update_install as ui, updater as up, updates
 from test_update_helper import FakeSeams, snapshot
 from test_update_install import Base as InstallBase
+import _signing
 from test_updates import make_zip
 
 
@@ -123,9 +124,30 @@ class ReviewTest(Rig):
     def test_choose_a_browser_copy_and_cancel(self):
         self.chosen = self.downloads / "clark-0.3.1-mac (1).zip"
         shutil.copyfile(self.download, self.chosen)
+        shutil.copyfile(str(self.download) + ".sig", str(self.chosen) + ".sig")       # the signature file goes with the copy
         self.assertEqual(200, self.up.review({"from": "file"})[0])
         self.chosen = None
         self.assertEqual((200, {"ok": True, "cancelled": True}), self.up.review({"from": "file"}))
+
+    def test_an_unsigned_or_wrongly_signed_update_is_refused_with_nothing_kept(self):
+        for label, change in (("unsigned", lambda: os.unlink(str(self.download) + ".sig")),
+                              ("badsig", lambda: Path(str(self.download) + ".sig").write_bytes(bytes(63) + b"x"))):
+            with self.subTest(label):
+                change()
+                status, body = self.up.review({"from": "downloads"})
+                self.assertEqual((409, label), (status, body["code"]))
+                self.assertEqual(updates.MESSAGES[label], body["message"])
+                self.assertIsNone(self.up.reviewed)
+                self.assertEqual([], [p for p in (self.data / "releases").glob("*.sig")])
+                self.assertEqual([], [p.name for p in self.app.glob(".clark-update-*")])
+                os.unlink(self.download)
+                make_zip(self.downloads, version="0.3.1", files=self.new_files, notes="Fixes a typo.\n")
+
+    def test_updates_stay_off_while_the_release_key_is_the_placeholder(self):
+        updates.RELEASE_PUBLIC_KEY = updates.PLACEHOLDER_KEY
+        self.addCleanup(_signing.use_test_key)
+        status, body = self.up.review({"from": "downloads"})
+        self.assertEqual((409, "nokey"), (status, body["code"]))
 
     def test_the_same_version_needs_install_again(self):
         os.unlink(self.download)

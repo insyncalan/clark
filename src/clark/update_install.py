@@ -100,6 +100,8 @@ def stamp_now(now=None):
 
 def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BYTES):
     """Copy the update file at `source` once into `<data>/releases/<its proper name>` and return (that path, its SHA-256).
+    The signature file beside it (`source` + .sig) is copied too, so everything after works from the private copy; a missing
+    one is not an error here (updates.read_release refuses an unsigned copy).
 
     The name is checked first (updates.check_name). The file is opened without following a link, must be a regular file no
     bigger than `max_bytes`, and is read once, in chunks, into a new private file in the releases folder; nothing else of the
@@ -136,7 +138,14 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
                 out.write(chunk)
             out.flush()
             os.fsync(out.fileno())
+        (folder / (name + updates.SIGNATURE_SUFFIX)).unlink(missing_ok=True)       # never a signature left from another file
         os.replace(part, folder / name)
+        signature = updates.read_signature(source)
+        if signature is not None:
+            sig_part = folder / f".{name}{updates.SIGNATURE_SUFFIX}.{os.getpid()}.part"
+            platform.private_file(sig_part)
+            sig_part.write_bytes(signature)
+            os.replace(sig_part, folder / (name + updates.SIGNATURE_SUFFIX))
     except OSError:
         raise updates.UpdateError("unreadable", "the file can't be read")
     finally:
@@ -146,9 +155,10 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
     return folder / name, h.hexdigest()
 
 
-def read_taken(path, digest, system, installed_version, installed_schema, reinstall=False):
-    """updates.read_release on the copy take_in made, refusing it if the copy is not the bytes take_in hashed."""
-    release = updates.read_release(path, system, installed_version, installed_schema, reinstall=reinstall)
+def read_taken(path, digest, system, installed_version, installed_schema, reinstall=False, public_key=None):
+    """updates.read_release on the copy take_in made (signature first), refusing it if the copy is not the bytes take_in hashed."""
+    release = updates.read_release(path, system, installed_version, installed_schema, reinstall=reinstall,
+                                   public_key=public_key)
     if release.zip_sha256 != digest:
         raise updates.UpdateError("damaged", "the kept copy changed after it was taken in")
     return release
@@ -299,8 +309,10 @@ def stage(release, app_dir, stamp, fault=None):
         raise InstallError("staging", "bad stamp")
     folder = staging_dir(app_dir, stamp)
     try:
+        if not release.data:
+            raise InstallError("staging", "no checked bytes to stage from")          # never the file on disk again
         folder.mkdir()
-        with zipfile.ZipFile(io.BytesIO(release.data) if release.data else release.path) as zf:      # the bytes that were checked
+        with zipfile.ZipFile(io.BytesIO(release.data)) as zf:      # the bytes that were signed and checked
             infos = {i.filename: i for i in zf.infolist()}
             for rel in sorted(release.files):
                 row = release.files[rel]

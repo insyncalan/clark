@@ -200,14 +200,18 @@ class Updater:
             if path is None:
                 return 200, {"ok": True, "cancelled": True}
         reinstall = bool(req.get("reinstall", False))
+        kept = None
         try:
             kept, digest = ui.take_in(path, self.data, self.system, chosen=req["from"] == "file")
             release = ui.read_taken(kept, digest, self.system, self.version, self.schema, reinstall=reinstall)
             plan = updates.plan(release, self.app)
         except updates.UpdateError as e:
+            if kept is not None and e.key in ("unsigned", "badsig", "nokey"):       # an untrusted file is not kept
+                kept.unlink(missing_ok=True)
+                Path(str(kept) + updates.SIGNATURE_SUFFIX).unlink(missing_ok=True)
             LOG.info("an update was refused: %s", e.key)
             LOG.debug("an update was refused: %s", e.detail)
-            return reply(409, e.key, e.message, again=e.key in ("same", "older"))
+            return reply(409, e.key, e.message, again=e.key == "same")
         rid = secrets.token_urlsafe(18)
         self.reviewed = {"id": rid, "path": kept, "digest": digest, "reinstall": reinstall, "at": self.clock(), "to": release.version}
         return 200, {"ok": True, "review_id": rid, "review": updates.review(release, plan, self.version)}
