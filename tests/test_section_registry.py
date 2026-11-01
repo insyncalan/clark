@@ -183,7 +183,7 @@ class PythonSide(unittest.TestCase):
         self.assertLess(stored, section_bodies.LIMITS["tracker"], "the checker's caps keep the widest tracker under its stored-byte limit")
         self.assertEqual((stored, widest), (81288, 95122), "a tracker cap moved: work out the new widest request, then set these two numbers")
         self.assertLessEqual(widest, sv.CHANGE_BODY_LIMIT)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT - widest, 40046, "the room left under the change limit")
+        self.assertEqual(sv.CHANGE_BODY_LIMIT - widest, 433262, "the room left under the change limit")
 
     def test_the_widest_needs_body_with_nothing_but_plain_letters_fits_the_change_limit_to_the_byte(self):
         got = {letter: self.widest_request("needs", self.widest_needs(letter), False) for letter in ("a", "\u00e9", "\u4e2d")}
@@ -192,23 +192,26 @@ class PythonSide(unittest.TestCase):
         for letter, (stored, request) in got.items():
             self.assertLessEqual(stored, section_bodies.LIMITS["needs"], letter)
             self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT - max(r for _, r in got.values()), 6344, "the room left under the change limit")
+        self.assertEqual(sv.CHANGE_BODY_LIMIT - max(r for _, r in got.values()), 399560, "the room left under the change limit")
 
-    def test_the_widest_quote_heavy_needs_body_is_larger_than_the_change_limit_by_these_bytes(self):
-        """The sizes of the gap #356 (a) names, pinned so it can neither grow nor close unnoticed. 100 rows of `what` and `from`
-        at their longest, all quotes (or all backslashes), are 86,916 stored bytes (each character stored as two) and, escaped
-        again inside the request, 168,824 bytes (four each), which the route refuses as too large before the checker sees it. (With no `by` date in each row it is the 85,916
-        stored bytes and the roughly 167,800 byte request the reader cited.)"""
+    def test_the_widest_quote_heavy_needs_body_fits_the_change_limit_by_these_bytes(self):
+        """#356 (a), closed by #405: 100 rows of `what` and `from` at their longest, all quotes (or all backslashes), are 86,916
+        stored bytes (each character stored as two) and, escaped again inside the request, 168,824 bytes (four each). The limit is
+        worked out from the largest stored body of any section type, so this fits; the sizes are pinned so the room can neither
+        shrink nor grow unnoticed. tests/test_needs_route.py saves it over the real route."""
         for letter in ('"', "\\"):
             stored, request = self.widest_request("needs", self.widest_needs(letter), False)
             self.assertEqual((stored, request), (86916, 168824), letter)
             self.assertLess(stored, section_bodies.LIMITS["needs"], letter)
-            self.assertEqual(request - sv.CHANGE_BODY_LIMIT, 33656, letter)
+            self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
+            self.assertEqual(sv.CHANGE_BODY_LIMIT - request, 359560, letter)
 
-    @unittest.expectedFailure       # #356 (a), a real gap and a decision for the owner of server.py: a cap or the limit would have to change
-    def test_the_widest_quote_heavy_needs_body_fits_the_change_limit(self):
-        for letter in ('"', "\\"):
-            _, request = self.widest_request("needs", self.widest_needs(letter), False)
+    def test_the_widest_needs_body_with_every_non_ascii_letter_written_as_an_escape_fits_the_change_limit(self):
+        """The page sends plain UTF-8, but a client may write each non-ASCII letter as a \\u escape (seven bytes once the body is a string in the request): the
+        stored text is the same and the checker's own limit still keeps it under the route's."""
+        for letter in ("\u00e9", "\u4e2d"):
+            stored, request = self.widest_request("needs", self.widest_needs(letter), True)
+            self.assertLessEqual(stored, section_bodies.LIMITS["needs"], letter)
             self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
 
     def test_a_stub_publishes_nothing_whatever_its_body_holds(self):
