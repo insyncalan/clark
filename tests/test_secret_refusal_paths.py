@@ -20,11 +20,18 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 import test_ask_route as route_base
 from test_ai_key_refusal import ATTACKS, REFUSED, SECRET_PART, TEXT
 from test_ai_menu import FakeProvider
-from clark import ai_menu as am, ask, server as sv
+from clark import ai_menu as am, ask, secret_screen, server as sv
 
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
-SAMPLES = {**{"a " + k: v for k, v in REFUSED.items()}, **{"b " + k: v for k, v in ATTACKS.items()}}
+# #330: the kinds the two shared lists have no sample for, built from pieces: an npm token in both of its forms and a PyPI token
+KINDS_ADDED_HERE = {
+    "npm token": "np" + "m_" + "A1b2C3d4E5f6G7h8I9j0K1l2",
+    "npm auth line": "//registry.example.org/:_auth" + "Token=" + "A1b2C3d4E5f6G7h8I9j0",
+    "pypi token": "py" + "pi-" + "AgEIcHlwaS5vcmc" + "A1b2C3d4E5f6",
+}
+SAMPLES = {**{"a " + k: v for k, v in REFUSED.items()}, **{"b " + k: v for k, v in ATTACKS.items()},
+           **{"c " + k: v for k, v in KINDS_ADDED_HERE.items()}}
 
 
 def secret_part(name, sample):
@@ -126,6 +133,48 @@ class SelectedText(unittest.TestCase):
         prov = FakeProvider()
         self.assertTrue(am.suggest(prov, "rewrite", CLEAN_SELECTION, "plain")["ok"])
         self.assertEqual(len(prov.calls), 1)
+
+
+class EverySecretKindHasASample(unittest.TestCase):
+    """#330: the three tests above run every sample in SAMPLES, so a kind with no sample there is not tested at all (the npm and PyPI
+    tokens were once taken out of the screen and all of them still passed). Each entry of the screen's own list needs a sample
+    that its pattern matches, and each sample is on the question and selection paths above."""
+
+    @staticmethod
+    def _alternatives(pattern):
+        """The pattern cut at each `|` that is not inside brackets (a pattern with two forms, such as the npm one, needs a sample for
+        each form, or removing one form would go unnoticed)."""
+        parts, depth, in_class, start, i = [], 0, False, 0, 0
+        while i < len(pattern):
+            c = pattern[i]
+            if c == "\\":
+                i += 1
+            elif in_class:
+                in_class = c != "]"
+            elif c == "[":
+                in_class = True
+            elif c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+            elif c == "|" and depth == 0:
+                parts.append(pattern[start:i])
+                start = i + 1
+            i += 1
+        return parts + [pattern[start:]]
+
+    def test_every_secret_pattern_has_a_sample_here(self):
+        missing = []
+        for kind, pattern in secret_screen.SECRET_PATTERNS:
+            for alt in self._alternatives(pattern):
+                rx = re.compile(alt)
+                if not any(rx.search(sample) for sample in SAMPLES.values()):
+                    missing.append(kind + ": " + alt)
+        self.assertEqual(missing, [], "add a sample, built from pieces, for each kind named here")
+
+    def test_the_splitter_cuts_only_at_a_top_level_bar(self):
+        self.assertEqual(self._alternatives(r"a|b(c|d)[|]e|f"), ["a", r"b(c|d)[|]e", "f"])
+        self.assertEqual(self._alternatives(r"x\|y"), [r"x\|y"])
 
 
 class EveryRouteThatSendsText(unittest.TestCase):
