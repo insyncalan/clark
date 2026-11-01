@@ -216,14 +216,19 @@ class More(tre.Base):
         self.demo.action(description="Book the training room")
 
     def go(self, cdp, hash_, mode):
+        """Open the page with the motion setting under test already in force. Navigating does not wait for the document, so the
+        setting is installed for the new document before the navigation starts (a late `p.js` would land on the old document)."""
         _, media, own = mode
-        p = tre.Pg.at(self, cdp, self.s.port, hash_)
+        tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+        sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+        cdp.call("Page.enable", {}, sid)
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         if media:
-            cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE}, p.sid)
+            cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE}, sid)
         if own:
-            p.js(OWN)
-            # a document that loads again (the page reads itself afresh when its token is stale) keeps the setting under test too
-            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": OWN}, p.sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": Fade.OWN_EARLY}, sid)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
+        p = tre.Pg(self, cdp, sid)
         p.mode = mode
         return p
 
