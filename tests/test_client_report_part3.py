@@ -133,9 +133,15 @@ class Drawn(unittest.TestCase):
             st.create("raid", {**base, "type": "Risk", "description": "Hidden from the client", "impact": "High", "likelihood": "High", "client_visible": 0})
             left = st.create("raid", {**base, "type": "Risk", "description": "Left out of the report", "impact": "High", "likelihood": "High"})
             st.create("report_hidden", {"project": "ABC", "item_id": left})
+            sens = st.create("raid", {**base, "type": "Risk", "description": "Marked Sensitive", "impact": "High", "likelihood": "High", "owner": "Pat Quinn"})
+            st.create("item_labels", {"item_id": sens, "label": "Sensitive"})
+            st.create("labels", {"name": "Board only", "behaviour": "exclude", "default_choice": "include"})
+            kept = st.create("raid", {**base, "type": "Issue", "description": "Kept out by a label", "impact": "High", "likelihood": "High", "owner": "Pat Quinn"})
+            st.create("item_labels", {"item_id": kept, "label": "Board only"})
             st.create("raid", {**base, "type": "Risk", "description": "Says it the client's way", "impact": "Low", "likelihood": "Low",
                                "client_message": "The client's own words", "due_date": "2026-11-30"})
             gone = st.create("raid", {**base, "type": "Issue", "description": "Already closed issue", "impact": "Low", "likelihood": "Low"})
+        self.hidden_ids = [left, sens, kept]
         with self.store.step("dashboard", USER) as st:
             st.update("raid", gone, {"status": "Closed", "closed": "2026-10-05"})
         secs = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "text"]
@@ -170,8 +176,13 @@ class Drawn(unittest.TestCase):
         self.assertEqual([w[:2] for w in words], [["Delay", "Delay"], ["Risk", "Risk"], ["Risk", "Risk"], ["Monitor", "Monitor"], ["Monitor", "Monitor"], ["Monitor", "Monitor"]], where)
         titles = [w[2] for w in words]
         self.assertEqual(titles[0], "Design sign-off is running late")
-        for left_out in ("Everyone has a laptop", "Hidden from the client", "Already closed issue", "Left out of the report", "Says it the client's way"):
+        for left_out in ("Everyone has a laptop", "Hidden from the client", "Already closed issue", "Left out of the report", "Says it the client's way",
+                         "Marked Sensitive", "Kept out by a label"):
             self.assertNotIn(left_out, titles, where)
+        raid_text = js("document.getElementById('cr-raid').innerText")
+        for hid in self.hidden_ids:
+            self.assertNotIn(hid, raid_text, "a hidden row's number never shows: " + where)
+        self.assertNotIn("Pat Quinn", raid_text, "nor its owner: " + where)
         self.assertIn("The client's own words", titles, "a row's client message is what the client reads: " + where)
         page = js("document.getElementById('clientreport').innerText")
         self.assertNotIn("A weekly call between both leads.", page, "the response is a working note, never on this page: " + where)
