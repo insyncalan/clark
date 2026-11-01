@@ -406,8 +406,10 @@ def hand_over(data_dir, app_dir, staging, stamp, from_version, to_version, insta
 
 def last_update(data_dir):
     """The newest backup set of an update (not an undo) that went in: (folder, record), or None. A set whose update stopped
-    before it was installed (the old version was kept) is not one."""
-    found = [(f, r) for f, r in sets(data_dir) if r.get("kind") == "install" and r.get("installed") is True]
+    before it was installed (the old version was kept) is not one, unless the helper left the data in the newer layout and
+    recorded that putting it back is waiting (#280, record["data_restore_pending"]): the Undo update that puts it back is offered."""
+    found = [(f, r) for f, r in sets(data_dir)
+             if r.get("kind") == "install" and (r.get("installed") is True or isinstance(r.get("data_restore_pending"), dict))]
     return found[-1] if found else None
 
 
@@ -443,6 +445,22 @@ def check_restore(db_path, record):
     except store.Invalid as e:
         if str(e) != backup.UPDATE_ASK:        # asked to confirm: the copy is there; anything else is a refusal
             raise InstallError("data_gone", str(e))
+
+
+def put_back_newer_data(db_path, since):
+    """After restore_data, if the hand-over then failed: put the newer database back, from the `restore` copy restore_data took of
+    it (one made since `since`, a time.time() value taken before restore_data; never an older one), so the person's latest
+    changes are where they were and the next start finds the data the running version expects. Best effort; True if it was put back. The running version's own store stays closed, which the hand-over's message already tells the
+    person to deal with: close clark and open it again."""
+    folder = Path(db_path).parent / "backups"
+    try:
+        found = [e for e in backup.entries(folder) if e.tag == "restore" and e.mtime_ns / 1e9 >= since - 2]
+        if not found:
+            return False
+        backup.restore_path(db_path, Path(found[-1].path).name, folder)
+        return True
+    except (store.Invalid, OSError):
+        return False
 
 
 def restore_data(db_path, record, open_db=None):

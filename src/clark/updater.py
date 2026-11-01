@@ -60,6 +60,8 @@ ARMED_RESTORE = ("Version {to} cannot open the data the update changed, so Undo 
                  "update. Changes made after the update will be lost. Choose Undo update again within 5 seconds to go on.")
 ARMED_APP_ONLY = ("Your data has changed since the update, and putting back the old data would lose those changes. "
                   "Choose Put back the app and settings only within 5 seconds to keep your data as it is.")
+UPDATE_STOPPED = ("The update to version {to} didn't install, and your data is still in its newer layout. Choose Undo update to put "
+                  "your data back as it was before the update.")
 INSTALLED = "Version {to} is installed."
 UNDO_DONE = "Version {to} has been put back. Your projects are as they were."
 CHOOSE_PROMPT = "Choose the clark update file"
@@ -174,6 +176,8 @@ class Updater:
             day = updates.date_text("-".join((folder.name[0:4], folder.name[4:6], folder.name[6:8])))
             body["last"] = {"from": rec.get("from"), "to": rec.get("to"),
                             "line": f"Last update: {rec.get('from')} → {rec.get('to')} on {day}."}
+            if isinstance(rec.get("data_restore_pending"), dict) and rec.get("installed") is not True:     # #280: the update stopped, the data is still in the newer layout
+                body["last"]["line"] = UPDATE_STOPPED.format(to=rec.get("to"))
         return 200, body
 
     # --- POST /api/update/review ---
@@ -309,14 +313,18 @@ class Updater:
             to = record.get("from")
             self._installing = True
             stamp = ui.stamp_now()
+            restored, began = False, time.time()
             try:
                 ui.check_restore(self.db, record)                 # a migrated update: the copy must be there and whole before anything starts
                 undo_set = ui.back_up(self.app, self.data, self.db, stamp, self.version, to, kind="undo")
                 staging = ui.stage_undo(folder, self.app, stamp)
                 self._write(PENDING, {"kind": "undo", "stamp": stamp, "set": folder.name, "undo_set": undo_set.name, "to": to})
                 ui.restore_data(self.db, record, self.store)      # last step before the hand-over, so a failure hands nothing over
+                restored = ui.migration_of(record) is not None
                 self._hand_over(staging, stamp, self.version, to, undo_set)
             except (updates.UpdateError, ui.InstallError) as e:
+                if restored:                                      # #280: the data was put back but nothing took over: put the newer data back too
+                    ui.put_back_newer_data(self.db, began)
                 return self._stopped(stamp, e)
             return 200, {"ok": True, "restart": True, "message": UNDOING.format(to=to)}
         finally:
