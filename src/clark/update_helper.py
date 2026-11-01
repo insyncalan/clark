@@ -12,7 +12,7 @@ The caller (the server) has already read and hashed the update, checked the app 
 into a staging folder inside the app folder (`.clark-update-<stamp>/`, laid out as the app folder is). The helper:
 
   begin(...)    the caller's call. Checks the app folder (updates.check_app_folder: no .git, no link, the record, writable) and that
-                the update keeps the data layout, then writes the MARKER `<data>/updates/.installing.json` before anything else
+                the update does not have an older data layout than the data, then writes the MARKER `<data>/updates/.installing.json` before anything else
                 changes. The marker holds the stamp, the folders, the order of the swap, the server to wait for and a hash of
                 every file that is there now. While the marker exists, an update is unfinished.
   run(marker)   the helper itself, started by the server (`update_helper.py --marker FILE`). Steps, in this order, each one a
@@ -352,7 +352,7 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
     folder has changed yet; if this raises, nothing was written. Returns the marker's path.
 
     It refuses a folder that holds .git, has a link in it, has no record of what it holds or can't be written to, and an update
-    that changes the data layout, with the plain sentences of updates.py (an UpdateError)."""
+    whose data layout is older than the data's, with the plain sentences of updates.py (an UpdateError)."""
     app, staging = Path(app_dir), Path(staging)
     if check:
         from clark import updates            # the caller runs inside the server, where it can be imported; run() never does
@@ -362,9 +362,9 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
         old = read_json(app / MANIFEST)
     except (OSError, ValueError):
         raise StepError("damaged", "a record of the files can't be read")
-    if check and new.get("schema_version") != installed_schema:
+    if check and new.get("schema_version") < installed_schema:
         from clark import updates
-        raise updates.UpdateError("layout", f"data layout {new.get('schema_version')}, installed {installed_schema}")
+        raise updates.UpdateError("newer_data", f"data layout {new.get('schema_version')}, installed {installed_schema}")
     from clark import updates                # the names come from files on disk: '', '..' and absolute names are refused
     updates.check_record_names(old)
     updates.check_record_names(new)

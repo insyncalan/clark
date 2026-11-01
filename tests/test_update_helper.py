@@ -275,10 +275,15 @@ class BeginRefusalsTest(unittest.TestCase, PlainWordsMixin):
             fx.before = snapshot(fx.app)
             self.refused(fx, "link")
 
-    def test_an_update_that_changes_the_data_layout_is_refused(self):
+    def test_an_update_with_an_older_data_layout_than_the_data_is_refused(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t, schema=1)
+            self.refused(fx, "newer_data")
+
+    def test_an_update_with_a_newer_data_layout_is_handed_over(self):
         with tempfile.TemporaryDirectory() as t:
             fx = Fixture(t, schema=3)
-            self.refused(fx, "layout")
+            self.assertTrue(fx.begin().exists())
 
     def test_a_folder_with_no_record_is_refused(self):
         with tempfile.TemporaryDirectory() as t:

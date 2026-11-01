@@ -152,10 +152,10 @@ class Logic(InBrowser):
 
     def test_answers_known_server_said_and_generic(self):
         self.assertEqual(self.val("T.logic.answerWords(409, {code: 'busy', message: 'ignore me'})"), up.MESSAGES["busy"])
-        self.assertEqual(self.val(f"T.logic.answerWords(409, {{code: 'layout', message: {lit(updates.MESSAGES['layout'])}}})"),
-                         updates.MESSAGES["layout"])
-        for expr in ("T.logic.answerWords(500, {code: 'server_error', message: 'Traceback'})", "T.logic.answerWords(409, {code: 'layout', message: ''})",
-                     "T.logic.answerWords(409, null)", "T.logic.answerWords(409, {code: 'layout', message: 'x'.repeat(601)})"):
+        self.assertEqual(self.val(f"T.logic.answerWords(409, {{code: 'newer_data', message: {lit(updates.MESSAGES['newer_data'])}}})"),
+                         updates.MESSAGES["newer_data"])
+        for expr in ("T.logic.answerWords(500, {code: 'server_error', message: 'Traceback'})", "T.logic.answerWords(409, {code: 'newer_data', message: ''})",
+                     "T.logic.answerWords(409, null)", "T.logic.answerWords(409, {code: 'newer_data', message: 'x'.repeat(601)})"):
             self.assertEqual(self.val(expr), self.val("T.logic.GENERIC"), expr)
         self.assertEqual(self.val("T.logic.answerWords(0, null)"), self.val("T.logic.NOT_ANSWERING"))
         self.assertEqual(self.val("T.logic.answerWords(403, {code: 'stale'})"), self.val("T.logic.STALE"))

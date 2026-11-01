@@ -507,26 +507,29 @@ class VersionRuleTest(Base):
         os.mkdir(self.tmp)
         self.assertEqual("0.3.1", self.read(make_zip(self.tmp, min_from="0.3.0"), installed="0.3.0").version)
 
-    def test_a_change_to_the_data_layout_is_refused_for_now(self):
-        said = "This update changes how your data is kept, so it can't be installed from here. Nothing was changed. " \
-               "To install it by hand, quit clark, then put the folder from this download in place of your clark folder. " \
-               "Your projects and settings are kept in their own folder, so they stay where they are."
-        self.refuses(make_zip(self.tmp, schema=3), "layout", said)
+    def test_a_newer_data_layout_is_allowed_and_an_older_one_is_refused(self):
+        said = "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."
+        self.assertEqual(3, self.read(make_zip(self.tmp, schema=3)).schema_version)       # the new version brings the data up to date
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
-        self.refuses(make_zip(self.tmp, schema=1), "layout", said)
+        self.assertEqual(4, self.read(make_zip(self.tmp, schema=4), reinstall=True).schema_version)
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
-        self.refuses(make_zip(self.tmp, schema=3), "layout", said, reinstall=True)
+        self.refuses(make_zip(self.tmp, schema=1), "newer_data", said)
+        shutil.rmtree(self.tmp)
+        os.mkdir(self.tmp)
+        self.refuses(make_zip(self.tmp, schema=1), "newer_data", said, reinstall=True)
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
         self.assertEqual(2, self.read(make_zip(self.tmp, schema=2)).schema_version)
 
-    def test_a_layout_change_is_refused_for_a_real_download_too(self):
-        built = real_download(self, schema=3)
+    def test_an_older_layout_is_refused_for_a_real_download_too(self):
+        built = real_download(self, schema=1)
         with self.assertRaises(UpdateError) as said:
             updates.read_release(built, "mac", "0.3.0", 2)
-        self.assertEqual("layout", said.exception.key)
+        self.assertEqual("newer_data", said.exception.key)
+        built = real_download(self, schema=3)
+        self.assertEqual(3, updates.read_release(built, "mac", "0.3.0", 2).schema_version)
 
 
 def install_to(folder, version="0.3.0", files=None):
@@ -1232,7 +1235,7 @@ class WordsTest(unittest.TestCase):
                 self.assertNotIn("/", text.replace("{", ""), "no file path on screen")
 
     def test_every_failure_has_a_next_step(self):
-        nothing_to_do = {"layout", "git"}       # the next step is in the sentence ("by hand", "Download the latest release")
+        nothing_to_do = {"git"}       # the next step is in the sentence ("by hand", "Download the latest release")
         steps = ("Download", "Choose", "Move", "Install", "Close", "try again")
         for key, text in updates.MESSAGES.items():
             with self.subTest(key=key):
