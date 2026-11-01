@@ -5,10 +5,11 @@
 import { useState, useRef, useEffect } from "preact/hooks";
 import { MODES, LABELS, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
-export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip, none: noneWords }) {
+export function DraftEmail({ items, state, draft, today, onChange, onSent, sentOff, onClose, clip, none: noneWords }) {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);          // I sent it is in flight: the button is off and a second press does nothing (one press, one record)
   const saveLock = useRef(false);
+  const sentBtn = useRef(null), wasSaving = useRef(false);
   const preview = useRef(null);
   const edited = useRef(false);
   const shown = useRef("");
@@ -17,6 +18,11 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
   useEffect(() => {
     if (preview.current && shown.current !== html) { preview.current.innerHTML = html; shown.current = html; edited.current = false; }
   }, [html]);
+  // A saved (or failed) press turned the button off, which drops focus to the page: put it back on the button, so Esc still reaches the dialog.
+  useEffect(() => {
+    if (saving) wasSaving.current = true;
+    else if (wasSaving.current) { wasSaving.current = false; if (sentBtn.current) sentBtn.current.focus({ preventScroll: true }); }
+  }, [saving]);
   const change = (patch) => { setNote(""); if (onChange) onChange({ ...state, ...patch }); };
   const body = () => {
     const el = preview.current;
@@ -39,7 +45,7 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
   // onSent(entry) may answer {ok: true} (saved in the history), {ok: false, message} (not saved: the note says why and nothing is
   // marked) or nothing (a caller that does not save yet: the note says so).
   const sent = async () => {
-    if (saveLock.current) return;
+    if (sentOff || saveLock.current) return;
     saveLock.current = true;
     setSaving(true);
     try {
@@ -100,11 +106,12 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
         <p class="muted de-note" role="status" aria-live="polite">{note}</p>
         {link.message && !problem ? <p class="muted de-mail">{link.message}</p> : null}
       </div>
+      {sentOff ? <p class="muted de-note" id="de-sent-off">{sentOff}</p> : null}
       <div class="pk-foot">
         <button type="button" class="pk-btn pri" disabled={!!problem} onClick={() => copy("outlook")}>{LABELS.copyOutlook}</button>
         <button type="button" class="pk-btn" disabled={!!problem} onClick={() => copy("text")}>{LABELS.copyText}</button>
         {link.href ? <a class="pk-btn" href={link.href}>{LABELS.mail}</a> : null}
-        <button type="button" class="pk-btn" disabled={!!problem || saving} onClick={sent}>{LABELS.sent}</button>
+        <button type="button" class="pk-btn" ref={sentBtn} disabled={!!problem || saving || !!sentOff} aria-describedby={sentOff ? "de-sent-off" : undefined} onClick={sent}>{LABELS.sent}</button>
         <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button>
       </div>
     </div>

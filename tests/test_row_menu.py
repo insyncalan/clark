@@ -488,6 +488,47 @@ class Menu(board.Base):
             click(cdp, sid, "[data-rm=draft]")
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email, which changes nothing")
 
+    def test_in_view_i_sent_it_is_greyed_with_the_house_line_and_records_nothing(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp, edit=False)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            find = "[...document.querySelectorAll('.de .pk-btn')].find(b => /sent/.test(b.textContent))"
+            self.assertTrue(cdp.js(find + ".disabled", sid), "I sent it is greyed in View")
+            self.assertIn("Switch to Edit to change this.", cdp.js("document.querySelector('.de').textContent", sid))
+            self.assertFalse(cdp.js("[...document.querySelectorAll('.de .pk-btn')].find(b => /Copy as text/.test(b.textContent)).disabled", sid), "copy stays")
+            cdp.js(find + ".click()", sid)
+            time.sleep(0.8)
+            self.assertEqual(self.sent_calls, [], "no POST /api/draft-email/sent")
+            self.assertEqual(self.store.email_sent_for("ABC"), [], "no email_sent record")
+
+    def test_after_i_sent_it_focus_stays_in_the_dialog_and_escape_closes_it_and_returns_to_the_row(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            cdp.js("(() => { const b = [...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)); b.focus(); b.click(); })()", sid)
+            self.until(cdp, sid, "/sent/i.test(document.querySelector('.de-note').textContent)", "the note")
+            self.until(cdp, sid, "document.querySelector('.de').contains(document.activeElement) && document.activeElement !== document.body", "focus back in the dialog")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
+            self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")
+
+    def test_the_dialog_closes_when_the_page_changes(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=draft]")
+            self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            cdp.js("location.hash = '#settings&p=ABC'", sid)
+            self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close on another page")
+            self.assertFalse(cdp.js("document.querySelector('#main, .top').hasAttribute('inert')", sid))
+
     def test_a_missing_item_says_so_in_words(self):
         with chrome() as cdp:
             sid = self.visit(cdp)

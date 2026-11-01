@@ -199,6 +199,7 @@ const BEHIND = ["#main", ".top"];                // made inert while the Draft e
 // each change in the dialog (the kind, the ticks, the options) asks for a new one, and the last answer wins. It sends and saves nothing.
 function DraftHost({ d }) {
   const root = useRef(null), asked = useRef(0);
+  const edit = mode.value === "edit";                 // View writes nothing (FR-11): no onSent, and "I sent it" is greyed
   const close = () => {
     const from = d.from, id = d.id;
     draftOpen.value = null;
@@ -211,6 +212,7 @@ function DraftHost({ d }) {
     held.forEach((el) => el.setAttribute("inert", ""));
     return () => held.forEach((el) => el.removeAttribute("inert"));
   }, []);
+  useEffect(() => { if (view.value !== "work") draftOpen.value = null; }, [view.value]);        // another page: the dialog goes with it
   useEffect(() => { if (!data.value || !itemRows.value.some((r) => r.id === d.id)) draftOpen.value = null; }, [itemRows.value]);   // the item went
   const onChange = (next) => {
     const n = ++asked.current;
@@ -235,7 +237,7 @@ function DraftHost({ d }) {
   };
   return (
     <div class="ad-scrim" data-draft-email={d.id} ref={root} onKeyDown={keys} onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={(entry) => sendEmailSent(project.value, entry)} none={NOT_OFFERED} />
+      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={edit ? (entry) => sendEmailSent(project.value, entry) : undefined} sentOff={edit ? "" : VIEW_ONLY} none={NOT_OFFERED} />
     </div>
   );
 }
