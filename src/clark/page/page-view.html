@@ -114,6 +114,7 @@ main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
 .cover-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
 @media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px 16px 16px; } }
+@media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report .cover { margin: 0 0 16px; } }      
 .crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
 .glance { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }

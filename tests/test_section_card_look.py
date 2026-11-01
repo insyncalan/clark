@@ -108,7 +108,7 @@ class Styles(unittest.TestCase):
 
     def test_the_settings_words_describe_the_default(self):
         jsx = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        self.assertIn('["slim", "Slim gaps", "Each section is its own card, close together."]', jsx)
+        self.assertIn('["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."]', jsx)
 
 
 class Contrast(unittest.TestCase):
