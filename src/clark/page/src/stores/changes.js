@@ -146,8 +146,10 @@ export function undo(applyId, code = project.value) {
       linked.delete(applyId);
       const e = await sendUndo(code, earlier);
       if (!e.ok) {
-        await readAgain(code, "The change was undone");
-        say("problem", `The row was put back as it was, but the new section could not be removed. ${e.message}`, earlier, code);
+        // The flag is back, so the new section still stands and now sits beside the section above: say that, and say if the
+        // page could not be read again to show it.
+        const shown = await readAgain(code, "The change was undone");
+        say("problem", `The new section is still there, and it now sits beside the section above. Undo removes it. ${e.message}${shown ? "" : " Reload the page to see it."}`, earlier, code);
         return r.reply;
       }
       redraw(code, e.reply);

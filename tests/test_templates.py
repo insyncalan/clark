@@ -651,6 +651,38 @@ class Box(Base):
             self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "stopped after the first Undo failed")
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12)
 
+    def test_if_the_second_undo_fails_the_page_shows_the_stored_state_and_the_toast_says_what_is_left(self):
+        self.stale_flag_on_the_last_section()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-011")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            new = [i for i in p.ids() if i not in IDS][0]
+            undos = []
+
+            def second_undo_fails(req):
+                if "apply_id" not in req:
+                    return self.real_change(req)
+                undos.append(req)
+                return self.real_undo(req) if len(undos) == 1 else (400, {"ok": False, "message": "Nothing was changed.", "code": "refused"})
+
+            self.failure = second_undo_fails
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
+            self.assertEqual(len(undos), 2, "both steps were tried")
+            self.assertEqual(p.toast(), "The new section is still there, and it now sits beside the section above. Undo removes it. That change could not be made, and nothing was changed. Reload the page and try again.")
+            self.assertEqual(self.ids_in_store(), IDS + [new], "the store still has the new section")
+            self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "and the flag is back")
+            self.assertEqual(p.ids(), self.ids_in_store(), "the page shows the same sections as the store")
+            self.assertEqual(p.js("document.querySelector('[data-id=\"ABC-S-011\"]').classList.contains('slot-left')"), True, "the page shows the pair the store has")
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-right')"), True)
+            self.failure = None
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11", "Undo removes the section")
+            self.assertEqual(self.ids_in_store(), IDS)
+
     def test_the_plain_add_is_one_step_and_one_undo(self):
         with chrome() as cdp:
             p = self.visit(cdp)
