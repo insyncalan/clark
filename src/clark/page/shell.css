@@ -843,17 +843,24 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-d.we, .cal-d.out { background: var(--grey-50); }
 .cal-n { font-size: var(--size-small); color: var(--text-muted); padding: 1px 6px; align-self: flex-start; border-radius: 10px; }
 .cal-d.today .cal-n { background: var(--brand-blue); color: var(--text-on-brand); font-weight: var(--weight-medium); }
-.cal-ms { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 4px; max-width: 100%; font-size: var(--size-small); line-height: 1.3; padding: 2px 5px; border-radius: 4px; background: var(--grey-100); color: var(--text); cursor: pointer; }
-.cal-ms span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .cal-ms .ms-i { width: 14px; height: 14px; flex: none; }
+.cal-ms { all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 4px; max-width: 100%; font-size: var(--size-small); line-height: 1.3; padding: 2px 5px; border-radius: 4px; background: var(--grey-100); color: var(--text); cursor: pointer; }
+.cal-ms span { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; }   /* the full name, wrapped, nothing is cut (the prototype, app.css:668) */ .cal-ms .ms-i { width: 14px; height: 14px; flex: none; margin-top: 1px; }
 .cal-ms:hover { background: var(--brand-blue-tint); } .cal-ms:focus-visible { outline: 2px solid var(--brand-blue); }
 .cal-ms.ghost { background: transparent; border: 1px dashed var(--status-red); color: var(--status-red-text); }
 .cal-sc { margin-left: auto; display: inline-flex; gap: 2px; } .cal-sc button { font-size: var(--size-small); padding: 4px 12px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
 .cal-sc button[aria-current="true"] { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--heading); }
 .cal-wk .cal-d { min-height: 180px; }
 .cal-q { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 6px; cursor: pointer; border-radius: 4px; padding: 0 4px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
+.cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 6px; cursor: pointer; border-radius: 4px; padding: 0 4px; } .cal-qm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
 .cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms span { display: none; }
-@media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-ms span { display: none; } .cal-q { grid-template-columns: 1fr; } .msl-cells { grid-template-columns: 1fr 1fr; } }
+.cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 4px; }
+.cal-far { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; color: var(--status-amber-text); }
+.cal-list { display: none; margin-top: 14px; }   /* a phone only, as in the prototype (app.css:1297, 1306); shown at 700 px and below, below */
+.cal-list h4 { margin: 0 0 6px; color: var(--heading); font-weight: var(--weight-medium); }
+.cal-list ul { list-style: none; margin: 0; padding: 0; } .cal-list li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px solid var(--grey-200); }
+.cal-ld { color: var(--text-muted); min-width: 6.5em; } .cal-ln { font-weight: var(--weight-medium); }
+@media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } .msl-cells { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px) { .cal-list { display: block; } .cal-ms span { display: none; } .cal-ms { justify-content: center; } }   /* the cells keep their marks, the names go, the period is listed under the month */
 .mlg { position: relative; display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .mlg-b { all: unset; display: inline-flex; align-items: center; box-sizing: border-box; min-height: 28px; min-width: 28px; gap: 4px; font-size: var(--size-small); color: var(--text-muted); cursor: help; padding: 2px 4px; border-radius: 4px; }
 .mlg-b:hover, .mlg:focus-within .mlg-b { color: var(--text); } .mlg-b:focus-visible { outline: 2px solid var(--brand-blue); }

@@ -107,6 +107,21 @@ class Rules(unittest.TestCase):
                  if re.search(r"new Date\(\)|Date\.now", p.read_text(encoding="utf-8"))]
         self.assertEqual(reads, [str(MODULE.relative_to(SRC))])
 
+    @staticmethod
+    def clock_reads(src):
+        """Reads of the CURRENT time: new Date() with no argument, Date.now(), getFullYear on a no-argument Date."""
+        return re.findall(r"new\s+Date\(\s*\)|Date\.now\b", src)
+
+    def test_the_calendar_component_never_reads_the_clock(self):
+        path = SRC / "clark" / "page" / "src" / "components" / "MsCalendar.jsx"
+        self.assertEqual(self.clock_reads(path.read_text(encoding="utf-8")), [], "today comes from workItems.js only")
+
+    def test_the_clock_check_can_fail(self):
+        self.assertTrue(self.clock_reads("const y = new Date().getFullYear();"))
+        self.assertTrue(self.clock_reads("const t = Date.now();"))
+        self.assertTrue(self.clock_reads("new Date( )"))
+        self.assertFalse(self.clock_reads("new Date(dayNumber(first) * 86400000).getUTCDay(); new Date(Date.UTC(2026, 1, 0))"))
+
 
 def load_demo():
     """A demo database built at the fixed date; (store, {code: expected ids}, {code: name})."""

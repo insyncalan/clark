@@ -1,10 +1,12 @@
-// The Calendar view (#44a): Month (the opening scale), Week and Quarter, with Earlier, Later and Today. A chip carries the
-// state's mark; a slipped milestone also shows on its expected date as a dashed "Expected" chip. Only the shown scale and place
-// is drawn. A day with milestones names them for a screen reader.
-import { useState } from "preact/hooks";
+// The Calendar view (#44a): Month (the opening scale), Week and Quarter, with Earlier, Later and Today. A chip is the state's
+// mark and the name, as in the prototype (system/prototype/views.js:105); a slipped milestone also shows on its expected date as
+// a dashed chip that begins "Expected: ". Only the shown scale and place is drawn. A day with milestones names them for a screen
+// reader. The "Milestones in this period" list is for a phone only, as in the prototype (app.css:1297, 1306): above 700 px it is hidden.
+import { useState, useRef, useEffect } from "preact/hooks";
+import { recall, remember } from "../logic/remember.js";
 import { MsMark } from "./MsMark.jsx";
 import { Icon } from "./Icon.jsx";
-import { calendarChips, buckets, bucketKey, markDates, addDays, showDate, MONTHS } from "../logic/milestones.js";
+import { calendarChips, buckets, neighbour, periodChips, addDays, showDate, MONTHS, homeDay } from "../logic/milestones.js";
 import { dayNumber } from "../workItems.js";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -16,7 +18,7 @@ function Chip({ c, say, open }) {
   const label = c.ghost ? `Expected: ${c.name}` : c.name;
   return (
     <Tag {...(open ? { type: "button", onClick: () => open(c.id) } : {})} class={`cal-ms c-${c.colour}${c.ghost ? " ghost" : ""}${open ? "" : " plain"}`} data-ms={c.id} data-ghost={c.ghost ? "1" : "0"}
-      title={`${c.name} · ${showDate(c.date)} · ${c.ghost ? "expected" : c.word}`} aria-label={`${label}, ${c.word}`}><MsMark name={c.mark} /><span>{label}</span></Tag>
+      title={`${c.name} · ${showDate(c.date)} · ${c.ghost ? "expected" : c.word}`} aria-label={`${label}, ${c.word}`}><MsMark name={c.mark} /><span>{c.ghost ? "Expected: " : ""}{c.name}</span></Tag>
   );
 }
 
@@ -44,19 +46,36 @@ function MonthGrid({ month, chips, today, open }) {
   );
 }
 
-export function MsCalendar({ rows, today, open }) {
-  const [scale, setScale] = useState("month");
+const SCALE_KEYS = SCALES.map(([v]) => v);
+const RANGE_NOTE = "The calendar can't go that far. Go back to today, or pick a date nearer to it.";
+
+export function MsCalendar({ rows, today, open, place, client }) {
+  // The scale is remembered per place, as the Timeline / Calendar choice is; a published file remembers nothing.
+  const [scale, setScale] = useState(() => { const s = client || !place ? null : recall(`msv.calv.${place}`, null); return SCALE_KEYS.includes(s) ? s : "month"; });
   const chips = calendarChips(rows);
-  const dates = markDates(rows).concat(today).sort();
-  const first = dates[0], last = dates[dates.length - 1];
-  const nowKey = bucketKey(scale, today);
-  const [at, setAt] = useState(nowKey);
-  const list = buckets(scale, first, last);
-  const here = list.find((b) => b.key === at) || list.find((b) => b.key === nowKey) || list[0];
-  const idx = list.indexOf(here);
-  const go = (k) => setAt(list[Math.max(0, Math.min(list.length - 1, idx + k))].key);
+  // Where to open when today is out of range: the earliest dated mark, else the start of the year of `today` (the clock is read once, in workItems.js).
+  const home = () => homeDay(rows, today);
+  const [at, setAt] = useState(home);        // any day inside the period shown
+  const [far, setFar] = useState(false);
+  const [moved, setMoved] = useState(false);   // true once the person has changed the period, so it is announced then and not on load
+  const box = useRef(null);
+  const [tick, setTick] = useState(0);        // bumped on every move, so focus can be put back once the new period is drawn
+  useEffect(() => {
+    // The button or chip that had focus is drawn again by a move: keep focus on the calendar, never let it fall to the page.
+    const el = box.current, a = document.activeElement;
+    if (tick && el && (!a || a === document.body || !document.contains(a))) el.focus();
+  }, [tick]);
+  const here = buckets(scale, at, at)[0];
+  const go = (k) => { const b = neighbour(scale, at, k); if (b) { setFar(false); setMoved(true); setAt(b.start); } else setFar(true); setTick((n) => n + 1); };
+  const toToday = () => { setFar(false); setMoved(true); setAt(home()); setTick((n) => n + 1); };
   // The new scale opens on today when today is in what is shown, else on what starts it.
-  const pick = (s) => { setScale(s); setAt(bucketKey(s, here.start <= today && today <= here.end ? today : here.start)); };
+  const pick = (s) => { if (!client && place) remember(`msv.calv.${place}`, s); setFar(false); setMoved(true); setScale(s); setAt(here.start <= today && today <= here.end ? today : here.start); };
+  const keys = (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    const k = { ArrowLeft: -1, PageUp: -1, ArrowRight: 1, PageDown: 1 }[e.key];
+    if (k) { e.preventDefault(); go(k); }
+  };
+  const inPeriod = periodChips(chips, here);
   let body;
   if (scale === "month") body = <MonthGrid month={here.key} chips={chips} today={today} open={open} />;
   else if (scale === "week") {
@@ -69,23 +88,36 @@ export function MsCalendar({ rows, today, open }) {
   } else {
     body = (
       <div class="cal-q">{here.months.map((m) => (
-        <div key={m}><button type="button" class="cal-qm" data-goto={m} title={`Show ${MONTHS[+m.slice(5) - 1]}`} onClick={() => { setScale("month"); setAt(m); }}>{MONTHS[+m.slice(5) - 1]}</button>
+        <div key={m}><button type="button" class="cal-qm" data-goto={m} title={`Show ${MONTHS[+m.slice(5) - 1]}`} onClick={() => { if (!client && place) remember(`msv.calv.${place}`, "month"); setScale("month"); setMoved(true); setAt(`${m}-01`); setTick((n) => n + 1); }}>{MONTHS[+m.slice(5) - 1]}</button>
           <MonthGrid month={m} chips={chips} today={today} open={open} /></div>
       ))}</div>
     );
   }
   return (
-    <div class="cal" data-scale={scale} data-at={here.key}>
+    <div class="cal" data-scale={scale} data-at={here.key} onKeyDown={keys} ref={box} tabIndex={0} role="group" aria-label="Milestone calendar" aria-describedby="cal-hint">
+      <span id="cal-hint" class="sr-only">Left and Right arrows or Page Up and Page Down move to the earlier or later period.</span>
+      <span class="sr-only" role="status" aria-live="polite" data-cal-say>{moved ? `Now on ${here.label}` : ""}</span>
       <div class="cal-bar">
-        <button type="button" class="ib" data-cal="-1" aria-label="Earlier" disabled={idx <= 0} onClick={() => go(-1)}><Icon name="left" /></button>
-        <button type="button" class="ib" data-cal="1" aria-label="Later" disabled={idx >= list.length - 1} onClick={() => go(1)}><Icon name="right" /></button>
-        <button type="button" class="btn" data-cal="0" onClick={() => setAt(nowKey)}>Today</button>
+        <button type="button" class="ib" data-cal="-1" aria-label="Earlier" onClick={() => go(-1)}><Icon name="left" /></button>
+        <button type="button" class="ib" data-cal="1" aria-label="Later" onClick={() => go(1)}><Icon name="right" /></button>
+        <button type="button" class="btn" data-cal="0" onClick={toToday}>Today</button>
         <b class="cal-t">{here.label}</b>
         <span class="seg cal-sc" role="group" aria-label="Calendar scale">
           {SCALES.map(([v, t]) => <button type="button" key={v} data-scale-b={v} aria-current={String(scale === v)} onClick={() => pick(v)}>{t}</button>)}
         </span>
       </div>
+      {far ? <p class="cal-far" role="status" data-cal-far>{RANGE_NOTE} <button type="button" class="btn" data-cal-home onClick={toToday}>Go to today</button></p> : null}
       {body}
+      <section class="cal-list" aria-label="Milestones in this period" data-cal-list>
+        <h4>Milestones in this period</h4>
+        {inPeriod.length ? (
+          <ul>{inPeriod.map((c, i) => (
+            <li key={`${c.id}${c.ghost}${i}`} data-cl={c.id} data-ghost={c.ghost ? "1" : "0"}><span class="cal-ld">{showDate(c.date)}</span> <span class="cal-ln">{c.name}</span> <span class={`mst c-${c.colour}`}><MsMark name={c.mark} />{c.ghost ? `Expected, ${c.word}` : c.word}</span></li>
+          ))}</ul>
+        ) : (
+          <p class="muted cal-empty" data-cal-empty>No milestones in this period. Use Earlier or Later to find the next one{far ? "." : <>, or <button type="button" class="btn" onClick={toToday}>go to today</button>.</>}</p>
+        )}
+      </section>
     </div>
   );
 }
