@@ -102,7 +102,7 @@ WALK_THROUGH = [
     ("#77", "Export opens in Excel and Publish arrives in the client folder", "live only",
      "needs Excel and the synced folder", "Export, open in Excel; Publish To client and check the folder syncs."),
     ("#230", "The board reaches the prototype by v0.7", "judgement",
-     "a planning question, not a behaviour", "Question for Alan: is 0.2.1 the current release, and is the gap list the plan?"),
+     "a planning question, not a behaviour", "Question for the owner: is 0.2.1 the current release, and is the gap list the plan?"),
 ]
 
 
