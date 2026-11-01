@@ -2,7 +2,7 @@
 
 Chrome (Skia) writes classic objects with Flate streams, and shows text as hex strings of glyph numbers in fonts that carry a
 ToUnicode map. This reads exactly that: each font's map, then every text-showing operator of every page stream, in order.
-It is not a general PDF reader: a file it cannot make sense of gives "" and the caller treats that as a failure, never as clean.
+It is not a general PDF reader: a file it cannot make sense of gives "" or raises Undecodable, and the caller treats that as a failure, never as clean.
 Two more cases are never clean either: a stream that would inflate past MAX_INFLATED (raises TooBig), and text shown in a font
 with no map, or with a glyph the map does not cover (raises Undecodable), because what such text says cannot be checked.
 """
@@ -36,12 +36,14 @@ def objects(data):
             try:
                 inflater = zlib.decompressobj()
                 raw = inflater.decompress(raw, room + 1)
-            except zlib.error:
-                raw = None
+            except zlib.error as e:             # a stream that will not inflate is never skipped: what it holds cannot be checked
+                raise Undecodable("a stream that cannot be inflated") from e
             else:
                 room -= len(raw)
                 if room < 0 or inflater.unconsumed_tail:
                     raise TooBig("a stream inflates past the limit")
+                if not inflater.eof:
+                    raise Undecodable("a stream that ends too soon")
         found[int(m.group(1))] = (head, raw)
     return found
 

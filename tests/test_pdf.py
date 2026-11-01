@@ -464,7 +464,7 @@ class PdfClientCopyIsChecked(unittest.TestCase):
 
     GOOD = b"%PDF-1.4\n1 0 obj<</Title (Weekly report)>>endobj\n"
 
-    def run_it(self, rig, data, text="All fine."):
+    def run_it(self, rig, data, text="Programme"):
         with mock.patch.object(publish_pdf, "make", return_value=data), mock.patch.object(pdftext, "text_of", return_value=text):
             return rig.publish(to_client=True, pdf=True)
 
@@ -645,6 +645,97 @@ class TheReviewOfThePdfChecks(unittest.TestCase):
         self.assertNotIn("<b>", seen[0], "the footer text is escaped")
         self.assertTrue(seen[0].index("Publication 4") < seen[0].rindex("</body>"))
         self.assertNotIn("Publication", seen[1], "no footer asked for, none added")
+
+
+
+# ===== The second review of the PDF option: same bytes, an allow-list of words, streams that will not inflate, the raw check =====
+class TheSecondReview(unittest.TestCase):
+    def test_the_page_printed_must_be_the_bytes_published(self):
+        body = b"<html><body>the report</body></html>"
+        called = []
+        real = Path.write_bytes
+
+        def drifting(self, data):
+            return real(self, data + b" ")          # the copy on disk is not what was handed over
+        with mock.patch.object(Path, "write_bytes", drifting):
+            with self.assertRaises(pdf.PdfError) as caught:
+                publish_pdf.make(body, "2026-10-28", make_pdf=lambda *a, **k: called.append(1))
+        self.assertEqual(called, [], "nothing is printed from a copy that differs")
+        self.assertEqual(str(caught.exception), publish_pdf.SAME_BYTES)
+        seen = []
+        publish_pdf.make(body, "2026-10-28", make_pdf=lambda page, out, *a, **k: (seen.append(Path(page).read_bytes()), Path(out).write_bytes(b"%PDF"))[1] and Path(out))
+        self.assertEqual(seen, [body])
+
+    def test_extra_words_are_found_and_the_footer_and_headings_are_allowed(self):
+        body = "<p>Harbour crossing plan</p> caf\\u00e9 &amp; bar".encode()
+        self.assertEqual(publish_pdf.extra_words("Harbour crossing PLAN Published Page Dashboard Work items Milestones", body), [])
+        self.assertEqual(publish_pdf.extra_words("Harbour zzextra crossing", body), ["zzextra"])
+        self.assertEqual(publish_pdf.extra_words("caf\u00e9", body), [], "an escaped letter in the file is the same letter")
+        for text, extra in (("Harbour crossing", False), ("Harbour crossing zzextra", True)):
+            with mock.patch.object(pdftext, "text_of", return_value=text):
+                got = publish_pdf.problems(b"%PDF-1.4", [], None, body)
+            self.assertEqual(got, [publish_pdf.EXTRA_WORDS] if extra else [], text)
+        with mock.patch.object(pdftext, "text_of", return_value="Harbour zzextra"):
+            self.assertEqual(publish_pdf.problems(b"%PDF-1.4", []), [], "no file to compare with: only the other checks")
+
+    def test_a_pdf_with_a_word_the_report_does_not_hold_is_refused_with_nothing_written(self):
+        rig = Rig(self)
+        with mock.patch.object(publish_pdf, "make", return_value=b"%PDF-1.4"), \
+                mock.patch.object(pdftext, "text_of", return_value="Programme zzstrangeword"):
+            status, got = rig.publish(to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"]), (409, False))
+        self.assertIn("words that are not in the published report", got["message"])
+        self.assertEqual(rig.everything_written(), [])
+
+    def test_real_chrome_a_page_with_an_added_word_is_refused(self):
+        chrome = chrome_path()
+        self.assertTrue(chrome, "Chrome is needed: set CLARK_CHROME or put google-chrome on the PATH")
+        rig = Rig(self)
+        real = publish_pdf.make
+
+        def other(body, *a, **k):          # prints a page that is not the published one
+            self.assertIn(b"</body>", body)
+            return real(body.replace(b"</body>", b"<p>Zzsneakedin wording</p></body>", 1), *a, **k)
+        with mock.patch.object(publish_pdf, "make", other):
+            status, got = rig.publish(to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"]), (409, False), got)
+        self.assertIn("words that are not in the published report", got["message"])
+        self.assertEqual(rig.everything_written(), [])
+
+    def test_a_stream_that_will_not_inflate_is_never_skipped(self):
+        for label, stream in (("broken", b"xxxxxxxxxxxx"), ("cut short", zlib.compress(b"BT /F1 12 Tf <0101> Tj ET" * 50)[:-6])):
+            extra = b"6 0 obj\n<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream\nendobj\n" % (len(stream), stream)
+            data = tiny_pdf(b"BT /F1 12 Tf <0101> Tj ET", extra=extra)
+            with self.assertRaises(pdftext.Undecodable, msg=label):
+                pdftext.text_of(data)
+            self.assertEqual(publish_pdf.problems(data, []), [publish_pdf.UNREADABLE], label)
+
+    def test_the_local_pdf_gets_the_raw_byte_check_too(self):
+        rig = Rig(self)          # no To client: only the Local copy is made
+        raw = b"%PDF-1.4\n1 0 obj<</Note (<a href=\"https://example.com/x\">)>>endobj\n"
+        with mock.patch.object(publish_pdf, "make", return_value=raw), \
+                mock.patch.object(pdftext, "text_of", return_value="Programme"):
+            status, got = rig.publish(pdf=True)
+        self.assertEqual((status, got["ok"]), (409, False), got)
+        self.assertIn("The PDF was held back", got["message"])
+        self.assertEqual(rig.everything_written(), [])
+
+    def test_a_fault_while_making_or_checking_is_a_plain_refusal(self):
+        for error in (OSError("disk"), ValueError("odd")):
+            for where in ("make", "text_of"):
+                rig = Rig(self)
+                if where == "make":
+                    first = mock.patch.object(publish_pdf, "make", side_effect=error)
+                    second = mock.patch.object(pdftext, "text_of", return_value="Programme")
+                else:
+                    first = mock.patch.object(publish_pdf, "make", return_value=b"%PDF-1.4")
+                    second = mock.patch.object(pdftext, "text_of", side_effect=error)
+                with first, second:
+                    status, got = rig.publish(to_client=True, pdf=True)
+                self.assertEqual((status, got["ok"], got["code"]), (409, False, "pdf_failed"), (where, error))
+                self.assertTrue(got["message"].endswith("Nothing was published."), got["message"])
+                self.assertNotIn("Traceback", got["message"])
+                self.assertEqual(rig.everything_written(), [])
 
 
 if __name__ == "__main__":

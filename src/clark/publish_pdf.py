@@ -12,8 +12,10 @@ Standard library only, Python 3.9.
 """
 import hashlib
 import logging
+import html
 import re
 import tempfile
+import unicodedata
 from pathlib import Path
 
 from clark import pdf, pdf_text, platform, publish, to_client
@@ -23,6 +25,10 @@ KEYS = ("pdf", "pdf_on_clash", "pdf_new_name", "pdf_confirmed")
 EXT = ".pdf"
 UNREADABLE = "a PDF clark could not read back"
 TOO_BIG = "a PDF too big to check"
+SAME_BYTES = "The report changed while the PDF was being made. Try again."
+EXTRA_WORDS = "words that are not in the published report"
+ADDED = frozenset({"published", "publication", "page", "dashboard", "work", "items", "milestones"})      # what the print itself adds: footer and tab headings
+WORD = re.compile(r"[^\W\d_]{3,}")
 SAVE_PROMPT = "Save the PDF"
 NO_CHROME_LINE = "A PDF needs Google Chrome, and clark could not find it on this computer."
 MESSAGES = {
@@ -30,6 +36,7 @@ MESSAGES = {
     "no_chrome": pdf.NO_CHROME + " Nothing was published.",
     "pdf_failed": "{reason} Nothing was published.",
     "pdf_held_back": "The PDF was held back, because it would hold {what}. Nothing was published.",
+    "pdf_not_checked": "The PDF could not be checked, so it was held back. Nothing was published.",
     "pdf_unreadable": "The PDF could not be read back to check it, so it was held back. Nothing was published.",
     "pdf_too_big": "The PDF is too big to check, so it was held back. Nothing was published.",
     "pdf_clash_title": "A PDF with that name is already in the client folder.",
@@ -134,6 +141,8 @@ def make(body_bytes, as_at, orientation="portrait", make_pdf=None, number=None):
     with tempfile.TemporaryDirectory(prefix="clark-pub-") as tmp:
         page = Path(tmp) / "report.html"
         page.write_bytes(body_bytes)
+        if page.read_bytes() != body_bytes:          # what is printed must be, byte for byte, what is published
+            raise pdf.PdfError(SAME_BYTES)
         return make_pdf(page, Path(tmp) / "report.pdf", orientation, footer_left=footer_text(as_at, number)).read_bytes()
 
 
@@ -156,7 +165,21 @@ def details_of(data):
     return "\n".join(found)
 
 
-def problems(data, markers, folder=None):
+def _hay(body):
+    """The published file's text, in one Unicode form and without letter case, with escaped letters (\\u00e9, &eacute;) also written out."""
+    text = body.decode("utf-8", "replace")
+    both = text + "\n" + html.unescape(re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), text))
+    return unicodedata.normalize("NFC", both).casefold()
+
+
+def extra_words(text, body):
+    """The words of the PDF's `text` that the published file `body` does not hold at all (bar what the print adds). Sorted."""
+    hay = _hay(body)
+    found = {unicodedata.normalize("NFC", w).casefold() for w in WORD.findall(text)}
+    return sorted(w for w in found - ADDED if w not in hay)
+
+
+def problems(data, markers, folder=None, body=None):
     """What is wrong with the PDF `data` as a file to send, as short phrases (to_client.held_words reads them), from its own
     text: the planted or dropped text, an address that goes outside, and the place of the client folder. Spaces are ignored on both
     sides (a line break can fall inside a word). A PDF whose text cannot be read is a problem, never taken as clean. The PDF's
@@ -167,12 +190,16 @@ def problems(data, markers, folder=None):
         text = pdf_text.text_of(data)
     except pdf_text.TooBig:
         return [TOO_BIG]
-    except pdf_text.Undecodable:               # text that cannot be turned back into words cannot be checked
+    except (pdf_text.Undecodable, ValueError, OSError):               # text that cannot be turned back into words cannot be checked
         return [UNREADABLE]
     if not text.strip():
         return [UNREADABLE]
+    page_text = text
     text = text + "\n" + details_of(data)
     found = list(publish.outside_addresses(text))
+    found += to_client.check_copy(data, markers=markers, folder=folder)          # the report's own check, on the PDF's raw bytes too
+    if body is not None and extra_words(page_text, body):          # the pages' words only: the details are Chrome's own
+        found.append(EXTRA_WORDS)
     squashed = to_client._key(re.sub(r"\s+", "", text))
     if folder and to_client._key(re.sub(r"\s+", "", str(folder))) in squashed:
         found.append("the location of the client folder")
@@ -194,6 +221,7 @@ class Step:
         self.identity = None         # which folder the client folder was when it was checked, set by plan_client
         self.markers = None          # what must be absent from the PDF, set by prepare
         self.saved = None            # the client folder as saved in Settings, set by prepare
+        self.body = None             # the published file's bytes, which the PDF's words are checked against, set by prepare
         self.note = None
 
     @property
@@ -238,14 +266,19 @@ class Step:
             data = make(body_bytes, as_at, number=built.get("number"))
         except pdf.PdfError as e:
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_failed"].format(reason=str(e).rstrip()))
-        bad = problems(data, markers, saved if self.client is not None else None)
+        except (OSError, ValueError):
+            return 409, pub.fail("pdf_failed", MESSAGES["pdf_not_checked"])
+        try:
+            bad = problems(data, markers, saved if self.client is not None else None, body_bytes)
+        except (OSError, ValueError):
+            return 409, pub.fail("pdf_failed", MESSAGES["pdf_not_checked"])
         if bad:
             if bad == [UNREADABLE]:
                 return 409, pub.fail("pdf_failed", MESSAGES["pdf_unreadable"])
             if bad == [TOO_BIG]:
                 return 409, pub.fail("pdf_failed", MESSAGES["pdf_too_big"])
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_held_back"].format(what=to_client.held_words(bad)))
-        self.data, self.local, self.markers, self.saved = data, local, markers, saved
+        self.data, self.local, self.markers, self.saved, self.body = data, local, markers, saved, body_bytes
         return None
 
     def write(self, pub):
@@ -265,7 +298,7 @@ class Step:
             try:             # the one writer into a client folder: the folder is checked again, the copy read back and checked, a bad one taken back
                 res = to_client.copy_to_client(
                     pub.fs, folder, name, self.data, project=None, at=None, markers=self.markers or [], replaces=replaces,
-                    confirmed=replaces, local_sha256=digest, extra_problems=lambda d: problems(d, self.markers, self.saved),
+                    confirmed=replaces, local_sha256=digest, extra_problems=lambda d: problems(d, self.markers, self.saved, self.body),
                     guard={"data_dir": pub.data_dir, "backups_dir": pub.backups_dir, "identity": self.identity})
             except Exception:
                 res = to_client.ClientResult(False, "failed", "")
