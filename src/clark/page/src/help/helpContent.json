@@ -421,7 +421,7 @@
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
      "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
-     "Only **Text** and **Needs from you** can be added so far. The other templates are listed with “Coming with a later release.” and cannot be added yet.",
+     "The new section opens ready to fill in, in place. A template with nothing in it yet is left out of what the client sees.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
     ]
    },
@@ -465,6 +465,19 @@
      "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.",
      "**Archive use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Show archived** finds it, and **Restore** or **Undo** brings it back."
+    ]
+   },
+   {
+    "id": "find-a-use-case",
+    "g": "The report",
+    "t": "Find and open a use case",
+    "w": "Edit › Use cases",
+    "go": "dashboard+edit",
+    "s": [
+     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
+     "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
+     "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
+     "Click a name to open the use case on its own page. Back returns to the list."
     ]
    },
    {
@@ -770,7 +783,7 @@
      ],
      [
       "p",
-      "**Text** and **Needs from you** are the only ones that can be added so far; the others say “Coming with a later release.” Each template works at the widths shown."
+      "Each template works at the widths shown. A template with nothing in it yet is left out of what the client sees."
      ],
      [
       "tbl",
@@ -834,6 +847,16 @@
         "Needs from you",
         "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.",
         "Full or half"
+       ],
+       [
+        "Link preview",
+        "A web page shown as a card you write: a dashboard, a news item, a recording.",
+        "Full"
+       ],
+       [
+        "One document",
+        "A single file to read.",
+        "Half or full"
        ]
       ]
      ]
@@ -906,7 +929,7 @@
        ],
        [
         "Grey headers",
-        "Slim gaps, and each section title in a grey band."
+        "Slim gaps, and each section title in a grey band, like the Work items groups."
        ],
        [
         "One card",
@@ -1373,7 +1396,7 @@
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
-       "**Work items**: actions, risks and issues, and decisions shown to the client, with a search box.",
+       "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
        "A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.",
        "A tile opens the Work items tab. A use case row opens its detail."
@@ -1691,6 +1714,14 @@
    [
     "[[Esc]] with a selection",
     "Work items, with no menu or box open: clear the selection"
+   ],
+   [
+    "[[O]] [[S]] [[P]] [[T]] [[C]]",
+    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box"
+   ],
+   [
+    "[[Shift+F10]]",
+    "Work items, on a row or card: open the menu of changes for it, or for the selection. The Menu key and a right-click open it too"
    ],
    [
     "[[Mod+K]]",

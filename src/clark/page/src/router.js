@@ -21,6 +21,7 @@
 export const VIEWS = ["dashboard", "work", "milestones", "usecases", "settings"];
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
+const UC_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;        // a use case's address key: its reference as written ("1.2") or its id; only the Use cases page reads it
 const MAX_F = 600;                                         // the longest `f` the router will carry
 const F_TEXT = /^(?:[A-Za-z0-9\-._~!$'()*+,;:@/?]|%[0-9A-Fa-f]{2})*$/;   // what an address carries as it is, and %XX
 const STUCK_MS = 400;                                      // how long back() waits for the address to move before it says it is stuck
@@ -40,7 +41,8 @@ function clean(state) {
   const peekable = view !== "settings";                    // Settings has no peek; one peek at a time, an item before a milestone
   const item = peekable && ID.test(text(s.item)) ? s.item : "";
   const ms = peekable && !item && ID.test(text(s.ms)) ? s.ms : "";
-  return { view, project, item, ms, f: opaque(s.f) };
+  const uc = view === "usecases" && UC_KEY.test(text(s.uc)) ? s.uc : "";     // "#usecases&p=PDF&uc=1.2": one use case's own page; no other page has it
+  return { view, project, item, ms, f: opaque(s.f), uc };
 }
 
 /** True for a well-formed project code. */
@@ -52,24 +54,24 @@ function unescape(v) {
   try { return decodeURIComponent(v); } catch (e) { return ""; }
 }
 
-/** A hash (with or without the "#") as {view, project, item, ms, f}. Never throws; whatever it can't trust is left empty. */
+/** A hash (with or without the "#") as {view, project, item, ms, f, uc}. Never throws; whatever it can't trust is left empty. */
 export function parse(hash) {
   const parts = (typeof hash === "string" ? hash : "").replace(/^#/, "").split("&");
   const found = {};
   for (const part of parts.slice(1)) {
     const at = part.indexOf("=");
     const key = at < 0 ? part : part.slice(0, at);
-    if (key in found || !["p", "item", "ms", "f"].includes(key)) continue;     // the first of a repeated key wins; others are ignored
+    if (key in found || !["p", "item", "ms", "f", "uc"].includes(key)) continue;     // the first of a repeated key wins; others are ignored
     const raw = at < 0 ? "" : part.slice(at + 1);
     found[key] = key === "f" ? raw : unescape(raw);                        // `f` is passed through as it stands, never decoded
   }
-  return clean({ view: unescape(parts[0]), project: found.p, item: found.item, ms: found.ms, f: found.f });
+  return clean({ view: unescape(parts[0]), project: found.p, item: found.item, ms: found.ms, f: found.f, uc: found.uc });
 }
 
-/** {view, project, item, ms, f} as a hash, the one form of each address ("#dashboard" for an empty state). Never throws. */
+/** {view, project, item, ms, f, uc} as a hash, the one form of each address ("#dashboard" for an empty state). Never throws. */
 export function format(state) {
   const s = clean(state);
-  return "#" + s.view + (s.project ? "&p=" + s.project : "") + (s.item ? "&item=" + encodeURIComponent(s.item) : "") +
+  return "#" + s.view + (s.project ? "&p=" + s.project : "") + (s.uc ? "&uc=" + encodeURIComponent(s.uc) : "") + (s.item ? "&item=" + encodeURIComponent(s.item) : "") +
     (s.ms ? "&ms=" + encodeURIComponent(s.ms) : "") + (s.f ? "&f=" + s.f : "");
 }
 
