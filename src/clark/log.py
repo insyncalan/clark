@@ -20,6 +20,7 @@ Rules the module keeps:
     day removes older files, and only files this module names (`clark-DATE.log`). A file dated in the future (a clock that was
     ahead) is never removed, and never makes today's cut-off later.
   - Each entry is one append, so two processes never mix a line.
+  - A new file is made readable and writable by its owner only (0o600).
   - Page errors are rate-limited to 20 a minute (the rest are dropped, no line is written for them), with quoted text, addresses, paths and addresses on the web removed.
 
 (creaite v2.6.11 `system/scripts/log.py`, rewritten; see the reuse record.)
@@ -49,7 +50,7 @@ FULL_NOTICE = "log full for today, only warnings and errors are kept from now on
 LAST_NOTICE = "log full for today, later entries are not kept"
 FILE = re.compile(r"clark-(\d{4}-\d{2}-\d{2})\.log$")
 ENTRY = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (DEBUG|INFO|WARN|ERROR)\s+(\S+)\s*(.*)$")
-CONTROL = re.compile(r"[\x00-\x1f\x7f  ]+")
+CONTROL = re.compile(r"[\x00-\x1f\x7f\x85\u2028\u2029]+")        # with \x85 and the rest, every break `str.splitlines` makes
 AREA_OK = re.compile(r"[^A-Za-z0-9_.-]+")
 ITEM_ID = re.compile(r"[A-Z][A-Z0-9]{1,6}-[A-Z]{1,2}-\d{1,6}\Z")      # ABC-A-003 (a project code, a kind letter, a number)
 KEY_OK = re.compile(r"[a-z][a-z0-9_]{0,24}\Z")
@@ -294,7 +295,7 @@ class Log:
 
     @staticmethod
     def _append(path, text):
-        fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
+        fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
         try:
             os.write(fd, text.encode("utf-8"))         # one write per entry, so two writers never mix a line
         finally:
@@ -390,6 +391,13 @@ class Log:
 
     # Reading
 
+    @staticmethod
+    def _lines(path):
+        """A file's lines, split on the newline only: a stray next-line or line-separator character is not a break."""
+        with open(str(path), encoding="utf-8", errors="replace", newline="\n") as f:
+            lines = f.read().split("\n")
+        return lines[:-1] if lines and lines[-1] == "" else lines
+
     def tail(self, n=200):
         """The last n lines across the files up to today (a file dated after today is left out), oldest first."""
         out = []
@@ -398,7 +406,7 @@ class Log:
             for p in reversed(self.files()):
                 if date.fromisoformat(FILE.match(p.name).group(1)) > today:
                     continue
-                out = p.read_text(encoding="utf-8", errors="replace").splitlines() + out
+                out = self._lines(p) + out
                 if len(out) >= n:
                     break
         except Exception:
@@ -407,20 +415,33 @@ class Log:
 
     def errors(self, days=KEEP_DAYS):
         """[{count, area, message, last}] for the errors in the last `days` days, grouped by area and message (numbers
-        ignored), most recent first."""
-        since = self.clock() - timedelta(days=days)
+        ignored), most recent first. Only the files dated in those days are read, one pass over each."""
+        now = self.clock()
+        since = now - timedelta(days=days)
         seen = {}
-        for line in self.tail(100000):
-            m = ENTRY.match(line)
-            if not m or m.group(2) != "ERROR":
+        for p in self.files():
+            try:
+                if not since.date() <= date.fromisoformat(FILE.match(p.name).group(1)) <= now.date():
+                    continue
+                lines = self._lines(p)
+            except (OSError, ValueError):
                 continue
-            at = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
-            if at < since or at > self.clock():
-                continue
-            msg = re.sub(r"\d+", "#", m.group(4).split("  ")[0])
-            g = seen.setdefault((m.group(3), msg), {"count": 0, "area": m.group(3), "message": msg, "last": at})
-            g["count"] += 1
-            g["last"] = max(g["last"], at)
+            for line in lines:
+                if " ERROR " not in line:
+                    continue
+                m = ENTRY.match(line)
+                if not m or m.group(2) != "ERROR":
+                    continue
+                try:
+                    at = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    continue
+                if at < since or at > now:
+                    continue
+                msg = re.sub(r"\d+", "#", m.group(4).split("  ")[0])
+                g = seen.setdefault((m.group(3), msg), {"count": 0, "area": m.group(3), "message": msg, "last": at})
+                g["count"] += 1
+                g["last"] = max(g["last"], at)
         return sorted(seen.values(), key=lambda g: g["last"], reverse=True)
 
 
