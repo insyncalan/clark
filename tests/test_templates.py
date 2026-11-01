@@ -39,9 +39,11 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "docs-links", "description": "The papers that go with this week’s report."},
     {"id": "callout", "description": "One thing the reader must see."},
     {"id": "key-dates", "description": "What’s coming, from the milestones."},
+    {"id": "needs", "description": "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by."},
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
 ]
-FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "raid-3", "raid-4", "work-items", "docs-links", "callout", "key-dates"]
+FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "raid-3", "raid-4", "work-items", "docs-links", "callout", "key-dates", "needs"]
+PLACEABLE = ["text", "needs"]          # the templates whose type the store takes: every other one is listed, not offered
 
 
 class Logic(unittest.TestCase):
@@ -125,22 +127,26 @@ class Logic(unittest.TestCase):
             "docs-links": ("The papers that go with this week’s report.", ["Heading", "File (one or more)", "Link list"], ["full", "half"]),
             "callout": ("One thing the reader must see.", ["Heading", "Callout · decision"], ["half", "full"]),
             "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
+            "needs": ("What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", ["Heading", "Row: what is needed", "From", "By"], ["full", "half"]),
         })
 
     def test_what_the_store_takes_is_what_the_list_says(self):
-        """ACCEPTS is the store's real answer: text is taken; every other template's type is refused by the real route."""
-        self.assertEqual(self.t("ACCEPTS"), {"types": ["text"]})
-        self.assertEqual(self.t("TEMPLATES.filter(T.templates.available).map(x => x.id)"), ["text"])
+        """ACCEPTS is the store's real answer: text and needs are taken; every other template's type is refused by the real route."""
+        self.assertEqual(self.t("ACCEPTS"), {"types": PLACEABLE})
+        self.assertEqual(self.t("TEMPLATES.filter(T.templates.available).map(x => x.id)"), PLACEABLE)
         from clark import changes, store
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title"), "new still takes a type and a title only")
         for x in self.t("TEMPLATES"):
-            if x["type"] != "text":
+            if x["type"] == "needs":
+                self.assertIn(x["type"], changes.NEW_SECTION_TYPES, "the store makes a needs section")
+                self.assertIn(x["type"], store.SECTION_TYPES)
+            elif x["type"] != "text":
                 self.assertNotIn(x["type"], store.SECTION_TYPES, f"{x['id']} needs a section type the store does not have yet (design note, section 6)")
 
     # ── search, kinds, counts, recently used ─────────────────────────────────
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 10)
+        self.assertEqual(len(self.t("list()")), 11)
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -242,7 +248,7 @@ class Logic(unittest.TestCase):
         self.assertNotIn("setRecent", src, "nothing sets state on a box that has already closed")
 
     def test_a_template_the_store_cannot_make_yet_sends_nothing(self):
-        for tid in FIRST_SLICE[1:]:
+        for tid in [t for t in FIRST_SLICE if t not in PLACEABLE]:
             p = self.t(f"plan({lit(S)}, {lit(tid)}, 'a', false)")
             self.assertEqual((p["ok"], p["message"]), (False, "Coming with a later release."), tid)
         self.assertEqual(self.t(f"plan({lit(S)}, 'nope', 'a', false)")["message"], "That template isn't in the list.")
@@ -272,9 +278,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 10)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 11)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates10", "Text and pictures2", "Figures2", "Work items3", "Files and links1", "People and dates1", "Notes1"])
+                             ["All templates11", "Text and pictures2", "Figures2", "Work items3", "Files and links1", "People and dates2", "Notes1"])
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_it_takes_the_event_exactly_as_the_gutter_sends_it(self):
@@ -402,24 +408,27 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 10, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 11, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():
-                if tid == "text":
+                if tid in PLACEABLE:
                     continue
                 row = p.js(f"document.querySelector('[data-template={tid}]').textContent")
                 self.assertIn(desc, row, f"{tid}: its own description is still readable")
                 self.assertIn("Coming with a later release.", row, tid)
             self.assertNotIn("Coming with a later release.", p.js("document.querySelector('[data-template=text]').textContent"))
             self.assertIn("ad-l-callout", p.js("document.querySelector('[data-template=callout] input').getAttribute('aria-describedby')"))
-            # the arrow keys walk through all ten, greyed or not, and the preview follows
+            # the arrow keys walk through all eleven, greyed or not, and the preview follows
             p.js("document.querySelector('input[name=template]:checked').focus()")
             seen = [p.js("document.activeElement.value")]
-            for _ in range(9):
+            for _ in range(10):
                 p.key("ArrowDown", code="ArrowDown", vk=40)
                 seen.append(p.js("document.activeElement.value"))
             self.assertEqual(seen, FIRST_SLICE, "the arrow keys reach every template, in order")
+            self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "Needs from you")
+            self.assertEqual(p.js("document.getElementById('ad-later-prev')"), None, "Needs from you can be placed: no reason is given")
+            p.key("ArrowUp", code="ArrowUp", vk=38)
             self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "Key dates")
             self.assertIn("What’s coming, from the milestones.", p.js("document.querySelector('.ad-prev').textContent"))
             self.assertEqual(p.js("document.getElementById('ad-later-prev').textContent"), "Coming with a later release.", "the reason is in text")

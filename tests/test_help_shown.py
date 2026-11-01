@@ -86,9 +86,18 @@ class Held(unittest.TestCase):
             for why in LATER[part].values():
                 self.assertTrue(why.strip())
 
+    def test_the_held_list_is_indented_evenly(self):
+        """Every held id sits two spaces in, like its neighbours (a stray space once crept onto one line)."""
+        text = (HELP / "helpLater.json").read_text(encoding="utf-8")
+        ids = set(LATER["howto"]) | set(LATER["reference"])
+        for n, line in enumerate(text.splitlines(), 1):
+            m = re.match(r'^( *)"([^"]+)": "', line)
+            if m and m.group(2) in ids:
+                self.assertEqual(len(m.group(1)), 2, f"helpLater.json line {n}: {m.group(2)} is not indented by two spaces")
+
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 21 - len(LATER["keys"]))
@@ -98,7 +107,7 @@ class Held(unittest.TestCase):
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (26, 30, 21))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (27, 30, 21))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -125,17 +134,17 @@ class AgainstThePage(unittest.TestCase):
                 self.assertRegex(self.CODE, proof, f"Help talks about {name}, which the page does not have yet")
 
     def test_the_check_has_teeth_on_the_whole_source(self):
-        """On the whole source (nothing held) the same checks fail: the peek is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), and Import and Export when Export did (#147); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
+        """On the whole source (nothing held) the same checks fail: ask clark is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), Import and Export when Export did (#147), and the peek when Sneak peek did (#42); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
         everything = " ".join(list(strings(RAW["howto"]["tasks"])) + list(strings(RAW["start"])))
         absent = [n for n, shown, proof in FEATURES if re.search(shown, everything) and not re.search(proof, self.CODE)]
-        for want in ("the peek", "ask clark", "Sneak peek"):
+        for want in ("ask clark", "Sneak peek"):
             self.assertIn(want, absent)
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
-        # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...); lower this only when a feature lands, never to hide a missing one
+        # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...), 73 with the peek's Activity tab (#42: Help now names Activity and no longer All, Updates and Source); lower this only when a feature lands, never to hide a missing one
         # 72 with Appearance (Light, Dark, System and Dark mode name something on the page now)
-        # 68 with the section templates (#96) as well (their words in the Add a section box and in Help name things the page does now: measured on the merged tree)
-        self.assertGreaterEqual(len(names), 68)
+        # 66 with the section templates (#96) and the peek's Activity tab and Appearance name features as well (measured on the merged tree)
+        self.assertGreaterEqual(len(names), 66)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
