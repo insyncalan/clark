@@ -117,6 +117,46 @@ class Undo(Base):
         body = self.post({"apply_id": step}, "/api/people/undo")[1]
         self.assertEqual(body["people"][0]["name"], "Sam Reed")
 
+    def test_an_undo_that_would_leave_something_behind_is_refused_and_changes_nothing(self):
+        a = self.add("Sam Reed", email="sam@x.example")["id"]
+        b = self.add("Sam Reid", email="reid@x.example")["id"]
+        s = clark_open(self.path)
+        with s.step("dashboard", USER) as st:
+            ref = st.create("actions", {"project": "ABC", "description": "Do it", "raised": "2026-10-01", "source": "t", "owner": "Sam Reed"})
+            st.update("actions", ref, {"owner_id": a})
+        s.close()
+        merged = self.post({"op": "merge", "from": a, "into": b})[1]
+        self.add("Jo Park", email="sam@x.example")                     # the address the merge freed is now someone else's
+        before = self.srv.call("GET", "/api/people")[1]["people"]
+        s = clark_open(self.path)
+        steps = s.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+        s.close()
+        status, body = self.post({"apply_id": merged["apply_id"]}, "/api/people/undo")
+        self.assertEqual((status, body["ok"]), (400, False), body)
+        self.assertEqual(body["message"], "This can't be undone: an email address it would put back is now used by Jo Park. "
+                         "Change or archive Jo Park first, then undo again. Nothing has been changed.")
+        self.assertEqual(self.srv.call("GET", "/api/people")[1]["people"], before)
+        s = clark_open(self.path)
+        self.addCleanup(s.close)
+        self.assertEqual(s.con.execute("SELECT owner, owner_id FROM actions").fetchone()[:], ("Sam Reid", b))
+        self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps)       # no step was written by the refusal
+
+    def test_a_good_undo_says_what_it_put_back(self):
+        a = self.add("Sam Reed", email="sam@x.example")["id"]
+        b = self.add("Sam Reid")["id"]
+        s = clark_open(self.path)
+        with s.step("dashboard", USER) as st:
+            ref = st.create("actions", {"project": "ABC", "description": "Do it", "raised": "2026-10-01", "source": "t", "owner": "Sam Reed"})
+            st.update("actions", ref, {"owner_id": a})
+        s.close()
+        merged = self.post({"op": "merge", "from": a, "into": b})[1]
+        status, body = self.post({"apply_id": merged["apply_id"]}, "/api/people/undo")
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["restored"], {"people": 2, "emails": 1, "items": 1})
+        self.assertEqual(body["message"], "Undone: put back 2 people, 1 email address and 1 item.")
+        sam = [p for p in body["people"] if p["id"] == a][0]
+        self.assertEqual((sam["archived"], sam["email"]), (0, "sam@x.example"))
+
     def test_only_a_people_step_is_undone_here(self):
         s = clark_open(self.path)
         with s.step("dashboard", USER) as st:
