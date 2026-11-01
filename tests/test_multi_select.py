@@ -368,7 +368,7 @@ class Page(Base):
             press(cdp, sid, "Escape")
             self.assertEqual(self.picked(cdp, sid), [], "Esc")
             pick2()
-            tap(cdp, sid, ".top")
+            tap(cdp, sid, "#project-name")     # the bar's own text: its middle is a tab now (Use cases)
             self.assertEqual(self.picked(cdp, sid), [], "a click outside")
             pick2()
             tap(cdp, sid, "#work h1")

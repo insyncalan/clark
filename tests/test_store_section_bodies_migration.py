@@ -393,7 +393,8 @@ class OtherBranchesDatabase(Base):
         con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(STEP),))
         con.close()
         # #96's later step makes the table again (which mends such a file), so this test runs with every step but that one
-        without_rebuilds = tuple(m for m in store_module.MIGRATIONS if m[1] is not store_module.migrate_section_templates)
+        without_rebuilds = tuple((n, (lambda con: None) if f is store_module.migrate_section_templates else f)     # same numbers: no gap
+                                 for n, f in store_module.MIGRATIONS)
         with mock.patch.object(store_module, "SCHEMA_VERSION", without_rebuilds[-1][0]), \
                 mock.patch.object(store_module, "MIGRATIONS", without_rebuilds):
             s = open_store(path, onedrive_roots=[])                   # any later step still runs; this one is skipped
