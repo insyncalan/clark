@@ -206,6 +206,8 @@ class Browser(unittest.TestCase):
                 cdp.js(f"document.querySelectorAll('.tab')[{i}].click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(f"document.querySelectorAll('.tab')[{i}].getAttribute('aria-selected') === 'true'", sid)), f"{names[i]} is the open tab")
                 time.sleep(0.3)      # the tab's page is drawn after the tab is marked, so read it only once it has settled
+                cdp.js("document.querySelectorAll('.ucp').forEach(d => { d.open = true; })", sid)      # the print opens every use case, so a person could have opened each
+                time.sleep(0.2)
                 seen |= set(re.findall(r"[^\W\d_]{4,}", cdp.js("document.getElementById('main').innerText", sid) or ""))
             self.printed(cdp, sid)
             stacked = set(re.findall(r"[^\W\d_]{4,}", cdp.js("document.getElementById('main').innerText", sid) or ""))
