@@ -195,7 +195,9 @@ class RefusedRequests(Rig):
         self.assertIn("ERROR server       route failed", text)
         self.assertIn("ERROR server       save failed", text)
         self.assertIn(clog.FULL_NOTICE, text)
-        self.assertEqual(sorted(e["message"] for e in b["errors"]), ["route failed", "save failed"])
+        self.assertEqual(sorted(e["count"] for e in b["errors"]), [1, 1])
+        self.assertIn("server: route failed", b["report"])
+        self.assertIn("server: save failed", b["report"])
         self.assertNotIn(MARK.lower(), text.lower())
 
 
@@ -205,10 +207,39 @@ class SettingsRoutes(Rig):
         status, b = self.api("GET", "/api/diagnostics")
         self.assertEqual(status, 200)
         self.assertEqual((b["ok"], b["level"], b["notice"]), (True, "normal", ""))
-        self.assertEqual([(e["count"], e["message"], e["last"]) for e in b["errors"]], [(1, "TypeError: reading", "29-10-2026 09:30")])
+        self.assertEqual([(e["count"], e["last"]) for e in b["errors"]], [(1, "29-10-2026 09:30")])
         self.assertTrue(b["report"].startswith("Diagnostics report\nMade on 29-10-2026 09:30"))
         self.assertIn("Version: 0.4.0", b["report"])
         self.assertIn("  projects: 2", b["report"])
+
+    def raise_one(self, area, message):
+        """Log one fault the way the server does: a real exception with a real stack, so the log holds a class and a file name."""
+        try:
+            raise TypeError("reading x")
+        except TypeError as e:
+            self.log.exception(area, message, e)
+
+    def test_each_kind_of_error_is_one_plain_line_and_none_gives_technical_text(self):
+        self.raise_one("server", "POST /api/profile failed")
+        self.raise_one("server", "GET /api/people failed")
+        self.log.error("page", "TypeError: reading")
+        self.log.error("store", "could not write")
+        status, b = self.api("GET", "/api/diagnostics")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(b["errors"]), 4)
+        for e in b["errors"]:
+            self.assertEqual(sorted(e), ["count", "last", "next", "what"])
+            self.assertEqual(e["next"], log_routes.TRY_AGAIN)
+            self.assertEqual(e["last"], "29-10-2026 09:30")
+        wording = sorted(e["what"] for e in b["errors"])
+        self.assertEqual(wording, ["", "", "", "Saving a change did not work."])
+        shown = json.dumps(b["errors"])
+        for technical in ("Traceback", ".py", "TypeError", "/api/", "POST", "GET", "failed", "server", "page", "store", "run_route", "profile", "people"):
+            self.assertNotIn(technical, shown)
+        self.assertIn("server: POST", b["report"])          # Copy diagnostics keeps the detail
+        self.assertIn("page: TypeError: reading", b["report"])
+        self.assertIn("store: could not write", b["report"])
+        self.assertIn("test_log_wiring.py", b["report"])
 
     def test_the_report_holds_no_planted_marker(self):
         self.counts = {"projects": 1, MARK: 3}
@@ -394,6 +425,28 @@ class Settings(Rig):
             self.until("document.querySelector('#diagnostics [role=status] p') !== null", "the line under the buttons")
             self.assertEqual(self.js("document.querySelector('#diagnostics [role=status] p').innerText"),
                              "Copied. Paste it into a message to the person who is helping you.")
+
+    def test_the_errors_list_says_plain_words_and_copy_diagnostics_keeps_the_detail(self):
+        try:
+            raise TypeError("reading x")
+        except TypeError as e:
+            self.log.exception("server", "POST /api/profile failed", e)
+        self.log.error("page", "TypeError: reading")
+        for width, scheme in self.each():
+            self.until("document.querySelectorAll('#log-errors li').length === 2", "the two errors")
+            shown = self.js("document.querySelector('#log-errors').innerText")
+            self.assertIn("Saving a change did not work.", shown)
+            self.assertEqual(shown.count("Try again. If it keeps happening, use Copy diagnostics and send it to us."), 2)
+            self.assertIn("29-10-2026 09:30", shown)
+            for technical in ("Traceback", ".py", "TypeError", "/api/", "POST", "failed", "server", "page:", "run_route"):
+                self.assertNotIn(technical, shown, f"{technical} at {width} {scheme}")
+            self.js("window.__copied = null; Object.defineProperty(navigator, 'clipboard', {value: {writeText: function (t) { window.__copied = t; return Promise.resolve(); }}, configurable: true})")
+            self.js("document.querySelector('[data-copy-diagnostics]').click()")
+            self.until("window.__copied !== null", "something was copied")
+            copied = self.js("window.__copied")
+            self.assertIn("server: POST", copied)
+            self.assertIn("failed (TypeError)", copied)
+            self.assertIn("page: TypeError: reading", copied)
 
     def test_open_folder_shows_the_log_folder_and_says_when_it_cannot(self):
         for width, scheme in self.each():

@@ -5,11 +5,26 @@ to (server.logs_route). Each method answers (status, body). The server stays fre
 decided in log.py, and what the report holds in diagnostics.py. Nothing here reads or returns a request body to the log.
 Standard library only, Python 3.9.
 """
+import re
+
 from clark import __version__, diagnostics, log as clog, platform
 
 NOT_SAVED = "The logging level could not be saved. Check that the folder can be written to, then try again."
 NOT_OPENED = "The log folder could not be opened. Try again; if it keeps happening, restart clark."
 BAD_LEVEL = "That level isn't one of the choices. Reload the page and try again."
+
+# The Errors list on screen says each error in plain words. The technical line (area, route, class) stays in the log and in Copy
+# diagnostics, which is for support. A kind with no approved sentence gets an empty `what`, never a guess.
+SAVE_DID_NOT_WORK = "Saving a change did not work."
+TRY_AGAIN = "Try again. If it keeps happening, use Copy diagnostics and send it to us."
+A_WRITE_FAILED = re.compile(r"^(POST|PUT|PATCH|DELETE) .* failed")
+
+
+def plain_error(group):
+    """One error group from the log, as the plain line the list shows: how many and when, what it was about (a fixed sentence
+    for its kind, or nothing where none is approved) and what to do next. None of the group's own text is passed on."""
+    what = SAVE_DID_NOT_WORK if group["area"] == "server" and A_WRITE_FAILED.match(group["message"]) else ""
+    return {"count": group["count"], "last": f"{group['last']:%d-%m-%Y %H:%M}", "what": what, "next": TRY_AGAIN}
 
 
 class Logs:
@@ -33,8 +48,7 @@ class Logs:
             counts = dict(self.counts()) if self.counts else {}
         except Exception:
             counts = {}
-        errors = [{"count": g["count"], "area": g["area"], "message": g["message"], "last": f"{g['last']:%d-%m-%Y %H:%M}"}
-                  for g in self.log.errors()]
+        errors = [plain_error(g) for g in self.log.errors()]
         report = diagnostics.build(self.log, self.version, {"log_level": self.log.level()}, counts)
         return 200, {"ok": True, "level": self.log.level(), "notice": self.log.debug_notice(), "errors": errors, "report": report}
 
