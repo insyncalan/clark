@@ -28,8 +28,12 @@ class AboutYou(Base):
         return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
 
     def open_menu(self, p):
-        p.js("document.querySelector('#profile-btn').click()")
-        p.until("!!document.querySelector('#profile-menu')", "the menu opened")
+        """Open the profile menu, clicking again if the first click is lost: right after a page load the button is already in the page before
+        the page's own script has taken it, so a click on a slow computer does nothing. It never clicks twice within a second (a second click
+        would close a menu that is still drawing), and it stops at once when the menu is there."""
+        p.until("(() => { if (document.querySelector('#profile-menu')) return true; "
+                "if (Date.now() - (window.__menuTried || 0) > 1000) { window.__menuTried = Date.now(); document.querySelector('#profile-btn').click(); } "
+                "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
     def close_menu(self, p):
         p.js("document.querySelector('#profile-menu').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
@@ -184,6 +188,18 @@ class AboutYou(Base):
                              "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
             self.assertEqual(self.saved(), before)
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
+
+    def test_C_the_menu_still_opens_when_the_first_click_is_lost(self):
+        """The helper that opens the menu must survive a click the page never took (a slow computer right after a load): the first click is
+        swallowed here, and the menu is there all the same, once and not toggled shut."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.js("window.__swallow = 1; document.addEventListener('click', (e) => { if (window.__swallow && e.target.closest('#profile-btn')) "
+                 "{ window.__swallow = 0; e.stopImmediatePropagation(); } }, true)")
+            self.open_menu(p)
+            self.assertEqual(p.js("window.__swallow"), 0, "the first click really was swallowed")
+            self.assertEqual(p.js("document.querySelectorAll('#profile-menu').length"), 1)
+            self.close_menu(p)
 
     def test_C_text_typed_while_a_save_is_on_its_way_stays_in_the_box(self):
         """The page must not put the saved value back over a box typed in since the save was sent (a person who keeps typing during a slow
