@@ -6,6 +6,7 @@ Run: python3 dev/run_tests.py test_v030
 Same shape as test_v020. Headless and fast: no Chrome is started here. What a person would check in the v0.3 items, and where:
   COVERED       already covered by a test elsewhere. test_every_covering_test_named_here_exists fails if one goes missing.
   WAITING       the feature is not on main yet; its check is written when it lands (the item is named). Skipped, with the question.
+  OWNER_QUESTIONS  decisions for the owner. Not checks, and not waiting on a feature. Skipped, with the question.
   WALK_THROUGH  judgement or live only, with the reason and the one line a person follows. Skipped: 'needs a person'.
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit exists, then fail if they are wrong.
 """
@@ -88,8 +89,14 @@ WAITING = [
      "no test for the name-and-email line on main; is #180 in 0.3, and where is its test?"),
     ("#147", "The Preview and Export follow-up items (#147 items 3 and 4) are all met",
      "#179 and #180 are open as its unmet items; is #147 closed by them?"),
-    ("#230", "The board reaches the prototype by v0.7",
-     "a planning question for the owner, not a hand check: is 0.2.1 the current release, and is the gap list the plan?"),
+]
+
+# Decisions for the owner: (item, what is being decided, the question with what each answer means).
+OWNER_QUESTIONS = [
+    ("#230", "The plan gets clark to a working first version by release 0.7",
+     "for the owner to decide, not a hand check: is 0.2.1 still the newest release? "
+     "Yes: say so, and the plan stays as it is. No: say which release is newest, and the plan is checked against it. "
+     "Second question: is the list of missing features (name where it is kept) the plan to follow? Yes or no."),
 ]
 
 # (item, check, kind, why, what the person does)
@@ -132,15 +139,23 @@ class Tables(unittest.TestCase):
         self.assertEqual(out, [])
 
     def test_each_check_is_in_one_list_only_and_each_walk_through_check_says_why_and_what_to_do(self):
-        checks = [c for _, c, _ in COVERED + WAITING] + [c for _, c, _, _, _ in WALK_THROUGH]
+        checks = [c for _, c, _ in COVERED + WAITING + OWNER_QUESTIONS] + [c for _, c, _, _, _ in WALK_THROUGH]
         self.assertEqual(sorted(c for c in set(checks) if checks.count(c) > 1), [])
         for item, check, kind, why, does in WALK_THROUGH:
             self.assertIn(kind, ("judgement", "live only"), check)
             self.assertTrue(why.strip() and does.strip(), check)
 
     def test_each_waiting_check_carries_its_question(self):
-        for item, check, question in WAITING:
+        for item, check, question in WAITING + OWNER_QUESTIONS:
             self.assertTrue(question.strip(), check)
+
+    def test_the_hand_check_sheet_asks_one_line_per_walk_through_check_and_no_owner_question(self):
+        text = (ROOT / "dev" / "handchecks" / "0.3.0-sheet.md").read_text(encoding="utf-8")
+        steps = re.findall(r"^\d+\. \*\*(.+?)\*\*", text, re.M)
+        self.assertEqual(steps, [c for _, c, _, _, _ in WALK_THROUGH])
+        for item, check, question in OWNER_QUESTIONS:
+            self.assertNotIn(item, text)
+            self.assertNotIn(check, text)
 
 
 class Cut(unittest.TestCase):
@@ -181,6 +196,12 @@ def _skips():
         w.__name__ = "test_%s_%d_waiting" % (item.lstrip("#"), i)
         w.__doc__ = check
         setattr(Walk, w.__name__, w)
+    for i, (item, check, q) in enumerate(OWNER_QUESTIONS):
+        def o(self, _m=f"question for the owner: {q}"):
+            self.skipTest(_m)
+        o.__name__ = "test_%s_%d_owner_question" % (item.lstrip("#"), i)
+        o.__doc__ = check
+        setattr(Walk, o.__name__, o)
 
 
 class Walk(unittest.TestCase):
