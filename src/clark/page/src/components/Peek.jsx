@@ -11,9 +11,13 @@ import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso } from "../wor
 import { itemIds, milestoneIds, around } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
+import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
 
 const DASH = "—";
 const text = (v) => (v === null || v === undefined || v === "" ? DASH : String(v));
+
+// An icon in its tone's colour (#78), with the words after it: the colour is never the only way to tell what it means.
+function Toned({ icon, tone, children }) { return <span class="pk-val"><span class={iconClass(tone)}><Icon name={icon} /></span>{children}</span>; }
 
 const ROW_OF = { owner: "owner", made_by: "owner", due_date: "due", needed_by: "due", date: "due", priority: "priority", status: "status" };
 
@@ -30,10 +34,10 @@ function ItemFields({ row, editing }) {
       <Row name="Type">{KIND_WORDS[row.kind] || row.kind}</Row>
       <Row key_="owner" ref_={row.id} name={row.kind === "decision" ? "Decision by" : "Owner"}>{who.text}</Row>
       <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Date" : "Due"}>
-        {due.date}{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
+        <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
       </Row>
-      {row.kind !== "decision" ? <Row key_="priority" ref_={row.id} name="Priority">{text(row.priority)}</Row> : null}
-      <Row key_="status" ref_={row.id} name="Status"><span class={`pill ${pill.class}`}>{pill.text}</span></Row>
+      {row.kind !== "decision" ? <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.priority)}>{text(row.priority)}</Toned></Row> : null}
+      <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}><span class={`pill ${pill.class}`}>{pill.text}</span></Toned></Row>
       <Row name="Workstream">{text(row.workstream)}</Row>
       <Row name="Milestone">{text(row.milestone)}</Row>
       <Row name="Use case">{text(row.uc)}</Row>
