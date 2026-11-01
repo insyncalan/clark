@@ -8,6 +8,7 @@ import re
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
@@ -17,6 +18,8 @@ from clark import excel
 from clark import excel_import as xi
 from test_excel import Demo, ON
 from test_excel_format import action
+
+FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
 
 YES_NO = ["Yes", "No"]
 PRIORITY = ["Urgent", "High", "Medium", "Low"]
@@ -227,7 +230,8 @@ class ProjectLists(unittest.TestCase):
 
     def test_the_same_data_gives_the_same_bytes(self):
         rows = {"workstreams": [{"name": "Build"}], "actions": [action(1, priority="High", due_date="2030-01-01")]}
-        self.assertEqual(self.build(rows).read_bytes(), self.build(rows).read_bytes())
+        with mock.patch.object(excel, "new_export_id", lambda: FIXED_ID):       # the id is random: held still, as the clock is
+            self.assertEqual(self.build(rows).read_bytes(), self.build(rows).read_bytes())
 
 
 class ImportIgnoresLists(unittest.TestCase):
