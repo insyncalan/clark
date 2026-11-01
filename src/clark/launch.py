@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-from clark import appfiles, platform, server
+from clark import appfiles, platform, server, update_helper
 from clark.__main__ import Usage, free_port_near, port_free, port_number
 
 NOTHING, OURS, OTHER_DATA, NOT_CLARK = "nothing", "ours", "other data folder", "not clark"
@@ -105,13 +105,53 @@ def wait_for_clark(port, mark, process, seconds=START_WAIT, health=ask_health, s
         sleep(POLL)
 
 
+FINISH_CODE = ("import runpy, sys\n"
+               "helper, data = sys.argv[1], sys.argv[2]\n"
+               "sys.argv = [helper, '--finish', '--data', data]\n"
+               "runpy.run_path(helper, run_name='__main__')\n")
+
+
+def finish_update(folder, say=print, run=platform.run_python_check, python=None):
+    """An update that stopped part way (its marker is still in the data folder): run the helper's --finish, from the copy the
+    update put in the data folder, so the old version is back before clark starts. True when clark may start now."""
+    marker = update_helper.marker_path(folder)
+    if not marker.exists():
+        return True
+    updates_folder = update_helper.updates_dir(folder).resolve()
+    try:
+        helper_dir = Path(json.loads(marker.read_text(encoding="utf-8")).get("helper_dir") or "").resolve()
+    except (OSError, ValueError, AttributeError):
+        helper_dir = None
+    helper = helper_dir / "update_helper.py" if helper_dir and helper_dir.parent == updates_folder \
+        and helper_dir.name.startswith(update_helper.HELPER_PREFIX) else None
+    if helper is None or not helper.is_file() or helper.is_symlink():
+        helper = Path(update_helper.__file__).resolve()             # the helper of the copy that is running now
+    try:
+        status, _ = run(python or sys.executable, FINISH_CODE, [helper, folder], timeout=300)
+    except Exception:  # noqa: BLE001  a helper that can't be run is said in words, never a traceback
+        status = update_helper.NOT_RESTORED
+    if status == update_helper.BUSY:
+        say(update_helper.MESSAGES["busy"])
+        return False
+    result = update_helper.read_result(folder) or {}
+    if status == update_helper.NOT_RESTORED or marker.exists():
+        say(update_helper.MESSAGES["not_restored"].format(log=platform.with_tilde(updates_folder / update_helper.LOG_NAME)))
+        return False
+    if isinstance(result.get("message"), str):
+        say(result["message"])
+    return True
+
+
 def launch(port, folder, say=print, environ=None, start=platform.start_detached, find_chrome=platform.find_chrome,
            open_window=platform.open_app_window, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
-           free=port_free):
-    """Start clark if nothing answers on `port`, then open its window. The exit code: 0 opened, 1 not (the reason is said)."""
+           free=port_free, finish=finish_update):
+    """Start clark if nothing answers on `port`, then open its window. An update that stopped part way is finished first
+    (always back to the version that was there). The exit code: 0 opened, 1 not (the reason is said)."""
     environ = os.environ if environ is None else environ
     folder = Path(folder)
     mark = appfiles.data_mark(folder)
+    if not finish(folder, say):
+        return 1
     seen = health(port, mark)
     if seen in (OTHER_DATA, NOT_CLARK):
         say(report(seen, port, folder, free))

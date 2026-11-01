@@ -182,7 +182,11 @@ class Words(unittest.TestCase):
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again"])
+                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Version and updates",      # Settings › Version and updates: with no updater the server says so
+                                  "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
+                                  "settings and published reports are kept.",
+                                  "Updates can't be shown right now. Restart clark the usual way and try again. Try again"])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)
