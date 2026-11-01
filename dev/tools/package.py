@@ -1,13 +1,16 @@
 """Build the download for one system: one zip with one top folder, clark-<version>/ (#57, step 3 of
 docs/handoff/packaging-57.md).
 
-Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE]   # writes dist/clark-<version>-mac.zip, for the team
+Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE]   # writes dist/clark-<version>-mac.zip
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
      python3 dev/tools/package.py windows                         # not built yet (steps 6 and 7 of the note)
 
-Who the zip is for. The default build is for the team only: it is built from the private copy, unscrubbed, so its files
-still carry the team's names in comments and README.md is the private one. Its Built line and its START-HERE.txt say so.
-A zip for a client is built with --for-client, which refuses, and writes nothing, unless (1) this folder is the scrubbed
+Who the zip is for is decided by the tree it is built from, not by a flag (#463). If git tracks any private-only file in
+it (any path publish_public.is_excluded names: the notes in EXCLUDED and docs/public/), it is the private copy, and the zip
+is for the team only: its files may still carry the team's names in comments and README.md may be the private one. If
+git tracks none, the tree holds none of the team's private notes, it is what the public repository holds, and the zip
+may be published there. The Built line and START-HERE.txt say which, and nothing else: they never claim the files are
+scrubbed. If git cannot say, the zip is for the team only. A zip for a client is built with --for-client, which refuses, and writes nothing, unless (1) this folder is the scrubbed
 public snapshot that dev/tools/publish_public.py makes (#94; see snapshot_problem for how that is told) and (2) the name
 guard finds nothing in any file going into the zip, START-HERE.txt included. The name guard is the one the publish tool
 runs: its own list of the team's and private names (publish_public.guard_kinds) and the hashed list of real client
@@ -57,6 +60,7 @@ def listed(system):
 LEFT_OUT = re.compile(r"(^|/)(__pycache__|\.DS_Store)(/|\Z)|\.(pyc|db|log)\Z")
 
 TEAM_ONLY = "This download is for the team only; it is built from the private copy."
+PUBLIC_BUILD = "This download is built from the public repository; it holds none of the team's private notes."
 
 FIXED_TIME = (2000, 1, 1, 0, 0, 0)  # every entry's time, so two builds are byte for byte the same
 UNIX = 3                            # ZipInfo.create_system: the modes below are Unix modes
@@ -137,9 +141,9 @@ def files(system, root=ROOT):
     return sorted(chosen)
 
 
-def start_here(system, for_client=False):
+def start_here(system, for_client=False, root=ROOT):
     text = START_HERE_MAC + (START_HERE_DEMO if INCLUDE_DEMO else "")
-    return text if for_client else f"{TEAM_ONLY}\n\n{text}"
+    return text if for_client else f"{audience(root)}\n\n{text}"
 
 
 def publish_tool():
@@ -149,6 +153,23 @@ def publish_tool():
         sys.path.insert(0, here)
     import publish_public
     return publish_public
+
+
+def private_paths(root):
+    """The paths git tracks in `root` that only the private copy holds (publish_public.is_excluded); None when git
+    cannot say, which the caller treats as private."""
+    pub = publish_tool()
+    try:
+        return [p for p in tracked(root, []) if pub.is_excluded(p)]
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+
+def audience(root=ROOT):
+    """The audience line of a default build (not --for-client): TEAM_ONLY if `root` tracks any private-only path, or if
+    git cannot say; else PUBLIC_BUILD. The Built line, START-HERE.txt and the tests all read it from here."""
+    found = private_paths(root)
+    return TEAM_ONLY if found is None or found else PUBLIC_BUILD
 
 
 def snapshot_problem(root):
@@ -164,7 +185,9 @@ def snapshot_problem(root):
     A remote's address was not chosen: a copy of either repo can have any remote, or none, and the address says
     nothing about the files themselves. The constants are read from the tool, so a change there changes this too."""
     pub = publish_tool()
-    private = [p for p in tracked(root, []) if pub.is_excluded(p)]
+    private = private_paths(root)
+    if private is None:
+        return "git could not list this folder's files, so it can't be told from the private copy"
     if private:
         return "this folder is the private copy: it holds the team's own notes that the public snapshot leaves out"
     log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
@@ -294,7 +317,7 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     names = files(system, root)
     top = top_folder(root)
     content = {f"{top}/{p}": ((root / p).read_bytes(), RUN_MODE if p in RUN_BIT else FILE_MODE) for p in names}
-    content[f"{top}/{START_HERE}"] = (start_here(system, for_client).encode("utf-8"), FILE_MODE)
+    content[f"{top}/{START_HERE}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
     if for_client:
         shown_paths, hidden = name_guard_hits({n[len(top) + 1:]: data for n, (data, _) in content.items()}, banned)
         if shown_paths or hidden:
@@ -353,7 +376,7 @@ def main(argv=None):
         print(e, file=sys.stderr)
         return 1
     who = ("It is for a client: it was built from the scrubbed public snapshot and the name guard found nothing."
-           if args.for_client else TEAM_ONLY)
+           if args.for_client else audience(ROOT))
     print(f"Built the {args.system.capitalize()} download: {shown(target)}. {who}")
     return 0
 
