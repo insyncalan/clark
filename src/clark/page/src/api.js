@@ -128,5 +128,5 @@ export async function readUseCaseHistory(project, id) {
 export async function readArchivedUseCase(project, id) {
   const r = await get(`/api/data?project=${encodeURIComponent(project)}&archived=only`);
   const list = r.ok && r.body.data && Array.isArray(r.body.data.use_cases) ? r.body.data.use_cases : null;
-  return list ? { ok: true, row: list.find((u) => u && u.id === id) || null } : { ok: false };
+  return list ? { ok: true, row: list.find((u) => u && (u.id === id || u.ref === id)) || null } : { ok: false };
 }

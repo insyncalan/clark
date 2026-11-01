@@ -6,7 +6,7 @@ import { signal, computed } from "@preact/signals";
 import * as route from "../router.js";
 import { rowsOf } from "../workItems.js";
 import { decode, encode, fits } from "../filters.js";
-import { ucFor, ucKey } from "../logic/useCasesList.js";
+import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
 export const VIEWS = route.VIEWS;
@@ -86,10 +86,6 @@ function go(s, options) {
 // peek: the entry is rewritten, not added.
 function settle() {
   const d = data.value;
-  if (d && status.value === "ready" && uc.value && !ucFor(d, uc.value)) {          // a use case that is gone (archived, another project, a mistyped link): the list, this entry rewritten
-    uc.value = "";
-    route.navigate(where(), { replace: true });
-  }
   if (!d || status.value !== "ready" || (!item.value && !ms.value)) return;
   if (item.value ? known(d, item.value, false) : known(d, ms.value, true)) return;
   item.value = "";
@@ -131,6 +127,14 @@ export function openUseCase(id) {
 }
 
 /** The use case page's way back: the list, one new entry (so Back returns to the use case). */
+// A use case address that names nothing (another project, a mistyped link; an archived use case is read first, by the Use cases page)
+// opens the list: the entry is rewritten, not added.
+export function leaveUseCase() {
+  if (!uc.value) return;
+  uc.value = "";
+  route.navigate(where(), { replace: true });
+}
+
 export function openUseCases() {
   go({ view: "usecases", project: project.value, item: "", ms: "", f: "", uc: "" });
 }

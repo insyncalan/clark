@@ -7,9 +7,10 @@
 // row's eye and Left back to its name. The search, the Status choice, the On the dashboard switch and the sort are remembered for each
 // project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
 import { signal, computed } from "@preact/signals";
-import { useEffect, useRef } from "preact/hooks";
-import { data, rows as allRows, project, uc, mode, openUseCase } from "../stores/report.js";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { data, rows as allRows, project, uc, mode, openUseCase, leaveUseCase } from "../stores/report.js";
 import { change } from "../stores/changes.js";
+import { readArchivedUseCase } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { listOf, ucFor, tidy, recalled, keep, shownOf, onCounts, narrowed, countWords, rowSay, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS } from "../logic/useCasesList.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
@@ -166,7 +167,29 @@ function UseCasesList() {
   );
 }
 
+// An address that is not a live use case: an archived one opens its detail (read-only, with Restore); anything else opens the list.
+function ArchivedAddress({ keyOf }) {
+  const code = project.value;
+  const [read, setRead] = useState({ key: "", id: "" });
+  useEffect(() => {
+    let stale = false;
+    readArchivedUseCase(code, keyOf).then((r) => {
+      if (stale) return;
+      if (r.ok && r.row) setRead({ key: keyOf, id: r.row.id });
+      else leaveUseCase();
+    });
+    return () => { stale = true; };
+  }, [code, keyOf]);
+  if (read.key !== keyOf) return <div class="ucd" data-ucd><p class="muted">Loading the use case.</p></div>;
+  return <UseCaseDetail id={read.id} />;
+}
+
 export function UseCasesPage() {
   const key = uc.value, found = key && data.value ? ucFor(data.value, key) : null;
-  return found ? <UseCaseDetail id={found.id} /> : <UseCasesList />;
+  const last = useRef("");                                  // the use case on show: Archive takes it out of the live rows, but its page stays
+  if (!key) last.current = "";
+  else if (found) last.current = found.id;
+  if (found) return <UseCaseDetail id={found.id} />;
+  if (key && data.value) return last.current ? <UseCaseDetail id={last.current} /> : <ArchivedAddress keyOf={key} />;
+  return <UseCasesList />;
 }

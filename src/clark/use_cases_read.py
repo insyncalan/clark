@@ -30,6 +30,7 @@ Standard library only, Python 3.9.
 import unicodedata
 
 from clark import glance, sanitise
+from clark.store import OP_MADE
 
 NEXT_STEP_FIELDS = ("id", "description", "owner", "due_date", "status")
 MILESTONE_FIELDS = ("id", "name", "baseline_date", "forecast_date", "status")
@@ -123,7 +124,7 @@ def history_lines(events, ref):
     for e in events or ():
         if not isinstance(e, dict) or e.get("table") != "use_cases" or e.get("ref") != ref:
             continue
-        made, field = e.get("op") == "insert", e.get("field")
+        made, field = e.get("op") == OP_MADE, e.get("field")
         if made and field != "id" or not made and field not in HISTORY_FIELDS:
             continue
         keep = field not in ("standing", "id")
