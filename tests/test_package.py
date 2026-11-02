@@ -51,7 +51,7 @@ class MacZipTest(unittest.TestCase):
         expected = set()
         for item in package.listed("mac"):
             expected.update(tracked(item) if item.endswith("/") else [item])
-        expected = {p for p in expected if not package.LEFT_OUT.search(p)} | {"START-HERE.txt", package.MANIFEST}
+        expected = {p for p in expected if not package.LEFT_OUT.search(p)} | {"START-HERE.txt", package.MANIFEST} | set(package.GENERATED_PAGES)     # #495: built, not tracked
         self.assertEqual(sorted(expected), self.inside())
         self.assertEqual(sorted(self.infos), list(self.infos), "entries are in sorted order")
 

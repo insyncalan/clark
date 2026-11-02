@@ -103,6 +103,26 @@ class MergeMain(unittest.TestCase):
         self.assertIn("Not pushed. Run the checks, then push once.", r.stdout)
         self.assertEqual(self.remote_main(), before)
 
+    def test_old_branch_with_pages_meets_main_that_no_longer_tracks_them(self):
+        """#495: main drops the pages; an old branch that changed them gets them removed from the branch, merge committed."""
+        self.write("src/a.txt", "a1\n")
+        self.build()
+        self.commit("branch change")
+        git(self.w, "checkout", "-q", "main")
+        git(self.w, "rm", "-q", "--cached", "src/clark/page/page.html", "src/clark/page/page-view.html")
+        self.write("src/b.txt", "b1\n")
+        self.write(".gitignore", "src/clark/page/*.html\n")
+        self.commit("main stops tracking the pages")
+        git(self.w, "push", "-q", "origin", "main")
+        git(self.w, "checkout", "-q", "feature")
+        before = self.remote_main()
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(git(self.w, "ls-files", "src/clark/page").stdout, "", r.stdout)
+        self.assertEqual(git(self.w, "log", "-1", "--format=%s").stdout.strip(), "Merge origin/main")
+        self.assertFalse((self.w / ".git/MERGE_HEAD").exists())
+        self.assertEqual(self.remote_main(), before)
+
     def test_source_conflict_stops(self):
         self.write("src/a.txt", "branch\n")
         self.commit("branch change")

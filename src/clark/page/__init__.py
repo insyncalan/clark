@@ -1,6 +1,8 @@
 """The page the server sends (#35): the committed, built page.html, with a user's own brand layered over the demo one.
 
-page.html is built by dev/tools/build_page.py and committed; nothing is built when clark runs. It carries the demo brand's
+page.html and page-view.html are built by dev/tools/build_page.py and are NOT committed (#495): CI, dev/run_tests.py and
+dev/tools/package.py build them, and a source checkout builds them (ensure_built below) the first time it needs them. The
+download holds them already built and has no dev/ folder, so a download never calls the bundler and installs nothing. It carries the demo brand's
 tokens in <style id="brand-demo">. If the user has a brand of their own, a tokens.css in system/branding/ (git ignores it),
 its text goes in as a second <style id="brand-local"> after the demo one, so the same token names take the user's values. The
 server hashes the exact bytes it sends, so the policy covers both blocks (#33). A user's own brand is a client's, so the
@@ -25,6 +27,8 @@ The brand block goes after the element with id="brand-demo" (DEMO_ID), found by 
 without that element, when there is a local brand, raises PageError rather than leaving the brand out without a word.
 """
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -125,6 +129,38 @@ class PageError(Exception):
     """The built page is not the shape clark expects. Said in words, with what to do next."""
 
 
+SOURCES = HERE / "src"
+BUILDER = ROOT / "dev" / "tools" / "build_page.py"      # in a source checkout only: the download has no dev/ folder
+_checked = False
+
+
+def newest_source():
+    """The latest modification time of the page's sources and its shell CSS; 0 when there are none."""
+    times = [f.stat().st_mtime for d in (SOURCES, HERE) for f in d.rglob("*") if f.is_file() and f.suffix != ".html"
+             and "__pycache__" not in f.parts] if SOURCES.is_dir() else []
+    return max(times, default=0)
+
+
+def ensure_built():
+    """Make sure both generated pages exist. In a source checkout (dev/tools/build_page.py is there) a missing page, or one
+    older than its sources, is built once per process with the pinned bundler. Anywhere else (the download) nothing is built:
+    a missing page is a PageError. Never installs anything; the bundler is fetched by dev/tools/esbuild.py only in development."""
+    global _checked
+    pages = (PAGE, VIEW_PAGE)
+    if not BUILDER.is_file():
+        if not all(p.is_file() for p in pages):
+            raise PageError("This copy of clark is missing its page files and cannot make them. Download clark again.")
+        return
+    if _checked and all(p.is_file() for p in pages):
+        return
+    if not all(p.is_file() for p in pages) or min(p.stat().st_mtime for p in pages) < newest_source():
+        done = subprocess.run([sys.executable, str(BUILDER)], cwd=str(ROOT), capture_output=True, text=True)
+        if done.returncode != 0 or not all(p.is_file() for p in pages):
+            raise PageError("The page could not be built (python3 dev/tools/build_page.py): "
+                            + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+    _checked = True
+
+
 DEMO_OPEN = re.compile(r"<style\b[^>]*?\sid\s*=\s*[\"']?" + DEMO_ID + r"[\"']?(?=[\s>/])[^>]*>", re.I)
 STYLE_CLOSE = re.compile(r"</style\s*>", re.I)
 
@@ -143,6 +179,7 @@ def after_demo_block(html):
 def page_html(branding=None, view=False):
     """The page, with the user's own brand tokens layered over the demo ones when they exist. view=True gives the published
     page (page-view.html) in place of the served one."""
+    ensure_built()
     html = (VIEW_PAGE if view else PAGE).read_text(encoding="utf-8")
     css = local_tokens(branding)
     if css is None:
