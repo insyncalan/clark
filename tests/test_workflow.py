@@ -214,6 +214,30 @@ class Workflow(unittest.TestCase):
         for job, body in self.jobs.items():
             self.assertNotIn("continue-on-error", body, job)
 
+    def test_the_guarded_list_in_the_plan_job_matches_run_tests_guarded(self):
+        """The plan job's case patterns are dev/run_tests.py GUARDED (source files) plus the documented extras and `.github/*`."""
+        text = WORKFLOW.read_text(encoding="utf-8")
+        plan = block(code(text), "plan", 2)
+        listed = set()
+        for ln in plan.splitlines():
+            m = re.match(r"^\s*([A-Za-z0-9_./*|-]+)\)\s", ln)
+            if m and "/" in m.group(1):
+                listed.update(m.group(1).split("|"))
+        src = (ROOT / "dev" / "run_tests.py").read_text(encoding="utf-8")
+        guarded = set(re.findall(r'"([^"]+)"', re.search(r"^GUARDED = \((.*?)\)", src, re.S | re.M).group(1)))
+        # .github/* covers the workflow files, so a GUARDED entry under .github/ is handled by that pattern
+        sources = {g for g in guarded if not g.startswith(".github/")}
+        extras = {"src/clark/publish.py", "src/clark/publish_flow.py", "src/clark/secret_screen.py",
+                  "src/clark/platform.py", "src/clark/updates.py", ".github/*"}
+        self.assertTrue(sources, "no source file found in run_tests.GUARDED")
+        self.assertIn(".github/*", listed, "the plan job must treat .github/* (the workflows) as guarded")
+        missing = sorted(sources - listed)
+        self.assertFalse(missing, f"in run_tests.GUARDED but missing from the workflow's plan list: {missing}")
+        extra = sorted(listed - sources - extras)
+        self.assertFalse(extra, f"in the workflow's plan list but not in GUARDED or the documented extras: {extra}")
+        gone = sorted(extras - listed)
+        self.assertFalse(gone, f"documented extras missing from the workflow's plan list: {gone}")
+
     def test_untrusted_text_reaches_the_shell_only_through_the_environment(self):
         for ln in self.text.splitlines():
             if "github.event.inputs" in ln or "github.head_ref" in ln or "github.base_ref" in ln:
