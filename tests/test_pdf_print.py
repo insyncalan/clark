@@ -94,7 +94,10 @@ class Source(unittest.TestCase):
     css = page.strip_css_comments((SRC / "shell.css").read_text(encoding="utf-8"))
 
     def test_the_print_rules_are_in_the_pages_own_style_and_name_no_address(self):
-        block = css_block(self.css, "@media print")
+        # the stylesheet holds more than one print block (the tracker's colour rule is one): the report's is the one that names print-all
+        starts = [m.start() for m in re.finditer(r"@media print", self.css)]
+        blocks = [css_block(self.css[at:], "@media print") for at in starts]
+        block = next((b for b in blocks if "print-all" in b), "")
         for need in ("print-all", ".top", ".toc", ".peek", ".fbar", ".wbar", "print-color-adjust", ".print-tab", "break-inside", "break-before"):
             self.assertIn(need, block, need)
         self.assertNotRegex(self.css, r"@media print[^{]*\{[^@]*(url\(|https?:|//)", "no address in the print rules")
