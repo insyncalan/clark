@@ -33,7 +33,7 @@ function say(kind, text) {
 const closeNote = () => { clearTimeout(noteTimer); note.value = null; };
 
 // The note itself. There is one live region on the page: in Edit it is the change toast's (Toast.jsx shows this note in it, so
-// the two never sit on top of each other), and in View, where there is no change toast, the menu has its own.
+// the two never sit on top of each other), and in View, where there is no change toast, the menu has its own, which also draws About you's own toasts (aboutYouToast.js).
 export function MenuNote() {
   const n = note.value;
   return n ? (
@@ -109,7 +109,7 @@ export function ProfileMenu() {
   return (
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
-      {mode.value === "edit" ? null : <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.local ? <ToastCard t={toast.value} /> : null}<MenuNote /></div>}      {/* in View too, a toast with its own Undo (About you, #429) */}
+      {mode.value === "edit" ? null : <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.own ? <ToastCard t={toast.value} /> : null}<MenuNote /></div>}      {/* in View too, About you's own toast, with Undo (#429) */}
     </>
   );
 }

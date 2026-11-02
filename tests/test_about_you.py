@@ -299,6 +299,7 @@ class AboutYou(Base):
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee", "the box has the old name")
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "clark has the old name")
             self.assertFalse(self.has_undo(p), "the Undo is used up")
+            self.toast_is(p, "Name is back to Sam Lee.")
 
     def test_C_undo_of_the_first_name_empties_the_box_and_the_menu_asks_for_a_name_again(self):
         with chrome() as cdp:
@@ -311,6 +312,7 @@ class AboutYou(Base):
             self.handled(p, "", "")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "")
             self.assertEqual(self.saved().get("profile_name", ""), "")
+            self.toast_is(p, "Name is blank again.")
 
     def test_C_a_refused_save_shows_no_toast_and_no_undo(self):
         with chrome() as cdp:
@@ -352,12 +354,119 @@ class AboutYou(Base):
             time.sleep(0.3)
             self.assertIsNone(p.js("document.querySelector('.toast')"))
 
+    def both_boxes(self, p, name, email):
+        """Change both boxes, then Enter in the name box: one save carries both."""
+        p.js("(() => { for (const [f, v] of [['name', %s], ['email', %s]]) { const el = document.querySelector('#about-' + f); "
+             "el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); } "
+             "document.querySelector('#about-name').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()"
+             % (json.dumps(name), json.dumps(email)))
+
+    def test_C_an_emptied_box_says_cleared_and_undo_says_what_went_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")
+            self.type_into(p, "email", "sam@example.test")
+            self.toast_is(p, "Email saved.")
+            self.type_into(p, "name", "")
+            self.toast_is(p, "Name cleared.")
+            self.assertTrue(self.has_undo(p))
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.toast_is(p, "Name is back to Sam Lee.")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee")
+            self.type_into(p, "email", "")
+            self.toast_is(p, "Email cleared.")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.toast_is(p, "Email is back to sam@example.test.")
+            self.assertEqual(self.saved().get("profile_email"), "sam@example.test")
+
+    def test_C_one_save_of_both_boxes_says_both_and_one_undo_takes_both_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.both_boxes(p, "Sam Lee", "sam@example.test")
+            self.toast_is(p, "Name and email saved.")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.toast_is(p, "Name and email are back as they were.")
+            self.assertEqual(self.saved().get("profile_name", ""), "")
+            self.assertEqual(self.saved().get("profile_email", ""), "")
+            self.both_boxes(p, "Sam Lee", "sam@example.test")
+            self.toast_is(p, "Name and email saved.")
+            self.both_boxes(p, "", "")
+            self.toast_is(p, "Name and email cleared.")
+            self.both_boxes(p, "Sam Lee", "sam@example.test")
+            self.toast_is(p, "Name and email saved.")
+            self.both_boxes(p, "", "other@example.test")
+            self.toast_is(p, "Name cleared. Email saved.")
+
+    # ── the toast in View goes as it does in Edit (#429) ────────────────────
+
+    def quick_toasts(self, p):
+        """Make the toast's 20 seconds 0.4 s: the page's own timer (changes.js say), only shorter."""
+        p.js("(() => { const t = window.setTimeout; window.setTimeout = (f, ms, ...a) => t(f, ms === 20000 ? 400 : ms, ...a); })()")
+
+    def test_C_in_view_the_toast_goes_after_its_time_like_in_edit(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "the page is in View")
+            self.quick_toasts(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            p.until("!document.querySelector('.toast')", "the toast went by itself in View")
+
+    def test_C_in_view_close_takes_the_toast_away_and_the_line_after_undo_shows_and_closes(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            p.js("document.querySelector('.toast [data-dismiss]').click()")
+            p.until("!document.querySelector('.toast')", "Close took it away")
+            self.type_into(p, "name", "Sam Lee Two")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Sam Lee Two")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.toast_is(p, "Name is back to Sam Lee.")
+            self.assertFalse(self.has_undo(p), "no Undo on the line after Undo")
+            p.js("document.querySelector('.toast [data-dismiss]').click()")
+            p.until("!document.querySelector('.toast')", "the line after Undo closed")
+
+    def test_C_in_view_typing_again_takes_the_toast_away(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            self.type_into(p, "name", "Sam Lee Two", leave="none")
+            p.until("!document.querySelector('.toast')", "the toast went once the person typed again")
+
+    def test_C_in_view_leaving_settings_takes_the_toast_and_its_undo_away(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            self.assertTrue(self.has_undo(p))
+            p.js("[...document.querySelectorAll('.tab')].find((t) => t.dataset.view !== 'settings').click()")
+            p.until("!document.querySelector('#about-name')", "Settings was left")
+            p.until("!document.querySelector('.toast')", "the toast did not follow the person to the report")
+            self.assertFalse(self.has_undo(p))
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "leaving does not undo anything")
+
 
 class Source(unittest.TestCase):
     def test_the_toast_words_are_pinned(self):
+        """The words agreed on #429 (01-11-2026), each as the file builds it."""
         text = (PAGE_SRC / "edit" / "aboutYouToast.js").read_text(encoding="utf-8")
-        for words in ('"Name saved."', '"Email saved."'):
+        for words in ("Name ${said(r.name)}.", "Email ${said(r.email)}.", "Name and email ${said(r.name)}.", "Name ${said(r.name)}. Email ${said(r.email)}.",
+                      '"cleared"', '"saved"', "Name is blank again.", "Name is back to ${b.name}.", "Email is blank again.", "Email is back to ${b.email}.",
+                      "Name and email are back as they were."):
             self.assertIn(words, text)
+        self.assertNotIn("Undone.", text)
+        self.assertNotIn("Name and email saved. ", text)
+        self.assertTrue((PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8").count("toast.value.own") == 1, "View draws only About you's own toast")
 
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")

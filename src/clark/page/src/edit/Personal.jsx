@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
-import { announce, noteTyped } from "./aboutYouToast.js";
+import { announce, leave, noteTyped } from "./aboutYouToast.js";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
@@ -36,6 +36,7 @@ function AboutYou() {
   }, [profile.value.name, profile.value.email]);
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   useEffect(() => { noteTyped(typed); }, [typed.name, typed.email]);      // the toast's Undo goes once the boxes hold something else (aboutYouToast.js, #429)
+  useEffect(() => leave, []);                                             // leaving Settings takes the toast (and its Undo) with it, in View as in Edit
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };

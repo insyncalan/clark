@@ -1,6 +1,6 @@
 // One change toast: its words, Undo while there is something to undo, and Close. A toast may carry its own Undo, `local` (a function: a save
 // that is not in the change log, such as About you), which the button calls instead of the change history's. Toast.jsx shows it in Edit;
-// the profile menu's region shows one that carries a local Undo in View too (Settings opens in View, #429).
+// the profile menu's region shows About you's own toasts (`own`) in View too (Settings opens in View, #429), and they go as in Edit: after 20 seconds, on Close, and when Settings is left.
 import { dismiss, undo } from "../stores/changes.js";
 
 export function ToastCard({ t }) {
