@@ -21,7 +21,7 @@ function ResetBox({ opener, onClose, api = { reset: demoReset }, reload = () => 
   async function go() {
     setBusy(true);
     const r = await api.reset();
-    if (!r.ok) { setBusy(false); setProblem(r.words); return; }
+    if (!r.ok) { setBusy(false); setProblem(r.status === 500 && r.body && r.body.code === "reset_failed" ? L.RESET.failed : r.words); return; }
     try { sessionStorage.setItem(KEY, L.RESET.done); } catch (e) { /* the card then says nothing after the reload */ }
     reload();
   }

@@ -128,13 +128,16 @@ class Edit(Base):
         self.assertEqual((status, got["code"], got["message"]), (409, "archived", project_route.ARCHIVED))
         self.assertEqual(self.counts(), before)
 
-    def test_a_workstream_that_is_closed_and_named_again_is_refused_in_the_stores_words(self):
+    def test_a_workstream_that_is_closed_and_named_again_is_reopened_not_made_twice(self):
         self.post(op="edit", code="ABC", name="Example Programme", workstreams=["Run"])         # Build is closed now
+        self.assertEqual(self.streams("ABC")["Build"], "Closed")
         before = self.counts()
-        status, got = self.post(op="edit", code="ABC", name="Example Programme", workstreams=["Build"])
-        self.assertEqual((status, got["ok"]), (400, False), got)
-        self.assertIn("Build", got["message"])
-        self.assertEqual(self.counts(), before)
+        status, got = self.post(op="edit", code="ABC", name="Example Programme", workstreams=["build", "Run"])
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual(self.streams("ABC")["Build"], "Active")
+        after = self.counts()
+        self.assertEqual(after["workstreams"], before["workstreams"], "nothing is made twice")
+        self.assertEqual(after["applies"], before["applies"] + 1, "ONE step")
 
 
 class ThroughTheServer(unittest.TestCase):

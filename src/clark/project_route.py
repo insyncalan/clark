@@ -11,7 +11,7 @@ Two ops:
   (the store gives them) and the workstreams named (Delivery when none is named), all in ONE step. A code that is taken, archived
   or not, is refused in words. It is the prototype's project form (system/prototype/views.js C.projectForm).
 - "edit": {op, code, name, client, workstreams}. The name and the client are changed; a workstream named that the project does not
-  have is added; one the project has and the list leaves out is closed (its items keep its name); an empty list leaves them all as they
+  have is added; one the project has closed and the list names again is reopened; one the project has and the list leaves out is closed (its items keep its name); an empty list leaves them all as they
   are. One step. An archived project is read only. The code is the one the request names and is never changed.
 
 Neither op can be undone from the page: the store's Undo does not take a project, a project's name or its workstreams back. A new
@@ -117,7 +117,9 @@ def _edit(store, who, code, name, client, names):
         raise Refused(NOT_FOUND, 404, "project_not_found")
     if row["archived"]:
         raise Refused(ARCHIVED, 409, "archived")
-    have = [w for w in store.read("workstreams", project=code) if not w["archived"] and w["status"] == "Active"]
+    live = [w for w in store.read("workstreams", project=code) if not w["archived"]]
+    have = [w for w in live if w["status"] == "Active"]
+    closed = {w["name"].lower(): w for w in live if w["status"] == "Closed"}
     kept = {w["name"].lower() for w in have}
     wanted = {n.lower() for n in names or ()}
     with store.step("dashboard", who, place="dashboard") as st:
@@ -129,7 +131,9 @@ def _edit(store, who, code, name, client, names):
         if changes:
             st.update("projects", code, changes)
         for n in names or ():
-            if n.lower() not in kept:
+            if n.lower() in closed:                            # taken out earlier and named again: it is reopened, not made twice
+                st.update("workstreams", closed[n.lower()]["id"], {"status": "Active"})
+            elif n.lower() not in kept:
                 st.create("workstreams", {"project": code, "name": n, "source": SOURCE})
         if names:
             for w in have:

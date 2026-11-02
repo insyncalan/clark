@@ -484,6 +484,7 @@ textarea.tpl-field { resize: vertical; }
 .ad.dlg p.error:empty { display: none; }
 .ad.dlg .imp-warn { padding: 8px 10px; border-left: 4px solid var(--status-amber); background: var(--status-amber-tint); color: var(--status-amber-text); border-radius: var(--radius-sm); }
 .ad.dlg .imp-note { font-size: 13px; }
+.ad.dlg .imp-cols { margin: var(--space-1) 0 0; font-size: 13px; max-height: 30vh; overflow: auto; }
 .ad.dlg .imp-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; max-height: 40vh; overflow: auto; }
 .ad.dlg .imp-list li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .ad.dlg .imp-list label { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }

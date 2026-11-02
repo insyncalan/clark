@@ -39,6 +39,17 @@ export const IMPORT = {
   fallback: "That could not be done. Reload the page. If it happens again, restart clark.",
 };
 
+// The columns the import reads, per sheet, as the prototype lists them in the first box (tests/test_settings_data_page.py checks them
+// against the export's own layout in excel.py, leaving out the ones that are worked out or never read back).
+export const COLUMNS_INTRO = "Columns, in any order (only the name or title is needed):";
+export const IMPORT_COLUMNS = [
+  ["Actions", ["ID", "Description", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
+  ["Risks and issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
+  ["Decisions", ["ID", "Decision", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Client-visible", "Client wording", "Use case", "Labels"]],
+  ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Internal note"]],
+  ["Use cases", ["ID", "Use case", "Shown as", "Status", "Headline", "Where it stands", "Order", "Client-visible"]],
+];
+
 export const PROJECT = {
   newTitle: "New project",
   newNote: "You can import its work items, milestones and use cases from Excel afterwards.",

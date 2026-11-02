@@ -110,7 +110,8 @@ class Card(Base):
                 p.js("document.querySelector('#import-workbook').click()")
                 p.until("!!document.querySelector('#import-box')", "the box opened")
                 self.assertEqual(p.js("document.querySelector('#import-box-t').textContent"), "Import from Excel")
-                self.assertEqual(p.js("document.activeElement.id"), "import-choose")
+                self.settle(p, "document.activeElement && document.activeElement.id === 'import-choose'", "focus on Choose a file")
+                self.assertEqual(p.js("document.querySelector('#import-columns') && document.querySelector('#import-columns').textContent.length > 0"), True)
                 self.choose(p, b64)
                 p.until("!!document.querySelector('#import-summary')", "the check")
                 self.assertEqual(p.js("document.querySelector('#import-box-t').textContent"), "Check the import")
@@ -130,6 +131,21 @@ class Card(Base):
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
 
+    def test_the_first_box_lists_each_sheets_columns_as_the_export_writes_them(self):
+        from clark import excel_import
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.querySelector('#import-workbook').click()")
+            self.settle(p, "document.querySelector('#import-columns')", "the column lists")
+            self.assertEqual(p.js("document.querySelector('#import-columns').previousElementSibling.textContent"),
+                             "Columns, in any order (only the name or title is needed):")
+            shown = p.js("[...document.querySelectorAll('#import-columns > span')].map(s => [s.querySelector('b').textContent, s.textContent.slice(s.querySelector('b').textContent.length).trim().split(', ')])")
+        want = {name: [label for label, field in cols if field == "id" or field not in (set(locked) | excel_import.LOCKED)]
+                for name, _, cols, locked in excel.SHEETS}
+        self.assertEqual({name: cols for name, cols in shown}, want)
+        self.assertEqual([name for name, _ in shown], ["Actions", "Risks and issues", "Decisions", "Milestones", "Use cases"])
+
     def test_a_file_that_is_not_a_workbook_is_said_in_words_in_the_first_box(self):
         with chrome() as cdp:
             p = self.page(cdp)
@@ -147,6 +163,7 @@ class Card(Base):
             self.open_settings(p)
             p.js("document.querySelector('#import-workbook').click()")
             p.until("!!document.querySelector('#import-box')", "the box opened")
+            self.settle(p, "document.activeElement && document.activeElement.id === 'import-choose'", "focus moved into the box")
             p.js("document.querySelector('#import-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
             p.until("!document.querySelector('#import-box')", "Esc closed it")
             self.settle(p, "document.activeElement && document.activeElement.id === 'import-workbook'", "focus back on Import workbook")
@@ -160,7 +177,7 @@ class Card(Base):
             p.until("!!document.querySelector('#reset-box')", "the confirm")
             self.assertEqual(p.js("document.querySelector('#reset-box-t').textContent"), "Reset the demo data?")
             self.assertIn("Every change you made here is replaced by the starting demo data.", p.js("document.querySelector('#reset-box').innerText"))
-            self.assertEqual(p.js("document.activeElement.id"), "reset-cancel", "Cancel has focus: Enter does not reset")
+            self.settle(p, "document.activeElement && document.activeElement.id === 'reset-cancel'", "Cancel has focus: Enter does not reset")
             p.js("document.querySelector('#reset-cancel').click()")
             p.until("!document.querySelector('#reset-box')", "Cancel closed it")
             self.assertEqual(self.rebuilt, [])
@@ -180,7 +197,8 @@ class Card(Base):
             p.until("!!document.querySelector('#reset-go')", "the confirm")
             p.js("document.querySelector('#reset-go').click()")
             p.until("!!document.querySelector('#reset-problem').textContent", "the refusal")
-            self.assertEqual(p.js("document.querySelector('#reset-problem').textContent"), demo_route.FAILED)
+            self.assertEqual(p.js("document.querySelector('#reset-problem').textContent"), "The demo data could not be put back. Nothing was changed.")
+            self.assertEqual(demo_route.FAILED, "The demo data could not be put back. Nothing was changed.")
             self.assertTrue(p.js("!!document.querySelector('#reset-box') && !document.querySelector('#reset-go').disabled"))
 
     def test_the_buttons_and_the_boxes_are_readable_in_light_and_dark(self):

@@ -65,6 +65,8 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
       <Dialog key="pick" id="import-box" opener={opener} title={T.pickTitle} onClose={onClose} first="#import-choose"
         foot={<>{cancel}<button type="button" class="btn pri gb" id="import-choose" disabled={step.at === "checking"} onClick={() => input.current && input.current.click()}><Icon name="ul" />{T.choose}</button></>}>
         <p>{T.pickBody}</p>
+        <p class="muted">{L.COLUMNS_INTRO}</p>
+        <p class="imp-cols" id="import-columns">{L.IMPORT_COLUMNS.map(([sheet, cols]) => <span key={sheet}><b>{sheet}</b> {cols.join(", ")}<br /></span>)}</p>
         {step.at === "checking" ? <p class="muted" role="status" id="import-reading">{T.checking}</p> : null}
         <p class="error" role="alert" id="import-problem">{problem}</p>
         {fileInput}
