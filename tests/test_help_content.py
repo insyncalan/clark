@@ -313,5 +313,20 @@ class LowWordsRound(unittest.TestCase):
             self.assertIn(f"'{line}'", help_js, f"{name}: the prototype's Help line is its Settings line")
 
 
+    def test_work_items_names_the_chips_and_clear_all_the_page_draws(self):
+        self.assertIn("A line under the filters shows how many items match, with a chip for each filter", self.ALL)
+        self.assertIn("When nothing matches, the list says so and offers **Clear all**", self.ALL)
+
+    def test_milestone_at_risk_uses_the_pages_own_legend_words(self):
+        """The page has no control that sets a state; its legend says 'Marked at risk by the project team.'"""
+        self.assertIn("Marked at risk by the project team.", self.ALL)
+        self.assertNotIn("Marked at risk by hand", self.ALL)
+
+    def test_ids_line_says_everything_numbered_code_001_shares_the_numbering(self):
+        """Assumptions and dependencies are stored with risks and issues (one CODE-001 series)."""
+        self.assertIn("Actions, decisions, and everything numbered CODE-001 share one numbering", self.ALL)
+        self.assertNotIn("Actions, risks, issues and decisions share one numbering", self.ALL)
+
+
 if __name__ == "__main__":
     unittest.main()

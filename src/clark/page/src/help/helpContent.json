@@ -1025,7 +1025,8 @@
      ],
      [
       "p",
-      "Every filter can be **is** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
+      "Every filter can be **is** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board).",
+      "A line under the filters shows how many items match, with a chip for each filter (the **×** removes it) and **Clear all**. When nothing matches, the list says so and offers **Clear all**."
      ]
     ]
    },
@@ -1557,7 +1558,7 @@
       "ul",
       [
        "Dates are shown day, month, year: DD-MM-YYYY.",
-       "IDs: actions CODE-A-001, decisions CODE-D-001, risks, issues, assumptions and dependencies CODE-001, milestones CODE-M-001. Actions, risks, issues and decisions share one numbering, so CODE-A-002 and CODE-002 never both exist. CODE is the project’s short code.",
+       "IDs: actions CODE-A-001, decisions CODE-D-001, risks, issues, assumptions and dependencies CODE-001, milestones CODE-M-001. Actions, decisions, and everything numbered CODE-001 share one numbering, so CODE-A-002 and CODE-002 never both exist. CODE is the project’s short code.",
        "Use cases keep the ID you give them, such as 3.1."
       ]
      ]
@@ -1936,7 +1937,7 @@
    ],
    [
     "At risk",
-    "Marked at risk by hand."
+    "Marked at risk by the project team."
    ],
    [
     "Slipped",
