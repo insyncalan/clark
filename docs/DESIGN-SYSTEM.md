@@ -24,7 +24,7 @@ An own look may also add rules (a logo picture, a still picture for the home ban
 | Type | `--font` `--font-head` `--font-label`, `--size-*`, `--leading`, `--weight-*`, `--tracking-caps` | One text face, one heading face, one label face |
 | Shape and space | `--radius-sm` `--radius` `--radius-lg` `--radius-pill`, `--space-1` to `--space-8`, `--max-width`, `--topbar` | Corners and spacing: use the tokens, not numbers |
 | Depth and motion | `--shadow`, `--ease-*`, `--dur-*`, `--stagger` | See section 6 |
-| Pictures | `--image-cover` `--image-fade` `--art-home` `--art-home-height` | Empty and flat by default; only an own look fills them |
+| Pictures | `--image-cover` `--image-logo` `--image-fade` `--art-home` `--art-home-height` | Empty and flat by default; only an own look fills them. `--image-logo` is the logo at the right of the Client Requested Report View's cover band |
 | Profile circle | `--profile-bg` `--profile-fg` `--profile-ring` `--profile-size` | The initials circle in the header |
 
 **Rule: no raw colour in a rule.** A rule in `shell.css` or a component uses a token. A new colour is a new token in the contract, with a dark value.
