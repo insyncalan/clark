@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# merge_main.sh: merge origin/main into the checked-out branch and rebuild the generated pages. Run BY HAND; it is not a
+# merge_main.sh: merge origin/main into the checked-out branch (and, for an old branch, deal with the generated pages). Run BY HAND; it is not a
 # hook, installs nothing, writes no git config, and never pushes.
 #
-# Why: every merge of main dirties many open PRs, because the generated pages (src/clark/page/page.html and page-view.html)
+# Since #495 the generated pages are not committed on main. A new branch needs nothing from this script but the merge. An OLD branch
+# that still carries the pages meets main's deletion of them as a conflict on those two files alone: the script then drops them from
+# the branch (git rm --cached; the built files stay on disk, ignored, and are rebuilt when needed) and commits the merge. While
+# origin/main still tracks the pages (before #495 landed) it behaves as it always did, below.
+#
+# Why (before #495): every merge of main dirties many open PRs, because the generated pages (src/clark/page/page.html and page-view.html)
 # conflict. A git merge DRIVER cannot fix it: git runs the driver while the working tree still holds the PRE-merge sources
 # (the page files sort before src/, and the other files are not merged on disk yet), so the driver builds from stale
 # sources and the merge looks clean with a stale page (build_page.py --check then says both pages are out of date).
@@ -34,6 +39,8 @@ if git merge-base --is-ancestor origin/main HEAD; then
   exit 0
 fi
 
+main_tracks_pages() { git cat-file -e "origin/main:src/clark/page/page.html" 2>/dev/null; }
+
 rebuild() {
   python3 dev/tools/build_page.py >/dev/null || return 1
   # shellcheck disable=SC2086
@@ -42,7 +49,9 @@ rebuild() {
 
 if git merge -m "$MSG" origin/main; then
   say "Merged cleanly."
-  if python3 dev/tools/build_page.py --check >/dev/null 2>&1; then
+  if ! main_tracks_pages; then
+    say "origin/main does not track the generated pages; nothing to rebuild."
+  elif python3 dev/tools/build_page.py --check >/dev/null 2>&1; then
     say "Pages are up to date."
   else
     say "A clean merge left the pages out of date. Rebuilding."
@@ -58,6 +67,24 @@ else
     if [ -n "$others" ]; then say "Other conflicting files:"; printf '  %s\n' $others; else say "The merge failed without a file conflict (see git's message above)."; fi
     say "Resolve them and commit, or undo with: git merge --abort"
     exit 1
+  fi
+  if ! main_tracks_pages; then
+    say "Only the generated pages conflict, and main no longer tracks them. Dropping them from this branch."
+    # shellcheck disable=SC2086
+    git rm -q --cached -- $PAGES || exit 1
+    git commit -q -m "$MSG" || exit 1
+    say "Merge committed. The pages are built when clark or the tests need them (python3 dev/tools/build_page.py)."
+    say "Not pushed. Run the checks, then push once."
+    exit 0
+  fi
+  if ! git cat-file -e "HEAD:src/clark/page/page.html" 2>/dev/null; then
+    say "Only the generated pages conflict. This branch no longer tracks them, so main's copies are not taken."
+    # shellcheck disable=SC2086
+    git rm -q --cached --ignore-unmatch -- $PAGES || exit 1
+    git commit -q -m "$MSG" || exit 1
+    say "Merge committed. The pages are built when clark or the tests need them (python3 dev/tools/build_page.py)."
+    say "Not pushed. Run the checks, then push once."
+    exit 0
   fi
   say "Only the generated pages conflict. Taking main's copies and rebuilding."
   # shellcheck disable=SC2086

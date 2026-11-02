@@ -594,7 +594,11 @@ def ask_provider(provider, request, codes=(), exists=lambda ref: False, facts=No
     except Exception:  # noqa: BLE001  the class and message of a provider's error could hold request text; neither is kept
         return Failure(COULD_NOT)
     if isinstance(got, Failure):
-        return got if isinstance(got.message, str) and got.message else Failure(COULD_NOT)
+        if not (isinstance(got.message, str) and got.message):
+            return Failure(COULD_NOT)
+        if leaks(got.message, canary):               # #299: a Failure's text is checked like a reply; the text and the marker are not kept
+            return Failure(HELD_BACK)
+        return got
     if not isinstance(got, str):
         return Failure(COULD_NOT)
     if leaks(got, canary):                           # the whole reply is dropped; the reply and the marker are not kept
