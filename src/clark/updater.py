@@ -63,6 +63,12 @@ ARMED_APP_ONLY = ("Your data has changed since the update, and putting back the 
 UPDATE_STOPPED = ("The update to version {to} didn't install, and your data is still in its newer layout. Choose Undo update to put "
                   "your data back as it was before the update.")
 INSTALLED = "Version {to} is installed."
+UNDO_STOPPED_BACK = ("The undo couldn't start. Your data was put back as it was before the update, and your latest changes were "
+                     "then put back over it, so your data is as it was before you pressed Undo. Close every clark window, "
+                     "open clark again and try again.")
+UNDO_STOPPED_ASIDE = ("The undo couldn't start. Your data was put back as it was before the update, and the changes you made "
+                      "since are kept in clark's backups folder, in your data folder. Close every clark window and open "
+                      "clark again. Ask for help if your latest changes are missing.")
 UNDO_DONE = "Version {to} has been put back. Your projects are as they were."
 CHOOSE_PROMPT = "Choose the clark update file"
 
@@ -263,14 +269,14 @@ class Updater:
         ui.hand_over(self.data, self.app, staging, stamp, from_version, to_version, self.schema, self.server_pid, self.port,
                      appfiles.MARK_HEADER, appfiles.data_mark(self.data), backup_dir, **kw)
 
-    def _stopped(self, stamp, error):
+    def _stopped(self, stamp, error, message=None):
         """A step before the hand-over failed: nothing in the app folder changed. Put the flag down and say so."""
         ui.remove_staging(self.app, stamp)
         self._drop(PENDING)
         self._installing = False
         LOG.info("an update stopped before it began: %s", error.key)
         LOG.debug("an update stopped before it began: %s", error.detail)
-        return reply(409, error.key, error.message)
+        return reply(409, error.key, message or error.message)
 
     # --- POST /api/update/arm-undo and /api/update/undo ---
 
@@ -324,7 +330,9 @@ class Updater:
                 self._hand_over(staging, stamp, self.version, to, undo_set)
             except (updates.UpdateError, ui.InstallError) as e:
                 if restored:                                      # #280: the data was put back but nothing took over: put the newer data back too
-                    ui.put_back_newer_data(self.db, began)
+                    # the data was replaced, so "nothing was changed" is not true: say what happened to it
+                    said = UNDO_STOPPED_BACK if ui.put_back_newer_data(self.db, began) else UNDO_STOPPED_ASIDE
+                    return self._stopped(stamp, e, said)
                 return self._stopped(stamp, e)
             return 200, {"ok": True, "restart": True, "message": UNDOING.format(to=to)}
         finally:

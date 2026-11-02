@@ -291,9 +291,37 @@ class HandOverFailsAfterTheRestoreTest(Rolled):
         status, armed = failing.arm_undo({})
         status, body = failing.undo({"arm_id": armed["arm_id"]})
         self.assertEqual(409, status)
+        self.assertEqual("helper", body["code"])
+        self.assertNotIn("nothing was changed", body["message"].lower())
+        self.assertIn("data", body["message"])
+        self.assertIn("as it was before you pressed Undo", body["message"])
         self.assertEqual(str(store_module.SCHEMA_VERSION), version(self.db))          # still the newer layout
         self.assertEqual(newest, rows(self.db, "projects"))                           # with the change made after the update
         self.assertEqual([], [n for n in os.listdir(self.data) if n.startswith("clark.db.restoring")])
+
+
+    def test_a_hand_over_that_fails_when_the_newer_data_cannot_be_put_back_says_where_it_is_kept(self):
+        self.seams = MigratingSeams(self, answers=True)
+        body = self.reviewed()
+        self.assertEqual(200, self.up.install({"review_id": body["review_id"]})[0])
+        self.assertEqual(h.OK, self.run_helper()[0])
+        s = open_store(self.db, onedrive_roots=[])
+        copy = s.migration_backup
+        s.close()
+        now = self.make(version="0.3.1", migration_backup=copy)
+        now.settle()
+        failing = self.make(version="0.3.1", migration_backup=copy, start=lambda *a, **k: (_ for _ in ()).throw(OSError("no")))
+        armed = failing.arm_undo({})[1]
+        original = ui.put_back_newer_data
+        ui.put_back_newer_data = lambda *a, **k: False
+        try:
+            status, said = failing.undo({"arm_id": armed["arm_id"]})
+        finally:
+            ui.put_back_newer_data = original
+        self.assertEqual((409, "helper"), (status, said["code"]))
+        self.assertNotIn("nothing was changed", said["message"].lower())
+        self.assertIn("kept in clark's backups folder", said["message"])
+        self.assertIn("put back as it was before the update", said["message"])
 
 
 class ParityTest(unittest.TestCase):

@@ -238,6 +238,16 @@ class UndoTest(Rig):
         self.assertEqual("Version 0.3.0 has been put back. Your projects are as they were.", back.status()[1]["notice"])
         self.assertEqual("undone", back.arm_undo({})[1]["code"])
 
+    def test_a_hand_over_that_fails_before_any_data_was_replaced_keeps_the_old_message(self):
+        self.installed()
+        failing = self.make(version="0.3.1", start=lambda *a, **k: (_ for _ in ()).throw(OSError("no")))
+        failing.settle()
+        armed = failing.arm_undo({})[1]
+        status, said = failing.undo({"arm_id": armed["arm_id"]})
+        self.assertEqual((409, "helper"), (status, said["code"]))
+        self.assertEqual(ui.MESSAGES["helper"], said["message"])
+        self.assertIn("nothing was changed", said["message"])
+
     def test_the_second_click_must_come_in_time_and_name_the_arm(self):
         self.installed()
         now = self.make(version="0.3.1")
