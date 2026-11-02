@@ -75,7 +75,7 @@ class Edit(Setup):
             before = self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
             self.click(p, "[data-uc-status] button")
             p.until("!!document.querySelector('[role=menu] [data-kind=\"High risk\"]')", "the three words")
-            self.assertEqual(p.js("[...document.querySelectorAll('[role=menu] [role=menuitemradio]')].map(b => b.textContent)"), ["On track", "Flag", "High risk"])
+            self.assertEqual(p.js("[...document.querySelectorAll('[role=menu] [role=menuitemradio]')].map(b => b.textContent.replace('✓', ''))"), ["On track", "Flag", "High risk"])
             p.js("document.querySelector('[role=menu] [data-kind=\"High risk\"]').click()")
             p.saved()
             self.assertEqual(self.row(self.demo.use_case)["status"], "High risk")
@@ -95,6 +95,7 @@ class Edit(Setup):
             p.saved()
             self.assertEqual(self.row(self.demo.use_case)["headline"], "Live for three suppliers")
             self.assertEqual(p.toast(), "Use case 1.1 saved.")
+            p.clear_toast()                                                      # the headline's Undo toast is still up: saved() would return on it
             self.click(p, ".ucrow .ucref")
             p.until("!!document.querySelector('.ucdetail .ucx-in')", "the row opened with its name")
             self.assertEqual(p.js("document.querySelector('.ucdetail .ucx-ref').textContent"), "Use case 1.1:")
@@ -111,7 +112,7 @@ class Edit(Setup):
             p.until("!!document.querySelector('#ucF')", "the box")
             self.assertEqual(p.js("document.querySelector('#ucm-title').textContent"), "Add a use case")
             self.assertEqual(p.js("[...document.querySelectorAll('#ucF label')].map(l => l.textContent)"), ["ID", "Use case", "Status", "Headline"])
-            self.assertEqual(p.js("document.activeElement.id"), "ucI")
+            p.until("document.activeElement && document.activeElement.id === 'ucI'", "focus in the ID field")
             self.assertEqual(p.js("!document.querySelector('#main').contains(document.querySelector('#ucF')) && document.querySelector('#main').inert"), True,
                              "the box is beside <main>, which is inert behind it: the box itself is not")
             self.assertEqual(p.js("!!document.querySelector('#ucF').closest('[inert]')"), False)
@@ -127,7 +128,8 @@ class Edit(Setup):
             self.type_in(p, "#ucH", "Two checks left")
             p.js("document.querySelector('#ucF').requestSubmit()")
             p.until("!document.querySelector('#ucF')", "the box closed")
-            p.saved()
+            # a new use case is archived, never deleted, so its toast has no Undo (saved() waits for one): wait for its words
+            p.until("(document.querySelector('.toast-text') || {}).textContent === 'Use case 3.1 added. Archive it from the Use cases page if it is not wanted.'", "the added toast")
             made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}["3.1"]
             self.assertEqual((made["title"], made["status"], made["headline"], made["client_visible"]), ("Report checks", "Flag", "Two checks left", 1))
             p.until("document.querySelectorAll('.ucrow').length === 3", "the row is on the dashboard")
@@ -170,7 +172,7 @@ class Edit(Setup):
 
     def undo(self, p):
         p.js("document.querySelector('[data-undo]').click()")
-        p.until("!document.querySelector('[data-undo]')", "undone")
+        p.until("document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent === 'Undone.'", "the Undone. toast")
 
 
 class PublishedFile(Published):
