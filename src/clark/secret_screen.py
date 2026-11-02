@@ -14,7 +14,8 @@ still caught. The cost is fixed by the size: every pattern is a single pass with
 looked at up to a cap, past which the file counts as a hit (fail closed). A base64 run is decoded and read for the key shapes and,
 when it decodes to plain text, for the key-word lines too; text with %-escapes is also read with them undone.
 
-NOT SCREENED, on purpose (#257): a token cut by a space ("token: ab12cd34 ef56gh78"), since joining words across a space would
+NOT SCREENED, on purpose (#257, #374): a password word followed by plain words ("password: see below"; the other languages act the same);
+the file name "secret_santa2025.xlsx" (only that whole name, with any 4-digit year); text escaped three times; a token cut by a space ("token: ab12cd34 ef56gh78"), since joining words across a space would
 leave out every file that says "token: 2026 plan"; a secret of fewer than 8 characters after secret or a key name; a key-word line
 whose base64 form is shorter than 24 characters.
 """
@@ -24,8 +25,8 @@ import urllib.parse
 
 from clark import ask, edit_ai
 
-REASON = "looks like it holds a secret"
-NEXT_STEP = "Remove the secret from the file or move it out of the saved folder."
+REASON = f"holds text that {ask.LOOKS_LIKE}"
+NEXT_STEP = "Take it out of the file, or remove the file from the saved folder, then ask again."
 MAX_RUNS = 20000                     # different base64-looking runs looked at in one file; more than this counts as a hit
 MAX_ROWS = 400                       # rows under a table header looked at for a secret column
 MAX_HEADER = 2000                    # characters: a longer line is not read as a table header
@@ -50,7 +51,7 @@ UNQUOTED_SECRET = r"""(?i)(?:api[_-]?key|secret|token|(passw(?:or)?d|pwd))\w*["'
 # are allowed, a quoted value needs only 8 characters, a table cell or a comma, tab or bar between the word and its value counts,
 # and every gap is bounded so a long run of key words takes a time that grows with the size, not with its square.
 # Password in other languages (#257): German, French, Spanish, Portuguese, Dutch, Swedish, Polish, Italian, Russian and Arabic.
-_PW_OTHER = (r"passwort|kennwort|mot[ \t]?de[ \t]?passe|motdepasse|contrase(?:ñ|n)a|senha|wachtwoord|l(?:ö|o)senord|has(?:ł|l)o|"
+_PW_OTHER = (r"passwort|kennwort|mot[ \t]?de[ \t]?passe|motdepasse|contrase(?:ñ|nn?)a|senha|wachtwoord|l(?:ö|o)senord|has(?:ł|l)o|"
              r"parola[ \t]?d'ordine|пароль|كلمة[ \t]?(?:المرور|السر)")
 _PW = r"(?:passw(?:or)?d|pwd|passcode|" + _PW_OTHER + r"|(?<![A-Za-z])(?:pass|pw|pin|creds|credentials)(?![A-Za-z]))"
 _KEY = r"(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|" + _PW + r")"
@@ -65,10 +66,31 @@ HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?privat
 # Sunshine2026"): a key word, is or was, then a mixed value of 8 or more characters.
 QUOTED_PHRASE = r"""(?i)""" + _PW + r"""\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}(?:"([^"\n]{8,80})"|'([^'\n]{8,80})')"""
 PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|secret)\b)["']?[ \t]{1,3}(?:is|was)[ \t]{1,3}["'(]?([^\s"'`$<>{}()\[\],;]{8,})"""
-# A file's name: a key word, then - or _ and a mixed value of 8 or more characters ("notes-password-Hunter2xyz9.txt").
-NAME_SECRET = r"""(?i)""" + _KEY + r"""[-_ ]([A-Za-z0-9]{8,})"""
-# Known gaps, kept as Tech Debt: a secret of letters only ("correcthorsebattery") and a bare 40-character hex string with no key
-# word are not caught; guessing them would drop too many ordinary files.
+# A quoted value of 6 or more letters right after a key word (#243): `the password is "<letters>"`. The key word may carry a prefix
+# (DB_PASSWORD, client_secret, userPassword: `_` or a lower-case letter before a capital) but not a word glued on in front
+# ("Secretary" is not one). After the key word only a suffix that still names the secret is allowed (`secret_key`, `password_prod`);
+# `secretName`, `secrets` and `password_auth` are settings about a secret, not the secret, and pass. A connector follows: `:` or `=`
+# (a quote may sit before it, a JSON key), or is / was. "secret" needs one of those; a password word alone may also stand just before
+# the quote (`the wifi password "Sunshine"`), except straight after a colon (`Subject: Password "Expired"` is a heading). The value
+# sits in one matching pair (double, single, backtick, curly or typographic single) of letters only. A few schema and placeholder
+# words are what a config puts there, not a password.
+_QS = r"""["'`\u201c\u201d\u2018\u2019]"""
+_LETTERS_ONLY = r"""[^\W\d_]{6,}"""
+_PAIR = (r"""(?:"LETTERS"|'LETTERS'|`LETTERS`|\u201cLETTERS\u201d|\u2018LETTERS\u2019)""").replace("LETTERS", _LETTERS_ONLY)
+_PLACEHOLDER = r"""(?!["'`\u201c\u2018](?:string|text|password|secret|hidden|required|optional|none|null|true|false|inherit)["'`\u201d\u2019])"""
+_LEFT = r"""(?:(?<![A-Za-z0-9])|(?-i:(?<=[a-z0-9])(?=[PS])))"""
+_PWORD = r"""(?:passw(?:or)?d|pwd|passcode|passphrase|pw(?![A-Za-z]))"""
+_SUFFIX = r"""(?:[_-]?(?:key|value|text|string|phrase|word|plain|prod|production|dev|test|staging|new|old|current|confirm|[0-9])){0,6}"""
+LETTER_QUOTED = (r"""(?i)""" + _LEFT + r"""(?:(?:""" + _PWORD + r"""|secret)""" + _SUFFIX + r"""(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{1,20}\b(?:is|was)\b)[ \t]{0,20}"""
+                 r"""|(?<!:)(?<!:[ \t])(?<!:[ \t]{2})""" + _PWORD + r"""(?![A-Za-z0-9_])[ \t]{1,20})""" + _PLACEHOLDER + _PAIR)
+# Known gaps, kept as Tech Debt: an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
+# a bare 40-character hex string with no key word, a key word with some other suffix (`password_backup: "..."`) and a bare password
+# word after a colon (`Note: password "..."`) are not caught; guessing them would drop too many ordinary files.
+# A file's name: a key word, then - _ . or a space and a mixed value of 8 or more characters ("notes-password-Hunter2xyz9.txt").
+NAME_SECRET = r"""(?i)""" + _KEY + r"""[-_. ]([A-Za-z0-9]{8,})"""
+# The one ordinary name taken out before a file name is screened (#374): "secret_santa" (with an optional 4-digit year) as the whole
+# name or the whole name before its extension, so "secret_santa2025.xlsx" is a file name; "secret_santa_key=..." is still read.
+_SANTA = re.compile(r"(?<![^/])secret_santa(?:\d{4})?(?=\.[A-Za-z0-9]{1,5}$|$)")
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 
 # The publish scan's address shape starts at every letter and can take a long time on a long run of letters, so here it starts at
@@ -81,6 +103,7 @@ _UNQUOTED = re.compile(UNQUOTED_LOCAL)
 _CELL = re.compile(CELL_LOCAL)
 _PHRASE = re.compile(QUOTED_PHRASE)
 _PROSE = re.compile(PROSE_SECRET)
+_LETTERS = re.compile(LETTER_QUOTED)
 _SHORT = re.compile(SHORT_PASSWORD)
 _NAME = re.compile(NAME_SECRET)
 _RUN = re.compile(BASE64_RUN)
@@ -93,7 +116,8 @@ def _mixed(value):
 
 
 def _plain(raw):
-    """Decoded base64 as text, or None when it is not mostly printable (a picture, a compressed file)."""
+    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file); the replacement
+    character counts as printable, so mostly-text data with a few bad bytes is still read."""
     text = raw.decode("utf-8", "replace")
     return text if sum(c.isprintable() or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
 
@@ -184,7 +208,7 @@ def _key_words(text):
     for m in _PROSE.finditer(text):
         if _mixed(m.group(1).rstrip(".!?:")):
             return True
-    return False
+    return _LETTERS.search(text) is not None
 
 
 def _one(text):
@@ -194,15 +218,16 @@ def _one(text):
 
 
 def looks_like_secret(text):
-    """Whether `text` looks like it holds a secret. Never raises, never keeps or returns what matched; text that cannot be
+    """Whether `text` looks like a password or a key. Never raises, never keeps or returns what matched; text that cannot be
     read as a string counts as a hit. Read as it is, as the client check sees it (hidden characters and look-alike letters
     undone) and with line breaks taken out of each."""
     if not isinstance(text, str):
         return True
     try:
         seen = [text, edit_ai.normal(text)]
-        if "%" in text:
-            seen += [urllib.parse.unquote_plus(t) for t in seen]
+        for _ in range(2):                                # %-escapes undone up to twice ("%253D"), each result read as it is and normalised
+            if any("%" in t for t in seen):
+                seen += [x for t in list(seen) if "%" in t for x in (urllib.parse.unquote_plus(t), edit_ai.normal(urllib.parse.unquote_plus(t)))]
         for t in dict.fromkeys(seen):
             if _one(t) or _one(_BREAKS.sub("", t)):
                 return True
@@ -215,4 +240,5 @@ def name_looks_like_secret(name):
     """Whether a file's name looks like it holds a secret: the text screen, plus a key word joined to its value by - or _."""
     if not isinstance(name, str):
         return True
+    name = _SANTA.sub("santa", name)
     return looks_like_secret(name) or any(_mixed(m.group(1)) for m in _NAME.finditer(name))
