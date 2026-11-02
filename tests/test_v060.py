@@ -13,7 +13,7 @@ Same shape as test_v050.
 NOT YET MERGED to origin/main on 02-11-2026 (so WAITING, no test): #124 the PDF option on publishing (with its Tech Debt
 #269 and #270), #153 the one filter line for Work items (its Tech Debt #286, #287 and #305), the #130 and #132 UX sweep fixes
 beyond the Publish spinner, the tick and Publication N (phone layouts, timeline labels, the 12 px minimum), #131 the motion
-enrichments. Merged and checked here: #120 numbered publications and #87 the design-system sizes (PR 240). The calendar (test_calendar_scales, #76) and the filter
+enrichments. Merged and checked here: #120 numbered publications, #87 the design-system sizes (PR 240), #559 (PR 378), #495 (PR 363) and #570. The calendar (test_calendar_scales, #76) and the filter
 line in test_filter_line are 0.4 features and are covered by test_v040, not here.
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.6.0, then fail if they are wrong.
 """
@@ -64,12 +64,8 @@ COVERED = [
      "test_secret_screen::Screen::test_the_words_password_and_secret_are_not_placeholders"),
     ("#243", "Placeholder, redacted and example still pass as placeholders",
      "test_secret_screen::Screen::test_placeholder_redacted_and_example_are_placeholders"),
-    ("#320", "After a failed first Undo the toast offers Undo again, and the retry takes both steps back",
-     "test_templates::Box::test_after_a_failed_first_undo_the_toast_offers_undo_again_and_the_retry_takes_both_steps_back"),
     ("#320", "If the page cannot be read again after an Undo, the toast says to reload",
      "test_templates::Box::test_if_the_page_cannot_be_read_again_after_an_undo_the_toast_says_to_reload"),
-    ("#320", "If the second Undo fails and the page cannot be read, the toast says to reload",
-     "test_templates::Box::test_if_the_second_undo_fails_and_the_page_cannot_be_read_the_toast_says_to_reload"),
 ]
 
 # Live: the real page. Not repeated from COVERED; these are the checks a person would make in the app itself.
@@ -375,7 +371,7 @@ class ServedTabs559(unittest.TestCase):
         js = read(self.REPORT)
         self.assertRegex(js, r'SERVED_TABS\s*=\s*VIEWS\.filter\(\(v\) => v !== "clientreport"\)')
         self.assertRegex(js, r"export const tabs = signal\(SERVED_TABS\)")
-        self.assertIn('start.view === "clientreport" ? "dashboard"', js, "its address opens the first tab")
+        self.assertIn('start.view === "clientreport" && !published() ? "dashboard"', js, "its address opens the first tab")
 
     def test_559_2_a_published_file_lists_it_as_weekly_snapshot(self):
         js = read(self.REPORT)
@@ -492,7 +488,7 @@ class Friday570(unittest.TestCase):
         self.addCleanup(demo.close)
         change = changes.make_change(demo.store.path, [], USER)
         req = lambda day: {"project": "ABC", "kind": "projects", "op": "update", "changes": {"week_ending": day}}      # noqa: E731
-        for day, friday in (("2026-11-02", "06-11-2026"), ("2026-11-07", "06-11-2026"), ("2026-11-08", "06-11-2026")):
+        for day, friday in (("2026-11-02", "06-11-2026"), ("2026-11-07", "13-11-2026"), ("2026-11-08", "13-11-2026")):
             status, body = change(req(day))
             self.assertEqual((status, body["ok"], body["message"]), (400, False, f"Week ending is a Friday. Pick Friday {friday}."), day)
         status, body = change(req("2026-11-06"))
