@@ -47,14 +47,16 @@
     const its = C.items(), ms = C.mss(), ucs = D.S.usecases.filter(u => u.code === p.code && !u.archived), src = p.sources || [];
     const wi = its.reduce((n, x) => n + wc(x.title) + wc(pl(x.desc)) + wc(pl(x.update)) + wc(pl(x.clientText)), 0), wm = ms.reduce((n, m) => n + wc(m.name) + wc(pl(m.desc)), 0), wu = ucs.reduce((n, u) => n + wc(u.title) + wc(u.headline) + wc(pl(u.standing)), 0);
     const total = wi + wm + wu, conn = C.store.get('aiConn', {}).claude;
-    return { project: p.name, items: its.length, milestones: ms.length, usecases: ucs.length, folders: src, wi, wm, wu, total, approx: Math.max(10, Math.round(total / 10) * 10), provider: 'Claude', connected: !!conn };
+    /* demo: two files in the named folders hold a key or a password line, so they are left out (#215); nothing of them is shown */
+    const left = src.length ? 2 : 0;
+    return { left, project: p.name, items: its.length, milestones: ms.length, usecases: ucs.length, folders: src, wi, wm, wu, total, approx: Math.max(10, Math.round(total / 10) * 10), provider: 'Claude', connected: !!conn };
   };
   let prevOpen = false;
   const round = n => n.toLocaleString('en-GB');
   const drawPrev = () => { const b = C.$('#askPrev'), v = C.sendPreview(); if (!b) return; if (!v) { b.innerHTML = ''; return; }
     b.innerHTML = `<span id="askPrevT">A question sends ${esc(v.project)}’s work items, milestones and use cases (about ${round(v.approx)} words)${v.folders.length ? ` and ${v.folders.length} named source folder${v.folders.length > 1 ? 's' : ''}` : ''} to ${v.provider}.</span> <button type="button" class="link" id="askPrevB" aria-expanded="${prevOpen}" aria-controls="askPrevD">${prevOpen ? 'Hide details' : 'Show details'}</button>
       <ul class="ask-prev-d" id="askPrevD"${prevOpen ? '' : ' hidden'}><li><b>Work items:</b> ${v.items}, about ${round(v.wi)} words</li><li><b>Milestones:</b> ${v.milestones}, about ${round(v.wm)} words</li><li><b>Use cases:</b> ${v.usecases}, about ${round(v.wu)} words</li>
-        <li><b>Source folders:</b> ${v.folders.length ? v.folders.map(f => esc(f)).join('; ') : 'none named'}${v.folders.length ? ' (read only)' : ''}</li><li><b>Provider:</b> ${v.provider}${v.connected ? '' : ', not signed in yet (Settings › AI)'}</li><li>Mail, Teams and calendars are never sent. Prototype: nothing is sent; the answers are worked out here.</li></ul>`;
+        ${v.left ? `<li id="askLeft">${v.left} ${v.left === 1 ? 'file was' : 'files were'} left out for safety. A file with a key, a private-key block or a password line is never read.</li>` : ''}<li><b>Source folders:</b> ${v.folders.length ? v.folders.map(f => esc(f)).join('; ') : 'none named'}${v.folders.length ? ' (read only)' : ''}</li><li><b>Provider:</b> ${v.provider}${v.connected ? '' : ', not signed in yet (Settings › AI)'}</li><li>Mail, Teams and calendars are never sent. Prototype: nothing is sent; the answers are worked out here.</li></ul>`;
     C.$('#askPrevB').addEventListener('click', () => { prevOpen = !prevOpen; drawPrev(); C.$('#askPrevB').focus(); }); };
   C.askPreviewDraw = drawPrev;
   /* Settings › Asking off (#170): the button and key still open the panel, which says so, with a link to the switch; the send line goes, as nothing is sent */
@@ -77,6 +79,8 @@
   const scroll = () => { const l = C.$('#askLog'); l.scrollTo({ top: l.scrollHeight, behavior: C.reduce ? 'auto' : 'smooth' }); };
   const me = t => { C.$('#askLog').insertAdjacentHTML('beforeend', `<div class="msg me">${esc(t)}</div>`); scroll(); };
   function bot(h) { C.$('#askLog').insertAdjacentHTML('beforeend', `<div class="msg bot">${h}</div>`); scroll(); wire(); }
+  /* after an answer that used the folders: the one sentence about what was left out (#215) */
+  const leftNote = () => { const v = C.sendPreview(); return v && v.left ? `<p class="ask-left muted" data-ask-left>${v.left} ${v.left === 1 ? 'file was' : 'files were'} left out for safety.</p>` : ''; };
   const link = x => `<a class="link" data-open="${x.id}">${x.id}</a> ${esc(x.title)}`;
   function wire() {
     C.$$('#askLog [data-open]').forEach(a => a.onclick = () => C.openItem(a.dataset.open, C.items().map(i => i.id)));
@@ -131,7 +135,7 @@
     if (!C.askOn()) { C.askOffDraw(true); return; }   /* Settings › Asking is off: nothing is sent */
     me(q); busy++; drawPrev();
     C.$('#askWork').innerHTML = `<span class="mdots"><i></i><i></i><i></i></span><span class="quip" aria-hidden="true">${C.quipNow()}</span><span class="sr">Working</span>`; working(true);
-    setTimeout(() => { if (!--busy) working(false); bot(answer(q)); }, C.reduce ? 0 : 1100 + Math.random() * 1400);
+    setTimeout(() => { if (!--busy) working(false); bot(answer(q) + leftNote()); }, C.reduce ? 0 : 1100 + Math.random() * 1400);
   }
   document.addEventListener('DOMContentLoaded', () => {
     C.$('#askBtn').addEventListener('click', C.askToggle);
