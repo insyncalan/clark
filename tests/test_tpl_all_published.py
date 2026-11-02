@@ -11,6 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import _routes as routes_expected
 from _demo import USER
 from _pictures import GOOD
 from test_report_editor import EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
@@ -99,7 +100,7 @@ class AllTemplates(Base):
         self.assertEqual(kinds["checklist"]["items"], [{"item": self.kept}, {"text": "Fictional typed line", "done": 1}])
         for kind in ("textimage", "gallery", "imagecap"):
             self.assertIn(GOOD, json.dumps(kinds[kind]), f"{kind}: its picture is in the file")
-        for never in ("/api/section-image", "/api/section-file", "/api/change"):      # the routes that change things are never in the file
+        for never in routes_expected.POST_ROUTES:      # the routes that change things are never in the file
             self.assertNotIn(never, text, never)
 
     def draw_file(self, cdp):
