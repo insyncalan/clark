@@ -4,11 +4,13 @@ Run: python3 dev/run_tests.py test_ci_poller
 A scratch repo holds three branches whose `dev/run_tests.py` is a stub (it prints the runner's own summary line and exits 0 or 1).
 The poller is run over them with a LocalForge, which records every status and comment it is asked to post instead of sending them."""
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from datetime import timedelta
+from unittest import mock
 from pathlib import Path
 
 from _paths import ROOT
@@ -121,12 +123,21 @@ class Decisions(unittest.TestCase):
         self.assertLessEqual(len(line), poller.DESC_MAX)
 
 
+def no_real_lock(name, *rest, **kw):
+    """`shutil.which` for a test: the real clark-one-suite wrapper is never found (#338), so the poller runs the stub suite itself.
+    Inside a push suite the wrapper would queue this inner run behind the outer suite's own slot and stall the whole push."""
+    return None if name == "clark-one-suite" else shutil.which(name, *rest, **kw)
+
+
 class Rehearsal(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.folder = Path(self.tmp.name)
         self.shas = make_scratch(self.folder)
         self.lines = []
+        patch = mock.patch.object(poller.shutil, "which", side_effect=no_real_lock)
+        self.which = patch.start()
+        self.addCleanup(patch.stop)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -140,6 +151,14 @@ class Rehearsal(unittest.TestCase):
         if post:
             poller.save_state(args.state, state)
         return tested, forge
+
+    def test_the_rehearsal_never_reaches_the_real_suite_wrapper(self):
+        """#338: a pass that tests a PR looks for the wrapper (so the guard is really exercised), is told there is none, and the stub suite
+        runs directly: the pass finishes at once, however busy the suite slots are."""
+        tested, _ = self.run_pass(True)
+        self.assertGreater(tested, 0)
+        self.assertIn(mock.call("clark-one-suite"), self.which.call_args_list)
+        self.assertIsNone(no_real_lock("clark-one-suite"))
 
     def test_a_dry_run_posts_nothing_and_runs_nothing(self):
         tested, forge = self.run_pass(False)
@@ -258,6 +277,26 @@ class Rehearsal(unittest.TestCase):
         tested, forge = self.run_pass(True, more=["--only", "11", "--trusted-authors", "member-a"])
         self.assertEqual(tested, 1)
         self.assertEqual([s["state"] for s in forge.posted["statuses"]], ["pending", "success"])
+
+
+class SuiteLock(unittest.TestCase):
+    """#338: what the poller does with the lock, checked on a fake one (a script in a temp folder), never the real clark-one-suite."""
+
+    def run_with(self, found):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(poller.shutil, "which", return_value=found), \
+                mock.patch.object(poller.subprocess, "run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, stdout=b"Python 3.9.1: pass, 3 tests in 0.1 s\n2 files passed, 0 failed.\n")
+            poller.run_python("/x/python", tmp, 1, {})
+        return run.call_args[0][0]
+
+    def test_the_suite_goes_through_the_lock_when_there_is_one(self):
+        self.assertEqual(self.run_with("/x/fake-lock"), ["/x/fake-lock", "/x/python", "dev/run_tests.py", "-j", "1"])
+
+    def test_the_suite_runs_directly_when_there_is_no_lock(self):
+        self.assertEqual(self.run_with(None), ["/x/python", "dev/run_tests.py", "-j", "1"])
+
+    def test_the_poller_asks_for_the_lock_by_name_and_runs_it_low(self):
+        self.assertEqual(poller.clean_env("/tmp/h")["CLARK_SUITE_LOW"], "1")
 
 
 class Safety(unittest.TestCase):
