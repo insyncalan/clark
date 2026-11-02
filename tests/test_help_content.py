@@ -23,8 +23,8 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # says Delete; 'Delete section' is the label the page has today (edit/Gutter.jsx), kept as it is for the ruling.
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
-# 'Add a row' is the button of the Needs from you section (edit/NeedsEdit.jsx), which the prototype does not have; read against the page's own words (logic/needs.js).
-CHECKED_BY_HAND = set(['Add a row', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
+# 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
+CHECKED_BY_HAND = set(['Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -298,6 +298,17 @@ class LowWordsRound(unittest.TestCase):
         for name, line in table[2]:
             self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
+
+
+    def test_the_prototype_help_gives_the_section_style_lines_its_own_settings_gives(self):
+        """#294: the prototype's help.js and its Settings card (views.js) say the same thing for each of the four section styles."""
+        help_js = (PROTO / "help.js").read_text(encoding="utf-8")
+        proto = (PROTO / "views.js").read_text(encoding="utf-8")
+        card = re.search(r"\[\['slim'.*?\]\]\.map", proto, re.S).group(0)
+        lines = re.findall(r"\['\w+', '([^']+)', '([^']+)'\]", card)
+        self.assertEqual([n for n, _ in lines], ["Slim gaps", "Roomy gaps", "Grey headers", "One card"])
+        for name, line in lines:
+            self.assertIn(f"'{line}'", help_js, f"{name}: the prototype's Help line is its Settings line")
 
 
 class HelpMatchesThePage(unittest.TestCase):
