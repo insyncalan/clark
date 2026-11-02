@@ -24,7 +24,7 @@ class ReloadWaits(unittest.TestCase):
         for path in sorted(HERE.glob("test_*.py")):
             if path.name == Path(__file__).name:
                 continue
-            bad += [f"{path.name}:{n}" for n in reloads_without_wait(path.read_text().splitlines())]
+            bad += [f"{path.name}:{n}" for n in reloads_without_wait(path.read_text(encoding="utf-8").splitlines())]
         self.assertEqual(bad, [], "these reload by script and read without waiting for the new page")
 
     def test_the_check_sees_a_reload_with_no_wait(self):
