@@ -99,6 +99,7 @@ class Archived(Base):
         from test_server import chrome
         with chrome() as cdp:
             sid = self.go(cdp)
+            self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
             self.assertEqual(cdp.js(f"document.querySelector('{ROWS}[data-id=\"{self.dated}\"] .ma-restore').getAttribute('aria-label')", sid), "Restore Go live")
@@ -155,6 +156,7 @@ class Archived(Base):
         from test_server import chrome
         with chrome() as cdp:
             sid = self.go(cdp)
+            self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
             cdp.js("location.hash = '#milestones&p=XYZ'", sid)
