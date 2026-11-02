@@ -310,7 +310,7 @@
      "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
      "The second picks **Open**, **Closed** or **All**, each with its count.",
      "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
-     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too.",
+     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too. In the app it goes back to the open items.",
      "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
      "Your choices are kept for next time. A tile on the Dashboard, or **See all work items** on a use case, opens Work items already filtered to what it counts."
     ]

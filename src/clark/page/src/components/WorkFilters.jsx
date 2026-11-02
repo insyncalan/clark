@@ -2,7 +2,7 @@
 // dot on each active filter, and each filter's box. The rules are in ../filters.js. These controls are never re-created by a
 // filter change (only their words and pressed states change), so a click on a second filter while one is open lands first time.
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
-import { rows as everyRow, found, query, filterState, setFilterState, openFilter, refusals, asAt, fromFile } from "../stores/report.js";
+import { rows as everyRow, found, query, filterState, setFilterState, openFilter, refusals, asAt, fromFile, filterCtx } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { offeredFields, NAMES, MODES, TYPES, counts, typeCounts, isActive, options, setMode, setType, toggleValue, setNot, removeFilter } from "../filters.js";
 import { searchRows } from "../clientView.js";
@@ -11,16 +11,21 @@ import { Icon } from "./Icon.jsx";
 // The rows the search leaves (the search words are the published file's; the editor never has any): every count and box reads these.
 const allRows = { get value() { return searchRows(everyRow.value, found.value, query.value); } };
 
-export function Switches({ children }) {
-  const st = filterState.value, today = fromFile.value && asAt.value ? asAt.value : todayIso(), rows = allRows.value;
-  const n = counts(rows, st, today), t = typeCounts(rows, st, today);
+// `L` is the app's filter line (#153, handed over at start-up): then the switches read and change the line, and their counts are what the
+// line would show. Without it (the published file) they read and change the older state in the address.
+export function Switches({ children, L }) {
+  const today = fromFile.value && asAt.value ? asAt.value : todayIso(), rows = allRows.value;
+  const sw = L ? L.switches(rows, filterCtx()) : null;
+  const st = sw ? sw.state : filterState.value;
+  const n = sw ? sw.n : counts(rows, st, today), t = sw ? sw.t : typeCounts(rows, st, today);
+  const setT = (v) => (L ? L.pickType(v) : setFilterState(setType(filterState.value, v))), setM = (v) => (L ? L.pickMode(v) : setFilterState(setMode(filterState.value, v)));
   return (
     <div class="wbar">
       <div class="seg" role="group" aria-label="Type">
-        {TYPES.map(([v, w]) => <button type="button" key={v} data-type={v} aria-pressed={st.type === v ? "true" : "false"} onClick={() => setFilterState(setType(filterState.value, v))}>{w} <em class="num" key={t[v]}>{t[v]}</em></button>)}
+        {TYPES.map(([v, w]) => <button type="button" key={v} data-type={v} aria-pressed={st.type === v ? "true" : "false"} onClick={() => setT(v)}>{w} <em class="num" key={t[v]}>{t[v]}</em></button>)}
       </div>
       <div class="seg" role="group" aria-label="Open or closed">
-        {MODES.map(([v, w]) => <button type="button" key={v} data-show={v} aria-pressed={st.mode === v ? "true" : "false"} onClick={() => setFilterState(setMode(filterState.value, v))}>{w} <em class="num" key={n[v]}>{n[v]}</em></button>)}
+        {MODES.map(([v, w]) => <button type="button" key={v} data-show={v} aria-pressed={st.mode === v ? "true" : "false"} onClick={() => setM(v)}>{w} <em class="num" key={n[v]}>{n[v]}</em></button>)}
       </div>
       {children ? <div class="vctl">{children}</div> : null}
     </div>

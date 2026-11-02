@@ -76,7 +76,7 @@ def expect(rows, mode="open", type_="all", filters=None, nots=()):
 
 # ---- real mouse and keys over the pipe ----
 KEYS = {"Enter": (13, "\r"), " ": (32, " "), "Escape": (27, ""), "ArrowDown": (40, ""), "ArrowUp": (38, ""), "Home": (36, ""),
-        "End": (35, ""), "Tab": (9, "")}
+        "End": (35, ""), "Tab": (9, ""), "Backspace": (8, "")}
 
 
 def key(cdp, sid, name):
@@ -107,6 +107,39 @@ def click(cdp, sid, selector):
     cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
     cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": 1}, sid)
     cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
+
+
+TYPE_LINES = {"all": "is:open", "action": "is:open type:action", "decision": "is:open type:decision", "risk": "is:open type:risk,issue,assumption,dependency"}
+
+
+def set_line(cdp, sid, text):
+    """Replace the one filter line (#153): click its box, take every chip off with Backspace, type the new line and press Enter."""
+    click(cdp, sid, "#fline-input")
+    for _ in range(20):
+        if cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0:
+            break
+        key(cdp, sid, "Backspace")
+    if text:
+        cdp.call("Input.insertText", {"text": text}, sid)
+        key(cdp, sid, "Enter")
+    wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "")
+
+
+def page_rows(data, code):
+    """The page's own rows (workItems.rowsOf) again, in plain Python from the stored data, for the oracle."""
+    d = data[code]
+    ucs = {u["id"]: u["ref"] for u in d["use_cases"]}
+    ms = {m["id"]: m["name"] for m in d["milestones"]}
+    out = []
+    common = lambda r: {"id": r["id"], "status": r["status"], "client": bool(r["client_visible"]), "workstream": r.get("workstream") or "",
+                        "uc": f"UC {ucs[r['use_case']]}" if r.get("use_case") in ucs else "", "milestone": ms.get(r.get("milestone")) or ""}
+    for r in d["actions"]:
+        out.append({**common(r), "kind": "action", "owner": r["owner"], "priority": r["priority"], "due_date": r["due_date"]})
+    for r in d["raid"]:
+        out.append({**common(r), "kind": r["type"].lower(), "owner": r["owner"], "priority": r["priority"], "due_date": r["due_date"]})
+    for r in d["decisions"]:
+        out.append({**common(r), "kind": "decision", "owner": r["made_by"], "priority": None, "needed_by": r.get("needed_by"), "date": r.get("date"), "workstream": "", "milestone": ""})
+    return out
 
 
 def dblclick(cdp, sid, selector):
@@ -536,346 +569,10 @@ class RealBrowser(unittest.TestCase):
     def shown(self, cdp, sid):
         return sorted(cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.id)", sid))
 
-    def switch(self, cdp, sid):
-        return cdp.js("Object.fromEntries([...document.querySelectorAll('[data-show]')].map(b => [b.dataset.show, +b.querySelector('em').textContent]))", sid)
-
-    def pressed(self, cdp, sid, sel):
-        return cdp.js(f"document.querySelector({json.dumps(sel)}).getAttribute('aria-pressed')", sid)
-
-    def tick(self, cdp, sid, field, nth):
-        """Open a filter's box with the mouse, tick its nth choice, leave the box open."""
-        if cdp.js(f"document.querySelector('[data-fb={field}]').getAttribute('aria-expanded')", sid) != "true":
-            click(cdp, sid, f"[data-fb={field}]")
-        self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector('#fbox-{field}')", sid)))
-        label = cdp.js(f"document.querySelectorAll('#fbox-{field} label')[{nth}].textContent", sid)
-        click(cdp, sid, f"#fbox-{field} label:nth-of-type({nth + 1}) input")
-        return label
-
-    def test_the_switch_counts_equal_the_list_after_each_filter_at_1400_and_900_px(self):
-        s = self.serve()
-        blocked = []
-        handler = _Collect(blocked)
-        sv.LOG.addHandler(handler)
-        sv.LOG.setLevel(logging.INFO)
-        self.addCleanup(sv.LOG.removeHandler, handler)
-        with mock.patch.dict(sv.CSP_REPORTS, since=__import__("time").time(), n=0, dropped=0):
-            for code, ids in self.ids.items():
-                for width in (1400, 900):
-                    with self.subTest(project=code, width=width), chrome() as cdp:
-                        sid = self.load_page(cdp, s.port, width, f"#work&p={code}")
-                        flat = [r for k in ("actions", "raid", "decisions") for r in self.data[code][k]]
-                        all_rows = self.rows_of(cdp, sid)
-                        # Open is the start; the switch counts are the project's numbers and the Open count is the list
-                        self.assertEqual(self.pressed(cdp, sid, "[data-show=open]"), "true")
-                        self.assertEqual(self.shown(cdp, sid), expect(all_rows))
-                        self.assertEqual(self.switch(cdp, sid), {"open": len(expect(all_rows)), "closed": len(expect(all_rows, "closed")), "all": len(ids)})
-                        self.assertEqual(self.switch(cdp, sid)["open"], len(self.shown(cdp, sid)))
-                        self.assertEqual(cdp.js("document.querySelector('#work-count').textContent", sid), f"{len(expect(all_rows))} open items")
-                        self.assertGreater(len(flat), 15)
-                        # All: every demo row, once each
-                        click(cdp, sid, "[data-show=all]")
-                        self.assertEqual(self.shown(cdp, sid), ids)
-                        self.assertEqual(cdp.js("document.querySelector('#work-count').textContent", sid), f"{len(ids)} items")
-                        # a series of filters: after each, the count of the mode that is on is the number of visible rows, and the other counts follow
-                        filters, nots = {}, ()
-                        for field, nth in (("owner", 0), ("priority", 1), ("due", 0), ("client", 0)):
-                            label = self.tick(cdp, sid, field, nth)
-                            self.assertTrue(label)
-                            value_ = self.chosen_value(cdp, sid, field)
-                            filters.setdefault(field, []).append(value_)
-                            want = expect(all_rows, "all", filters=filters)
-                            self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{field} {value_}: {self.shown(cdp, sid)} != {want}")
-                            sw = self.switch(cdp, sid)
-                            self.assertEqual(sw["all"], len(self.shown(cdp, sid)))
-                            self.assertEqual((sw["open"], sw["closed"]), (len(expect(all_rows, "open", filters=filters)), len(expect(all_rows, "closed", filters=filters))))
-                            self.assertEqual(cdp.js("!!document.querySelector(\"[data-fb=%s]\").classList.contains('on')" % field, sid), True, "a dot on an active filter")
-                            self.assertEqual(cdp.js("document.querySelectorAll('.fchip').length", sid), len(filters))
-                        for mode in ("open", "closed"):
-                            click(cdp, sid, f"[data-show={mode}]")
-                            want = expect(all_rows, mode, filters=filters)
-                            self.assertTrue(wait(lambda: self.shown(cdp, sid) == want))
-                            self.assertEqual(self.switch(cdp, sid)[mode], len(want))
-                        # Clear all removes the chips and the dots and restores the count
-                        click(cdp, sid, "#clearAll")
-                        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.fchip').length", sid) == 0))
-                        self.assertEqual(self.shown(cdp, sid), expect(all_rows))
-                        self.assertEqual(cdp.js("document.querySelectorAll('.fbtn.on').length", sid), 0)
-                        self.assertEqual(cdp.js("!!document.querySelector('#clearAll')", sid), False)
-                        self.assertEqual(self.pressed(cdp, sid, "[data-show=open]"), "true")
-                        # layout
-                        self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
-                        self.assertEqual(cdp.js("[...document.querySelectorAll('#work *')].filter(e => e.scrollWidth > e.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(e).overflowX) && !e.closest('.fbox')).length", sid), 0)
-                        self.assertEqual(cdp.js("window.__push", sid), 0, "no filter pushed a browser-history entry")
-                        self.assertEqual(cdp.js("history.length", sid), 2, "about:blank and the page, nothing more")
-            self.assertEqual(blocked, [], f"the policy blocked nothing: {blocked}")
-
     def rows_of(self, cdp, sid):
-        """The page's own rows (rowsOf) are in no global, so read what the table shows: id, status and the oracle's fields from the data."""
-        code = cdp.js("location.hash.match(/p=([A-Z0-9]+)/)[1]", sid)
-        d = self.data[code]
-        ucs = {u["id"]: u["ref"] for u in d["use_cases"]}
-        ms = {m["id"]: m["name"] for m in d["milestones"]}
-        out = []
-        common = lambda r: {"id": r["id"], "status": r["status"], "client": bool(r["client_visible"]), "workstream": r.get("workstream") or "",
-                            "uc": f"UC {ucs[r['use_case']]}" if r.get("use_case") in ucs else "", "milestone": ms.get(r.get("milestone")) or ""}
-        for r in d["actions"]:
-            out.append({**common(r), "kind": "action", "owner": r["owner"], "priority": r["priority"], "due_date": r["due_date"]})
-        for r in d["raid"]:
-            out.append({**common(r), "kind": r["type"].lower(), "owner": r["owner"], "priority": r["priority"], "due_date": r["due_date"]})
-        for r in d["decisions"]:
-            out.append({**common(r), "kind": "decision", "owner": r["made_by"], "priority": None, "needed_by": r.get("needed_by"), "date": r.get("date"), "workstream": "", "milestone": ""})
-        return out
+        return page_rows(self.data, cdp.js("location.hash.match(/p=([A-Z0-9]+)/)[1]", sid))
 
-    def chosen_value(self, cdp, sid, field):
-        return cdp.js(f"[...document.querySelectorAll('#fbox-{field} input')].filter(i => i.checked).map(i => i.value).pop()", sid)
-
-    def test_the_chosen_filter_and_the_view_edit_toggle_look_different_from_the_others(self):
-        # The highlight rules in shell.css must match the aria-pressed the buttons set (a rename of the attribute once lost them).
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            bg = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).backgroundColor", sid)
-            for on, off in (("[data-type][aria-pressed=true]", "[data-type][aria-pressed=false]"),
-                            ("[data-show][aria-pressed=true]", "[data-show][aria-pressed=false]"),
-                            (".mode[aria-pressed=true]", ".mode[aria-pressed=false]")):
-                with self.subTest(on=on):
-                    self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(on)}) && !!document.querySelector({json.dumps(off)})", sid), "one of each is drawn")
-                    self.assertNotEqual(bg(on), bg(off), "the pressed button has its own background")
-            self.tick(cdp, sid, "owner", 0)      # "is not" counts only once a value is chosen
-            click(cdp, sid, "#fbox-owner .isnot [data-not='1']")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fbox-owner .isnot [data-not=\"1\"]').getAttribute('aria-pressed')", sid) == "true"))
-            self.assertNotEqual(bg("#fbox-owner .isnot [data-not='1']"), bg("#fbox-owner .isnot [data-not='0']"))
-
-    def test_a_second_filter_opens_with_one_click_and_a_second_click_on_it_closes_it(self):
-        s = self.serve()
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.load_page(cdp, s.port, width, "#work&p=TUL")
-                cdp.js("window.__a = document.querySelector('[data-fb=owner]'); window.__b = document.querySelector('[data-fb=priority]'); window.__bar = document.querySelector('.fbar')", sid)
-                is_open = lambda f: cdp.js(f"!!document.querySelector('#fbox-{f}') && document.querySelector('[data-fb={f}]').getAttribute('aria-expanded') === 'true'", sid)
-                click(cdp, sid, "[data-fb=owner]")
-                self.assertTrue(wait(lambda: is_open("owner")), "the first click opens A")
-                # a change inside A redraws the list; the buttons stay the same elements, so the next click lands
-                click(cdp, sid, "#fbox-owner label:nth-of-type(1) input")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.fchip').length", sid) == 1))
-                self.assertTrue(is_open("owner"))
-                click(cdp, sid, "[data-fb=priority]")
-                self.assertTrue(wait(lambda: is_open("priority")), "ONE click on B opens B")
-                self.assertFalse(is_open("owner"), "and A closes")
-                self.assertEqual(cdp.js("[window.__a === document.querySelector('[data-fb=owner]'), window.__b === document.querySelector('[data-fb=priority]'), window.__bar === document.querySelector('.fbar')]", sid),
-                                 [True, True, True], "the filter buttons were not re-created")
-                click(cdp, sid, "[data-fb=priority]")
-                self.assertTrue(wait(lambda: not is_open("priority")), "a second click on B closes it")
-                self.assertEqual(cdp.js("document.querySelectorAll('.fbox').length", sid), 0)
-                # open A, tick in A, then B opens first time (the prototype's lost second click)
-                click(cdp, sid, "[data-fb=status]")
-                self.assertTrue(wait(lambda: is_open("status")))
-                click(cdp, sid, "[data-fb=client]")
-                self.assertTrue(wait(lambda: is_open("client")) and not is_open("status"))
-                # a click on the page elsewhere closes it; Esc closes it with focus back on its button
-                click(cdp, sid, "h1")
-                self.assertTrue(wait(lambda: not is_open("client")))
-                click(cdp, sid, "[data-fb=due]")
-                self.assertTrue(wait(lambda: is_open("due")))
-                key(cdp, sid, "Escape")
-                self.assertTrue(wait(lambda: not is_open("due")))
-                self.assertEqual(cdp.js("document.activeElement.dataset.fb", sid), "due")
-
-    def test_a_filter_change_redraws_only_the_list(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            cdp.js("window.__keep = ['h1', '.crumbs', '.head', '.wbar', '.seg', '[data-type=action]', '[data-show=closed]', '.fbar', '#newBtn', '#work-list'].map(q => document.querySelector(q))", sid)
-            cdp.js("window.__tbody = document.querySelector('#work tbody')", sid)
-            click(cdp, sid, "[data-show=closed]")
-            self.assertTrue(wait(lambda: self.pressed(cdp, sid, "[data-show=closed]") == "true"))
-            click(cdp, sid, "[data-type=action]")
-            self.assertTrue(wait(lambda: self.pressed(cdp, sid, "[data-type=action]") == "true"))
-            self.assertEqual(cdp.js("window.__keep.map((e, i) => e === document.querySelector(['h1', '.crumbs', '.head', '.wbar', '.seg', '[data-type=action]', '[data-show=closed]', '.fbar', '#newBtn', '#work-list'][i]))", sid),
-                             [True] * 10, "the heading, the switches, the filter row, Add and the list's own box are the same elements")
-            self.assertEqual(cdp.js("window.__tbody === document.querySelector('#work tbody')", sid), True)
-            self.assertEqual(sorted({k for k in cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.kind)", sid)}), ["action"])
-
-    def test_the_address_carries_the_filters_by_replace_and_a_reload_restores_them(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            click(cdp, sid, "[data-show=all]")
-            click(cdp, sid, "[data-type=risk]")
-            label = self.tick(cdp, sid, "priority", 0)
-            self.assertTrue(wait(lambda: "priority:" in cdp.js("location.hash", sid)))
-            h = cdp.js("location.hash", sid)
-            self.assertRegex(h, r"^#work&p=TUL&f=mode:all;type:risk;priority:")
-            self.assertEqual(cdp.js("history.length", sid), 2)
-            self.assertEqual(cdp.js("window.__push", sid), 0)
-            want = self.shown(cdp, sid)
-            cdp.call("Page.reload", {}, sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-            self.assertEqual(cdp.js("location.hash", sid), h)
-            self.assertEqual(self.shown(cdp, sid), want)
-            self.assertEqual(self.pressed(cdp, sid, "[data-show=all]"), "true")
-            self.assertEqual(self.pressed(cdp, sid, "[data-type=risk]"), "true")
-            self.assertEqual(cdp.js("document.querySelectorAll('.fchip').length", sid), 1)
-            # leaving Work items drops the filters from the address (they belong to that page; Back brings them back, see the Back test)
-            click(cdp, sid, "[data-view=milestones]")
-            self.assertEqual(cdp.js("location.hash", sid), "#milestones&p=TUL")
-            click(cdp, sid, "[data-view=work]")
-            self.assertEqual(cdp.js("location.hash", sid), "#work&p=TUL")
-            self.assertEqual(self.pressed(cdp, sid, "[data-show=open]"), "true")
-            click(cdp, sid, "[data-show=closed]")
-            click(cdp, sid, "#clearAll")
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#work&p=TUL"))
-            self.assertEqual(cdp.js("window.__push", sid), 2, "only the two page changes pushed an entry; no filter did")
-
-    def test_a_filter_click_changes_f_in_the_address_by_replace_and_adds_no_history_entry(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            cdp.js("window.__replace = 0; const R = history.replaceState; history.replaceState = function () { window.__replace++; return R.apply(this, arguments); };", sid)
-            before = cdp.js("history.length", sid)
-            self.assertNotIn("f=", cdp.js("location.hash", sid), "the start state adds nothing")
-            click(cdp, sid, "[data-show=closed]")
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#work&p=TUL&f=mode:closed"))
-            self.tick(cdp, sid, "owner", 0)
-            self.assertTrue(wait(lambda: ";owner:" in cdp.js("location.hash", sid)))
-            h = cdp.js("location.hash", sid)
-            self.assertRegex(h, r"^#work&p=TUL&f=mode:closed;owner:[^&=;]+$")
-            self.assertEqual(cdp.js("history.length", sid), before, "a filter change adds no entry")
-            self.assertEqual(cdp.js("window.__push", sid), 0)
-            self.assertGreaterEqual(cdp.js("window.__replace", sid), 2, "each change rewrote the entry")
-            self.assertEqual(cdp.js("clarkPage.filters()", sid), h.split("&f=")[1], "the page reads the same text")
-            click(cdp, sid, "#clearAll")
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#work&p=TUL"))
-            self.assertEqual(cdp.js("history.length", sid), before)
-
-    def test_loading_an_address_with_f_shows_the_filters_and_a_bad_f_shows_none_and_changes_nothing_else(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL&f=mode:closed;type:action")
-            self.assertEqual(self.pressed(cdp, sid, "[data-show=closed]"), "true")
-            self.assertEqual(self.pressed(cdp, sid, "[data-type=action]"), "true")
-            self.assertEqual(self.shown(cdp, sid), expect(self.rows_of(cdp, sid), "closed", "action"))
-            self.assertEqual(cdp.js("location.hash", sid), "#work&p=TUL&f=mode:closed;type:action", "kept exactly as given")
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL&f=owner:Sam%20Rivers;not:owner")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.fchip')].map(c => c.textContent.replace('\\u00d7', ''))", sid), ["Owner is not: Sam Rivers"])
-            self.assertEqual(cdp.js("document.querySelector('[data-fb=owner]').classList.contains('on')", sid), True)
-            # a hostile value is shown as plain text: nothing runs, no markup is made, and the page still works
-            hostile = '<img src=x onerror="window.__pwn=1">'
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL&f=owner:" + urllib.parse.quote(hostile, safe="") + ";not:owner")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.fchip')].map(c => c.textContent.replace('\\u00d7', ''))", sid), ["Owner is not: " + hostile])
-            self.assertEqual(cdp.js("document.querySelectorAll('.fchip img, #work img[onerror]').length", sid), 0, "no element was made from the value")
-            self.assertEqual(cdp.js("typeof window.__pwn", sid), "undefined", "nothing ran")
-            self.assertEqual(cdp.js("clarkPage.project()", sid), "TUL")
-            self.assertEqual(cdp.js("document.querySelector('[data-show=all]').click(), document.querySelectorAll('.fchip').length", sid), 1, "the page still answers")
-        # an `f` the router will not trust is dropped: no filters, and the page and the project are as the rest of the address says
-        for bad in ("f=mode:closed;owner:%zz", "f=owner:%", "f=mode=closed", "f=" + "a" * 601, "f=owner:%00", "f=owner:%ED%A0%80",
-                    "f=mode:closed&p=XYZ", "f=mode:closed&item=A-12&view=milestones"):
-            with self.subTest(bad), chrome() as cdp:
-                sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL&" + bad)
-                self.assertEqual(cdp.js("document.querySelectorAll('.fchip').length", sid), 0)
-                self.assertEqual(cdp.js("clarkPage.project()", sid), "TUL")
-                self.assertEqual(cdp.js("location.hash.startsWith('#work&p=TUL')", sid), True)
-                if "mode:closed&" in bad:       # a raw "&" ends the value; what is before it is still a good `f`, and "p=XYZ" is a second p, ignored
-                    self.assertEqual(self.pressed(cdp, sid, "[data-show=closed]"), "true")
-                else:
-                    self.assertEqual(self.pressed(cdp, sid, "[data-show=open]"), "true")
-
-    def test_back_and_forward_bring_the_filters_back_with_the_page_and_a_filter_change_is_never_a_stop(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            click(cdp, sid, "[data-show=all]")
-            click(cdp, sid, "[data-type=risk]")
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#work&p=TUL&f=mode:all;type:risk"))
-            want = self.shown(cdp, sid)
-            click(cdp, sid, "[data-view=milestones]")                       # a page change is one entry
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#milestones&p=TUL"))
-            self.assertEqual(cdp.js("history.length", sid), 3)
-            cdp.js("history.back()", sid)                                   # Back goes to Work items WITH its filters, not to an earlier filter
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#work&p=TUL&f=mode:all;type:risk"))
-            self.assertTrue(wait(lambda: self.shown(cdp, sid) == want))
-            self.assertEqual(self.pressed(cdp, sid, "[data-type=risk]"), "true")
-            cdp.js("history.forward()", sid)
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#milestones&p=TUL"))
-            cdp.js("history.back()", sid)
-            self.assertTrue(wait(lambda: self.shown(cdp, sid) == want))
-            hist = cdp.call("Page.getNavigationHistory", {}, sid)           # the filters were never entries: blank, Work items (rewritten twice), Milestones
-            self.assertEqual(len(hist["entries"]), 3)
-            self.assertEqual(hist["entries"][0]["url"], "about:blank")
-            self.assertTrue(hist["entries"][1]["url"].endswith("#work&p=TUL&f=mode:all;type:risk"))
-
-    def test_a_peek_and_the_filters_share_the_address_and_neither_loses_the_other(self):
-        s = self.serve()
-        item = self.data["TUL"]["actions"][0]["id"]
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            click(cdp, sid, "[data-show=all]")
-            cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == f"#work&p=TUL&item={item}&f=mode:all"))
-            click(cdp, sid, "[data-type=action]")                           # a filter change with a peek open keeps the peek
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == f"#work&p=TUL&item={item}&f=mode:all;type:action"))
-            self.assertEqual(cdp.js("clarkPage.peek().id", sid), item)
-            h = cdp.js("location.hash", sid)
-            cdp.call("Page.reload", {}, sid)                                # a reload brings back both
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-            self.assertEqual(cdp.js("location.hash", sid), h)
-            self.assertEqual(cdp.js("clarkPage.peek().id", sid), item)
-            self.assertEqual(self.pressed(cdp, sid, "[data-type=action]"), "true")
-            self.assertEqual(self.pressed(cdp, sid, "[data-show=all]"), "true")
-            cdp.js("clarkPage.closePeek()", sid)                            # a filter was changed while it was open, so closing rewrites the entry (#42): the filter stays
-            self.assertTrue(wait(lambda: cdp.js("clarkPage.peek()", sid) is None))
-            self.assertTrue(wait(lambda: cdp.js("clarkPage.filters()", sid) == "mode:all;type:action"))
-
-    def test_too_many_filters_for_the_address_is_refused_with_a_plain_line_and_changes_nothing(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            click(cdp, sid, "[data-show=all]")
-            # fill `f` to 598 characters with one hand-made filter (the router's limit is 600), then try a real one
-            text = "mode:all;owner:" + ",".join(f"P%20{n:03d}" for n in range(70))
-            text = text[:585] if len(text) > 585 else text
-            text = text[:text.rfind(",")] + "," + "Q" * (598 - len(text[:text.rfind(",")]) - 1)
-            self.assertEqual(len(text), 598)
-            cdp.js(f"clarkPage.setFilters({json.dumps(text)})", sid)
-            self.assertTrue(wait(lambda: len(cdp.js("clarkPage.filters()", sid)) == 598))
-            self.tick(cdp, sid, "workstream", 0)
-            self.tick(cdp, sid, "status", 0)
-            self.tick(cdp, sid, "priority", 0)
-            self.assertTrue(wait(lambda: "not fit" in cdp.js("document.querySelector('#work-note').textContent", sid)))
-            self.assertEqual(cdp.js("document.querySelector('#work-note').getAttribute('role')", sid), "status")
-            self.assertEqual(len(cdp.js("clarkPage.filters()", sid)), 598, "nothing changed")
-            self.assertEqual(cdp.js("document.querySelectorAll('#fbox-priority input:checked').length", sid), 0, "a tick that was not kept is not left ticked")
-            self.assertEqual(cdp.js("history.length", sid), 2)
-            click(cdp, sid, "#clearAll")                                    # Clear all always fits, and the line goes
-            self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#work&p=TUL"))
-            self.assertEqual(cdp.js("document.querySelector('#work-note').textContent", sid), "")
-
-    def test_the_filter_boxes_rows_are_big_enough_to_hit_and_aria_controls_exists_only_while_open(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-fb][aria-controls]').length", sid), 0, "closed: no aria-controls to a box that is not there")
-            click(cdp, sid, "[data-fb=owner]")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fbox-owner')", sid)))
-            self.assertEqual(cdp.js("document.querySelector('[data-fb=owner]').getAttribute('aria-controls')", sid), "fbox-owner")
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-fb][aria-controls]').length", sid), 1)
-            self.assertGreaterEqual(cdp.js("Math.min(...[...document.querySelectorAll('#fbox-owner label')].map(l => l.getBoundingClientRect().height))", sid), 24,
-                                    "the whole label row is the target, at least 24 px high")
-            click(cdp, sid, "[data-fb=owner]")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-fb][aria-controls]').length", sid) == 0))
-
-    def test_nothing_matching_says_so_and_clear_all_brings_the_rows_back(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            cdp.js("location.hash = '#work&p=TUL&f=mode:closed;type:decision;client:no;priority:Urgent'", sid)     # a hand-made address
-            cdp.call("Page.reload", {}, sid)
-            self.assertTrue(wait(lambda: "No items match these filters." in (cdp.js("document.querySelector('#work-list').innerText", sid) or "")))
-            self.assertEqual(cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid), 0)
-            click(cdp, sid, "#clearAll2")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-
-    def test_the_add_button_follows_the_type_switch_and_offers_menus(self):
+    def test_the_add_button_follows_the_type_in_the_line_and_offers_menus(self):
         s = self.serve()
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -890,16 +587,16 @@ class RealBrowser(unittest.TestCase):
                 self.assertTrue(wait(lambda: "Add issue" in js("document.querySelector('#work-note').textContent")))
                 self.assertEqual(js("document.querySelectorAll('#work tbody tr[data-id]').length"), len(expect(self.rows_of(cdp, sid))))
                 for type_, words in (("action", "Add action"), ("decision", "Add decision"), ("risk", "Add risk or issue"), ("all", "Add item")):
-                    click(cdp, sid, f"[data-type={type_}]")
-                    self.assertTrue(wait(lambda: tile()[0] == words), f"the word follows the {type_} switch")
+                    set_line(cdp, sid, TYPE_LINES[type_])
+                    self.assertTrue(wait(lambda: tile()[0] == words), f"the word follows the {type_} type in the line")
                     self.assertEqual(tile()[:3], [words, words, words], "label, tooltip and text are the full words")
-                click(cdp, sid, "[data-type=risk]")                                           # Risks and issues: Add risk, Add issue
+                set_line(cdp, sid, TYPE_LINES["risk"])                                           # Risks and issues: Add risk, Add issue
                 click(cdp, sid, "#newBtn")
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#newBtnMenu')")))
                 self.assertEqual(js("[...document.querySelectorAll('#newBtnMenu [role=menuitem]')].map(b => b.textContent)"), ["Add risk", "Add issue"])
                 key(cdp, sid, "Escape")
                 self.assertTrue(wait(lambda: js("!document.querySelector('#newBtnMenu')")))
-                click(cdp, sid, "[data-type=action]")                                         # Actions: no menu, one click
+                set_line(cdp, sid, TYPE_LINES["action"])                                         # Actions: no menu, one click
                 self.assertTrue(wait(lambda: tile()[3] is None))
                 click(cdp, sid, "#newBtn")
                 self.assertTrue(wait(lambda: "Add action" in js("document.querySelector('#work-note').textContent")))
@@ -909,7 +606,7 @@ class RealBrowser(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            click(cdp, sid, "[data-type=action]")
+            set_line(cdp, sid, TYPE_LINES["action"])
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#newBtn').getAttribute('aria-label')", sid) == "Add action"))
             width = lambda: cdp.js("document.querySelector('#newBtn').getBoundingClientRect().width", sid)
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 5, "y": 5}, sid)
@@ -925,24 +622,6 @@ class RealBrowser(unittest.TestCase):
             cdp.js("document.querySelector('#newBtn').focus()", sid)
             self.assertTrue(wait(lambda: width() > small + 40), "and on keyboard focus")
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#newBtn .w')).opacity", sid), "1")
-
-    def test_the_filter_boxes_work_with_the_keyboard(self):
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-            cdp.js("document.querySelector('[data-fb=owner]').focus()", sid)
-            key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fbox-owner')", sid)))
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.type", sid) == "checkbox"), "focus goes into the box")
-            key(cdp, sid, " ")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.fchip').length", sid) == 1))
-            self.assertEqual(cdp.js("document.querySelector('[data-fb=owner]').getAttribute('aria-label')", sid), "Owner: filtered")
-            key(cdp, sid, "Escape")
-            self.assertTrue(wait(lambda: cdp.js("!document.querySelector('#fbox-owner')", sid)))
-            self.assertEqual(cdp.js("document.activeElement.dataset.fb", sid), "owner")
-            cdp.js("document.querySelector('[data-fx=owner]').focus()", sid)
-            key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.fchip').length", sid) == 0))
 
     def test_dark_tokens_are_there_and_differ_from_light_and_the_profile_tokens_are_neutral(self):
         s = self.serve()
@@ -975,11 +654,12 @@ class RealBrowser(unittest.TestCase):
             for n in ("--profile-bg", "--profile-fg", "--profile-ring", "--profile-size"):
                 self.assertTrue(tok(n), n)
             self.assertEqual(tok("--profile-size"), "32px")
-            # the filter boxes and the Add menu take the dark values too (colours come from the tokens only)
+            # the filter line's suggestions and the Add menu take the dark values too (colours come from the tokens only)
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
-            click(cdp, sid, "[data-fb=owner]")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fbox-owner')", sid)))
-            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#fbox-owner')).backgroundColor", sid), "rgb(14, 45, 56)")
+            click(cdp, sid, "#fline-input")
+            cdp.call("Input.insertText", {"text": "st"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#fline-list')).backgroundColor", sid), "rgb(14, 45, 56)")
 
 
 if __name__ == "__main__":
