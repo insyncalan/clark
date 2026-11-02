@@ -2,7 +2,7 @@
 // Legend. The same block is the Milestones page, the Dashboard's Milestones section and, in a published file, both places; there
 // it starts on Timeline, shows only what the file holds (its rows are already the client's), and says the client's words.
 import { useState } from "preact/hooks";
-import { data, asAt, fromFile, openPeek } from "../stores/report.js";
+import { data, asAt, fromFile, mode, openPeek } from "../stores/report.js";
 import { milestoneRows, todayIso } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
 import { Icon } from "./Icon.jsx";
@@ -11,12 +11,15 @@ import { MsCalendar } from "./MsCalendar.jsx";
 import { MsList } from "./MsList.jsx";
 import { MsLegend } from "./MsLegend.jsx";
 
-export function MsBlock({ place }) {
+// `tools` is what Edit adds (edit/index.js): the eye on each row. A published file, a page in View and a page with no tools have none.
+export function MsBlock({ place, tools }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
   const rows = milestoneRows(data.value.milestones, today, client);
   const [view, setView] = useState(() => (client ? "line" : recall(`msv.${place}`, "line") === "cal" ? "cal" : "line"));
   const choose = (v) => { if (!client) remember(`msv.${place}`, v); setView(v); };
   const open = client ? null : (id) => openPeek(id, "milestone");   // a published file has nothing to open: its marks, labels, chips and rows are plain text
+  const Eye = !client && tools && tools.MsEye && mode.value === "edit" ? tools.MsEye : null;
+  const left = Eye ? new Set((Array.isArray(data.value.report_hidden) ? data.value.report_hidden : []).map((h) => (h && h.item_id) || h)) : null;      // the ids left out of the published page
   if (!rows.length) return <p class="muted" data-no-milestones>No milestones are shown yet.</p>;
   return (
     <div class="msv" data-view={view} data-place={place}>
@@ -27,7 +30,7 @@ export function MsBlock({ place }) {
       </div>
       {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} />}
       <MsLegend client={client} id={place} />
-      <MsList rows={rows} place={place} open={open} internalTag={!client} />
+      <MsList rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} left={left} />
     </div>
   );
 }
