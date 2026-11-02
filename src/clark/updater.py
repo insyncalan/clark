@@ -88,7 +88,7 @@ class Updater:
         self.system = system or ("mac" if platform.system() == platform.MAC else platform.system())
         self.version = version or clark.__version__
         self.schema = store.SCHEMA_VERSION if schema is None else schema
-        self.choose = choose or platform.choose_file
+        self.choose = choose or platform.choose_zip_file
         self.downloads = downloads
         self.home = home
         self.clock = clock
