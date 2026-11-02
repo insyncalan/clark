@@ -86,6 +86,25 @@ class Canary(tr.Base):
             self.assertNotIn(canary, line)
             self.assertNotIn("SECRETWORDS", line)
 
+    def test_the_page_is_not_sent_the_held_flag_but_the_log_still_gets_its_line(self):
+        """#300: the service marks a dropped reply `held` so the route can log it; the page has no use for it, so the route takes it out."""
+        self.use(lambda c: "the marker is " + c + "\nCITE: P1")
+        status, body = self.question()
+        self.assertEqual((status, body["ok"], body["message"]), (200, False, ask.HELD_BACK))
+        self.assertNotIn("held", body)
+        self.assertEqual(sum("private marker" in line for line in self.log.lines), 1, self.log.lines)
+        self.assertEqual(sorted(body), ["code", "message", "ok"])
+
+    def test_a_failure_whose_text_holds_the_canary_gives_the_plain_refusal(self):
+        """#299: a provider's Failure text goes through the same check as a reply."""
+        for make in (lambda c: ask.Failure("It broke: " + c), lambda c: ask.Failure(" ".join(c.upper()))):
+            p = Leaky(make)
+            got = ask.ask_provider(p, request())
+            self.assertEqual(got, ask.Failure(ask.HELD_BACK))
+            self.assertNotIn(p.canaries[0], got.message)
+        ok = ask.ask_provider(Leaky(lambda c: ask.Failure("The service is busy.")), request())
+        self.assertEqual(ok, ask.Failure("The service is busy."))
+
     def test_a_reply_without_it_passes_unchanged(self):
         self.use(lambda c: "The plan is on track.\nCITE: P1")
         status, body = self.question()
