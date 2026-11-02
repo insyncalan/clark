@@ -94,8 +94,9 @@ EVERYTHING = ("VERSION", "docs/RULES.md", ".claude/", ".github/", "vendor/", ".g
 # covered by EVERYTHING (.github/).
 GUARDED = ("src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py", "src/clark/server.py",
            ".github/workflows/tests.yml",
-           # #592: the guarded files our rules name (a path is matched as a prefix, so "ask" covers every ask*.py)
-           "src/clark/publish.py", "src/clark/secret_screen.py", "src/clark/update.py", "src/clark/updates.py",
+           # #592: the guarded files our rules name (a path is matched as a prefix, so "ask" covers every ask*.py, "publish" every
+           # publish*.py and "update" every update*.py)
+           "src/clark/publish", "src/clark/secret_screen.py", "src/clark/update",
            "src/clark/platform.py", "src/clark/changes.py", "src/clark/word_route.py", "src/clark/section_bodies.py",
            "src/clark/ai_service.py", "src/clark/doclinks.py", "src/clark/ask")
 DOCUMENTS = ("docs/",)                # and any *.md: these reach only the tests that name them (see `guard_tests`)

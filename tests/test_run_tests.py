@@ -309,7 +309,8 @@ class Changed(unittest.TestCase):
         # #592: the files our rules name, ask*.py by prefix
         for p in ("src/clark/changes.py", "src/clark/word_route.py", "src/clark/section_bodies.py", "src/clark/ai_service.py",
                   "src/clark/doclinks.py", "src/clark/ask_service.py", "src/clark/ask.py", "src/clark/publish.py",
-                  "src/clark/secret_screen.py", "src/clark/update.py", "src/clark/platform.py"):
+                  "src/clark/secret_screen.py", "src/clark/update.py", "src/clark/updates.py", "src/clark/update_helper.py",
+                  "src/clark/publish_flow.py", "src/clark/publish_pdf.py", "src/clark/platform.py"):
             with self.subTest(p):
                 self.assertEqual(self.chosen([p]), every)
         _, why = run_tests.choose(self.files, ["src/clark/server.py"], repo=self.repo)
