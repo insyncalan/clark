@@ -129,6 +129,15 @@ class AgainstThePage(unittest.TestCase):
         missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
+    def test_the_held_use_case_entry_names_only_what_the_page_has(self):
+        """#421: the held keep-the-use-cases entry is checked now, while it is held, so releasing it cannot show a button the page lacks."""
+        norm = lambda t: re.sub(r"[‘’]", "'", t)
+        code = norm(self.HELPCODE)
+        entry = next(x for x in RAW["howto"]["tasks"] if x["id"] == "keep-the-use-cases")
+        self.assertIn("keep-the-use-cases", LATER["howto"])
+        names = sorted({b for t in strings(entry["s"]) for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
+        self.assertEqual(names, [])
+
     def test_every_screen_shown_is_a_tab_of_the_page(self):
         screens = set(re.findall(r'(\w+): "[A-Z]\w+"', re.search(r"export const TITLES = \{(.*?)\}", (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8")).group(1)))
         text = " ".join(shown_texts())
@@ -162,8 +171,9 @@ class AgainstThePage(unittest.TestCase):
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
         # 58 on the merge with Show archived on Milestones (59 on main): the Supporting documents section (#74) is one more of Help's bold names on the page (measured on the merged tree)
         # 58 measured on the merged tree (main is 59), names printed: one name left the absent list, Week ending, which this branch's report bar (A-D2) puts on the page
-        # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
-        self.assertGreaterEqual(len(names), 52)
+        # 57 measured on the merge of main into the supporting documents branch (#74)
+        # 49 measured on the merge of #421 onto Train 03 (held use-case entry no longer bolds '+ Add use case', '+ Link an existing work item', 'Archive use case', 'Show archived', 'Draft from the project'; 50 fails)
+        self.assertGreaterEqual(len(names), 49)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
@@ -249,7 +259,7 @@ class NeverDelete(unittest.TestCase):
         for part in ("Archive hides the project and everything in it from the usual lists, the counts and the published page",
                      "**Show archived** finds it", "**Restore** and **Undo** bring it back"):
             self.assertIn(part, text)
-        self.assertIn("Archive use case", text)
+        self.assertIn("Archive this use case", text)       # the button as the page labels it (#421: the held entry once said "Archive use case")
         self.assertIn("Archive milestone", text)
 
 
