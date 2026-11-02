@@ -454,6 +454,9 @@ class Publisher:
         code = body.get("project") if isinstance(body, dict) else None
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
+        refused = to_client.section_style_refusal(body)
+        if refused:
+            return 400, self.fail(code_of(refused), refused)
         store = self.store()
         try:
             if store.read("projects", ref=code) is None:

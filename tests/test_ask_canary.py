@@ -95,6 +95,16 @@ class Canary(tr.Base):
         self.assertEqual(sum("private marker" in line for line in self.log.lines), 1, self.log.lines)
         self.assertEqual(sorted(body), ["code", "message", "ok"])
 
+    def test_a_failure_whose_text_holds_the_canary_gives_the_plain_refusal(self):
+        """#299: a provider's Failure text goes through the same check as a reply."""
+        for make in (lambda c: ask.Failure("It broke: " + c), lambda c: ask.Failure(" ".join(c.upper()))):
+            p = Leaky(make)
+            got = ask.ask_provider(p, request())
+            self.assertEqual(got, ask.Failure(ask.HELD_BACK))
+            self.assertNotIn(p.canaries[0], got.message)
+        ok = ask.ask_provider(Leaky(lambda c: ask.Failure("The service is busy.")), request())
+        self.assertEqual(ok, ask.Failure("The service is busy."))
+
     def test_a_reply_without_it_passes_unchanged(self):
         self.use(lambda c: "The plan is on track.\nCITE: P1")
         status, body = self.question()
