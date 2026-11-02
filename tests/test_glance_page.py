@@ -396,8 +396,9 @@ class Styles(Setup):
                 p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
                 p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
             p.js("document.querySelector('input[name=secstyle][value=grey]').click()")
+            p.js("window.__old_document = true")
             p.js("location.reload()")
-            p.until("document.documentElement.dataset.secstyle === 'grey'", "remembered after a reload")
+            p.until_new_page("window.__old_document === undefined && document.documentElement.dataset.secstyle === 'grey'", "remembered after a reload")
             gap = []
             for value in ("slim", "roomy"):
                 p.js(f"document.documentElement.dataset.secstyle = '{value}'")

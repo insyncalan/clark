@@ -123,6 +123,18 @@ class Settings(unittest.TestCase):
             return seen[0] == expected
         self.assertTrue(wait(check, seconds), f"{what}: wanted {expected!r}, last seen {seen[0] if seen else 'nothing'!r}")
 
+    def until_new_page(self, read_value, expected, what, seconds=20):
+        """until(), but a read made while the page is navigating is waited out: Chrome answers it with 'Inspected target navigated
+        or closed' (seen on the hosted macOS runner), and the next poll sees the new page. Any other error still fails."""
+        def read():
+            try:
+                return read_value()
+            except RuntimeError as e:
+                if "navigated or closed" in str(e):
+                    return None
+                raise
+        self.until(read, expected, what, seconds)
+
     def test_the_switch_is_on_by_default_changes_what_the_server_keeps_and_survives_a_reload(self):
         with chrome() as cdp:
             js = self.show_page(cdp)
@@ -142,7 +154,7 @@ class Settings(unittest.TestCase):
             self.until(lambda: read(self.db)[0], False, "the database holds it, for this computer")
             self.assertEqual(js("localStorage.getItem('clark.askEnabled')"), None, "nothing is kept in the browser")
             js("window.__beforeReload = true; localStorage.clear(); location.reload()")
-            self.until(lambda: js("window.__beforeReload !== true"), True, "the page has been reloaded")      # the old page still shows OFF until it goes
+            self.until_new_page(lambda: js("window.__beforeReload !== true"), True, "the page has been reloaded")      # the old page still shows OFF until it goes
             self.until(lambda: js(state), OFF, "off after a reload")
             self.until(lambda: js(ready), True, "the switch can be pressed after a reload")
             js("document.querySelector('[data-ask-switch]').click()")
@@ -154,8 +166,7 @@ class Settings(unittest.TestCase):
             sid = navigate(cdp, self.s.port, "#settings&p=ABC")
             js = lambda e: cdp.js(e, sid)          # noqa: E731
             js("localStorage.setItem('clark.askEnabled', 'off'); location.reload()")
-            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == ON, 20),
-                            "the database says on, so the page says on")
+            self.until_new_page(lambda: js("(document.querySelector('#ask-state') || {}).innerText"), ON, "the database says on, so the page says on")
             self.assertEqual(read(self.db)[0], True)
 
     def test_asking_reads_as_off_when_the_server_cannot_say(self):

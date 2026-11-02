@@ -122,8 +122,10 @@ class Appearance(Base):
             p.js("document.querySelector('#profile-menu [data-kind=look-dark]').click()")
             p.until("document.documentElement.dataset.theme === 'dark'", "Dark applied")
             self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), "dark")
+            p.js("window.__old_document = true")
             p.js("location.reload()")
-            p.until("!!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'", "Dark again after a reload")
+            p.until_new_page("window.__old_document === undefined && !!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'",
+                             "Dark again after a reload")
             self.open_menu(p)
             self.assertEqual(self.in_menu(p), ["Dark"])
 

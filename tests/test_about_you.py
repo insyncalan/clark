@@ -107,7 +107,7 @@ class AboutYou(Base):
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile-menu .who b')).fontWeight >= 500"), True)
             self.close_menu(p)
             p.js("window.__before_reload = true; location.reload()")
-            p.until("!window.__before_reload && !!document.querySelector('#profile-btn')", "the page again (not the one being left)")
+            p.until_new_page("!window.__before_reload && !!document.querySelector('#profile-btn')", "the page again (not the one being left)")
             self.open_menu(p)
             p.until("!!document.querySelector('#profile-menu .who')", "the menu shows who you are after a reload (read from clark)")
             self.assertEqual(self.top(p)["name"], "Sam Lee")
