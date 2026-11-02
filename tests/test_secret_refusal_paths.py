@@ -27,8 +27,8 @@ CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
 # #330: the kinds the two shared lists have no sample for, built from pieces: an npm token in both of its forms and a PyPI token
 KINDS_ADDED_HERE = {
     "npm token": "np" + "m_" + "A1b2C3d4E5f6G7h8I9j0K1l2",
-    "npm auth line": "//registry.example.org/:_auth" + "Token=" + "A1b2C3d4E5f6G7h8I9j0",
-    "pypi token": "py" + "pi-" + "AgEIcHlwaS5vcmc" + "A1b2C3d4E5f6",
+    "npm auth line": "//registry.example.org/:_auth" + "Token=" + "AbCdEfGhIjKlMnOp",
+    "pypi token": "py" + "pi-" + "AgEIcHlwaS5vcmc" + "A1b2C",
 }
 SAMPLES = {**{"a " + k: v for k, v in REFUSED.items()}, **{"b " + k: v for k, v in ATTACKS.items()},
            **{"c " + k: v for k, v in KINDS_ADDED_HERE.items()}}
