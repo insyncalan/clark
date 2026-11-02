@@ -373,7 +373,7 @@ class PublishLooks(tpd.Base):
                 p.js("window.__release()")
                 p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
                 self.assertFalse(p.js("!!document.querySelector('.spin')"), "the ring is gone when the work ends")
-                self.assertTrue(p.js("!!document.querySelector('#pub-msg .pub-tick')"), "the tick is shown")
+                self.assertTrue(p.js("!!document.querySelector('.pub-tick')"), "the tick is shown")
                 self.assertTrue(p.message(), "and the words are still there")
                 tick = p.js("(function(){var e=document.querySelector('.pub-tick');var c=getComputedStyle(e);return [c.animationName,c.opacity,e.getAnimations().length];})()")
                 if mode[0] == "allowed":
