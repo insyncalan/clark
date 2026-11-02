@@ -19,20 +19,20 @@ VERSION = "0.5.1"
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
+    ("#492", "A published page keeps its saved filters when the Work items tab is clicked after reopening",
+     "test_client_page_filters::ClientPageFilters::test_a_click_on_the_work_items_tab_keeps_the_saved_choices"),
+    ("#192", "The client report shows no row ids, no Escalate line, no unbuilt template and no author instruction",
+     "test_client_report_file::Nothing::test_the_built_file_holds_no_code_that_draws_an_id_an_escalate_line_or_an_author_sentence"),
 ]
 
 # Not on main yet: (item, check, where it is being built). Move each to COVERED, with its test, when it lands.
 WAITING = [
-    ("#69", "A published page keeps its saved filters when the Work items tab is clicked after reopening",
-     "the fix for the saved filters wiped on a tab click (Parker builds; Hawkeye reads)"),
     ("#383", "Use cases is written in sentence case in the tab and the heading", "PR 275"),
-    ("#192", "The client report shows no row ids, no Escalate line, no unbuilt template and no author instruction",
-     "PR 294"),
 ]
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
-    ("#69", "Saved filters on a published page survive a tab click", "judgement",
+    ("#492", "Saved filters on a published page survive a tab click", "judgement",
      "only a person can open the saved file again and see the chips come back",
      "Publish a demo project, filter Work items by Owner and Status, close and reopen the file, click the Work items tab (sheet line 16)."),
     ("#383", "Use cases is in sentence case wherever a person reads it", "judgement",
