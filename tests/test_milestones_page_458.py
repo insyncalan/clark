@@ -137,6 +137,50 @@ class Requests(unittest.TestCase):
                                    "values": {"decision": "x", "reasoning": "a\u202eb"}})
         self.assertEqual((status, bad["ok"]), (400, False), "the line is held to the plain-text rule")
 
+    LINE = "Pilot live is 3 days behind its agreed date."
+
+    def recover(self, **more):
+        due = (date.today() + timedelta(days=7)).isoformat()
+        return self.send("actions", {"description": "Recover pilot live", "priority": "High", "due_date": due, "milestone": self.m,
+                                     "latest_update": self.LINE, **more})
+
+    def published(self):
+        return publish.build(self.s, "ABC", now="2030-01-15")["body"].decode("utf-8")
+
+    def test_487_a_recovery_action_starts_hidden_from_the_client_in_the_same_step_and_one_undo_takes_both_back(self):
+        got = self.recover()
+        self.assertIn(got["ref"], [r["item_id"] for r in self.s.read("report_hidden")], "the eye is off")
+        self.assertEqual(len({r["via"] for r in self.s.step_rows(got["apply_id"])}), 1, "one step")
+        status, undone = self.undo({"project": "ABC", "apply_id": got["apply_id"]})
+        self.assertEqual((status, undone["ok"]), (200, True), undone)
+        self.assertIsNone(self.s.read("actions", ref=got["ref"]))
+        self.assertEqual([r for r in self.s.read("report_hidden") if r["item_id"] == got["ref"]], [], "the hiding went with it")
+
+    def test_487_a_hidden_recovery_action_and_its_line_are_not_in_the_published_file_and_both_are_once_shown(self):
+        got = self.recover()
+        status, hidden = self.change({"project": "ABC", "kind": "report_hidden", "op": "new", "id": "ABC-A-999", "place": "report"})
+        self.assertEqual(status, 400, "(a made-up id is refused: the eye is the real route)")
+        before = self.published()
+        self.assertNotIn("behind its agreed date", before, "the line is not in the file while the action is hidden")
+        self.assertNotIn("Recover pilot live", before)
+        self.assertNotIn(got["ref"], before)
+        status, shown = self.change({"project": "ABC", "kind": "report_hidden", "op": "delete", "id": got["ref"], "place": "report"})
+        self.assertEqual((status, shown.get("ok")), (200, True), shown)
+        after = self.published()
+        self.assertIn(self.LINE, after, "shown by the owner: the line comes with the action")
+        self.assertIn("Recover pilot live", after)
+
+    def test_487_a_steering_decision_with_the_line_starts_hidden_too(self):
+        due = (date.today() + timedelta(days=7)).isoformat()
+        got = self.send("decisions", {"decision": "Steering decision on pilot live", "needed_by": due, "reasoning": self.LINE})
+        self.assertIn(got["ref"], [r["item_id"] for r in self.s.read("report_hidden")])
+        self.assertNotIn("behind its agreed date", self.published())
+
+    def test_487_a_new_action_without_the_line_is_not_hidden(self):
+        due = (date.today() + timedelta(days=7)).isoformat()
+        got = self.send("actions", {"description": "Plain action", "priority": "High", "due_date": due, "milestone": self.m})
+        self.assertNotIn(got["ref"], [r["item_id"] for r in self.s.read("report_hidden")])
+
     def test_a_steering_decision_is_pending_and_needed_in_a_week(self):
         needed = (date.today() + timedelta(days=7)).isoformat()
         got = self.send("decisions", {"decision": "Steering decision on pilot live", "needed_by": needed})
@@ -291,6 +335,21 @@ class Page(Base):
             p.js("document.querySelector('.toast [data-undo]').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             self.assertIsNone(self.store.read("decisions", ref=decision["id"]))
+
+    def test_487_a_recovery_action_added_in_edit_starts_hidden_from_the_client_at_both_widths_and_undo_takes_both_back(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp, width)
+                self.open_movement(p)
+                p.js("document.querySelector('#mv-recover').click()")
+                p.until("/added and linked to Go live\\. Undo\\.$/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the action's toast")
+                ref = self.toast(p).split(" ")[0]
+                self.assertIn(ref, [r["item_id"] for r in self.store.read("report_hidden")], "the eye is off from the start")
+                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no page-wide scroll")
+                p.js("document.querySelector('.toast [data-undo]').click()")
+                p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
+                self.assertIsNone(self.store.read("actions", ref=ref))
+                self.assertNotIn(ref, [r["item_id"] for r in self.store.read("report_hidden")], "one Undo took the hiding back too")
 
     def test_the_internal_note_saves_when_the_box_is_left_undoes_and_follows_the_row(self):
         with chrome() as cdp:

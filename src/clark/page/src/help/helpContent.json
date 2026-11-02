@@ -563,7 +563,7 @@
      "The first line says how many open milestones are behind, and which is furthest behind.",
      "Each row has a track: a diamond for the original date (when it was rebaselined), a bar for the agreed date, the forecast mark, a red line for the distance past agreed, and today. At the right, the days late and whether it was rebaselined.",
      "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
-     "Then decide: **Hold** (adds a dated line to the **Internal note** and keeps the agreed date), **Move the agreed date** (you say who agreed it, why and where; the original date is kept), **Add a recovery action** (a High priority action due in 7 days, linked to the milestone, in its workstream or the first open one) or **Escalate to steering** (a Pending decision needed in 7 days, named for the milestone: a decision can’t be linked to a milestone). Each new item opens in the peek, with a line saying how far behind the milestone is.",
+     "Then decide: **Hold** (adds a dated line to the **Internal note** and keeps the agreed date), **Move the agreed date** (you say who agreed it, why and where; the original date is kept), **Add a recovery action** (a High priority action due in 7 days, linked to the milestone, in its workstream or the first open one) or **Escalate to steering** (a Pending decision needed in 7 days, named for the milestone: a decision can’t be linked to a milestone). Each new item opens in the peek, with a line saying how far behind the milestone is. A new item starts hidden from the client (its eye is off), so neither it nor that line reaches the client until you show it.",
      "Write an **Internal note**. It saves when you leave the box and is never published."
     ]
    },

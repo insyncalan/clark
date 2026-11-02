@@ -746,6 +746,8 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
             if words_ is None:
                 raise
             raise Refused(words_) from None
+        if any(values.get(f) for f in EXPLAIN_FIELDS):              # #487: a row that starts with Movement's explanation line starts hidden from the client (the eye off), in this same step so one Undo takes both back; the owner shows it when he chooses
+            st.create("report_hidden", {"project": project, "item_id": ref})
         apply_id = st.peek_apply_id()
     row = store.read(table, ref=ref)
     shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + EXPLAIN_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
@@ -1429,11 +1431,12 @@ def _eligible(rows, project):
         return (r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"])))
                 and r.get("field") in ("client_visible", "updated_at", "note"))
     picked = any(r.get("field") == "note" and r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"]))) for r in rows)
-    if (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
+    made_item = any(r.get("op") == MADE_OP and r["table"] in ("actions", "decisions") and of_item(r) for r in rows)      # #487: a new row that started hidden is a work-item step with its hiding in it
+    if not made_item and (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
         return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA) and pick_row(r) for r in rows)
     if any(item_field_row(r) for r in rows):                        # a step of work-item fields: nothing else in it (#47e: ask clark's too)
         return all((r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
-                   and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r)) for r in rows)
+                   and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r) or (made_item and r["table"] == "report_hidden" and _row_is_ours(r, project, False, flagged))) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
     page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "week_ending", "note"))
                       for r in rows)
