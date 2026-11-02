@@ -416,10 +416,13 @@ class Log:
 
     @staticmethod
     def _lines(path):
-        """A file's lines, split on the newline only: a stray next-line or line-separator character is not a break."""
+        """A file's lines, split on the newline only: a stray next-line or line-separator character is not a break. A
+        carriage return that ends a line (an old file, written by hand or by another tool) is dropped, so it never makes a
+        line differ from the same line without it."""
         with open(str(path), encoding="utf-8", errors="replace", newline="\n") as f:
             lines = f.read().split("\n")
-        return lines[:-1] if lines and lines[-1] == "" else lines
+        lines = lines[:-1] if lines and lines[-1] == "" else lines
+        return [x[:-1] if x.endswith("\r") else x for x in lines]
 
     def tail(self, n=200):
         """The last n lines across the files up to today (a file dated after today is left out), oldest first."""
