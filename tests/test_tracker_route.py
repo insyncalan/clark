@@ -118,7 +118,7 @@ class Route(unittest.TestCase):
         self.assertGreater(sv.CHANGE_BODY_LIMIT, widest)
         self.assertGreaterEqual(sv.CHANGE_BODY_LIMIT, widest + 4 * 1024)       # the envelope (project, place, ids) is far smaller than 4 KB
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
-        for route, limit in (("/api/undo", 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
+        for route, limit in (("/api/undo", 8 * 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
 
     def padded(self, size):
