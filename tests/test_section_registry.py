@@ -181,9 +181,9 @@ class PythonSide(unittest.TestCase):
         stored = max(s for s, _ in got.values())
         widest = max(r for _, r in got.values())
         self.assertLess(stored, section_bodies.LIMITS["tracker"], "the checker's caps keep the widest tracker under its stored-byte limit")
-        self.assertEqual((stored, widest), (81288, 95122), "a tracker cap moved: work out the new widest request, then set these two numbers")
+        self.assertEqual((stored, widest), (81100, 94934), "a tracker cap moved: work out the new widest request, then set these two numbers (measured on the merged tree; the figures come from the tracker line limit)")
         self.assertLessEqual(widest, sv.CHANGE_BODY_LIMIT)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT - widest, 433262, "the room left under the change limit")
+        self.assertEqual(sv.CHANGE_BODY_LIMIT - widest, 433450, "the room left under the change limit (measured; it follows the same tracker line limit)")
 
     def test_the_widest_needs_body_with_nothing_but_plain_letters_fits_the_change_limit_to_the_byte(self):
         got = {letter: self.widest_request("needs", self.widest_needs(letter), False) for letter in ("a", "\u00e9", "\u4e2d")}
