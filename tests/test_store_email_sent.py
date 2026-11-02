@@ -152,6 +152,24 @@ class Refusals(Base):
         self.refuses("is not a real date", day="28-10-2026")
         self.refuses("There is no project", code="QQQ")
 
+    def test_no_name_says_what_to_do(self):
+        with self.assertRaises(Invalid) as caught:
+            self.send(who="  ")
+        self.assertEqual(str(caught.exception), "Add your name in Settings, then try again. Nothing was saved.")
+
+    def test_each_refusal_ends_with_nothing_was_saved_and_is_short(self):
+        with self.store.step("dashboard", USER) as st:
+            st.archive("projects", "ABC")
+        cases = [dict(who=""), dict(mode="bogus"), dict(ids=[]), dict(ids=["ABC-A-%03d" % i for i in range(60)]),
+                 dict(code="QQQ"), dict(day="2026-02-30"), dict(day="2020-01-01"), dict(day="2030-01-01"), dict()]
+        for kw in cases:
+            with self.subTest(kw=list(kw)):
+                with self.assertRaises(Invalid) as caught:
+                    self.send(**kw)
+                msg = str(caught.exception)
+                self.assertTrue(msg.endswith("Nothing was saved."), msg)
+                self.assertLessEqual(len(msg), 120, msg)
+
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:
             st.archive("projects", "ABC")
@@ -161,7 +179,8 @@ class Refusals(Base):
         with self.store.step("dashboard", USER):
             with self.assertRaises(Invalid) as caught:
                 self.send()
-            self.assertIn("middle of a step", str(caught.exception))
+            self.assertIn("part-way through another change", str(caught.exception))
+            self.assertNotIn("sent record", str(caught.exception))
 
     def test_the_email_words_are_in_no_column(self):
         con = sqlite3.connect(self.store.path)

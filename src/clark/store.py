@@ -508,7 +508,7 @@ def _project_exists(con, table, row, changed):
     if row.get("project") and not con.execute("SELECT 1 FROM projects WHERE code = ?", (row["project"],)).fetchone():
         raise Invalid(f"project {row['project']} isn't here")
     if row.get("project") and is_archived(con, row["project"]):
-        raise Invalid(f"Project {row['project']} is archived. Restore it first.")
+        raise Invalid(f"Project {row['project']} is archived. Restore it first. Nothing was saved.")
 
 
 def _milestone_link(con, table, row, changed):
@@ -517,7 +517,7 @@ def _milestone_link(con, table, row, changed):
         if not ms:
             raise Invalid(f"milestone {row['milestone']} isn't here")
         if ms[1] and "milestone" in changed:                  # #126: an item is not put on an archived milestone (one it already has stays)
-            raise Invalid(f"Milestone {row['milestone']} is archived. Restore it first.")
+            raise Invalid(f"Milestone {row['milestone']} is archived. Restore it first. Nothing was saved.")
         if row.get("project") and ms[0] != row["project"]:
             raise Invalid(f"milestone {row['milestone']} belongs to {ms[0]}, not {row['project']}")
 
@@ -529,7 +529,7 @@ def _use_case_link(con, table, row, changed):
         if not uc:
             raise Invalid(f"use case {row['use_case']} isn't here")
         if uc[1] and "use_case" in changed:                   # #126: as for a milestone
-            raise Invalid(f"Use case {row['use_case']} is archived. Restore it first.")
+            raise Invalid(f"Use case {row['use_case']} is archived. Restore it first. Nothing was saved.")
         if row.get("project") and uc[0] != row["project"]:
             raise Invalid(f"use case {row['use_case']} belongs to {uc[0]}, not {row['project']}")
 
@@ -711,7 +711,7 @@ def check_link(con, row):
         if not found:
             raise Invalid(f"{label} {end} isn't here")
         if found["archived"]:
-            raise Invalid(f"{end} is archived. Restore it first.")
+            raise Invalid(f"{end} is archived. Restore it first. Nothing was saved.")
     if a == b:
         raise Invalid("an item can't block itself")
     if blocks_reach(con, b, a):
@@ -903,7 +903,7 @@ def refuse_archived_field(item):
 def _refuse_if_archived(table, key, current):
     """An archived row is read-only: only restore changes it (#126)."""
     if current.get("archived"):
-        raise Invalid(f"{key} is archived. Restore it first.")
+        raise Invalid(f"{key} is archived. Restore it first. Nothing was saved.")
 
 
 def _refuse_label_on_archived(con, table, row):
@@ -912,7 +912,7 @@ def _refuse_label_on_archived(con, table, row):
         t = item_table(row.get("item_id"))
         found = fetch(con, t, row["item_id"]) if t in LABELLED else None
         if found is not None and found["archived"]:
-            raise Invalid(f"{row['item_id']} is archived. Restore it first.")
+            raise Invalid(f"{row['item_id']} is archived. Restore it first. Nothing was saved.")
 
 
 PROJECT_CHILDREN = ("workstreams", "milestones", "use_cases", "actions", "raid", "decisions", "documents")   # the order they archive in
@@ -1531,7 +1531,7 @@ def revert_group(con, apply_id, table, key, rows_, step):
     if row is None:
         return [], [entry(rows_[0], field=None, why="no longer exists", by_step=None)]
     if "archived" in row.keys() and row["archived"] and not any(r["field"] == "archived" for r in rows_):
-        raise Invalid(f"{key} is archived. Restore it first.")        # #126: an older step's edit is not put back onto an archived row
+        raise Invalid(f"{key} is archived. Restore it first. Nothing was saved.")        # #126: an older step's edit is not put back onto an archived row
     by_field = {}                                     # a field changed twice in one step: judged by its last value, put back
     for r in rows_:                                   # to its first old value (creaite's whole-step cmd_undo)
         by_field.setdefault(r["field"], []).append(r)
@@ -2610,16 +2610,16 @@ class Store:
         one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
         transaction. Returns the record's number."""
         if not str(by_user or "").strip():
-            raise Invalid("A sent record needs who pressed it.")
+            raise Invalid("Add your name in Settings, then try again. Nothing was saved.")
         if mode not in self.EMAIL_MODES:
-            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
+            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision. Nothing was saved.")
         if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
-            raise Invalid("Tick at least one item before you press I sent it.")
+            raise Invalid("Tick at least one item before you press I sent it. Nothing was saved.")
         ids = list(dict.fromkeys(i.strip() for i in ids if i.strip()))
         if not ids:
-            raise Invalid("Tick at least one item before you press I sent it.")
+            raise Invalid("Tick at least one item before you press I sent it. Nothing was saved.")
         if len(ids) > self.EMAIL_MAX_IDS:
-            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts.")
+            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts. Nothing was saved.")
         try:
             if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(day)):
                 raise ValueError
@@ -2632,7 +2632,7 @@ class Store:
         if sent > now + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
-            raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
+            raise Invalid("clark is part-way through another change. Wait a moment, then try again. Nothing was saved.")
         try:
             self.con.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as e:
@@ -2640,9 +2640,9 @@ class Store:
         try:
             row = self.con.execute("SELECT archived FROM projects WHERE code = ?", (code,)).fetchone()
             if row is None:
-                raise Invalid("There is no project with that code.")
+                raise Invalid("There is no project with that code. Nothing was saved.")
             if row["archived"]:
-                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first.")
+                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first. Nothing was saved.")
             def ours(item):
                 return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
                            for table in ("actions", "raid", "decisions"))
