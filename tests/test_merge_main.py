@@ -103,6 +103,61 @@ class MergeMain(unittest.TestCase):
         self.assertIn("Not pushed. Run the checks, then push once.", r.stdout)
         self.assertEqual(self.remote_main(), before)
 
+    def test_old_branch_with_pages_meets_main_that_no_longer_tracks_them(self):
+        """#495: main drops the pages; an old branch that changed them gets them removed from the branch, merge committed."""
+        self.write("src/a.txt", "a1\n")
+        self.build()
+        self.commit("branch change")
+        git(self.w, "checkout", "-q", "main")
+        git(self.w, "rm", "-q", "--cached", "src/clark/page/page.html", "src/clark/page/page-view.html")
+        self.write("src/b.txt", "b1\n")
+        self.write(".gitignore", "src/clark/page/*.html\n")
+        self.commit("main stops tracking the pages")
+        git(self.w, "push", "-q", "origin", "main")
+        git(self.w, "checkout", "-q", "feature")
+        before = self.remote_main()
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(git(self.w, "ls-files", "src/clark/page").stdout, "", r.stdout)
+        self.assertEqual(git(self.w, "log", "-1", "--format=%s").stdout.strip(), "Merge origin/main")
+        self.assertFalse((self.w / ".git/MERGE_HEAD").exists())
+        self.assertEqual(self.remote_main(), before)
+
+    def _branch_untracks_pages(self):
+        git(self.w, "rm", "-q", "--cached", "src/clark/page/page.html", "src/clark/page/page-view.html")
+        self.write(".gitignore", "src/clark/page/*.html\n")
+        self.commit("branch stops tracking the pages")
+
+    def _assert_pages_not_taken(self, r, before):
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("no longer tracks them", r.stdout)
+        self.assertIn("main's copies are not taken", r.stdout)
+        self.assertEqual(git(self.w, "ls-files", "src/clark/page").stdout, "")
+        self.assertEqual(git(self.w, "log", "-1", "--format=%s").stdout.strip(), "Merge origin/main")
+        self.assertFalse((self.w / ".git/MERGE_HEAD").exists())
+        self.assertEqual(git(self.w, "status", "--porcelain").stdout, "")
+        self.assertEqual(self.remote_main(), before)
+
+    def test_new_branch_without_pages_meets_main_that_still_tracks_and_changes_them(self):
+        """#495: the branch no longer tracks the pages; main still does and changed both (modify/delete): not taken."""
+        self._branch_untracks_pages()
+        self.edit_main("src/b.txt", "b1\n", True)
+        before = self.remote_main()
+        r = self.run_script()
+        self._assert_pages_not_taken(r, before)
+
+    def test_new_branch_without_pages_meets_main_that_changed_only_page_html(self):
+        """Same, with only page.html in conflict (page-view.html unchanged on main): once a pathspec error."""
+        self._branch_untracks_pages()
+        git(self.w, "checkout", "-q", "main")
+        self.write("src/clark/page/page.html", "header\na0\nb0\nmain edit\n")
+        self.commit("main edits page.html only")
+        git(self.w, "push", "-q", "origin", "main")
+        git(self.w, "checkout", "-q", "feature")
+        before = self.remote_main()
+        r = self.run_script()
+        self._assert_pages_not_taken(r, before)
+
     def test_source_conflict_stops(self):
         self.write("src/a.txt", "branch\n")
         self.commit("branch change")

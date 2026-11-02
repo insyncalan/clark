@@ -97,17 +97,17 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "milestones-page", "diagnostics", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
-        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
+        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 30, 33))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (30, 33, 33))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -162,7 +162,7 @@ class AgainstThePage(unittest.TestCase):
         # 59 measured on this branch's merge with main: the bar above the page names one bold Help entry that was not on the page before (measured on the merged tree)
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
         # 58 measured on the merged tree (main is 59), names printed: one name left the absent list, Week ending, which this branch's report bar (A-D2) puts on the page
-        # 55 with #421 on top of that 58: the held use-case entry no longer bolds '+ Add use case', '+ Link an existing work item' or 'Archive use case' (measured: 55)
+        # 55 with #421 on top of that 58: the held use-case entry no longer bolds '+ Add use case', '+ Link an existing work item' or 'Archive use case' (measured: 55); still 55 measured after merging main again
         self.assertGreaterEqual(len(names), 55)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
