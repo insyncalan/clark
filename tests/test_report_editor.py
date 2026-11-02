@@ -111,6 +111,11 @@ class Pg:
     def toast(self):
         return wait_toast(lambda: self.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
 
+    def toast_is(self, text):
+        """Wait until the toast on screen says `text`. Use it where the toast read next is the second in a test: an earlier toast is
+        still showing, and toast() would return that one at once."""
+        self.until(f"((document.querySelector('.toast-text') || {{}}).textContent || '') === {json.dumps(text)}", f"the toast says: {text}")
+
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
@@ -253,7 +258,8 @@ class Modes(Base):
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
             # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
             # drawn says the one plain line
-            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current'].includes(s.dataset.type))"
+            # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
+            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
@@ -288,8 +294,9 @@ class Modes(Base):
             # (The fallback for a page with no box is tested at the "not claimed" toast below.)
             p.until("!!document.querySelector('[role=dialog]')", "the button opens the Add a section box")
             self.assertEqual(p.js("window.posts.length"), 0, "opening sends nothing")
+            p.until("!!document.querySelector('button[data-place]:not([disabled])')", "the box offers its Add section button, enabled (a click on a disabled one does nothing)")
             p.js("document.querySelector('button[data-place]').click()")
-            self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "Add section asks for a plain text section")
+            p.until("window.posts.length === 1", "Add section asks for a plain text section")
             sent = json.loads(p.js("window.posts[0]"))
             self.assertEqual(sent.get("values"), {"type": "text", "title": "New section"})
             self.assertIsNone(sent.get("after"), "at the end")
@@ -406,7 +413,7 @@ class Sections(Base):
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
             p.view()
-            self.assertEqual(p.ids(), [i for i in IDS if i != "ABC-S-002"], "gone in View")
+            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-011")], "gone in View (#74: so is Supporting documents, with no document)")
             self.assertNotIn("At a glance", p.js("document.querySelector('main').innerText"))
             p.edit()
             p.clear_toast()
@@ -419,6 +426,7 @@ class Sections(Base):
             self.assertTrue(p.js(hidden), "only the step that was undone")
             p.menu("ABC-S-002", "show")
             p.until("!" + hidden, "Show brings it back")
+            p.toast_is("Section included in the published page.")
             self.assertEqual(p.toast(), "Section included in the published page.")
 
     def test_rename_in_place_as_plain_text(self):
@@ -519,6 +527,7 @@ class Sections(Base):
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(want, "Undo of that move")
             p.reload()
+            p.edit()                                    # #74: View leaves out Supporting documents while it has no document
             p.order_is(want, "a reload keeps the order")
             self.assertEqual(self.ids_in_store(), want)
 
@@ -730,6 +739,7 @@ class Sections(Base):
             p.key("ArrowUp", ALT, code="ArrowUp", vk=38)               # the second half goes just above the pair; the first is alone
             p.until("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", "stepped out")
             self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-006": 0})
+            p.toast_is("Moved Next week up.")
             self.assertEqual(p.toast(), "Moved Next week up.")
             self.assertTrue(wait(lambda: on("ABC-S-007"), 5))
             p.js("document.querySelector('[data-id=\"ABC-S-011\"] [data-drag]').focus()")
@@ -1079,7 +1089,7 @@ class Gutter(Base):
                 p.view()
                 in_view = rects()
                 p.edit()
-                self.assertEqual(rects(), in_view, f"the same left edge and width in View and Edit at {w}")
+                self.assertEqual({k: v for k, v in rects().items() if k in in_view}, in_view, f"the same left edge and width in View and Edit at {w}")   # #74: an empty Supporting documents is in Edit only
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
             # the right half: its control sits in the gap between the two columns and covers no content
             gap = p.js("(function(){var l=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
