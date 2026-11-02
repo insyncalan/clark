@@ -231,7 +231,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers. The cover shows it as “Week ending Friday 30 October 2026”.",
+     "Set **Week ending** to the Friday the report covers (press Enter in the empty box to use this week’s Friday; clark only takes a Friday). The cover shows it as “Week ending Friday 30 October 2026”.",
      "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] cancels.",
      "Write **Summary**, **This week** and **Next week** the same way. In an empty section, type [[/]] and choose **Draft with AI** for a first draft from the project.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
@@ -1665,7 +1665,7 @@
       "ul",
       [
        "Dates are shown day, month, year: DD-MM-YYYY.",
-       "The week ends on a Friday.",
+       "The week ends on a Friday, everywhere. **Week ending** must be a Friday: clark says no to another day and names the Friday to pick. In Work items, **This week** runs from today to Friday; on a Saturday or Sunday it runs to the coming Friday.",
        "IDs: actions CODE-A-001, decisions CODE-D-001, risks and issues CODE-001 (one series), milestones CODE-M-001. CODE is the project’s short code.",
        "Use cases keep the ID you give them, such as 3.1."
       ]

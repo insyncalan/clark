@@ -384,6 +384,27 @@ class UseCases(Setup):
             p.js("history.back()")
             p.until("!!document.querySelector('.ucrow')", "back on the Dashboard")
 
+    def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
+        """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
+        uc = self.demo.use_case
+        with self.store.step("dashboard", USER) as st:
+            st.update("actions", self.a_open, {"client_message": "We will chase the supplier file this week"})
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "ZQ-risk own title", "raised": "2026-10-01", "source": "demo", "owner": "Sam Demo", "use_case": uc})
+            st.create("decisions", {"project": "ABC", "decision": "ZQ-decision own title", "source": "demo", "status": "Pending", "use_case": uc,
+                                    "made_by": "Lee Demo", "client_message": "A choice of shared drive is due"})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertIn("5 next steps", p.js("document.querySelector('.ucrow .ucbar').innerText"))
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail')", "the row opened")
+            text = p.js("document.querySelector('.ucdetail').innerText")
+            self.assertIn("Pat Demo: We will chase the supplier file this week", text)
+            self.assertNotIn("Chase the supplier file", text, "the item's own title is not shown beside its client wording")
+            self.assertIn("ZQ-risk own title", text, "an open risk is a next step; with no client wording its own title shows")
+            self.assertIn("Lee Demo: A choice of shared drive is due", text)
+            self.assertNotIn("ZQ-decision own title", text)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-step-av]')].map(e => e.textContent).sort()"), ["LD", "LD", "PD", "SD", "SD"])
+
 
 class Styles(Setup):
     def test_each_section_style_applies_at_once_and_is_remembered(self):
