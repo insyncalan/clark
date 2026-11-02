@@ -12,6 +12,7 @@ import { emptyBody } from "../logic/emptyBody.js";
 export { emptyBody };
 import { templateFor, templateEmpty } from "../templates/index.js";
 import { rowsOf, shownRows } from "../logic/needs.js";
+import { visibleDocs } from "../logic/documents.js";
 
 // A section set beside the next one shares its row with it (half width each); every other section takes the full row. The rows
 // are read from ALL the sections, then the hidden ones are left out, so a pair with one half hidden shows the other full width and
@@ -46,8 +47,8 @@ export function Dashboard({ tools }) {
   // A section template (#96) is drawn in the file and in the served View alike only while it has something to show (its isEmpty,
   // FR-11: View is what the client sees), so an empty template or a stub is in neither.
   const hasNeeds = (s) => shownRows(rowsOf(s, fromFile.value)).length > 0;       // a 'Needs from you' section with no row to show is left out (a left-out row is absent)
-  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "needs" ? hasNeeds(s) : false);
-  const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s)) && !(templateFor(s.type) && templateEmpty(s, d)) && !(s.type === "needs" && !hasNeeds(s));
+  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "needs" ? hasNeeds(s) : s.type === "docs" ? visibleDocs(d, true).length > 0 : false);
+  const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s)) && !(templateFor(s.type) && templateEmpty(s, d)) && !(s.type === "needs" && !hasNeeds(s)) && !(s.type === "docs" && !visibleDocs(d, fromFile.value).length);       // #74: no document to show, no section
   const list = editing ? all : all.filter(shown);
   const places = slots(all, editing ? undefined : shown);
   const emptyWhy = editing ? "This report has no sections yet. Add the first one below." : all.length ? (fromFile.value ? "This report has no sections." : "Every section of this report is hidden. Switch to Edit to show them.") : fromFile.value ? "This report has no sections." : "This report has no sections yet. Switch to Edit to add one.";

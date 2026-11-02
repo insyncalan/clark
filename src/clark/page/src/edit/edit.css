@@ -445,6 +445,21 @@ textarea.tpl-field { resize: vertical; }
 .tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-small); }
 .tpl-empty { margin: 0; }
 
+/* #74 Supporting documents in Edit: each link's buttons, the add or edit form, and "Add back a document". Tokens only. */
+.docs-edit { gap: var(--space-2); margin: var(--space-2) 0; }
+.docs-edit .docs-list { margin: 0; }
+.docs-row { flex-wrap: wrap; }
+.docs-row-buttons { flex: none; display: flex; gap: var(--space-1); align-self: center; }
+.docs-row-buttons .btn, .docs-left-list .btn { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; }
+.docs-row .docs-form { flex: 1 1 100%; }
+.tpl-form select { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-form select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.docs-form-buttons { display: flex; gap: var(--space-2); }
+.docs-left summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
+.docs-left summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.docs-left-list { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.docs-left-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
 .ms-eye.is-left { color: var(--status-blue-text); }

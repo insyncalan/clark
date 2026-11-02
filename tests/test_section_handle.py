@@ -94,6 +94,7 @@ class SectionHandle(Base):
                     in_view = {r["id"]: r["card"][::2] for r in self.at(cdp, p, w, scheme)}      # left and right edges
                     p.edit()
                     in_edit = {r["id"]: r["card"][::2] for r in p.js(MEASURE)}
+                    in_edit = {k: v for k, v in in_edit.items() if k in in_view}       # #74: an empty Supporting documents is in Edit only
                     self.assertEqual(in_edit, in_view, f"{w} px, {scheme}: the same left edge and width in View and Edit")
 
 

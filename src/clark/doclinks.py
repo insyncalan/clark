@@ -32,6 +32,10 @@ BAD_SITE = "That site name can't be used. If it uses another alphabet, open the 
 BAD_PORT = "That link's number after the site name isn't right. Copy the address from the address bar, then paste it again."
 ONE_EMAIL = "An email link must hold one email address and nothing else."
 BAD_EMAIL = "That email address isn't written the usual way."
+TITLE_ELSEWHERE = "That title looks like the address of another site. Use words, or the link's own site name."
+
+# The kinds a document may be (#74): the store, the change route and the publish build all read this one list.
+KINDS = ("Minutes", "Actions list", "Report", "Slides", "Plan", "Other")
 
 
 class LinkError(ValueError):

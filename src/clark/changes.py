@@ -37,7 +37,7 @@ from contextlib import contextmanager
 import unicodedata
 from pathlib import Path
 
-from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
+from clark import backup, doclinks, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
 from clark import store as clark_store
 from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
@@ -52,6 +52,7 @@ NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK = "new update move delet
 # are in no list: they are never taken from a request.
 NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a report row can be added to (use cases: never from here)
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
+DOC_FIELDS = ("title", "kind", "url", "date")        # #74: a document link's own fields; its id, project, place and archive flag never come from a request
 CHANGE_KINDS = {
     "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
@@ -96,7 +97,7 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "projects": ("health", "health_reason", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement"),     # #136: a Movement step; its decision is a work item's row (see _movement_step)
-            "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",), "workstreams": ("archived",)}
+            "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone")      # #67: a row added in the report: no id,
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone")   # raised, status or source
@@ -107,6 +108,8 @@ CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream
 CHANGE_KINDS["actions"][BULK] = ("status", "owner", "due_date", "priority", "workstream", "milestone")
 CHANGE_KINDS["raid"][BULK] = ("status", "owner", "due_date", "impact", "likelihood", "workstream", "milestone")
 CHANGE_KINDS["decisions"][BULK] = ("made_by",)
+CHANGE_KINDS["documents"] = {NEW: DOC_FIELDS, UPDATE: DOC_FIELDS}          # #74 (archive and restore are added below)
+KIND_OP_KEYS["documents"] = {NEW: ("values",)}
 for _kind in ARCHIVABLE:                              # #126: every record can be archived and restored, with no fields; the items keep their update
     CHANGE_KINDS.setdefault(_kind, {}).update({ARCHIVE: (), RESTORE: ()})
 ITEM_KINDS = ("actions", "raid", "decisions")        # the work items; every other kind is a report section
@@ -154,6 +157,8 @@ PROJECT_NOT_ACTIVE = "That project is archived. Restore it first."
 STALE = "Your page is out of date. Reload it, then try again."
 INVALID_LAYOUT = "That isn't a valid layout change."
 ITEM_NOT_MINE = "That item isn't in this project."     # another project's item, a missing one and an archived one: the same words
+DOC_NOT_MINE = "That document isn't in this project. Reload the page and try again."     # #74: another project's and a missing one: the same words
+DOC_KIND_WORDS = clark_store.DOC_KIND_WORDS
 ALREADY_HIDDEN = "That is hidden from the report already."
 NOT_HIDDEN = "That isn't hidden from the report."
 PICK_NOTHING = "Choose at least one item to add."
@@ -181,6 +186,7 @@ ITEM_VALUE_WORDS = "That value isn't one clark can use."
 ITEM_TEXT_WORDS = "Use plain text, with no line breaks or hidden characters."
 ITEM_BAD_KINDS = frozenset({"Cc", "Cf", "Cs", "Co", "Zl", "Zp"})   # as the store's section titles: control, format, surrogate, private use, separators
 NOT_A_DATE = "That isn't a date. Pick a day from the calendar."
+DOC_NOT_A_DATE = "That isn't a date. Write it as DD-MM-YYYY, for example 05-01-2030, or leave it empty."      # #74: a document's date is typed, there is no calendar
 NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
@@ -602,6 +608,8 @@ def _do_change(store, by_user, req):
     if op in (ARCHIVE, RESTORE):
         return _do_archive(store, by_user, project, table, op, place, req.get("id"))
     columns = clark_store.columns(store.con, table)
+    if kind == "documents":                                         # #74: a document link's add or edit
+        return _do_document_change(store, by_user, req, project, table, columns, op, place)
     if kind == "use_cases":                                         # #164: first, and before any work item line, so that a use case
         return _do_use_case_change(store, by_user, req, project, table, columns, place)       # is never taken by the work item path
     if op == NEW and kind in NEWABLE:
@@ -778,6 +786,106 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
     made = was_pending and now["status"] == "Made"                  # a decision that is made is replaced by a new one, never put back
     return 200, {"ok": True, "apply_id": None if made else apply_id, "undoable": apply_id is not None and not made, "ref": ref,
                  "item": {k: now[k] for k in ITEM_SHOWN[table]}}
+
+
+DOC_SHOWN = ("id",) + DOC_FIELDS + ("sort_order",)                  # #74: what a reply says of a document
+DOC_PLAIN = frozenset({DOC_KIND_WORDS, doclinks.TITLE_ELSEWHERE, doclinks.NOT_USABLE, doclinks.EMPTY, doclinks.TOO_LONG, doclinks.HIDDEN,
+                       doclinks.CREDENTIALS, doclinks.NO_SITE, doclinks.BAD_SITE, doclinks.BAD_PORT, doclinks.ONE_EMAIL, doclinks.BAD_EMAIL})
+
+
+def _real_day(text):
+    """Whether YYYY-MM-DD text is a day of the calendar."""
+    from datetime import date
+    try:
+        date.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
+
+
+def _checked_document(fields):
+    """#74: a document's fields with their values checked before the step, in the store's own words where it has them: the title
+    as a section title, the kind from doclinks.KINDS, the link through doclinks.check_link (kept as that rule gives it), the date
+    empty (no date) or a real YYYY-MM-DD. Whether a title names another site needs the link too: the store checks it on write."""
+    out = {}
+    for k, v in fields.items():
+        if k == "title":
+            try:
+                out[k] = clark_store.section_title(v)
+            except Invalid as e:
+                raise Refused(str(e)) from None
+        elif k == "kind":
+            if not isinstance(v, str) or v not in doclinks.KINDS:
+                raise Refused(DOC_KIND_WORDS)
+            out[k] = next(x for x in doclinks.KINDS if x == v)             # the list's own spelling
+        elif k == "url":
+            try:
+                out[k] = doclinks.check_link(v)
+            except doclinks.LinkError as e:
+                raise Refused(str(e)) from None
+        else:                                                           # the date
+            if v is not None and not isinstance(v, str):
+                raise Refused(DOC_NOT_A_DATE)
+            v = (v or "").strip()
+            if v and not (re.fullmatch(r"\d{4}-\d{2}-\d{2}", v) and _real_day(v)):
+                raise Refused(DOC_NOT_A_DATE)
+            out[k] = v or None
+    return out
+
+
+def _document_words(e):
+    """The store's refusal of a document as plain words: its document, title and link sentences pass as they are (none quotes the
+    value); a busy database passes through for _call to word; anything else is a fixed sentence."""
+    text = str(e)
+    if text.startswith("clark's data is in use") or text.startswith(NOT_OPENED):
+        return None
+    if text.startswith("Project ") and text.endswith("is archived. Restore it first."):
+        return PROJECT_NOT_ACTIVE
+    if text in DOC_PLAIN or text.startswith(("A title ", "A project can have at most ")):
+        return text
+    return ITEM_VALUE_WORDS
+
+
+def _do_document_change(store, by_user, req, project, table, columns, op, place):
+    """#74: add one document link to THIS project, or change the fields of one of its documents, in one step with one Undo. The
+    request gives only the fields of DOC_FIELDS; clark gives the id (CODE-L-001, store.next_id: a number once used is never used
+    again), the project and the place at the end of the list. The store checks every rule again on write. A refusal writes nothing
+    and never quotes the value. An archived project takes no change; an archived document takes no edit (restore it first)."""
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    ref = req.get("id")
+    if op == NEW:
+        values = _checked_document(_fields(req.get("values"), table, NEW, columns, "the new document's values"))
+        for field, words_ in (("url", doclinks.EMPTY), ("title", "A title can't be blank."), ("kind", DOC_KIND_WORDS)):
+            if field not in values:
+                raise Refused(words_)
+    else:
+        changes = _checked_document(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
+        if not changes:
+            raise Refused("Say what to change.")
+        if not isinstance(ref, str) or not clark_store.DOC_ID.fullmatch(ref):
+            raise Refused(DOC_NOT_MINE)
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed
+        try:
+            if op == NEW:
+                key = st.create(table, {**values, "project": project, "sort_order": order.end_slot(store.read(table, project))})
+                ref = key.split("|", 1)[1]
+            else:
+                row = store.read(table, ref=f"{project}|{ref}")
+                if row is None or row["project"] != project:
+                    raise Refused(DOC_NOT_MINE)
+                if row["archived"]:
+                    raise Refused(BULK_ARCHIVED)
+                st.update(table, f"{project}|{ref}", changes)
+        except Invalid as e:                                        # a rule of the store, in plain words: no field name, no value
+            words_ = _document_words(e)
+            if words_ is None:
+                raise
+            raise Refused(words_) from None
+        apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
+    now = store.read(table, ref=f"{project}|{ref}")
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
+                 "item": {k: now[k] for k in DOC_SHOWN}}
 
 
 def _where(place):
@@ -992,7 +1100,15 @@ HIDABLE = ("milestones", "actions", "raid", "decisions", "use_cases")      # wha
 
 def _hidable(ref):
     """Whether `ref` is the id of a kind of item the report shows (milestone, action, RAID item, decision, use case)."""
-    return isinstance(ref, str) and bool(clark_store.ITEM_ID.fullmatch(ref)) and clark_store.item_table(ref) in HIDABLE
+    return isinstance(ref, str) and (bool(clark_store.ITEM_ID.fullmatch(ref)) and clark_store.item_table(ref) in HIDABLE
+                                     or bool(clark_store.DOC_ID.fullmatch(ref)))       # #74: + a document, by its own id
+
+
+def _report_row(store, project, ref):
+    """The row a hidable id names (an item by its id; #74: a document by this project's key for it), or None."""
+    if clark_store.DOC_ID.fullmatch(ref):
+        return store.read("documents", ref=f"{project}|{ref}")
+    return store.read(clark_store.item_table(ref), ref=ref)
 
 
 def _blocked_labels(store):
@@ -1020,7 +1136,7 @@ def _do_hidden_change(store, by_user, req, project, table, op, place):
         raise Refused(ITEM_NOT_MINE)
     key = f"{project}|{ref}"
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed
-        row = store.read(clark_store.item_table(ref), ref=ref)
+        row = _report_row(store, project, ref)
         if row is None or row["project"] != project:
             raise Refused(ITEM_NOT_MINE)
         there = store.read("report_hidden", ref=key) is not None
@@ -1063,7 +1179,7 @@ def _do_pick(store, by_user, req, project, table, place):
         plan = []
         for ref in ids:
             item_table = clark_store.item_table(ref)
-            row = store.read(item_table, ref=ref)
+            row = _report_row(store, project, ref)
             if row is None or row["project"] != project:
                 raise Refused(ITEM_NOT_MINE)
             if row["archived"]:
@@ -1071,7 +1187,7 @@ def _do_pick(store, by_user, req, project, table, place):
             if any(str(n).casefold() in blocked for n in clark_store.labels_of(store.con, ref)):
                 raise Refused(PICK_SENSITIVE)
             there = store.read("report_hidden", ref=f"{project}|{ref}") is not None
-            off = row["client_visible"] == 0
+            off = row.get("client_visible") == 0                    # #74: a document has no client flag
             if not there and not off:
                 raise Refused(PICK_NOT_HIDDEN)
             plan.append((ref, item_table, there, off))
@@ -1365,7 +1481,8 @@ def _eligible(rows, project):
     items = {"actions": re.compile(re.escape(project) + r"-A-\d{3}"), "raid": re.compile(re.escape(project) + r"-\d{3}"),
              "decisions": re.compile(re.escape(project) + r"-D-\d{3}"),
              "milestones": re.compile(re.escape(project) + r"-M-\d{3}"),     # #68: an item of this project, in its own table (#67: + a milestone, for a row added in the report)
-             "use_cases": re.compile(re.escape(project) + r"-U-\d{3}")}      # #164: a use case of this project, edited as one family
+             "use_cases": re.compile(re.escape(project) + r"-U-\d{3}"),     # #164: a use case of this project, edited as one family
+             "documents": re.compile(re.escape(project) + r"\|" + re.escape(project) + r"-L-\d{3}")}     # #74: a document of this project, by its key
     shown_kinds = {**items, "use_cases": re.compile(re.escape(project) + r"-U-\d{3}")}    # #67: the picker's step also reaches these two
 
     milestone = re.compile(re.escape(project) + r"-M-\d{3}")
@@ -1417,7 +1534,9 @@ ITEM_FIELD_NAMES = {"description": "title", "decision": "title", "status": "stat
 UC_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-U-\d{3}")                  # #164: a use case's id; the words call it by its name
 TILE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}\|(" + "|".join(TILES) + ")")      # #45: a tile's key
 ITEM_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[ADMU]-)?\d{3}")        # a work item's id is what a person calls it
-HIDDEN_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}\|([A-Z][A-Z0-9]{2,6}-(?:[ADMU]-)?\d{3})")      # #67: a hidden row's key; the item is what a person calls it
+HIDDEN_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}\|([A-Z][A-Z0-9]{2,6}-(?:[ADMUL]-)?\d{3})")      # #67: a hidden row's key; the item is what a person calls it
+DOC_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}\|[A-Z][A-Z0-9]{2,6}-L-\d{3}")     # #74: a document's key; the words call it by its title
+DOC_FIELD_NAMES = {"title": "title", "kind": "kind", "url": "link", "date": "date"}
 MILESTONE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-M-\d{3}")           # #136: a milestone is called by its id in an Undo's words
 MILESTONE_FIELD_NAMES = {"baseline_date": "agreed date", "forecast_date": "forecast date", "actual_date": "achieved date",
                          "status": "status"}
@@ -1432,18 +1551,20 @@ def _name(names, ref):
         return ref
     hidden = HIDDEN_REF.fullmatch(str(ref))
     if hidden and ref not in names:
-        return hidden.group(1)                                      # #67: the item, never the pair
+        return "a document" if "-L-" in hidden.group(1) else hidden.group(1)     # #67: the item, never the pair; #74: a document, never its id
     tile = TILE_REF.fullmatch(str(ref))
     if tile and ref not in names:
         return "the tile " + TILE_WORDS[tile.group(1)]             # #45: a tile is known by the page's own name for it
     if ref in names:
         return "\u201c" + names[ref] + "\u201d"
-    return "a section" if "-S-" in str(ref) else "a record"          # #126: a record that was archived or restored is not a section
+    return "a section" if "-S-" in str(ref) else "a document" if DOC_REF.fullmatch(str(ref)) else "a record"          # #126: a record that was archived or restored is not a section
 
 
 def _kind_word(ref):
     """What a removed row is called in the words: a work item by its kind, anything else a section."""
     ref = str(ref)
+    if DOC_REF.fullmatch(ref):
+        return "document"                                           # #74
     if not ITEM_REF.fullmatch(ref):
         return "section"
     return "action" if "-A-" in ref else "decision" if "-D-" in ref else "milestone" if "-M-" in ref else "use case" if "-U-" in ref else "risk or issue"
@@ -1469,6 +1590,8 @@ def _field_words(entry, name):
             return f"the {MILESTONE_KEPT_AS_WAS[f]} of {name} is back as it was"
     if UC_REF.fullmatch(str(entry.get("ref"))):
         return _use_case_words(f, to, name)
+    if DOC_REF.fullmatch(str(entry.get("ref"))) and f in DOC_FIELD_NAMES:
+        return f"the {DOC_FIELD_NAMES[f]} of {name}"                # #74: never the old text or link itself
     if f in ("description", "decision") and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the title of {name} is back as it was"          # #67: never the old text itself
     if f in ITEM_FIELD_NAMES and ITEM_REF.fullmatch(str(entry.get("ref"))):
@@ -1541,7 +1664,10 @@ def words(reversed_, skipped, names):
             continue
         if e["field"] == "closed" and ITEM_REF.fullmatch(str(e["ref"])):
             continue                                                # a closing date follows the status: one line says both
-        if HIDDEN_REF.fullmatch(str(e["ref"])):                     # #67: the eye, undone either way
+        if HIDDEN_REF.fullmatch(str(e["ref"])) and "-L-" in str(e["ref"]) and not e.get("doc"):     # #74: the eye of a document, undone either way
+            phrase = (f"{_name(names, e['ref'])} is back on the published page" if e["ref"] in removed
+                      else f"{_name(names, e['ref'])} is left out of the published page again")
+        elif HIDDEN_REF.fullmatch(str(e["ref"])) and not e.get("doc"):      # #67: the eye, undone either way
             phrase = (f"{_name(names, e['ref'])} is back in the report" if e["ref"] in removed
                       else f"{_name(names, e['ref'])} is hidden from the report again")
         elif e["ref"] in removed:
@@ -1586,12 +1712,20 @@ def _skipped_why(why):
 
 
 def _name_use_cases(store, step_rows, names):
-    """Put the name of each use case the step touched into `names`, so the words call it by its name and never its id."""
+    """Put the name of each use case the step touched into `names`, so the words call it by its name and never its id. #74: and
+    the title of each document it touched (by its key, or the hidden row's key that names it), never its id."""
     for r in step_rows:
         if r["table"] == "use_cases" and UC_REF.fullmatch(str(r["key"])):
             found = store.read("use_cases", ref=str(r["key"]))
             if found is not None:
                 names[str(r["key"])] = found["title"]
+        hidden = HIDDEN_REF.fullmatch(str(r["key"])) if r["table"] == "report_hidden" else None
+        doc = str(r["key"]) if r["table"] == "documents" and DOC_REF.fullmatch(str(r["key"])) else None
+        if hidden and "-L-" in hidden.group(1):
+            doc = str(r["key"]).split("|", 1)[0] + "|" + hidden.group(1)
+        found = store.read("documents", ref=doc) if doc else None
+        if found is not None:
+            names[str(r["key"])] = found["title"]
 
 
 def _do_undo(store, by_user, req):
@@ -1631,8 +1765,11 @@ def _do_undo(store, by_user, req):
     names.update({r["id"]: r["title"] for r in rows})
     _name_use_cases(store, step_rows, names)
     reversed_ = []
+    doc_keys = {r["key"] for r in step_rows if r["table"] == "documents"} - {r["key"] for r in step_rows if r["table"] == "report_hidden"}
     for e in done["reversed"]:
         entry = {"ref": e["ref"], "field": e["field"], "change": e["change"], "to": e.get("to")}
+        if e["ref"] in doc_keys:
+            entry["doc"] = True                                     # #74: a document's own step (its key looks like the eye's, but it is not a hide or a show)
         if e["change"] in ("removed", "put back"):
             if any(x["ref"] == e["ref"] and x["change"] == e["change"] for x in reversed_):
                 continue                                            # one line for a whole section, not one for each field

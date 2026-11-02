@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import freshness as fresh, people as people_rules, platform, section_bodies
+from clark import doclinks, freshness as fresh, people as people_rules, platform, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -67,10 +67,9 @@ REQUIRED_NEW = {
     "report_hidden": ("project", "item_id"),
     "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
     "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
-    "documents": ("project", "title", "url"),                           # clark (#126): registered so it can be archived; see DOCUMENTS_LATER
+    "documents": ("project", "title", "url"),                           # clark (#126); #74: added and edited too (_document_rules)
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents", "people")   # what Step.archive takes (#126)
-DOCUMENTS_LATER = "Documents can only be archived or restored here."
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
                  "needs", "tracker",
@@ -108,9 +107,11 @@ DATE_FIELDS = {"due_date", "raised", "closed", "date", "week_ending", "baseline_
                "needed_by", "actual_date"}
 NO_EDIT = {"id", "updated_at"}
 ID_PREFIX = {"actions": "-A-", "decisions": "-D-", "raid": "-", "milestones": "-M-", "workstreams": "-W-",
-             "use_cases": "-U-", "report_sections": "-S-"}              # clark: - promises, + use cases, + sections (#65)
+             "use_cases": "-U-", "report_sections": "-S-", "documents": "-L-"}      # clark: - promises, + use cases, + sections (#65), + documents (#74)
 # ITEM_ID and ITEM_TABLE below stay as they are: a section is not linkable and carries no label
 ITEM_ID = re.compile(r"([A-Z][A-Z0-9]{2,6})-(?:([ADMWU])-)?\d{3}")
+DOC_ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-L-\d{3}")                    # #74: a document's id (CODE-L-001); never matches ITEM_ID
+MAX_DOCUMENTS = 200                                                      # #74: a project's documents, archived ones included
 ITEM_TABLE = {"A": "actions", "D": "decisions", "M": "milestones", "W": "workstreams", "U": "use_cases", None: "raid"}
 LINKABLE = ("actions", "raid", "milestones", "decisions")               # either end of a link
 LABELLED = ("actions", "raid", "decisions")                             # items that carry labels
@@ -121,7 +122,8 @@ CLOSED_STATUSES = ("Closed", "Cancelled")
 SHARED_NUMBERS = ("actions", "raid", "decisions")    # one number sequence per project: ABC-A-002 and ABC-002 never both exist
 BLANKABLE = {"decisions": ("date", "needed_by", "replaces", "reasoning", "options", "revisit"),
              "milestones": ("state", "state_reason", "owner", "actual_date", "client_message", "description", "internal_note",
-                            "movement", "workstream")}
+                            "movement", "workstream"),
+             "documents": ("date",)}                                     # #74
 CLOSING = {"actions": CLOSED_STATUSES, "raid": CLOSED_STATUSES}          # statuses that set `closed`
 DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders")
 # the only rows a step deletes (Head ruling on #31; #65: + the report's own tables; delete_row refuses a section that isn't text)
@@ -197,7 +199,7 @@ REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "li
                   "report_sections", "source_folders", "people")      # #115: a person is never deleted; only the Undo of the step that made them takes the row away
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
-REVERT_CREATED += ("report_hidden",)    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
+REVERT_CREATED += ("report_hidden", "documents")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
 REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "replaces"), ("links", "from_item"),
                ("links", "to_item"), ("item_labels", "item_id"),
                ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"),   # clark: + use_case
@@ -615,8 +617,39 @@ def _hidden_item(con, table, row, changed):
     """clark (#65, registered now, written by #67): what the report hides is an item of this same project."""
     t = item_table(row.get("item_id"))
     found = fetch(con, t, row["item_id"]) if t in LINKABLE + ("use_cases",) else None
+    if DOC_ID.fullmatch(str(row.get("item_id") or "")):                 # #74: a document of this project, by its key
+        found = fetch(con, "documents", f"{row.get('project')}|{row['item_id']}")
     if not found or found["project"] != row.get("project"):
         raise Invalid("That isn't an item of this project.")
+
+
+DOC_KIND_WORDS = "Choose what kind of document it is: Minutes, Actions list, Report, Slides, Plan or Other."
+
+
+def _document_rules(con, table, row, changed):
+    """#74: a document link's own rules, in plain words, on a new row and on each field a step writes (a restore or a write that
+    leaves a field alone does not check it again, so an older row never locks). The title is a section title's (plain text, not
+    blank, at most TITLE_LIMIT characters); the kind is one of doclinks.KINDS; the link passes doclinks.check_link and is stored as
+    that rule gives it; a title may not read as the address of another site; and a project holds at most MAX_DOCUMENTS."""
+    fresh_row = not row.get("id") or "id" in changed
+    if fresh_row or "title" in changed:
+        row["title"] = section_title(row.get("title"))
+    if (fresh_row or "kind" in changed) and row.get("kind") not in doclinks.KINDS:
+        raise Invalid(DOC_KIND_WORDS)
+    if fresh_row or {"title", "url"} & set(changed):
+        try:
+            row["url"] = doclinks.check_link(row.get("url"))
+            elsewhere = doclinks.looks_like_other_place(row["title"], row["url"])
+        except doclinks.LinkError as e:
+            raise Invalid(str(e)) from None
+        if elsewhere:
+            raise Invalid(doclinks.TITLE_ELSEWHERE)
+    if type(row.get("sort_order")) is not int:
+        raise Invalid("A document needs its place in the list.")
+    if fresh_row:
+        n = con.execute("SELECT count(*) FROM documents WHERE project = ? AND id IS NOT ?", (row.get("project"), row.get("id"))).fetchone()[0]
+        if n >= MAX_DOCUMENTS:
+            raise Invalid(f"A project can have at most {MAX_DOCUMENTS} documents.")
 
 
 def _source_folder(con, table, row, changed):
@@ -658,7 +691,7 @@ ROW_RULES = {
     "decisions": (_decision_source, _decision_rules, _project_exists, _use_case_link),
     "milestones": (_milestone_rules, _item_workstream, _project_exists),     # clark: + workstream, as on actions (#60)
     "use_cases": (_project_exists,),                                         # clark
-    "documents": (_project_exists,),                                         # #126: a document is not restored inside an archived project
+    "documents": (_project_exists, _document_rules),                         # #126: a document is not restored inside an archived project; #74
     "links": (_link_rules,),
     "item_labels": (_item_label,),
     "labels": (_label_name,),
@@ -817,10 +850,11 @@ def next_id(con, table, project):
     n = 0
     for t in tables:
         prefix = f"{project}{ID_PREFIX[t]}"
+        logged = f"{project}|{prefix}" if t == "documents" else prefix     # #74: a document is logged by its key, CODE|CODE-L-001
         for (i,) in con.execute(f"SELECT id FROM {_table(t)} WHERE project = ? AND length(id) = ? AND id LIKE ? "
                                 "UNION SELECT item_id FROM change_log WHERE tbl = ? AND length(item_id) = ? AND item_id LIKE ?",
-                                (project, len(prefix) + 3, prefix + "%", t, len(prefix) + 3, prefix + "%")):
-            tail = i[len(prefix):]
+                                (project, len(prefix) + 3, prefix + "%", t, len(logged) + 3, logged + "%")):
+            tail = i[-3:]
             if tail.isdigit():
                 n = max(n, int(tail))
     if n + 1 > 999:
@@ -866,8 +900,6 @@ def write_item(con, item, step):
         refuse_archived_field(item)
     if op not in ("new", "update", "cancel", "archive", "restore"):
         raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
-    if table == "documents" and op in ("new", "update") and not reverting:    # clark (#126): no ID scheme, no url rule (doclinks) yet; only an Undo of an archive or restore writes it
-        raise Invalid(DOCUMENTS_LATER)
     if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
         raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
@@ -2393,6 +2425,9 @@ class Store:
                 "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
             out["label_rules"] = [dict(r) for r in con.execute(
                 "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
+            out["documents"] = [dict(r) for r in con.execute(                 # #74: the Supporting documents section's links
+                "SELECT id, title, kind, url, date, sort_order, archived FROM documents WHERE project = ? AND archived IN (?, ?) "
+                "ORDER BY sort_order, id", (code, *flags))]
             if self.review_cache is None:
                 from clark import history                  # history imports this module, so it is read here
                 self.review_cache = history.ReviewCache()
@@ -2458,6 +2493,9 @@ class Store:
                         "SELECT apply_id, tbl, item_id, field, op, new_value FROM change_log WHERE tbl = 'milestones' "
                         "AND field = 'baseline_date' AND item_id LIKE ? ORDER BY rowid", (mine_like,)) if r["item_id"] in mine],
                     "undone": [r["apply_id"] for r in con.execute("SELECT apply_id FROM applies WHERE undone_at IS NOT NULL")],
+                    "documents": [dict(r) for r in con.execute(              # #74: every one, archived too: publish.select keeps only what may go
+                        "SELECT id, title, kind, url, date, sort_order, archived FROM documents WHERE project = ? "
+                        "ORDER BY sort_order, id", (code,))],
                 }
             finally:
                 con.execute("COMMIT")

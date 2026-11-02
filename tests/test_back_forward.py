@@ -133,7 +133,7 @@ class Editor(unittest.TestCase):
     def test_back_to_another_project_saves_the_title_in_its_own_project_and_undo_stays_there(self):
         with chrome() as cdp:
             self.visit(cdp, "#dashboard&p=XYZ")
-            xyz = self.page_titles()
+            xyz_stored = self.titles("XYZ")      # #74: View (here) leaves out an empty Supporting documents; the page after Back is in Edit
             abc_before = self.titles("ABC")
             self.js("clarkPage.setProject('ABC')")
             self.until("document.getElementById('project-name').textContent === 'Example Programme' && !!document.querySelector('.sec')",
@@ -145,12 +145,12 @@ class Editor(unittest.TestCase):
             self.until("document.getElementById('project-name').textContent === 'Second Programme'", "Back went to XYZ")
             self.until("!!document.querySelector('[data-undo]')", "the message says the title was saved")
             self.assertEqual(self.titles("ABC")[0], "Where we are now", "saved in ABC, where it was typed")
-            self.assertEqual(self.titles("XYZ"), xyz, "XYZ's report is untouched")
-            self.assertEqual(self.page_titles(), xyz, "XYZ's page shows XYZ's sections, not the ones ABC's reply carried")
+            self.assertEqual(self.titles("XYZ"), xyz_stored, "XYZ's report is untouched")
+            self.assertEqual(self.page_titles(), xyz_stored, "XYZ's page (in Edit) shows XYZ's sections, not the ones ABC's reply carried")
             self.js("document.querySelector('[data-undo]').click()")
             self.until("!!document.querySelector('.toast') && document.querySelector('.toast-text').textContent === 'Undone.'", "undone")
             self.assertEqual(self.titles("ABC"), abc_before, "Undo undid it in ABC")
-            self.assertEqual(self.page_titles(), xyz, "and XYZ's page still shows XYZ's sections")
+            self.assertEqual(self.page_titles(), xyz_stored, "and XYZ's page still shows XYZ's sections")
             self.assertEqual(self.sent, ["change", "undo"])
             self.no_errors()
 
