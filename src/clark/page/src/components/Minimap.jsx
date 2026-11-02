@@ -67,11 +67,18 @@ export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0, co
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, [open]);
+  // Esc shuts the open list even when a click left the focus on the page (some browsers give a button no focus on a click).
+  useEffect(() => {
+    if (!open) return undefined;
+    const esc = (e) => { if (e.key === "Escape" && narrow() && root.current && !root.current.contains(document.activeElement)) { setOpen(false); } };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [open]);
   const leave = (e) => { if (!root.current.contains(e.relatedTarget)) setOpen(false); };
 
   if (!list.length) return null;
   return (
-    <nav class={`toc${open ? " open" : ""}`} aria-label="On this page" ref={root} onKeyDown={keys}
+    <nav class={`toc${open ? " open" : ""}`} aria-label="Contents" ref={root} onKeyDown={keys}
       onMouseEnter={() => { if (!narrow()) setOpen(true); }} onMouseLeave={() => { if (!root.current.contains(document.activeElement)) setOpen(false); }}
       onFocusIn={() => { if (quiet.current) quiet.current = false; else if (!narrow()) setOpen(true); }} onFocusOut={leave}>
       <button type="button" class="toc-lines" ref={button} aria-expanded={open ? "true" : "false"} aria-controls="toc-card" aria-label="On this page" onClick={() => setOpen(narrow() ? !open : true)}>
