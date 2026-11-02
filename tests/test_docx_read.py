@@ -252,22 +252,35 @@ class AGoodFile(unittest.TestCase):
 class NotAWordFile(Refused):
     def test_not_a_zip_empty_or_not_bytes(self):
         for data in (b"just some text", b"", b"PK", None, "word/document.xml", 12, b"%PDF-1.7 " + b"x" * 100):
-            self.refused(data, "can't be opened")
+            self.refused(data, "could not be opened")
 
     def test_a_path_is_never_opened(self):
-        self.refused("/etc/hosts", "can't be opened")
-        self.refused(b"/etc/hosts", "can't be opened")
+        self.refused("/etc/hosts", "could not be opened")
+        self.refused(b"/etc/hosts", "could not be opened")
 
     def test_a_cut_short_file(self):
         data = docx(P("some text") * 50)
         for cut in (len(data) // 2, len(data) - 10, 30):
-            self.refused(data[:cut], "damaged or cut short")
+            self.refused(data[:cut], "may be damaged")
 
     def test_a_flipped_byte_inside_a_part(self):
         data = bytearray(docx(P("some text " * 200)))
         i = data.find(b"word/document.xml") + 40
         data[i] ^= 0xFF
-        self.refused(bytes(data), "can't be opened")
+        self.refused(bytes(data), "could not be opened")
+
+    def test_the_password_and_macro_words_name_no_file_type(self):
+        said = self.refused(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\0" * 600, "password")
+        self.assertEqual(said, "weekly.docx is password protected, or is an older kind of Word file. Open it in Word, remove the password "
+                               "and save a copy as a Word document, then choose it again.")
+        said = self.refused(docx(P("x"), parts={"word/vbaProject.bin": b"\0\1\2"}), "macros")
+        self.assertEqual(said, "weekly.docx has macros in it, and clark never opens macros. Open it in Word and save a copy as an ordinary "
+                               "Word document (the type that cannot hold macros), then choose it again.")
+        said = self.refused(b"just some text", "could not be opened")
+        self.assertEqual(said, "weekly.docx could not be opened. It may be damaged, or it may not be a Word file. Open it in Word and save a copy, then choose it again.")
+        for said in (self.refused(docx(skip=("word/document.xml",))), self.refused(b"just some text"), self.refused(docx(P("x"), parts={"word/vbaProject.bin": b"\0"}))):
+            rest = said.replace(NAME, "")
+            self.assertNotRegex(rest, r"\.docx|\.docm|main text")
 
     def test_an_older_or_password_protected_file(self):
         self.refused(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\0" * 600, "password")
@@ -278,21 +291,21 @@ class NotAWordFile(Refused):
 
     def test_a_part_stored_a_way_clark_does_not_read(self):
         data = patch_directory(docx(P("x")), "word/document.xml", 10, "<H", 99)
-        self.refused(data, "can't be opened")
+        self.refused(data, "could not be opened")
 
     def test_a_zip_with_no_main_text(self):
-        self.refused(docx(skip=("word/document.xml",)), "no main text")
-        self.refused(docx(skip=("[Content_Types].xml",)), "no main text")
-        self.refused(zipped([("hello.txt", b"hi")]), "no main text")
-        self.refused(b"PK\x05\x06" + b"\0" * 18, "no main text")                       # a zip with nothing in it
+        self.refused(docx(skip=("word/document.xml",)), "does not look like a Word document, so it was not read. Choose a Word file.")
+        self.refused(docx(skip=("[Content_Types].xml",)), "does not look like a Word document, so it was not read. Choose a Word file.")
+        self.refused(zipped([("hello.txt", b"hi")]), "does not look like a Word document, so it was not read. Choose a Word file.")
+        self.refused(b"PK\x05\x06" + b"\0" * 18, "does not look like a Word document, so it was not read. Choose a Word file.")                       # a zip with nothing in it
 
     def test_a_workbook_is_not_a_word_file(self):
         types = CONTENT_TYPES.replace(MAIN, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml")
-        self.refused(docx(P("x"), content_types=types), "no main text")
+        self.refused(docx(P("x"), content_types=types), "does not look like a Word document, so it was not read. Choose a Word file.")
 
     def test_a_document_with_no_body(self):
-        self.refused(docx(document_xml=HEAD + f'<w:document xmlns:w="{W}"/>'), "no main text")
-        self.refused(docx(document_xml=HEAD + '<root><body/></root>'), "no main text")
+        self.refused(docx(document_xml=HEAD + f'<w:document xmlns:w="{W}"/>'), "does not look like a Word document, so it was not read. Choose a Word file.")
+        self.refused(docx(document_xml=HEAD + '<root><body/></root>'), "does not look like a Word document, so it was not read. Choose a Word file.")
 
 
 class TooBig(Refused):
@@ -322,7 +335,7 @@ class TooBig(Refused):
     def test_a_squeeze_ratio_that_is_a_bomb(self):
         data = docx(P("x"), parts={"word/media/image1.bin": b"\0" * (3 * 1024 * 1024)})
         self.assertLess(len(data), 20_000)
-        self.refused(data, "packed in an unusual way")
+        self.refused(data, "could not be read safely")
 
     def test_a_small_highly_squeezed_part_is_fine(self):
         self.assertEqual(blocks(P("ok"), parts={"customXml/item1.xml": " " * 500_000}), [{"kind": "paragraph", "text": "ok"}])
@@ -335,7 +348,7 @@ class TooBig(Refused):
 
     def test_a_directory_that_understates_a_size(self):
         data = docx(P("some text " * 500))
-        self.refused(patch_directory(data, "word/document.xml", 24, "<I", 5), "can't be opened")
+        self.refused(patch_directory(data, "word/document.xml", 24, "<I", 5), "could not be opened")
 
     def test_a_directory_that_overstates_a_size(self):
         data = docx(P("some text"))
@@ -348,7 +361,7 @@ class TooBig(Refused):
 
 class NextStepsAndWording(Refused):
     """Plain-words review of PR 69: every size refusal says what to do next, and nothing says "parts"."""
-    SPLIT = "Split it into smaller documents and try again."
+    SPLIT = "Remove some text, or put part of it in a second file."
 
     def test_a_file_too_big_as_saved_says_to_save_a_smaller_copy(self):
         said = self.refused(b"PK" + b"\0" * (docx_read.MAX_FILE_BYTES + 1), "25.0 MB")
@@ -366,8 +379,7 @@ class NextStepsAndWording(Refused):
         self.assertNotRegex(said, r"(?i)\bparts?\b")
 
     def test_an_unsafe_name_and_a_repeated_name_share_the_something_inside_sentence(self):
-        want = ("weekly.docx has something inside it clark can't open safely, so it was not read. Open it in Word, save a copy "
-                "and try again.")
+        want = "weekly.docx could not be read safely, so it was not opened. Open it in Word, save a copy, and choose the copy."
         data = zipped([("[Content_Types].xml", CONTENT_TYPES), ("word/document.xml", document(P("x"))), ("../evil.xml", b"x")])
         self.assertEqual(self.refused(data), want)
         data = zipped([("[Content_Types].xml", CONTENT_TYPES), ("word/document.xml", document(P("one"))),
@@ -377,11 +389,10 @@ class NextStepsAndWording(Refused):
     def test_the_squeeze_ratio_has_its_own_true_sentence(self):
         data = docx(P("x"), parts={"word/media/image1.bin": b"\0" * (3 * 1024 * 1024)})
         said = self.refused(data)
-        self.assertEqual(said, "weekly.docx looks packed in an unusual way, so it was not read. Open it in Word, save a copy and "
-                               "try again.")
+        self.assertEqual(said, "weekly.docx could not be read safely, so it was not opened. Open it in Word, save a copy, and choose the copy.")
         self.assertNotIn("MB", said)       # it used to say "would open to about 3.0 MB, more than the 20.0 MB": false on its face
 
-    def test_the_long_text_refusals_say_to_split_the_document(self):
+    def test_the_long_text_refusals_say_to_remove_some_text_or_use_a_second_file(self):
         with mock.patch.object(docx_read, "MAX_BLOCKS", 10):
             said = self.refused(docx(P("x") * 11), "paragraphs and rows")
         self.assertTrue(said.endswith(self.SPLIT), said)
@@ -389,7 +400,8 @@ class NextStepsAndWording(Refused):
             said = self.refused(docx(P("x" * 400) * 3), "more text")
         self.assertTrue(said.endswith(self.SPLIT), said)
         said = self.refused(docx(P("a" * (docx_read.MAX_PARAGRAPH + 1))), "200,000")
-        self.assertEqual(said, "A paragraph in weekly.docx is longer than 200,000 characters, so it was not read. " + self.SPLIT)
+        self.assertEqual(said, "One paragraph in weekly.docx is far too long (over 200,000 characters), so the file was not read. "
+                               "Break that paragraph into shorter ones, then choose the file again.")
 
     def test_the_link_note_says_web_address_and_agrees_in_number(self):
         rels = RELS.format('<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/'
@@ -428,15 +440,15 @@ class UnsafeNames(Refused):
         for bad in ("../evil.xml", "word/../../evil.xml", "/etc/evil.xml", "\\evil.xml", "C:\\evil.xml", "c:evil.xml",
                     "word\\document2.xml", "word/./../x.xml", "a\x01b.xml", "x" * 300):
             data = zipped([("[Content_Types].xml", CONTENT_TYPES), ("word/document.xml", document(P("x"))), (bad, b"x")])
-            self.refused(data, "something inside it clark can't open safely", "save a copy and try again")
+            self.refused(data, "could not be read safely", "choose the copy")
 
     def test_the_same_name_twice(self):
         data = zipped([("[Content_Types].xml", CONTENT_TYPES), ("word/document.xml", document(P("one"))),
                        ("word/Document.xml", document(P("two")))])
-        self.refused(data, "something inside it clark can't open safely")
+        self.refused(data, "could not be read safely")
         data = zipped([("[Content_Types].xml", CONTENT_TYPES), ("word/document.xml", document(P("one"))),
                        ("word/document.xml", document(P("two")))])
-        self.refused(data, "something inside it clark can't open safely")
+        self.refused(data, "could not be read safely")
 
     def test_nothing_is_ever_written_to_disk(self):
         with mock.patch.object(zipfile.ZipFile, "extract", side_effect=AssertionError("extracted")), \
@@ -452,7 +464,7 @@ class MacrosObjectsAndLinks(Refused):
 
     def test_a_macro_enabled_document(self):
         types = CONTENT_TYPES.replace(MAIN, "application/vnd.ms-word.document.macroEnabled.main+xml")
-        self.refused(docx(P("x"), content_types=types), "macros", ".docm")
+        self.refused(docx(P("x"), content_types=types), "macros", "ordinary Word document (the type that cannot hold macros)")
         types = CONTENT_TYPES.replace("</Types>", '<Override PartName="/word/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/></Types>')
         self.refused(docx(P("x"), content_types=types), "macros")
 
@@ -507,13 +519,13 @@ class HostileXml(Refused):
            f'<w:document xmlns:w="{W}"><w:body><w:p><w:r><w:t>&lol9;</w:t></w:r></w:p></w:body></w:document>')
 
     def test_billion_laughs_in_the_document(self):
-        self.refused(docx(document_xml=self.LOL), "can't read safely")
+        self.refused(docx(document_xml=self.LOL), "could not be read safely")
 
     def test_quadratic_blowup_in_the_document(self):
         big = "x" * 50_000
         xml = (HEAD + f'<!DOCTYPE d [<!ENTITY a "{big}">]><w:document xmlns:w="{W}"><w:body><w:p><w:r><w:t>'
                + "&a;" * 20_000 + "</w:t></w:r></w:p></w:body></w:document>")
-        self.refused(docx(document_xml=xml), "can't read safely")
+        self.refused(docx(document_xml=xml), "could not be read safely")
 
     def test_an_external_entity_is_never_fetched(self):
         calls = []
@@ -527,43 +539,43 @@ class HostileXml(Refused):
                    "</w:body></w:document>")
             with mock.patch.object(socket.socket, "connect", spy), mock.patch.object(socket, "create_connection", spy), \
                     mock.patch.object(socket, "getaddrinfo", spy), mock.patch.object(urllib.request, "urlopen", spy):
-                self.refused(docx(document_xml=xml), "can't read safely")
+                self.refused(docx(document_xml=xml), "could not be read safely")
         self.assertEqual(calls, [])
 
     def test_a_parameter_entity_and_an_external_subset(self):
         for dtd in ('<!DOCTYPE d [<!ENTITY % p SYSTEM "https://evil.invalid/p.dtd"> %p;]>', '<!DOCTYPE d SYSTEM "https://evil.invalid/d.dtd">',
                     '<!doctype d [<!entity x "y">]>', '<!DOCTYPE d [<!NOTATION n SYSTEM "x">]>', "<!DOCTYPE d>"):
             xml = HEAD + dtd + f'<w:document xmlns:w="{W}"><w:body><w:p><w:r><w:t>x</w:t></w:r></w:p></w:body></w:document>'
-            self.refused(docx(document_xml=xml), "can't read safely")
+            self.refused(docx(document_xml=xml), "could not be read safely")
 
     def test_a_definition_in_any_other_part_is_refused_too(self):
         xml = HEAD + '<!DOCTYPE d [<!ENTITY a "b">]>'
         for name, body in (("word/styles.xml", f'<w:styles xmlns:w="{W}"/>'), ("word/numbering.xml", f'<w:numbering xmlns:w="{W}"/>'),
                            ("word/_rels/document.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>')):
-            self.refused(docx(P("x"), parts={name: xml + body}), "can't read safely")
+            self.refused(docx(P("x"), parts={name: xml + body}), "could not be read safely")
         self.refused(docx(P("x"), content_types=xml + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>'),
-                     "can't read safely")
+                     "could not be read safely")
 
     def test_an_entity_reference_with_no_definition_is_damage(self):
-        self.refused(docx(document_xml=document(P("&nothing;"))), "can't be opened")
+        self.refused(docx(document_xml=document(P("&nothing;"))), "could not be opened")
 
     def test_the_five_ordinary_entities_and_character_references_read(self):
         self.assertEqual(blocks(P("a &amp; b &lt;c&gt; &quot;d&quot; &apos;e&apos; &#65;&#x42;")),
                          [{"kind": "paragraph", "text": "a & b <c> \"d\" 'e' AB"}])
 
     def test_a_huge_character_reference_is_damage_not_a_hang(self):
-        self.refused(docx(document_xml=document(P("&#99999999999999999999;"))), "can't be opened")
-        self.refused(docx(document_xml=document(P("&#1;"))), "can't be opened")
+        self.refused(docx(document_xml=document(P("&#99999999999999999999;"))), "could not be opened")
+        self.refused(docx(document_xml=document(P("&#1;"))), "could not be opened")
 
     def test_text_that_is_not_utf8(self):
-        self.refused(docx(document_xml=(document(P("caf\u00e9"))).encode("latin-1")), "can't read safely")
-        self.refused(docx(document_xml=(document(P("x"))).encode("utf-16")), "can't read safely")
+        self.refused(docx(document_xml=(document(P("caf\u00e9"))).encode("latin-1")), "could not be read safely")
+        self.refused(docx(document_xml=(document(P("x"))).encode("utf-16")), "could not be read safely")
         self.refused(docx(document_xml=b'<?xml version="1.0"?>' + b"<w:document xmlns:w='" + W.encode() + b"'><w:body><w:p><w:r><w:t>\xff\xfe</w:t></w:r></w:p></w:body></w:document>"),
-                     "can't read safely")
+                     "could not be read safely")
 
     def test_a_declared_encoding_other_than_utf8(self):
         xml = document(P("x")).replace('encoding="UTF-8"', 'encoding="ISO-8859-1"')
-        self.refused(docx(document_xml=xml), "can't read safely")
+        self.refused(docx(document_xml=xml), "could not be read safely")
         self.assertEqual(blocks(P("x"), document_xml=document(P("x")).replace('"UTF-8"', '"utf-8"')), [{"kind": "paragraph", "text": "x"}])
 
     def test_a_byte_order_mark_is_fine(self):
@@ -572,12 +584,12 @@ class HostileXml(Refused):
     def test_xml_cut_short_or_mangled(self):
         whole = document(P("x" * 100))
         for broken in (whole[:len(whole) // 2], whole.replace("</w:body>", ""), whole + "<extra>", "not xml at all", "<w:document>"):
-            self.refused(docx(document_xml=broken), "can't be opened")
+            self.refused(docx(document_xml=broken), "could not be opened")
 
     def test_xml_nested_too_deep(self):
         deep = "<w:r>" * 200 + "<w:t>x</w:t>" + "</w:r>" * 200
         started = time.time()
-        self.refused(docx(f"<w:p>{deep}</w:p>"), "can't read safely")
+        self.refused(docx(f"<w:p>{deep}</w:p>"), "could not be read safely")
         self.assertLess(time.time() - started, 3)
 
     def test_xml_of_the_greatest_depth_allowed_reads(self):
@@ -586,7 +598,7 @@ class HostileXml(Refused):
 
     def test_xml_with_too_many_elements(self):
         with mock.patch.object(docx_read, "MAX_ELEMENTS", 50):
-            self.refused(docx(P("x") * 100), "can't read safely")
+            self.refused(docx(P("x") * 100), "could not be read safely")
 
     def test_a_flood_of_paragraphs(self):
         with mock.patch.object(docx_read, "MAX_BLOCKS", 10):

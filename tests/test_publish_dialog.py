@@ -88,7 +88,8 @@ class Dialog(Base):
                 self.assertIn("Copied to the client folder: Harbour Bridge", text)
                 self.assertIn("Publish locally", text)
                 self.assertNotIn("The client will see this page.", text)
-                self.assertNotIn("Word", text, "no Word tick in v0.2")
+                self.assertIn("Also a Word document", text, "the Word tick (#48)")
+                self.assertEqual(p.js("[document.querySelector('#pub-word').checked, document.querySelector('#pub-word').disabled]"), [False, False], "Also a Word document is unticked, and can be ticked")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "the dialog closed")
 
@@ -110,6 +111,8 @@ class Dialog(Base):
             p.until("document.activeElement && document.activeElement.id === 'pub-client'", "focus starts on the To client tick")
             p.key(" ", code="Space", vk=32)
             p.until("document.querySelector('#pub-client').checked", "Space ticks it")
+            p.key("Tab", code="Tab", vk=9)
+            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick")
             p.key("Tab", code="Tab", vk=9)
             self.assertEqual(p.js("document.activeElement.hasAttribute('data-cancel')"), True, "Tab goes to Cancel, then to the button")
             p.key("Tab", code="Tab", vk=9)

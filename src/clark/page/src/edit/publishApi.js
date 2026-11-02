@@ -5,7 +5,7 @@ import { token, plain } from "../stores/report.js";
 import { style } from "../stores/style.js";
 
 // {status, body}: never a throw, whatever the network or the server did. A status of 0 is "no answer".
-async function call(method, path, body) {
+export async function call(method, path, body) {
   try {
     const headers = { "X-Clark-Token": token() };
     if (body !== undefined) headers["Content-Type"] = "application/json";

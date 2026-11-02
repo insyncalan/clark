@@ -236,6 +236,12 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("to come back", jsx)
         self.assertRegex(jsx, r"to open Help\. Esc or Close takes you back")
 
+    def test_the_import_help_names_the_button_the_import_box_shows(self):                   # LOW (#432)
+        jsx = (HELP.parent / "edit" / "Word.jsx").read_text(encoding="utf-8")
+        self.assertRegex(jsx, r'`Add \$\{count\(n, "item"\)\}`', "the box's button reads Add and the number of items")
+        self.assertIn("until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items)", self.ALL)
+        self.assertNotIn("until you press Add;", self.ALL)
+
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("by 12-12-2026", self.ALL)
         self.assertIn("forecast 12-12-2026", self.ALL)

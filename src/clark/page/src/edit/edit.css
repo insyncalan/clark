@@ -445,6 +445,19 @@ textarea.tpl-field { resize: vertical; }
 .tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-small); }
 .tpl-empty { margin: 0; }
 
+/* The Word boxes (#48): Export to Word and Import from Word. The box itself, its options and its messages are the Publish box's
+   (shell.css); this is only the list of what was read. Tokens only. A ticked item is a ticked box, so it never relies on colour. */
+.wi { width: min(680px, calc(100vw - 32px)); }
+.word-where, .word-ask { margin: 0; font-size: var(--size-small); overflow-wrap: anywhere; }
+.word-ask { color: var(--text); font-size: var(--size-body); }
+.wi-all { display: flex; gap: 16px; margin: 0 0 8px; }
+.wi-all .link:disabled { opacity: .55; cursor: default; }
+.wi-items { display: flex; flex-direction: column; gap: 6px; max-height: 45vh; margin: 0; padding: 0; overflow: auto; border: 0; min-width: 0; }
+.wi-item span { display: block; }
+.wi-item b { margin-right: 6px; font-weight: var(--weight-medium); color: var(--heading); }
+.wi-notes { margin: 12px 0 0; padding-left: 18px; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
+.wi-notes li { margin: 2px 0; }
+.word-msg p { white-space: pre-line; overflow-wrap: anywhere; }       /* a refusal that lists items puts each on its own line */
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
 .ms-eye.is-left { color: var(--status-blue-text); }
