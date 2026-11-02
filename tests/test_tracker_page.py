@@ -249,7 +249,7 @@ class Page(Base):
             self.click(p, ref, "[data-group='0'] [data-add-line]")
             p.until(self.present(ref, "[data-line-form]"), "the form")
             sent = len(self.sent)
-            cases = (({"text": ""}, sb.TRACKER_TEXT_MISSING), ({"text": "x" * 101}, "A line description can be 100 characters at most."),
+            cases = (({"text": ""}, sb.TRACKER_TEXT_MISSING), ({"text": "x" * 101}, "A line description can be 100 characters at most. Shorten it and try again."),
                      ({"text": "Fine", "planned": "101"}, sb.TRACKER_PERCENT), ({"text": "Fine", "planned": "50", "achieved": "-1"}, sb.TRACKER_PERCENT),
                      ({"text": "Fine", "achieved": "", "weight": "abc"}, sb.TRACKER_PERCENT),
                      ({"text": "Fine", "weight": "", "start": "31-02-2026"}, "That date isn't right. Type it as DD-MM-YYYY, or leave it empty."),
