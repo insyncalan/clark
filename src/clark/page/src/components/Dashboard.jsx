@@ -60,7 +60,10 @@ export function Dashboard({ tools }) {
   const first = editing && list.length ? list[0].id : null;
   useEffect(() => { if (first) armHint(first); }, [first]);      // the first time in Edit, the handle of the first section pulses once and says what it does
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
+  const Bar = tools && tools.ReportBar && !fromFile.value ? tools.ReportBar : null;      // a page clark serves only (A-D2)
   return (
+    <>
+    {Bar ? <Bar /> : null}
     <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
       <p class="crumbs">{d.project.client_name || "Report"}</p>
       <h1>{d.project.name}</h1>
@@ -71,5 +74,6 @@ export function Dashboard({ tools }) {
       {editing && list.length === 0 ? <tools.Add /> : null}
       <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} counts={counts} />
     </section>
+    </>
   );
 }

@@ -67,7 +67,9 @@ def answers(port):
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory()
+        # The real path: on a Mac the temp folder is a symlink (/var -> /private/var) and clark shows the data folder resolved,
+        # so the home folder given to it must be the resolved one too for the ~ to be recognised.
+        self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath(tempfile.gettempdir()))
         self.addCleanup(self._tmp.cleanup)
         self.data = Path(self._tmp.name) / "data"
         self.procs = []
