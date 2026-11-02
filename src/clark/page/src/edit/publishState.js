@@ -4,7 +4,7 @@
 import { signal } from "@preact/signals";
 import { data, project } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
-import { say } from "../stores/changes.js";
+import { say } from "./menuNote.js";
 
 export const NO_FOLDER = "No client folder yet. Set it in Settings.";
 export const dialog = signal(null);      // null (closed) or the state below
@@ -83,7 +83,8 @@ export async function go() {
   const said = words(r, "publish");
   if (r.status === 200 && b && b.ok === true) {
     // #437: the button shows a tick and "Published (Publication N)", the words go to the toast, and the dialog closes by itself.
-    // A publication is no step, so the toast has no Undo (history.py: the files are already where they were put).
+    // A publication is no step, so the note has no Undo (history.py: the files are already where they were put). It is said where
+    // Preview and Export speak (menuNote.js), because Publish is in the View menu too, where the change toast is not drawn.
     set({ phase: "done", clash: null, message: null, number: Number.isInteger(b.publication) ? b.publication : 0 });
     say("done", said);
     refreshLatest();
