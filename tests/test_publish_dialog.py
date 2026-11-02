@@ -33,6 +33,17 @@ class Pg:
     def until(self, expr, what, seconds=15):
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
 
+    def until_new_page(self, expr, what, seconds=15):
+        """until(), but a call made while the page is navigating is waited out ('Inspected target navigated or closed'); any other error fails."""
+        def ask():
+            try:
+                return self.js(expr)
+            except RuntimeError as e:
+                if "navigated or closed" in str(e):
+                    return False
+                raise
+        self.t.assertTrue(wait(ask, seconds), what)
+
     def key(self, key, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,

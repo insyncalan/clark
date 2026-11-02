@@ -107,7 +107,7 @@ class Setup(Base):
         """Reload and wait for the NEW document (a bare wait could still see the old one)."""
         p.js("window.__old_document = true")
         p.js("location.reload()")
-        p.until("window.__old_document === undefined && document.readyState === 'complete' && document.querySelectorAll('#usecases .ucl-row').length > 0", "the page reloaded")
+        p.until_new_page("window.__old_document === undefined && document.readyState === 'complete' && document.querySelectorAll('#usecases .ucl-row').length > 0", "the page reloaded")
 
     def click(self, p, selector):
         p.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})")
