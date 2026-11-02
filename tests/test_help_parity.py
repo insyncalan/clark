@@ -168,9 +168,9 @@ class TheWeekEndsOnAFriday(unittest.TestCase):
         self.assertNotIn("The week ends on a Friday", every)
 
     def test_the_page_week_end_is_a_friday(self):
-        """#570 (Alan's a2): the board's 'this week' ends on a Friday (logic/board.js fridayOnOrAfter) and a week ending that is not a
+        """#570 (option a2): the board's 'this week' ends on a Friday (logic/board.js fridayOnOrAfter) and a week ending that is not a
         Friday is refused (changes.NOT_FRIDAY). Help's 'Dates and IDs' lines say so and are held in helpLater until the release shows them.
-        client_filters.week_end (the Sunday of the client filters) is outside #570 and is raised with Alan."""
+        client_filters.week_end (the Sunday of the client filters) is outside #570 and is raised with the owner."""
         from clark import client_filters
         self.assertEqual(client_filters.week_end("2026-11-02", 0), "2026-11-08")
         self.assertIn("fridayOnOrAfter", read("page", "src", "logic", "board.js"))
