@@ -653,6 +653,18 @@ class HeaderInjection(unittest.TestCase):
         self.assertEqual(de.tone_for(["ABC-A-009"], counts), 0)
 
 
+class SharedWords(unittest.TestCase):
+    """The page (draftEmail.js) and the server (draft_email.py) each hold some of the same refusal words; they must not drift apart."""
+
+    def test_the_python_and_javascript_copies_of_a_shared_line_match(self):
+        js = (Path(de.__file__).resolve().parent / "page" / "src" / "logic" / "draftEmail.js").read_text(encoding="utf-8")
+        for name in ("NOTHING_TO_RECORD", "NO_OPEN_ITEMS", "COPY_REFUSED"):
+            with self.subTest(name=name):
+                found = re.search(r'export const %s = "((?:[^"\\]|\\.)*)";' % name, js)
+                self.assertIsNotNone(found, name + " is not exported by draftEmail.js")
+                self.assertEqual(found.group(1), getattr(de, name))
+
+
 class NeverSends(unittest.TestCase):
     def test_the_module_has_no_way_to_send_or_reach_out(self):
         with open(de.__file__, encoding="utf-8") as fh:
