@@ -2610,16 +2610,6 @@ class Store:
         r = self.con.execute("SELECT number FROM publications WHERE seq = ?", (seq,)).fetchone()
         return r["number"] if r else None
 
-    def next_publication(self, code):
-        """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
-        log_publication refuses if it is no longer the next one. Every row counts, whatever its kind. Read-only."""
-        return self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
-
-    def number_of(self, seq):
-        """The publication number of the `publications` row `seq` (#120), or None. Read-only."""
-        r = self.con.execute("SELECT number FROM publications WHERE seq = ?", (seq,)).fetchone()
-        return r["number"] if r else None
-
     def latest_publication(self, code):
         """The project's latest publication for the report bar (#43): {"at", "to_client"} (when, and whether a verified copy went
         into the client folder), or None. Read-only; no path and no hash leave it."""
