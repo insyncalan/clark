@@ -996,6 +996,30 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld small { color: var(--text-muted); font-size: var(--size-small); }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-small); }
 .fld-bad:empty { display: none; }
+/* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
+.pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
+.pp-h h2 { margin: 0; flex: 1; }
+.pp-intro { font-size: var(--size-small); margin: 0 0 12px; }
+.pp-paste { margin: 0 0 14px; }
+.pp-paste[hidden] { display: none; }
+.pp-paste label { display: block; font-size: var(--size-small); color: var(--text-muted); margin-bottom: 6px; }
+.pp-paste textarea { width: 100%; box-sizing: border-box; min-height: 70px; padding: 6px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font-family: ui-monospace, Menlo, monospace; font-size: 13px; line-height: 1.5; resize: vertical; }
+.pp-paste textarea:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.pp-acts { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: var(--size-small); }
+.pp-done { margin: 0 0 10px; font-size: var(--size-body); }
+.pp-done[hidden] { display: none; }
+.pp-done.error { color: var(--status-red-text); }
+.pp-plan { margin: 8px 0 0; font-size: var(--size-body); }
+.pp-bad { margin: 8px 0 0; padding-left: 18px; color: var(--status-red-text); font-size: var(--size-small); }
+.pp-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 10px; font-size: var(--size-body); }
+.pp-sum .link { display: inline-flex; align-items: center; min-height: 24px; }
+table.pp-table, table.pp-prev { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+table.pp-table th, table.pp-prev th { text-align: left; font-weight: 400; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--grey-200); }
+table.pp-table td, table.pp-prev td { padding: 10px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
+table.pp-table td.nm b { font-weight: var(--weight-medium); }
+table.pp-prev { font-size: 13px; }
+table.pp-prev td { padding: 6px 10px; }
+table.pp-prev tr.bad td { color: var(--status-red-text); }
 .stylepick small { display: block; color: var(--text-muted); font-size: var(--size-small); }
 html[data-secstyle="roomy"] .secs { gap: 36px 32px; margin-top: 28px; }
 html[data-secstyle="roomy"] .sec { padding: 20px 0 8px; }
