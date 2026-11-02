@@ -408,7 +408,7 @@ table.needs .n-over { margin-left: 2px; }
 @media (hover: none) { .sec-ctl { opacity: 1; } }
 /* At 900 px and below the frame's side padding is only 16 px, so the control would hang outside the card (issue 139). In Edit the section keeps
    room for it inside its own padding (32 px: the 24 px control and a 4 px gap each side); the box itself, its left edge and width, do not change. */
-@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: .75; } }      /* in the padding it is clear at rest (issue 130, point 2), in both themes */
+@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: var(--sh-rest-narrow, .85); } }      /* in the padding it is clearer at rest (issue 130, point 2): .85 in light, .75 in dark; --sh-rest-narrow is in brand/tokens.css */
 @media (prefers-reduced-motion: reduce) { .sec-ctl { transition: none; } }      /* after the rule above, so it wins */
 .sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 4px; margin: 0 -4px; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }

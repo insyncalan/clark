@@ -29,12 +29,12 @@ class TheFooter(unittest.TestCase):
     def test_the_prototype_says_it_this_way(self):
         self.assertIn("Published ${D.fd(D.TODAY)}. ${opts.n ? 'Publication ' + opts.n + ' · ' + D.fd(D.TODAY) + '. ' : ''}View only.", PROTOTYPE)
 
-    def test_the_words_come_from_one_function_the_page_uses(self):
-        words = src("logic/publishWords.js")
-        self.assertIn("`Published ${d}. Publication ${n} · ${d}. View only.`", words)
-        self.assertIn("`Publication ${n}. View only.`", words, "a file with no date still says it is view only")
-        self.assertIn("footerLine(", src("components/App.jsx"))
-        self.assertNotIn("`Publication ${publication.value}", src("components/App.jsx"))
+    def test_the_page_builds_the_prototype_words(self):
+        app = src("components/App.jsx")
+        self.assertIn("`Published ${plainDate(asAt.value)}. `", app)
+        self.assertIn("Publication {publication.value}", app)
+        self.assertIn("` · ${plainDate(asAt.value)}`", app)
+        self.assertIn(". View only.</footer>", app, "a file with no date still says it is view only")
 
     def test_the_published_page_carries_the_words_and_nothing_internal(self):
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
@@ -105,7 +105,7 @@ class TheFinishedState(unittest.TestCase):
         self.assertIn("setTimeout(", state)
 
     def test_no_internal_word_in_the_new_words(self):
-        for name in ("edit/publishLine.js", "logic/publishWords.js"):
+        for name in ("edit/publishLine.js",):
             text = src(name).lower()
             for word in ("path", "folder name", "database", "json", "traceback"):
                 self.assertNotIn(word, text, f"{name}: {word}")
