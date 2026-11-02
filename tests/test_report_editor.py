@@ -36,7 +36,7 @@ TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "Sum
           "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
 IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]
 SECRET = "Server text that a person must never read"
-NOTHING = "Nothing to show this week."                  # a work item section with no row to draw (A-D5)
+NOTHING = "Nothing to show."                  # a work item section with no row to draw (A-D5)
 QUIET = "Not shown on this page yet."                    # the page clark serves, for every type (#74)
 ALT = 1                                                            # Input.dispatchKeyEvent modifiers: Alt
 

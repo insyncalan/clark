@@ -90,6 +90,7 @@ class ItemRows(unittest.TestCase):
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 self.check_rows(p.js, f"View at {w}")
+                self.assertGreater(p.js("document.querySelectorAll('.wl-id').length"), 0, "the team's View keeps the item number")
                 fits = "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 self.assertTrue(wait(lambda: p.js(fits)), f"nothing pushes the page sideways at {w}")
             p.edit()
@@ -105,6 +106,7 @@ class ItemRows(unittest.TestCase):
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)), "the file drew its rows")
             self.check_rows(lambda e: cdp.js(e, sid), "the file")
+            self.assertEqual(cdp.js("document.querySelectorAll('.wl-id').length", sid), 0, "a file draws no item number")
             first = cdp.js(ROWS % "actions", sid)[0]
             self.assertIn("Due 20-10-2026", first)
             self.assertNotRegex(first, r"days? late|Today|Tomorrow|Yesterday|In \d+ days?", "a file shows the date only: it is read later, not on the publish date")
@@ -118,7 +120,7 @@ class ItemRows(unittest.TestCase):
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
             p.ready()
-            self.assertEqual(p.js("document.querySelector('[data-type=raid] .quiet').textContent"), "Nothing to show this week.")
+            self.assertEqual(p.js("document.querySelector('[data-type=raid] .quiet').textContent"), "Nothing to show.")
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(empty.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)

@@ -1,5 +1,5 @@
 // The rows under Risks and issues, Open actions and Decisions (prototype parity A-D5): a state pill, the item, a quiet line of who
-// and when (and the priority on a risk or issue), the ID on the right. The same rows in View, in Edit and in a published file; they
+// and when (and the priority on a risk or issue), the ID on the right (not in a published file: a client is shown no item number). The same rows in View, in Edit and in a published file; they
 // are drawn from the rows the page already holds, so a published file needs nothing else. What a client reads is the client's own
 // wording; an item without any is left out, never shown with the team's own text. Putting an item on the page or taking it off is a
 // later change (Edit).
@@ -7,7 +7,7 @@ import { data, rows as allRows, fromFile, asAt } from "../stores/report.js";
 import { pillOf, dueCell, ownerOf, showDate, todayIso, dueField } from "../workItems.js";
 import { sectionRows, dateWord } from "../logic/sectionRows.js";
 
-const NOTHING = "Nothing to show this week.";
+const NOTHING = "Nothing to show.";
 
 // The client's own wording for an item, by ID (the page's rows hold the item's text only).
 function wordings(d) {
@@ -43,7 +43,7 @@ function Row({ row, today, words, inFile }) {
           {risk && row.priority ? <span class="prio">{`Priority ${row.priority}`}</span> : null}
         </span>
       </span>
-      <span class="wl-id num">{row.id}</span>
+      {inFile ? null : <span class="wl-id num">{row.id}</span>}
     </li>
   );
 }
