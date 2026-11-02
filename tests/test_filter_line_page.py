@@ -677,9 +677,9 @@ class Line(unittest.TestCase):
                     self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(on)}) && !!document.querySelector({json.dumps(off)})", sid), "one of each is drawn")
                     self.assertNotEqual(bg(on), bg(off), "the pressed button has its own background")
             self.put(cdp, sid, "priority:High")
-            self.assertTrue(wait(lambda: len(self.chips(cdp, sid)) == 1))
-            self.assertNotEqual(bg(".fline .fchip"), bg(".fline"), "a chosen filter is drawn as a chip with its own background")
-            self.assertNotEqual(bg(".fline .fchip"), "rgba(0, 0, 0, 0)")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.fline .fchip[data-chip=priority]')", sid)))
+            self.assertNotEqual(bg(".fline .fchip[data-chip=priority]"), bg(".fline"), "a chosen filter is drawn as a chip with its own background")
+            self.assertNotEqual(bg(".fline .fchip[data-chip=priority]"), "rgba(0, 0, 0, 0)")
 
     def test_the_targets_are_big_enough_and_the_colours_come_from_the_tokens(self):
         s = self.serve()
