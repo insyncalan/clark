@@ -11,7 +11,6 @@ export const STATUSES = { actions: ["Open", "Delayed", "Closed", "Cancelled"], r
 export const WHY = {
   kinds: "These items are of different kinds",
   projects: "These items are in different projects",
-  view: "Switch to Edit to change these",
   decision: "A decision takes only who makes it",
   raidPriority: "A risk's or issue's priority comes from its impact and likelihood",
   noDecision: "A decision has no priority",
@@ -46,12 +45,11 @@ export function summary(rows) {
 
 /** The controls for a selection, each {id, label, on, why}: a control that does not fit is left out for the kind it does not
  *  belong to, and is off with its reason as words for every other cause. Mixed kinds: every one is off. */
-export function controls(sum, { editing = true } = {}) {
+export function controls(sum) {
   const shown = sum.table ? CONTROLS.filter((c) => c.tables.includes(sum.table)) : CONTROLS.filter((c) => !["impact", "likelihood", "made_by"].includes(c.id));
   return shown.map((c) => {
     let why = "";
     if (!sum.table) why = WHY.kinds;
-    else if (!editing) why = WHY.view;
     else if (sum.n > MAX) why = WHY.tooMany;
     else if (c.oneProject && sum.projects > 1) why = WHY.projects;
     return { id: c.id, label: c.label, menu: !!c.menu, on: !why, why };
@@ -140,9 +138,8 @@ export function keyControl(key, table) {
 }
 
 /** Why a key does nothing on these items, in words (for the toast); "" when it can act. */
-export function keyWhy(id, sum, editing = true) {
+export function keyWhy(id, sum) {
   if (!sum.table) return `${WHY.kinds}.`;
-  if (!editing) return `${WHY.view}.`;
   const c = controls(sum).find((x) => x.id === id);
   if (c) return c.on ? "" : `${c.why}.`;
   if (sum.table === "decisions") return `${WHY.decision}.`;
