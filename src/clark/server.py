@@ -81,7 +81,7 @@ MESSAGES = {
     "send_json": f"That could not be read. {RELOAD}",
     "length_required": f"That could not be read. {RELOAD}",
     "too_large": "That is too big for clark to take. Try again with less in it.",
-    "change_too_large": "That is too big to save. Shorten a line or remove some lines, then try again.",
+    "change_too_large": "That is too big to save. Make the text shorter, or take some of the list out, then try again.",
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
@@ -126,7 +126,7 @@ JSON_ESCAPE_BYTES = 6                  # the most one character takes in a JSON 
 PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colons and comma: 51 bytes compact, 59 when spaced
 PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
-ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
