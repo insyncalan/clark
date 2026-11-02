@@ -146,10 +146,10 @@
     return `<select class="field" id="wkPast" aria-label="Open a published week" style="width:auto;max-width:260px"><option value="">Published weeks</option>${l.map(x => `<option value="${x.n}">${D.fd(x.week)} · Publication ${x.n}</option>`).join('')}<option value="asat">Dashboard as at a date…</option></select>`; };
   document.addEventListener('change', e => { if (e.target.id !== 'wkPast' || !e.target.value) return; const v = e.target.value; if (v === 'asat') C.openPast(null, { mode: 'asat' }); else C.openPast(+v); });
 
-  /* ── Archive and Restore: one step, with Undo ── */
+  /* ── Archive and Restore: one step, and NO Undo: an undo would put the whole old publication list back and could take a newer publication away (and its number would be used again). Restore is the way back ── */
   function archive(n, on) { const p = C.P(), list = D.clone(p.published || []), i = list.findIndex((r, k) => (r.n || k + 1) === n); if (i < 0) return; if (on) list[i].archived = true; else delete list[i].archived;
-    const u = D.change('project', p, { published: list }, D.who('in the published reports'), `${on ? 'Archived' : 'Restored'} Publication ${n}`); if (!u) return; C.refresh();
-    C.toast(on ? `Archived Publication ${n}. It is hidden from the list and the pickers; it is not deleted.` : `Restored Publication ${n}`, u); }
+    const u = D.change('project', p, { published: list }, D.who('in the published reports'), `${on ? 'Archived' : 'Restored'} Publication ${n}`); if (!u) return; C.refresh();   /* the undo function is dropped on purpose: no toast Undo, nothing on the Cmd or Ctrl+Z list */
+    C.toast(on ? `Publication ${n} archived. Restore it from Show archived.` : `Publication ${n} restored. Archive it again if you want it out of the list.`); }
   C.pubArchive = archive;
 
   /* ── search across past publications: words in the data copies, all of them (#350) ── */
@@ -167,7 +167,7 @@
   const PUB_SHOWN = 10;   /* the list shows the newest ten; every publication is still kept, and Show all lists the rest */
   C.pubsCardHtml = p => {
     const all = recs(p), na = all.filter(x => x.arch).length, list = C.pubList(p, showArch), cm = D.pubComments(p.code), allOn = C.store.get('pubAll.' + p.code, false), shownL = allOn ? list : list.slice(0, PUB_SHOWN);
-    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project, and the page and a copy of its data are kept. Every publication is kept; none is removed. A publication cannot be undone: it keeps its number and its copy. A Word copy made in the same Publish has the same number. Open shows it read only. Archive hides an old one from this list and the pickers; it is never deleted.</p>
+    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project, and the page and a copy of its data are kept. Every publication is kept; none is removed. A publication cannot be undone: it keeps its number and its copy. A Word copy made in the same Publish has the same number. Open shows it read only. Archive hides an old one from this list and the pickers; it is never deleted. Archive and Restore have no Undo: press the other one to go back.</p>
       <div class="pp-tools"><form id="pbSearch" class="pp-search" role="search"><input class="field" id="pbQ" type="search" placeholder="Search past reports for a word" aria-label="Search past reports" value="${esc(searchQ)}"><button class="btn sm">Search</button></form>
         <button class="arch-pill" id="pbArchBtn" aria-pressed="${showArch}">${C.icon('archive', 's')}Show archived <em>${na}</em></button><button class="btn sm" id="pbCm">Client comments <em class="pp-n">${cm.length}</em></button>${all.length ? '' : '<button class="btn sm" id="pbDemo">Add 12 demo publications</button>'}</div>
       ${resultsHtml(p, searchQ)}
@@ -220,7 +220,8 @@
   function cmAdd(rows) { const p = C.P(), have = D.pubComments(p.code), ok = [], bad = [];
     rows.forEach(c => { const rec = recs(p).find(x => x.n === c.n), it = D.S.items.find(x => x.id === c.item && x.code === p.code);
       if (c.text.length > CM_TEXT || c.by.length > CM_NAME) bad.push(`A comment on ${c.item} is too long (a name is up to ${CM_NAME} characters and a comment up to ${CM_TEXT}), so it was not added.`); else if (!rec) bad.push(`Publication ${c.n} is not one of this project's publications.`); else if (!it) bad.push(`${c.item} is not a work item in this project.`); else ok.push({ id: 'c' + (have.length + ok.length + 1) + '-' + Date.now().toString(36), n: c.n, item: c.item, by: c.by || 'The client', at: D.stamp(), text: c.text }); });
-    const u = ok.length ? D.pubCommentsSet(p.code, [...have, ...ok]) : null; return { ok, bad, u }; }
+    if (ok.length) D.pubCommentsSet(p.code, [...have, ...ok]);   /* no undo is kept: a client's comment cannot be undone */
+    return { ok, bad }; }
   C.cmAdd = cmAdd;
   C.cmDialog = () => { const p = C.P(), list = () => D.pubComments(p.code).slice().reverse();
     const body = () => `${list().length ? `<ul class="cm-list">${list().map(c => `<li><span class="tag cl">Publication ${c.n}</span> <b>${esc(c.item)}</b> <span class="muted">· ${esc(c.by)} · ${D.fd(c.at.slice(0, 10))}</span><p>${esc(c.text)}</p></li>`).join('')}</ul>` : '<p class="muted" id="cmNone">No client comments yet.</p>'}`;
@@ -228,7 +229,7 @@
       <div class="dlg-b"><div id="cmBody">${body()}</div><label class="muted" for="cmPaste" style="display:block;margin-top:12px">Paste comments from the client</label><textarea class="field" id="cmPaste" rows="3" placeholder="clark-comment|5|${esc((D.S.items.find(x => x.code === p.code) || {}).id || 'ID')}|Priya Nair|Can this be done sooner?"></textarea><p class="muted" id="cmMsg" role="status" style="font-size:13px;margin:6px 0 0">Comments do not come back by themselves. The client copies their comments from the page and sends them to you, and you paste them here. The product works the same way for now.</p></div>
       <div class="dlg-f"><button type="button" class="btn quiet" data-close>Close</button><button class="btn pri" id="cmAdd">Add the comments</button></div></form>`, d => {
       C.$('#cmF', d).addEventListener('submit', e => { e.preventDefault(); const rows = cmParse(C.$('#cmPaste', d).value); if (!rows.length) { C.$('#cmMsg', d).textContent = 'Nothing to add: each line reads clark-comment, the publication number, the work item ID, a name and the comment, with | between.'; return; }
-        const r = cmAdd(rows); C.$('#cmMsg', d).textContent = `${r.ok.length ? `Added ${r.ok.length}. ` : 'Nothing was added. '}${r.bad.join(' ')}`; if (r.ok.length) { C.$('#cmPaste', d).value = ''; C.$('#cmBody', d).innerHTML = body(); C.refresh(); C.toast(`${r.ok.length} client ${r.ok.length === 1 ? 'comment' : 'comments'} added`, r.u); } }); }); };
+        const r = cmAdd(rows); C.$('#cmMsg', d).textContent = `${r.ok.length ? `Added ${r.ok.length}. ` : 'Nothing was added. '}${r.bad.join(' ')}`; if (r.ok.length) { C.$('#cmPaste', d).value = ''; C.$('#cmBody', d).innerHTML = body(); C.refresh(); C.toast(`${r.ok.length} client ${r.ok.length === 1 ? 'comment' : 'comments'} added. A client's comment cannot be undone.`); } }); }); };
 
   /* ═══ the past publication page ═══ */
   const tag = (c, t) => `<span class="pc-tag ${c}">${t}</span>`;
