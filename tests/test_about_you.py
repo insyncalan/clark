@@ -10,6 +10,7 @@ a refusal says why in its words, ends "Nothing was saved.", writes nothing and l
 Chrome is required: these tests fail, never skip, without it.
 """
 import json
+import time
 import unittest
 
 from _paths import SRC
