@@ -1502,7 +1502,9 @@ table.xl-wi thead .xl-id { z-index: 3; background: var(--grey-100); }
 table.xl-wi td.xl-locked { background: var(--grey-100); color: var(--text-muted); }
 table.xl-wi td.xl-new { background: var(--surface); }
 .xl-lk { margin-right: 5px; vertical-align: -1px; }
-.xl-hd, .xl-cell { all: unset; box-sizing: border-box; cursor: pointer; font: inherit; color: inherit; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; }
+.xl-hd, .xl-cell { all: unset; box-sizing: border-box; cursor: pointer; font: inherit; color: inherit; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; min-width: 24px; }
+/* the priority words in the sheet's drop-down cells read on the grey tint in light and dark (white on the dark theme's light grey was 2.1:1) */
+table.xl .prio.Medium, table.xl .prio.Low { background: var(--grey-100); color: var(--text); box-shadow: inset 0 0 0 1px var(--grey-300); }
 .xl-hd:focus-visible, .xl-cell:focus-visible, .xl-list li:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; border-radius: 3px; }
 .xl-dda { color: var(--text-muted); font-size: 12px; }
 td.xl-dd { position: relative; }
@@ -1531,6 +1533,8 @@ table.xl .xl-caution td:last-child { color: var(--status-amber-text); background
 
 .pp-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
 .pp-search { display: flex; gap: 6px; flex: 1 1 260px; } .pp-search .field { flex: 1; min-width: 160px; }
+.pv-banner .link, .pc-sum .link, .pc-bad .btn { display: inline-flex; align-items: center; min-height: 24px; box-sizing: border-box; }
+.pb-all { margin: 8px 0 0; font-size: 13px; display: inline-flex; align-items: center; min-height: 24px; box-sizing: border-box; }
 .pp-n { font-style: normal; color: var(--text-muted); margin-left: 4px; }
 .pp-res { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-100); } .pp-res p { margin: 0 0 6px; font-size: 13px; }
 .pp-hit { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--grey-200); font-size: 14px; } .pp-hit ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }

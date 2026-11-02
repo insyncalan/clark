@@ -68,7 +68,7 @@
 })();
 
 /* ═══ Past publications, real (#342 to #350, #120): the publications this browser really holds, not the made-up ones above ═══
-   Every publication is kept: its page and a copy of its data, never pruned; an old one is archived (hidden, never deleted) and can be
+   Every publication is kept: its page and a copy of its data, never removed; an old one is archived (hidden, never deleted) and can be
    restored. A past publication opens read only behind the banner "Publication N · DD-MM-YYYY · read only", with a tinted frame and
    "Back to now", and its checksum is checked on open. Compare with the one before marks what was added, changed and closed, from the
    two data copies. The dashboard "as at" a date is rebuilt from the change history. A search finds words across the data copies.
@@ -83,6 +83,7 @@
     h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909); h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
     return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0'); };
   C.pubSum = sum;
+  C.pubNoMatchWords = 'The kept file has changed since it was saved, so it may not be what the client saw. Do not rely on it. Restore the file from the folder it was saved to, or publish a new report.';
   const msAt = (m, iso) => m.achievedOn && m.achievedOn <= iso ? 'Achieved' : m.manual === 'At risk' ? 'At risk' : m.manual === 'Forecast' ? 'Forecast' : m.agreed < iso ? 'Late' : m.forecast && m.forecast > m.agreed ? 'Expected later' : 'On track';
 
   /* the project as it stood at the end of a day, from the change history: each later change is put back, newest first. What a client sees only. */
@@ -163,14 +164,15 @@
       ${r.map(x => `<div class="pp-hit"><div><b>Publication ${x.n}</b> <span class="muted">· week ending ${D.fd(x.week)}</span><ul>${x.hits.map(([k, t]) => `<li><span class="muted">${esc(k)}</span> ${mark(t.length > 140 ? t.slice(0, 140) + '…' : t, q)}</li>`).join('')}</ul></div><button class="btn sm" data-pbhit="${x.n}">Open</button></div>`).join('')}</div>`; };
 
   /* ── the Published reports card ── */
+  const PUB_SHOWN = 10;   /* the list shows the newest ten; every publication is still kept, and Show all lists the rest */
   C.pubsCardHtml = p => {
-    const all = recs(p), na = all.filter(x => x.arch).length, list = C.pubList(p, showArch), cm = D.pubComments(p.code);
-    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project, and the page and a copy of its data are kept. Every publication is kept; none is pruned. A Word copy made in the same Publish has the same number. Open shows it read only. Archive hides an old one from this list and the pickers; it is never deleted.</p>
+    const all = recs(p), na = all.filter(x => x.arch).length, list = C.pubList(p, showArch), cm = D.pubComments(p.code), allOn = C.store.get('pubAll.' + p.code, false), shownL = allOn ? list : list.slice(0, PUB_SHOWN);
+    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project, and the page and a copy of its data are kept. Every publication is kept; none is removed. A publication cannot be undone: it keeps its number and its copy. A Word copy made in the same Publish has the same number. Open shows it read only. Archive hides an old one from this list and the pickers; it is never deleted.</p>
       <div class="pp-tools"><form id="pbSearch" class="pp-search" role="search"><input class="field" id="pbQ" type="search" placeholder="Search past reports for a word" aria-label="Search past reports" value="${esc(searchQ)}"><button class="btn sm">Search</button></form>
         <button class="arch-pill" id="pbArchBtn" aria-pressed="${showArch}">${C.icon('archive', 's')}Show archived <em>${na}</em></button><button class="btn sm" id="pbCm">Client comments <em class="pp-n">${cm.length}</em></button>${all.length ? '' : '<button class="btn sm" id="pbDemo">Add 12 demo publications</button>'}</div>
       ${resultsHtml(p, searchQ)}
-      ${list.length ? `<table class="set stack ppl"><thead><tr><th>#</th><th>Date and time</th><th>Where</th><th>Who</th><th>Comments</th><th></th></tr></thead><tbody>${list.map(({ r, n, arch }) => `<tr data-pub="${n}"${arch ? ' class="arch-row"' : ''}><td class="nm" data-l="Publication"><b style="font-weight:500">${n}</b>${arch ? ' <span class="tag arch">Archived</span>' : ''}</td><td data-l="Date and time">${D.fd(r.at.slice(0, 10))} ${esc(r.at.slice(11))}</td><td data-l="Where">${esc(r.where || (r.client ? 'Local and to client' : 'Local'))}${r.word ? ' · Word (same number)' : ''}${r.pdf ? ' · PDF' : ''}</td><td data-l="Who">${esc(r.who || 'Not recorded')}</td><td data-l="Comments">${cmOf(p.code, n).length || '<span class="muted">None</span>'}</td>
-        <td class="acts">${D.pubCopy(p.code, n) ? `<button class="btn sm" data-pubopen="${n}">Open</button><button class="btn sm quiet" data-pubtab="${n}">New tab</button>` : '<span class="muted">Not kept</span>'}${arch ? `<button class="btn sm quiet" data-pbrest="${n}">Restore</button>` : `<button class="btn sm quiet" data-pbarch="${n}">Archive</button>`}</td></tr>`).join('')}</tbody></table>` : `<p class="muted" id="pubsNone">${all.length ? 'Every publication is archived. Show archived brings them back.' : 'Nothing published yet. Each publish is listed here with its number.'}</p>`}</div>`; };
+      ${list.length ? `<table class="set stack ppl"><thead><tr><th>#</th><th>Date and time</th><th>Where</th><th>Who</th><th>Comments</th><th></th></tr></thead><tbody>${shownL.map(({ r, n, arch }) => `<tr data-pub="${n}"${arch ? ' class="arch-row"' : ''}><td class="nm" data-l="Publication"><b style="font-weight:500">${n}</b>${arch ? ' <span class="tag arch">Archived</span>' : ''}</td><td data-l="Date and time">${D.fd(r.at.slice(0, 10))} ${esc(r.at.slice(11))}</td><td data-l="Where">${esc(r.where || (r.client ? 'Local and to client' : 'Local'))}${r.word ? ' · Word (same number)' : ''}${r.pdf ? ' · PDF' : ''}</td><td data-l="Who">${esc(r.who || 'Not recorded')}</td><td data-l="Comments">${cmOf(p.code, n).length || '<span class="muted">None</span>'}</td>
+        <td class="acts">${D.pubCopy(p.code, n) ? `<button class="btn sm" data-pubopen="${n}">Open</button><button class="btn sm quiet" data-pubtab="${n}">New tab</button>` : '<span class="muted">Not kept</span>'}${arch ? `<button class="btn sm quiet" data-pbrest="${n}">Restore</button>` : `<button class="btn sm quiet" data-pbarch="${n}">Archive</button>`}</td></tr>`).join('')}</tbody></table>${list.length > PUB_SHOWN ? `<button class="link pb-all" id="pbAll">${allOn ? `Show the last ${PUB_SHOWN}` : `Show all ${list.length}`}</button>` : ''}` : `<p class="muted" id="pubsNone">${all.length ? 'Every publication is archived. Show archived brings them back.' : 'Nothing published yet. Each publish is listed here with its number.'}</p>`}</div>`; };
   C.pubsWire = () => {
     const p = C.P(); if (!p) return;
     C.$$('[data-pubopen]').forEach(b => b.addEventListener('click', () => C.openPast(+b.dataset.pubopen)));
@@ -180,6 +182,7 @@
     C.$('#pbArchBtn')?.addEventListener('click', () => { showArch = !showArch; C.render(); C.$('#pbArchBtn')?.focus(); });
     C.$('#pbSearch')?.addEventListener('submit', e => { e.preventDefault(); searchQ = C.$('#pbQ').value.trim(); C.render(); C.$('#pbQ')?.focus(); });
     C.$$('[data-pbhit]').forEach(b => b.addEventListener('click', () => C.openPast(+b.dataset.pbhit, { q: searchQ })));
+    C.$('#pbAll')?.addEventListener('click', () => { C.store.set('pubAll.' + p.code, !C.store.get('pubAll.' + p.code, false)); C.render(); C.$('#pbAll')?.focus(); });
     C.$('#pbCm')?.addEventListener('click', () => C.cmDialog());
     C.$('#pbDemo')?.addEventListener('click', () => C.demoPubs());
   };
@@ -204,24 +207,25 @@
     const me = (D.S.profile || {}).name || 'You', loc = p.publish || {}, recsNew = [];
     for (let k = 0; k < 12; k++) { const n = k + 1, d = snapshot(p, W[k]), html = demoPage(p, d, n); await D.pubKeep(p.code, n, { n, code: p.code, at: W[k] + ' 16:00', html, texts: {}, data: d, sum: sum(html) });
       recsNew.push({ at: W[k] + ' 16:00', week: W[k], local: loc.local || '', client: k % 3 === 0 ? (loc.client || 'client folder') : '', word: k % 4 === 0, pdf: false, n, who: me, where: k % 3 === 0 ? 'Local and to client' : 'Local', hseq: D.lastSeq() }); }
-    const u = D.change('project', p, { published: recsNew }, D.who('by adding demo publications'), '12 demo publications added');
+    D.change('project', p, { published: recsNew }, D.who('by adding demo publications'), '12 demo publications added');
     const pick = [[5, its[0]], [8, its[1]], [10, its[2]]].filter(([, x]) => x), by = ['Priya Nair (client)', 'Tom Hale (client)', 'Priya Nair (client)'], says = ['Can this be done before the board meeting?', 'We need this owner to be named.', 'Thank you: this has been closed on our side too.'];
     D.pubCommentsSet(p.code, pick.map(([k, x], i) => ({ id: 'c' + (i + 1), n: k + 1, item: x.id, by: by[i], at: W[k] + ' 18:20', text: says[i] })));
-    C.refresh(); C.toast('Added 12 demo publications, with a change history behind them (prototype)', () => { u && u(); });
+    C.refresh(); C.toast('Added 12 demo publications, with a change history behind them (prototype). They stay: a publication cannot be undone.');
   };
 
   /* ── client comments: a comment on the published page names the publication and the item; the author brings them in here (#120) ── */
   const cmParse = txt => String(txt || '').split(/\r?\n/).map(l => l.trim()).filter(l => /^clark-comment\|/.test(l)).map(l => { const [, n, item, by, ...t] = l.split('|'); return { n: +n, item: (item || '').trim(), by: (by || '').trim(), text: t.join('|').trim() }; }).filter(c => c.n > 0 && c.item && c.text);
   C.cmParse = cmParse;
+  const CM_NAME = 80, CM_TEXT = 1000;   /* the client page stops a name and a comment at these lengths; a longer one pasted in is refused, and shown as plain text only */
   function cmAdd(rows) { const p = C.P(), have = D.pubComments(p.code), ok = [], bad = [];
     rows.forEach(c => { const rec = recs(p).find(x => x.n === c.n), it = D.S.items.find(x => x.id === c.item && x.code === p.code);
-      if (!rec) bad.push(`Publication ${c.n} is not one of this project's publications.`); else if (!it) bad.push(`${c.item} is not a work item in this project.`); else ok.push({ id: 'c' + (have.length + ok.length + 1) + '-' + Date.now().toString(36), n: c.n, item: c.item, by: c.by || 'The client', at: D.stamp(), text: c.text }); });
+      if (c.text.length > CM_TEXT || c.by.length > CM_NAME) bad.push(`A comment on ${c.item} is too long (a name is up to ${CM_NAME} characters and a comment up to ${CM_TEXT}), so it was not added.`); else if (!rec) bad.push(`Publication ${c.n} is not one of this project's publications.`); else if (!it) bad.push(`${c.item} is not a work item in this project.`); else ok.push({ id: 'c' + (have.length + ok.length + 1) + '-' + Date.now().toString(36), n: c.n, item: c.item, by: c.by || 'The client', at: D.stamp(), text: c.text }); });
     const u = ok.length ? D.pubCommentsSet(p.code, [...have, ...ok]) : null; return { ok, bad, u }; }
   C.cmAdd = cmAdd;
   C.cmDialog = () => { const p = C.P(), list = () => D.pubComments(p.code).slice().reverse();
     const body = () => `${list().length ? `<ul class="cm-list">${list().map(c => `<li><span class="tag cl">Publication ${c.n}</span> <b>${esc(c.item)}</b> <span class="muted">· ${esc(c.by)} · ${D.fd(c.at.slice(0, 10))}</span><p>${esc(c.text)}</p></li>`).join('')}</ul>` : '<p class="muted" id="cmNone">No client comments yet.</p>'}`;
-    C.dialog(`<form id="cmF"><div class="dlg-h"><h2>Client comments</h2><p>Each comment is tied to the publication the client saw and the work item. On the published page the client adds a comment and presses Copy my comments; paste what they send you here.</p></div>
-      <div class="dlg-b"><div id="cmBody">${body()}</div><label class="muted" for="cmPaste" style="display:block;margin-top:12px">Paste comments from the client</label><textarea class="field" id="cmPaste" rows="3" placeholder="clark-comment|5|${esc((D.S.items.find(x => x.code === p.code) || {}).id || 'ID')}|Priya Nair|Can this be done sooner?"></textarea><p class="muted" id="cmMsg" role="status" style="font-size:13px;margin:6px 0 0">In the product a comment comes back to the project itself; here the client's page is a file, so the comments travel as text.</p></div>
+    C.dialog(`<form id="cmF"><div class="dlg-h"><h2>Client comments</h2><p>Each comment is tied to the publication the client saw and the work item. On the published page the client adds a comment and presses Copy my comments. The client copies their comments and sends them to you; you paste them here.</p></div>
+      <div class="dlg-b"><div id="cmBody">${body()}</div><label class="muted" for="cmPaste" style="display:block;margin-top:12px">Paste comments from the client</label><textarea class="field" id="cmPaste" rows="3" placeholder="clark-comment|5|${esc((D.S.items.find(x => x.code === p.code) || {}).id || 'ID')}|Priya Nair|Can this be done sooner?"></textarea><p class="muted" id="cmMsg" role="status" style="font-size:13px;margin:6px 0 0">Comments do not come back by themselves. The client copies their comments from the page and sends them to you, and you paste them here. The product works the same way for now.</p></div>
       <div class="dlg-f"><button type="button" class="btn quiet" data-close>Close</button><button class="btn pri" id="cmAdd">Add the comments</button></div></form>`, d => {
       C.$('#cmF', d).addEventListener('submit', e => { e.preventDefault(); const rows = cmParse(C.$('#cmPaste', d).value); if (!rows.length) { C.$('#cmMsg', d).textContent = 'Nothing to add: each line reads clark-comment, the publication number, the work item ID, a name and the comment, with | between.'; return; }
         const r = cmAdd(rows); C.$('#cmMsg', d).textContent = `${r.ok.length ? `Added ${r.ok.length}. ` : 'Nothing was added. '}${r.bad.join(' ')}`; if (r.ok.length) { C.$('#cmPaste', d).value = ''; C.$('#cmBody', d).innerHTML = body(); C.refresh(); C.toast(`${r.ok.length} client ${r.ok.length === 1 ? 'comment' : 'comments'} added`, r.u); } }); }); };
@@ -243,7 +247,7 @@
         ${d.current ? `<h3 class="pc-h">Current state</h3><p>${esc(d.current)}</p>` : ''}<h3 class="pc-h">Work items (${d.items.length})</h3>${d.items.length ? `<ul class="pc-list">${d.items.map(x => `<li>${line(x)} <span class="muted">· ${esc(x.status)}${x.due ? ' · due ' + D.fd(x.due) : ''}</span></li>`).join('')}</ul>` : '<p class="muted">None shown to the client at that date.</p>'}
         <p class="muted pv-foot">Rebuilt from the change history: what the project held at the end of that day, as the client would have seen it. This was not published in this form.</p></div></article></div>`; };
   const frameHtml = (p, n, cp, rec) => { const bad = cp.sum && sum(cp.html) !== cp.sum;
-    if (bad && !PS.unlock) return `<div class="pc-bad" id="pcBad" role="alert"><b>Publication ${n} no longer matches what was published.</b><p>The kept file has changed since it was saved, so it may not be what the client saw. Do not rely on it. Restore the file from the folder it was saved to, or publish a new report.</p><button class="btn sm" id="pcShow">Show it anyway</button></div>`;
+    if (bad && !PS.unlock) return `<div class="pc-bad" id="pcBad" role="alert"><b>Publication ${n} no longer matches what was published.</b><p>${C.pubNoMatchWords}</p><button class="btn sm" id="pcShow">Show it anyway</button></div>`;
     const doc = cp.html.replace('<head>', '<head><script>window.CLARK_READONLY=1<\/script>');
     return `<div class="pv-frame" id="pvFrame" aria-label="Publication ${n} as it was published"><div class="pv-mark" aria-hidden="true">Publication ${n} · ${D.fd(rec.r.at.slice(0, 10))}</div><iframe class="pv-if" id="pvIf" sandbox="allow-scripts" title="Publication ${n}, week ending ${D.fd(rec.week)}, as it was published" srcdoc="${esc(doc)}"></iframe></div>`; };
 
@@ -261,7 +265,7 @@
         <div class="pv-banner" id="pvBanner" role="status"><span class="pv-b-ic">${C.icon('eye', 's')}</span><p>${banner}</p></div>
         ${found ? `<div class="pp-found" id="ppFound"><b>Found here for “${esc(PS.q)}”:</b> ${found.hits.map(([k, t]) => `<span>${esc(k)}: ${mark(t.length > 100 ? t.slice(0, 100) + '…' : t, PS.q)}</span>`).join(' · ')}</div>` : ''}
         ${mode === 'asat' ? asatHtml(p, iso) : !cp ? '<p class="muted" id="pcGone">That copy is not kept.</p>' : mode === 'cmp' ? compareHtml(p, n, cp) : frameHtml(p, n, cp, rec)}
-        ${n && cp ? `<p class="muted pc-sum" id="pcSum">${cp.sum ? `Checksum ${cp.sum}, checked when it opened${sum(cp.html) === cp.sum ? ': it matches.' : ': it does not match.'}` : 'No checksum was kept for this publication.'} <button class="link" id="pcTamper">Prototype: ${sum(cp.html) !== cp.sum && cp.sum ? 'put the kept file back' : 'change the kept file to see the warning'}</button></p>` : ''}</div>`;
+        ${n && cp ? `<p class="muted pc-sum" id="pcSum">${cp.sum ? `Fingerprint ${cp.sum}, saved when it was published and checked when it opened${sum(cp.html) === cp.sum ? ': it matches.' : ': it does not match.'}` : 'No fingerprint was kept for this publication.'} <button class="link" id="pcTamper">Prototype: ${sum(cp.html) !== cp.sum && cp.sum ? 'put the kept file back' : 'change the kept file to see the warning'}</button></p>` : ''}</div>`;
     },
     wire() {
       const p = C.P(), draw = () => { const y = scrollY; C.render(); scrollTo(0, y); };

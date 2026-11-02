@@ -1354,8 +1354,10 @@
   }
 
   /* ── Published reports (FR-83a, #120): every publish of the open project, newest first, with its number, when, where, who and a kept copy to Open.
-     Every page and a copy of its data are kept (in this browser's database), none pruned; an old one can be archived and restored (past.js). ── */
+     Every page and a copy of its data are kept (in this browser's database), none removed; an old one can be archived and restored (past.js). ── */
   C.openPub = n => { const p = C.P(), cp = D.pubCopy(p.code, n); if (!cp) return C.toast('That copy is no longer kept.');
+    /* the same check as Open: a kept file that no longer matches its fingerprint is not opened, here or in a new tab */
+    if (cp.sum && C.pubSum(cp.html) !== cp.sum) return C.dialog(`<div class="dlg-h"><h2>Publication ${n} no longer matches what was published</h2></div><div class="dlg-b" id="pubNoMatch" role="alert"><p>${C.pubNoMatchWords}</p></div><div class="dlg-f"><button type="button" class="btn quiet" data-close>Close</button><button type="button" class="btn pri" id="pubNoMatchOpen">Open it in clark</button></div>`, d => C.$('#pubNoMatchOpen', d).addEventListener('click', () => { d.close(); C.openPast(n); }));
     const url = URL.createObjectURL(new Blob([cp.html], { type: 'text/html' })); const w = window.open(url, '_blank'); if (!w) C.toast('Your browser blocked the new tab'); setTimeout(() => URL.revokeObjectURL(url), 60000); };
   const pubsCard = p => C.pubsCardHtml(p);   /* the card is drawn in past.js, with the real past views */
   /* ── People (FR-31a, v0.5; a light simulation): a table from the distinct owners in the data, details by name, "Needs details" where the email is empty, and a paste from Excel ── */

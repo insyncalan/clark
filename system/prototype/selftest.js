@@ -566,7 +566,7 @@
       const dt2 = new DataTransfer(); dt2.items.add(new File([XLSX.write(w2, { type: 'array', bookType: 'xlsx' })], 'archived rows.xlsx')); fi.files = dt2.files; fi.dispatchEvent(new Event('change'));
       for (let i = 0; i < 40 && !($('#dlg').open && $('#impF') && $('#impF').textContent.includes('archived rows.xlsx')); i++) await sleep(100);   /* the dialog keeps the last import's form until the new one is drawn */
       const note = $('#impF .imp-arch');
-      ok('import: rows for archived records are left alone, and the check says so', /2\s*left alone \(archived\)/.test($('#impF .stat').textContent) && !!note && note.textContent === `PDF-A-018, ${m.name} are archived, so their rows are left alone. Restore them first to update them from a sheet.` && /1\s*updated/.test($('#impF .stat').textContent) && $('#impF button.pri').textContent === 'Import 1 rows', note && note.textContent);
+      ok('import: rows for archived records are left alone, and the check says so', /2\s*left alone \(archived\)/.test($('#impF .stat').textContent) && !!note && note.textContent === `PDF-A-018, ${m.name} are archived, so their rows are left alone. Restore them first to update them from a sheet.` && /1\s*updated/.test($('#impF .stat').textContent) && $('#impF button.pri').textContent === 'Import 1 change', note && note.textContent);
       $('#impF').requestSubmit(); await sleep(120);
       ok('import: the live row is updated and the archived records are unchanged, with no history line', live.owner === 'Sam Rivers' && x.owner === own0 && x.title !== 'Changed by a sheet' && m.agreed === ag0 && x.archived && m.archived && !S().history.slice(h0).some(h => h.id === x.id || h.id === m.id));
       await undo(); ok('import: undo puts the live row back', live.owner === lo0); um(); ux(); C.refresh(); await sleep(60); }
@@ -1384,7 +1384,8 @@
       await sleep(350); ok(label + ' the tick is drawn (its line fully shown) and the button is green', cs($('#pubGo .tick path'), 'strokeDashoffset') === '0px' && cs($('#pubGo'), 'backgroundColor') === (() => { const pr = document.createElement('i'); pr.style.background = 'var(--status-green)'; document.body.appendChild(pr); const c = getComputedStyle(pr).backgroundColor; pr.remove(); return c; })());
       ok(label + ' the publication is recorded under that number', P().published.slice(-1)[0].n === n);
       await waitFor(() => !$('#dlg').open, 3000); ok(label + ' the dialog closes by itself after the tick', !$('#dlg').open);
-      ok(label + ' the toast keeps the record', /Publication \d+/.test($('#toastMsg').textContent), $('#toastMsg').textContent); };
+      ok(label + ' the toast keeps the record', /Publication \d+/.test($('#toastMsg').textContent), $('#toastMsg').textContent);
+      ok(label + ' the toast offers no Undo: a publication keeps its number and its kept copy (312 M1)', $('#toastUndo').hidden && !!DB.pubCopy(P().code, n)); };
     await publishRun('#4');
     C.publishDialog(); await sleep(60); { const t = $('#dlg').textContent; ok('#7 the Publish dialog has no file path in its copy', !/~\/|Documents\/clark|\/Reports/.test(t)); }
     $('#dlg').close(); await sleep(60);
@@ -2413,20 +2414,30 @@
     $('#dlg').close(); await sleep(30);
   });
 
-  await step('publish and files: staged Excel import (#38)', async () => {
+  await step('publish and files: staged Excel import (#38, #444)', async () => {
     const DB = window.ClarkDB, a = S().items.find(x => x.code === 'PDF' && x.type === 'A' && !x.archived), own0 = a.owner, others = S().items.filter(x => x.code === 'PDF' && !x.archived && x.id !== a.id), n0 = S().items.length;
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['ID', 'Type', 'Workstream', 'Title', 'Owner', 'Due', 'Status'], [a.id, 'Action', a.ws, a.title, 'Zed Newman', DB.fd(a.due), a.status], ['', 'Action', a.ws, 'Staged new row', 'Sam Rivers', '', 'Open'], ['', 'Action', a.ws, 'Row with a bad status', '', '', 'Nonsense'], ['', 'Action', a.ws, 'Row with a bad date', '', 'next blue moon', 'Open']]), 'Actions');
-    const dt = new DataTransfer(); dt.items.add(new File([XLSX.write(wb, { type: 'array', bookType: 'xlsx' })], 'staged.xlsx')); const fi = $('#fileIn'); fi.files = dt.files; fi.dispatchEvent(new Event('change'));
-    for (let i = 0; i < 40 && !($('#impF') && $('#impF').textContent.includes('staged.xlsx')); i++) await sleep(100);
-    const rows = $$('#stList .st-row'), g = $('#impF').textContent;
-    ok('staging (#38): a row for each new, changed and not-in-the-file item, each with Accept and Reject', rows.length === 2 + C.items().length - 1 && rows.every(r => r.querySelectorAll('input[type=radio]').length === 2) && /Not in the file/.test(g) && $$('#stList .tag').some(t => t.textContent === 'New') && $$('#stList .tag').some(t => t.textContent === 'Changed'), rows.length);
+    const feed = async (aoa, name, ready) => { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Actions');
+      const dt = new DataTransfer(); dt.items.add(new File([XLSX.write(wb, { type: 'array', bookType: 'xlsx' })], name)); const fi = $('#fileIn'); fi.files = dt.files; fi.dispatchEvent(new Event('change'));
+      for (let i = 0; i < 40 && !($('#dlg').open && $(ready) && $('#dlg').textContent.includes(name)); i++) await sleep(100); };
+    const head = ['ID', 'Type', 'Workstream', 'Title', 'Owner', 'Due', 'Status'], mine = [a.id, 'Action', a.ws, a.title, 'Zed Newman', DB.fd(a.due), a.status];
+    /* a row that breaks a rule refuses the whole file, in a plain sentence naming each such row (M6: the product's import, PR 285) */
+    await feed([head, mine, ['', 'Action', a.ws, 'Staged new row', 'Sam Rivers', '', 'Open'], ['', 'Action', a.ws, 'Row with a bad status', '', '', 'Nonsense'], ['', 'Action', a.ws, 'Row with a bad date', '', 'next blue moon', 'Open']], 'bad rows.xlsx', '#impRefused');
+    ok('staging (312 M6): a row that breaks a rule refuses the whole file, in a plain sentence naming each such row', /Nothing was imported, because 2 rows break a rule/.test($('#impRefused').textContent) && /Row with a bad status: Status "Nonsense" is not one of Open, Delayed, Closed, Cancelled\./.test($('#impRefused').textContent) && /Row with a bad date: Due "next blue moon" is not a date\. Use DD-MM-YYYY\./.test($('#impRefused').textContent) && /Fix them in the workbook and import again\. Nothing was changed\./.test($('#impRefused').textContent), $('#impRefused')?.textContent);
+    ok('staging (312 M6): nothing from that file is offered or added: no list to accept, no Import button, the good rows unchanged', !$('#stList') && !$('#impGo') && !!$('#dlg [data-close]') && S().items.length === n0 && item(a.id).owner === own0 && !S().items.some(x => x.title === 'Staged new row'));
+    $('#dlg').close(); await sleep(60);
+    await feed([head, mine, ['', 'Action', a.ws, 'Staged new row', 'Sam Rivers', '', 'Open']], 'staged.xlsx', '#impF');
+    const rows = $$('#stList .st-row'), g = $('#impF').textContent, aTypes = C.items().filter(x => x.type === 'A' && x.id !== a.id);
+    ok('staging (#38): a row for each new, changed and not-in-the-workbook item, each with Accept and Reject', rows.length === 2 + aTypes.length && rows.every(r => r.querySelectorAll('input[type=radio]').length === 2) && /Not in the workbook/.test(g) && !/Not in the file/.test(g) && $$('#stList .tag').some(t => t.textContent === 'New') && $$('#stList .tag').some(t => t.textContent === 'Changed'), rows.length);
+    ok('staging (312 L3): "Not in the workbook" is offered only for the types the workbook has a sheet for (here actions), not for risks, issues or decisions', C.items().some(x => x.type !== 'A') && $$('#stList .st-row').filter(r => /Not in the workbook/.test(r.textContent)).every(r => !!r.querySelector('.type.A')));
     ok('staging: a changed row says what differs, field by field', /Owner: .* to Zed Newman/.test($(`#stList .st-row:nth-child(2)`).textContent + $('#stList').textContent));
-    ok('staging: rows that break a rule are listed as refused, with the reason, and are not in the list to accept', /2\s*rows are refused/.test($('#impRefused').textContent) && /Status "Nonsense" is not one of Open, Delayed, Closed, Cancelled\./.test($('#impRefused').textContent) && /Due "next blue moon" is not a date\. Use DD-MM-YYYY\./.test($('#impRefused').textContent) && !$('#stList').textContent.includes('Row with a bad'));
-    ok('staging: new and changed rows start accepted, rows missing from the file start rejected', $$('#stList .st-row').filter(r => /Not in the file/.test(r.textContent)).every(r => r.querySelector('input[value="0"]').checked) && $$('#stList .st-row').filter(r => !/Not in the file/.test(r.textContent)).every(r => r.querySelector('input[value="1"]').checked) && $('#impGo').textContent === 'Import 2 rows', $('#impGo').textContent);
+    ok('staging: new and changed rows start accepted, rows missing from the workbook start rejected', $$('#stList .st-row').filter(r => /Not in the workbook/.test(r.textContent)).every(r => r.querySelector('input[value="0"]').checked) && $$('#stList .st-row').filter(r => !/Not in the workbook/.test(r.textContent)).every(r => r.querySelector('input[value="1"]').checked) && $('#impGo').textContent === 'Import 2 changes', $('#impGo').textContent);
     const newRow = $$('#stList .st-row').find(r => /Staged new row/.test(r.textContent)); newRow.querySelector('input[value="0"]').checked = true; newRow.querySelector('input[value="0"]').dispatchEvent(new Event('change', { bubbles: true })); await sleep(30);
-    ok('staging: Reject takes a row out of the count', $('#impGo').textContent === 'Import 1 rows');
-    const gone = $$('#stList .st-row').find(r => /Not in the file/.test(r.textContent)), gid = others.find(x => gone.textContent.includes(x.title)); gone.querySelector('input[value="1"]').checked = true; gone.querySelector('input[value="1"]').dispatchEvent(new Event('change', { bubbles: true })); await sleep(30);
-    ok('staging: Accept on a row not in the file counts it (it will be archived, not deleted)', $('#impGo').textContent === 'Import 2 rows' && /archives it\. It is not deleted/.test(gone.textContent));
+    ok('staging: Reject takes a row out of the count', $('#impGo').textContent === 'Import 1 change');
+    const gone = $$('#stList .st-row').find(r => /Not in the workbook/.test(r.textContent)), gid = others.find(x => gone.textContent.includes(x.title)); gone.querySelector('input[value="1"]').checked = true; gone.querySelector('input[value="1"]').dispatchEvent(new Event('change', { bubbles: true })); await sleep(30);
+    ok('staging: Accept on a row not in the workbook counts it (it will be archived, not deleted)', $('#impGo').textContent === 'Import 2 changes' && /archives it\. It is not deleted/.test(gone.textContent));
+    click($('#stAll')); await sleep(30);
+    ok('staging (312 M6): Accept all takes the new and changed rows only; a row not in the workbook goes back to Reject', newRow.querySelector('input[value="1"]').checked && $$('#stList .st-row').filter(r => /Not in the workbook/.test(r.textContent)).every(r => r.querySelector('input[value="0"]').checked) && $('#impGo').textContent === 'Import 2 changes', $('#impGo').textContent);
+    newRow.querySelector('input[value="0"]').checked = true; gone.querySelector('input[value="1"]').checked = true; gone.querySelector('input[value="1"]').dispatchEvent(new Event('change', { bubbles: true })); await sleep(30);
     $('#impF').requestSubmit(); await sleep(150);
     ok('staging: only the accepted rows are applied: the change, the archive; the rejected new row is not added', item(a.id).owner === 'Zed Newman' && !!gid && gid.archived === true && !S().items.some(x => x.title === 'Staged new row') && S().items.length === n0);
     await undo(); ok('staging: one Undo puts both back', item(a.id).owner === own0 && !gid.archived);
@@ -2492,9 +2503,13 @@
     S().history.filter(h => h.code === 'DMO' && h.field === '+').forEach(h => { h.at = DB.addDays(DB.TODAY, -200) + ' 09:00'; });   /* made long ago, so the weeks before the demo history still hold them */
     C.setProject('DMO'); C.go('settings'); await sleep(120);
     ok('past: the project has no publications and the card offers demo ones', !!$('#pubsNone') && !!$('#pbDemo') && $('#pbArchBtn').textContent.includes('Show archived'));
-    click($('#pbDemo')); await sleep(900); C.go('settings'); await sleep(100);
+    click($('#pbDemo')); await sleep(900); ok('past (312 L2): the demo publications toast has no Undo (it could not take back the kept copies, history and comments)', $('#toastUndo').hidden && !!DB.pubCopy('DMO', 1)); C.go('settings'); await sleep(100);
     const rows = () => $$('#pubs tbody tr');
-    ok('past (#342, #348): twelve publications, more than the old limit of ten, all with a kept copy', rows().length === 12 && Object.keys(S().pubCopies).filter(k => k.startsWith('pub:DMO:')).length === 12 && rows().every(r => !!r.querySelector('[data-pubopen]')) && DB.pubNext(DB.S.projects.find(p => p.code === 'DMO')) === 13);
+    ok('past (#342, #348, 312 M2): twelve publications are kept, and the list shows the newest ten with "Show all 12"', rows().length === 10 && rows()[0].dataset.pub === '12' && rows().at(-1).dataset.pub === '3' && !$('#pubs [data-pub="2"]') && $('#pbAll').textContent === 'Show all 12' && Object.keys(S().pubCopies).filter(k => k.startsWith('pub:DMO:')).length === 12 && DB.pubNext(DB.S.projects.find(p => p.code === 'DMO')) === 13);
+    click($('#pbAll')); await sleep(80);
+    ok('past (312 M2): Show all lists all twelve, each with a kept copy to open, and offers the last 10 again', rows().length === 12 && rows().every(r => !!r.querySelector('[data-pubopen]')) && $('#pbAll').textContent === 'Show the last 10' && !!$('#pubs [data-pub="1"]'));
+    click($('#pbAll')); await sleep(80); ok('past (312 M2): the last 10 comes back, and the pickers still list every publication', rows().length === 10 && $('#pbAll').textContent === 'Show all 12'); click($('#pbAll')); await sleep(80);
+    ok('past (312 M1): the card says a publication cannot be undone, and that none is removed', /A publication cannot be undone: it keeps its number and its copy\./.test($('#pubs').textContent) && /none is removed/.test($('#pubs').textContent) && !/pruned/.test($('#pubs').textContent));
     ok('past (#342): each kept copy holds its page, a copy of its data and a checksum', [1, 6, 12].every(n => { const c = DB.pubCopy('DMO', n); return !!c && c.html.includes('Publication ' + n) && !!c.data && c.data.items.length > 0 && /^[0-9a-f]{16}$/.test(c.sum) && C.pubSum(c.html) === c.sum; }), [1, 6, 12].map(n => { const c = DB.pubCopy('DMO', n); return c && c.data.items.length + ':' + c.sum; }).join());
     ok('past (#342): a client-facing copy holds only what the client sees: no hidden item, no internal text', DB.pubCopy('DMO', 12).data.items.every(x => S().items.find(y => y.id === x.id).client) && !/"update"|"desc"|"note"/.test(JSON.stringify(DB.pubCopy('DMO', 12).data)));
     /* archive (#345) */
@@ -2510,11 +2525,14 @@
     const w8 = DB.pubCopy('DMO', 8), r8 = DB.S.projects.find(p => p.code === 'DMO').published[7];
     ok('past (#343): a past publication opens read only behind "Publication N · DD-MM-YYYY · read only." and Back to now', C.UI.view === 'pastpub' && $('#pvBanner').textContent.replace(/\s+/g, ' ').includes(`Publication 8 · ${DB.fd(r8.at.slice(0, 10))} · read only. Back to now`) && !!$('#pvBack'), $('#pvBanner')?.textContent);
     ok('past (#343): in a tinted frame, as an inert sandboxed copy of the kept page', !!$('#pvFrame') && getComputedStyle($('#pvFrame')).borderTopStyle !== 'none' && $('#pvIf').getAttribute('sandbox') === 'allow-scripts' && $('#pvIf').srcdoc.includes('Publication 8') && !$('#pvFrame').querySelector('input,textarea,select,[contenteditable]'));
-    ok('past (#343): the checksum is checked on open and matches', /Checksum [0-9a-f]{16}, checked when it opened: it matches\./.test($('#pcSum').textContent) && !$('#pcBad'));
+    ok('past (#343, L1): the fingerprint saved at publishing is checked on open and matches (no "checksum" on screen)', /Fingerprint [0-9a-f]{16}, saved when it was published and checked when it opened: it matches\./.test($('#pcSum').textContent) && !/checksum/i.test($('#pcSum').textContent) && !$('#pcBad'));
     click($('#pcTamper')); await sleep(80);
     ok('past (#343): a changed kept file is not shown: "no longer matches", with what to do', !!$('#pcBad') && /Publication 8 no longer matches what was published\./.test($('#pcBad').textContent) && /Do not rely on it\. Restore the file from the folder it was saved to, or publish a new report\./.test($('#pcBad').textContent) && !$('#pvIf') && $('#pcBad').getAttribute('role') === 'alert');
+    { const wo = window.open; let opened = 0; window.open = () => { opened++; return {}; }; C.openPub(8); await sleep(60); window.open = wo;
+      ok('past (312 M3): "New tab" runs the same check as Open: a changed kept file is not opened, and the same "no longer matches" words are shown', opened === 0 && $('#dlg').open && /Publication 8 no longer matches what was published/.test($('#dlg').textContent) && $('#pubNoMatch').textContent === C.pubNoMatchWords && $('#pubNoMatch').getAttribute('role') === 'alert' && !!$('#pubNoMatchOpen'), opened); $('#dlg').close(); await sleep(40); }
     click($('#pcShow')); await sleep(60); ok('past (#343): Show it anyway shows it, and the checksum line still says it does not match', !!$('#pvIf') && /it does not match/.test($('#pcSum').textContent));
     click($('#pcTamper')); await sleep(60); ok('past: putting the kept file back makes it match again', /it matches/.test($('#pcSum').textContent) && !$('#pcBad'));
+    { const wo = window.open; let url = ''; window.open = u => { url = u; return {}; }; C.openPub(8); await sleep(60); window.open = wo; ok('past (312 M3): once the file matches again, "New tab" opens it', /^blob:/.test(url) && !$('#dlg').open, url); }
     /* compare (#346) */
     click($('[data-pp-mode=cmp]')); await sleep(80);
     const cmp = DB.pubCopy('DMO', 7).data, cmp8 = DB.pubCopy('DMO', 8).data, d = C.pubCompare(cmp, cmp8);
@@ -2536,24 +2554,35 @@
     /* client comments (#120) */
     const cms = DB.pubComments('DMO'); ok('comments (#120): each demo comment names a publication and a work item', cms.length === 3 && cms.every(c => c.n >= 1 && c.n <= 12 && S().items.some(x => x.id === c.item)));
     C.go('settings'); await sleep(100); ok('comments (#120): the Published reports card counts them per publication and in all', $('#pbCm .pp-n').textContent === '3' && rows().some(r => r.cells[4].textContent === '1'));
-    click($('#pbCm')); await sleep(80); ok('comments: the dialog lists each with its publication and item', $$('#cmBody li').length === 3 && /Publication \d+/.test($('#cmBody li').textContent)); 
+    click($('#pbCm')); await sleep(80); ok('comments (312 M4): the window says comments do not come back by themselves: the client copies them and sends them, you paste them here', /The client copies their comments and sends them to you; you paste them here\./.test($('#cmF').textContent) && /Comments do not come back by themselves\./.test($('#cmMsg').textContent) && !/comes back to the project itself/.test($('#cmF').textContent));
+    ok('comments: the dialog lists each with its publication and item', $$('#cmBody li').length === 3 && /Publication \d+/.test($('#cmBody li').textContent)); 
     const it = cms[0].item; $('#cmPaste').value = `clark-comment|3|${it}|Priya Nair|Please keep this on the agenda.\nclark-comment|99|${it}|Priya Nair|Wrong number.\nclark-comment|2|NOPE-1|Priya Nair|Wrong item.`; $('#cmF').requestSubmit(); await sleep(100);
     ok('comments: pasted comments are added; a wrong publication number or item is refused in plain words', DB.pubComments('DMO').length === 4 && /Added 1\./.test($('#cmMsg').textContent) && /Publication 99 is not one of this project's publications\./.test($('#cmMsg').textContent) && /NOPE-1 is not a work item in this project\./.test($('#cmMsg').textContent), $('#cmMsg').textContent);
+    $('#cmPaste').value = `clark-comment|3|${it}|Priya Nair|${'x'.repeat(1001)}`; $('#cmF').requestSubmit(); await sleep(80);
+    ok('comments (312 L5): a comment over 1000 characters (or a name over 80) is refused in plain words and not added', DB.pubComments('DMO').length === 4 && /is too long \(a name is up to 80 characters and a comment up to 1000\), so it was not added\./.test($('#cmMsg').textContent) && /Nothing was added\./.test($('#cmMsg').textContent), $('#cmMsg').textContent);
     $('#dlg').close(); await undo();
     C.openItem(it); await sleep(150); click($('.pk-tabs [data-tab=updates]')); await sleep(60);
     ok('comments (#120): on the work item, the client comment shows in Activity with its publication', /client comment/.test($('#pkFeed').textContent) && /Publication \d+/.test($('#pkFeed').textContent), $('#pkFeed').textContent.slice(0, 100)); C.closePeek && C.closePeek(); await sleep(40);
     /* the client's comment box on a real published page */
     C.setProject('PDF'); await sleep(60); const pdfN = 5, pg = { html: await C.webPage({ n: pdfN }) };
     ok('comments: a page published with a number knows it for the comment box, and the preview (no number) has no comment box', pg.html.includes('const PN=' + pdfN + ';') && /clark\.cm\./.test(pg.html) && (await C.webPage()).includes('const PN=0;'));
+    ok('comments (312 M5): a published page knows its project, and keeps the comments under the project and the publication number', pg.html.includes('const PC="PDF";') && /'clark\.cm\.' \+ PC \+ '\.' \+ PN/.test(pg.html));
     { const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;left:-9999px;width:1000px;height:800px'; fr.srcdoc = pg.html; document.body.appendChild(fr); for (let i = 0; i < 50 && !(fr.contentDocument && fr.contentDocument.querySelector('[data-item]')); i++) await sleep(100);
-      const doc = fr.contentDocument, link = doc.querySelector('[data-item]'); link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); await sleep(150);
+      const doc = fr.contentDocument, link = doc.querySelector('[data-item]'), ls = doc.defaultView.localStorage;
+      /* another project's comments in the same browser, under its own key and (wrongly) under this one's: neither shows or is copied */
+      try { ls.setItem('clark.cm.OTH.' + pdfN, JSON.stringify([{ item: 'OTH-A-001', by: 'Other Client', text: 'Other project comment' }])); ls.setItem('clark.cm.' + 'PDF.' + pdfN, JSON.stringify([{ item: 'OTH-A-002', by: 'Other Client', text: 'Stray comment' }])); } catch (e) { }
+      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); await sleep(150);
       const box = doc.querySelector('#panel .cm'); ok('comments (#120): a client opening a work item on the published page gets a comment box tied to the publication and the item', !!box && new RegExp('Comment on ' + link.dataset.item).test(box.textContent) && box.textContent.includes('Publication ' + pdfN), box && box.textContent.slice(0, 120));
       if (box) { box.querySelector('.cmby').value = 'Priya Nair'; box.querySelector('.cmtx').value = 'Can we bring this forward?'; box.querySelector('.cmadd').click(); await sleep(60); ok('comments: adding one lists it and says which publication and item it is for', /Comment added to Publication \d+, /.test(box.textContent) && box.querySelectorAll('li').length === 1 && !box.querySelector('.cmcopy').hidden);
-        try { doc.defaultView.localStorage.removeItem('clark.cm.' + pdfN); doc.defaultView.localStorage.removeItem('clark.cm.name'); } catch (e) { } }
+        let copied = ''; try { Object.defineProperty(doc.defaultView.navigator, 'clipboard', { value: { writeText: t => { copied = t; return Promise.resolve(); } }, configurable: true }); } catch (e) { }
+        box.querySelector('.cmcopy').click(); await sleep(60);
+        ok('comments (312 M5): a comment is kept under the project and publication number, and Copy my comments sends this project\'s only, never another project\'s', !!ls.getItem('clark.cm.PDF.' + pdfN) && !ls.getItem('clark.cm.' + pdfN) && JSON.parse(ls.getItem('clark.cm.OTH.' + pdfN))[0].text === 'Other project comment' && copied.split('\n').length === 1 && copied.startsWith('clark-comment|' + pdfN + '|' + link.dataset.item + '|Priya Nair|') && !/OTH|Other/.test(copied) && !/Other project|Stray/.test(box.textContent), copied);
+        ok('comments (312 M4): the page tells the client to copy their comments and send them to the project team, who paste them into clark', /Press Copy my comments and send what is copied to the project team; they paste it into clark\./.test(box.textContent) && !/send it back/.test(box.textContent));
+        try { ['clark.cm.PDF.' + pdfN, 'clark.cm.OTH.' + pdfN, 'clark.cm.name'].forEach(k => ls.removeItem(k)); } catch (e) { } }
       fr.remove(); }
     { const w = DB.S.projects.find(p => p.code === 'PDF').published || []; ok('Word and web page share one number: a Word copy in a Publish carries the same number as its page', w.filter(r => r.word).every(r => !!DB.pubCopy('PDF', r.n) && DB.pubCopy('PDF', r.n).html.includes('Publication ' + r.n)) || !w.some(r => r.word)); }
     { const pr = DB.S.projects.find(p => p.code === 'DMO'); C.setProject('PDF'); S().items.filter(x => x.code === 'DMO').forEach(x => DB.remove('item', x, DB.who('test'), 'Deleted', true)); S().milestones.filter(m => m.code === 'DMO').forEach(m => DB.remove('ms', m, DB.who('test'), 'Deleted', true)); DB.remove('project', pr, DB.who('test'), 'Deleted', true);
-      Object.keys(S().pubCopies).filter(k => k.startsWith('pub:DMO:')).forEach(k => { delete S().pubCopies[k]; DB.write([['meta', 'delete', k]]); }); delete S().pubComments.DMO; DB.write([['meta', 'delete', 'cm:DMO']]); }
+      Object.keys(S().pubCopies).filter(k => k.startsWith('pub:DMO:')).forEach(k => { delete S().pubCopies[k]; DB.write([['meta', 'delete', k]]); }); delete S().pubComments.DMO; DB.write([['meta', 'delete', 'cm:DMO']]); C.store.set('pubAll.DMO', false); }
     C.go('dashboard'); await sleep(80);
   });
 
@@ -2645,7 +2674,8 @@
   await step('Laptop sweep (#167)', async () => {
     if (!kit) { ok('Laptop sweep: the measuring helpers of the screen-by-screen step are there', false, "the step 'Screen-by-screen findings (#132)' stopped before it lent them, so the sweep did not run; see that step's failure above"); return; }
     const { rect, shown, waitFor, atW, toView, rgb, lay, ratio, r2 } = kit, pref = C.themePref(), t0 = Date.now();
-    const NOT = '[inert],[hidden],.sr,#toast,svg,.skip', TARGET = 'button,a[href],select,textarea,[role=button],[role=switch],[role=tab],summary,input:not([type=hidden]):not([type=checkbox]):not([type=radio])';
+    /* .pv-mark is the faint, aria-hidden watermark across a past publication's frame; the words it repeats are in the banner above it, which is measured */
+    const NOT = '[inert],[hidden],.sr,#toast,svg,.skip,.pv-mark', TARGET = 'button,a[href],select,textarea,[role=button],[role=switch],[role=tab],summary,input:not([type=hidden]):not([type=checkbox]):not([type=radio])';
     const KIND = [['button,[role=button]', 'the button'], ['a[href]', 'the link'], ['[role=tab]', 'the tab'], ['[role=switch]', 'the switch'], ['select', 'the list box'], ['textarea,input', 'the box'], ['summary', 'the fold'],
       ['h1,h2,h3,h4', 'the heading'], ['th', 'the column heading'], ['td', 'the cell'], ['label', 'the label'], ['li', 'the list line']];
     const say = e => { const k = (KIND.find(([s]) => e.matches(s)) || [0, 'the text'])[1], t = (e.getAttribute('aria-label') || e.getAttribute('title') || e.textContent || e.getAttribute('placeholder') || '').replace(/\s+/g, ' ').trim().slice(0, 32);
@@ -2683,10 +2713,25 @@
     if (!$('.tab[data-view=usecases]')) out.push('NOTE the laptop sweep skips the Use cases page: the prototype has no Use cases tab yet');
     /* the pages, in an order that needs the fewest steps between them; each returns what to measure */
     const arch = {};   /* what the #166 pages archived, to restore after them */
+    /* the publish-and-files screens (#312): the Excel layout window, the staged and the refused import, the Published reports card (the last ten, then Show all), a past publication
+       (as published, compared, as at a date) and the client comments window. Made-up older publications and one comment are put in for them and taken out after */
+    const DBS = window.ClarkDB, code0 = P().code, pubs0 = P().published || [], cm0 = DBS.pubComments(code0), need0 = () => Math.max(2, 12 - pubs0.length);
+    { const need = Math.max(2, 12 - pubs0.length); if (need) DBS.change('project', P(), { published: [...Array.from({ length: need }, (_, k) => ({ at: `2026-08-${String(10 + k).padStart(2, '0')} 16:00`, week: `2026-08-${String(10 + k).padStart(2, '0')}`, local: '', client: '', word: false, pdf: false, n: 500 + k, who: 'Sam Taylor', where: 'Local', hseq: 0 })), ...pubs0] }, DBS.who('in the laptop sweep')); }
+    const fakeKept = [500 + need0() - 1, 500 + need0() - 2];
+    const keptN = () => (C.pubList(P()).find(x => DBS.pubCopy(P().code, x.n)) || {}).n, shutDlg = async () => { $('#dlg').close(); await sleep(60); };
+    for (const n of fakeKept.slice().reverse()) { const html = await C.webPage({ n }); await DBS.pubKeep(code0, n, { n, code: code0, at: `2026-08-${String(10 + n - 500).padStart(2, '0')} 16:00`, html, texts: {}, data: C.pubSnapshot(P(), DBS.TODAY), sum: C.pubSum(html) }); }
+    if (keptN()) DBS.pubCommentsSet(code0, [{ id: 'c1', n: keptN(), item: C.items()[0].id, by: 'Priya Nair (client)', at: DBS.stamp(), text: 'Can this be done before the board meeting? We would like the owner named too.' }]);
+    const impFeed = async (rows, name, ready) => { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Actions'); const dt = new DataTransfer(); dt.items.add(new File([XLSX.write(wb, { type: 'array', bookType: 'xlsx' })], name)); const fi = $('#fileIn'); fi.files = dt.files; fi.dispatchEvent(new Event('change'));
+      for (let i = 0; i < 40 && !($('#dlg').open && $(ready) && $('#dlg').textContent.includes(name)); i++) await sleep(100); };
+    const impHead = ['ID', 'Type', 'Workstream', 'Title', 'Owner', 'Due', 'Status'], impA = () => C.items().find(x => x.type === 'A');
     const pages = [
       ['the Dashboard in View', async () => { C.go('dashboard'); await sleep(200); await toView(); scrollTo(0, 0); await sleep(80); return document.body; }],
       ['the Dashboard in Edit', async () => { click($('[data-mode=edit]')); await sleep(200); await waitFor(() => !$('.sh-ctl.first'), 2000); return document.body; }],
       ['the Publish dialog', async () => { C.publishDialog(); await sleep(250); return $('#dlg'); }, async () => { $('#dlg').close(); await sleep(60); }],
+      ['the Excel layout window (cover sheet)', async () => { click($('#meBtn')); await sleep(40); await menuPick('Excel file layout'); await sleep(350); return $('#dlg'); }],
+      ['the Excel layout window (Actions sheet)', async () => { click($('[data-xt=work]')); await sleep(100); return $('#dlg'); }, shutDlg],
+      ['the staged import (Check the import)', async () => { const a = impA(); await impFeed([impHead, [a.id, 'Action', a.ws, a.title, 'Zed Newman', window.ClarkDB.fd(a.due), a.status], ['', 'Action', a.ws, 'A new action from the workbook', 'Sam Rivers', '', 'Open']], 'sweep import.xlsx', '#impF'); await sleep(350); return $('#dlg'); }, shutDlg],
+      ['the refused import (a row breaks a rule)', async () => { const a = impA(); await impFeed([impHead, ['', 'Action', a.ws, 'Row with a bad status', '', '', 'Nonsense'], ['', 'Action', a.ws, 'Row with a bad date', '', 'next blue moon', 'Open']], 'sweep refused.xlsx', '#impRefused'); await sleep(350); return $('#dlg'); }, shutDlg],
       ['Work items as a table', async () => { C.go('work'); await sleep(250); if ($('.bcol-h')) { click($('[data-layout=table]')); await sleep(250); } return document.body; }],
       ['the peek (a work item opened)', async () => { C.openItem($('tr[data-id]').dataset.id); await sleep(350); return $('#peek'); }, async () => { C.closePeek(); await sleep(250); }],
       ['Work items as a board', async () => { click($('[data-layout=board]')); await sleep(300); return document.body; }, async () => { click($('[data-layout=table]')); await sleep(150); }],
@@ -2706,6 +2751,12 @@
         async () => { if (arch.d && $(`[data-doc-back="${arch.d}"]`)) { $('.doc-arch').open = true; click($(`[data-doc-back="${arch.d}"]`)); await sleep(150); } if ($('[data-mode=view]')) { click($('[data-mode=view]')); await sleep(150); } scrollTo(0, 0); await sleep(150); }],
       ...($('.tab[data-view=usecases]') ? [['Use cases', async () => { C.go('usecases'); await sleep(250); return document.body; }]] : []),
       ['Settings', async () => { C.go('settings'); await sleep(250); return document.body; }],
+      ['Settings, Published reports (the last 10)', async () => { C.store.set('pubAll.' + code0, false); C.go('settings'); await sleep(250); const c = $('#pubs'); if (c) c.scrollIntoView(); await sleep(60); return c; }],
+      ['Settings, Published reports (Show all)', async () => { click($('#pbAll')); await sleep(150); return $('#pubs'); }, async () => { C.store.set('pubAll.' + code0, false); }],
+      ['the client comments window', async () => { C.go('settings'); await sleep(200); C.cmDialog(); await sleep(350); return $('#dlg'); }, shutDlg],
+      ...(keptN() ? [['a past publication (as published)', async () => { C.openPast(keptN()); await sleep(350); return document.body; }],
+        ['a past publication (compared with the one before)', async () => { click($('[data-pp-mode=cmp]')); await sleep(150); return document.body; }],
+        ['a past publication (the dashboard as at a date)', async () => { click($('[data-pp-mode=asat]')); await sleep(150); return document.body; }, async () => { C.go('dashboard'); await sleep(150); }]] : []),
       ...[['start', 'Getting started'], ['howto', 'How to'], ['reference', 'Reference']].map(([k, t], i) => [`Help, ${t}`, async () => { if (!i) { C.go('help'); await sleep(200); } click($(`#hpTabs [data-htab=${k}]`)); await sleep(120); scrollTo(0, 0); return document.body; }])];
     /* the Preview page, made the way the profile menu's Preview makes it, and opened at the same width in a frame: each of its tabs */
     const preview = async (w, th) => { const wo = window.open; let html = ''; window.open = () => ({ document: { write: h => { html += h; }, close() {} } }); try { await C.publish('tab'); } finally { window.open = wo; }
@@ -2725,6 +2776,8 @@
             if (close) await close(); }
           await preview(w, th); } });
       if (!got) ok(`Laptop ${w} px: the runner gave the window`, false); }
+    DBS.change('project', P(), { published: pubs0 }, DBS.who('in the laptop sweep')); DBS.pubCommentsSet(code0, cm0); C.store.set('pubAll.' + code0, false);
+    fakeKept.forEach(n => { const k = `pub:${code0}:${n}`; delete S().pubCopies[k]; DBS.write([['meta', 'delete', k]]); });
     C.theme(pref); await sleep(200); C.go('dashboard'); await sleep(150);
     ok('Laptop sweep: the window is back to normal, and nothing it archived is left archived', innerWidth > 1000 && !(arch.x && arch.x.archived) && !(arch.m && arch.m.archived) && !P().docs.some(z => z.id === arch.d && z.archived), innerWidth);
     out.push(`NOTE the laptop sweep took ${Math.round((Date.now() - t0) / 1000)} s (reported, not checked)`);

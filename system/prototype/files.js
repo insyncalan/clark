@@ -302,13 +302,15 @@
   document.addEventListener('click', e => { const b = e.target.closest('#pubTplBtn'); if (b) C.wordTemplateDialog(); if (e.target.closest('#pubTplOwn')) { C.store.set('wordTpl.' + (C.P() || {}).code, null); C.toast('Word reports use clark’s own layout'); C.render(); } });
 
   /* ═════════ 4. the client's comment on the published page: the same few lines run inside the page, so they use no app code (#120) ═════════
-     A comment names the publication and the item. It stays in the client's browser; Copy my comments gives lines the author pastes into clark. */
+     A comment names the project, the publication and the item. It stays in the client's browser, kept under the project and the publication number so two
+     projects opened in one browser never share a list (and an item of another project is never copied). Copy my comments gives lines the client sends to the
+     author, who pastes them into clark: nothing is sent from the page. */
   function cmPage() {
     var P = document.getElementById('panel'); if (!P || !PN || window.CLARK_READONLY) return;
-    var KEY = 'clark.cm.' + PN, ID = /^[A-Z0-9]+-[A-Z]-\d+$/;
-    function read() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
+    var KEY = 'clark.cm.' + PC + '.' + PN, ID = /^[A-Z0-9]+-[A-Z]-\d+$/;
+    function read() { try { return JSON.parse(localStorage.getItem(KEY) || '[]').filter(function (c) { return c && String(c.item).indexOf(PC + '-') === 0; }); } catch (e) { return []; } }
     function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) { } }
-    function clean(t) { return String(t || '').replace(/[|\r\n]+/g, ' ').trim(); }
+    function clean(t, k) { return String(t || '').replace(/[|\r\n]+/g, ' ').trim().slice(0, k || 1000); }
     function name() { try { return localStorage.getItem('clark.cm.name') || ''; } catch (e) { return ''; } }
     function list(box, id) { var l = read().filter(function (c) { return c.item === id; }), ul = box.querySelector('ul'); ul.innerHTML = ''; l.forEach(function (c) { var li = document.createElement('li'); li.textContent = c.by + ': ' + c.text; ul.appendChild(li); }); box.querySelector('.cmcopy').hidden = !read().length; }
     function build() {
@@ -316,14 +318,14 @@
       for (var i = 0; i < ros.length; i++) { var t = ros[i].textContent.split(' ')[0]; if (ID.test(t)) { id = t; break; } }
       if (!id) return;
       var box = document.createElement('div'); box.className = 'cm';
-      box.innerHTML = '<h4>Comment on ' + id + '</h4><label>Your name<input class="cmby"></label><label>Your comment<textarea class="cmtx" rows="3"></textarea></label><button type="button" class="cmadd">Add comment</button><button type="button" class="cmcopy" hidden>Copy my comments</button><small class="cmsay" role="status"></small><small>This comment is tied to Publication ' + PN + ' and ' + id + '. It is kept in this browser; send it back with Copy my comments.</small><ul></ul>';
+      box.innerHTML = '<h4>Comment on ' + id + '</h4><label>Your name<input class="cmby" maxlength="80"></label><label>Your comment<textarea class="cmtx" rows="3" maxlength="1000"></textarea></label><button type="button" class="cmadd">Add comment</button><button type="button" class="cmcopy" hidden>Copy my comments</button><small class="cmsay" role="status"></small><small>This comment is tied to Publication ' + PN + ' and ' + id + '. It is kept in this browser only (a name up to 80 characters, a comment up to 1000). Press Copy my comments and send what is copied to the project team; they paste it into clark.</small><ul></ul>';
       P.appendChild(box); box.querySelector('.cmby').value = name(); list(box, id);
-      box.querySelector('.cmadd').addEventListener('click', function () { var by = clean(box.querySelector('.cmby').value), tx = clean(box.querySelector('.cmtx').value), say = box.querySelector('.cmsay');
+      box.querySelector('.cmadd').addEventListener('click', function () { var by = clean(box.querySelector('.cmby').value, 80), tx = clean(box.querySelector('.cmtx').value, 1000), say = box.querySelector('.cmsay');
         if (!tx) { say.textContent = 'Write your comment first.'; return; }
         try { localStorage.setItem('clark.cm.name', by); } catch (e) { }
         var a = read(); a.push({ item: id, by: by || 'The client', text: tx }); save(a); box.querySelector('.cmtx').value = ''; say.textContent = 'Comment added to Publication ' + PN + ', ' + id + '.'; list(box, id); });
-      box.querySelector('.cmcopy').addEventListener('click', function () { var say = box.querySelector('.cmsay'), t = read().map(function (c) { return 'clark-comment|' + PN + '|' + c.item + '|' + clean(c.by) + '|' + clean(c.text); }).join('\n');
-        try { navigator.clipboard.writeText(t).then(function () { say.textContent = 'Copied. Send it to the project team.'; }, function () { say.textContent = 'Could not copy. Select and copy the comments by hand.'; }); } catch (e) { say.textContent = 'Could not copy. Select and copy the comments by hand.'; } });
+      box.querySelector('.cmcopy').addEventListener('click', function () { var say = box.querySelector('.cmsay'), t = read().map(function (c) { return 'clark-comment|' + PN + '|' + c.item + '|' + clean(c.by, 80) + '|' + clean(c.text, 1000); }).join('\n');
+        try { navigator.clipboard.writeText(t).then(function () { say.textContent = 'Copied. Send it to the project team: it does not go anywhere by itself.'; }, function () { say.textContent = 'Could not copy. Select and copy the comments by hand.'; }); } catch (e) { say.textContent = 'Could not copy. Select and copy the comments by hand.'; } });
     }
     new MutationObserver(function () { build(); }).observe(P, { childList: true });
   }

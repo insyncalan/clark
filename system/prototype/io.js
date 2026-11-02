@@ -43,7 +43,7 @@
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([UCOLS, ['3.1', '', 'Example: automated report checks', 'On track', 'Specification signed', '', 'Yes', '']]), 'Use cases');
     XLSX.writeFile(wb, 'clark import template.xlsx'); };
 
-  C.importExcel = () => C.dialog(`<div class="dlg-h"><h2>Import from Excel</h2><p>Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved.</p></div>
+  C.importExcel = () => C.dialog(`<div class="dlg-h"><h2>Import from Excel</h2><p>Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.</p></div>
     <div class="dlg-b"><p class="muted">Columns, in any order (only the name or title is needed):</p><p style="font-size:13px"><b>Work items</b> ${ICOLS.join(', ')}<br><b>Milestones</b> ${MCOLS.join(', ')}<br><b>Use cases</b> ${UCOLS.slice(0, 7).join(', ')}</p></div>
     <div class="dlg-f"><button class="btn quiet" id="tpl" style="margin-right:auto">${C.icon('dl', 's')}Get the template</button><button class="btn quiet" data-close>Cancel</button><button class="btn pri" id="pick">${C.icon('ul', 's')}Choose a file</button></div>`, d => {
     C.$('#tpl', d).addEventListener('click', C.importTemplate);
@@ -54,14 +54,14 @@
   const get = (r, k) => { const key = Object.keys(r).find(c => c.trim().toLowerCase() === k.toLowerCase()); return key ? String(r[key]).trim() : ''; };
   const yes = v => /^(yes|y|true|1)$/i.test(v);
   async function readFile(f) {
-    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true }), p = C.P(), plan = { add: [], upd: [], skip: 0, arch: [], done: [], refused: [], seen: new Set() };
+    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true }), p = C.P(), plan = { add: [], upd: [], skip: 0, arch: [], done: [], refused: [], seen: new Set(), types: new Set() };
     const rows = n => wb.SheetNames.filter(s => s.trim().toLowerCase() === n).flatMap(s => XLSX.utils.sheet_to_json(wb.Sheets[s], { defval: '', raw: false }));
     const itemSheets = wb.SheetNames.filter(s => !['milestones', 'use cases', 'history'].includes(s.trim().toLowerCase()));   /* History is a record, never read back in */
     itemSheets.flatMap(s => XLSX.utils.sheet_to_json(wb.Sheets[s], { defval: '', raw: false })).forEach(r => {
       const title = get(r, 'Title'); if (!title) { plan.skip++; return; }
       const type = ({ action: 'A', risk: 'R', issue: 'I', decision: 'D' })[get(r, 'Type').toLowerCase()] || 'A', id = get(r, 'ID'), ex = id && D.S.items.find(x => x.id === id && x.code === p.code);
-      if (id) plan.seen.add(id);
-      /* a row that breaks a rule is refused for that row only: it is listed with the reason and never half-applied (#38) */
+      plan.types.add(type); if (id) plan.seen.add(id);
+      /* a row that breaks a rule refuses the whole file, as the product's import does (#38, #444): the check names every such row and nothing is added */
       const stRaw = get(r, 'Status').toLowerCase(), stOk = !stRaw || D.STATUSES[type].some(z => z.toLowerCase() === ({ 'in progress': 'open', done: 'closed', agreed: 'made' }[stRaw] || stRaw)), dueRaw = get(r, 'Due');
       if (!stOk) { plan.refused.push({ kind: 'item', name: title, why: `Status "${get(r, 'Status')}" is not one of ${D.STATUSES[type].join(', ')}.` }); return; }
       if (dueRaw && !dateOf(dueRaw)) { plan.refused.push({ kind: 'item', name: title, why: `Due "${dueRaw}" is not a date. Use DD-MM-YYYY.` }); return; }
@@ -92,38 +92,43 @@
     return plan;
   }
   /* the staged changes (#38): each row of the workbook is a new row, a changed row (what differs, field by field) or no change, and every item
-     in the project that the workbook does not mention is offered as "Not in the file" (Accept archives it; the default is Reject).
+     of a type the workbook has a sheet for, that the workbook does not mention, is offered as "Not in the workbook" (Accept archives it; the default is Reject, and Accept all leaves it alone).
      Each has Accept or Reject; only the accepted ones are applied, as one step with Undo. */
   const DIFF = { item: ['title', 'owner', 'due', 'status', 'priority', 'ws', 'uc', 'ms', 'client'], ms: ['name', 'ws', 'agreed', 'forecast', 'owner', 'progress', 'client'], uc: ['title', 'status', 'headline', 'ref', 'client'] };
   const shown = (f, x) => f === 'client' ? (x ? 'Yes' : 'No') : ['due', 'agreed', 'forecast'].includes(f) ? (D.fd(x) || 'none') : f === 'ms' ? (C.msName(x) || 'none') : (x === '' || x == null ? 'none' : String(x));
   const diffs = ({ kind, ex, v }) => ex ? DIFF[kind].filter(f => (ex[f] ?? '') !== (v[f] ?? '')).map(f => `${D.fieldName(f)}: ${shown(f, ex[f])} to ${shown(f, v[f])}`) : [];
   function stage(plan) {
     const rows = [...plan.add.map(r => ({ ...r, st: 'new' })), ...plan.upd.map(r => ({ ...r, st: 'changed', d: diffs(r) }))];
-    const gone = plan.seen.size ? C.items().filter(x => !plan.seen.has(x.id)).map(x => ({ kind: 'gone', ex: x, st: 'gone', v: x })) : [];
+    const gone = plan.seen.size ? C.items().filter(x => plan.types.has(x.type) && !plan.seen.has(x.id)).map(x => ({ kind: 'gone', ex: x, st: 'gone', v: x })) : [];
     return [...rows, ...gone].map((r, i) => ({ ...r, i, on: r.st !== 'gone' })); }
   const stRow = r => { const v = r.v, name = r.kind === 'gone' ? r.ex.title : v.title || v.name, id = r.ex ? (r.ex.id || r.ex.name) : '';
     const lead = r.kind === 'item' ? `<span class="type ${v.type}">${v.type}</span>` : r.kind === 'gone' ? `<span class="type ${r.ex.type}">${r.ex.type}</span>` : `<span class="tag">${r.kind === 'ms' ? 'Milestone' : 'Use case'}</span>`;
-    const t = r.st === 'new' ? ['cl', 'New'] : r.st === 'gone' ? ['arch', 'Not in the file'] : r.d.length ? ['cl', 'Changed'] : ['arch', 'No change'];
+    const t = r.st === 'new' ? ['cl', 'New'] : r.st === 'gone' ? ['arch', 'Not in the workbook'] : r.d.length ? ['cl', 'Changed'] : ['arch', 'No change'];
     const note = r.st === 'gone' ? 'Accept archives it. It is not deleted.' : r.st === 'new' ? 'gets the next free ID' : r.d.length ? r.d.join('; ') : 'nothing differs';
     return `<div class="st-row" data-st="${r.i}"><div class="st-main">${lead} <b>${esc(name)}</b> <span class="muted">${id ? '· ' + esc(id) : ''}</span> <span class="tag ${t[0]}">${t[1]}</span><small>${esc(note)}</small></div>
       <div class="st-act" role="radiogroup" aria-label="${esc(name)}"><label><input type="radio" name="st${r.i}" value="1"${r.on ? ' checked' : ''}>Accept</label><label><input type="radio" name="st${r.i}" value="0"${r.on ? '' : ' checked'}>Reject</label></div></div>`; };
+  const imp = k => `Import ${k} ${k === 1 ? 'change' : 'changes'}`;
   document.addEventListener('DOMContentLoaded', () => C.$('#fileIn').addEventListener('change', async e => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     let plan; try { plan = await readFile(f); } catch (err) { C.toast('That file could not be read as a spreadsheet.'); return; }
-    const p = C.P(), n = plan.add.length + plan.upd.length, cnt = k => [plan.add.filter(x => x.kind === k).length, plan.upd.filter(x => x.kind === k).length];
+    /* a row that breaks a rule refuses the whole file, in a plain sentence naming each such row (the product's import, #444) */
+    if (plan.refused.length) { const k = plan.refused.length, pr = C.P();
+      C.dialog(`<div class="dlg-h"><h2>Check the import</h2><p>${esc(f.name)} into ${esc(pr.name)}</p></div>
+        <div class="dlg-b"><div class="imp-refused" id="impRefused" role="status"><b>Nothing was imported, because ${k} ${k === 1 ? 'row breaks a rule' : 'rows break a rule'}:</b><ul>${plan.refused.map(x => `<li>${esc(x.name)}: ${esc(x.why)}</li>`).join('')}</ul><p style="margin:8px 0 0">Fix ${k === 1 ? 'it' : 'them'} in the workbook and import again. Nothing was changed.</p></div></div>
+        <div class="dlg-f"><button type="button" class="btn pri" data-close>Close</button></div>`); return; }
+    const p = C.P(), cnt = k => [plan.add.filter(x => x.kind === k).length, plan.upd.filter(x => x.kind === k).length];
     const [ia, iu] = cnt('item'), [ma, mu] = cnt('ms'), [ua, uu] = cnt('uc'), staged = stage(plan);
     C.dialog(`<form id="impF"><div class="dlg-h"><h2>Check the import</h2><p>${esc(f.name)} into ${esc(p.name)}</p></div>
-      <div class="dlg-b"><div class="stat"><span><b>${plan.add.length}</b>new</span><span><b>${plan.upd.length}</b>updated</span><span><b>${plan.skip}</b>skipped (no name)</span>${plan.arch.length ? `<span><b>${plan.arch.length}</b>left alone (archived)</span>` : ''}${plan.refused.length ? `<span><b>${plan.refused.length}</b>refused</span>` : ''}${staged.some(r => r.st === 'gone') ? `<span><b>${staged.filter(r => r.st === 'gone').length}</b>not in the file</span>` : ''}</div>
+      <div class="dlg-b"><div class="stat"><span><b>${plan.add.length}</b>new</span><span><b>${plan.upd.length}</b>updated</span><span><b>${plan.skip}</b>skipped (no name)</span>${plan.arch.length ? `<span><b>${plan.arch.length}</b>left alone (archived)</span>` : ''}${plan.refused.length ? `<span><b>${plan.refused.length}</b>refused</span>` : ''}${staged.some(r => r.st === 'gone') ? `<span><b>${staged.filter(r => r.st === 'gone').length}</b>not in the workbook</span>` : ''}</div>
       <p style="margin:0 0 8px">Work items: ${ia} new, ${iu} updated · Milestones: ${ma} new, ${mu} updated · Use cases: ${ua} new, ${uu} updated</p>
       ${plan.arch.length ? `<p class="imp-arch" style="margin:0 0 8px">${plan.arch.map(esc).join(', ')} ${plan.arch.length === 1 ? 'is' : 'are'} archived, so ${plan.arch.length === 1 ? 'its row is' : 'their rows are'} left alone. Restore ${plan.arch.length === 1 ? 'it' : 'them'} first to update ${plan.arch.length === 1 ? 'it' : 'them'} from a sheet.</p>` : ''}
       ${plan.done.length ? `<p class="imp-done" style="margin:0 0 8px">Use case${plan.done.length === 1 ? '' : 's'} ${plan.done.map(esc).join(', ')} ${plan.done.length === 1 ? 'says' : 'say'} Done in the sheet. A use case is On track, Flag or High risk, so ${plan.done.length === 1 ? 'it comes' : 'they come'} in as On track.</p>` : ''}
-      ${plan.refused.length ? `<div class="imp-refused" id="impRefused" role="status"><b>${plan.refused.length} ${plan.refused.length === 1 ? 'row is' : 'rows are'} refused, and nothing from ${plan.refused.length === 1 ? 'it is' : 'them is'} added:</b><ul>${plan.refused.map(x => `<li>${esc(x.name)}: ${esc(x.why)}</li>`).join('')}</ul></div>` : ''}
       ${staged.length ? `<div class="st-bar"><span class="muted">Changes to check</span><span><button type="button" class="link" id="stAll">Accept all</button> · <button type="button" class="link" id="stNone">Reject all</button></span></div><div class="st-list" id="stList">${staged.map(stRow).join('')}</div>` : ''}</div>
-      <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri" id="impGo" ${staged.some(r => r.on) ? '' : 'disabled'}>Import ${n} rows</button></div></form>`, d => {
+      <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri" id="impGo" ${staged.some(r => r.on) ? '' : 'disabled'}>${imp(staged.filter(r => r.on).length)}</button></div></form>`, d => {
       const form = C.$('#impF', d), go = C.$('#impGo', d), chosen = () => staged.filter(r => (form.querySelector(`input[name="st${r.i}"]:checked`) || {}).value === '1');
-      const recount = () => { const k = chosen().length; go.textContent = `Import ${k} rows`; go.disabled = !k; };
+      const recount = () => { const k = chosen().length; go.textContent = imp(k); go.disabled = !k; };
       form.addEventListener('change', recount);
-      C.$('#stAll', d)?.addEventListener('click', () => { form.querySelectorAll('input[value="1"]').forEach(x => { x.checked = true; }); recount(); });
+      C.$('#stAll', d)?.addEventListener('click', () => { staged.forEach(r => { const x = form.querySelector(`input[name="st${r.i}"][value="${r.st === 'gone' ? 0 : 1}"]`); if (x) x.checked = true; }); recount(); });   /* new and changed rows only: a row missing from the workbook is accepted one by one */
       C.$('#stNone', d)?.addEventListener('click', () => { form.querySelectorAll('input[value="0"]').forEach(x => { x.checked = true; }); recount(); });
       form.addEventListener('submit', ev => {
         ev.preventDefault(); d.close();
@@ -135,7 +140,7 @@
           if (kind === 'ms') steps.push(() => { const id = D.nextMsId(p.code); return D.create('ms', { key: p.code + '/' + id, id, code: p.code, clientText: '', ...v }, how); });
           if (kind === 'uc') steps.push(() => D.create('uc', { key: p.code + '/' + v.id, code: p.code, ...v }, how));
         });
-        const u = D.batch(steps); C.refresh(); C.toast(`${k} rows imported`, u);
+        const u = D.batch(steps); C.refresh(); C.toast(`${k} ${k === 1 ? 'change' : 'changes'} imported`, u);
       }); });
   }));
 
@@ -262,7 +267,7 @@ a{color:inherit;text-decoration:none}footer{margin:12px 0 0;padding:0}}`;
     const o = pageHtml(false), B = o.B, cover = await dataUrl(B.cover), mark = await dataUrl(B.mark);
     const data = { items: Object.fromEntries(o.its.map(x => [x.id, { id: x.id, kind: D.TYPES[x.type], title: word(x), owner: x.owner, due: D.fd(x.due), status: C.look(x)[1], priority: x.priority, t: x.type === 'I' ? 'R' : x.type, ws: x.ws, dueb: !x.due ? 'No date' : D.days(x.due) < 0 ? 'Overdue' : D.days(x.due) <= 7 ? 'Due in 7 days' : 'Later', update: C.plain(x.update), desc: C.plain(x.desc) }])),
       ms: Object.fromEntries(o.ms.map(m => [m.id, { title: m.clientText || m.name, state: D.msWord(D.msState(m), true), agreed: D.fd(m.agreed), forecast: D.slip(m) > 0 ? D.fd(D.expected(m)) : '', progress: m.progress == null ? 'Not set' : m.progress + '%', desc: C.plain(m.desc) }])) };
-    const js = `const PN=${+opts.n || 0};const D=${JSON.stringify(data).replace(/</g, '\\u003c')};const P=document.getElementById('panel'),SM=matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const js = `const PN=${+opts.n || 0};const PC=${JSON.stringify(C.P().code)};const D=${JSON.stringify(data).replace(/</g, '\\u003c')};const P=document.getElementById('panel'),SM=matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function peek(h){P.innerHTML='<button onclick="P.classList.remove(\\'on\\')">Close</button><div class="ro">View only</div>'+h;P.classList.add('on');P.querySelector('button').focus()}
 document.addEventListener('mousedown',e=>{if(!P.classList.contains('on')||e.button!==0)return;if(e.target.closest('#panel,[data-item],[data-ms],.wl-row'))return;P.classList.remove('on')},true);
 document.addEventListener('click',e=>{const a=e.target.closest('[data-item],[data-ms]')||(!e.target.closest('a,button,input')&&e.target.closest('.wl-row')?.querySelector('[data-item]'));if(!a||a.closest('[data-mv]'))return;e.preventDefault();if(a.dataset.item){const x=D.items[a.dataset.item];if(!x)return;peek('<div class="ro">'+esc(x.id)+' · '+esc(x.kind)+'</div><h3>'+esc(x.title)+'</h3><dl><dt>Status</dt><dd>'+esc(x.status)+'</dd><dt>Owner</dt><dd>'+esc(x.owner)+'</dd><dt>Due</dt><dd>'+esc(x.due)+'</dd><dt>Priority</dt><dd>'+esc(x.priority)+'</dd><dt>Latest update</dt><dd>'+esc(x.update||'None')+'</dd>'+(x.desc?'<dt>About</dt><dd>'+esc(x.desc)+'</dd>':'')+'</dl>')}else{const m=D.ms[a.dataset.ms];if(!m)return;peek('<div class="ro">Milestone</div><h3>'+esc(m.title)+'</h3><dl><dt>State</dt><dd>'+esc(m.state)+'</dd><dt>Agreed date</dt><dd>'+esc(m.agreed)+'</dd>'+(m.forecast?'<dt>Expected</dt><dd>'+esc(m.forecast)+'</dd>':'')+'<dt>Progress</dt><dd>'+esc(m.progress)+'</dd>'+(m.desc?'<dt>About</dt><dd>'+esc(m.desc)+'</dd>':'')+'</dl>')}});
@@ -360,9 +365,9 @@ table{border-collapse:collapse;width:100%} th{background:#3B5BDB;color:#fff;text
         /* numbered, with a kept copy of the page and of its text sections (to start next week's report from); the project holds the row */
         const rec = { at: D.stamp(), week, local: localPath, client: toClient ? loc.client : '', word, pdf, n, who: (D.S.profile || {}).name || 'You', where: toClient ? 'Local and to client' : 'Local', hseq: D.lastSeq() };
         await D.pubKeep(p.code, n, { n, code: p.code, at: rec.at, html, data: C.pubSnapshot(p, D.TODAY), sum: C.pubSum(html), texts: Object.fromEntries((p.report.sections || []).filter(x => x.type === 'text').map(x => [x.id, x.html || ''])) });
-        const u = D.change('project', p, { published: [...(p.published || []), rec] }, D.who('by publishing the report')); C.refresh();
+        D.change('project', p, { published: [...(p.published || []), rec] }, D.who('by publishing the report')); C.refresh();   /* no Undo on the toast: a publication keeps its number and its kept copy, and the next one would reuse the number and overwrite that copy */
         if (pdf) { if (pw && pw.document) { pw.document.write(html.replace('</body>', '<script>setTimeout(function(){window.print()},800)<\/script></body>')); pw.document.close(); } else C.toast('Your browser blocked the new tab for the PDF'); }
-        C.toast((toClient ? `Publication ${n}: published locally and to the client folder (prototype: not sent; it would go to ${loc.client})` : `Publication ${n}: published locally`) + (pdf ? '. Prototype: your browser’s print box opens; choose Save as PDF.' : ''), u);
+        C.toast((toClient ? `Publication ${n}: published locally and to the client folder (prototype: not sent; it would go to ${loc.client})` : `Publication ${n}: published locally`) + (pdf ? '. Prototype: your browser’s print box opens; choose Save as PDF.' : ''));
         go.removeAttribute('aria-busy'); go.classList.add('ok'); go.innerHTML = `${C.icon('check', 's tick')}Published (Publication ${n})`;
         setTimeout(() => { if (d.open && form.isConnected) d.close(); }, 1200);
       });
