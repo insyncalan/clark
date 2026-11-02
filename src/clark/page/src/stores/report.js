@@ -18,7 +18,7 @@ export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snap
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
 const start = route.current();
 export const project = signal(start.project);
-export const view = signal(start.view === "clientreport" ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab
+export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""

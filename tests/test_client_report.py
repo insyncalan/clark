@@ -333,6 +333,16 @@ class Drawn(unittest.TestCase):
             self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid), r"Not set|No milestones yet")
             self.assertEqual(json.loads(cdp.js(AUDIT, sid)), [])
 
+    def test_a_published_file_opened_at_its_client_report_address_lands_on_the_weekly_snapshot(self):
+        """#559: the served page maps #clientreport to the first tab, but a published file keeps it (its own tab list decides)."""
+        url = self.serve() + "#clientreport"
+        with chrome() as cdp:
+            sid = opened(cdp, url)
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the file drew")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#clientreport .sec')", sid)), "the snapshot is the open view")
+            self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "clientreport")
+            self.assertEqual(cdp.js("document.querySelector('[data-view=clientreport]').innerText", sid), "Weekly snapshot")
+
 
 class HiddenOnTheServedPage(unittest.TestCase):
     """#559: the served page has no client report tab; a published file keeps it as "Weekly snapshot". The tab bar is checked in both Dashboard modes (View, Edit): the mode switch exists only on the Dashboard."""
