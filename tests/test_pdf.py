@@ -296,7 +296,7 @@ class RealChrome(unittest.TestCase):
 
 # ===== The Publish option (publish_pdf.py) =====
 import _publish_fixture as fx                                     # noqa: E402
-from test_publish_route import Rig, WANTED, DAY                   # noqa: E402
+from test_publish_route import Rig, WANTED, DAY, EMPTY_BRANDING                   # noqa: E402
 from clark import pdf_text as pdftext, publish_pdf, to_client                # noqa: E402
 from clark.store import Store                                       # noqa: E402
 
@@ -432,7 +432,7 @@ class PublishRealChrome(unittest.TestCase):
         self.assertNotIn(squash(str(rig.client)), squashed)
         for word in ("Dashboard", "Work items", "Milestones", "28-10-2026", "Page 1 of"):
             self.assertIn(word, text)
-        self.assertIn("Published 28-10-2026", text, "the footer carries the date")
+        self.assertRegex(text, r"Publication \d+ · 28-10-2026", "the footer carries the number and the date")
         self.assertNotIn("Filter by", text, "no controls")
         self.assertEqual(text.count("Programme notes"), 1, "the live page is not printed as well as the stack")
         # a taken name in the client folder is asked about first, and nothing is written for the question
@@ -1097,6 +1097,8 @@ class TheReviewFindings(unittest.TestCase):
         self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_failed"]), got["message"])
 
     def test_the_same_report_already_in_the_client_folder_says_no_pdf_was_copied(self):
+        # #120: every publish says its own number, so "the same report" is the one the next publish will make (Publication 2)
+        self.report.write_bytes(publish.build(self.rig.store, "PUB", DAY, EMPTY_BRANDING)["body"])
         status, got = self.go(to_client=True, pdf=True)
         self.assertEqual((status, got["ok"], got["action"], got["pdf_saved"]), (200, True, "nothing_to_do", False), got)
         self.assertIn(publish_pdf.MESSAGES["pdf_client_same"], got["message"])
