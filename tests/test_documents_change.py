@@ -119,8 +119,8 @@ class Add(Base):
         self.refused(new(title="portal.example.net"), doclinks.TITLE_ELSEWHERE)
         self.refused(new(kind="Memo"), changes.DOC_KIND_WORDS)
         self.refused(new(kind=None), changes.DOC_KIND_WORDS)
-        self.refused(new(date="2030-02-31"), changes.NOT_A_DATE)
-        self.refused(new(date="soon"), changes.NOT_A_DATE)
+        self.refused(new(date="2030-02-31"), changes.DOC_NOT_A_DATE)
+        self.refused(new(date="soon"), changes.DOC_NOT_A_DATE)
         self.ok(new(title="example.com minutes", url="https://portal.example.com/m"))      # the link's own site in its title is fine
 
     def test_a_title_with_markup_is_kept_as_text(self):
@@ -242,6 +242,37 @@ class Hide(Base):
         self.assertEqual((body["added"], body["shown_to_client"], self.hidden()), ([self.ref], [], []))
         self.back(body["apply_id"])
         self.assertEqual(self.hidden(), [self.ref])
+
+
+class UndoWords(Base):
+    """The words after an Undo call a document step a document step (by its title), never a hide or a show of a row: a document's
+    key (ABC|ABC-L-001) looks like the eye's, so the words must tell the two apart by what the step wrote."""
+
+    def said(self, apply_id):
+        return self.back(apply_id)["words"]
+
+    def test_undoing_an_add_says_the_new_document_was_removed(self):
+        body = self.ok(new(title="Min"))
+        self.assertEqual(self.said(body["apply_id"]), "Put back: the new document \u201cMin\u201d was removed.")
+
+    def test_undoing_an_edit_names_the_fields_of_the_document(self):
+        ref = self.ok(new(title="Min"))["ref"]
+        body = self.ok(edit(ref, title="Board minutes", date="2031-02-03"))
+        said = self.said(body["apply_id"])
+        self.assertEqual(said, "Put back: the title of \u201cMin\u201d; the date of \u201cMin\u201d.")
+        self.assertNotRegex(said, r"(?i)hidden|report|back in")
+
+    def test_undoing_a_leave_out_and_an_add_back_say_published_page_in_plain_words(self):
+        ref = self.ok(new(title="Min"))["ref"]
+        left_out = self.ok(eye("new", ref))
+        self.assertEqual(self.said(left_out["apply_id"]), "Put back: \u201cMin\u201d is back on the published page.")
+        self.ok(eye("new", ref))
+        added_back = self.ok(eye("delete", ref))
+        self.assertEqual(self.said(added_back["apply_id"]), "Put back: \u201cMin\u201d is left out of the published page again.")
+
+    def test_a_work_items_eye_still_says_report(self):
+        said = changes.words([{"ref": "ABC|ABC-A-001", "field": None, "change": "removed", "to": None}], [], {})
+        self.assertEqual(said, "Put back: ABC-A-001 is back in the report.")
 
 
 class Read(Base):

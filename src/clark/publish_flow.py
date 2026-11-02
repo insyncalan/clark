@@ -121,6 +121,7 @@ def markers_for(store, code, published, template=""):
                  for r in ([data["project"]] if kind == "projects" else data.get(kind, ())) if isinstance(r, dict)
                  for v in r.values() if isinstance(v, str)]
     kept_text += [s.get("body") or "" for s in published.get("sections", ()) if isinstance(s, dict)]
+    kept_text += [v for r in data.get("documents", ()) if isinstance(r, dict) for v in r.values() if isinstance(v, str)]     # #74: the links the client may see
     found, where = [], {}
     bare = to_client._key(template)
 
@@ -139,6 +140,12 @@ def markers_for(store, code, published, template=""):
                 value = (_text(row.get(field)) or "").strip()
                 if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
                     add(value, row["id"])
+    for row in store.read("documents", project=code):              # #74: a document's id, title and link are absent unless a kept document carries the same words (publish carries no id)
+        add(row["id"], row["id"])
+        for field in ("title", "url"):
+            value = (_text(row.get(field)) or "").strip()
+            if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+                add(value, row["id"])
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out

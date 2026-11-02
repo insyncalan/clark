@@ -186,6 +186,7 @@ ITEM_VALUE_WORDS = "That value isn't one clark can use."
 ITEM_TEXT_WORDS = "Use plain text, with no line breaks or hidden characters."
 ITEM_BAD_KINDS = frozenset({"Cc", "Cf", "Cs", "Co", "Zl", "Zp"})   # as the store's section titles: control, format, surrogate, private use, separators
 NOT_A_DATE = "That isn't a date. Pick a day from the calendar."
+DOC_NOT_A_DATE = "That isn't a date. Write it as DD-MM-YYYY, for example 05-01-2030, or leave it empty."      # #74: a document's date is typed, there is no calendar
 NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
@@ -824,10 +825,10 @@ def _checked_document(fields):
                 raise Refused(str(e)) from None
         else:                                                           # the date
             if v is not None and not isinstance(v, str):
-                raise Refused(NOT_A_DATE)
+                raise Refused(DOC_NOT_A_DATE)
             v = (v or "").strip()
             if v and not (re.fullmatch(r"\d{4}-\d{2}-\d{2}", v) and _real_day(v)):
-                raise Refused(NOT_A_DATE)
+                raise Refused(DOC_NOT_A_DATE)
             out[k] = v or None
     return out
 
@@ -1663,7 +1664,10 @@ def words(reversed_, skipped, names):
             continue
         if e["field"] == "closed" and ITEM_REF.fullmatch(str(e["ref"])):
             continue                                                # a closing date follows the status: one line says both
-        if HIDDEN_REF.fullmatch(str(e["ref"])):                     # #67: the eye, undone either way
+        if HIDDEN_REF.fullmatch(str(e["ref"])) and "-L-" in str(e["ref"]) and not e.get("doc"):     # #74: the eye of a document, undone either way
+            phrase = (f"{_name(names, e['ref'])} is back on the published page" if e["ref"] in removed
+                      else f"{_name(names, e['ref'])} is left out of the published page again")
+        elif HIDDEN_REF.fullmatch(str(e["ref"])) and not e.get("doc"):      # #67: the eye, undone either way
             phrase = (f"{_name(names, e['ref'])} is back in the report" if e["ref"] in removed
                       else f"{_name(names, e['ref'])} is hidden from the report again")
         elif e["ref"] in removed:
@@ -1761,8 +1765,11 @@ def _do_undo(store, by_user, req):
     names.update({r["id"]: r["title"] for r in rows})
     _name_use_cases(store, step_rows, names)
     reversed_ = []
+    doc_keys = {r["key"] for r in step_rows if r["table"] == "documents"} - {r["key"] for r in step_rows if r["table"] == "report_hidden"}
     for e in done["reversed"]:
         entry = {"ref": e["ref"], "field": e["field"], "change": e["change"], "to": e.get("to")}
+        if e["ref"] in doc_keys:
+            entry["doc"] = True                                     # #74: a document's own step (its key looks like the eye's, but it is not a hide or a show)
         if e["change"] in ("removed", "put back"):
             if any(x["ref"] == e["ref"] and x["change"] == e["change"] for x in reversed_):
                 continue                                            # one line for a whole section, not one for each field

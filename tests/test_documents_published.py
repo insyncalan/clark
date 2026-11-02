@@ -11,7 +11,7 @@ import unittest
 
 from _demo import USER, DemoStore
 from _publish_fixture import spellings
-from clark import changes, publish
+from clark import changes, publish, publish_flow, to_client
 
 ADDRESS = re.compile(r"(?:https?://|mailto:)[^\"'\\\s<>)]+", re.I)
 REFUSED = ("javascript:alert('ZQ-JS')", "JaVaScRiPt:alert(1)", "java\tscript:alert(1)", "data:text/html,ZQ-DATA",
@@ -134,6 +134,42 @@ class Absent(Published):
         status, _ = self.change({"project": "ABC", "kind": "report_hidden", "op": "new", "id": body["ref"], "place": "eye"})
         self.assertEqual(status, 200)
         self.absent(self.text(), "ZQ-ROUTE-TITLE", "zq-route.example.com", "2034-04-04")
+
+    def test_another_projects_document_is_not_in_this_projects_file(self):
+        with self.s.step("dashboard", USER) as st:
+            st.create("projects", {"code": "XYZ", "name": "Second Programme", "health": "On track"})
+        self.plant("ZQ-OTHER-PROJECT", "https://zq-other.example.com/x", project="XYZ")
+        text = self.text()
+        self.absent(text, "ZQ-OTHER-PROJECT", "zq-other.example.com", "XYZ-L-001")
+
+
+class Markers(Published):
+    """The second barrier (publish_flow.markers_for): the text of a document that must not be in the file is looked for in the
+    finished bytes, so a leak that got past publish.select is still held back before a copy goes to the client."""
+
+    def markers(self):
+        return publish_flow.markers_for(self.s, "ABC", self.built()["published"])
+
+    def test_a_left_out_documents_id_title_and_link_are_markers_and_a_shown_ones_are_not(self):
+        shown = self.plant("ZQ-SHOWN-MARK", "https://zq-shown-mark.example.com/a")
+        hidden = self.plant("ZQ-HIDDEN-MARK", "https://zq-hidden-mark.example.com/b")
+        self.hide(hidden)
+        archived = self.plant("ZQ-ARCHIVED-MARK", "https://zq-archived-mark.example.com/c", archived=1)
+        got = list(self.markers())
+        for text in (hidden, "ZQ-HIDDEN-MARK", "https://zq-hidden-mark.example.com/b", archived, "ZQ-ARCHIVED-MARK", "https://zq-archived-mark.example.com/c"):
+            self.assertIn(text, got, f"{text!r} of a left-out document should be a marker")
+        for text in ("ZQ-SHOWN-MARK", "https://zq-shown-mark.example.com/a"):
+            self.assertNotIn(text, got, f"{text!r} is published, so it is not a marker")
+        self.assertIn(shown, got, "an id is always a marker (no document id is published)")
+
+    def test_a_file_that_carries_a_hidden_documents_title_is_refused_by_the_copy_check(self):
+        hidden = self.plant("ZQ-LEAKED-TITLE", "https://zq-leaked.example.com/x")
+        self.hide(hidden)
+        body = self.built()["body"].replace(b"</body>", b"<p>ZQ-LEAKED-TITLE</p></body>")
+        problems = to_client.check_copy(body, markers=self.markers(), folder=None)
+        self.assertTrue(problems, "a file that carries a hidden document's title must be refused")
+        clean = to_client.check_copy(self.built()["body"], markers=self.markers(), folder=None)
+        self.assertEqual(clean, [], "the file as built carries none of them")
 
 
 if __name__ == "__main__":

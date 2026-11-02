@@ -645,11 +645,11 @@ def _document_rules(con, table, row, changed):
         if elsewhere:
             raise Invalid(doclinks.TITLE_ELSEWHERE)
     if type(row.get("sort_order")) is not int:
-        raise Invalid("A document needs its place in the list (sort_order, a whole number).")
+        raise Invalid("A document needs its place in the list.")
     if fresh_row:
         n = con.execute("SELECT count(*) FROM documents WHERE project = ? AND id IS NOT ?", (row.get("project"), row.get("id"))).fetchone()[0]
         if n >= MAX_DOCUMENTS:
-            raise Invalid(f"A project can have at most {MAX_DOCUMENTS} documents. Archive one you no longer need first.")
+            raise Invalid(f"A project can have at most {MAX_DOCUMENTS} documents.")
 
 
 def _source_folder(con, table, row, changed):
