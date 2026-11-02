@@ -180,8 +180,11 @@ class RealBrowser(unittest.TestCase):
                                          "nothing inside the list scrolls sideways")
                         text = cdp.js("document.querySelector('#work').innerText", sid)
                         self.assertNotRegex(text, r"\d{4}-\d{2}-\d{2}", "dates read DD-MM-YYYY")
-                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b), #work table select,"
-                                                " #work table textarea, #work table [contenteditable]').length", sid), 0, "nothing in the list edits data (a group heading only opens and shuts its rows; its tick box only selects them)")
+                        # #442: in View exactly the four picker cells (owner, due, priority, status) edit, as buttons carrying data-cell; nothing else does
+                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b):not([data-cell]), #work table select,"
+                                                " #work table textarea, #work table [contenteditable]').length", sid), 0, "nothing else in the list edits data (a group heading only opens and shuts its rows; its tick box only selects them)")
+                        self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work table [data-cell]')].map(c => c.dataset.cell.split(':')[1]))].sort()", sid),
+                                         ["due", "owner", "priority", "status"], "the four picker cells show in View (the eye, Duplicate and Archive are not in the rows: they stay in Edit)")
                         self.assertIn(f"{len(ids)} items", text)
             self.assertEqual(blocked, [], f"the policy blocked nothing: {blocked}")
 
@@ -301,9 +304,9 @@ class RealBrowser(unittest.TestCase):
             order = [r["id"] for r in self.rows(cdp, sid)]
             self.assertEqual(order[0], "TUL-A-002", "the oldest open date comes first")
             late = rows["TUL-010"]                                    # an open Urgent issue due 25-10-2026
-            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Red"))
+            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Open"))   # #442: the status cell shows the item's own status, as in Edit
             self.assertIn("25-10-2026", late["text"])
-            self.assertEqual(rows["TUL-A-002"]["pill"], "Overdue")    # Delayed, but overdue wins
+            self.assertEqual(rows["TUL-A-002"]["pill"], "Delayed")    # the item's own status; its lateness shows in the due words
             closed = rows["TUL-A-003"]                                # closed: its date, no words
             self.assertIsNone(closed.get("words"))
             self.assertIn("13-10-2026", closed["text"])

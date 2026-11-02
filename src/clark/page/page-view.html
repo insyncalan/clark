@@ -355,6 +355,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }
   table.items .c-prio { grid-column: 3; grid-row: 3; }
   table.items td.c-type, table.items td.c-item, table.items td.c-owner, table.items td.c-due, table.items td.c-prio, table.items td.c-status { width: auto; overflow-wrap: anywhere; }
   table.items td.c-status .pill { white-space: normal; max-width: 100%; }
+  table.items td .cell-pick[data-cell], table.items td .cell-pick[data-cell] .cell-val { white-space: normal; min-width: 0; max-width: 100%; flex: 0 1 auto; overflow-wrap: anywhere; }   
   table.items tr.grp { display: block; padding: var(--space-2) var(--space-1); }
   table.items tr.grp th { display: block; min-width: 0; width: auto; padding: 0; text-align: left; overflow-wrap: anywhere; }
   table.items td.c-type::before, table.items td.c-owner::before, table.items td.c-status::before, table.items td.c-due::before, table.items td.c-prio::before { display: block; font-size: var(--size-small); color: var(--text-muted); }
