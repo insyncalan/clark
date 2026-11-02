@@ -98,7 +98,7 @@ class Refusals(unittest.TestCase):
         import shutil
         from pathlib import Path
         node = shutil.which("node")
-        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/activityUndo.js").read_text()
+        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/activityUndo.js").read_text(encoding="utf-8")
         self.assertIn("r.undo_refused", src)
         self.assertLess(src.index("r.undo_refused"), src.index('r.kind === "Comment"'), "the server's reason is asked first")
         if node:
