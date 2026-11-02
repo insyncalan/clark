@@ -116,8 +116,8 @@ COVERED = [
 ]
 
 WITH_165 = [
-    ("#67", "In View the four pickers show, and a double click on a row opens the peek (a single click selects it since #195)",
-     "test_inline_edits::Live::test_view_has_the_four_pickers_and_a_row_double_click_opens_the_peek"),
+    ("#67", "Work items edit in View as in Edit, and a double click on a row opens the peek (a single click selects it since #195)",
+     "test_inline_edits::Live::test_work_items_edit_in_view_and_a_row_double_click_opens_the_peek"),
     ("#67", "Status changes in place by click and by keyboard, one step with Undo", "test_inline_edits::Live::test_status_by_click_and_keyboard"),
     ("#67", "Priority changes in place, one step with Undo",
      "test_inline_edits::Live::test_priority_by_click_and_by_keyboard_one_step_with_undo_and_esc_leaves_it"),

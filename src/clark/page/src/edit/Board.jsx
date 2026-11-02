@@ -4,7 +4,7 @@
 // stores/changes.js. It is an Edit part (edit/index.js): the published page has no board. Cards move only in Edit; in View they
 // can be read and opened. Nothing here removes an item: a card moves, and closing is a status.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { mode, item, openPeek } from "../stores/report.js";
+import { item, openPeek } from "../stores/report.js";
 import { work, setWork, full, announce, contextFor } from "../stores/work.js";
 import { changeItem, say } from "../stores/changes.js";
 import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel, LANE_GROUPS } from "../logic/board.js";
@@ -127,7 +127,7 @@ const noMove = (row) => row && row.kind === "decision" && (row.status === "Made"
   : "This card can't move on this board. Open it to change its details.";
 
 export function Board({ rows, today, type }) {
-  const st = work.value, g = boardGroup(st.group), editing = mode.value === "edit";
+  const st = work.value, g = boardGroup(st.group), editing = true;      // the Work items page is always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026)
   const ctx = contextFor(today, type);
   const b = build(rows, { group: g, lane: st.lane, ctx });
   const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
@@ -315,7 +315,6 @@ export function Board({ rows, today, type }) {
       <div class="lanebar" role="group" aria-label="Board view">
         <Menu label={`Swimlanes: ${laneNow}`} ariaLabel={`Swimlanes: ${laneNow}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left items={laneItems}
           onPick={(id) => setWork({ lane: id === "none" ? null : id })} />
-        {!editing ? <span class="muted lb-hint">Switch to Edit to move cards.</span> : null}
         <button type="button" class="bib fs" id="board-full" ref={fsBtn} aria-pressed={isFull ? "true" : "false"} aria-label={isFull ? "Leave full screen" : "View full screen"}
           data-tip={isFull ? "Leave full screen (Esc)" : "View full screen"} onClick={toggleFull}>
           <Icon name={isFull ? "shrink" : "expand"} />
