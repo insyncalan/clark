@@ -54,6 +54,19 @@ class PassageScreen(unittest.TestCase):
         self.assertEqual([label for _p, label in req.passages], ["Plan", "Risks"])
         self.assertEqual(req.passage_ids, ("P1", "P2"))
 
+    def test_a_password_ending_at_the_row_cut_is_dropped_and_a_cut_one_never_sends_its_value_whole(self):
+        """ask_data cuts a row at MAX_PASSAGE (4,000). A password whole before the cut is caught by the screen in build_request;
+        one the cut splits never sends the whole value, wherever the cut falls."""
+        pw = "password" + ": " + "hunter22"
+        for before in range(0, len(pw) + 1):             # how many characters of the password sit before the cut
+            head = len(ask_data.row_line("actions", {"id": "ABC-A-001", "description": "x"})) - 1       # what the row shows before the text
+            filler = ("Delivery notes. " * 400)[:ask.MAX_PASSAGE - head - before - 1]
+            row = {"id": "ABC-A-001", "description": filler + " " + pw + " tail"}
+            passages = ask_data._cut("Actions", [ask_data.row_line("actions", row)])
+            req = ask.build_request("What is late?", passages)
+            self.assertNotIn("hunter22", req.text, before)
+            self.assertEqual(req.left_out_secret, 1 if before >= 17 else 0, before)       # 17+: enough is left to match
+
     def test_a_password_and_a_key_in_a_label_are_dropped_too(self):
         passages = [CLEAN[0], ("Login", FAKE_PASSWORD), ("Row " + FAKE_KEY, "Harmless words.")]
         req = ask.build_request("Q?", passages)
