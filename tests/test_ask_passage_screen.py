@@ -178,6 +178,8 @@ class ThroughTheRoute(route_base.Base):
         self.assertNotIn("hunter", text)
         self.assertNotIn("password", text)
         self.assertNotIn("hunter", repr(got))
+        self.assertIn(ask.secret_note(1), got["notes"])        # the same note as a passage left out for a key
+        self.assertEqual(got["notes"], [ask.secret_note(1)])        # and not the "too long to send" one
 
     def test_a_long_line_with_a_password_is_left_out_and_counted(self):
         line = "ok " * 1400 + FAKE_PASSWORD

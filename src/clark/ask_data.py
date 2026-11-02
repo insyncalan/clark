@@ -44,10 +44,12 @@ _TAG = re.compile(r"<[^>]*>")
 @dataclass(frozen=True)
 class ProjectData:
     """What the open project's data gives a question: the chosen `passages`, the `facts` the claims check compares against
-    ({id: {"title", "owner"}}, published rows only), and `left_out`, how many passages did not fit the budget."""
+    ({id: {"title", "owner"}}, published rows only), `left_out`, how many passages did not fit the budget, and `secret`, how many
+    lines were left out because they looked like a password or a key (shown by the same note as a passage left out for that)."""
     passages: tuple
     facts: dict
     left_out: int
+    secret: int = 0
 
 
 def plain(value):
@@ -149,4 +151,4 @@ def project_data(store, code, question="", budget=BUDGET):
         passages += more
         secret += n
     chosen, left = choose(passages, question, budget)
-    return ProjectData(chosen, facts_of(selected), left + secret)
+    return ProjectData(chosen, facts_of(selected), left, secret)
