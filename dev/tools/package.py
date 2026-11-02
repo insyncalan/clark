@@ -57,6 +57,42 @@ def listed(system):
     return SHARED + SYSTEMS[system]
 
 
+# The two generated pages (#495): never committed, so git cannot list them. They are built here, from the sources at the tag,
+# and put in the zip by name. A tree without src/clark/page/src (a test's scratch repo) has none.
+GENERATED_PAGES = ("src/clark/page/page.html", "src/clark/page/page-view.html")
+BUILD_PAGE = Path("dev") / "tools" / "build_page.py"
+
+
+def generated_pages(root=ROOT):
+    return list(GENERATED_PAGES) if (Path(root) / "src" / "clark" / "page" / "src").is_dir() else []
+
+
+def make_pages(root=ROOT, twice=False):
+    """Build both pages from the sources in `root` (python3 dev/tools/build_page.py) and refuse if either is missing after.
+    With `twice` (a release) it builds again and refuses if the second pair differs from the first by a single byte."""
+    root = Path(root)
+    names = generated_pages(root)
+    if not names:
+        return
+    script = root / BUILD_PAGE
+
+    def run():
+        if script.is_file():
+            done = subprocess.run([sys.executable, str(script)], cwd=str(root), capture_output=True, text=True)
+            if done.returncode != 0:
+                raise Refused("The pages could not be built, so nothing was written: "
+                              + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+        missing = [n for n in names if not (root / n).is_file()]
+        if missing:
+            raise Refused(f"A page the download needs has not been built: {', '.join(missing)}. Run python3 dev/tools/build_page.py, "
+                          "then build again. Nothing was written.")
+        return {n: hashlib.sha256((root / n).read_bytes()).hexdigest() for n in names}
+
+    first = run()
+    if twice and script.is_file() and run() != first:
+        raise Refused("Two builds of the pages gave different bytes, so this release is refused. Nothing was written.")
+
+
 LEFT_OUT = re.compile(r"(^|/)(__pycache__|\.DS_Store)(/|\Z)|\.(pyc|db|log)\Z")
 
 TEAM_ONLY = "This download is for the team only; it is built from the private copy."
@@ -141,6 +177,11 @@ def files(system, root=ROOT):
         if not found or not all((Path(root) / p).is_file() for p in found):
             raise Refused(f"A file the download needs is missing: {item}. Restore it, then build again.")
         chosen.update(p for p in found if not LEFT_OUT.search(p))
+    if "src/clark/" in listed(system):
+        for p in generated_pages(root):
+            if not (Path(root) / p).is_file():
+                raise Refused(f"A page the download needs has not been built: {p}. Run python3 dev/tools/build_page.py, then build again.")
+            chosen.add(p)
     return sorted(chosen)
 
 
@@ -317,6 +358,8 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     if changed:
         raise Refused(f"Some of the files that go in the zip have changes that aren't committed: {', '.join(changed)}. "
                       "Commit them first, or add --dirty to build from them as they are.")
+    if "src/clark/" in listed(system):
+        make_pages(root, twice=release)
     names = files(system, root)
     top = top_folder(root)
     content = {f"{top}/{p}": ((root / p).read_bytes(), RUN_MODE if p in RUN_BIT else FILE_MODE) for p in names}
