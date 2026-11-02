@@ -34,11 +34,11 @@ function Eye() {
 // A card is picked like a table row (#195): a click selects it, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
 // order drawn, a double click (or Enter) opens the peek; Space adds or removes it, Shift+Up and Shift+Down extend, Cmd or Ctrl+A
 // selects every card shown.
-function Card({ card, editing, selected, picked, dragging, ask, menu, stop, onOpen, onPick, onMenu, children }) {
+function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos, size, onOpen, onPick, onMenu, children }) {
   const label = `${card.id} ${card.title}, ${card.state.text}${card.due.words ? ", " + card.due.words.toLowerCase() : ""}${picked ? ", selected" : ""}`;
   const focusCard = (id) => { const el = document.querySelector(`article[data-id="${CSS.escape(id)}"] .bc-main`); if (el) el.focus(); };
   return (
-    <article class={`bcard k-${card.typeClass.slice(2)}${selected ? " sel" : ""}${picked ? " picked" : ""}${dragging ? " drag" : ""}${card.open ? "" : " done"}`} data-id={card.id} data-kind={card.typeClass.slice(2)}>
+    <article aria-posinset={pos} aria-setsize={size} class={`bcard k-${card.typeClass.slice(2)}${selected ? " sel" : ""}${picked ? " picked" : ""}${dragging ? " drag" : ""}${card.open ? "" : " done"}`} data-id={card.id} data-kind={card.typeClass.slice(2)}>
       <div class="bc-main" role="button" tabIndex={stop ? 0 : -1} data-cursor={card.id} aria-label={label} onMouseDown={noTextRange}
         onClick={(e) => { if (ownClick(e.target, e.currentTarget)) onPick(e, card.id); }}
         onDblClick={(e) => { if (ownClick(e.target, e.currentTarget)) onOpen(card.id, true); }}
@@ -47,7 +47,7 @@ function Card({ card, editing, selected, picked, dragging, ask, menu, stop, onOp
           if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); onOpen(card.id); return; }
           pickKeys(e, card.id, focusCard);
-          cardKeys(e, card.id);
+          cardKeys(e);
         }}>
         <div class="bc-top"><span class={`type ${card.typeClass}`}>{card.type}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
         <div class="bc-title">{picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}{card.title}</div>
@@ -290,7 +290,7 @@ export function Board({ rows, today, type }) {
     const here = cardCell[cd.id];
     return (
       <div key={cd.id} class="bwrap" onPointerDown={(e) => startDrag(e, cd.id, ln.key, c.key)}>
-        <Card card={cd} editing={editing} stop={cd.id === stopId} selected={peeked === cd.id} picked={picked.includes(cd.id)} dragging={dragId === cd.id} menu={menu === cd.id}
+        <Card card={cd} editing={editing} stop={cd.id === stopId} pos={drawn.indexOf(cd.id) + 1} size={drawn.length} selected={peeked === cd.id} picked={picked.includes(cd.id)} dragging={dragId === cd.id} menu={menu === cd.id}
           onOpen={open} onPick={pick} onMenu={(id) => setMenu(menu === id ? null : id)}
           ask={ask && ask.id === cd.id
             ? ask.kind === "date"

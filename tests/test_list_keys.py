@@ -71,29 +71,58 @@ class Keys(ie.Live):
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Enter opens the cursor row's peek")
 
-    def test_right_opens_the_peek_and_up_down_left_and_esc_work_inside_it(self):
+    def test_right_opens_the_peek_and_left_from_the_row_closes_it_but_the_peek_keeps_its_arrows(self):
         for width in (1400, 900):
             with self.subTest(width=width), ie.chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
                 rows = cdp.js(ROWS, sid)
+                cdp.js("window.__seen = []; window.addEventListener('keydown', (e) => window.__seen.push([e.key, e.defaultPrevented]))", sid)
                 cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
                 key(cdp, sid, "ArrowRight")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens the peek")
                 self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "focus is in the peek")
+                # a plain arrow with the focus inside the peek (a button, a tab, the page) is not taken: the peek's own keys and the page's scrolling are left alone
+                cdp.js("window.__seen.length = 0", sid)
+                for name in ("ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"):
+                    key(cdp, sid, name)
+                self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 0, "no arrow in the peek was taken")
+                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[0]}')", sid), "and the peek stayed on its item, open")
+                cdp.js("document.body.focus(); document.activeElement.blur()", sid)
+                cdp.js("window.__seen.length = 0", sid)
+                key(cdp, sid, "ArrowLeft")
                 key(cdp, sid, "ArrowDown")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Down steps to the next item")
-                key(cdp, sid, "ArrowUp")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Up steps back")
-                key(cdp, sid, "ArrowDown")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Down again")
+                self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 0, "a key aimed at the page is left to the page")
+                self.assertTrue(cdp.js("location.hash.includes('item=')", sid), "Left on the page does not close the peek")
+                cdp.js("document.querySelector('[data-pk-close]').focus()", sid)
                 key(cdp, sid, "Escape")
                 self.until(cdp, sid, "!location.hash.includes('item=')", "Esc closes the peek")
-                self.until(cdp, sid, f"{FOCUS} === '{rows[1]}'", "focus returns to the row the peek followed to")
+                self.until(cdp, sid, f"{FOCUS} === '{rows[0]}'", "focus returns to the row")
                 key(cdp, sid, "ArrowRight")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Right opens it again")
-                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "focus is in the peek")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens it again")
+                cdp.js(f"document.querySelector('#work tr[data-id=\"{rows[0]}\"]').focus()", sid)
                 key(cdp, sid, "ArrowLeft")
-                self.until(cdp, sid, "!location.hash.includes('item=')", "Left closes the peek")
+                self.until(cdp, sid, "!location.hash.includes('item=')", "Left from the row closes the peek")
+
+    def test_rows_and_cards_say_their_place_in_the_list(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                n = len(cdp.js(ROWS, sid))
+                places = cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => [r.getAttribute('aria-posinset'), r.getAttribute('aria-setsize')].join('/'))", sid)
+                self.assertEqual(places, [f"{i + 1}/{n}" for i in range(n)], "rows: place of size, in the order drawn")
+                self.board(cdp, sid)
+                cards = cdp.js("[...document.querySelectorAll('#work-board article[data-id]')].map(a => [a.getAttribute('aria-posinset'), a.getAttribute('aria-setsize')].join('/'))", sid)
+                self.assertEqual(cards, [f"{i + 1}/{len(cards)}" for i in range(len(cards))], "cards: place of size, in reading order")
+
+    def test_a_key_inside_a_card_is_left_alone(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                self.board(cdp, sid)
+                cdp.js("(() => { const i = document.createElement('input'); i.id = 'probe'; document.querySelector('#work-board .bc-main').appendChild(i); i.focus(); })()", sid)
+                for name in ("ArrowRight", "ArrowDown", "End"):
+                    key(cdp, sid, name)
+                self.assertEqual(cdp.js("document.activeElement.id", sid), "probe", "an arrow on something inside a card does not move the cursor")
 
     def test_the_first_and_last_row_stop_the_peek_steps_and_the_cursor(self):
         for width in (1400, 900):
@@ -110,7 +139,7 @@ class Keys(ie.Live):
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[-1]}')", "the last row's peek")
                 key(cdp, sid, "ArrowDown")
-                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[-1]}')", sid), "Down in the last item's peek stays on it")
+                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[-1]}')", sid), "Down inside the peek is not taken")
 
     def test_in_edit_the_row_keeps_its_cells_and_enter_on_a_cell_opens_its_picker(self):
         for width in (1400, 900):
