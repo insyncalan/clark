@@ -1,6 +1,6 @@
 // The Supporting documents section in Edit (#74): the document links the published page lists, each with Edit and Leave out, a form
-// to add one, and "Add back a document" for those left out. Each change is one step with one Undo in the toast: add and edit through
-// POST /api/change (kind documents), leave out and add back through the eye's hidden rows (kind report_hidden). clark checks the
+// to add one, and "Add back a document" for those left out. Each change is one step with one Undo in the toast: add and edit as a
+// change of kind documents, leave out and add back through the eye's hidden rows (kind report_hidden). clark checks the
 // link, the title, the kind and the date and says what is wrong in plain words (the toast); nothing is saved until it agrees.
 import { useState, useRef, useEffect } from "preact/hooks";
 import { data } from "../stores/report.js";

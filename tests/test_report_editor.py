@@ -253,7 +253,8 @@ class Modes(Base):
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
             # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
             # drawn says the one plain line
-            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current'].includes(s.dataset.type))"
+            # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
+            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
@@ -406,7 +407,7 @@ class Sections(Base):
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
             p.view()
-            self.assertEqual(p.ids(), [i for i in IDS if i != "ABC-S-002"], "gone in View")
+            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-011")], "gone in View (#74: so is Supporting documents, with no document)")
             self.assertNotIn("At a glance", p.js("document.querySelector('main').innerText"))
             p.edit()
             p.clear_toast()
@@ -519,6 +520,7 @@ class Sections(Base):
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(want, "Undo of that move")
             p.reload()
+            p.edit()                                    # #74: View leaves out Supporting documents while it has no document
             p.order_is(want, "a reload keeps the order")
             self.assertEqual(self.ids_in_store(), want)
 
@@ -1079,7 +1081,7 @@ class Gutter(Base):
                 p.view()
                 in_view = rects()
                 p.edit()
-                self.assertEqual(rects(), in_view, f"the same left edge and width in View and Edit at {w}")
+                self.assertEqual({k: v for k, v in rects().items() if k in in_view}, in_view, f"the same left edge and width in View and Edit at {w}")   # #74: an empty Supporting documents is in Edit only
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
             # the right half: its control sits in the gap between the two columns and covers no content
             gap = p.js("(function(){var l=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
