@@ -29,7 +29,8 @@ class Profile:
             try:
                 saved = settings.set_profile(self.data_dir, req["name"], req["email"])
             except ValueError as e:
-                return 400, {"ok": False, "message": str(e), "code": "refused"}
+                # the refusal names its box, so the page can show it under that box
+                return 400, {"ok": False, "message": str(e), "code": "refused", "field": "email" if str(e) == settings.EMAIL_BAD else "name"}
         return 200, {"ok": True, **saved}
 
     def who(self):

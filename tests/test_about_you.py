@@ -189,6 +189,35 @@ class AboutYou(Base):
             self.assertEqual(self.saved(), before)
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
 
+    def bad_under(self, p, field):
+        return p.js(f"document.querySelector('#about-{field}').closest('.fld').querySelector('.fld-bad').textContent")
+
+    def test_C_a_refused_email_is_said_under_the_email_box_when_the_name_is_typed_after_it(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "email", "nope", leave="none")
+            self.type_into(p, "name", "Sam Lee")
+            p.until("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the refusal shows")
+            self.assertEqual(self.bad_under(p, "email"), "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
+            self.assertEqual(self.bad_under(p, "name"), "", "nothing under the name box")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "nope", "the email stays in its box")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee", "the name stays in its box")
+            self.assertEqual(self.saved().get("profile_name"), None, "nothing was written")
+
+    def test_C_a_refused_name_is_said_under_the_name_box_when_the_email_is_typed_after_it(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "N" * 61, leave="none")
+            self.type_into(p, "email", "sam@example.com")
+            p.until("document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the refusal shows")
+            self.assertEqual(self.bad_under(p, "name"), "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+            self.assertEqual(self.bad_under(p, "email"), "", "nothing under the email box")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61)
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "sam@example.com")
+            self.assertEqual(self.saved().get("profile_email"), None, "nothing was written")
+
     def test_C_the_menu_still_opens_when_the_first_click_is_lost(self):
         """The helper that opens the menu must survive a click the page never took (a slow computer right after a load): the first click is
         swallowed here, and the menu is there all the same, once and not toggled shut."""

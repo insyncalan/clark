@@ -49,9 +49,11 @@ function AboutYou() {
       setSaid({ name: "", email: "" });
       return;
     }
-    const mine = field === "name" ? name : email;
-    if ((mine.current ? mine.current.value : typed[field]) !== sent[field]) return;
-    setSaid({ name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
+    // the refusal names its box (the route says which); an answer that does not is put under the box that was left
+    const which = r.field || field;
+    const mine = which === "name" ? name : email;
+    if ((mine.current ? mine.current.value : typed[which]) !== sent[which]) return;
+    setSaid({ name: which === "name" ? r.message : "", email: which === "email" ? r.message : "" });
   };
   const box = (field, label, type, line, ref) => (
     <div class="fld">
