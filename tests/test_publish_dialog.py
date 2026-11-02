@@ -19,7 +19,7 @@ from clark import page, to_client
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 NO_FOLDER = "No client folder yet. Set it in Settings."
-DONE_NEW = to_client.MESSAGES["done_new"].format(name=WANTED)
+DONE_NEW = to_client.MESSAGES["done_new"].format(name=WANTED).replace("Published.", "Published (Publication 1).", 1)       # #120
 WIDTHS = (1400, 900)
 
 
@@ -169,7 +169,7 @@ class Dialog(Base):
             p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
             self.assertEqual(p.js("document.querySelector('#pub-msg [data-spin]')"), None, "the spinner is gone")
             self.assertTrue(p.js("!!document.querySelector('#pub-msg .success [data-tick] svg')"), "a tick beside the line")
-            self.assertRegex(p.message(), r"^Published\. Saved locally as ")
+            self.assertRegex(p.message(), r"^Published \(Publication \d+\)\. Saved locally as ")
 
     def test_C_a_local_publish_says_locally_and_the_client_folder_is_left_alone(self):
         with chrome() as cdp:
