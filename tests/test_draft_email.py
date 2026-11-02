@@ -208,6 +208,12 @@ class PlainWordsMedium(unittest.TestCase):
             de.sent_entry([], "chase", TODAY)
         self.assertEqual(str(a.exception), "Tick at least one item before you press I sent it. Nothing was saved.")
 
+    def test_the_python_and_script_copies_of_the_nothing_ticked_wording_match(self):
+        js = (Path(de.__file__).parent / "page" / "src" / "logic" / "draftEmail.js").read_text(encoding="utf-8")
+        found = re.search(r'export const NOTHING_TO_RECORD = "([^"]*)";', js)
+        self.assertIsNotNone(found, "draftEmail.js no longer exports NOTHING_TO_RECORD")
+        self.assertEqual(found.group(1), de.NOTHING_TO_RECORD)
+
     def test_an_empty_selection_blocks_copying(self):
         d = build(picked=[])
         msg = "No items are ticked. Tick at least one to draft the email."
