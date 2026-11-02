@@ -18,7 +18,7 @@ from _paths import SRC  # noqa: F401
 
 import test_ask_route as tr
 import test_docx_read as tdx
-from clark import ask, ask_passages, reach, store as st
+from clark import ask, ask_data, ask_passages, reach, store as st
 
 MACRO = {"word/vbaProject.bin": b"\0\1\2"}
 
@@ -191,6 +191,23 @@ class ReadAgain(Folders):
             got = self.run_it()
         self.assertNotIn("ZQ-DIRSWAP", self.text_of(got))
         self.assertTrue(target.exists())
+
+
+class ASecretAcrossAChunk(Folders):
+    """A password that straddles the 1,200-character chunk edge: the whole file is screened before it is cut, so the file is
+    left out and counted, and no half of the password reaches a passage."""
+
+    def test_a_password_across_the_chunk_edge_leaves_the_whole_file_out(self):
+        size = ask_data.PASSAGE_SIZE
+        for before in range(0, 19):                      # the edge falls at every point inside the sample password (19 characters)
+            pw = "password: " + "hunter22"
+            filler = ("Delivery notes for the cutover. " * 60)[:size - before]
+            self.put(self.box, "across.txt", filler + pw + " and then more plain words.")
+            got = self.run_it("cutover")
+            text = self.text_of(got)
+            self.assertNotIn("hunter", text, before)
+            self.assertNotIn("passw", text, before)
+            self.assertEqual(got.safety, 1, before)
 
 
 class TheBudget(Folders):
