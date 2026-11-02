@@ -33,6 +33,11 @@ OWN = "document.documentElement.dataset.motion='reduce'"
 
 
 class Rules(unittest.TestCase):
+    def test_the_handle_hint_is_session_only_and_stores_nothing(self):
+        text = (SRC / "clark" / "page" / "src" / "stores" / "motion.js").read_text(encoding="utf-8")
+        for word in ("localStorage", "sessionStorage", "clark.handleHint"):
+            self.assertNotIn(word, text)
+
     def test_all_motion_is_in_one_block_gated_on_both_switches(self):
         self.assertEqual(CSS.count("@media (prefers-reduced-motion: no-preference) {\n"), 1)      # the one Motion block; an older one-line hover transition on table rows is not part of it
         self.assertIn(':root:not([data-motion="reduce"])', MOTION)
@@ -310,6 +315,7 @@ class More(tre.Base):
                 p.view()
                 p.edit()
                 self.assertFalse(p.js("!!document.querySelector('.sec-hint')"), "only once")
+                self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0, "the hint stores nothing")
 
     def test_the_add_a_section_preview_fades_as_the_selection_moves_and_cards_lift_on_hover(self):
         for mode in MODES:

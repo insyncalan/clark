@@ -31,11 +31,10 @@ export function useSettle(ref, value) {
 }
 
 /** The first-time hint on the section handle: the id of the section whose handle pulses once and shows the words, or null. It is
- *  shown once in this browser (remembered in localStorage when it can be) for a few seconds, and goes at the next press or key. */
+ *  shown once per page load (an in-memory flag: nothing is stored) for a few seconds, and goes at the next press or key. */
 export const handleHint = signal(null);
 export const HINT_WORDS = "Drag to move. Use + to add a template below.";
 export const HINT_MS = 4000;
-const KEY = "clark.handleHint";
 let hintTimer = 0, hintListening = false, armed = false;
 
 function endHint() {
@@ -47,7 +46,7 @@ function endHint() {
 /** Offer the hint on this section's handle, the first time only. */
 export function armHint(id) {
   if (handleHint.value || typeof document === "undefined") return;
-  try { if (localStorage.getItem(KEY)) return; localStorage.setItem(KEY, "1"); } catch (e) { /* no storage: it shows once per page load */ if (armed) return; }
+  if (armed) return;
   armed = true;
   handleHint.value = id;
   hintTimer = setTimeout(endHint, HINT_MS);
