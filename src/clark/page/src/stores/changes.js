@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendBulk, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
 import { diffIds, markChanged } from "./changed.js";
 
@@ -282,5 +282,18 @@ export function undoSeveral(steps, { preview = false, confirm = false } = {}) {
       say("done", words, r.reply.apply_id || null, code);
     }
     return r;
+  });
+}
+
+// Restore one archived milestone (C-M4): one step, one Undo; the project's data is read again after it, so the Plan and the count
+// are the database's. Resolves to the reply, or to null when it was refused (the toast says why).
+export function restoreMilestone(id, name) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendMilestoneRestore(code, id);
+    if (!r.ok) { say("note", r.message); return null; }
+    if (!(await reread(code)) && project.value === code) { say("problem", `${name} was restored, but the page could not be refreshed. Reload the page to see it.`, r.reply.apply_id || null, code); return r.reply; }
+    say("done", `${name} restored.`, r.reply.apply_id || null, code);
+    return r.reply;
   });
 }

@@ -72,11 +72,13 @@ function Empty({ title, children, action }) {
 }
 
 export function Milestones({ tools }) {
+  const Archived = tools && tools.ArchivedMilestones;   // Show archived (C-M4): the served page only; a published file holds no archived row
   const More = tools && tools.MilestoneMore;      // the owner's extra block under the Plan view (#136): Edit only, so a published page has none
   return (
     <section class="frame milestones" id="milestones">
       <h1>Milestones</h1>
-      <MsBlock place="page" />
+      <MsBlock place="page" tools={tools} />
+      {Archived ? <Archived /> : null}
       {More ? <More /> : null}
     </section>
   );
