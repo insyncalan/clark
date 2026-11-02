@@ -10,19 +10,22 @@ import { parseDay, problem } from "../templates/keydates.js";
 import { latest, refreshLatest } from "./publishState.js";
 import { lastLine } from "./Publish.jsx";
 import { todayIso } from "../workItems.js";
+import { weekEndOf } from "../logic/board.js";
 
 // The drag hint shows the first time this browser enters Edit and stays until Edit is left; after that it is not shown again.
 const hintOpen = signal(!recall("dragHintSeen", false));
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 
-// The Friday of the current week (Monday to Sunday), as YYYY-MM-DD in the person's own day: only offered, never saved on its own.
-// Today comes from the one place that reads the clock (workItems.js), as a plain day.
+// The Friday this week's report is for, as YYYY-MM-DD in the person's own day: only offered, never saved on its own.
+// #570: the same helper as the board's This week (board.js fridayOnOrAfter): Monday to Friday it is this week's Friday (today on a
+// Friday); on a Saturday or Sunday it is the COMING Friday. Today comes from the one place that reads the clock (workItems.js).
 export function fridayOfThisWeek(today = todayIso()) {
-  const d = new Date(Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10)));
-  d.setUTCDate(d.getUTCDate() + 5 - (d.getUTCDay() || 7));
-  const two = (n) => String(n).padStart(2, "0");
-  return d.getUTCFullYear() + "-" + two(d.getUTCMonth() + 1) + "-" + two(d.getUTCDate());
+  return weekEndOf(today);
 }
+
+// #570: Friday is the week end. The Friday on or after a day (a weekend day rolls forward), the same one the server's refusal names.
+export const isFriday = (iso) => new Date(iso + "T00:00:00Z").getUTCDay() === 5;
+export const notFriday = (iso) => `Week ending is a Friday. Pick Friday ${shownDate(fridayOfThisWeek(iso))}.`;
 
 export function ReportBar() {
   useEffect(() => { refreshLatest(); }, [project.value]);
@@ -43,13 +46,14 @@ export function ReportBar() {
     }
     if (!raw || iso === week) { el.value = shownDate(week); return; }
     if (!iso) { say("problem", problem.day + " The old week ending date was kept."); el.value = shownDate(week); return; }       // not a day: the old one comes back
+    if (!isFriday(iso)) { say("problem", notFriday(iso) + " The old week ending date was kept."); el.value = shownDate(week); return; }       // #570: the server says the same
     change({ kind: "projects", op: "update", changes: { week_ending: iso }, place: "cell" }, `Week ending changed to ${shownDate(iso)}.`)
       .then((reply) => { if (!reply) { const x = document.getElementById("week-ending"); if (x) x.value = shownDate(week); } });
   };
   return (
     <div class="rbar" id="report-bar">
       {editing ? (
-        <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder={week ? "DD-MM-YYYY" : shownDate(fridayOfThisWeek())} title={week ? undefined : "Press Enter to use this Friday, or type a date"} id="week-ending" key={week} defaultValue={shownDate(week)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") { if (!week && !e.currentTarget.value.trim()) save(e, true); else e.currentTarget.blur(); } }} /></label>
+        <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder={week ? "DD-MM-YYYY" : shownDate(fridayOfThisWeek())} title={week ? undefined : "Press Enter to use this Friday, or type a Friday"} id="week-ending" key={week} defaultValue={shownDate(week)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") { if (!week && !e.currentTarget.value.trim()) save(e, true); else e.currentTarget.blur(); } }} /></label>
       ) : (
         <span class="rbar-week" id="week-ending-text">{week ? `Week ending ${shownDate(week)}` : "No week ending date yet"}</span>
       )}
