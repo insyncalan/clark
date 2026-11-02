@@ -337,6 +337,36 @@ class Browser(unittest.TestCase):
             self.assertTrue(cdp.js("!!document.querySelector('[data-pk-last]')", sid))
             self.assertFalse(cdp.js("!!document.querySelector('[data-pk-draft],[data-pk-latest-text]')", sid))
 
+    def kinds(self):
+        """(a client-visible action, an internal action) of the demo data."""
+        acts = self.data["actions"]
+        return (next(a["id"] for a in acts if a.get("client_visible")), next(a["id"] for a in acts if not a.get("client_visible")))
+
+    def test_a_client_visible_action_labels_its_latest_update_shown_to_the_client_in_edit_only(self):
+        shown, internal = self.kinds()
+        probe = "(l => l ? l.textContent.trim() : null)(document.querySelector('#peek [data-pk-latest] [data-pk-latest-client]'))"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, shown)
+                self.assertEqual(cdp.js(probe, sid), "Shown to the client")
+                self.assertTrue(self.inside(cdp, sid, "[data-pk-latest-client]"), "the label fits the peek")
+                click(cdp, sid, "[data-pk-latest-text]")                                  # still there while the box is open
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid)))
+                self.assertEqual(cdp.js(probe, sid), "Shown to the client")
+            with self.subTest(width=width, item="internal"), chrome() as cdp:
+                sent, sid = self.load(cdp, width, internal)
+                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-text]')", sid))
+                self.assertIsNone(cdp.js(probe, sid), "an internal action's update is not published, so no label")
+            with self.subTest(width=width, item="view"), chrome() as cdp:
+                sent, sid = self.load(cdp, width, shown, edit=False)
+                self.assertFalse(cdp.js("!!document.querySelector('[data-pk-latest-client]')", sid), "View has no label")
+
+    def test_the_label_is_in_edit_only_and_never_in_a_published_file(self):
+        built = (ROOT / "src/clark/page/page.html").read_text(encoding="utf-8")
+        view = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
+        self.assertIn("data-pk-latest-client", built)
+        self.assertNotIn("pk-latest-client", view)
+
     def test_view_has_none_of_it(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:

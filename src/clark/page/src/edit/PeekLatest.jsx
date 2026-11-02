@@ -1,7 +1,7 @@
 // The peek's Latest update with its Draft button and its 'Last updated' stamp, and the warning bar above the title (Edit only: a
 // published file and View show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is
 // read again after it so the stamp is the one clark wrote. Draft writes the text from the item's own fields (peekLatest.js draftFor),
-// with no AI. An action has a latest update; a risk, issue or decision has the stamp only.
+// with no AI. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { changeCell, say, refresh } from "../stores/changes.js";
@@ -67,7 +67,8 @@ export function PeekLatest({ row }) {
   return (
     <div class="pk-latest" data-pk-latest>
       {action ? <>
-        <div class="pk-lab"><span id="pk-latest-lab">Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button></div>
+        <div class="pk-lab"><span id="pk-latest-lab">Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
+          {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         {open
           ? <>
             <textarea class="pk-latest-in" data-pk-latest-in aria-label="Latest update" rows={3} value={text} placeholder="Add the latest update…" ref={box}

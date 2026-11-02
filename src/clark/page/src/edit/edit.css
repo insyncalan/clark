@@ -72,6 +72,7 @@
 .pk-fix button:focus-visible, .pk-draft:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-latest { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--grey-100); }
 .pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; color: var(--text); font-size: var(--size-small); }
+.pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
 .pk-draft { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: 999px; background: var(--surface); color: var(--status-blue-text); font: inherit; font-size: var(--size-small); cursor: pointer; }
 .pk-draft:hover { background: var(--brand-blue-tint); }
 .pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: 64px; margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
