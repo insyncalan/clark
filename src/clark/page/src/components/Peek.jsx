@@ -144,7 +144,8 @@ export function Peek({ tools }) {
     if (!p || p.kind === "milestone") return undefined;
     let arrow = false;
     const down = (e) => {
-      arrow = (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey;
+      // only an arrow aimed at a row or card counts: a held key on a button in a row, or in the peek, never moves the peek
+      arrow = (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && !!listItemOf(e.target);
     };
     const off = () => { arrow = false; };               // the key coming up, or a click, ends the arrow: no timer
     const into = (e) => {
@@ -166,7 +167,7 @@ export function Peek({ tools }) {
     const q = peek.value;                                 // the peek now, not the one this handler was made for: a second key can come before the redraw
     if (!q) return;
     const ms = q.kind === "milestone", ids = ms ? milestoneIds() : itemIds(), here = placeIn(ids, q.id);
-    if (here.at < 0) { say(`${q.id} is not in the list now`); return; }
+    if (here.at < 0) { say(`${q.id} is not in the list now, so Up and Down cannot step from it. Clear the filter or choose a row.`); return; }
     const to = ids[here.at + dir];
     if (!to) { say(`${q.id}, ${here.at + 1} of ${ids.length}, the ${dir < 0 ? "first" : "last"} one`); return; }
     stepped.current = true;
@@ -213,7 +214,7 @@ export function Peek({ tools }) {
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
-      <p class="sr-only" role="status" aria-live="polite" data-pk-live key={said.value.n}>{said.value.text}</p>
+      <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
       <h2 class="pk-title">{title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {Tabs ? <Tabs /> : null}

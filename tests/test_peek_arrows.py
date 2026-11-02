@@ -97,6 +97,18 @@ class Arrows(unittest.TestCase):
                 cdp.js("new Promise(r => setTimeout(r, 150))", sid)
                 self.assertEqual(self.shown(cdp, sid), ids[1])
 
+    def test_focus_that_moves_while_an_arrow_is_held_on_the_peek_does_not_move_the_peek(self):
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            ids = self.ids_on_page(cdp, sid)
+            self.open_by_double_click(cdp, sid, ids, 1)
+            # a key down on Close with no key up (a held key), then focus lands on another row with no arrow aimed at a row
+            vk, _ = KEYS["ArrowLeft"]
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "ArrowLeft", "code": "ArrowLeft", "windowsVirtualKeyCode": vk}, sid)
+            cdp.js(f"document.querySelector(\"#work tbody tr[data-id='{ids[4]}']\").focus()", sid)
+            cdp.js("new Promise(r => setTimeout(r, 150))", sid)
+            self.assertEqual(self.shown(cdp, sid), ids[1], "focus without an arrow on a row leaves the peek on its item")
+
     def test_esc_puts_the_focus_on_the_row_of_the_item_shown(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
