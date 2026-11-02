@@ -512,7 +512,7 @@
     "w": "Milestones · Dashboard › Milestones",
     "go": "milestones",
     "s": [
-     "On **Milestones**, press **+** (**Add milestone**). A new one, 30 days out, opens in the peek with its name selected: type over it.",
+     "In **Edit**, on **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in **View** or in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
      "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked. The line under it says why the milestone has that state.",
      "**Dates**: the **Agreed** date is the baseline; change the **Forecast** date as things move. When they differ, **Rebaseline…** makes the forecast the new agreed date and keeps the original.",
@@ -548,7 +548,7 @@
      "The first line says how many open milestones are behind, and which is furthest behind.",
      "Each row has a track: a diamond for the original date (when it was rebaselined), a bar for the agreed date, the forecast mark, a red line for the distance past agreed, and today. At the right, the days late and whether it was rebaselined.",
      "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
-     "Then decide: **Hold** (notes that the agreed date stays), **Rebaseline** (the agreed date moves to the expected date; the original is kept), **Add a recovery action** or **Escalate to steering**. The last two add a linked action or decision and open it.",
+     "Then decide: **Hold** (adds a dated line to the **Internal note** and keeps the agreed date), **Move the agreed date** (you say who agreed it, why and where; the original date is kept), **Add a recovery action** (a High priority action due in 7 days, linked to the milestone, in its workstream or the first open one) or **Escalate to steering** (a Pending decision needed in 7 days, named for the milestone: a decision can’t be linked to a milestone). Each new item opens in the peek, with a line saying how far behind the milestone is.",
      "Write an **Internal note**. It saves when you leave the box and is never published."
     ]
    },

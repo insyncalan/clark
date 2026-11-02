@@ -201,7 +201,7 @@ class Block(Base):
             p = self.visit(cdp)
             self.open_movement(p)
             p.js("document.querySelector('#mv-hold').click()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Hold recorded. Undo.'", "the Hold toast")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Hold recorded in the note. Undo.'", "the Hold toast")
             self.assertEqual(self.row(GO_LIVE)["movement"], "hold")
             self.assertEqual(self.sent[-1][1]["place"], "movement")
             p.until("document.querySelector('.mvm-list') && document.querySelector('.mvm-list').textContent.includes('Movement choice: Hold')", "What changed shows it")

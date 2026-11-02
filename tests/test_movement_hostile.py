@@ -188,12 +188,14 @@ class Hostile(unittest.TestCase):
             self.assertNotIn(marker, text)
 
     # ---- hold: where its words go
-    def test_a_hold_writes_only_its_dated_line_and_never_the_internal_note(self):
+    def test_a_hold_adds_only_its_dated_line_to_the_internal_note_and_says_nothing_of_it(self):      # #458
         before = self.milestone(M)
         status, got = self.change({"movement": "hold", "state_reason": "x"})
         self.assertEqual(status, 200, got)
         after = self.milestone(M)
-        self.assertEqual(after["internal_note"], before["internal_note"], "a Hold must not touch internal_note")
+        self.assertTrue(after["internal_note"].startswith(before["internal_note"] + "\n"), "the owner's note is kept and a line added")
+        self.assertRegex(after["internal_note"][len(before["internal_note"]) + 1:], r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged(, forecast \d\d-\d\d-\d{4})?\.$")
+        self.assertNotIn(INTERNAL, json.dumps(got), "the reply never carries the note")
         for field in ("owner", "name", "workstream", "archived", "client_visible"):
             self.assertEqual(after[field], before[field], field)
         con = sqlite3.connect("file:%s?mode=ro" % self.rig.db, uri=True)
@@ -201,7 +203,8 @@ class Hostile(unittest.TestCase):
             fields = {r[0] for r in con.execute("SELECT field FROM change_log WHERE apply_id=?", (got["apply_id"],))}
         finally:
             con.close()
-        self.assertNotIn("internal_note", fields)
+        self.assertIn("internal_note", fields)        # the hold's line is in the note, in this one step
+        self.assertTrue(fields <= {"movement", "state_reason", "internal_note", "note", "updated_at"}, fields)
 
     # ---- the change door
     def test_change_door_checks(self):
@@ -224,14 +227,14 @@ class Hostile(unittest.TestCase):
 
     # ---- what may be written
     def test_fields_not_allowed(self):
-        for f, v in (("internal_note", INTERNAL + "2"), ("owner", "Mallory"), ("archived", 1), ("status", "Cancelled"), ("name", "Hijack"),
+        for f, v in (("owner", "Mallory"), ("archived", 1), ("status", "Cancelled"), ("name", "Hijack"),
                      ("workstream", "X"), ("client_visible", 0), ("percent_complete", 5), ("description", "x"), ("sort_order", 9),
                      ("source", "x"), ("project", "OTH"), ("id", "PUB-M-009"), ("updated_at", "2020-01-01 00:00:00"), ("status", "Planned "),
                      ("status", ["Done"]), ("status", None)):
             self.refused_and_unchanged("field %s=%r" % (f, v), lambda f=f, v=v: self.change({f: v}))
 
     def test_many_fields_one_invalid_writes_nothing(self):
-        for bad in ({"state": "Bogus"}, {"status": "Cancelled"}, {"movement": "escalate"}, {"forecast_date": "2026-02-30"}, {"internal_note": "x"},
+        for bad in ({"state": "Bogus"}, {"status": "Cancelled"}, {"movement": "escalate"}, {"forecast_date": "2026-02-30"}, {"internal_note": "x" * 2001},
                     {"client_message": "a" * 501}, {"state_reason": "a\x00b"}):
             fields = {"forecast_date": "2031-01-01", "client_message": "ZQ-PARTIAL-1", "movement": "hold", **bad}
             self.refused_and_unchanged("mixed with %r" % list(bad), lambda fields=fields: self.change(fields))
