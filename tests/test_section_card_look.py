@@ -12,6 +12,8 @@ from test_dark_contrast import dark_blocks, ratio
 
 CSS = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
 TOKENS = (ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
+# The spacing tokens (--space-N) stand for fixed pixel values; the checks below read them as pixels.
+CSS = re.sub(r"var\(--space-(\d)\)", lambda m: re.search(r"--space-" + m.group(1) + r": (\d+px)", TOKENS).group(1), CSS)
 
 
 def rule(selector):
