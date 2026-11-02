@@ -33,6 +33,7 @@
   --icon-red: var(--status-red); --icon-amber: var(--status-amber-text); --icon-green: var(--status-green); --icon-blue: var(--brand-blue); --icon-grey: var(--grey-700);
   
   --sh-rest: .3; --tile-ctl: 41px; --tile-tag: 54px;
+  --sh-rest-narrow: .85;      
 }
 
 :root[data-theme=dark] {
@@ -48,7 +49,7 @@
   --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
   --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
   --flash: #4A3F1A;
-  --sh-rest: .75;
+  --sh-rest: .75; --sh-rest-narrow: .75;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
 }
 @media (prefers-color-scheme: dark) {
@@ -65,7 +66,7 @@
     --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
     --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
     --flash: #4A3F1A;
-    --sh-rest: .75;
+    --sh-rest: .75; --sh-rest-narrow: .75;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
   }
 }
@@ -456,7 +457,7 @@ table.needs .n-over { margin-left: 2px; }
 .sec-ctl.open { z-index: 20; }
 @media (hover: none) { .sec-ctl { opacity: 1; } }
 
-@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: .75; } }      
+@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: var(--sh-rest-narrow, .85); } }      
 @media (prefers-reduced-motion: reduce) { .sec-ctl { transition: none; } }      
 .sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 4px; margin: 0 -4px; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }
