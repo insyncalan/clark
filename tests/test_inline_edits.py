@@ -313,6 +313,8 @@ class Live(unittest.TestCase):
                 self.assertEqual(cdp.js("clarkPage.peek()", sid), {"kind": "item", "id": "TUL-A-001"})
                 cdp.js("clarkPage.closePeek()", sid)
                 self.until(cdp, sid, "!location.hash.includes('item=')", "the peek closed")
+                # the peek hands focus back to the row that opened it, after the next draw; wait for that before moving focus
+                self.until(cdp, sid, "document.activeElement && document.activeElement.dataset.id === 'TUL-A-001'", "focus went back to the opening row")
                 cdp.js("document.querySelector(\"tr[data-id='TUL-007']\").focus()", sid)
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-007')", "Enter on a row opens its peek")
