@@ -77,7 +77,7 @@ PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|cred
 _QS = r"""["'`\u201c\u201d\u2018\u2019]"""
 _LETTERS_ONLY = r"""[^\W\d_]{6,}"""
 _PAIR = (r"""(?:"LETTERS"|'LETTERS'|`LETTERS`|\u201cLETTERS\u201d|\u2018LETTERS\u2019)""").replace("LETTERS", _LETTERS_ONLY)
-_PLACEHOLDER = r"""(?!["'`\u201c\u2018](?:string|text|password|secret|hidden|required|optional|none|null|true|false|inherit)["'`\u201d\u2019])"""
+_PLACEHOLDER = r"""(?!["'`\u201c\u2018](?:string|text|placeholder|redacted|example|hidden|required|optional|none|null|true|false|inherit)["'`\u201d\u2019])"""
 _LEFT = r"""(?:(?<![A-Za-z0-9])|(?-i:(?<=[a-z0-9])(?=[PS])))"""
 _PWORD = r"""(?:passw(?:or)?d|pwd|passcode|passphrase|pw(?![A-Za-z]))"""
 _SUFFIX = r"""(?:[_-]?(?:key|value|text|string|phrase|word|plain|prod|production|dev|test|staging|new|old|current|confirm|[0-9])){0,6}"""
