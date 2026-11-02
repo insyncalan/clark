@@ -6,7 +6,7 @@ import unittest.mock
 
 from _paths import ROOT
 import _growth
-from _growth import ABSOLUTE_CAP, GROWTH_FLOOR, GROWTH_LIMIT, GROWTH_STEP, assert_growth, growth_ratio
+from _growth import ABSOLUTE_CAP, GROWTH_FLOOR, GROWTH_LIMIT, GROWTH_STEP, assert_growth, assert_near_baseline, growth_ratio
 
 
 def linear(n):
@@ -63,6 +63,13 @@ class TheGrowthCheckTellsLinearFromQuadratic(unittest.TestCase):
                 assert_growth(self, linear, 3, "slow but linear")
         self.assertIn("absolute cap", str(caught.exception))
         self.assertGreater(ABSOLUTE_CAP, 1)
+
+
+class TheNearBaselineCheckTellsQuadraticFromPlain(unittest.TestCase):
+    def test_a_hostile_input_as_quick_as_a_plain_one_passes_and_a_quadratic_one_fails(self):
+        assert_near_baseline(self, lambda: linear(1), lambda: linear(1), "same")
+        with self.assertRaises(AssertionError):
+            assert_near_baseline(self, lambda: quadratic(7000), lambda: linear(1), "quadratic")
 
 
 class TheCopyKeepsTheSameFloor(unittest.TestCase):
