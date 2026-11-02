@@ -13,6 +13,7 @@ from pathlib import Path
 
 from _demo import USER
 from clark import publish
+from test_documents_published import check_in_file
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
 from test_server import chrome
 
@@ -26,12 +27,12 @@ class Page(PageBase):
     def add_doc(self, title, url, kind="Minutes", date="2030-01-10"):
         status, body = self.real_change({"project": "ABC", "kind": "documents", "op": "new", "place": "report",
                                          "values": {"title": title, "kind": kind, "url": url, "date": date}})
-        self.assertEqual(status, 200, body)
+        self.assertEqual(status, 200, msg=f"adding the document should give status 200; it gave {status} {body}")
         return body["ref"]
 
     def hide(self, ref):
         status, body = self.real_change({"project": "ABC", "kind": "report_hidden", "op": "new", "id": ref, "place": "eye"})
-        self.assertEqual(status, 200, body)
+        self.assertEqual(status, 200, msg=f"hiding the document should give status 200; it gave {status} {body}")
 
     def rows(self, p, sel):
         return p.js(f"[...document.querySelectorAll('{sel} .docs-list .tpl-dl-i')].map(li => [li.querySelector('.tpl-badge').textContent, "
@@ -57,7 +58,8 @@ class InEdit(Page):
             p = self.visit(cdp)
             p.edit()
             p.until(f"!!document.querySelector('{sec} .docs-edit')", "the documents part drew")
-            self.assertIn("No documents yet", p.js(f"document.querySelector('{sec} .tpl-empty').textContent"))
+            self.assertIn("No documents yet", p.js(f"document.querySelector('{sec} .tpl-empty').textContent"),
+                          msg="with no document the part says 'No documents yet'")
             p.js(f"[...document.querySelectorAll('{sec} button')].find(b => b.textContent === 'Add a document link').click()")
             p.until(f"!!document.querySelector('{sec} .docs-form')", "the form opened")
             p.until("document.activeElement && document.activeElement.id === 'doc-new-title'", "the title box takes the focus")
@@ -67,7 +69,7 @@ class InEdit(Page):
             p.js(f"document.querySelector('{sec} .docs-form button[type=submit]').click()")
             p.until("(document.querySelector('.toast-text') || {}).textContent === \"That link can't be used. It must start with https://, http:// or mailto:\"",
                     "the link rule's own words")
-            self.assertEqual(self.store.read("documents", "ABC"), [], "nothing was saved")
+            self.assertEqual(self.store.read("documents", "ABC"), [], msg="nothing was saved")
             self.set_value(p, "#doc-new-url", "https://example.com/minutes")
             self.set_value(p, "#doc-new-date", "31-02-2030")
             p.js(f"document.querySelector('{sec} .docs-form button[type=submit]').click()")
@@ -76,11 +78,12 @@ class InEdit(Page):
             self.set_value(p, "#doc-new-date", "10-01-2030")
             p.js(f"document.querySelector('{sec} .docs-form button[type=submit]').click()")
             p.until(f"document.querySelectorAll('{sec} .docs-list .tpl-dl-i').length === 1", "the new document is drawn")
-            self.assertEqual(self.rows(p, sec), [["Minutes", "Steering minutes", "10-01-2030 · example.com"]])
+            self.assertEqual(self.rows(p, sec), [["Minutes", "Steering minutes", "10-01-2030 · example.com"]],
+                             msg="the new document is drawn with its kind, title, and the date and site under it")
             p.saved()
             p.js("document.querySelector('[data-undo]').click()")
             p.until(f"document.querySelectorAll('{sec} .docs-list .tpl-dl-i').length === 0", "Undo took the add back")
-            self.assertEqual(self.store.read("documents", "ABC"), [])
+            self.assertEqual(self.store.read("documents", "ABC"), [], msg="after Undo no document is stored")
             p.clear_toast()
 
             ref = self.add_doc("Board pack", "https://example.com/board", kind="Report")
@@ -93,7 +96,7 @@ class InEdit(Page):
             p.js(f"document.querySelector('{sec} .docs-form button[type=submit]').click()")
             p.until(f"document.querySelector('{sec} .docs-list .tpl-name').textContent === 'Board pack, signed'", "the edit is drawn")
             p.saved()
-            self.assertEqual(self.store.read("documents", ref=f"ABC|{ref}")["title"], "Board pack, signed")
+            self.assertEqual(self.store.read("documents", ref=f"ABC|{ref}")["title"], "Board pack, signed", msg="the edited title is stored")
             p.js("document.querySelector('[data-undo]').click()")
             p.until(f"document.querySelector('{sec} .docs-list .tpl-name').textContent === 'Board pack'", "Undo put the title back")
             p.clear_toast()
@@ -101,7 +104,7 @@ class InEdit(Page):
             p.js(f"document.querySelector('{sec} button[aria-label=\"Leave Board pack out of the published page\"]').click()")
             p.until(f"document.querySelectorAll('{sec} .docs-list .tpl-dl-i').length === 0", "left out")
             p.until(f"(document.querySelector('{sec} .docs-left summary') || {{}}).textContent === 'Add back a document (1)'", "listed to add back")
-            self.assertEqual([r["item_id"] for r in self.store.read("report_hidden", "ABC")], [ref])
+            self.assertEqual([r["item_id"] for r in self.store.read("report_hidden", "ABC")], [ref], msg="leaving the document out records it as hidden")
             p.saved()
             p.js("document.querySelector('[data-undo]').click()")
             p.until(f"document.querySelectorAll('{sec} .docs-list .tpl-dl-i').length === 1", "Undo showed it again")
@@ -113,7 +116,7 @@ class InEdit(Page):
             p.js(f"document.querySelector('{sec} .docs-left').open = true")
             p.js(f"document.querySelector('{sec} button[aria-label=\"Add Board pack back to the published page\"]').click()")
             p.until(f"document.querySelectorAll('{sec} .docs-list .tpl-dl-i').length === 1", "added back")
-            self.assertEqual(self.store.read("report_hidden", "ABC"), [])
+            self.assertEqual(self.store.read("report_hidden", "ABC"), [], msg="adding the document back leaves nothing hidden")
 
     def test_keyboard_esc_closes_the_form_and_gives_the_focus_back_at_both_widths(self):
         sec = f"[data-id={json.dumps(self.docs_section())}]"
@@ -134,10 +137,10 @@ class InEdit(Page):
                     p.key("Escape", vk=27)
                     p.until(f"!document.querySelector('{sec} .docs-form')", "Esc closed it")
                     p.until("document.activeElement && document.activeElement.getAttribute('aria-label') === 'Edit Plan of record'", "the focus went back")
-                    self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, "no sideways scroll")
+                    self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, msg="no sideways scroll")
                     small = p.js(f"[...document.querySelectorAll('{sec} .docs-edit button, {sec} .docs-edit summary')]"
                                  ".map(b => b.getBoundingClientRect()).filter(r => r.height && (r.height < 24 || r.width < 24)).length")
-                    self.assertEqual(small, 0, "every control is at least 24 px")
+                    self.assertEqual(small, 0, msg="every control is at least 24 px")
 
 
 class InView(Page):
@@ -151,14 +154,16 @@ class InView(Page):
             p.until(f"!!document.querySelector('{sec} .docs-list')", "the list drew")
             got = p.js(f"[...document.querySelectorAll('{sec} .docs-list .tpl-name')].map(a => [a.textContent, a.getAttribute('href'), a.target, a.rel])")
             self.assertEqual(got, [["Steering minutes", "https://example.com/minutes", "_blank", "noopener noreferrer"],
-                                   ["Team inbox", "mailto:pmo@example.com", "", "noopener noreferrer"]])
+                                   ["Team inbox", "mailto:pmo@example.com", "", "noopener noreferrer"]],
+                             msg="View lists only the two visible documents, as links that open in a new tab (an email link opens none)")
             # the prototype's row: "Kind · date" under the title (no date, no stray " · "), and an icon link named "Open {title}"
             self.assertEqual(self.view_rows(p, sec),
                              [["Steering minutes", "Minutes · 10-01-2030", "Open Steering minutes", "https://example.com/minutes", "_blank", "noopener noreferrer", "true", 2],
                               ["Team inbox", "Other", "Open Team inbox", "mailto:pmo@example.com", "", "noopener noreferrer", "true", 2]],
-                             "View: the icon is named, decorative inside, opens like the title; an email link opens no new tab")
-            self.assertNotIn("Fictional hidden paper", p.js("document.body.textContent"))
-            self.assertEqual(p.js(f"document.querySelectorAll('{sec} input, {sec} button, {sec} select, {sec} form').length"), 0)
+                             msg="View: the icon is named, decorative inside, opens like the title; an email link opens no new tab")
+            self.assertNotIn("Fictional hidden paper", p.js("document.body.textContent"), msg="View does not show the document that was left out")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} input, {sec} button, {sec} select, {sec} form').length"), 0,
+                             msg="View has nothing to type in or press in the documents part")
 
 
 class InTheFile(Page):
@@ -170,7 +175,7 @@ class InTheFile(Page):
         out = tempfile.mkdtemp(prefix="clark-74-")
         self.addCleanup(shutil.rmtree, out, ignore_errors=True)
         path = Path(publish.publish(self.store, "ABC", out, by_user=USER, now="2030-01-15", branding=EMPTY_BRANDING)["path"])
-        self.assertNotIn("Fictional hidden paper", path.read_text(encoding="utf-8"))
+        check_in_file(self, path.read_text(encoding="utf-8"), "Fictional hidden paper", False, "a document that was left out is not in the published file")
         for width, dark in WIDTHS:
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
@@ -186,10 +191,12 @@ class InTheFile(Page):
                                  [["<b>Steering</b> minutes", "Minutes · 10-01-2030", "Open <b>Steering</b> minutes", "https://example.com/minutes",
                                    "_blank", "noopener noreferrer", "true", 2],
                                   ["Team inbox", "Other", "Open Team inbox", "mailto:pmo@example.com", "", "noopener noreferrer", "true", 2]],
-                                 "a title is text, the line is Kind · date (no date, no stray ' · '), the icon is named Open {title}, an email opens no new tab")
-                self.assertEqual(p.js(f"document.querySelector('{sec} a').getAttribute('href')"), "https://example.com/minutes")
-                self.assertEqual(p.js(f"document.querySelectorAll('{sec} input, {sec} button, {sec} select, {sec} form').length"), 0)
-                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, "no sideways scroll")
+                                 msg="a title is text, the line is Kind · date (no date, no stray ' · '), the icon is named Open {title}, an email opens no new tab")
+                self.assertEqual(p.js(f"document.querySelector('{sec} a').getAttribute('href')"), "https://example.com/minutes",
+                                 msg="the first link in the documents part opens the first document")
+                self.assertEqual(p.js(f"document.querySelectorAll('{sec} input, {sec} button, {sec} select, {sec} form').length"), 0,
+                                 msg="the file has nothing to type in or press in the documents part")
+                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, msg="no sideways scroll")
 
 
 if __name__ == "__main__":

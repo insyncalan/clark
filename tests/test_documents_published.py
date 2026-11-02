@@ -14,6 +14,25 @@ from _publish_fixture import spellings
 from clark import changes, publish, publish_flow, to_client
 
 ADDRESS = re.compile(r"(?:https?://|mailto:)[^\"'\\\s<>)]+", re.I)
+AROUND = 80          # characters of the file shown either side of a marker that was found
+
+
+def check_in_file(test, text, marker, present, what, ignore_case=False):
+    """Fail, in short, unless `marker` is (present=True) or is not (present=False) in the published file `text`.
+    The report names the marker and shows about AROUND characters either side of where it was found, or says it was not found
+    and how long the file is. It never carries the whole file (about a megabyte of HTML)."""
+    hay, needle = (text.lower(), marker.lower()) if ignore_case else (text, marker)
+    at = hay.find(needle)
+    if (at >= 0) == present:
+        return
+    if at >= 0:
+        shown = hay[max(0, at - AROUND):at + len(needle) + AROUND]
+        found = f"found at character {at} of {len(hay)}, around: ...{shown!r}..."
+    else:
+        found = f"not found; the file is {len(hay)} characters long"
+    test.fail(f"{what}\nmarker {marker!r}: {found}")
+
+
 REFUSED = ("javascript:alert('ZQ-JS')", "JaVaScRiPt:alert(1)", "java\tscript:alert(1)", "data:text/html,ZQ-DATA",
            "vbscript:ZQ-VB", "file:///ZQ-FILE", "blob:https://zq-blob.example.com/x", "ftp://zq-ftp.example.com/x",
            "//zq-relative.example.com/x", "zq-bare.example.com", "https://zq:" + "pw@zq-cred.example.com/")
@@ -56,10 +75,16 @@ class Published(unittest.TestCase):
     def text(self):
         return self.built()["body"].decode("utf-8")
 
+    def in_file(self, text, marker, what):
+        check_in_file(self, text, marker, True, what)
+
+    def not_in_file(self, text, marker, what, ignore_case=False):
+        check_in_file(self, text, marker, False, what, ignore_case)
+
     def absent(self, text, *markers):
         for marker in markers:
             for form in spellings(marker):
-                self.assertNotIn(form, text, marker)
+                self.not_in_file(text, form, f"{marker!r} belongs to a document that must not be published, so no spelling of it may be in the file")
 
     def addresses(self, text):
         return set(ADDRESS.findall(text))
@@ -82,30 +107,31 @@ class Absent(Published):
         for n, url in enumerate(REFUSED):
             self.absent(text, f"ZQ-REFUSED-{n}", f"2032-01-{n + 10:02d}", url)
         for word in ("ZQ-JS", "ZQ-DATA", "ZQ-VB", "ZQ-FILE", "zq-blob", "zq-ftp", "zq-relative", "zq-bare", "zq-cred"):
-            self.assertNotIn(word.lower(), text.lower())
+            self.not_in_file(text, word, f"{word!r} belongs to a refused link, so it may not be in the file in any letter case", ignore_case=True)
         published = self.built()["published"]["data"]["documents"]
         self.assertEqual(published, [{"title": "ZQ-SHOWN-TITLE", "kind": "Minutes", "url": "https://shown.example.com/minutes", "date": "2030-01-03"},
-                                     {"title": "ZQ-MAIL-TITLE", "kind": "Plan", "url": "mailto:pmo@example.com", "date": None}])
+                                     {"title": "ZQ-MAIL-TITLE", "kind": "Plan", "url": "mailto:pmo@example.com", "date": None}],
+                         msg="only the two visible documents are published, in order, each with its title, kind, link and date")
         self.assertEqual(self.addresses(text) - baseline, {"https://shown.example.com/minutes", "mailto:pmo@example.com"},
-                         "no outside address but the visible documents' links")
-        self.assertNotIn(shown, text, "a document's id is not carried")
-        self.assertNotIn(mail, text)
-        self.assertEqual(publish.outside_addresses(text), [], "nothing in the markup reaches outside")
-        self.assertEqual(text.count("/api/"), api_before, "the documents add no /api/ text (the view page's own count is unchanged)")
-        self.assertNotIn("data-doc-", text)
+                         msg="no outside address but the visible documents' links")
+        self.not_in_file(text, shown, "a document's id is not carried")
+        self.not_in_file(text, mail, "a document's id is not carried (the one with the mail link)")
+        self.assertEqual(publish.outside_addresses(text), [], msg="nothing in the markup reaches outside")
+        self.assertEqual(text.count("/api/"), api_before, msg="the documents add no /api/ text (the view page's own count is unchanged)")
+        self.not_in_file(text, "data-doc-", "the file carries none of the page's data-doc- editing markers")
 
     def test_a_hidden_documents_section_carries_no_document(self):
         self.plant("ZQ-IN-HIDDEN-SECTION", "https://zq-section.example.com/x", date="2033-03-03")
         self.hide_section()
         text = self.text()
         self.absent(text, "ZQ-IN-HIDDEN-SECTION", "zq-section.example.com", "2033-03-03")
-        self.assertEqual(self.built()["published"]["data"]["documents"], [])
-        self.assertNotIn("docs", [s["type"] for s in self.built()["published"]["sections"]])
+        self.assertEqual(self.built()["published"]["data"]["documents"], [], msg="a hidden documents section publishes no document")
+        self.assertNotIn("docs", [s["type"] for s in self.built()["published"]["sections"]], msg="a hidden documents section is not published")
 
     def test_a_section_with_no_visible_document_is_left_out(self):
-        self.assertNotIn("docs", [s["type"] for s in self.built()["published"]["sections"]])
+        self.assertNotIn("docs", [s["type"] for s in self.built()["published"]["sections"]], msg="with no visible document the documents section is left out")
         self.plant("Steering minutes", "https://example.com/m")
-        self.assertIn("docs", [s["type"] for s in self.built()["published"]["sections"]])
+        self.assertIn("docs", [s["type"] for s in self.built()["published"]["sections"]], msg="with one visible document the documents section is published")
 
     def test_a_planted_title_that_names_another_site_bad_kind_and_bad_date_are_not_published_as_given(self):
         self.plant("ZQ-ELSEWHERE portal.zq-elsewhere.example.net", "https://example.com/x")
@@ -115,24 +141,25 @@ class Absent(Published):
         self.absent(text, "ZQ-ELSEWHERE", "zq-elsewhere", "ZQ-KIND", "ZQ-DATE", "‮", "2030-02-31")
         got = self.built()["published"]["data"]["documents"]
         self.assertEqual(got, [{"title": "Fine", "kind": "", "url": "https://example.com/y", "date": None},
-                               {"title": "Hiddencharacters", "kind": "Report", "url": "https://example.com/z", "date": None}])
+                               {"title": "Hiddencharacters", "kind": "Report", "url": "https://example.com/z", "date": None}],
+                         msg="a bad kind and a bad date are published as no kind and no date, and hidden characters are taken out of a title")
 
     def test_markup_in_a_title_stays_text_and_a_quote_in_a_link_stays_inside_the_data(self):
         self.plant("<b>ZQ-BOLD</b>", "https://example.com/a'b`c")
         text = self.text()
-        self.assertNotIn("<b>ZQ-BOLD</b>", text)
+        self.not_in_file(text, "<b>ZQ-BOLD</b>", "a title with markup is never in the file as markup")
         block = re.search(r'<script type="application/json" id="clark-data">([^<]*)</script>', text).group(1)
         docs = json.loads(block)["data"]["documents"]
-        self.assertEqual(docs[0]["title"], "<b>ZQ-BOLD</b>")
-        self.assertEqual(docs[0]["url"], "https://example.com/a'b`c")
+        self.assertEqual(docs[0]["title"], "<b>ZQ-BOLD</b>", msg="the title reads back from the data block as the text that was typed")
+        self.assertEqual(docs[0]["url"], "https://example.com/a'b`c", msg="the link with a quote in it reads back whole from the data block")
 
     def test_a_document_added_and_hidden_through_the_route_is_absent(self):
         status, body = self.change({"project": "ABC", "kind": "documents", "op": "new", "place": "report",
                                     "values": {"title": "ZQ-ROUTE-TITLE", "kind": "Slides", "url": "https://zq-route.example.com/deck", "date": "2034-04-04"}})
-        self.assertEqual(status, 200, body)
-        self.assertIn("ZQ-ROUTE-TITLE", self.text())
+        self.assertEqual(status, 200, msg=f"adding a document through the route should give status 200; it gave {status} {body}")
+        self.in_file(self.text(), "ZQ-ROUTE-TITLE", "a document added through the route is in the published file")
         status, _ = self.change({"project": "ABC", "kind": "report_hidden", "op": "new", "id": body["ref"], "place": "eye"})
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 200, msg="hiding the document through the route should give status 200")
         self.absent(self.text(), "ZQ-ROUTE-TITLE", "zq-route.example.com", "2034-04-04")
 
     def test_another_projects_document_is_not_in_this_projects_file(self):
@@ -157,19 +184,19 @@ class Markers(Published):
         archived = self.plant("ZQ-ARCHIVED-MARK", "https://zq-archived-mark.example.com/c", archived=1)
         got = list(self.markers())
         for text in (hidden, "ZQ-HIDDEN-MARK", "https://zq-hidden-mark.example.com/b", archived, "ZQ-ARCHIVED-MARK", "https://zq-archived-mark.example.com/c"):
-            self.assertIn(text, got, f"{text!r} of a left-out document should be a marker")
+            self.assertIn(text, got, msg=f"{text!r} of a left-out document should be a marker")
         for text in ("ZQ-SHOWN-MARK", "https://zq-shown-mark.example.com/a"):
-            self.assertNotIn(text, got, f"{text!r} is published, so it is not a marker")
-        self.assertIn(shown, got, "an id is always a marker (no document id is published)")
+            self.assertNotIn(text, got, msg=f"{text!r} is published, so it is not a marker")
+        self.assertIn(shown, got, msg="an id is always a marker (no document id is published)")
 
     def test_a_file_that_carries_a_hidden_documents_title_is_refused_by_the_copy_check(self):
         hidden = self.plant("ZQ-LEAKED-TITLE", "https://zq-leaked.example.com/x")
         self.hide(hidden)
         body = self.built()["body"].replace(b"</body>", b"<p>ZQ-LEAKED-TITLE</p></body>")
         problems = to_client.check_copy(body, markers=self.markers(), folder=None)
-        self.assertTrue(problems, "a file that carries a hidden document's title must be refused")
+        self.assertTrue(problems, msg="a file that carries a hidden document's title must be refused")
         clean = to_client.check_copy(self.built()["body"], markers=self.markers(), folder=None)
-        self.assertEqual(clean, [], "the file as built carries none of them")
+        self.assertEqual(clean, [], msg="the file as built carries none of them")
 
 
 if __name__ == "__main__":

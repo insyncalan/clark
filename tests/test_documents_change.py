@@ -41,7 +41,7 @@ class Base(unittest.TestCase):
 
     def ok(self, request):
         status, body = self.change(request)
-        self.assertEqual((status, body.get("message")), (200, None), body)
+        self.assertEqual((status, body.get("message")), (200, None), msg=f"the change should be accepted with status 200 and no message; the server answered {status} {body}")
         return body
 
     def snapshot(self):
@@ -55,12 +55,13 @@ class Base(unittest.TestCase):
     def refused(self, request, words, status=400):
         before = self.snapshot()
         got = self.change(request)
-        self.assertEqual((got[0], got[1]["ok"], got[1]["message"]), (status, False, words), request)
-        self.assertEqual(self.snapshot(), before, "nothing was written")
+        self.assertEqual((got[0], got[1].get("ok"), got[1].get("message")), (status, False, words),
+                         msg=f"this request should be refused with status {status} and the words {words!r}: {request}")
+        self.assertEqual(self.snapshot(), before, msg="nothing was written")
 
     def back(self, apply_id, project="ABC"):
         status, body = self.undo({"project": project, "apply_id": apply_id})
-        self.assertEqual(status, 200, body)
+        self.assertEqual(status, 200, msg=f"Undo should be accepted with status 200; the server answered {status} {body}")
         return body
 
     def doc(self, ref, project="ABC"):
@@ -73,34 +74,36 @@ class Base(unittest.TestCase):
 class Add(Base):
     def test_add_is_one_step_with_an_id_that_never_reads_as_a_work_item(self):
         body = self.ok(new())
-        self.assertEqual(body["ref"], "ABC-L-001")
-        self.assertIsNone(store_module.ITEM_ID.fullmatch(body["ref"]), "a document id is never a work item id")
-        self.assertIsNone(store_module.item_table(body["ref"]))
+        self.assertEqual(body["ref"], "ABC-L-001", msg="the first document added to a project is numbered ABC-L-001")
+        self.assertIsNone(store_module.ITEM_ID.fullmatch(body["ref"]), msg="a document id is never a work item id")
+        self.assertIsNone(store_module.item_table(body["ref"]), msg="a document id names no work-item table, so nothing can mistake it for a work item")
         row = self.doc("ABC-L-001")
         self.assertEqual((row["title"], row["kind"], row["url"], row["date"], row["archived"]),
-                         ("Steering minutes", "Minutes", LINK, "2030-01-10", 0))
-        self.assertEqual(body["item"]["id"], "ABC-L-001")
-        self.assertTrue(body["undoable"])
-        self.assertEqual({r["tbl"] for r in self.log_rows(body["apply_id"])}, {"documents"})
+                         ("Steering minutes", "Minutes", LINK, "2030-01-10", 0),
+                         msg="the stored document holds the title, kind, link and date that were added, and is not archived")
+        self.assertEqual(body["item"]["id"], "ABC-L-001", msg="the answer carries the new document's id")
+        self.assertTrue(body["undoable"], msg="the add can be undone (the answer says so)")
+        self.assertEqual({r["tbl"] for r in self.log_rows(body["apply_id"])}, {"documents"}, msg="the add wrote to the documents table and no other")
         second = self.ok(new(title="Action list", kind="Actions list"))
-        self.assertEqual(second["ref"], "ABC-L-002")
-        self.assertGreater(self.doc("ABC-L-002")["sort_order"], row["sort_order"], "a new document goes at the end")
+        self.assertEqual(second["ref"], "ABC-L-002", msg="the second document added is numbered ABC-L-002")
+        self.assertGreater(self.doc("ABC-L-002")["sort_order"], row["sort_order"], msg="a new document goes at the end")
 
     def test_undo_of_an_add_takes_the_document_away_and_its_number_is_never_used_again(self):
         body = self.ok(new())
         self.back(body["apply_id"])
-        self.assertIsNone(self.doc("ABC-L-001"))
-        self.assertEqual(self.ok(new())["ref"], "ABC-L-002", "an undone add never frees its number")
+        self.assertIsNone(self.doc("ABC-L-001"), msg="after Undo of the add the document is gone")
+        self.assertEqual(self.ok(new())["ref"], "ABC-L-002", msg="an undone add never frees its number")
 
     def test_the_link_is_kept_as_the_one_link_rule_gives_it(self):
         self.ok(new(url="  HTTPS://Example.COM/A/b  "))
-        self.assertEqual(self.doc("ABC-L-001")["url"], "https://example.com/A/b")
+        self.assertEqual(self.doc("ABC-L-001")["url"], "https://example.com/A/b",
+                         msg="the stored link is the one the link rule gives: spaces trimmed, scheme and site in lower case, path kept")
 
     def test_an_empty_date_is_kept_as_no_date(self):
         self.ok(new(date=""))
-        self.assertIsNone(self.doc("ABC-L-001")["date"])
+        self.assertIsNone(self.doc("ABC-L-001")["date"], msg="an empty date is stored as no date")
         self.ok(new(date=None))
-        self.assertIsNone(self.doc("ABC-L-002")["date"])
+        self.assertIsNone(self.doc("ABC-L-002")["date"], msg="a date of None is stored as no date")
 
     def test_every_refused_link_is_said_in_the_link_rules_own_words(self):
         cases = {"javascript:alert(1)": doclinks.NOT_USABLE, "JaVaScRiPt:alert(1)": doclinks.NOT_USABLE,
@@ -125,7 +128,7 @@ class Add(Base):
 
     def test_a_title_with_markup_is_kept_as_text(self):
         self.ok(new(title="<b>x</b>"))
-        self.assertEqual(self.doc("ABC-L-001")["title"], "<b>x</b>")
+        self.assertEqual(self.doc("ABC-L-001")["title"], "<b>x</b>", msg="a title with markup is stored exactly as typed, as text")
 
     def test_a_request_cannot_name_another_field(self):
         for field in ("project", "id", "sort_order", "archived"):
@@ -140,13 +143,13 @@ class Add(Base):
         self.refused(new(), changes.PROJECT_NOT_ACTIVE)
 
     def test_the_store_itself_holds_the_rules_whoever_writes(self):
-        with self.assertRaises(store_module.Invalid):
+        with self.assertRaises(store_module.Invalid, msg="the store itself should refuse a javascript: link, whoever writes"):
             with self.s.step("dashboard", USER) as st:
                 st.create("documents", {"project": "ABC", "title": "X", "kind": "Minutes", "url": "javascript:alert(1)"})
-        with self.assertRaises(store_module.Invalid):
+        with self.assertRaises(store_module.Invalid, msg="the store itself should refuse a kind that is not on the list, whoever writes"):
             with self.s.step("dashboard", USER) as st:
                 st.create("documents", {"project": "ABC", "title": "X", "kind": "Memo", "url": LINK})
-        self.assertEqual(self.s.read("documents", "ABC"), [])
+        self.assertEqual(self.s.read("documents", "ABC"), [], msg="the two refused documents left nothing stored")
 
 
 class Edit(Base):
@@ -157,16 +160,19 @@ class Edit(Base):
     def test_edit_is_one_step_and_undo_puts_each_field_back(self):
         body = self.ok(edit(self.ref, title="Board minutes", kind="Report", url="https://example.com/board", date=""))
         row = self.doc(self.ref)
-        self.assertEqual((row["title"], row["kind"], row["url"], row["date"]), ("Board minutes", "Report", "https://example.com/board", None))
-        self.assertEqual(body["item"]["title"], "Board minutes")
-        self.assertEqual({r["field"] for r in self.log_rows(body["apply_id"])}, {"title", "kind", "url", "date"})
+        self.assertEqual((row["title"], row["kind"], row["url"], row["date"]), ("Board minutes", "Report", "https://example.com/board", None),
+                         msg="after the edit the document holds the new title, kind and link, and no date")
+        self.assertEqual(body["item"]["title"], "Board minutes", msg="the answer shows the new title")
+        self.assertEqual({r["field"] for r in self.log_rows(body["apply_id"])}, {"title", "kind", "url", "date"},
+                         msg="the log holds one row for each of the four fields changed")
         self.back(body["apply_id"])
         row = self.doc(self.ref)
-        self.assertEqual((row["title"], row["kind"], row["url"], row["date"]), ("Steering minutes", "Minutes", LINK, "2030-01-10"))
+        self.assertEqual((row["title"], row["kind"], row["url"], row["date"]), ("Steering minutes", "Minutes", LINK, "2030-01-10"),
+                         msg="Undo put all four fields back as they were")
 
     def test_an_edit_that_changes_nothing_has_no_undo(self):
         body = self.ok(edit(self.ref, title="Steering minutes"))
-        self.assertIsNone(body["apply_id"])
+        self.assertIsNone(body["apply_id"], msg="an edit that changes nothing leaves no step to undo")
 
     def test_an_edit_meets_the_same_rules(self):
         self.refused(edit(self.ref, url="javascript:alert(1)"), doclinks.NOT_USABLE)
@@ -183,7 +189,7 @@ class Edit(Base):
         self.refused(edit("ABC-L-099", title="Mine now"), changes.DOC_NOT_MINE)
         self.refused(edit("ABC|ABC-L-001", title="Mine now"), changes.DOC_NOT_MINE)
         self.refused(edit(["x"], title="Mine now"), changes.DOC_NOT_MINE)
-        self.assertEqual(self.doc(theirs, "XYZ")["title"], "Steering minutes")
+        self.assertEqual(self.doc(theirs, "XYZ")["title"], "Steering minutes", msg="the other project's document keeps its title after the refused edits")
 
     def test_an_archived_document_is_not_edited(self):
         self.ok({"project": "ABC", "kind": "documents", "op": "archive", "id": f"ABC|{self.ref}"})
@@ -193,10 +199,10 @@ class Edit(Base):
         first = self.ok(edit(self.ref, title="First"))
         self.ok(edit(self.ref, title="Second"))
         status, body = self.undo({"project": "ABC", "apply_id": first["apply_id"]})
-        self.assertEqual(status, 200, body)
-        self.assertEqual(self.doc(self.ref)["title"], "Second")
-        self.assertTrue(body["skipped"])
-        self.assertNotIn("ABC-L-001", body["words"], "a document is named by its title, never its id")
+        self.assertEqual(status, 200, msg=f"the older Undo should be accepted with status 200; the server answered {status} {body}")
+        self.assertEqual(self.doc(self.ref)["title"], "Second", msg="the later title (Second) is left as it is")
+        self.assertTrue(body["skipped"], msg="the answer says that the later change was skipped")
+        self.assertNotIn("ABC-L-001", body["words"], msg="a document is named by its title, never its id")
 
 
 class Hide(Base):
@@ -209,16 +215,16 @@ class Hide(Base):
 
     def test_hide_and_show_each_one_step_with_undo_through_the_hidden_rows_record(self):
         hid = self.ok(eye("new", self.ref))
-        self.assertEqual((self.hidden(), hid["hidden"]), ([self.ref], [self.ref]))
-        self.assertIn("hidden", [c[1] for c in self.s.con.execute("PRAGMA table_info(report_sections)")])
-        self.assertNotIn("hidden", [c[1] for c in self.s.con.execute("PRAGMA table_info(documents)")], "no new column")
+        self.assertEqual((self.hidden(), hid["hidden"]), ([self.ref], [self.ref]), msg="hiding records the document as hidden, and the answer names it")
+        self.assertIn("hidden", [c[1] for c in self.s.con.execute("PRAGMA table_info(report_sections)")], msg="the report sections table has its hidden column")
+        self.assertNotIn("hidden", [c[1] for c in self.s.con.execute("PRAGMA table_info(documents)")], msg="no new column")
         self.back(hid["apply_id"])
-        self.assertEqual(self.hidden(), [])
+        self.assertEqual(self.hidden(), [], msg="Undo of the hide leaves nothing hidden")
         hid = self.ok(eye("new", self.ref))
         shown = self.ok(eye("delete", self.ref))
-        self.assertEqual(self.hidden(), [])
+        self.assertEqual(self.hidden(), [], msg="showing it again leaves nothing hidden")
         self.back(shown["apply_id"])
-        self.assertEqual(self.hidden(), [self.ref])
+        self.assertEqual(self.hidden(), [self.ref], msg="Undo of the show hides the document again")
 
     def test_the_eye_takes_only_this_projects_documents(self):
         with self.s.step("dashboard", USER) as st:
@@ -227,7 +233,7 @@ class Hide(Base):
         for ref in (theirs, "ABC-L-099", "ABC|ABC-L-001", "ABC-L-1"):
             with self.subTest(ref=ref):
                 self.refused(eye("new", ref), changes.ITEM_NOT_MINE)
-        with self.assertRaises(store_module.Invalid):
+        with self.assertRaises(store_module.Invalid, msg="the store itself should refuse to hide another project's document"):
             with self.s.step("dashboard", USER) as st:
                 st.create("report_hidden", {"project": "ABC", "item_id": theirs})
 
@@ -239,9 +245,10 @@ class Hide(Base):
     def test_the_picker_add_puts_a_hidden_document_back(self):
         self.ok(eye("new", self.ref))
         body = self.ok({"project": "ABC", "kind": "report_hidden", "op": "pick", "ids": [self.ref], "place": "report"})
-        self.assertEqual((body["added"], body["shown_to_client"], self.hidden()), ([self.ref], [], []))
+        self.assertEqual((body["added"], body["shown_to_client"], self.hidden()), ([self.ref], [], []),
+                         msg="the picker reports the document added back, none shown to the client, and nothing is hidden any more")
         self.back(body["apply_id"])
-        self.assertEqual(self.hidden(), [self.ref])
+        self.assertEqual(self.hidden(), [self.ref], msg="Undo of the picker add hides the document again")
 
 
 class UndoWords(Base):
@@ -253,26 +260,30 @@ class UndoWords(Base):
 
     def test_undoing_an_add_says_the_new_document_was_removed(self):
         body = self.ok(new(title="Min"))
-        self.assertEqual(self.said(body["apply_id"]), "Put back: the new document \u201cMin\u201d was removed.")
+        self.assertEqual(self.said(body["apply_id"]), "Put back: the new document \u201cMin\u201d was removed.",
+                         msg="Undo of an add says the new document was removed, by its title")
 
     def test_undoing_an_edit_names_the_fields_of_the_document(self):
         ref = self.ok(new(title="Min"))["ref"]
         body = self.ok(edit(ref, title="Board minutes", date="2031-02-03"))
         said = self.said(body["apply_id"])
-        self.assertEqual(said, "Put back: the title of \u201cMin\u201d; the date of \u201cMin\u201d.")
-        self.assertNotRegex(said, r"(?i)hidden|report|back in")
+        self.assertEqual(said, "Put back: the title of \u201cMin\u201d; the date of \u201cMin\u201d.",
+                         msg="Undo of an edit names each field put back and the document by its title")
+        self.assertNotRegex(said, r"(?i)hidden|report|back in", msg="Undo of an edit never talks of hiding or of the report")
 
     def test_undoing_a_leave_out_and_an_add_back_say_published_page_in_plain_words(self):
         ref = self.ok(new(title="Min"))["ref"]
         left_out = self.ok(eye("new", ref))
-        self.assertEqual(self.said(left_out["apply_id"]), "Put back: \u201cMin\u201d is back on the published page.")
+        self.assertEqual(self.said(left_out["apply_id"]), "Put back: \u201cMin\u201d is back on the published page.",
+                         msg="Undo of a leave-out says the document is back on the published page")
         self.ok(eye("new", ref))
         added_back = self.ok(eye("delete", ref))
-        self.assertEqual(self.said(added_back["apply_id"]), "Put back: \u201cMin\u201d is left out of the published page again.")
+        self.assertEqual(self.said(added_back["apply_id"]), "Put back: \u201cMin\u201d is left out of the published page again.",
+                         msg="Undo of an add-back says the document is left out of the published page again")
 
     def test_a_work_items_eye_still_says_report(self):
         said = changes.words([{"ref": "ABC|ABC-A-001", "field": None, "change": "removed", "to": None}], [], {})
-        self.assertEqual(said, "Put back: ABC-A-001 is back in the report.")
+        self.assertEqual(said, "Put back: ABC-A-001 is back in the report.", msg="a work item's eye still says 'the report'")
 
 
 class Read(Base):
@@ -281,16 +292,16 @@ class Read(Base):
         b = self.ok(new(title="Two"))["ref"]
         self.ok({"project": "ABC", "kind": "documents", "op": "archive", "id": f"ABC|{b}"})
         got = self.s.data_for("ABC")["documents"]
-        self.assertEqual([d["id"] for d in got], [a])
-        self.assertEqual(set(got[0]), {"id", "title", "kind", "url", "date", "sort_order", "archived"})
-        self.assertEqual([d["id"] for d in self.s.data_for("ABC", archived="only")["documents"]], [b])
+        self.assertEqual([d["id"] for d in got], [a], msg="the page reads only the live document (the archived one is left out)")
+        self.assertEqual(set(got[0]), {"id", "title", "kind", "url", "date", "sort_order", "archived"}, msg="each document the page reads carries exactly these fields")
+        self.assertEqual([d["id"] for d in self.s.data_for("ABC", archived="only")["documents"]], [b], msg="asking for archived only gives just the archived document")
 
 
 class OneList(unittest.TestCase):
     def test_the_page_offers_the_same_kinds_as_the_store_takes(self):
         text = (SRC / "clark" / "page" / "src" / "logic" / "documents.js").read_text(encoding="utf-8")
         found = re.search(r"export const KINDS = (\[[^\]]*\]);", text)
-        self.assertEqual(tuple(json.loads(found.group(1))), doclinks.KINDS)
+        self.assertEqual(tuple(json.loads(found.group(1))), doclinks.KINDS, msg="the page offers exactly the kinds the store takes, in the same order")
 
 
 if __name__ == "__main__":
