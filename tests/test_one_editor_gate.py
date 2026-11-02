@@ -18,6 +18,7 @@ from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
+from _real_server import real_server
 from _paths import SRC, TOOLS
 
 sys.path.insert(0, str(TOOLS))
@@ -26,7 +27,7 @@ import build_page  # noqa: E402
 from clark import changes, order, page, server as sv  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_page import navigate  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import chrome, wait  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
@@ -65,6 +66,7 @@ class Source(unittest.TestCase):
         self.assertEqual(importers, ["core/editor.js"])
 
     def test_the_published_page_has_no_editor(self):
+        page.ensure_built()          # #495: the pages are generated, so a fresh checkout builds them here
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
         scripts = "".join(re.findall(r"<script>(.*?)</script>", view, re.S))          # the stylesheet names the editor's classes; the script must not hold it
         self.assertGreater(len(scripts), 1000)
@@ -116,7 +118,7 @@ class PageGate(unittest.TestCase):
         return self.store.data_for(code)
 
     def serve(self, html):
-        s = Running(data_for=self.data, page_html=lambda: html, change=self.change, undo=changes.make_undo(self.store.path, [], USER))
+        s = real_server(self.store.path, self.data, page_html=lambda: html, change=self.change)
         self.addCleanup(s.close)
         return s
 

@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendBulk, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
@@ -25,7 +25,7 @@ export function say(kind, text, undo = null, code = project.value) {
     const at = undoable.findIndex((s) => s.step === undo);
     if (at >= 0) undoable.splice(at, 1);
     undoable.push({ step: undo, code });
-    if (undoable.length > MAX_KEPT) undoable.shift();
+    if (undoable.length > MAX_KEPT) { const gone = undoable.shift(); linked.delete(gone.step); }   // a step that can no longer be undone leaves the pairing too
   }
   clearTimeout(timer);
   const id = ++counter;
@@ -51,7 +51,7 @@ function redraw(code, reply) {
     next.report_sections = reply.sections.map((sec) => ({ ...was.get(sec.id), ...sec }));
   }
   if (Array.isArray(reply.tiles)) next.glance_tiles = reply.tiles;
-  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason };
+  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}) };
   data.value = next;
 }
 
@@ -130,7 +130,7 @@ export function changeItem(req, done) {
 
 // Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). A step
 // made together with an earlier one (changeThen) takes the earlier one back after it; if the first Undo fails nothing more is
-// undone, and if the second fails the toast says so and offers Undo for what is left. If some rows were left as they are, the toast
+// undone and the toast offers Undo again, and if the second fails the toast says so and offers Undo for what is left. If some rows were left as they are, the toast
 // says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
 // or that it is undone.
 export function undo(applyId, code = project.value) {
@@ -139,15 +139,21 @@ export function undo(applyId, code = project.value) {
   return enqueue(async () => {
     const earlier = linked.get(applyId);
     let r = await sendUndo(code, applyId);
-    if (!r.ok) { say("problem", earlier ? `${r.message} The section was not removed.` : r.message); return null; }
+    if (!r.ok) {
+      // Nothing was undone: the pairing stays and the toast offers Undo again, so a retry takes both steps back.
+      say("problem", earlier ? `${r.message} The section was not removed.` : r.message, applyId, code);
+      return null;
+    }
+    linked.delete(applyId);          // the first step is back: the pair is resolved here (a failed second Undo offers Undo for `earlier` alone)
     redraw(code, r.reply);
     undone.value++;
     if (earlier) {
-      linked.delete(applyId);
       const e = await sendUndo(code, earlier);
       if (!e.ok) {
-        await readAgain(code, "The change was undone");
-        say("problem", `The row was put back as it was, but the new section could not be removed. ${e.message}`, earlier, code);
+        // The page shows what clark holds: the first step is undone (read again below), the section is still there. If the page
+        // could not be read again, the toast says so as well, because what is drawn may be behind.
+        const fresh = await readAgain(code, "The change was undone");
+        say("problem", `The section above was put back as it was, but the new section could not be removed.${fresh ? "" : " The page could not be refreshed, so reload it to see what was kept."} ${e.message}`, earlier, code);
         return r.reply;
       }
       redraw(code, e.reply);
@@ -264,5 +270,18 @@ export function undoSeveral(steps, { preview = false, confirm = false } = {}) {
       say("done", words, r.reply.apply_id || null, code);
     }
     return r;
+  });
+}
+
+// Restore one archived milestone (C-M4): one step, one Undo; the project's data is read again after it, so the Plan and the count
+// are the database's. Resolves to the reply, or to null when it was refused (the toast says why).
+export function restoreMilestone(id, name) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendMilestoneRestore(code, id);
+    if (!r.ok) { say("note", r.message); return null; }
+    if (!(await reread(code)) && project.value === code) { say("problem", `${name} was restored, but the page could not be refreshed. Reload the page to see it.`, r.reply.apply_id || null, code); return r.reply; }
+    say("done", `${name} restored.`, r.reply.apply_id || null, code);
+    return r.reply;
   });
 }

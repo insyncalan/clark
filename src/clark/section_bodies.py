@@ -256,9 +256,9 @@ def _shown_needs_row(row):
 TRACKER_VERSION = 1
 TRACKER_MAX_GROUPS = 10
 TRACKER_MAX_LINES_PER_GROUP = 47
-TRACKER_MAX_LINES = 47           # in all. The change route takes 132 KB (server.CHANGE_BODY_LIMIT, #96), so the checker's cap, not the route, is what a person meets:
-#                                  the widest request the checker accepts (10 groups, every text at its longest, four-byte letters sent as \\u escapes) is 95 KB.
-#                                  tests/test_tracker_route.py pins that over the real route (#247).
+TRACKER_MAX_LINES = 47           # in all. The change route takes the limit server.CHANGE_BODY_LIMIT (#96, #378, #405), worked out from the largest section body.
+#                                  The widest tracker this checker accepts (10 groups, every text at its longest, four-byte letters sent as \u escapes) makes a request under that limit;
+#                                  tests/test_section_registry.py pins both sizes, and tests/test_tracker_route.py saves it over the real route. tests/test_needs_route.py does the same for the needs section (#405).
 TRACKER_NAME_MAX = 80
 TRACKER_TEXT_MAX = 100
 TRACKER_NO_MAX = 10
@@ -287,6 +287,7 @@ TRACKER_DATE = f"A date must be a real day between {NEEDS_YEARS[0]} and {NEEDS_Y
 TRACKER_DATE_ORDER = "A line can't end before it starts."
 TRACKER_STATUS = "Choose Planned, In progress, Completed or Late."
 TRACKER_PERCENT = "A percentage must be a number from 0 to 100."
+TRACKER_TOTAL = "The lines' weight, planned and achieved figures can each add up to 100% at most."
 TRACKER_COUNT = f"A count must be a whole number from 0 to {TRACKER_COUNT_MAX}, or empty."
 
 
@@ -383,6 +384,9 @@ def _checked_tracker(value, rules):
             raise Bad(TRACKER_TOO_MANY_LINES)
         checked_groups.append({"name": _tracker_text(group["name"], rules, TRACKER_NAME_MAX, TRACKER_NAME_LONG, TRACKER_NAME_MISSING),
                                "lines": [_checked_tracker_line(line, rules) for line in lines]})
+    for key in ("weight", "planned", "achieved"):          # the reading is "shares of the whole" (logic/tracker.js): no total can pass the whole
+        if sum(line[key] for group in checked_groups for line in group["lines"]) > TRACKER_TENTHS[1]:
+            raise Bad(TRACKER_TOTAL)
     return {"v": TRACKER_VERSION, "overall": checked_overall, "columns": {k: columns.get(k, False) for k in TRACKER_COLUMNS},
             "groups": checked_groups}
 
@@ -461,4 +465,6 @@ def published(kind, value, ctx=None):
     if kind == NEEDS:
         rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
         return {"rows": rows} if rows else None
+    if kind != TRACKER:
+        return None                     # an unknown kind fails closed: nothing of it is published
     return _published_tracker(value)

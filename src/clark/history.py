@@ -65,6 +65,9 @@ def history(con, item_id):
     return build_events(rows, reverted_rowids(con))
 
 
+BARE_CHUNK = 100                       # project codes and IDs with no hyphen per query: 300 parameters and OR terms at most, well under SQLite's limits
+
+
 def history_many(con, ids):
     """{id: history(con, id)} for every ID in `ids`, read in ONE pass: the undone steps are found once and the log is read once
     (the single-item query's leading wildcard cannot use the index, so asking per item scans the whole log each time). Each
@@ -73,11 +76,24 @@ def history_many(con, ids):
     if not ids:
         return {}
     wanted = set(ids)
-    codes = sorted({i.split("-", 1)[0] for i in ids})
-    where = " AND (" + " OR ".join(["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes)) + ")"
-    args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")]
+    codes = sorted({i.split("-", 1)[0] for i in ids if "-" in i})
+    bare = [i for i in ids if "-" not in i]               # an ID with no hyphen has no code to cut: ask for it as history() does
     mine = {i: [] for i in ids}
-    for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", args):
+    # SQLite caps an expression's depth (1000) and its parameters: a code adds two OR terms and a bare ID three, so both go in chunks
+    # of BARE_CHUNK. A row two chunks both match is read once; the rows are put back in event order.
+    terms = [("c.item_id LIKE ? OR c.item_id LIKE ?", [c + "-%", "%|" + c + "-%"]) for c in codes] \
+        + [("c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?", [i, i + "|%", "%|" + i + "|%"]) for i in bare]
+    chunks = [terms[n:n + BARE_CHUNK] for n in range(0, len(terms), BARE_CHUNK)]
+    seen, rows = set(), []
+    for chunk in chunks:
+        where = " AND (" + " OR ".join(t[0] for t in chunk) + ")"
+        for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", [x for t in chunk for x in t[1]]):
+            if len(chunks) == 1 or r["rowid"] not in seen:
+                seen.add(r["rowid"])
+                rows.append(r)
+    if len(chunks) > 1:
+        rows.sort(key=lambda r: r["event_id"])
+    for r in rows:
         key = str(r["item_id"])
         if "|" not in key:                                  # the usual row: keyed by its own item alone
             if key in wanted:
@@ -95,6 +111,9 @@ def history_many(con, ids):
 # item (ReviewCache) and, on each call, reads only the log rows added since the last one. A change_log row is never changed once its
 # step is committed (an undo writes new rows), so what was kept stays true; a log that has shrunk or lost a row starts again.
 # The first read of an item is made by the database in one grouped pass over the project's own keys (other projects' rows are not read).
+# The first read of a run of the program holds the lock for the whole read (about 0.3 s on a 50,000-row log, measured; the
+# page's own first load is that read too). That is acceptable: a second page load at the same moment would need the very same rows,
+# so waiting for the first one's answer costs it less than reading them again, and every later call takes well under a millisecond.
 # `at` and the event number are joined into one text that sorts the way (at, event_id) does: char(31) is below every character of a stamp.
 SORT_KEY = "e.at || char(31) || printf('%012d', e.event_id)"
 FIRST_SQL = ("SELECT c.tbl, c.item_id, min(" + SORT_KEY + ") AS found FROM change_log c JOIN item_events e ON e.change = c.rowid "
@@ -111,10 +130,14 @@ NEW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.via, e.at, e.event_id, 
 
 class ReviewCache:
     """What review_events keeps between calls (a Store holds one): {id: [first event, latest person's event]} and the log's
-    newest rowid and row count when they were read."""
+    newest rowid and row count when they were read. It holds at most `limit` items: when a call would take it past that, the items
+    kept longest ago are let go first (never one the call asked for), and they are read again if they are asked for later."""
 
-    def __init__(self):
+    LIMIT = 20000                                          # items kept; each is two small events, so a few megabytes at most
+
+    def __init__(self, limit=None):
         self.lock = threading.Lock()
+        self.limit = limit or self.LIMIT
         self.reset()
 
     def reset(self):
@@ -205,7 +228,16 @@ def review_events(con, ids, cache=None):
                 for i in new:
                     cache.events[i] = _reduce(mine[i])
             cache.mark, cache.count = top, count
-            return {i: cache.events[i] for i in ids}
+            out = {i: cache.events[i] for i in ids}
+            if len(cache.events) > cache.limit:
+                asked = set(ids)
+                for i in [i for i in cache.events if i not in asked]:      # oldest kept first: dicts keep the order they were added in
+                    if len(cache.events) <= cache.limit:
+                        break
+                    del cache.events[i]
+                if len(cache.events) > cache.limit:
+                    cache.events.clear()                   # this one call asked for more than the bound: answer it, keep nothing
+            return out
     finally:
         if begun:
             con.execute("COMMIT")
@@ -233,7 +265,7 @@ CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 change
 FILTERS = {"all": "All", "changes": "Changes", "comments": "Comments and updates"}      # key -> the words on the tab
 EMPTY = {"all": "No history yet.", "changes": "No changes yet.", "comments": "No comments or updates yet."}
 OTHER = "Other"                        # a place or route the list below does not know: shown plainly, never as its code
-KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment", "Email sent")
+KINDS = ("Created", "Changed", "Removed", "Undone", "Undo undone", "Creation undone", "Archived", "Restored", "Comment", "Email sent", "Published")
 UNDO_KINDS = ("Undone", "Undo undone")
 PAGE_FIELD, LEFT_OUT, PUT_BACK = "Published page", "Left out of the published page", "Put back on the published page"
 PUT_BACK_PREFIX = "put back: "          # an Undo that made a removed label or link again
@@ -565,6 +597,23 @@ def _email_rows(con, where, params, titles):
     return out
 
 
+PUBLISHED_HOW = "from Publish"           # the History's "how" for a publication (#120)
+
+
+def _publication_rows(con, code):
+    """One row for each publication of project `code` (#120): when, who and "Published as Publication N" (a Word copy says so). This
+    REVERSES #66's "no History line": a publication is still no step and has no Undo, but the person can see it was made. Only in
+    All, never in Changes or Comments. Nothing but the number, the kind, who and when is read: no path and no hash."""
+    out = []
+    for p in con.execute("SELECT seq, at, number, word, by_user FROM publications WHERE project = ? ORDER BY seq DESC", (code,)):
+        when, note = when_text(p["at"], None)
+        words = f"Published as Publication {p['number']}" + (" (Word copy)" if p["word"] else "")
+        out.append({"when": when, "zone_note": note, "when_text": when + " - " + note, "who": p["by_user"], "how": PUBLISHED_HOW,
+                    "item_id": "", "title": "", "items": [], "item": "", "field": "Publication", "from": "", "to": words,
+                    "kind": "Published", "table": "publications", "event_id": None, "step": None, "_at": p["at"], "_seq": p["seq"]})
+    return out
+
+
 def _dmy(day):
     y, m, d = str(day).split("-")
     return f"{d}-{m}-{y}"
@@ -585,7 +634,7 @@ def _finish(rows, kind, limit):
     if kind == "comments":
         rows = [r for r in rows if r["table"] in ("updates", "comments")]
     elif kind == "changes":
-        rows = [r for r in rows if r["table"] not in ("updates", "comments", "email_sent")]
+        rows = [r for r in rows if r["table"] not in ("updates", "comments", "email_sent", "publications")]
     rows.sort(key=lambda r: (_when_key(r["_at"]), r["table"] != "comments", r["_seq"]), reverse=True)
     cut = 0
     if limit is not None and len(rows) > limit:
@@ -606,6 +655,7 @@ def rows_for_project(con, code, kind="all", limit=None):
     titles = _Titles(con)
     rows += _comment_rows(con, "project = ?", (code,), titles)
     rows += _email_rows(con, "project = ?", (code,), titles)
+    rows += _publication_rows(con, code)
     return _finish(rows, kind, limit)[0]
 
 

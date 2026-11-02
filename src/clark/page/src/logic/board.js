@@ -81,11 +81,14 @@ export function ctxFor(data, { project, today, me = "", kinds = null } = {}) {
 
 const isoOf = (n) => new Date(n * 86400000).toISOString().slice(0, 10);
 const weekdayOf = (n) => ((new Date(n * 86400000).getUTCDay() + 6) % 7) + 1;      // Monday 1 to Sunday 7
-const sundayOf = (n) => n + (7 - weekdayOf(n));                                    // the week ends on Sunday
+// #570: Friday is the week end. "This week" runs from today to the Friday on or after today, so on a Saturday or Sunday it runs to
+// the coming Friday (the working week that is about to start). A weekend day is never in the week it falls in: it is in the next one.
+export const fridayOnOrAfter = (n) => n + ((5 - weekdayOf(n) + 7) % 7);
+export const weekEndOf = (today) => { const t = dayNumber(today); return t === null ? null : isoOf(fridayOnOrAfter(t)); };
 
 function bucketOf(a, t) {
   if (a < t) return "overdue";
-  const end = sundayOf(t);
+  const end = fridayOnOrAfter(t);
   return a <= end ? "this_week" : a <= end + 7 ? "next_week" : "later";
 }
 function dueKey(row, today) {
@@ -241,8 +244,8 @@ function dueHalf(row, key, ctx) {
   if (key === NONE) return yes({ [field]: null });
   const t = dayNumber(ctx.today);
   if (t === null) return refuse(WORDS.notADate);
-  const friday = (n) => Math.max(sundayOf(n) - 2, t);        // that week's Friday, or today when it has gone
-  const day = key === "this_week" ? friday(t) : key === "next_week" ? sundayOf(t) + 5 : sundayOf(t) + 12;
+  const end = fridayOnOrAfter(t);                            // this week's Friday: the suggested day for This week, a week on for Next week
+  const day = key === "this_week" ? end : key === "next_week" ? end + 7 : end + 14;
   return yes({}, { needsDate: { field, min: ctx.today, suggested: isoOf(day), column: key } });
 }
 
