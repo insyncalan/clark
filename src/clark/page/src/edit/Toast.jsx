@@ -1,6 +1,7 @@
-// What the last change did, with Undo while there is a step to undo (Edit only). The wrapper is always there in Edit, so a
+// What the last change did, with Undo while there is a step to undo (on the Dashboard in Edit only; every other page always has it). The wrapper is always there then, so a
 // screen reader hears each new message; an error stays until it is dismissed or the next change. The profile menu's note (what
-// Preview or Export did) is shown in this same region in Edit, so the page has one live region (#147).
+// Preview or Export did) is shown in this same region, so the page has one live region (#147); on the Dashboard in View the profile
+// menu draws the only one.
 import { useEffect } from "preact/hooks";
 import { mode, view } from "../stores/report.js";
 import { toast, dismiss, undo } from "../stores/changes.js";

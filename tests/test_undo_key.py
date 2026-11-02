@@ -225,6 +225,25 @@ class UndoKey(unittest.TestCase):
             self.until(cdp, sid, "/back to Urgent\\.$/.test((document.querySelector('.toast-text') || {}).textContent || '')", "still there to undo")
             self.assertEqual(self.undos_sent(), n + 1)
 
+    def test_exactly_one_live_region_on_every_page_in_view_and_in_edit(self):
+        """The message region (what the last change did, and what Preview or Export did) is one `.toasts` live region on every
+        page: Work items in View, the Dashboard in View, and Edit (#442)."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400, edit=False)
+            count = "document.querySelectorAll('.toasts').length"
+            self.assertEqual(cdp.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed')", sid), "false", "View")
+            self.assertEqual(cdp.js(count, sid), 1, "Work items in View")
+            cdp.js("location.hash = '#dashboard&p=TUL'", sid)
+            self.until(cdp, sid, "location.hash.startsWith('#dashboard') && !!document.querySelector('[data-mode=view]')", "the Dashboard opened")
+            self.until(cdp, sid, "document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'false'", "still View")
+            self.assertEqual(cdp.js(count, sid), 1, "the Dashboard in View")
+            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+            self.until(cdp, sid, "document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", "Edit")
+            self.assertEqual(cdp.js(count, sid), 1, "the Dashboard in Edit")
+            cdp.js("location.hash = '#work&p=TUL&f=mode:all'", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Work items")
+            self.assertEqual(cdp.js(count, sid), 1, "Work items in Edit")
+
     KEPT = ("(async () => ({local: Object.entries(localStorage), session: Object.entries(sessionStorage), cookie: document.cookie, "
             "idb: ((await indexedDB.databases()) || []).map(d => d.name), caches: window.caches ? await caches.keys() : [], "
             "name: window.name, state: JSON.stringify(history.state)}))()")
