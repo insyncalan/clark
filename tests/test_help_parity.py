@@ -176,14 +176,14 @@ class ReportSectionsHasNeedsFromYou(unittest.TestCase):
 
 
 class TheWeekEndsOnAFriday(unittest.TestCase):
-    """Row 64 (needs the owner): the prototype says 'The week ends on a Friday.' The page has no such rule, so the line stays out of Help."""
-    def test_help_does_not_say_it(self):
+    """Row 64: the prototype says 'The week ends on a Friday.' The page has the rule (#570), so Help's 'Dates and IDs' says it now it is released."""
+    def test_help_says_it(self):
         every = json.dumps(SHOWN, ensure_ascii=False)
-        self.assertNotIn("The week ends on a Friday", every)
+        self.assertIn("The week ends on a Friday", every)
 
     def test_the_page_week_end_is_a_friday(self):
         """#570 (option a2): the board's 'this week' ends on a Friday (logic/board.js fridayOnOrAfter) and a week ending that is not a
-        Friday is refused (changes.NOT_FRIDAY). Help's 'Dates and IDs' lines say so and are held in helpLater until the release shows them.
+        Friday is refused (changes.NOT_FRIDAY). Help's 'Dates and IDs' lines say so and are shown.
         client_filters.week_end (the Sunday of the client filters) is outside #570 and is raised with the owner."""
         from clark import client_filters
         self.assertEqual(client_filters.week_end("2026-11-02", 0), "2026-11-08")
