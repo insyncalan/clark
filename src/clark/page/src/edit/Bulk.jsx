@@ -70,6 +70,7 @@ export function ask(question, yes, { ids = null, from = null } = {}) { bulkOpen.
 
 /** Open a control for `ids`: Close and Reopen act at once, the others open their picker at `at`. */
 export function openControl(control, ids, at, place = "bulk", from = null) {
+  if (fromFile.value) return;                                       // a published file has no selection to change
   const sum = B.summary(rowsOf(ids)), why = B.keyWhy(control, sum);
   if (why) { say("note", why); announce.value = why; return; }
   const c = B.CONTROLS.find((x) => x.id === control);

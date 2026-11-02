@@ -68,8 +68,8 @@ class Rules(unittest.TestCase):
 
     A = "const a = (id) => ({id, kind: 'action', table: 'actions'}), r = (id) => ({id, kind: 'risk', table: 'raid'}), d = (id) => ({id, kind: 'decision', table: 'decisions'});"
 
-    def controls(self, rows, editing=True):
-        return self.run_(self.A + f"return B.controls(B.summary([{rows}]), {{editing: {json.dumps(editing)}}}).map(c => [c.id, c.on, c.why]);")
+    def controls(self, rows):
+        return self.run_(self.A + f"return B.controls(B.summary([{rows}])).map(c => [c.id, c.on, c.why]);")
 
     def test_each_kind_has_its_own_controls(self):
         self.assertEqual([c[0] for c in self.controls("a('ABC-A-001'), a('ABC-A-002')")],
@@ -87,10 +87,6 @@ class Rules(unittest.TestCase):
         got = {c[0]: c for c in self.controls("a('ABC-A-001'), a('XYZ-A-002')")}
         self.assertEqual((got["workstream"][1:], got["milestone"][1:]), ([False, "These items are in different projects"],) * 2)
         self.assertTrue(got["owner"][1] and got["close"][1])
-
-    def test_the_work_items_page_is_always_editable_so_the_controls_are_on_even_if_told_it_is_not(self):
-        got = self.controls("a('ABC-A-001'), a('ABC-A-002')", editing=False)
-        self.assertTrue(got and all(on and why == "" for _, on, why in got), got)
 
     def test_what_is_sent(self):
         got = self.run_("return [B.changesFor('actions', 'close'), B.changesFor('raid', 'reopen'), B.changesFor('decisions', 'made_by', '  Zelda   Quince '),"
@@ -245,6 +241,56 @@ class Page(Base):
             rows = [r for r in cdp.js(self.ROWS, sid) if self.field(r, "status") != "Closed"][:3]
             self.pick(cdp, sid, rows)
             with self.store.step("dashboard", "Demo User") as st:     # archived while the page still shows it
+                st.archive("actions", rows[2])
+            click(cdp, sid, "#sel-bar [data-bulk=close]")
+            text = self.toast(cdp, sid)
+            self.assertIn("Changed 2 items.", text)
+            self.assertIn(f"Left out {rows[2]}: It is archived. Restore it first.", text)
+
+    # ---- View: the same change has its toast, its Undo and Ctrl+Z, and a refused row is named ----
+    def view_owner_change(self, cdp, sid, rows):
+        self.pick(cdp, sid, rows)
+        click(cdp, sid, "#sel-bar [data-bulk=owner]")
+        self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('cp-in')", "the owner box")
+        cdp.js("document.execCommand('insertText', false, 'Zelda Quince')", sid)
+        press(cdp, sid, "Enter")
+
+    def test_in_view_a_bulk_change_has_its_toast_and_one_undo(self):
+        with chrome() as cdp:
+            sid = self.load(cdp, edit=False)
+            self.assertEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "view")
+            rows = cdp.js(self.ROWS, sid)[:2]
+            was = {r: self.field(r, "owner") for r in rows}
+            steps = self.steps()
+            self.view_owner_change(cdp, sid, rows)
+            self.assertIn("Changed 2 items.", self.toast(cdp, sid))
+            self.assertEqual(self.steps(), steps + 1, "one step")
+            self.assertEqual({r: self.field(r, "owner") for r in rows}, {r: "Zelda Quince" for r in rows})
+            click(cdp, sid, ".toast [data-undo]")
+            self.until(cdp, sid, "!!document.querySelector('.toast .toast-text') && document.querySelector('.toast .toast-text').textContent.startsWith('Undone')", "the undo")
+            self.assertEqual({r: self.field(r, "owner") for r in rows}, was, "one Undo puts both rows back")
+            self.assertEqual(len([1 for w, _ in self.sent if w == "undo"]), 1)
+            self.assertEqual(cdp.js("document.querySelectorAll('.toasts').length", sid), 1, "one live region")
+
+    def test_in_view_ctrl_z_undoes_a_bulk_change_in_one_step(self):
+        with chrome() as cdp:
+            sid = self.load(cdp, edit=False)
+            rows = cdp.js(self.ROWS, sid)[:2]
+            was = {r: self.field(r, "owner") for r in rows}
+            self.view_owner_change(cdp, sid, rows)
+            self.assertIn("Changed 2 items.", self.toast(cdp, sid))
+            cdp.js("document.activeElement && document.activeElement.blur()", sid)
+            letter(cdp, sid, "z", CTRL)
+            self.until(cdp, sid, "!!document.querySelector('.toast .toast-text') && document.querySelector('.toast .toast-text').textContent.startsWith('Undone')", "the undo")
+            self.assertEqual({r: self.field(r, "owner") for r in rows}, was)
+            self.assertEqual(len([1 for w, _ in self.sent if w == "undo"]), 1)
+
+    def test_in_view_a_refused_row_is_named(self):
+        with chrome() as cdp:
+            sid = self.load(cdp, edit=False)
+            rows = [r for r in cdp.js(self.ROWS, sid) if self.field(r, "status") != "Closed"][:3]
+            self.pick(cdp, sid, rows)
+            with self.store.step("dashboard", "Demo User") as st:
                 st.archive("actions", rows[2])
             click(cdp, sid, "#sel-bar [data-bulk=close]")
             text = self.toast(cdp, sid)

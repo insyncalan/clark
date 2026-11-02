@@ -6,7 +6,7 @@
 import { useEffect } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { Menu } from "../components/Menu.jsx";
-import { data, tabs, show, project, mode } from "../stores/report.js";
+import { data, tabs, show, project, mode, view } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
@@ -107,7 +107,7 @@ export function ProfileMenu() {
   return (
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
-      {mode.value === "edit" ? null : <div class="toasts" role="status" aria-live="polite"><MenuNote /></div>}
+      {mode.value === "edit" || view.value === "work" ? null : <div class="toasts" role="status" aria-live="polite"><MenuNote /></div>}
     </>
   );
 }
