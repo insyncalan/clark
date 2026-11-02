@@ -546,7 +546,7 @@
     "s": [
      "On **Milestones**, switch to Edit. **Movement** is the block under the list. It is for you and the team: it is never published.",
      "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
-     "Each open milestone has a row, the furthest behind first: its state, its agreed date, a line that marks the agreed date, the forecast and today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
+     "Each open milestone has a row, the furthest behind first: its state, its agreed date, a small bar with a mark for the agreed date, one for the forecast and one for today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
      "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
      "Under **Decide what to do**, choose **Hold: keep the forecast, agreed date unchanged**, or **Move the agreed date**. A move asks for **New agreed date (DD-MM-YYYY)**, **Who agreed it**, a **Reason** and a **Source**, and says what will happen before you press **Move the agreed date**. **Keep the date** closes it with no change. A milestone that has not slipped cannot be moved.",
      "**Hold** and **Move the agreed date** each change the record at once, and each has its own **Undo**. A move keeps the original date and records a decision."
@@ -872,13 +872,13 @@
       [
        "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
-       "**Not reviewed in 14 days**: a chip in the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
-       "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. In the filter line, **is:quiet** and **is:incomplete** do the same. Freshness is offered once some item has a date it can count from."
+       "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
+       "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from."
       ]
      ],
      [
       "p",
-      "Nothing is stored for this: it is worked out from the history every time."
+      "There is nothing to fill in: Raised, Last reviewed and the Not reviewed note follow from the changes made to each item."
      ]
     ]
    },
