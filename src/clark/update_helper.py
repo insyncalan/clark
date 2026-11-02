@@ -208,10 +208,15 @@ class Seams:
     def helper_running(self, pid, ident):
         """Whether the helper that wrote `pid` is still running: the id is alive AND, when an identity was recorded, it is still
         the same process (a recycled id belongs to another program and is not the helper). A marker with no recorded identity
-        counts by the id alone, the careful way: a live helper is never rolled back from under itself."""
+        counts by the id alone, the careful way: a live helper is never rolled back from under itself. An identity that can not be
+        read right now (None: `ps` failed, timed out or printed nothing, as on a busy Mac) also counts as still the helper; only a
+        different, readable identity means the id was recycled."""
         if self.process_gone(pid):
             return False
-        return not ident or self.identity(pid) == ident
+        if not ident:
+            return True
+        now = self.identity(pid)
+        return now is None or now == ident
 
     def port_free(self, port):
         if not port:

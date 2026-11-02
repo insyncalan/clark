@@ -665,6 +665,44 @@ class FinishTest(unittest.TestCase, PlainWordsMixin):
             self.assertEqual((code, result["status"]), (h.ROLLED_BACK, "rolled_back"))
             self.assertFalse(path.exists())
 
+    def test_finish_keeps_a_live_helper_whose_identity_cannot_be_read(self):
+        # a busy machine: `ps` raises, times out or prints nothing. The helper is alive, so it is never rolled back from under itself
+        class Plat:
+            def __init__(self, how):
+                self.how = how
+
+            def run_python_check(self, python, code, args, timeout=0):
+                if self.how == "raises":
+                    raise OSError("ps failed")
+                if self.how == "times out":
+                    raise subprocess.TimeoutExpired("ps", timeout)
+                if self.how == "prints nothing":
+                    return 0, ""
+                return 0, "Mon  2 Nov 13:00:00 2026"
+
+        class Live(h.Seams):
+            def process_gone(self, pid):
+                return False
+
+            def helper_python(self):
+                return "python3"
+        for how in ("raises", "times out", "prints nothing"):
+            with self.subTest(how), tempfile.TemporaryDirectory() as t:
+                fx = Fixture(t)
+                path = fx.begin()
+                m = json.loads(path.read_text(encoding="utf-8"))
+                m.update(helper_pid=99999, helper_ident="ps:Mon  2 Nov 12:00:00 2026", started_at=time.time() - 300)
+                path.write_text(json.dumps(m), encoding="utf-8")
+                seams = Live(sleep=lambda s: None, platform=Plat(how))
+                self.assertIsNone(seams.identity(99999))
+                self.assertTrue(seams.helper_running(99999, "ps:Mon  2 Nov 12:00:00 2026"))
+                code, result = h.finish(fx.data, seams)
+                self.assertEqual((code, result["status"]), (h.BUSY, "busy"))
+                self.assertTrue(path.exists())
+        # a readable, different identity is still a recycled id
+        seams = Live(sleep=lambda s: None, platform=Plat("other"))
+        self.assertFalse(seams.helper_running(99999, "ps:Mon  2 Nov 12:00:00 2026"))
+
     def test_the_helper_records_who_it_is_so_a_recycled_id_can_be_told(self):
         with tempfile.TemporaryDirectory() as t:
             fx = Fixture(t)
