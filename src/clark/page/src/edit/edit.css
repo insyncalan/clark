@@ -42,8 +42,14 @@
 .ma-name { grid-column: 1; overflow-wrap: anywhere; }
 .ma-row .tag { grid-column: 1; justify-self: start; }
 .ma-meta { grid-column: 1; font-size: var(--size-small); }
-.ma-restore { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
-.ma-note { margin: 4px 0 0; font-size: var(--size-small); }
+.ma-name.link { justify-self: start; text-align: left; font-size: var(--size-body); }
+/* An archived milestone in the peek (edit/ArchivedPeek.jsx): the page's own peek, read only, with one note and Restore. Tokens only. */
+.pk-archnote { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.pk-archnote p { margin: 0 0 8px; }
+.pk-archnote p:last-child, .pk-archnote .btn:last-child { margin-bottom: 0; }
+.pk-bar .tag { margin-left: 4px; }
+/* The Dashboard's line under the Milestones block that brings a milestone back (edit/MsAddBack.jsx). */
+.ms-addback { margin: 8px 0 0 4px; }
 .mv-en-why { flex-basis: 100%; font-size: 14px; color: var(--text-muted); }
 .mvm-help { margin: 0 0 8px; }
 .mvm-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; }
