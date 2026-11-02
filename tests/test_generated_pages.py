@@ -33,7 +33,7 @@ class EnsureBuilt(unittest.TestCase):
             self.addCleanup(p.stop)
 
     def test_a_download_never_calls_the_bundler(self):
-        with mock.patch.object(page, "BUILDER", self.tmp / "dev" / "build_page.py"), mock.patch.object(page.subprocess, "run") as run:
+        with mock.patch.object(page, "BUILDER", self.tmp / "dev" / "build_page.py"), mock.patch.object(page.platform.subprocess, "run") as run:
             with self.assertRaises(page.PageError):
                 page.ensure_built()
             for p in self.pages:
@@ -49,7 +49,7 @@ class EnsureBuilt(unittest.TestCase):
             for p in self.pages:
                 p.write_text("built", encoding="utf-8")
             return subprocess.CompletedProcess(a, 0, "", "")
-        with mock.patch.object(page, "BUILDER", builder), mock.patch.object(page.subprocess, "run", side_effect=fake) as run:
+        with mock.patch.object(page, "BUILDER", builder), mock.patch.object(page.platform.subprocess, "run", side_effect=fake) as run:
             page.ensure_built()
             page.ensure_built()
             self.assertEqual(run.call_count, 1)
@@ -75,7 +75,7 @@ class EnsureBuilt(unittest.TestCase):
                 seen.append([p.read_text(encoding="utf-8") for p in self.pages])
             except Exception as e:      # noqa: BLE001
                 errors.append(e)
-        with mock.patch.object(page, "BUILDER", builder), mock.patch.object(page.subprocess, "run", side_effect=fake) as run:
+        with mock.patch.object(page, "BUILDER", builder), mock.patch.object(page.platform.subprocess, "run", side_effect=fake) as run:
             threads = [threading.Thread(target=worker) for _ in range(6)]
             for t in threads:
                 t.start()
@@ -89,7 +89,7 @@ class EnsureBuilt(unittest.TestCase):
         builder = self.tmp / "build_page.py"
         builder.write_text("", encoding="utf-8")
         bad = subprocess.CompletedProcess([], 1, "", "esbuild could not be fetched\n")
-        with mock.patch.object(page, "BUILDER", builder), mock.patch.object(page.subprocess, "run", return_value=bad):
+        with mock.patch.object(page, "BUILDER", builder), mock.patch.object(page.platform.subprocess, "run", return_value=bad):
             with self.assertRaises(page.PageError) as said:
                 page.ensure_built()
         self.assertIn("esbuild could not be fetched", str(said.exception))
@@ -115,7 +115,7 @@ page.PAGE, page.VIEW_PAGE = tmp / "page.html", tmp / "page-view.html"
 page.BUILDER, page.CACHE = tmp / "build_page.py", tmp / "cache"
 page.STAMP, page.LOCK = page.CACHE / "pages.stamp", page.CACHE / "pages.lock"
 page.source_stamp = lambda: "same"
-with mock.patch.object(page.subprocess, "run", side_effect=fake):
+with mock.patch.object(page.platform.subprocess, "run", side_effect=fake):
     page.ensure_built()
 """
 
@@ -130,7 +130,7 @@ class CrossProcess(unittest.TestCase):
                      for _ in range(2)]
             errs = [p.communicate()[1] for p in procs]
             self.assertEqual([p.returncode for p in procs], [0, 0], errs)
-            self.assertEqual((tmp / "runs").read_text(), "x")
+            self.assertEqual((tmp / "runs").read_text(encoding="utf-8"), "x")
 
 
 class Stamp(unittest.TestCase):
@@ -172,7 +172,7 @@ class Stamp(unittest.TestCase):
         with mock.patch.object(page, "PAGE", pages[0]), mock.patch.object(page, "VIEW_PAGE", pages[1]), \
                 mock.patch.object(page, "BUILDER", builder), mock.patch.object(page, "CACHE", self.root / "cache"), \
                 mock.patch.object(page, "STAMP", self.root / "cache/pages.stamp"), mock.patch.object(page, "LOCK", self.root / "cache/l"), \
-                mock.patch.object(page.subprocess, "run", side_effect=fake) as run:
+                mock.patch.object(page.platform.subprocess, "run", side_effect=fake) as run:
             for expect in (1, 1, 2):
                 with mock.patch.object(page, "_checked", False):
                     if expect == 2:

@@ -29,10 +29,11 @@ without that element, when there is a local brand, raises PageError rather than 
 import hashlib
 import os
 import re
-import subprocess
 import sys
 import threading
 from pathlib import Path
+
+from clark import platform
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
@@ -220,7 +221,7 @@ def ensure_built():
             return
         want = source_stamp()
         if not all(p.is_file() for p in pages) or not _stamp_is(want):
-            done = subprocess.run([sys.executable, str(BUILDER)], cwd=str(ROOT), capture_output=True, text=True)
+            done = platform.run_program([sys.executable, BUILDER], cwd=ROOT)
             if done.returncode != 0 or not all(p.is_file() for p in pages):
                 raise PageError("The page could not be built (python3 dev/tools/build_page.py): "
                                 + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
