@@ -49,9 +49,10 @@ function AboutYou() {
       setSaid({ name: "", email: "" });
       return;
     }
-    const mine = field === "name" ? name : email;
-    if ((mine.current ? mine.current.value : typed[field]) !== sent[field]) return;
-    setSaid({ name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
+    // the refusal is shown under the box it is about (the route says which); a refusal that names none goes under the box that was left
+    const about = r.field || field, mine = about === "name" ? name : email;
+    if ((mine.current ? mine.current.value : typed[about]) !== sent[about]) return;
+    setSaid({ name: about === "name" ? r.message : "", email: about === "email" ? r.message : "" });
   };
   const box = (field, label, type, line, ref) => (
     <div class="fld">
