@@ -131,3 +131,41 @@ def set_profile(data_dir, name, email):
     current[PROFILE_NAME], current[PROFILE_EMAIL] = clean_name, clean_email
     platform.write_file(path, json.dumps(current, indent=2, sort_keys=True) + "\n")
     return {"name": clean_name, "email": clean_email}
+
+
+# ===== AI sign-in (#446, Settings › AI) =====
+# Two ordinary words, kept in the same file: HOW Claude is connected (never the key: a key is only ever in the Mac's keychain) and the
+# model ask clark is to use. A value that is not one of the words given is read as not set, so a bad file never turns anything on.
+AI_HOW = "ai_claude_how"
+AI_MODEL = "ai_model"
+AI_UNREADABLE = "Your settings couldn't be read, so the AI choice was not changed."
+
+
+def ai_choice(data_dir, key, allowed):
+    """The saved word for `key` when it is one of `allowed`, else ""."""
+    value = read(data_dir).get(key)
+    return value if isinstance(value, str) and value in allowed else ""
+
+
+def set_ai_choice(data_dir, changes, allowed):
+    """Save {key: word} (a word of `allowed[key]`, or "" to clear it), leaving every other setting as it is. Raises ValueError for a
+    key or word that is not allowed, and when the file can't be read (it is never replaced then)."""
+    if not isinstance(changes, dict) or any(k not in allowed or not isinstance(v, str) or (v and v not in allowed[k]) for k, v in changes.items()):
+        raise ValueError("not an AI choice")
+    data_dir = Path(data_dir)
+    current = read(data_dir)
+    path = data_dir / FILE
+    if not current and (path.is_symlink() or path.exists()):
+        try:
+            readable = (not path.is_symlink() and path.is_file() and path.stat().st_size <= LIMIT
+                        and isinstance(json.loads(path.read_text(encoding="utf-8")), dict))
+        except (OSError, ValueError, RecursionError):
+            readable = False
+        if not readable:
+            raise ValueError(AI_UNREADABLE)
+    for k, v in changes.items():
+        if v:
+            current[k] = v
+        else:
+            current.pop(k, None)
+    platform.write_file(path, json.dumps(current, indent=2, sort_keys=True) + "\n")

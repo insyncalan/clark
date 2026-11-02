@@ -265,6 +265,70 @@ def data_lock_held(folder):
     return False
 
 
+# The keychain (#446): one secret kept for clark in the Mac's login keychain, and nowhere else
+
+SECURITY_PROGRAM = "/usr/bin/security"
+KEYCHAIN_LIMIT = 15.0            # seconds for one call of the program
+KEYCHAIN_SECRET = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~+/=-]{11,511}")     # one line of plain key characters: nothing that needs quoting
+KEYCHAIN_FAILED = "The Mac's keychain could not be used just now. Nothing was kept."
+KEYCHAIN_NAME = re.compile(r"[a-z][a-z0-9.-]{2,60}")
+
+
+def _keychain_env():
+    """What the program is started with: the person's home (it finds the login keychain there) and a fixed path; never clark's environment."""
+    return {"HOME": str(Path.home()), "PATH": "/usr/bin:/bin"}
+
+
+def _keychain_name(value):
+    if not isinstance(value, str) or not KEYCHAIN_NAME.fullmatch(value):
+        raise ValueError("a keychain name is a short fixed word")
+    return value
+
+
+def keychain_save(service, account, secret, run=None, on=None):
+    """Keep `secret` in the login keychain as the item `service` / `account`, replacing any that is there. The secret goes to the
+    program on its STANDARD INPUT (its interactive mode reads the command from there), never in its arguments, its environment,
+    a file or a log; the item is made with an empty list of trusted programs (`-T ""`), so no program can read it back without
+    the person approving that. Returns True when the item is there afterwards, else False; raises PlatformError (fixed words, never
+    the secret) when the program cannot be run, and ValueError for a secret that is not one line of plain key characters (which
+    could not be passed safely). The program's own output and error are thrown away: they could hold the secret."""
+    _only_mac("Keeping a key", on)
+    service, account = _keychain_name(service), _keychain_name(account)
+    if not isinstance(secret, str) or not KEYCHAIN_SECRET.fullmatch(secret):
+        raise ValueError("not a key that can be kept")
+    keychain_remove(service, account, run=run, on=on)
+    command = f'add-generic-password -s "{service}" -a "{account}" -l "{service}" -w "{secret}" -T ""\n'
+    try:
+        (run or subprocess.run)([SECURITY_PROGRAM, "-i"], input=command, capture_output=True, text=True, check=False,
+                                timeout=KEYCHAIN_LIMIT, env=_keychain_env())
+    except (OSError, subprocess.SubprocessError):
+        raise PlatformError(KEYCHAIN_FAILED) from None
+    return keychain_has(service, account, run=run, on=on)
+
+
+def keychain_has(service, account, run=None, on=None):
+    """True when the item is in the keychain. Asks for its description only (the program is not given -w or -g), so the secret is never
+    read, and no approval is needed."""
+    _only_mac("Checking a key", on)
+    args = [SECURITY_PROGRAM, "find-generic-password", "-s", _keychain_name(service), "-a", _keychain_name(account)]
+    try:
+        done = (run or subprocess.run)(args, capture_output=True, text=True, check=False, timeout=KEYCHAIN_LIMIT, env=_keychain_env())
+    except (OSError, subprocess.SubprocessError):
+        raise PlatformError(KEYCHAIN_FAILED) from None
+    return done.returncode == 0
+
+
+def keychain_remove(service, account, run=None, on=None):
+    """Take the item out of the keychain; True when it is not there afterwards (a missing item counts)."""
+    _only_mac("Removing a key", on)
+    args = [SECURITY_PROGRAM, "delete-generic-password", "-s", _keychain_name(service), "-a", _keychain_name(account)]
+    try:
+        (run or subprocess.run)(args, capture_output=True, text=True, check=False, timeout=KEYCHAIN_LIMIT, env=_keychain_env())
+    except (OSError, subprocess.SubprocessError):
+        raise PlatformError(KEYCHAIN_FAILED) from None
+    return not keychain_has(service, account, run=run, on=on)
+
+
 # Opening files and the system's own dialogs
 
 def _run(args, run=None):

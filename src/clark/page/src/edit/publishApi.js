@@ -60,3 +60,11 @@ export const askFoldersChange = (project, action, path) => call("POST", "/api/as
 // takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
 export const askEnabledRead = () => call("GET", "/api/ask-enabled");
 export const askEnabledChange = (enabled) => call("POST", "/api/ask-enabled", { enabled });
+
+// Settings › AI (#446): GET /api/ai-connect says whether Claude is connected; POST /api/ai-connect connects it (a key, once, goes to the Mac's
+// keychain by the server and is never answered back); POST /api/ai-disconnect takes it out; POST /api/ai-model chooses the model. The
+// answers hold words and true or false, never a key. Nothing here keeps what it is given.
+export const aiConnectRead = () => call("GET", "/api/ai-connect");
+export const aiConnectSend = (how, key) => call("POST", "/api/ai-connect", key === undefined ? { provider: "claude", how } : { provider: "claude", how, key });
+export const aiDisconnectSend = () => call("POST", "/api/ai-disconnect", { provider: "claude" });
+export const aiModelSend = (model) => call("POST", "/api/ai-model", { model });

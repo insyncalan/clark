@@ -449,3 +449,18 @@ textarea.tpl-field { resize: vertical; }
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
+
+/* Settings › AI, Edit parts only: a tile for each provider, the one that is not ready dashed and grey, and the connect box's choice of how. */
+.ai-provs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.ai-prov { border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 12px 14px; }
+.ai-prov.on { border-color: var(--brand-blue); }
+.ai-prov.later { background: var(--grey-50); border-style: dashed; }
+.setting .ai-prov h3 { margin: 0 0 4px; font-size: 16px; display: flex; gap: 8px; align-items: center; }
+.ai-prov p { font-size: 13px; margin: 0 0 10px; }
+.ai-prov .ai-how { color: var(--text); }
+.ai-model { margin-top: 12px; }
+.ai-model select { min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ai-model select:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.ai-how-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
+#ai-connect-dialog .pub-field { margin: 0 0 8px; }
+.ai-msg { margin: 0; min-height: 1.4em; font-size: var(--size-small); }

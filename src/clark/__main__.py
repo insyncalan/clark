@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, ai_connect, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -397,6 +397,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         server.set_open_files(appfiles.open_files())
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
         server.set_data_mark(appfiles.data_mark(store.path.parent))
+        claude = ask_claude.ClaudeCommand()
         shown = ServerOutput(out, code, open_url if args.open else None, err)
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
@@ -417,7 +418,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      safety=safety.Safety(store.path, roots), logs=logs,
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
-                     ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
+                     ask=ask_service.AskService(store.path, claude, roots),
+                     ai_connect=ai_connect.AiConnect(store.path.parent, provider=claude),       # #446: Settings › AI; a key goes to the keychain only
                      # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system
                      # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
