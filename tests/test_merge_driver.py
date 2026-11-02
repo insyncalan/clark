@@ -41,6 +41,8 @@ class MergeDriverTests(unittest.TestCase):
         shutil.copytree(ROOT, self.repo, ignore=LEFT_OUT, symlinks=True)       # the sources, the build and the cached esbuild
         run(self.repo, "git", "init", "-q", "-b", "main")
         run(self.repo, "git", "add", "-A")
+        run(self.repo, sys.executable, "dev/tools/build_page.py")      # #495: this repository no longer tracks the pages, but the driver exists for old branches that do
+        run(self.repo, "git", "add", "-f", *PAGES)             # so the scratch history tracks them, whatever the real repository does
         run(self.repo, "git", "add", "-f", "vendor")           # the real repository tracks vendored dist folders that .gitignore's dist/ would skip
         run(self.repo, "git", "commit", "-q", "-m", "base")
 
