@@ -18,7 +18,7 @@ export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snap
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
 const start = route.current();
 export const project = signal(start.project);
-export const view = signal(start.view);
+export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
@@ -39,7 +39,8 @@ export const fromFile = signal(false);       // true when the page is a publishe
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
-export const tabs = signal(VIEWS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
+export const SERVED_TABS = VIEWS.filter((v) => v !== "clientreport");   // the served page never offers the client report (#559); only a published file lists it, from its own p.tabs
+export const tabs = signal(SERVED_TABS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
 export const moves = signal(0);              // counts Back and Forward (and a typed address): a menu that is open closes on each
 export const projects = signal([]);                 // [{code, name}] from GET /api/projects
 export const projectsState = signal("loading");     // loading | ready | failed
@@ -63,6 +64,7 @@ const where = () => ({ view: view.value, project: project.value, item: item.valu
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
 // stays on the file's project and opens its first tab, as a reload of that address does.
 function apply(s) {
+  if (!fromFile.value && s.view === "clientreport") s = { ...s, view: SERVED_TABS[0] };   // #559
   if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
   batch(() => {                                          // one move: an effect (the client's kept choices) sees the page and its filters together, never a new page with the old page's filters
@@ -206,6 +208,11 @@ function published() {
     const p = JSON.parse(el.textContent);
     return p && p.v === 1 && p.data && p.data.project && Array.isArray(p.tabs) ? p : "bad";
   } catch (e) { return "bad"; }
+}
+
+/** True when the page is a published file: it has its data in it and never waits for a server, so it never shows a loading placeholder. */
+export function isFile() {
+  return published() !== null;
 }
 
 function openPublished(p) {
