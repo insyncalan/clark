@@ -208,14 +208,14 @@ class Launch(unittest.TestCase):
         f = Fakes([launch.NOT_CLARK])
         self.assertEqual(self.run_launch(f), 1)
         self.assertEqual((f.started, f.windows, f.browser), ([], [], []))
-        self.assertEqual(f.said, ["Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. Close that Terminal window or program, then double-click clark.command again. If that does not help, restart your Mac.\nIf you can't close it, open Terminal in the clark folder and type: "
+        self.assertEqual(f.said, ["Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. Close that Terminal window or program, then double-click clark.command again.\nIf you can't close it, open Terminal in the clark folder and type: "
                                   "./clark.command --port 8801"])
 
     def test_a_port_with_no_easy_free_port_near_it_still_gives_a_way_out(self):
         text = launch.report(launch.NOT_CLARK, 8800, self.folder, free=lambda p: False)
-        self.assertEqual(text, "Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. Close that Terminal window or program, then double-click clark.command again. If that does not help, restart your Mac.")
+        self.assertEqual(text, "Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. Close that Terminal window or program, then double-click clark.command again.")
         text = launch.report(launch.NOT_CLARK, 8800, self.folder, free=lambda p: p == 8801)
-        self.assertEqual(text, "Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. Close that Terminal window or program, then double-click clark.command again. If that does not help, restart your Mac.\n"
+        self.assertEqual(text, "Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. Close that Terminal window or program, then double-click clark.command again.\n"
                                "If you can't close it, open Terminal in the clark folder and type: ./clark.command --port 8801")
         self.assertNotIn("port 8800", text.lower().replace("--port", ""))
 
@@ -225,15 +225,15 @@ class Launch(unittest.TestCase):
         f = Fakes([launch.NOTHING], process_exits=True)
         self.assertEqual(self.run_launch(f), 1)
         self.assertEqual(f.windows, [])
-        self.assertEqual(f.said[-1], "It didn't start. Close this window and try again. If it still doesn't start, send the file "
-                                     f"{self.folder / 'server.log'} to the clark team.")
+        self.assertEqual(f.said[-1], "Nothing opened, because clark did not finish starting. Close this window, then double-click clark.command again. "
+                                     f"If it still does not start, send the file {self.folder / 'server.log'} to the clark team. It records what went wrong.")
         self.assertNotIn("clark.db", f.said[-1])
 
     def test_a_clark_that_does_not_start_and_leaves_no_log_still_says_where_to_look(self):
         f = Fakes([launch.NOTHING])
         self.assertEqual(self.run_launch(f), 1)
-        self.assertEqual(f.said[-1], "It didn't start. Close this window and try again. If it still doesn't start, send the file "
-                                     f"{self.folder / 'server.log'} to the clark team.")
+        self.assertEqual(f.said[-1], "Nothing opened, because clark did not finish starting. Close this window, then double-click clark.command again. "
+                                     f"If it still does not start, send the file {self.folder / 'server.log'} to the clark team. It records what went wrong.")
 
     def test_someone_else_taking_the_port_while_it_starts_is_reported_not_opened(self):
         f = Fakes([launch.NOTHING, launch.NOT_CLARK])
@@ -242,9 +242,9 @@ class Launch(unittest.TestCase):
         self.assertIn("is using the connection it needs", f.said[-1])
 
     def test_a_start_the_system_refuses_is_said_in_the_systems_plain_words(self):
-        f = Fakes([launch.NOTHING], fail_start="The app could not start. Try again; if it keeps happening, send the file ~/x to the clark team.")
+        f = Fakes([launch.NOTHING], fail_start="Nothing was started, because this Mac would not run clark. Close this window and try again. If it keeps happening, send the file ~/x to the clark team.")
         self.assertEqual(self.run_launch(f), 1)
-        self.assertEqual(f.said[-1], "The app could not start. Try again; if it keeps happening, send the file ~/x to the clark team.")
+        self.assertEqual(f.said[-1], "Nothing was started, because this Mac would not run clark. Close this window and try again. If it keeps happening, send the file ~/x to the clark team.")
 
     def test_no_chrome_opens_the_default_browser_and_says_so(self):
         f = Fakes([launch.OURS], chrome=None)
@@ -256,9 +256,9 @@ class Launch(unittest.TestCase):
     def test_a_window_the_system_cannot_open_says_the_address(self):
         f = Fakes([launch.OURS])
         kw = f.kw()
-        kw["open_window"] = lambda u, c: (_ for _ in ()).throw(pl.PlatformError("The window could not be opened."))
+        kw["open_window"] = lambda u, c: (_ for _ in ()).throw(pl.PlatformError("Chrome could not be started, so clark's window did not open."))
         self.assertEqual(launch.launch(8800, self.folder, **kw), 1)
-        self.assertEqual(f.said[-1], "The window could not be opened. Open this address in your browser: http://127.0.0.1:8800/")
+        self.assertEqual(f.said[-1], "Chrome could not be started, so clark's window did not open. The clark server is still running. To use it, open this address in your browser: http://127.0.0.1:8800/")
 
     def test_the_address_is_always_127_0_0_1(self):
         self.assertEqual(launch.address(8766), "http://127.0.0.1:8766/")
@@ -371,10 +371,10 @@ class Main(unittest.TestCase):
 
     def test_a_port_that_is_not_a_number_is_one_plain_line_and_exit_2(self):
         self.assertEqual(self.main(["--port", "abc"]), 2)
-        self.assertEqual(self.said, ["The port setting (--port) must be a whole number from 1 to 65535."])
+        self.assertEqual(self.said, ["The start-up number (set with --port) must be a whole number from 1 to 65535. Change it, then start clark again."])
         self.said.clear()
         self.assertEqual(self.main([], {"CLARK_PORT": "70000"}), 2)
-        self.assertEqual(self.said, ["The port setting (CLARK_PORT) must be a whole number from 1 to 65535."])
+        self.assertEqual(self.said, ["The start-up number (set with CLARK_PORT) must be a whole number from 1 to 65535. Change it, then start clark again."])
 
     def test_a_data_folder_inside_onedrive_is_refused_before_anything_starts(self):
         root = self.home / "OneDrive-Fictional"
@@ -483,7 +483,7 @@ class RunsFromTheTopFolder(unittest.TestCase):
             done = subprocess.run([BASH, str(ROOT / "clark.command"), "--port", "abc"], cwd=tmp, env=self.env(tmp), stdin=subprocess.DEVNULL,
                                   capture_output=True, text=True, encoding="utf-8", timeout=60)
             self.assertEqual(done.returncode, 2, done.stderr)
-            self.assertIn("The port setting (--port) must be a whole number from 1 to 65535.", done.stdout)
+            self.assertIn("The start-up number (set with --port) must be a whole number from 1 to 65535. Change it, then start clark again.", done.stdout)
             self.assertEqual(os.listdir(tmp), [], "no data folder was made")
 
 
@@ -535,7 +535,7 @@ class PlatformCalls(unittest.TestCase):
         def popen(argv, **kw):
             raise FileNotFoundError(2, "No such file or directory")
         with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(pl.PlatformError, r"^The app could not start\. Try again; if it keeps happening, send the file .*server\.log to the clark team\.$"):
+            with self.assertRaisesRegex(pl.PlatformError, r"^Nothing was started, because this Mac would not run clark\. Close this window and try again\. If it keeps happening, send the file .*server\.log to the clark team\.$"):
                 pl.start_detached(["a"], {}, Path(tmp) / "server.log", popen=popen, on=pl.MAC)
 
     def test_the_app_window_is_chrome_with_app_equals_the_address(self):
@@ -553,7 +553,7 @@ class PlatformCalls(unittest.TestCase):
 
         def popen(argv, **kw):
             raise PermissionError(13, "Permission denied")
-        with self.assertRaisesRegex(pl.PlatformError, r"^The window could not be opened\.$"):
+        with self.assertRaisesRegex(pl.PlatformError, r"^Chrome could not be started, so clark's window did not open\.$"):
             pl.open_app_window("http://127.0.0.1:1/", "/stub", popen=popen, on=pl.MAC)
 
     def test_every_windows_branch_is_not_built_yet(self):
