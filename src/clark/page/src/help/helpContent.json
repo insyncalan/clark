@@ -640,14 +640,14 @@
     "id": "update-clark",
     "g": "Settings and safety",
     "t": "Update clark",
-    "w": "Settings › clark version and updates",
+    "w": "Settings › Version and updates",
     "go": "settings#update",
     "s": [
-     "Open [Settings](go:settings#update) and find **clark version and updates**. **Installed** is the version you have now.",
-     "Download the new release, clark-X.Y.Z.zip, from the release page. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** and pick the file. Not the source code zip.",
+     "Open Settings and find **Version and updates**. **Installed** is the version you have now.",
+     "Download the new release, clark-X.Y.Z.zip, from the release page. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** and pick the file. It is the clark-X.Y.Z.zip attached to the release, not the source code zip.",
      "Read the review: the version change, the release notes, the files replaced and added. Your projects, settings and published reports are kept, and everything is backed up first.",
-     "Press **Install clark X.Y.Z**. When it is done, restart clark to finish.",
-     "To go back, press **Undo update** in the **Last update** row, then **Confirm undo** within five seconds. More in [Updating clark](#ref-updating-clark)."
+     "Press **Install**. When it is done, clark restarts by itself.",
+     "To go back, press **Undo update** in the **Last update** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
     ]
    }
   ]
@@ -1475,16 +1475,16 @@
     "id": "updating-clark",
     "g": "Settings and data",
     "t": "Updating clark",
-    "w": "Settings › clark version and updates",
+    "w": "Settings › Version and updates",
     "b": [
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says **Up to date**, or **Review X.Y.Z** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check.",
-       "**Choose zip…** takes a release file you saved. It must be named clark-X.Y.Z.zip, from the release page: not the source code zip.",
-       "**Review** shows the version change, the release notes (**Copy the notes**), how many files are replaced and added, and that your projects, settings and published reports are kept.",
+       "**Installed** is the version you have. **Update** says **Up to date**, or **Review X.Y.Z** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check, so the hint under **Up to date** points you to the release page.",
+       "**Choose zip…** takes a release file you saved. The hint under it reads: the clark-X.Y.Z.zip attached to the release, not the source code zip. If you pick the source code zip by mistake, clark says so and changes nothing.",
+       "**Review X.Y.Z** shows the version change, the release notes (**Copy** puts them on the clipboard), how many files are replaced and added, and that your projects, settings and published reports are kept.",
        "Everything is backed up first, and if a step fails clark puts the old version back. A release is checked file by file against its list of checksums before anything changes.",
-       "**Undo update** goes back to the version before: press it, then **Confirm undo** within five seconds."
+       "**Undo update**, in the **Last update** row, goes back to the version before: press it, then press it again within five seconds."
       ]
      ]
     ]

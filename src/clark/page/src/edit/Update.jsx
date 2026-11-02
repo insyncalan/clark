@@ -1,4 +1,4 @@
-// Settings › Version and updates: what is installed, "Review X.Y.Z" or "Up to date.", Choose zip…, the Review panel (Install is a
+// Settings › Version and updates: four labelled rows with a hint each (Installed, Update, Install from a file, Last update; #445): what is installed, "Review X.Y.Z" or "Up to date.", Choose zip…, the Review panel (Install is a
 // second click), and Undo update (arm, then confirm). Edit parts only (a published file has no Settings). The server decides and
 // checks everything; this draws its answers in plain words (logic/update.js). `api`, `reload`, `sleep` and `copy` are seams for
 // the tests; the page passes none of them.
@@ -102,27 +102,41 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
       {state.phase === "failed" ? <p class="error">{state.message} <button type="button" class="btn sm" data-update-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {st ? (
         <>
-          <p id="update-installed"><b>{st.installed}</b></p>
-          {st.blocked ? <p id="update-blocked">{st.blocked}</p> : (
-            <div class="row">
-              {st.review ? <button type="button" class="btn pri" data-review disabled={busy} onClick={() => review("downloads", false)}>{st.review}</button>
-                : <p id="update-line" class="muted">{st.line}</p>}
-              <button type="button" class="btn" data-choose disabled={busy} onClick={() => review("file", false)}>{L.LABELS.choose}</button>
-              {again ? <button type="button" class="btn" data-install-again disabled={busy} onClick={() => review(again, true)}>{L.LABELS.installAgain}</button> : null}
-            </div>
-          )}
-          {st.last ? (
-            <div class="row" id="update-last">
-              <p class="muted">{st.last}</p>
-              {armed ? (
-                <>
-                  <p id="update-armed">{armed.line}</p>
-                  <button type="button" class="btn pri" data-undo-confirm disabled={busy} onClick={confirmUndo}>
-                    {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button>
-                </>
-              ) : <button type="button" class="btn" data-undo disabled={busy} onClick={arm}>{L.LABELS.undo}</button>}
-            </div>
-          ) : null}
+          <div class="upd-rows">
+            <span class="fl">{L.ROWS.installed}</span>
+            <div class="fc"><b id="update-installed">{st.installed}</b></div>
+            {st.blocked ? <><span class="fl">{L.ROWS.update}</span><div class="fc"><p id="update-blocked">{st.blocked}</p></div></> : (
+              <>
+                <span class="fl">{L.ROWS.update}</span>
+                <div class="fc">
+                  {st.review ? <button type="button" class="btn pri sm" data-review disabled={busy} onClick={() => review("downloads", false)}>{st.review}</button>
+                    : <span id="update-line" class="muted">{st.line}</span>}
+                  <small id="update-hint">{st.hint}</small>
+                </div>
+                <span class="fl">{L.ROWS.file}</span>
+                <div class="fc">
+                  <button type="button" class="btn sm" data-choose disabled={busy} onClick={() => review("file", false)}>{L.LABELS.choose}</button>
+                  {again ? <button type="button" class="btn sm" data-install-again disabled={busy} onClick={() => review(again, true)}>{L.LABELS.installAgain}</button> : null}
+                  <small id="update-file-hint">{L.CHOOSE_HINT}</small>
+                </div>
+              </>
+            )}
+            {st.last ? (
+              <>
+                <span class="fl">{L.ROWS.last}</span>
+                <div class="fc" id="update-last">
+                  <span class="muted">{st.last}</span>
+                  {armed ? (
+                    <>
+                      <small id="update-armed">{armed.line}</small>
+                      <button type="button" class="btn sm pri" data-undo-confirm disabled={busy} onClick={confirmUndo}>
+                        {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button>
+                    </>
+                  ) : <button type="button" class="btn sm" data-undo disabled={busy} onClick={arm}>{L.LABELS.undo}</button>}
+                </div>
+              </>
+            ) : null}
+          </div>
         </>
       ) : null}
       {panel ? (

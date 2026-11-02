@@ -288,11 +288,11 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        SEC = ["howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "ref-section-templates", "ref-keys"]
+        SEC = ["howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-update-clark", "ref-section-templates", "ref-updating-clark", "ref-keys"]   # #445: the two update entries are shown
         self.assertEqual(s["places"], SEC)
         self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:4])
-        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], SEC[4:])
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:5])
+        self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], SEC[5:])
         self.assertEqual(s["index"], SEC)
         self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "howto-add-a-section-from-a-template", "ref-keys"], ["work", "dashboard+edit"]))
         for q in ("peek", "sneak"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match

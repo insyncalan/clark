@@ -33,7 +33,6 @@
   "set-up-a-project": "project settings",
   "set-your-profile": "the profile",
   "undo-a-mistake": "history",
-  "update-clark": "updates",
   "show-progress": "the Progress tracker template (it can be added once it is in the Add a section box)"
  },
  "reference": {
@@ -58,7 +57,6 @@
   "publishing": "Publish",
   "client-page": "the published page",
   "settings": "Settings",
-  "updating-clark": "updates",
   "diagnostics": "diagnostics",
   "excel": "Import and Export",
   "saving": "history and ask clark",

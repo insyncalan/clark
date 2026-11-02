@@ -28,6 +28,12 @@ export const COPIED = "The release notes are copied.";
 export const NOT_COPIED = "The release notes couldn't be copied. Select them and copy them yourself.";
 export const SLOW = "The new version is taking a while to start. Close every clark window, then open clark again.";
 export const DISARMED = "Undo update was not confirmed in time, so nothing was changed.";
+// The labelled rows and their hints (#445, the prototype's Settings card).
+export const ROWS = { installed: "Installed", update: "Update", file: "Install from a file", last: "Last update" };
+export const UP_TO_DATE = "Up to date.";            // the server says it too (updater.UP_TO_DATE); the page keeps its own for a status without the line
+export const UP_TO_DATE_HINT = "Download the new release from the clark releases page, then choose the zip below.";
+export const CHOOSE_HINT = "The clark-X.Y.Z.zip attached to the release, not the source code zip.";
+export const readyHint = (label) => `Version ${String(label).replace(/^Review /, "")} is ready to install.`;
 export const LABELS = { choose: "Choose zip…", install: "Install", installAgain: "Install again", cancel: "Cancel", copy: "Copy",
   files: "Show the files", undo: "Undo update", undoConfirm: "Undo update", appOnly: "Put back the app and settings only", tryAgain: "Try again" };
 
@@ -58,14 +64,15 @@ export function reviewView(r) {
   };
 }
 
-// The status block: one of "blocked", "update" (a button "Review X.Y.Z") or "line" ("Up to date.").
+// The status block: one of "blocked", "update" (a button "Review X.Y.Z") or "line" ("Up to date."), with the hint for the Update row.
 export function statusView(s) {
   return {
     installed: text(s.installed, 200),
     blocked: s.blocked ? text(s.blocked, 600) : "",
     review: s.available && typeof s.available.label === "string" ? text(s.available.label, 40) : "",
-    line: s.line ? text(s.line, 200) : "",
-    last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200) : "",
+    line: s.line ? text(s.line, 200) : (s.available ? "" : UP_TO_DATE),
+    hint: s.available && typeof s.available.label === "string" ? readyHint(text(s.available.label, 40)) : UP_TO_DATE_HINT,
+    last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200).replace(/^Last update: /, "") : "",
     notice: s.notice ? text(s.notice, 600) : "",
   };
 }

@@ -97,12 +97,12 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "update-clark"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "updating-clark", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
-        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
+        self.assertEqual(s["howto"]["groups"], ["Work items", "The report", "Settings and safety"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
@@ -118,6 +118,9 @@ class AgainstThePage(unittest.TestCase):
     def test_every_bold_name_shown_is_on_the_page(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
         code = norm(self.HELPCODE)
+        # "Review X.Y.Z" stands for the button Review plus the version (#209: Help never prints a real-looking version); its proof is the page's "Review " label
+        code += "\nReview X.Y.Z"
+        self.assertIn("Review ", self.CODE)
         missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
@@ -154,7 +157,8 @@ class AgainstThePage(unittest.TestCase):
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
         # 58 measured on the merged tree (main is 59), names printed: one name left the absent list, Week ending, which this branch's report bar (A-D2) puts on the page
         # 56 with the Version and updates card on top of main's 58: Updates, Choose zip… and Undo update name things the page now draws (measured)
-        self.assertGreaterEqual(len(names), 56)
+        # 51 with the two update entries shown (#445): Installed, Update, Last update, Up to date, Review ... name things the Update card draws (measured by running this file)
+        self.assertGreaterEqual(len(names), 51)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

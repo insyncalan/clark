@@ -187,6 +187,37 @@ class Card(InBrowser):
         self.assertFalse(self.present("[data-review]"))
         self.assertEqual(self.text("#update-line"), "Up to date.")
 
+    def labels(self):
+        return self.val("[...document.querySelectorAll('#update .upd-rows > .fl')].map(e => e.textContent)")
+
+    def test_labelled_rows_each_with_a_hint(self):
+        """#445 rows 58 to 60 (prototype views.js 1285 to 1291): Installed, Update, Install from a file, then Last update when there is one."""
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}}
+        self.replies(status=OK(last))
+        self.mount()
+        self.assertEqual(self.labels(), ["Installed", "Update", "Install from a file", "Last update"])
+        self.assertEqual(self.text("#update-hint"), "Version 0.3.1 is ready to install.")
+        self.assertEqual(self.text("#update-file-hint"), "The clark-X.Y.Z.zip attached to the release, not the source code zip.")
+        self.assertTrue(self.val("document.querySelector('#update-last').closest('.upd-rows') !== null"))
+        self.replies(status=OK(STATUS))
+        self.mount()
+        self.assertEqual(self.labels(), ["Installed", "Update", "Install from a file"], "no Last update row without a last update")
+
+    def test_up_to_date_has_its_hint_about_downloading_the_new_release(self):
+        """#445 row 59."""
+        self.replies(status=OK({**STATUS, "available": None, "line": "Up to date."}))
+        self.mount()
+        self.assertEqual(self.text("#update-line"), "Up to date.")
+        self.assertEqual(self.text("#update-hint"), "Download the new release from the clark releases page, then choose the zip below.")
+        self.assertFalse(self.present("[data-review]"))
+
+    def test_choose_zip_hint_names_the_release_file_in_both_cases(self):
+        """#445 row 60: the hint is there with an update waiting and without one."""
+        for status in (STATUS, {**STATUS, "available": None, "line": "Up to date."}):
+            self.replies(status=OK(status))
+            self.mount()
+            self.assertIn("not the source code zip", self.text("#update-file-hint"))
+
     def test_a_copy_that_cannot_update_itself_says_why_and_offers_nothing(self):
         self.replies(status=OK({**STATUS, "available": None, "blocked": updates.MESSAGES["git"]}))
         self.mount()
@@ -257,7 +288,8 @@ class Card(InBrowser):
         self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": up.ARMED_FULL.format(to="0.3.0")}),
                      undo=OK({"ok": True, "restart": True, "message": up.UNDOING.format(to="0.3.0")}))
         self.mount()
-        self.assertIn("Last update: 0.3.0", self.text("#update-last"))
+        self.assertIn("0.3.0 → 0.3.1 on 01-11-2026.", self.text("#update-last"))
+        self.assertNotIn("Last update: Last update", self.text("#update"), "the row label is the label; the line does not repeat it")
         self.click("[data-undo]")
         self.assertEqual(self.calls(), ["status", "arm"], "the first click only arms")
         self.assertEqual(self.text("#update-armed"), up.ARMED_FULL.format(to="0.3.0"))

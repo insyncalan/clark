@@ -965,6 +965,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: 16px; }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+.upd-rows { display: grid; grid-template-columns: minmax(8rem, 11rem) 1fr; gap: 10px 16px; align-items: start; margin-top: 8px; }
+.upd-rows .fl { margin: 0; padding-top: 5px; }
+.upd-rows .fc { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.upd-rows .fc small { flex-basis: 100%; font-size: 13px; color: var(--text-muted); }
+.upd-rows .fc p { margin: 0; }
 .setting .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .folder-now { overflow-wrap: anywhere; }
 .backup-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
