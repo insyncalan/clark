@@ -425,6 +425,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port, migration_backup=store.migration_backup, open_db=store)   # demo data is never updated
         if updates_seam is not None:
             updates_seam.watch()              # records how an update or undo that started this server ended, once the helper is done
+        try:
+            page.ensure_built()          # #495: a source checkout builds its pages now, before the first request
+        except page.PageError as e:
+            print(str(e), file=err or sys.stderr)
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
                      err=err,

@@ -609,8 +609,23 @@ def main(argv):
     if a.list:
         print("\n".join(f"{f.name}{'  (browser)' if support.is_chrome(f) else ''}" for f in files))
         return 0
+    if not build_pages():
+        return 1
     return run_all(files, a.j, a.repeat, a.stress, timeout=a.file_timeout, rerun_max=a.rerun_max, max_fail=a.max_fail,
                    ids=ids)
+
+
+def build_pages():
+    """The generated pages are not committed (#495): make sure both exist and are current before any test reads them.
+    Nothing is built when they are newer than their sources. False (and a plain line) when the build fails."""
+    sys.path.insert(0, str(ROOT / "src"))
+    from clark import page
+    try:
+        page.ensure_built()
+    except page.PageError as e:
+        print(f"Cannot build the pages: {e}", flush=True)
+        return False
+    return True
 
 
 def repeat(files, n, jobs, stress=0, timeout=FILE_TIMEOUT, ids=None):
