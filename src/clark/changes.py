@@ -792,7 +792,7 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
 
 DOC_SHOWN = ("id",) + DOC_FIELDS + ("sort_order",)                  # #74: what a reply says of a document
 DOC_PLAIN = frozenset({DOC_KIND_WORDS, doclinks.TITLE_ELSEWHERE, doclinks.NOT_USABLE, doclinks.EMPTY, doclinks.TOO_LONG, doclinks.HIDDEN,
-                       doclinks.CREDENTIALS, doclinks.NO_SITE, doclinks.BAD_SITE, doclinks.BAD_PORT, doclinks.ONE_EMAIL, doclinks.BAD_EMAIL})
+                       doclinks.CREDENTIALS, doclinks.NO_SITE, doclinks.BAD_SITE, doclinks.BAD_PORT, doclinks.INTERNAL, doclinks.ONE_EMAIL, doclinks.BAD_EMAIL})
 
 
 def _real_day(text):

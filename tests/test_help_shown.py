@@ -154,7 +154,8 @@ class AgainstThePage(unittest.TestCase):
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
         # 58 on the merge with Show archived on Milestones (59 on main): the Supporting documents section (#74) is one more of Help's bold names on the page (measured on the merged tree)
         # 58 measured on the merged tree (main is 59), names printed: one name left the absent list, Week ending, which this branch's report bar (A-D2) puts on the page
-        self.assertGreaterEqual(len(names), 58)
+        # 57 measured on the merge of main into the supporting documents branch (#74): both branches each put one more Help name on the page, so one more is no longer absent (the floor follows the list, as at each earlier merge)
+        self.assertGreaterEqual(len(names), 57)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
