@@ -1,8 +1,9 @@
 """#192 Client Requested Report View: the new page beside the Dashboard, Work items and Milestones.
 
 Run: python3 dev/run_tests.py test_client_report
-Source tests (no browser) pin the view's id and name, the fixed order of its sections, that the published file's tab list does not
-carry it, and that its look uses tokens only. The browser tests (class Drawn, added with the sections) draw the page from the real
+Source tests (no browser) pin the view's id and name, the fixed order of its sections, that the published file's tab list carries it
+(the file's own checks are in test_client_report_file), the cover band, that the page says nothing to its author and explains nothing
+(the client reads it), and that its look uses tokens only. The browser tests (class Drawn, added with the sections) draw the page from the real
 server in View and in Edit at 1400 and 900 px, light and dark.
 """
 import json
@@ -29,7 +30,8 @@ def text(*parts):
 class Source(unittest.TestCase):
     def test_the_view_has_an_id_a_name_and_a_page(self):
         self.assertRegex(text("router.js"), r'export const VIEWS = \["dashboard", "work", "milestones", "usecases", "clientreport", "settings"\]')
-        self.assertIn('clientreport: "Client Requested Report View"', text("stores", "report.js"))
+        self.assertIn('"Client Requested Report View"', text("stores", "report.js"))
+        self.assertIn('fromFile.value ? "Weekly snapshot"', text("stores", "report.js"), "a client has not asked for anything: the file's tab has its own name")
         app = text("components", "App.jsx")
         self.assertIn('clientreport: ClientReport', app)
         self.assertIn('import { ClientReport } from "./ClientReport.jsx"', app)
@@ -38,7 +40,7 @@ class Source(unittest.TestCase):
         body = text("components", "ClientReport.jsx")
         ids = re.findall(r'\{ id: "(\w+)", title: "([^"]+)", slot: "(\w+)"', body)
         self.assertEqual(ids, [("progress", "Overall progress", "full"), ("plans", "Progress by plan", "full"),
-                               ("delivery", "Delivery progress", "full"), ("highlights", "Highlights", "left"),
+                               ("highlights", "Highlights", "left"),
                                ("nextweek", "Planned for next week", "right"), ("raid", "Risks, delays and items to watch", "full")])
 
     def test_the_cover_line_never_invents_a_client(self):
@@ -51,9 +53,48 @@ class Source(unittest.TestCase):
         self.assertRegex(body, r"project\.week_ending")
         self.assertRegex(body, r"isFile && asAtValue \? asAtValue : todayIso\(\)")
 
-    def test_the_published_file_does_not_get_a_tab_for_it(self):
+    def test_the_published_file_gets_a_tab_for_it_unless_the_milestones_are_hidden(self):
         pub = (SRC / "clark" / "publish.py").read_text(encoding="utf-8")
-        self.assertNotIn("clientreport", pub, "the first slice is the live page only: publish.py's tab list is unchanged")
+        self.assertRegex(pub, r'if "milestones" not in hidden_types:[^\n]*\n\s+tabs\.append\("clientreport"\)')
+
+    def test_nothing_unfinished_shows_and_the_delivery_plan_is_not_built(self):
+        self.assertFalse((SRCDIR / "components" / "clientreport" / "Delivery.jsx").exists(), "the delivery template (on hold) has no file and no placeholder")
+        body = text("components", "ClientReport.jsx")
+        self.assertNotIn("Delivery", body)
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
+        self.assertNotIn("cr-placeholder", css)
+
+    def test_a_not_set_prompt_is_only_ever_drawn_in_edit(self):
+        # the client's page (a file, and the View) shows nothing rather than a placeholder: every "Not set" or "No milestones yet" in the
+        # view's parts sits behind the Edit check, and a part with nothing to say is left out by sectionsShown
+        for rel in ("clientreport/Overall.jsx", "clientreport/Plans.jsx"):
+            code = re.sub(r"//[^\n]*", "", text("components", *rel.split("/")))
+            for line in code.splitlines():
+                if re.search(r"Not set|No milestones yet", line):
+                    self.assertTrue(re.search(r"editing|mode\.value", line) or "overall ||" in line or "overall ?" in line or "health ||" in line,
+                                    f"{rel}: a prompt not behind Edit: {line.strip()}")
+        body = text("components", "ClientReport.jsx")
+        self.assertIn("sectionsShown(", body)
+        self.assertNotIn("There are no", text("components", "ClientReport.jsx"))
+
+    def test_no_author_instruction_and_no_explainer_on_the_page(self):
+        # The owner's rule: the client reads this page. No sentence tells the author to go and write something, none says how a
+        # figure is worked out, none says something is not built. (The editor's own placeholder in Edit is a control.)
+        for rel in ("ClientReport.jsx", "clientreport/Overall.jsx", "clientreport/Plans.jsx", "clientreport/Pair.jsx", "clientreport/Risks.jsx"):
+            code = re.sub(r"//[^\n]*", "", text("components", *rel.split("/")))
+            for bad in (r"on the Dashboard", r"Add a ", r"Write it", r"Nothing written", r"Nothing here yet", r"not built", r"counts the same",
+                        r"fills in once", r"worked out", r"cr-how", r"placeholder", r"is the project's milestones"):
+                self.assertNotRegex(code, bad, rel)
+
+    def test_the_cover_is_a_dark_band_with_the_title_the_week_line_a_picture_and_a_logo(self):
+        body = text("components", "ClientReport.jsx")
+        self.assertRegex(body, r'<header class="cr-band">\s*<h1>\{d\.project\.name\}</h1>\s*<p class="cr-cover">')
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
+        band = re.search(r"\.cr-band \{[^}]*\}", css).group(0)
+        self.assertIn("background: var(--brand-navy)", band)
+        self.assertIn("var(--image-cover)", css[css.index(".cr-band::before"):])
+        self.assertIn("var(--image-logo)", css[css.index(".cr-band::after"):])
+        self.assertIn("--image-logo: none", (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8"), "no logo of anyone's is in the repository")
 
     def test_the_look_is_tokens_only(self):
         css = (PAGE / "shell.css").read_text(encoding="utf-8")
@@ -62,7 +103,7 @@ class Source(unittest.TestCase):
         self.assertNotRegex(block, r"font-size:\s*(?:\d|1[0-2])px", "13 px is the floor")
 
 
-SECTION_ORDER = ["progress", "plans", "delivery", "highlights", "nextweek", "raid"]
+SECTION_ORDER = ["progress", "plans", "highlights", "nextweek", "raid"]
 MODULE = SRCDIR / "logic" / "clientReport.js"
 
 
@@ -206,8 +247,8 @@ class Drawn(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#clientreport .sec')", sid)), "the page drew")
         return sid
 
-    def check(self, cdp, sid, where):
-        self.assertEqual(cdp.js("[...document.querySelectorAll('#clientreport .sec')].map(a => a.dataset.sec)", sid), SECTION_ORDER,
+    def check(self, cdp, sid, where, order=SECTION_ORDER):
+        self.assertEqual(cdp.js("[...document.querySelectorAll('#clientreport .sec')].map(a => a.dataset.sec)", sid), order,
                          f"{where}: the sections in the fixed order")
         self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, f"{where}: no sideways scroll")
         self.assertEqual(cdp.js("(() => { const f = document.querySelector('#clientreport').getBoundingClientRect();"
@@ -215,6 +256,13 @@ class Drawn(unittest.TestCase):
                                 " return r.width > 0 && (r.right > f.right + 1 || r.left < f.left - 1); }).length; })()", sid), 0,
                          f"{where}: nothing leaves the page's frame")
         self.assertEqual(json.loads(cdp.js(AUDIT, sid)), [], f"{where}: text at 13 px or more and 4.5:1")
+        band = json.loads(cdp.js("(() => { const f = document.querySelector('#clientreport'), b = f.querySelector('.cr-band'), h = b.querySelector('h1'), w = b.querySelector('.cr-cover');"
+                                 " const c = getComputedStyle(b).backgroundColor.match(/\\d+/g).map(Number), bb = b.getBoundingClientRect(), first = f.querySelector('.secs').getBoundingClientRect();"
+                                 " return JSON.stringify({ dark: c[0] < 80 && c[1] < 80 && c[2] < 100, above: bb.bottom <= first.top, wide: bb.width > f.getBoundingClientRect().width * .9,"
+                                 " inside: h.getBoundingClientRect().left >= bb.left && w.getBoundingClientRect().right <= bb.right, order: h.getBoundingClientRect().bottom <= w.getBoundingClientRect().top + 1 }); })()", sid))
+        self.assertEqual(band, {"dark": True, "above": True, "wide": True, "inside": True, "order": True}, f"{where}: the dark cover band, the title over the week line")
+        self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid),
+                            r"on the Dashboard|Nothing written|Nothing here yet|not built|counts the same", f"{where}: nothing for the author and no explainer")
 
     def run_view(self, edit):
         port = self.serve()
@@ -228,7 +276,8 @@ class Drawn(unittest.TestCase):
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
                     time.sleep(0.3)
-                    self.check(cdp, sid, f"{'Edit' if edit else 'View'} {width}px {theme}")
+                    # the demo has no Highlights or Next week text: the View leaves those two boxes out, Edit keeps them for the author to fill
+                    self.check(cdp, sid, f"{'Edit' if edit else 'View'} {width}px {theme}", SECTION_ORDER if edit else ["progress", "plans", "raid"])
 
     def test_view_at_1400_and_900_in_light_and_dark(self):
         self.run_view(False)
@@ -266,16 +315,20 @@ class Drawn(unittest.TestCase):
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].every(t => t.getBoundingClientRect().height < 60 && t.innerText.split('\\n').length === 1)", sid), True,
                              "no tab wraps onto two lines at 900")
 
-    def test_a_project_with_no_milestones_shows_not_set_and_never_a_made_up_number(self):
+    def test_a_project_with_no_milestones_shows_no_figure_in_view_and_a_prompt_in_edit_never_a_made_up_number(self):
         data = {**self.store.data_for("TUL"), "milestones": []}
         s = Running(data_for=lambda code: data, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = self.open_page(cdp, s.port)
-            self.assertEqual(cdp.js("[...document.querySelectorAll('[data-fig=actual] .v, [data-fig=planned] .v')].map(e => e.textContent)", sid), ["Not set", "Not set"])
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-fig=actual], [data-fig=planned], [data-bar], [data-gap], [data-line], [data-no-lines], #cr-plans').length", sid), 0, "View: no figure, no bar, no lines, no Plans part")
+            self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid), r"Not set|No milestones yet")
+            self.assertEqual(json.loads(cdp.js(AUDIT, sid)), [])
+            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)), "Edit is on")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('[data-fig=actual] .v, [data-fig=planned] .v')].map(e => e.textContent)", sid), ["Not set", "Not set"], "Edit keeps its prompt")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-bar], [data-gap], [data-line]').length", sid), 0, "no bar, no gap line, no lines")
             self.assertEqual(cdp.js("!!document.querySelector('[data-no-lines]')", sid), True)
-            self.assertEqual(json.loads(cdp.js(AUDIT, sid)), [])
 
 
 if __name__ == "__main__":

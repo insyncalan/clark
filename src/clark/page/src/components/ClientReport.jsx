@@ -1,14 +1,15 @@
 // Client Requested Report View (#192): the project in the weekly format a client has asked for. A page of its own, beside the
-// Dashboard, Work items and Milestones, in the same frame and the same section look. The sections come in one fixed order:
-// Overall progress, Progress by plan, the delivery template's place (#190, on hold), Highlights and Planned for next week
-// (a half-width pair), Risks, delays and items to watch. Each section's body is its own file under clientreport/, so one part
-// can be replaced (the Progress tracker, #189) without touching the others.
-// The page is drawn in View and in Edit; it is the live page only: a published file's tab list does not carry it (publish.py).
-import { data, asAt, fromFile } from "../stores/report.js";
+// Dashboard, Work items and Milestones, in the same frame and the same section look, under a dark cover band (the project, the
+// week line and, in an own look, a picture and a logo). The sections come in one fixed order: Overall progress, Progress by plan,
+// Highlights and Planned for next week (a half-width pair), Risks, delays and items to watch. Each section's body is its own
+// file under clientreport/, so one part can be replaced (the Progress tracker, #189) without touching the others.
+// The page is drawn in View and in Edit, and a published file carries it as a tab (publish.py): there it reads only what the file
+// holds. Nothing on it is an instruction to the author or an explanation of how a figure is worked out: the client reads it.
+import { data, asAt, fromFile, mode } from "../stores/report.js";
 import { showDate, todayIso } from "../workItems.js";
+import { sectionsShown } from "../logic/clientReport.js";
 import { Overall } from "./clientreport/Overall.jsx";
 import { Plans } from "./clientreport/Plans.jsx";
-import { Delivery } from "./clientreport/Delivery.jsx";
 import { Highlights, NextWeek } from "./clientreport/Pair.jsx";
 import { Risks } from "./clientreport/Risks.jsx";
 
@@ -16,7 +17,6 @@ import { Risks } from "./clientreport/Risks.jsx";
 export const SECTIONS = [
   { id: "progress", title: "Overall progress", slot: "full", Body: Overall },
   { id: "plans", title: "Progress by plan", slot: "full", Body: Plans },
-  { id: "delivery", title: "Delivery progress", slot: "full", Body: Delivery },
   { id: "highlights", title: "Highlights", slot: "left", Body: Highlights },
   { id: "nextweek", title: "Planned for next week", slot: "right", Body: NextWeek },
   { id: "raid", title: "Risks, delays and items to watch", slot: "full", Body: Risks },
@@ -33,13 +33,18 @@ export function ClientReport({ tools }) {
   const d = data.value;
   const client = d.project.client_name;
   const on = statusDate(d.project, asAt.value, fromFile.value);
+  const editing = mode.value === "edit" && !fromFile.value;
+  const shown = sectionsShown(d, fromFile.value, editing, on);      // a part with nothing to say, or hidden from the client, is left out; only Edit keeps its prompts
+  const both = shown.includes("highlights") && shown.includes("nextweek");
   return (
     <section class="frame report client-report" id="clientreport">
-      <h1>{d.project.name}</h1>
-      <p class="cr-cover"><b>WEEKLY PROGRESS SNAPSHOT</b> · Status as at <span class="num">{showDate(on)}</span>{client ? ` · for ${client}` : ""}</p>
+      <header class="cr-band">
+        <h1>{d.project.name}</h1>
+        <p class="cr-cover"><b>WEEKLY PROGRESS SNAPSHOT</b> · Status as at <span class="num">{showDate(on)}</span>{client ? ` · for ${client}` : ""}</p>
+      </header>
       <div class="secs">
-        {SECTIONS.map((s) => (
-          <article key={s.id} class={`sec slot-${s.slot}`} id={`cr-${s.id}`} data-sec={s.id}>
+        {SECTIONS.filter((s) => shown.includes(s.id)).map((s) => (
+          <article key={s.id} class={`sec slot-${s.slot === "full" || both ? s.slot : "full"}`} id={`cr-${s.id}`} data-sec={s.id}>
             <header class="sec-head"><h2 class="sec-h">{s.title}</h2></header>
             <s.Body tools={tools} on={on} />
           </article>

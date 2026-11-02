@@ -1,8 +1,9 @@
 // Client Requested Report View (#192): Overall progress. The project's health and reason, Actual and Planned as two figures, and a bar
 // filled to Actual with a marker at Planned. Every figure is worked out in logic/clientReport.js from the milestones; what each means
-// is said on the page, and "Not set" is shown when there is nothing to measure (never an invented number).
+// is said there, not on the page (the client reads this page). When there is nothing to measure the client's page leaves the figure (or the health) out, and never invents a number;
+// only Edit keeps the "Not set" prompts.
 // This file and Plans.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
-import { data } from "../../stores/report.js";
+import { data, fromFile, mode } from "../../stores/report.js";
 import { HEALTH_WORDS } from "../../glanceTiles.js";
 import { showDate } from "../../workItems.js";
 import { progress, gapWords, clientRules } from "../../logic/clientReport.js";
@@ -14,14 +15,15 @@ const place = (planned) => (planned >= 88 ? " end" : planned <= 12 ? " start" : 
 
 export function Overall({ on }) {
   const d = data.value;
-  const { overall, groups } = progress(d.milestones, on, true, clientRules(d));   // the client's milestones and words, as the file shows them
+  const { overall, groups } = progress(d.milestones, on, true, clientRules(d, fromFile.value));   // the client's milestones and words, as the file shows them
   const lines = groups.reduce((n, g) => n + g.lines.length, 0);
   const health = d.project.health || "", rag = HEALTH_WORDS[health] || "n", reason = d.project.health_reason || "";
   const gap = gapWords(overall);
+  const editing = mode.value === "edit" && !fromFile.value;      // the author's page keeps its prompts; a file and the View leave out what has no value
   return (
     <>
       <div class="glance cr-tiles">
-        <div class="tcell health">
+        {health || editing ? <div class="tcell health">
           <div class={`fig health-fig rag-${rag}`} data-fig="health">
             <span class="k"><i class="ragdot" aria-hidden="true"></i>Project health</span>
             <div class="hrow">
@@ -29,15 +31,15 @@ export function Overall({ on }) {
               {reason ? <span class="hreason">{reason}</span> : null}
             </div>
           </div>
-        </div>
-        <div class="tcell"><div class="fig" data-fig="actual" role="group" aria-label={`Actual: ${overall ? overall.actual + "%" : "Not set"}`}>
+        </div> : null}
+        {overall || editing ? <><div class="tcell"><div class="fig" data-fig="actual" role="group" aria-label={`Actual: ${overall ? overall.actual + "%" : "Not set"}`}>
           <span class="k">Actual</span><span class="v num">{overall ? `${overall.actual}%` : "Not set"}</span>
           <span class="dd">{overall ? `of ${lines} ${lines === 1 ? "milestone" : "milestones"}` : "No milestones yet"}</span>
         </div></div>
         <div class="tcell"><div class="fig" data-fig="planned" role="group" aria-label={`Planned: ${overall ? overall.planned + "%" : "Not set"}`}>
           <span class="k">Planned</span><span class="v num">{overall ? `${overall.planned}%` : "Not set"}</span>
           <span class="dd">{overall ? <>by <span class="num">{showDate(on)}</span></> : "No milestones yet"}</span>
-        </div></div>
+        </div></div></> : null}
       </div>
       {overall ? (
         <>
@@ -50,8 +52,7 @@ export function Overall({ on }) {
           </div>
           <p class="cr-gap" data-gap>{gap}</p>
         </>
-      ) : <p class="quiet">There are no milestones to measure progress by yet. The bar fills in once the project has milestones.</p>}
-      <p class="quiet cr-how">Every milestone counts the same. A milestone that is done counts as 100%, any other counts its percent complete. Planned counts a milestone once its agreed date has come.</p>
+      ) : null}
     </>
   );
 }

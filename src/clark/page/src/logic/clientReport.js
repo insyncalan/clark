@@ -17,8 +17,10 @@ import { milestoneRows, CANCELLED } from "./milestones.js";
 import { rulesFor, publishable } from "./publishable.js";
 
 /** The client's rules for this project (main's gate, logic/publishable.js, the page's mirror of publish.select): a row this view
- *  draws or counts must be one the published file would hold, so a hidden row never shows and never moves a figure. */
-export function clientRules(data) {
+ *  draws or counts must be one the published file would hold, so a hidden row never shows and never moves a figure. In a published
+ *  file (`isFile`) there are no rules: the file's rows are already the kept ones, so null is given and progress() and riskRows() keep all. */
+export function clientRules(data, isFile) {
+  if (isFile) return null;      // a published file holds only the rows that passed the gate, and carries none of the fields it reads: no rules, nothing left out twice
   const d = data || {};
   return rulesFor({ code: d.project && d.project.code, hidden: (d.report_hidden || []).map((h) => (h && h.item_id) || h),
     labelRules: d.label_rules, labels: d.labels, sections: d.report_sections });
@@ -81,4 +83,35 @@ export const behindWords = (n) => `${n} ${n === 1 ? "point" : "points"} behind p
 export function sectionFor(sections, pattern, hidden) {
   const out = new Set(((hidden || [])).map((h) => (h && h.item_id) || h));
   return (sections || []).find((s) => s.type === "text" && !(s.hidden === 1 || s.hidden === true) && !out.has(s.id) && pattern.test(String(s.title || ""))) || null;
+}
+
+export const HIGHLIGHTS = /highlight|this week/i;
+export const NEXT = /next week/i;
+
+/** True when some HTML holds a word or more (an empty paragraph, a line break or a space does not). */
+export const hasText = (html) => typeof html === "string" && html.replace(/<[^>]*>|&nbsp;|&#160;/g, "").trim() !== "";
+
+/** Is the Risks, delays and items to watch section one the client may read? In a published file the sections are the ones the
+ *  owner left showing, so a file with no Risks and issues section has it hidden. On the live page a Risks section the owner hid is
+ *  one with `hidden` set. Then the whole part is left out: it must never say there are no risks when it simply is not shown. */
+export function raidShown(sections, isFile) {
+  const raid = (sections || []).filter((s) => s && s.type === "raid");
+  return isFile ? raid.length > 0 : !raid.some((s) => s.hidden === 1 || s.hidden === true);
+}
+
+/** The ids of the report's sections a reader sees, in order, and the half-width pair as full width when only one half is drawn.
+ *  A section with nothing to say is left out rather than drawn with a placeholder or an empty box; only `editing` (the Edit page,
+ *  never a file or the View) keeps the boxes the author fills and the "Not set" prompts. `d` is the page's data. */
+export function sectionsShown(d, isFile, editing, on) {
+  const rules = clientRules(d, isFile);
+  const { overall, groups } = progress(d.milestones, on, true, rules);
+  const words = (pattern) => { const s = sectionFor(d.report_sections, pattern, d.report_hidden); return editing ? true : !!s && hasText(s.body); };
+  const has = {
+    progress: editing || !!overall || !!(d.project && d.project.health),
+    plans: editing || groups.length > 0,
+    highlights: words(HIGHLIGHTS),
+    nextweek: words(NEXT),
+    raid: raidShown(d.report_sections, isFile),
+  };
+  return ["progress", "plans", "highlights", "nextweek", "raid"].filter((id) => has[id]);
 }

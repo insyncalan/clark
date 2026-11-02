@@ -1,5 +1,5 @@
 """#192 Client Requested Report View, part 3: Highlights and Planned for next week (the pair), Risks, delays and items to watch, and
-the delivery placeholder.
+nothing in the place the delivery plan will take (it is on hold: no placeholder shows).
 
 Run: python3 dev/run_tests.py test_client_report_part3
 Source tests (no browser) pin the mapping words, the Escalate rule, that the text is cleaned and never drawn raw, that the page's
@@ -53,8 +53,9 @@ class Source(unittest.TestCase):
         for name in ("Overall.jsx", "Plans.jsx", "Risks.jsx"):
             self.assertIn("clientRules(", text("components", "clientreport", name), name)
 
-    def test_the_placeholder_says_it_in_plain_words(self):
-        self.assertIn("The delivery progress template is not built yet.", text("components", "clientreport", "Delivery.jsx"))
+    def test_no_marked_block_for_the_delivery_plan_is_drawn(self):
+        self.assertFalse((SRCDIR / "components" / "clientreport" / "Delivery.jsx").exists())
+        self.assertNotIn("Delivery", text("components", "ClientReport.jsx"))
 
     def test_the_pair_text_is_cleaned_never_drawn_raw(self):
         pair = text("components", "clientreport", "Pair.jsx")
@@ -68,7 +69,7 @@ class Source(unittest.TestCase):
         self.assertIn("RichRead", text("edit", "index.js"))
 
     def test_the_cleaner_is_not_in_a_published_file(self):
-        for f in ("Pair.jsx", "Risks.jsx", "Delivery.jsx"):
+        for f in ("Pair.jsx", "Risks.jsx"):
             self.assertNotRegex(text("components", "clientreport", f), r"import[^;]*cleanHtml")
         view = (PAGE / "page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("SanitiseError", "".join(re.findall(r"<script>(.*?)</script>", view, re.S)))
@@ -76,7 +77,7 @@ class Source(unittest.TestCase):
     def test_the_fixed_sections_have_files_and_the_css_is_in_the_part_3_block(self):
         css = (PAGE / "shell.css").read_text(encoding="utf-8")
         block = css[css.index("/* -- 192 part 3"):]
-        for sel in (".cr-wl .wl-row", ".cr-wl .wl-meta", ".cr-placeholder", "@media (max-width: 900px)"):
+        for sel in (".cr-wl .wl-row", ".cr-wl .wl-meta", "@media (max-width: 900px)"):
             self.assertIn(sel, block)
         clean = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
         self.assertNotRegex(clean, r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", "colours come from the tokens")
@@ -84,7 +85,7 @@ class Source(unittest.TestCase):
 
     def test_no_names_or_dates_in_the_part_3_files(self):
         for rel in (("logic", "clientRisks.js"), ("components", "clientreport", "Pair.jsx"), ("components", "clientreport", "Risks.jsx"),
-                    ("components", "clientreport", "Delivery.jsx"), ("edit", "RichRead.jsx")):
+                    ("edit", "RichRead.jsx")):
             self.assertNotRegex(text(*rel), r"\b20\d\d-\d\d-\d\d\b", "/".join(rel))
 
 
@@ -98,7 +99,7 @@ MEASURE = r"""
   function lum(c) { function f(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); } return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); }
   function bg(el) { for (var e = el; e; e = e.parentElement) { var c = rgb(getComputedStyle(e).backgroundColor); if (c && c.a > 0.5) return c; } return rgb(getComputedStyle(document.documentElement).backgroundColor) || { r: 255, g: 255, b: 255, a: 1 }; }
   var bad = [], count = 0;
-  document.querySelectorAll("#cr-highlights, #cr-nextweek, #cr-raid, #cr-delivery").forEach(function (root) {
+  document.querySelectorAll("#cr-highlights, #cr-nextweek, #cr-raid").forEach(function (root) {
     root.querySelectorAll("*").forEach(function (el) {
       var own = Array.prototype.some.call(el.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); });
       if (!own) return;
@@ -163,7 +164,7 @@ class Drawn(unittest.TestCase):
         js = lambda e: cdp.js(e, sid)  # noqa: E731
         where = f"{'edit' if edit else 'view'} {width} {theme}"
         order = js("[...document.querySelectorAll('.client-report .sec')].map(function(e){return e.dataset.sec})")
-        self.assertEqual(order, ["progress", "plans", "delivery", "highlights", "nextweek", "raid"], where)
+        self.assertEqual(order, ["progress", "plans", "highlights", "nextweek", "raid"], where)
         hi = js("(function(){var r=document.getElementById('cr-highlights').getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]})()")
         nx = js("(function(){var r=document.getElementById('cr-nextweek').getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]})()")
         if width >= 1400:
@@ -193,7 +194,7 @@ class Drawn(unittest.TestCase):
         self.assertEqual(rows[3][0], "Review by 15-11-2026", where)
         self.assertEqual(rows[3][2], "—", where)
         self.assertRegex(rows[0][3], r"^ABC-\d{3}$")
-        self.assertEqual(js("document.querySelector('#cr-delivery .quiet').textContent"), "The delivery progress template is not built yet.", where)
+        self.assertEqual(js("document.querySelectorAll('#cr-delivery, [data-placeholder]').length"), 0, "nothing unfinished shows: " + where)
         self.assertIn("Seeded highlight", js("document.getElementById('cr-highlights').textContent"), where)
         self.assertIn("Kept words", js("document.getElementById('cr-highlights').textContent"), where)
         self.assertEqual(js("document.querySelectorAll('#cr-highlights script, #cr-highlights img, #cr-highlights [onclick]').length"), 0, "cleaned: " + where)
@@ -201,7 +202,7 @@ class Drawn(unittest.TestCase):
         self.assertEqual(js("document.querySelectorAll('#cr-nextweek li').length"), 2, where)
         self.assertEqual(js("document.querySelectorAll('#cr-highlights [data-edit-only], #cr-nextweek [data-edit-only]').length"), 0, "read-only until the body editor is on: " + where)
         self.assertLessEqual(js("document.documentElement.scrollWidth"), js("window.innerWidth"), "no sideways scroll: " + where)
-        self.assertEqual(js("[...document.querySelectorAll('#cr-highlights, #cr-nextweek, #cr-raid, #cr-delivery')].filter(function(e){return e.scrollWidth > e.clientWidth + 1}).length"), 0, "no overflow: " + where)
+        self.assertEqual(js("[...document.querySelectorAll('#cr-highlights, #cr-nextweek, #cr-raid')].filter(function(e){return e.scrollWidth > e.clientWidth + 1}).length"), 0, "no overflow: " + where)
         m = js(MEASURE)
         self.assertGreater(m["count"], 20, where)
         self.assertEqual(m["bad"], [], where)
