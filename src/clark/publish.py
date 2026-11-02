@@ -33,13 +33,14 @@ import html as htmllib
 import json
 import os
 import re
+import stat
 import sys
 import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import milestones, page, platform, section_bodies
-from clark.store import Invalid as StoreInvalid, check_section_body, open_store
+from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
@@ -870,18 +871,21 @@ def section_style(inputs):
     return got if isinstance(got, str) and got in STYLES else DEFAULT_STYLE
 
 
-def data_block(published, as_at):
+def data_block(published, as_at, number=None):
     """The <script type="application/json" id="clark-data"> block. < > & are \\u escapes, so the text can neither close the
     block nor be read as markup, and ensure_ascii makes U+2028 and U+2029 escapes too."""
     style = published.get("style")
-    body = json.dumps({"v": VERSION, "as_at": as_at, "style": style if style in STYLES else DEFAULT_STYLE,
-                       "data": published["data"], "sections": published["sections"], "tabs": published["tabs"]}, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    block = {"v": VERSION, "as_at": as_at, "style": style if style in STYLES else DEFAULT_STYLE,
+             "data": published["data"], "sections": published["sections"], "tabs": published["tabs"]}
+    if number:                         # #120: which publication this file is; the page's footer reads it. A preview has none
+        block["publication"] = {"n": number}
+    body = json.dumps(block, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
     for ch in "<>&":
         body = body.replace(ch, "\\u%04x" % ord(ch))
     return f'<script type="application/json" id="clark-data">{body}</script>'
 
 
-def render(published, page_text, as_at, title):
+def render(published, page_text, as_at, title, number=None):
     """The whole file as text: `page_text` (clark.page.page_html()) with the title, view mode, the data block and, last, the
     policy that covers the finished bytes. Raises PublishError if the page has a token block or the brand reaches outside."""
     if 'id="clark-boot"' in page_text:
@@ -893,7 +897,7 @@ def render(published, page_text, as_at, title):
     i = h.rfind("</body>")
     if i < 0:
         raise PublishError("The page clark builds has no end of body, so no report could be made from it.")
-    h = h[:i] + data_block(published, as_at) + "\n" + h[i:]
+    h = h[:i] + data_block(published, as_at, number) + "\n" + h[i:]
     charset = '<meta charset="utf-8">'
     return _once(h, charset, charset + csp_meta(h))
 
@@ -924,12 +928,15 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
-def build(store, code, now=None, branding=None, section_style=None):
+def build(store, code, now=None, branding=None, section_style=None, number=None):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
     date (YYYY-MM-DD); due dates and Overdue read as at that date. publish() and the To client route (#43) both start here, so
     the file written to Local and the file copied to the client are the same bytes, made once. `section_style` is the style the
-    person chose on the page (section_style() keeps it only if it is one of STYLES); the file carries it in its own data block."""
+    person chose on the page (section_style() keeps it only if it is one of STYLES); the file carries it in its own data block.
+    #120: the file carries its publication number (its footer reads "Publication N"): `number` is the one the caller made the file
+    with (the rebuild keeps it), else Store.next_publication gives it; 0 means no number (a preview, which is not published).
+    The number is returned too, for Store.log_publication, which refuses if another publication took it meanwhile."""
     as_at = str(now or milestones.today())
     try:
         if not re.fullmatch(r"\d{4}-\d\d-\d\d", as_at):          # Python 3.11 and later also read 20261028
@@ -944,12 +951,40 @@ def build(store, code, now=None, branding=None, section_style=None):
         raise PublishError("An archived project can't be published. Restore it first.")
     published = add_glance(select(inputs), inputs)
     project = published["data"]["project"]
-    text = render(published, page.page_html(branding, view=True), as_at, project["name"])      # #65: the view-only page
+    n = store.next_publication(code) if number is None else number
+    text = render(published, page.page_html(branding, view=True), as_at, project["name"], n)      # #65: the view-only page
     body = text.encode("utf-8")
     if len(body) > MAX_BYTES:
         raise PublishError(f"The report is {len(body) / 1048576:.1f} MB, which is over the {MAX_BYTES // 1048576} MB limit. "
                            "Remove or shrink the largest image or attachment, then publish again.")
-    return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published}
+    return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published, "number": n}
+
+
+def read_plain(path, limit=None):
+    """The bytes of an ordinary file (at most `limit` of them), or OSError for a link, a pipe, a folder or anything else."""
+    if not stat.S_ISREG(os.lstat(path).st_mode):
+        raise OSError("not an ordinary file")
+    with open(path, "rb") as f:
+        return f.read() if limit is None else f.read(limit)
+
+
+def still_ours(path, digest):
+    """Whether the file at `path` still holds exactly the bytes whose SHA-256 is `digest`."""
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+    except OSError:
+        return False
+
+
+def take_back(path, digest):
+    """Remove a file this call wrote and nothing else: only when it still holds exactly the bytes written. True when it is gone."""
+    if not still_ours(path, digest):
+        return not Path(path).exists()
+    try:
+        Path(path).unlink()
+        return True
+    except OSError:
+        return False
 
 
 def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
@@ -974,6 +1009,12 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
         except OSError as e:
             raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}). Nothing was written.") from e
     digest = built["sha256"]
+    earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
+    if overwrite:
+        try:
+            earlier = read_plain(dest, 64 * 1048576)
+        except OSError:
+            earlier = None
     try:
         try:
             platform.write_file(dest, body)
@@ -990,11 +1031,23 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 pass
         raise
     try:
-        seq = store.log_publication(code, dest, project["week_ending"], digest, by_user)
+        seq = store.log_publication(code, dest, project["week_ending"], digest, by_user, number=built["number"])
+    except NumberTaken as e:           # another publication took the number: this file says a number it does not have, so it is taken back
+        if not overwrite:
+            take_back(dest, digest)
+        elif earlier is not None:
+            if still_ours(dest, digest):
+                try:
+                    platform.write_file(dest, earlier)
+                except (OSError, platform.PlatformError):
+                    pass
+        else:
+            take_back(dest, digest)
+        raise PublishError(str(e)) from e
     except Exception as e:             # the file is good; only the record failed: say so, so nobody publishes it twice
         raise PublishError(f"{dest.name} was saved in {platform.folder_phrase(folder)}, but clark could not record it. The file is fine. "
                            "Publish again to record it, or ask for help if it happens again.") from e
-    return {"path": str(dest), "sha256": digest, "bytes": len(body), "seq": seq}
+    return {"path": str(dest), "sha256": digest, "bytes": len(body), "seq": seq, "number": built["number"]}
 
 
 def main(argv):

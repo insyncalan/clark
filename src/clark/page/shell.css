@@ -20,6 +20,7 @@ a { color: var(--status-blue-text); }
 .top .divider { width: 1px; height: 26px; background: rgba(255,255,255,.2); }
 .proj { font-size: 14px; color: rgba(255,255,255,.85); }
 .tabs { display: flex; height: 100%; }
+.pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
 .asat { margin-left: auto; font-size: 13px; color: rgba(255,255,255,.75); }
 .tab { all: unset; position: relative; display: flex; align-items: center; padding: 0 14px; font-size: 14px; color: rgba(255,255,255,.75); cursor: pointer; transition: color var(--dur-instant) var(--ease-out); }
 .tab:hover { color: var(--white); }

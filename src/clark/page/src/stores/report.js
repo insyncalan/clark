@@ -34,6 +34,7 @@ export const refusals = signal(0);                   // counts the refusals, so 
 export const status = signal(project.value ? "loading" : "none");   // none | loading | ready | missing | failed
 export const data = signal(null);
 export const message = signal("");
+export const publication = signal(0);       // a published file: its publication number (#120), else 0; the footer reads it
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
@@ -214,6 +215,7 @@ function openPublished(p) {
   if (!tabs.value.includes(view.value)) view.value = tabs.value[0];
   project.value = p.data.project.code;
   asAt.value = p.as_at || "";
+  publication.value = p.publication && Number.isInteger(p.publication.n) && p.publication.n >= 1 ? p.publication.n : 0;
   useFileStyle(p.style);                                  // the look it was published with (#45); a file written before that has the default
   data.value = { ...p.data, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show
   status.value = "ready";
