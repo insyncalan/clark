@@ -138,26 +138,28 @@ export async function readData(project) {
   }
 }
 
-// Your name and email (#180, Settings › Personal › About you), kept in clark's own settings on this computer. getProfile answers
-// {name, email} or null; saveProfile answers {ok: true, name, email} or {ok: false, message}: a refusal is in the route's own plain
-// words (ending "Nothing was saved."), any other failure in plainChange's.
+// Your profile (#180, #440, Settings › Profile), kept in clark's own settings on this computer: the name, alias, email, phone number
+// and organisation. getProfile answers the five (each text) or null; saveProfile(values) answers {ok: true, ...the five} or
+// {ok: false, message}: a refusal is in the route's own plain words (ending "Nothing was saved."), any other failure in plainChange's.
+export const PROFILE_FIELDS = ["name", "alias", "email", "phone", "org"];
 export async function getProfile() {
   try {
     const r = await fetch("/api/profile", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
     const body = await r.json().catch(() => null);
-    return r.ok && body && body.ok === true && typeof body.name === "string" && typeof body.email === "string" ? { name: body.name, email: body.email } : null;
+    return r.ok && body && body.ok === true && PROFILE_FIELDS.every((f) => typeof body[f] === "string") ? Object.fromEntries(PROFILE_FIELDS.map((f) => [f, body[f]])) : null;
   } catch (e) {
     return null;
   }
 }
 
-export async function saveProfile(name, email) {
+export async function saveProfile(values) {
   try {
     const r = await fetch("/api/profile", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify({ name, email }), cache: "no-store",
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify(Object.fromEntries(PROFILE_FIELDS.map((f) => [f, String(values[f] || "")]))), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
-    if (r.ok && reply && reply.ok === true) return { ok: true, name: String(reply.name || ""), email: String(reply.email || "") };
+    if (r.ok && reply && reply.ok === true) return { ok: true, ...Object.fromEntries(PROFILE_FIELDS.map((f) => [f, String(reply[f] || "")])) };
     const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
     if (r.status === 400 && said) return { ok: false, message: said };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };

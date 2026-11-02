@@ -1,13 +1,15 @@
-"""#180: the seam of GET and POST /api/profile, Settings › Personal › About you: this person's name and email, kept in the data folder's
-settings.json (settings.py) and nowhere else. The page asks for both when it opens Settings or the menu, and saves them when a box is
-left. The name is also the name on each change and each publication (`who()`), with the login name when none was typed; the email is
-only used to tell which addresses are the person's own (`own_domains()`). Nothing is read from the computer, the browser or the Claude
+"""#180, #440: the seam of GET and POST /api/profile, Settings › Profile: this person's name, alias, email, phone number and organisation,
+kept in the data folder's settings.json (settings.py) and nowhere else. The page asks for them when it opens Settings or the menu,
+and saves them when a box is left. The name is also the name on each change (`who()`), with the login name when none was typed;
+the email is only used to tell which addresses are the person's own (`own_domains()`); the alias, phone number and organisation
+are kept and shown back in Settings, and nothing else reads them. Nothing is read from the computer, the browser or the Claude
 sign-in, and clark sends no mail. Standard library only, Python 3.9."""
 import threading
 
 from clark import platform, settings
 
-KEYS = ("name", "email")
+KEYS = ("name", "email")                         # always sent
+OPTIONAL = ("alias", "phone", "org")             # sent by the Profile card; one left out stays as it was saved
 BAD = "That could not be read. Reload the page and try again. Nothing was saved."
 
 
@@ -17,17 +19,19 @@ class Profile:
         self.lock = threading.Lock()                 # two windows saving at once take turns; the file is replaced whole each time
 
     def get(self):
-        """(200, {"ok": true, "name", "email"}): what was saved, "" for each that was not."""
+        """(200, {"ok": true, "name", "alias", "email", "phone", "org"}): what was saved, "" for each that was not."""
         return 200, {"ok": True, **settings.profile(self.data_dir)}
 
     def save(self, req):
-        """Save {"name", "email"} (both keys, each text, either may be empty): (200, {"ok": true, name, email}), or (400, a refusal in
-        plain words ending "Nothing was saved."); a refusal writes nothing."""
-        if not isinstance(req, dict) or set(req) != set(KEYS) or not all(isinstance(req[k], str) for k in KEYS):
+        """Save {"name", "email"} and, optionally, "alias", "phone" and "org" (each text, any may be empty; one left out stays as saved):
+        (200, {"ok": true, name, alias, email, phone, org}), or (400, a refusal in plain words ending "Nothing was saved."); a refusal
+        writes nothing."""
+        if (not isinstance(req, dict) or not set(KEYS) <= set(req) or not set(req) <= set(KEYS + OPTIONAL)
+                or not all(isinstance(v, str) for v in req.values())):
             return 400, {"ok": False, "message": BAD, "code": "bad_request"}
         with self.lock:
             try:
-                saved = settings.set_profile(self.data_dir, req["name"], req["email"])
+                saved = settings.set_profile(self.data_dir, req["name"], req["email"], req.get("alias"), req.get("phone"), req.get("org"))
             except ValueError as e:
                 return 400, {"ok": False, "message": str(e), "code": "refused"}
         return 200, {"ok": True, **saved}

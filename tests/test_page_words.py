@@ -164,6 +164,9 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings", "Settings are not ready yet.",
+                                  "Profile",       # #440: Settings › Profile, the first card
+                                  "Who you are in clark. Your name is on each change you make and signs the emails clark drafts, and your email tells it which addresses are your own. All five are optional. Kept on this computer only: none of it goes into a published report.",
+                                  "Name", "Alias", "Email", "Phone number", "Organisation",
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
@@ -176,8 +179,6 @@ class Words(unittest.TestCase):
                                   "Roomy gaps", "The same, with more space between the sections.", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups.",
                                   "One card", "All the sections in one long card.",
                                   "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179
-                                  "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
-                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Logs and diagnostics",      # #110

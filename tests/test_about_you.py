@@ -1,4 +1,4 @@
-"""#180: Settings › Personal › About you (Your name, Your email) and the profile menu's top line, in a real browser at 1400 and 900 px.
+"""#180, #440: Settings › Profile (Name, Alias, Email, Phone number, Organisation) and the profile menu's top line, in a real browser at 1400 and 900 px.
 Run: python3 dev/run_tests.py test_about_you
 
 Both are kept by clark in the data folder's settings.json (not in the browser). What is asserted: the two boxes and their words; saving
@@ -17,8 +17,9 @@ from test_publish_dialog import Base, PAGE_SRC
 from test_server import chrome
 
 WIDTHS = (1400, 900)
-NAME_LINE = "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional."
-EMAIL_LINE = "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
+LABELS = ["Name", "Alias", "Email", "Phone number", "Organisation"]                      # the prototype's (views.js 1435-1439)
+PLACEHOLDERS = ["Your full name", "What colleagues call you, or your initials", "name@company.com", "+971 50 123 4567", "Your company or team"]
+FIELDS = ["name", "alias", "email", "phone", "org"]
 
 
 class AboutYou(Base):
@@ -89,10 +90,10 @@ class AboutYou(Base):
                 self.assertNotIn("@", p.js("document.querySelector('#profile-menu').innerText"))
                 self.close_menu(p)
                 self.open_settings(p)
-                self.assertEqual(p.js("document.querySelector('[data-about-you] legend').textContent"), "About you")
-                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] label')].map(l => l.textContent)"), ["Your name", "Your email"])
-                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] small')].map(l => l.textContent)"), [NAME_LINE, EMAIL_LINE])
-                self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["", ""])
+                self.assertEqual(p.js("document.querySelector('#profile h2').textContent"), "Profile")
+                self.assertEqual(p.js("[...document.querySelectorAll('#profile label')].map(l => l.textContent)"), LABELS)
+                self.assertEqual(p.js("[...document.querySelectorAll('#profile input')].map(i => i.placeholder)"), PLACEHOLDERS)
+                self.assertEqual(p.js("[...document.querySelectorAll('#profile input')].map(i => i.value)"), [""] * 5)
                 self.assertEqual(self.saved(), {})
                 self.assertEqual(p.js("Object.keys(localStorage).filter(k => /name|email|profile/i.test(k))"), [], "nothing is kept in the browser")
 
@@ -104,7 +105,7 @@ class AboutYou(Base):
             self.type_into(p, "email", "sam@example.test")
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box holds it")
             self.handled(p, "Sam Lee", "sam@example.test")
-            self.assertEqual(self.saved(), {"profile_email": "sam@example.test", "profile_name": "Sam Lee"})
+            self.assertEqual(self.saved(), {"profile_alias": "", "profile_email": "sam@example.test", "profile_name": "Sam Lee", "profile_org": "", "profile_phone": ""})
             self.open_menu(p)
             self.assertEqual(self.top(p), {"name": "Sam Lee", "email": "sam@example.test", "title": "Sam Lee\nsam@example.test"})
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile-menu .who b')).fontWeight >= 500"), True)
@@ -114,6 +115,84 @@ class AboutYou(Base):
             self.open_menu(p)
             p.until("!!document.querySelector('#profile-menu .who')", "the menu shows who you are after a reload (read from clark)")
             self.assertEqual(self.top(p)["name"], "Sam Lee")
+
+    def look(self, p, look):
+        p.js(f"document.querySelector('#personal [data-appearance] input[value={look}]').click()")
+        p.until("document.documentElement.dataset.theme === 'dark'" if look == "dark" else "!document.documentElement.dataset.theme", f"{look} is on")
+
+    def test_C_the_profile_card_is_first_on_settings_with_five_boxes_that_fit_at_both_widths_in_both_looks(self):
+        for w in WIDTHS:
+            for look in ("light", "dark"):
+                with self.subTest(width=w, look=look), chrome() as cdp:
+                    p = self.page(cdp)
+                    p.width(w)
+                    self.open_settings(p)
+                    self.look(p, look)
+                    frames = p.js("[...document.querySelectorAll('main section.frame')].map(s => s.id || s.className.split(' ')[1] || s.className)")
+                    self.assertEqual(frames[:2], ["empty", "profile"], "the card is the first on the page, straight after the Settings heading")
+                    self.assertLess(frames.index("profile"), frames.index("personal"))
+                    self.assertEqual(p.js("[...document.querySelectorAll('#profile input')].map(i => [i.type, i.autocomplete])"),
+                                     [["text", "name"], ["text", "nickname"], ["email", "email"], ["tel", "tel"], ["text", "organization"]])
+                    self.assertEqual(p.js("document.querySelectorAll('[data-about-you]').length"), 1)
+                    self.assertEqual(p.js("document.querySelector('#personal').textContent.includes('About you')"), False, "nothing of it is left inside Personal")
+                    fit = p.js("(() => { const box = document.querySelector('#profile').getBoundingClientRect(); "
+                               "return [...document.querySelectorAll('#profile input')].every(i => { const r = i.getBoundingClientRect(); "
+                               "return r.width > 150 && r.left >= box.left && r.right <= box.right + 0.5; }) "
+                               "&& document.documentElement.scrollWidth <= window.innerWidth; })()")
+                    self.assertTrue(fit, "every box sits inside the card and the page does not scroll sideways")
+                    self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile')).backgroundColor === getComputedStyle(document.querySelector('#personal')).backgroundColor"), True)
+
+    def test_C_each_new_box_is_saved_by_clark_one_save_and_kept_over_a_reload(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            for field, text in (("alias", "Sammy"), ("phone", "+971 50 123 4567"), ("org", "Example Team")):
+                self.type_into(p, field, text)
+                p.until(f"document.querySelector('#about-{field}').value === {json.dumps(text)}", "the box holds it")
+                self.until_saved(p, f"profile_{field}", text)
+            self.assertEqual(self.saved(), {"profile_alias": "Sammy", "profile_email": "", "profile_name": "", "profile_org": "Example Team", "profile_phone": "+971 50 123 4567"})
+            p.js("window.__before_reload = true; location.reload()")
+            p.until("!window.__before_reload && !!document.querySelector('#profile-btn')", "the page again")
+            self.open_settings(p)
+            p.until("document.querySelector('#about-org').value === 'Example Team'", "read from clark after a reload")
+            self.assertEqual(p.js("[...document.querySelectorAll('#profile input')].map(i => i.value)"), ["", "Sammy", "", "+971 50 123 4567", "Example Team"])
+
+    def until_saved(self, p, key, text):
+        """Wait on clark's own file (a save is only written once the page has sent it), not on a sleep."""
+        import time
+        end = time.time() + 15
+        while time.time() < end:
+            if self.saved().get(key) == text:
+                return
+            time.sleep(0.1)
+        self.fail(f"{key} was not saved")
+
+    def test_C_saving_a_new_box_does_not_blank_the_others(self):
+        (self.rig.data_dir / "settings.json").write_text(json.dumps({"profile_name": "Sam Lee", "profile_email": "sam@example.test", "profile_org": "Example Team"}), encoding="utf-8")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.until("document.querySelector('#about-org').value === 'Example Team'", "the read landed")
+            self.type_into(p, "phone", "050 123 4567")
+            self.until_saved(p, "profile_phone", "050 123 4567")
+            self.assertEqual(self.saved(), {"profile_alias": "", "profile_email": "sam@example.test", "profile_name": "Sam Lee", "profile_org": "Example Team", "profile_phone": "050 123 4567"})
+
+    def test_C_a_refusal_under_a_new_box_says_why_writes_nothing_and_keeps_what_was_typed(self):
+        for field, text, words in (("alias", "A" * 41, "Your alias is too long. Use 40 characters or fewer. Nothing was saved."),
+                                   ("phone", "call me", "A phone number can have digits, spaces and the signs + - ( ) . only. Check it, or leave it empty. Nothing was saved."),
+                                   ("org", "O" * 81, "Your organisation is too long. Use 80 characters or fewer. Nothing was saved."),
+                                   ("org", "Bad\u200bName", "Your organisation has a character that can't be kept. Remove it and try again. Nothing was saved.")):
+            with self.subTest(field=field, text=text[:6]), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p)
+                self.type_into(p, field, text)
+                bad = f"document.querySelector('#about-{field}').closest('.fld').querySelector('.fld-bad').textContent"
+                p.until(f"{bad} !== ''", "the refusal shows")
+                self.assertEqual(p.js(bad), words)
+                self.assertEqual(p.js(f"document.querySelector('#about-{field}').value"), text, "what was typed stays in the box")
+                self.assertEqual(p.js(f"document.querySelector('#about-{field}').getAttribute('aria-invalid')"), "true")
+                self.assertEqual(p.js("[...document.querySelectorAll('#profile .fld-bad')].filter(e => e.textContent).length"), 1, "under that box only")
+                self.assertEqual(self.saved(), {}, "nothing was written")
 
     def test_C_a_name_alone_shows_only_the_name_and_emptying_it_brings_the_link_back_at_once(self):
         with chrome() as cdp:
@@ -326,21 +405,23 @@ class AboutYou(Base):
             self.type_into(p, "name", "New Name")                    # saved before the read has landed
             p.until("window.__readDone >= 1", "the first read landed")
             self.handled(p, "New Name", "keep@example.test")
-            self.assertEqual(self.saved(), {"profile_name": "New Name", "profile_email": "keep@example.test"}, "the email already saved was kept")
+            self.assertEqual(self.saved(), {"profile_name": "New Name", "profile_email": "keep@example.test", "profile_alias": "", "profile_phone": "", "profile_org": ""},
+                             "the email already saved was kept")
             self.assertEqual(p.js("document.querySelector('#about-email').value"), "keep@example.test")
 
 
 class Source(unittest.TestCase):
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        for words in ("<legend>About you</legend>", '"Your name"', '"Your email"', NAME_LINE, EMAIL_LINE):
+        for words in ["<h2 id=\"profile-h\">Profile</h2>"] + [f'"{w}"' for w in LABELS + PLACEHOLDERS]:
             self.assertIn(words, text)
+        self.assertNotIn("About you", text, "the two boxes inside Personal are gone: Profile is its own card")
         self.assertIn("Add your name in Settings", (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
 
     def test_a_published_file_has_none_of_it(self):
         from clark import page
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
-        for word in ("About you", "Your email", "/api/profile", "Add your name in Settings"):
+        for word in ("About you", "Your email", "/api/profile", "Add your name in Settings", "Organisation", "Alias", "What colleagues call you"):
             self.assertNotIn(word, view)
 
 

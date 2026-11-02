@@ -69,20 +69,35 @@ def set_backups_kept(data_dir, number):
     return number
 
 
-# ===== Your name and your email (#180, Settings › Personal › About you) =====
-# Kept in the same file as the backups number: this person's, on this computer. Both are optional. The name is shown at the top of the
+# ===== Your profile (#180, #440: Settings › Profile) =====
+# Kept in the same file as the backups number: this person's, on this computer. All five are optional. The name is shown at the top of the
 # profile menu and is the name on each change (by_user) instead of the login name; the email is only used to tell which addresses are
 # the person's own (the Draft email's own domain). clark never reads either from the computer, the browser or the Claude sign-in, and
-# never sends mail.
+# never sends mail. The alias, the phone number and the organisation are only kept and shown back in Settings: nothing else reads them,
+# and none of the five is written into a published file, the client report, Word, Excel or an email.
 PROFILE_NAME = "profile_name"
 PROFILE_EMAIL = "profile_email"
-NAME_MAX, EMAIL_MAX = 60, 254
+PROFILE_ALIAS = "profile_alias"
+PROFILE_PHONE = "profile_phone"
+PROFILE_ORG = "profile_org"
+NAME_MAX, EMAIL_MAX, ALIAS_MAX, PHONE_MAX, ORG_MAX = 60, 254, 40, 30, 80
 NAME_TOO_LONG = f"Your name is too long. Use {NAME_MAX} characters or fewer. Nothing was saved."
 NAME_BAD = "Your name has a character that can't be kept. Remove it and try again. Nothing was saved."
 EMAIL_BAD = "That email address is not complete. Check it, or leave it empty. Nothing was saved."
-PROFILE_UNREADABLE = "Your settings couldn't be read, so your name and email were not changed. Nothing was saved."
+ALIAS_TOO_LONG = f"Your alias is too long. Use {ALIAS_MAX} characters or fewer. Nothing was saved."
+ALIAS_BAD = "Your alias has a character that can't be kept. Remove it and try again. Nothing was saved."
+PHONE_TOO_LONG = f"That phone number is too long. Use {PHONE_MAX} characters or fewer. Nothing was saved."
+PHONE_BAD = "A phone number can have digits, spaces and the signs + - ( ) . only. Check it, or leave it empty. Nothing was saved."
+ORG_TOO_LONG = f"Your organisation is too long. Use {ORG_MAX} characters or fewer. Nothing was saved."
+ORG_BAD = "Your organisation has a character that can't be kept. Remove it and try again. Nothing was saved."
+PROFILE_UNREADABLE = "Your settings couldn't be read, so your details were not changed. Nothing was saved."
 _UNSEEN = frozenset({"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"})
 _ADDRESS = re.compile(r"[^@\s<>?,;:\"()\[\]\\]+@[^@\s<>?,;:\"()\[\]\\]+\.[^@\s<>?,;:\"()\[\]\\]+")
+_PHONE = re.compile(r"[0-9 +\-().]+")
+# the details, in the order Settings shows them: (field, settings key, longest allowed, words for too long, words for not kept)
+PROFILE_FIELDS = (("name", PROFILE_NAME, NAME_MAX, NAME_TOO_LONG, NAME_BAD), ("alias", PROFILE_ALIAS, ALIAS_MAX, ALIAS_TOO_LONG, ALIAS_BAD),
+                  ("email", PROFILE_EMAIL, EMAIL_MAX, EMAIL_BAD, EMAIL_BAD), ("phone", PROFILE_PHONE, PHONE_MAX, PHONE_TOO_LONG, PHONE_BAD),
+                  ("org", PROFILE_ORG, ORG_MAX, ORG_TOO_LONG, ORG_BAD))
 
 
 def _one_line(value):
@@ -94,29 +109,46 @@ def _one_line(value):
     return " ".join(text.split())
 
 
+def _shaped(field, text):
+    """True when `text` (one line) has the right shape for `field`: empty, or an address for the email, digits and the usual signs for
+    the phone number, anything at all for the rest."""
+    if not text or field not in ("email", "phone"):
+        return True
+    return bool((_ADDRESS if field == "email" else _PHONE).fullmatch(text))
+
+
 def profile(data_dir):
-    """{"name", "email"} as saved ("" for each that is not there, or is not a plain string within its limit): never an error, and
-    never anything but what was typed in Settings."""
-    got = read(data_dir)
-    name, email = _one_line(got.get(PROFILE_NAME)), _one_line(got.get(PROFILE_EMAIL))
-    return {"name": name if name is not None and len(name) <= NAME_MAX else "",
-            "email": email if email and len(email) <= EMAIL_MAX and _ADDRESS.fullmatch(email) else ""}
+    """{"name", "alias", "email", "phone", "org"} as saved ("" for each that is not there, or is not a plain string within its limit and
+    shape): never an error, and never anything but what was typed in Settings."""
+    got, out = read(data_dir), {}
+    for field, key, most, _, _ in PROFILE_FIELDS:
+        text = _one_line(got.get(key))
+        out[field] = text if text is not None and len(text) <= most and _shaped(field, text) else ""
+    return out
 
 
-def set_profile(data_dir, name, email):
-    """Save the name and the email (each may be empty), leaving every other setting as it is; returns what was saved. Raises ValueError
-    in plain words, ending "Nothing was saved.", for a name over 60 characters or with an unkeepable character, or an email that is
-    not shaped like an address, and then writes nothing. The file is replaced in one step (platform.write_file), and a file that can't
-    be read is never replaced."""
-    if name is not None and not isinstance(name, str) or email is not None and not isinstance(email, str):
+def set_profile(data_dir, name, email, alias=None, phone=None, org=None):
+    """Save the details (each may be empty), leaving every other setting as it is; returns what was saved. The name and the email are
+    always given (None is empty); the alias, the phone number and the organisation stay as they were when None. Raises ValueError in
+    plain words, ending "Nothing was saved.", for a detail that is too long or has an unkeepable character, a phone number with
+    anything but digits, spaces and + - ( ) ., or an email not shaped like an address, and then writes nothing. The file is replaced in
+    one step (platform.write_file), and a file that can't be read is never replaced."""
+    given = {"name": name or "", "email": email or "", "alias": alias, "phone": phone, "org": org}
+    if any(v is not None and not isinstance(v, str) for v in given.values()):
         raise ValueError(NAME_BAD)
-    clean_name, clean_email = _one_line(name or ""), _one_line(email or "")
-    if clean_name is None:
-        raise ValueError(NAME_BAD)
-    if len(clean_name) > NAME_MAX:
-        raise ValueError(NAME_TOO_LONG)
-    if clean_email is None or clean_email and (len(clean_email) > EMAIL_MAX or not _ADDRESS.fullmatch(clean_email)):
-        raise ValueError(EMAIL_BAD)
+    kept, clean = profile(data_dir), {}
+    for field, _, most, too_long, bad in PROFILE_FIELDS:
+        if given[field] is None:                          # not given: what is saved stays
+            clean[field] = kept[field]
+            continue
+        text = _one_line(given[field])
+        if text is None:
+            raise ValueError(bad)
+        if len(text) > most:
+            raise ValueError(too_long)
+        if not _shaped(field, text):
+            raise ValueError(bad)
+        clean[field] = text
     data_dir = Path(data_dir)
     current = read(data_dir)
     path = data_dir / FILE
@@ -128,6 +160,7 @@ def set_profile(data_dir, name, email):
             readable = False
         if not readable:
             raise ValueError(PROFILE_UNREADABLE)
-    current[PROFILE_NAME], current[PROFILE_EMAIL] = clean_name, clean_email
+    for field, key, _, _, _ in PROFILE_FIELDS:
+        current[key] = clean[field]
     platform.write_file(path, json.dumps(current, indent=2, sort_keys=True) + "\n")
-    return {"name": clean_name, "email": clean_email}
+    return clean

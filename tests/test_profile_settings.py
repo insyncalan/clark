@@ -1,4 +1,4 @@
-"""#180: your name and your email (settings.profile, settings.set_profile, profile_settings.Profile and GET and POST /api/profile).
+"""#180, #440: your name, alias, email, phone number and organisation (settings.profile, settings.set_profile, profile_settings.Profile and GET and POST /api/profile).
 Fictional data only. Run: python3 dev/run_tests.py test_profile_settings
 
 What is asserted: a fresh folder has neither (never an invented email); both are saved in settings.json beside the backups number,
@@ -7,6 +7,8 @@ saved.", writing nothing; spaces are made one; a control or invisible character 
 empty; a settings file that can't be read is never replaced; the seam answers and refuses by shape; the route has the server's checks,
 a 2 KiB limit and no effect when refused; the name is the name on each change (by_user), with the login name when none was typed, and
 the email's domain is the person's own domain.
+#440 adds: the alias, the phone number and the organisation are saved beside them, each kept when a save leaves it out, each with its
+own length and refusal in plain words, a phone number only digits, spaces and + - ( ) ., an unkeepable character refused in each.
 """
 import hashlib
 import json
@@ -18,6 +20,9 @@ from pathlib import Path
 import _paths  # noqa: F401
 from _demo import DemoStore
 from clark import changes, platform, profile_settings, server as sv, settings
+
+
+BLANK = {"name": "", "alias": "", "email": "", "phone": "", "org": ""}
 
 
 class Folder(unittest.TestCase):
@@ -33,23 +38,23 @@ class Folder(unittest.TestCase):
 
 class Settings(Folder):
     def test_a_fresh_folder_has_neither(self):
-        self.assertEqual(settings.profile(self.dir), {"name": "", "email": ""})
+        self.assertEqual(settings.profile(self.dir), BLANK)
 
     def test_both_are_saved_beside_the_backups_number_which_is_kept(self):
         settings.set_backups_kept(self.dir, 21)
         saved = settings.set_profile(self.dir, "Sam Lee", "sam@example.test")
-        self.assertEqual(saved, {"name": "Sam Lee", "email": "sam@example.test"})
+        self.assertEqual(saved, {**BLANK, "name": "Sam Lee", "email": "sam@example.test"})
         self.assertEqual(settings.profile(self.dir), saved)
         self.assertEqual(settings.backups_kept(self.dir), 21)
-        self.assertEqual(json.loads(self.disk()), {"backups_kept": 21, "profile_email": "sam@example.test", "profile_name": "Sam Lee"})
+        self.assertEqual(json.loads(self.disk()), {"backups_kept": 21, "profile_alias": "", "profile_email": "sam@example.test", "profile_name": "Sam Lee", "profile_org": "", "profile_phone": ""})
         settings.set_backups_kept(self.dir, 9)
         self.assertEqual(settings.profile(self.dir), saved, "the backups number does not touch them")
 
     def test_each_may_be_empty_and_emptying_clears_it(self):
         settings.set_profile(self.dir, "Sam Lee", "sam@example.test")
-        self.assertEqual(settings.set_profile(self.dir, "", "sam@example.test"), {"name": "", "email": "sam@example.test"})
-        self.assertEqual(settings.set_profile(self.dir, "Sam", ""), {"name": "Sam", "email": ""})
-        self.assertEqual(settings.set_profile(self.dir, "  ", None), {"name": "", "email": ""})
+        self.assertEqual(settings.set_profile(self.dir, "", "sam@example.test"), {**BLANK, "email": "sam@example.test"})
+        self.assertEqual(settings.set_profile(self.dir, "Sam", ""), {**BLANK, "name": "Sam"})
+        self.assertEqual(settings.set_profile(self.dir, "  ", None), BLANK)
 
     def test_sixty_characters_are_kept_and_sixty_one_are_refused_in_the_words_settings_shows(self):
         self.assertEqual(settings.set_profile(self.dir, "N" * 60, "")["name"], "N" * 60)
@@ -94,9 +99,9 @@ class Settings(Folder):
 
     def test_a_value_in_the_file_that_is_not_plain_is_read_as_empty(self):
         (self.dir / settings.FILE).write_text(json.dumps({"profile_name": "N" * 80, "profile_email": "not an address"}), encoding="utf-8")
-        self.assertEqual(settings.profile(self.dir), {"name": "", "email": ""})
+        self.assertEqual(settings.profile(self.dir), BLANK)
         (self.dir / settings.FILE).write_text(json.dumps({"profile_name": 7, "profile_email": None}), encoding="utf-8")
-        self.assertEqual(settings.profile(self.dir), {"name": "", "email": ""})
+        self.assertEqual(settings.profile(self.dir), BLANK)
 
 
 class Seam(Folder):
@@ -105,8 +110,8 @@ class Seam(Folder):
         self.p = profile_settings.Profile(self.dir)
 
     def test_get_and_save(self):
-        self.assertEqual(self.p.get(), (200, {"ok": True, "name": "", "email": ""}))
-        self.assertEqual(self.p.save({"name": "Sam Lee", "email": "sam@example.test"}), (200, {"ok": True, "name": "Sam Lee", "email": "sam@example.test"}))
+        self.assertEqual(self.p.get(), (200, {"ok": True, **BLANK}))
+        self.assertEqual(self.p.save({"name": "Sam Lee", "email": "sam@example.test"}), (200, {"ok": True, **BLANK, "name": "Sam Lee", "email": "sam@example.test"}))
         self.assertEqual(self.p.get()[1]["name"], "Sam Lee")
 
     def test_a_wrong_shape_is_refused_and_writes_nothing(self):
@@ -172,7 +177,7 @@ class Route(Folder):
             conn.close()
 
     def test_get_and_post(self):
-        self.assertEqual(self.ask("GET"), (200, {"ok": True, "name": "", "email": ""}))
+        self.assertEqual(self.ask("GET"), (200, {"ok": True, **BLANK}))
         status, body = self.ask("POST", {"name": "Sam Lee", "email": "sam@example.test"})
         self.assertEqual((status, body["name"], body["email"]), (200, "Sam Lee", "sam@example.test"))
         self.assertEqual(self.ask("GET")[1]["email"], "sam@example.test")
@@ -201,6 +206,120 @@ class Route(Folder):
         conn.request("GET", "/api/profile", headers={"Host": f"127.0.0.1:{bare.server_port}", sv.TOKEN_HEADER: sv.TOKEN})
         self.assertEqual(conn.getresponse().status, 404)
         conn.close()
+
+
+ALL_FIVE = {"name": "Zq Sample Person", "alias": "ZqAliasMark", "email": "zq.mark@example.test", "phone": "+971 50 555 0199", "org": "ZqOrgMark Partners"}
+
+
+class FiveDetails(Folder):
+    """#440: the alias, the phone number and the organisation, saved as the name and the email are."""
+
+    def test_each_new_detail_is_saved_and_kept_when_a_save_leaves_it_out(self):
+        saved = settings.set_profile(self.dir, "Sam", "sam@example.test", "Sammy", "+971 50 123 4567", "Example Team")
+        self.assertEqual(saved, {"name": "Sam", "alias": "Sammy", "email": "sam@example.test", "phone": "+971 50 123 4567", "org": "Example Team"})
+        self.assertEqual(settings.profile(self.dir), saved)
+        self.assertEqual(settings.set_profile(self.dir, "Sam Lee", "sam@example.test"), {**saved, "name": "Sam Lee"}, "left out: kept")
+        self.assertEqual(settings.set_profile(self.dir, "Sam Lee", "sam@example.test", alias=""), {**saved, "name": "Sam Lee", "alias": ""}, "empty: cleared")
+        self.assertEqual(json.loads(self.disk())["profile_phone"], "+971 50 123 4567")
+
+    def test_each_new_detail_has_its_limit_in_its_own_words_and_nothing_is_written(self):
+        settings.set_profile(self.dir, "Sam", "")
+        before = self.disk()
+        for field, most, words in (("alias", 40, "Your alias is too long. Use 40 characters or fewer. Nothing was saved."),
+                                   ("org", 80, "Your organisation is too long. Use 80 characters or fewer. Nothing was saved.")):
+            self.assertEqual(settings.set_profile(self.dir, "Sam", "", **{field: "x" * most})[field], "x" * most)
+            before = self.disk()
+            with self.assertRaises(ValueError) as caught:
+                settings.set_profile(self.dir, "Sam", "", **{field: "x" * (most + 1)})
+            self.assertEqual(str(caught.exception), words)
+            self.assertEqual(self.disk(), before)
+        settings.set_profile(self.dir, "Sam", "", phone="1" * 30)
+        before = self.disk()
+        with self.assertRaises(ValueError) as caught:
+            settings.set_profile(self.dir, "Sam", "", phone="1" * 31)
+        self.assertEqual(str(caught.exception), "That phone number is too long. Use 30 characters or fewer. Nothing was saved.")
+        self.assertEqual(self.disk(), before)
+
+    def test_a_phone_number_is_digits_spaces_and_the_usual_signs_only(self):
+        for good in ("+971 50 123 4567", "(02) 555-0100", "050.123.4567"):
+            self.assertEqual(settings.set_profile(self.dir, "", "", phone=good)["phone"], good)
+        before = self.disk()
+        for bad in ("call me", "050 123 4567 x", "12345<script>", "+971;50", "12\n34"):
+            with self.assertRaises(ValueError, msg=repr(bad)) as caught:
+                settings.set_profile(self.dir, "", "", phone=bad)
+            self.assertEqual(str(caught.exception), settings.PHONE_BAD, repr(bad))
+        self.assertEqual(self.disk(), before)
+
+    def test_a_hidden_character_is_refused_in_each_new_detail(self):
+        before = self.disk()
+        for field in ("alias", "phone", "org"):
+            for bad in ("Sam\nLee", "Sam\u0000Lee", "Sam\u202eLee", "Sam\u200bLee", "Sam\tLee"):
+                with self.assertRaises(ValueError, msg=(field, bad)) as caught:
+                    settings.set_profile(self.dir, "Sam", "", **{field: bad})
+                self.assertTrue(str(caught.exception).endswith("Nothing was saved."), (field, bad))
+        self.assertEqual(self.disk(), before)
+        self.assertEqual(settings.set_profile(self.dir, "", "", alias="  Sam    L ", org=" A  B ")["alias"], "Sam L")
+
+    def test_a_non_text_new_detail_is_refused(self):
+        for field in ("alias", "phone", "org"):
+            with self.assertRaises(ValueError):
+                settings.set_profile(self.dir, "", "", **{field: 5})
+
+    def test_a_value_in_the_file_that_is_not_plain_is_read_as_empty(self):
+        (self.dir / settings.FILE).write_text(json.dumps({"profile_alias": "x" * 41, "profile_phone": "call me", "profile_org": "A\u200bB"}), encoding="utf-8")
+        self.assertEqual(settings.profile(self.dir), BLANK)
+
+    def test_the_seam_takes_the_five_and_keeps_one_left_out_and_refuses_a_stranger_key(self):
+        p = profile_settings.Profile(self.dir)
+        self.assertEqual(p.save(ALL_FIVE), (200, {"ok": True, **ALL_FIVE}))
+        self.assertEqual(p.save({"name": "Sam", "email": ""}), (200, {"ok": True, **ALL_FIVE, "name": "Sam", "email": ""}))
+        self.assertEqual(p.get(), (200, {"ok": True, **ALL_FIVE, "name": "Sam", "email": ""}))
+        before = self.disk()
+        for req in ({**ALL_FIVE, "title": "x"}, {**ALL_FIVE, "phone": 7}, {**ALL_FIVE, "org": None}, {"name": "x", "alias": "y"}):
+            status, body = p.save(req)
+            self.assertEqual((status, body["ok"], body["code"]), (400, False, "bad_request"), req)
+        status, body = p.save({**ALL_FIVE, "phone": "nope"})
+        self.assertEqual((status, body["code"], body["message"]), (400, "refused", settings.PHONE_BAD))
+        self.assertEqual(self.disk(), before)
+
+    def test_it_is_neither_the_name_on_changes_nor_an_own_domain(self):
+        p = profile_settings.Profile(self.dir)
+        p.save({"name": "", "email": "", "alias": "ZqAliasMark", "phone": "+971 50 555 0199", "org": "ZqOrgMark"})
+        self.assertEqual(p.who(), platform.login_name())
+        self.assertEqual(p.own_domains(), [])
+
+
+class NothingPublished(unittest.TestCase):
+    """#440: none of the five reaches a published file. A real store, all five saved, a published file built, and each value searched for."""
+
+    def test_a_published_file_carries_none_of_the_profile(self):
+        from clark import publish
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        who = profile_settings.Profile(demo.store.path.parent)        # the store's own data folder, where clark keeps settings.json
+        who.save(ALL_FIVE)
+        sections = demo.store.read("report_sections", "ABC")
+        req = {"project": "ABC", "kind": "report_sections", "op": "update", "id": sections[0]["id"], "changes": {"title": "Where we are"}, "place": "report"}
+        self.assertEqual(changes.make_change(demo.store.path, [], who.who)(req)[0], 200, "a change made under the saved name")
+        built = publish.build(demo.store, "ABC", now="2030-01-15")
+        text = built["body"].decode("utf-8")
+        self.assertGreater(len(text), 10000, "a real published file was built")
+        for field in ALL_FIVE:
+            self.assertNotIn(ALL_FIVE[field], text, field)
+        for marker in ("ZqAliasMark", "ZqOrgMark", "zq.mark", "555 0199", "5550199"):
+            self.assertNotIn(marker, text, marker)
+        self.assertNotIn("profile_", text)
+        self.assertNotIn("/api/profile", text)
+
+    def test_nothing_in_clark_reads_the_alias_phone_or_organisation_but_the_settings_card(self):
+        from _paths import SRC
+        readers = {}
+        for f in sorted((SRC / "clark").glob("*.py")):
+            t = f.read_text(encoding="utf-8")
+            for word in ("profile_alias", "profile_phone", "profile_org", "PROFILE_ALIAS", "PROFILE_PHONE", "PROFILE_ORG"):
+                if word in t:
+                    readers.setdefault(f.name, []).append(word)
+        self.assertEqual(sorted(readers), ["settings.py"], "only settings.py names the three keys")
 
 
 class ByUser(unittest.TestCase):
