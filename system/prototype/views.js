@@ -87,7 +87,7 @@
         <span class="msl-prog" title="Progress">${m.progress == null ? '<span class="muted">Not set</span>' : `<span class="pbar"><i style="width:${m.progress}%"></i></span>${m.progress}%`}</span>
         ${editing ? `<button class="ib" data-ms-eye="${m.id}" aria-label="${m.client ? 'Shown' : 'Hidden'}: ${esc(m.name)}">${C.icon(m.client ? 'eye' : 'eyeoff', 's')}</button>` : ''}</li>`;
     }).join('');
-    return `<ul class="msl">${rows}</ul>${list.length > 5 ? `<button class="link msl-all" ${pub ? 'data-msmore aria-expanded="false"' : `data-msall="${key}"`}>${allOn ? 'Show the first 5' : `Show all ${list.length}`}</button>` : ''}`;
+    return `<ul class="msl">${rows}</ul>${list.length > 5 ? `<button class="link msl-all" ${pub ? 'data-msmore aria-expanded="false"' : `data-msall="${key}"`}>${allOn ? 'Show the first 5' : `Show all ${list.length}${pub ? '' : ' milestones'}`}</button>` : ''}`;
   }
 
   /* ── milestones: a Calendar view beside the timeline, with a discreet switcher ("add Calendar view... and a
@@ -232,14 +232,14 @@
   const TILE_WORD = { G: 'On track', A: 'At risk', R: 'Off track' }, TILE_WORD_OF = { overdue: { R: 'Overdue' }, decisions: { A: 'Waiting' }, risks: { A: 'Watch', R: 'High' }, stale: { A: 'Needs a look' } };
   C.HEALTH_WORD_LABEL = 'Tile colour: ';
   C.tileWord = (k, rag) => (TILE_WORD_OF[k] || {})[rag] || TILE_WORD[rag] || '';
-  C.glanceHtml = (p, r, editing) => glanceHtml(p, r, editing);
-  function glanceHtml(p, r, editing) {
+  C.glanceHtml = (p, r, editing, pub) => glanceHtml(p, r, editing, pub);   /* pub: the published page, which never carries the Not reviewed tile (a staff check, and it counts internal items too) */
+  function glanceHtml(p, r, editing, pub) {
       const g = C.glanceData(p), HN = { G: 'On track', A: 'At risk', R: 'Off track' }, sug = editing ? C.healthSuggest(p) : null;
-      return `<div class="glance" data-glance>${r.glance.filter(f => f.k === 'stale' ? !f.hidden : editing || !f.hidden).map(f => { const d = g[f.k]; if (!d) return '';
+      return `<div class="glance" data-glance>${r.glance.filter(f => f.k === 'stale' ? !f.hidden && !pub : editing || !f.hidden).map(f => { const d = g[f.k]; if (!d) return '';
         const rag = f.rag || d.rag || '', word = f.rag === 'N' ? '' : C.tileWord(f.k, rag), sw = word ? `<span class="sw sw-${rag}">${word}</span>` : '';
         if (f.k === 'health') return `<div class="fig health-fig rag-${f.rag === 'N' ? 'N' : rag}" data-fig="health" ${editing ? 'draggable="true"' : ''}><div class="k">Project health${rag !== p.health && word ? `<span class="sw sw-${rag}">${C.HEALTH_WORD_LABEL}${word}</span>` : ''}</div><div class="hrow">${editing ? `<button class="hpill ${p.health}" id="hPill" aria-label="Project health: ${HN[p.health]}. Select to change">${HN[p.health]}</button><textarea id="hReason" rows="2" aria-label="Why the project has this health" ${sug.better ? 'required aria-required="true" aria-describedby="hReq"' : ''} placeholder="${sug.better ? 'Why is it better than the suggestion? (needed)' : 'Why, in a line or two'}">${esc(p.reason)}</textarea>` : `<span class="hpill ${p.health}">${HN[p.health]}</span><div class="hreason">${esc(p.reason).replace(/\n/g, '<br>')}</div>`}</div>${editing ? `<div class="hsug" id="hSug"><span>${esc(sug.text)}.</span>${sug.h !== p.health ? ' <button class="link" id="hUse">Use the suggestion</button>' : ' <span class="hsug-ok">Your choice matches it.</span>'}</div>${sug.better ? `<p class="hreq${p.reason.trim() ? ' ok' : ''}" id="hReq" role="${p.reason.trim() ? 'status' : 'alert'}">${p.reason.trim() ? 'Your health is better than the suggestion, so the reason is needed. It is there; check it still fits.' : 'Your health is better than the suggestion. Say why in the box above: the reason is needed.'}</p>` : ''}` : ''}</div>`;
         return `<div class="fig go kpi rag-${f.rag === 'N' ? 'N' : rag}${f.hidden ? ' out' : ''}" data-fig="${f.k}" ${editing ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="${esc(String(d.k))}: ${d.v}, ${esc(d.d || '')}${word ? ', ' + word : ''}. Open the list">${editing ? `<button class="ib eye" data-fig-eye="${f.k}" aria-label="${f.hidden ? 'Show' : 'Hide'} ${esc(String(d.k))}">${C.icon(f.hidden ? 'eyeoff' : 'eye', 's')}</button>` : ''}<div class="k"><i class="ragdot"></i>${d.k}</div><div class="vrow"><div class="v">${d.v}</div>${sw}</div>${d.d ? `<div class="d">${esc(d.d)}</div>` : ''}</div>`; }).join('')}</div>
-        ${editing ? `<p class="note">Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. Hidden tiles are left out of the published page.${(r.glance.find(f => f.k === 'stale') || {}).hidden ? ' <button type="button" class="link" data-stale-on>Add the Not reviewed tile</button>' : ''}</p>` : ''}`;
+        ${editing ? `<p class="note">Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. Hidden tiles are left out of the published page, and the Not reviewed tile is never in it.${(r.glance.find(f => f.k === 'stale') || {}).hidden ? ' <button type="button" class="link" data-stale-on>Add the Not reviewed tile</button>' : ''}</p>` : ''}`;
   }
   /* the dashboard's rows (#95): a section with beside:true shares its row with the next one drawn, so a row holds one or two and pairs never chain.
      'secs' is what is drawn (At a glance is left out when it sits inside the cover); 'show' drops hidden sections, and a pair with one half hidden shows the other full width */
@@ -612,7 +612,7 @@
         const u = D.change('item', x, { [f]: f === 'update' ? C.toHtml(v) : v }, D.who('in the report')); C.refresh(); C.toast(`${x.id} saved`, u); }); });
     /* the pill's menu offers what the pill shows: a risk or issue's rating (with Close or Reopen below), otherwise the status */
     C.$$('[data-cst]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const x = D.S.items.find(i => i.id === b.dataset.cst);
-      const set = (ch, msg) => { const u = D.change('item', x, ch, D.who('in the report')); C.refresh(); C.toast(msg, u); };
+      const set = (ch, msg) => { const no = D.closeRefusal(x, ch); if (no) return C.toast(no, null, { ms: 6000 }); const u = D.change('item', x, ch, D.who('in the report')); C.refresh(); C.toast(msg, u); };   /* the same refusal as the peek and the board (#135) */
       if (x.type === 'R' || x.type === 'I') return C.menu(b, [{ lab: 'Rating' }, ...[['R', 'Red', 'r'], ['A', 'Amber', 'a'], ['G', 'Green', 'g']].map(([v2, t, c2]) => ({ html: `<span class="pill ${c2}">${t}</span>`, selected: C.ragOf(x) === v2 && C.isOpen(x), onPick: () => set(C.ragSet(x, v2), `${x.id} rated ${t}`) })),
         { sep: true }, C.isOpen(x) ? { html: `${C.icon('check', 's')} Close it`, onPick: () => set({ status: 'Closed' }, `${x.id} closed`) } : { html: `${C.icon('undo', 's')} Reopen it`, onPick: () => set({ status: 'Open' }, `${x.id} reopened`) }], { select: true });
       C.menu(b, D.STATUSES[x.type].map(s => ({ label: s, selected: x.status === s, onPick: () => set({ status: s }, `${x.id} set to ${s}`) })), { select: true }); }));
@@ -1171,7 +1171,8 @@
     const f = C.$('#fl'); if (!f) return; e.preventDefault(); e.stopImmediatePropagation(); f.focus(); f.setSelectionRange(f.value.length, f.value.length);
   }, true);
   /* so the ask clark button does not promise "/" on Work items: there it says Ctrl or Cmd + J */
-  { const dt = C.drawTop; C.drawTop = () => { dt(); const b = C.$('#askBtn'), on = UI.view === 'work' && !!FL.OPT.SLASH_KEY && C.keysOn(), k = C.$('kbd', b); if (!b) return;
+  { const dt = C.drawTop; C.drawTop = () => { dt(); { const hb = C.$('#helpBtn'); if (hb) hb.title = 'Help' + C.keyHint('?'); }   /* the Help button names its key only while single keys are on */
+    const b = C.$('#askBtn'), on = UI.view === 'work' && !!FL.OPT.SLASH_KEY && C.keysOn(), k = C.$('kbd', b); if (!b) return;
     b.title = on ? `Open ask clark (Ctrl or Cmd + J). Here, ${FL.OPT.SLASH_KEY} goes to the filter line` : C.keysOn() ? 'Open ask clark (/ or Ctrl or Cmd + J)' : 'Open ask clark (Ctrl or Cmd + J)'; if (k) k.style.display = on || !C.keysOn() ? 'none' : ''; }; }
   function newItem(type) {
     const p = P(), x = { id: C.nextId(type), code: p.code, type, ws: one('workstream') || p.ws[0], title: `New ${D.TYPES[type].toLowerCase()}`, owner: '', due: type === 'D' ? D.TODAY : D.addDays(D.TODAY, 7), status: D.STATUSES[type][0], priority: 'Medium', desc: '', update: '', updatedAt: D.stamp(), client: true, clientText: '', ms: '', uc: '', source: 'Added by hand in clark' };
@@ -1361,7 +1362,7 @@
   C.openPub = n => { const p = C.P(), cp = D.pubCopy(p.code, n); if (!cp) return C.toast('That copy is no longer kept.');
     const url = URL.createObjectURL(new Blob([cp.html], { type: 'text/html' })); const w = window.open(url, '_blank'); if (!w) C.toast('Your browser blocked the new tab'); setTimeout(() => URL.revokeObjectURL(url), 60000); };
   const pubsCard = p => { const pubs = (p.published || []).map((r, i) => ({ r, n: D.pubNo(p, i) })).reverse();
-    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. The last ${D.PUB_KEEP} copies are kept.</p>
+    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. The last ${D.PUB_KEEP} copies are kept. A publication cannot be undone: it keeps its number and its copy.</p>
       ${pubs.length ? `<table class="set stack ppl"><thead><tr><th>#</th><th>Date and time</th><th>Where</th><th>Who</th><th></th></tr></thead><tbody>${pubs.map(({ r, n }) => `<tr data-pub="${n}"><td class="nm" data-l="Publication"><b style="font-weight:500">${n}</b></td><td data-l="Date and time">${D.fd(r.at.slice(0, 10))} ${esc(r.at.slice(11))}</td><td data-l="Where">${esc(r.where || (r.client ? 'Local and to client' : 'Local'))}${r.word ? ' · Word' : ''}${r.pdf ? ' · PDF' : ''}</td><td data-l="Who">${esc(r.who || 'Not recorded')}</td>
         <td class="acts">${D.pubCopy(p.code, n) ? `<button class="btn sm" data-pubopen="${n}">Open</button>` : '<span class="muted">Not kept</span>'}</td></tr>`).join('')}</tbody></table>` : '<p class="muted" id="pubsNone">Nothing published yet. Each publish is listed here with its number.</p>'}</div>`; };
   /* ── People (FR-31a, v0.5; a light simulation): a table from the distinct owners in the data, details by name, "Needs details" where the email is empty, and a paste from Excel ── */
@@ -1454,7 +1455,7 @@
       <label class="sw key-sw"><button class="switch" id="sfSw" role="switch" aria-checked="${on}" aria-label="Daily backup"></button><span>Daily backup</span><b class="ask-sw-st" id="sfSwSt" aria-hidden="true">${on ? 'On' : 'Off'}</b></label>
       <p id="sfStatus" class="sf-status${st.ok ? '' : ' bad'}">${esc(st.text)}</p>
       ${list.length ? `<ul class="docs sf-list" id="sfList">${list.map(b => `<li data-bk="${esc(b.id)}"><span class="dic">${C.icon('doc', 's')}</span><span><span class="num">${b.when}</span> <span class="tag">${b.label}</span> <span class="muted sf-size">${b.size}</span></span><span></span><span class="acts"><button class="btn sm" data-sfp="${esc(b.id)}">Preview</button> <button class="btn sm" data-sfr="${esc(b.id)}">Restore</button></span></li>`).join('')}</ul>` : '<p class="muted">There are no backups to show yet.</p>'}
-      <p class="muted" style="font-size:13px;margin:8px 0 0">The last ${14} daily backups are kept.</p>
+      <p class="muted" style="font-size:13px;margin:8px 0 0">The last ${D.KEEP_BACKUPS} daily backups are kept.</p>
       <div class="sf-panel" id="sfPanel" role="region" aria-label="Backup preview" hidden></div>
       <p class="sf-msg ${sfMsg.kind}" id="sfMsg" role="${sfMsg.kind === 'error' ? 'alert' : 'status'}" aria-live="polite">${esc(sfMsg.text)}</p></div>`; };
   const safetyWire = () => {
@@ -1467,7 +1468,7 @@
         C.$('#sfNo', b).addEventListener('click', () => { close(); say('', ''); });
         C.$('#sfRestore', b)?.addEventListener('click', () => look(id, true));
         C.$('#sfGo', b)?.addEventListener('click', async () => { const x = await D.backupRestore(id); if (!x.ok) { close(); say('error', x.message); return; }
-          if (!C.live().some(q => q.code === UI.code)) UI.code = C.live()[0]?.code || ''; C.closePeek({ quiet: true }); sfMsg = { kind: 'ok', text: x.message }; C.refresh(); C.toast(x.message, null, { ms: 5000 }); }); });
+          if (!C.live().some(q => q.code === UI.code)) UI.code = C.live()[0]?.code || ''; C.undoClear(); C.closePeek({ quiet: true }); sfMsg = { kind: 'ok', text: x.message }; C.refresh(); C.toast(x.message, null, { ms: 5000 }); }); });
       C.$(confirming ? '#sfGo' : '#sfRestore')?.focus(); };
     C.$$('[data-sfp]').forEach(b => b.addEventListener('click', () => look(b.dataset.sfp, false)));
     C.$$('[data-sfr]').forEach(b => b.addEventListener('click', () => look(b.dataset.sfr, true)));

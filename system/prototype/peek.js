@@ -136,10 +136,10 @@
   }
   function feedHtml(kind, rec, which) {
     const hs = D.historyOf(kind, kind === 'project' ? rec.code : rec.id).filter(h => h.code === rec.code), ticking = which === 'activity' && (kind === 'item' || kind === 'ms');
-    const tk = h => { const why = D.whyNot(h), step = D.stepKey(h); return { step, why, on: !why && sel.has(step), field: D.fieldName(h.field, kind), when: D.when(h) }; };
+    const tk = h => { const why = rec.archived ? D.WHY_ARCHIVED : D.whyNot(h), step = D.stepKey(h); return { step, why, on: !why && sel.has(step), field: D.fieldName(h.field, kind), when: D.when(h) }; };
     const rows = [], seenB = new Set();
-    hs.forEach(h => { if (h.batch) { if (seenB.has(h.batch)) return; seenB.add(h.batch); rows.push(batchRow(hs.filter(x => x.batch === h.batch), kind, ticking ? { why: D.WHY_UNDO, on: false } : null)); } else rows.push(histRow(h, kind, ticking ? tk(h) : null)); });
-    if (kind === 'item' && rec.updatedAt && !hs.some(h => h.field === '+')) rows.push({ k: 'act', ch: true, html: `<li${rowAttr(ticking ? { why: D.WHY_NO_STEP } : null)}>${tickHtml(ticking ? { why: D.WHY_NO_STEP } : null)}<span class="fi">${C.icon('doc', 's')}</span><span class="hb"><span class="hh"><b>Imported</b> <span class="t">· ${D.fd(rec.updatedAt.slice(0, 10))}</span></span><span class="hw"><span class="hf">from ${esc(rec.source || 'the project record')}</span></span>${whyHtml(ticking ? { why: D.WHY_NO_STEP } : null)}</span></li>` });
+    hs.forEach(h => { if (h.batch) { if (seenB.has(h.batch)) return; seenB.add(h.batch); rows.push(batchRow(hs.filter(x => x.batch === h.batch), kind, ticking ? { why: rec.archived ? D.WHY_ARCHIVED : D.WHY_UNDO, on: false } : null)); } else rows.push(histRow(h, kind, ticking ? tk(h) : null)); });
+    if (kind === 'item' && rec.updatedAt && !hs.some(h => h.field === '+')) rows.push({ k: 'act', ch: true, html: `<li${rowAttr(ticking ? { why: rec.archived ? D.WHY_ARCHIVED : D.WHY_NO_STEP } : null)}>${tickHtml(ticking ? { why: rec.archived ? D.WHY_ARCHIVED : D.WHY_NO_STEP } : null)}<span class="fi">${C.icon('doc', 's')}</span><span class="hb"><span class="hh"><b>Imported</b> <span class="t">· ${D.fd(rec.updatedAt.slice(0, 10))}</span></span><span class="hw"><span class="hf">from ${esc(rec.source || 'the project record')}</span></span>${whyHtml(ticking ? { why: rec.archived ? D.WHY_ARCHIVED : D.WHY_NO_STEP } : null)}</span></li>` });
     if (kind === 'item') rows.push({ k: 'src', html: `<li><span class="fi">${C.icon('doc', 's')}</span><span class="hb"><span class="hh"><b>Source</b></span><span class="hw"><span class="hf">${esc(rec.source || 'Added by hand in clark')}</span></span></span></li>` });
     const shown = rows.filter(r => which === 'all' || (which === 'activity' && r.k !== 'src' && (actF === 'all' || (actF === 'changes' ? r.ch : !r.ch))) || (which === 'updates' && r.k === 'upd') || (which === 'source' && r.k === 'src'));
     return shown.length ? `<ul class="feed">${shown.map(r => r.html).join('')}</ul>` : '<p class="muted" style="font-size:13px;padding:10px 0">Nothing here yet.</p>';
@@ -160,11 +160,11 @@
         <div class="pa-acts">${!none && !ask ? `<button type="button" class="btn pa-do" data-pa-go>Undo ${undo.length}</button>` : ''}${ask ? `<button type="button" class="btn pa-do" data-pa-yes>Yes, undo all ${n}</button>` : ''}<button type="button" class="link" data-pa-back>${ask ? 'No, go back' : 'Cancel'}</button></div></section>`; }
     return bar + msg + pv; };
   function wireTabs(kind, rec) {
-    const ticking = () => tab === 'activity' && (kind === 'item' || kind === 'ms');
+    const ticking = () => tab === 'activity' && (kind === 'item' || kind === 'ms') && !rec.archived;   /* an archived record is read-only: no ticks, no Undo several */
     const allHtml = () => { if (!ticking()) return ''; const t = ticksDrawn_(); if (!t.length) return ''; const on = t.filter(k => sel.has(k)).length;
       return `<label class="pa-all" data-pa-all-label><input type="checkbox" class="gtick" data-pa-all ${on === t.length ? 'checked' : ''} data-mixed="${on > 0 && on < t.length}"><span>Select all changes that can be undone</span></label>`; };
     /* the steps that can be chosen, in the order drawn, read from the model so the header knows them before the rows are drawn */
-    const ticksDrawn_ = () => { const out = []; D.historyOf(kind, kind === 'project' ? rec.code : rec.id).filter(h => h.code === rec.code && !h.batch && !D.whyNot(h)).forEach(h => { const k = D.stepKey(h); if (!out.includes(k)) out.push(k); }); return out; };
+    const ticksDrawn_ = () => { const out = []; if (rec.archived) return out; D.historyOf(kind, kind === 'project' ? rec.code : rec.id).filter(h => h.code === rec.code && !h.batch && !D.whyNot(h)).forEach(h => { const k = D.stepKey(h); if (!out.includes(k)) out.push(k); }); return out; };
     const redraw = focus => { C.$('#pkFeed').innerHTML = (tab === 'activity' ? filtHtml() : '') + allHtml() + '<div class="pa-undo" id="paUndo" data-pa-undo></div>' + feedHtml(kind, rec, tab); C.$$('.pk-tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
       C.$$('[data-hf]', pk()).forEach(b => b.addEventListener('click', () => { actF = b.dataset.hf; redraw(actF); })); if (focus) C.$(`[data-hf="${focus}"]`, pk())?.focus();
       const m = C.$('[data-pa-all]', pk()); if (m) m.indeterminate = m.dataset.mixed === 'true';

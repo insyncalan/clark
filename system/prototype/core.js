@@ -97,7 +97,7 @@
   };
   /* Cmd or Ctrl+Z: the last change that can still be undone; with none, it says so */
   C.undoClear = () => { steps.length = 0; };   /* a reset of the demo data leaves nothing to undo: the old steps point at records that are gone */
-  C.undoLast = () => { let r; while ((r = steps.pop())) { if (r.done) continue; r.done = true; r.fn(); C.refresh(); C.toast('Undone: ' + r.msg); return true; } C.toast('Nothing to undo'); return false; };
+  C.undoLast = () => { let r; while ((r = steps.pop())) { if (r.done) continue; r.done = true; r.fn(); C.refresh(); C.toast('Undone: ' + r.msg); return true; } C.toast('Nothing to undo.'); return false; };
   /* Single-key shortcuts (#193): on unless turned off in Settings › Personal; kept in this browser like the colour theme, read live */
   C.keysOn = () => C.store.get('singleKeys', true) !== false;
   C.keyHint = k => C.keysOn() ? ` (${k})` : '';
@@ -311,8 +311,8 @@
     if (C.$('#dlg').open) return;
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); C.askToggle(); return; }
     /* Cmd or Ctrl+Z on the Dashboard, Work items and Milestones undoes the last change; a box or an editor keeps its own undo (#197) */
-    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !e.repeat && !e.isComposing && e.key.toLowerCase() === 'z' && ['dashboard', 'work', 'milestones'].includes(UI.view)
-      && !openPop && !C.typing(document.activeElement) && !(C.edIsOpen && C.edIsOpen()) && !C.palOpen?.()) { e.preventDefault(); C.undoLast(); return; }
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !e.repeat && !e.isComposing && e.key.toLowerCase() === 'z' && ['dashboard', 'work', 'milestones'].includes(UI.view) && (UI.view !== 'dashboard' || UI.editing)
+      && !document.querySelector('dialog[open]') && !openPop && !C.typing(document.activeElement) && !(C.edIsOpen && C.edIsOpen()) && !C.palOpen?.()) { e.preventDefault(); C.undoLast(); return; }
     if (e.key === '/' && C.keysOn() && !e.metaKey && !e.ctrlKey && !C.typing(document.activeElement)) {
       e.preventDefault();
       /* creaite's keys: "//" in a peek opens Sneak peek; a single "/" opens ask clark */

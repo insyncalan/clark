@@ -2583,7 +2583,7 @@
       ok('#197 Cmd or Ctrl+Z is left alone while typing in a box', !taken && x.owner === 'Zed Zed');
       click($('#meBtn')); await sleep(60); const inMenu = kd(document.body, 'z', { ctrlKey: true }); key(document.body, 'Escape'); await sleep(40); ok('#197 Cmd or Ctrl+Z with a menu open is left to the menu', !inMenu && x.owner === 'Zed Zed');
       ok('#197 Ctrl+Z on the Dashboard undoes the last change, like the toast\'s Undo', kd(document.body, 'z', { ctrlKey: true }) && (await sleep(60), x.owner === o0 && /^Undone: owner test/.test(toast())), x.owner);
-      ok('#197 with nothing to undo it says "Nothing to undo"', (kd(document.body, 'z', { metaKey: true }), await sleep(40), toast() === 'Nothing to undo'), toast());
+      ok('#197 with nothing to undo it says "Nothing to undo"', (kd(document.body, 'z', { metaKey: true }), await sleep(40), toast() === 'Nothing to undo.'), toast());
       C.go('milestones'); await sleep(100); const m = S().milestones.find(y => y.code === 'PDF' && !y.archived), p0 = m.progress; const um = DB.change('ms', m, { progress: 55 }, DB.who('in the peek')); C.refresh(); C.toast('progress test', um); await sleep(40);
       kd(document.body, 'z', { ctrlKey: true }); await sleep(60); ok('#197 it works on Milestones and Work items too', m.progress === p0); C.go('dashboard'); await sleep(80); }
 
@@ -2694,7 +2694,7 @@
       const ids = bks(); click($(`[data-sfp="${ids[2]}"]`)); await sleep(60); ok('#111 Preview says what the backup holds and what you have now, and changes nothing', /It holds 2 projects, 19 work items and 8 milestones\./.test($('#sfPanel').textContent) && /You have 2 projects, 2\d work items/.test($('#sfPanel').textContent), $('#sfPanel').textContent);
       click($(`[data-sfp="${ids[3]}"]`)); await sleep(60); ok('#111 a damaged backup is refused in plain words', /is damaged and can't be used\. Nothing was changed\.$/.test($('#sfMsg').textContent) && $('#sfMsg').getAttribute('role') === 'alert', $('#sfMsg').textContent);
       const n0 = S().items.length; click($(`[data-sfr="${ids[2]}"]`)); await sleep(60); ok('#111 Restore asks first: what you have now is kept first', /What you have now is kept first\.$/.test($('#sfConfirm').textContent));
-      click($('#sfGo')); await sleep(300); ok('#111 Put it back restores the backup and says so in one sentence, and keeps the data from before', S().items.length === 19 && n0 > 19 && /^Restored the backup from \d\d-\d\d-\d{4}\. Your data from before is kept in case you need it\.$/.test($('#sfMsg').textContent) && $$('[data-bk] .tag').some(t => t.textContent === 'Before a restore'), $('#sfMsg').textContent);
+      click($('#sfGo')); await sleep(300); ok('#111 Put it back restores the backup and says so in one sentence, and keeps the data from before', S().items.length === 19 && n0 > 19 && /^Restored the backup from \d\d-\d\d-\d{4}\. Your data from before is kept in case you need it\. Your published reports were not touched\.$/.test($('#sfMsg').textContent) && $$('[data-bk] .tag').some(t => t.textContent === 'Before a restore'), $('#sfMsg').textContent);
       const br = $$('[data-bk]').find(l => /Before a restore/.test(l.textContent)); click(br.querySelector('[data-sfr]')); await sleep(60); click($('#sfGo')); await sleep(300); ok('#111 the copy kept first puts everything back', S().items.length === n0);
       click($('#sfSw')); await sleep(80); ok('#111 the switch turns the daily backup off, and the status says so', $('#sfSw').getAttribute('aria-checked') === 'false' && /The daily backup is off/.test($('#sfStatus').textContent)); click($('#sfSw')); await sleep(80); ok('#111 and on again', $('#sfSw').getAttribute('aria-checked') === 'true'); }
 
@@ -2709,6 +2709,69 @@
       w.value = 'portbusy'; w.dispatchEvent(new Event('change', { bubbles: true })); await sleep(60); ok('#427 port in use: says what to do', /Port 8766 is in use\. Close the other clark window or program that is using it/.test($('#stSay').textContent));
       click($('[data-route=terminal]')); await sleep(60); ok('#427 the terminal route leads through clark.command, step by step', /Double-click clark\.command/.test($('#stPane').textContent) && /Control-click clark\.command/.test($('#stPane').textContent) && $$('#stPane .st-steps li').length === 4);
       key($('#startGuide'), 'Escape'); $('#startGuide').close(); await sleep(80); ok('#427 closing it gives the focus back', !$('#startGuide') && document.activeElement.id === 'startBtn'); C.store.set('startRoute', 'docker'); }
+
+    /* ═════ the review of the prototype (HIGH 1 and 2, MEDIUM 3 to 8, and the small ones) ═════ */
+    const waitUntil = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Date.now() - t0 < ms) await sleep(60); return !!f(); };
+    const toViewMode = async () => { C.go('dashboard'); await sleep(120); if ($('[data-mode=view]')) { click($('[data-mode=view]')); await sleep(80); } };
+    /* HIGH 1: a publication has no Undo, and Cmd or Ctrl+Z and Undo several never reach one */
+    { C.UI.code = 'PDF'; await toViewMode(); const p0 = P(), n = DB.pubNext(p0), r0 = p0.reason; C.undoClear();
+      const u1 = DB.change('project', p0, { reason: 'Reason for the undo test' }, DB.who('in the report')); C.toast('reason test', u1); await sleep(30);
+      C.publishDialog(); await sleep(100); $('#pubF').requestSubmit(); const got = await waitUntil(() => $('#pubGo .tick')); await waitUntil(() => !$('#dlg').open, 3000);
+      ok('HIGH 1: the publish toast has no Undo button', got && /Publication \d+/.test(toast()) && $('#toastUndo').hidden, toast());
+      C.go('work'); await sleep(120); const was = P().published.length; kd(document.body, 'z', { ctrlKey: true }); await sleep(80);
+      ok('HIGH 1: Ctrl+Z takes the change made before, and the publication stays (its number and its kept copy)', P().reason === r0 && P().published.length === was && P().published.slice(-1)[0].n === n && !!DB.pubCopy('PDF', n), `${P().reason} | ${P().published.length}/${was}`);
+      kd(document.body, 'z', { ctrlKey: true }); await sleep(60); ok('HIGH 1: the next Ctrl+Z says there is nothing to undo, and the publication is still there', toast() === 'Nothing to undo.' && P().published.length === was);
+      const row = S().history.find(h => h.kind === 'project' && h.field === 'published' && h.to.some(q => q.n === n));
+      ok('HIGH 1: the publication row of the history cannot be chosen for Undo several', !!row && DB.whyNot(row) === DB.WHY_PUBLICATION, row && DB.whyNot(row)); }
+    /* HIGH 2: an archived record has no Undo several */
+    { const x = mine('PDF-A-018'); C.go('work'); await sleep(100); DB.change('item', x, { owner: 'Arch Test' }, DB.who('in the peek')); const o1 = x.owner, h = S().history.filter(q => q.id === x.id && q.field === 'owner').pop();
+      DB.archive(x, true); C.refresh(); C.openItem(x.id); await sleep(150); await tab('activity');
+      ok('HIGH 2: an archived record shows no tick, no Select all and no Undo bar', !$('#peek [data-pa-tick]') && !$('#peek [data-pa-all]') && !$('#peek [data-pa-undo-n]') && !$('#peek [data-pa-bar]'));
+      ok('HIGH 2: its rows say why in words', $$('#peek [data-pa-why]').length >= 1 && $$('#peek [data-pa-why]').every(e => e.textContent === DB.WHY_ARCHIVED), $$('#peek [data-pa-why]').map(e => e.textContent).join(' | '));
+      const plan = DB.planUndo('item', x, [DB.stepKey(h)]);
+      ok('HIGH 2: even asked directly, nothing is undone on an archived record', plan.undo.length === 0 && plan.skip.length >= 1 && DB.undoMany('item', x, plan) === null && x.owner === o1);
+      DB.archive(x, false); C.closePeek(); C.refresh(); await sleep(80); C.openItem(x.id); await sleep(150); await tab('activity');
+      ok('HIGH 2: once restored the ticks are back', $$('#peek [data-pa-tick]').length >= 1); C.closePeek(); await sleep(60); }
+    /* MEDIUM 3: Cmd or Ctrl+Z on the Dashboard works in Edit only */
+    { const x = mine('PDF-A-018'), o0 = x.owner; await toViewMode(); C.undoClear(); const u = DB.change('item', x, { owner: 'View Test' }, DB.who('in the report')); C.toast('view test', u); await sleep(30);
+      const took = kd(document.body, 'z', { ctrlKey: true }); await sleep(60); ok('MEDIUM 3: in View, Ctrl+Z does nothing on the Dashboard', !took && x.owner === 'View Test');
+      click($('[data-mode=edit]')); await sleep(100); kd(document.body, 'z', { ctrlKey: true }); await sleep(80); ok('MEDIUM 3: in Edit it undoes the change', x.owner === o0, x.owner);
+      click($('[data-mode=view]')); await sleep(80); }
+    /* LOW: Ctrl+Z leaves an open dialog alone; with single keys off, ? does not open Help */
+    { const x = mine('PDF-A-018'); C.go('work'); await sleep(100); C.undoClear(); const u = DB.change('item', x, { owner: 'Dlg Test' }, DB.who('in the report')); C.toast('dialog test', u); await sleep(30);
+      click($('#startBtn')); await sleep(120); const took = kd(document.body, 'z', { ctrlKey: true }); await sleep(40); ok('LOW: Ctrl+Z is left alone while the first-start guide is open', !took && x.owner === 'Dlg Test'); $('#startGuide')?.close(); await sleep(80);
+      click($('#toastUndo')); await sleep(60);
+      C.store.set('singleKeys', false); C.drawTop(); key(document.body, '?'); await sleep(80); const stayed = C.UI.view !== 'help'; ok('LOW: with single-key shortcuts off, ? does not open Help, and the button no longer names the key', stayed && $('#helpBtn').title === 'Help', $('#helpBtn').title);
+      C.store.set('singleKeys', true); C.drawTop(); key(document.body, '?'); await sleep(120); ok('LOW: with them on, ? opens Help', C.UI.view === 'help'); C.go('dashboard'); await sleep(80); }
+    /* MEDIUM 6: the Not reviewed tile is for you only */
+    { await toViewMode(); const g = P().report.glance.find(f => f.k === 'stale'), was = g.hidden; g.hidden = false; C.refresh(); await sleep(80);
+      const ed = $('[data-fig=stale]'), pg = await C.webPage(), word = C.glanceHtml(P(), P().report, false, true);
+      ok('MEDIUM 6: switched on, the tile shows in the editor', !!ed);
+      ok('MEDIUM 6: but it is not on the published page, and the page does not name it', !/data-fig="stale"/.test(pg) && !/data-fig="stale"/.test(word));
+      g.hidden = was; C.refresh(); await sleep(60); }
+    /* MEDIUM 7: the raised-date refusal on the Dashboard's status menu */
+    { const x = mine('PDF-A-015'); await toViewMode(); DB.change('item', x, { raised: DB.addDays(DB.TODAY, 5) }, DB.who('in the peek')); click($('[data-mode=edit]')); await sleep(120); const h0 = S().history.length, st = x.status;
+      const pill = $(`[data-cst="${x.id}"]`); ok('MEDIUM 7: the action is on the Dashboard with its status menu', !!pill);
+      if (pill) { click(pill); await sleep(60); await menuPick('Closed'); await sleep(80); }
+      ok('MEDIUM 7: closing it from the Dashboard is refused in the one plain sentence, and nothing is written', x.status === st && toast() === DB.BEFORE_RAISED && S().history.length === h0, toast());
+      DB.change('item', x, { raised: DB.TODAY }, DB.who('in the peek')); click($('[data-mode=view]')); await sleep(80); }
+    /* MEDIUM 8: milestone rows 6 and over show in print */
+    { const h = await C.webPage(), f = document.createElement('iframe'); f.style.cssText = 'position:fixed;left:0;top:0;width:1100px;height:800px;opacity:0;pointer-events:none'; f.srcdoc = h; document.body.appendChild(f);
+      for (let i = 0; i < 60 && !(f.contentDocument && f.contentDocument.querySelector('[data-msmore]')); i++) await sleep(100);
+      const d = f.contentDocument, pr = []; [...d.styleSheets].forEach(sh => { try { [...sh.cssRules].forEach(r => { if (r.type === CSSRule.MEDIA_RULE && /print/.test(r.conditionText || r.media.mediaText)) [...r.cssRules].forEach(q => pr.push(q)); }); } catch (e) {} });
+      const own = pr.find(q => q.selectorText === '.msl-row[data-more][hidden]'), all = pr.find(q => q.selectorText === '.msl-all');
+      ok('MEDIUM 8: the print rules show the milestone rows that Show all would open, and hide the button', !!own && own.style.display === 'grid' && own.style.getPropertyPriority('display') === 'important' && !!all && all.style.display === 'none', pr.length + ' print rules');
+      f.remove(); }
+    ok('LOW: the Published reports card says a publication cannot be undone', (C.go('settings'), await sleep(250), /A publication cannot be undone/.test($('#pubs').textContent)));
+    /* MEDIUM 4 and 5: Restore leaves publications alone, and clears the steps that could be undone before it */
+    { C.go('settings'); await sleep(250); const nPub = P().published.length, copy = DB.pubCopy('PDF', P().published.slice(-1)[0].n);
+      const old = JSON.parse(JSON.stringify(S().backups.find(b => b.kind === 'daily' && !b.damaged))); old.id = 'clark-backup-old-with-publications'; old.snap.projects.forEach(q => { if (q.code === 'PDF') q.published = []; }); S().backups.push(old);
+      const r = await DB.backupRestore(old.id); ok('MEDIUM 5: a restore never rolls the publications back (even from a backup that holds none)', r.ok && P().published.length === nPub && DB.pubCopy('PDF', P().published.slice(-1)[0].n) === copy && /Your published reports were not touched\.$/.test(r.message), r.message);
+      S().backups = S().backups.filter(b => b.id !== old.id);
+      C.go('work'); await sleep(100); C.undoClear(); const x2 = S().items.find(y => y.code === 'PDF' && !y.archived && y.owner), o2 = x2.owner; const u = DB.change('item', x2, { owner: 'Before Restore' }, DB.who('in the report')); C.toast('before restore', u); await sleep(30);
+      C.go('settings'); await sleep(250); const id = DB.backups().find(b => b.kind === 'daily' && !b.damaged).id; click($(`[data-sfr="${id}"]`)); await sleep(60); click($('#sfGo')); await sleep(300);
+      C.go('work'); await sleep(100); const was = JSON.stringify(S().items); kd(document.body, 'z', { ctrlKey: true }); await sleep(80);
+      ok('MEDIUM 4: after a Restore, Ctrl+Z has nothing old to put back', toast() === 'Nothing to undo.' && JSON.stringify(S().items) === was, toast()); }
   });
 
   const wide = $$('body *').filter(e => { const r = e.getBoundingClientRect(); return r.width && r.right > innerWidth + 1 && !e.closest('.mv-wrap,.peek,.ask,.toast,table,.menu,dialog'); });

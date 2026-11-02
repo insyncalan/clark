@@ -316,7 +316,7 @@
   const ic = n => `<span class="hp-ic">${C.icon(n)}</span>`;
   const MS_STATES = [['Achieved', 'Done, on the date it was achieved.'], ['On track', 'Expected on its agreed date.'], ['At risk', 'Marked at risk by hand.'], ['Slipped', 'Now expected after its agreed date. On the published page: Expected later.'], ['Overdue', 'Its agreed date has passed and it isn’t achieved. On the published page: Late.'], ['Forecast', 'A date not yet agreed.']];
   const SHORTCUTS = [
-    ['[[?]]', 'Help, from any page (when you aren’t typing in a box)'],
+    ['[[?]]', 'Help, from any page (when you aren’t typing in a box). It follows the **Single-key shortcuts** switch; with it off, use the Help button'],
     ['[[/]]', 'ask clark (when you aren’t typing in a box). On Work items it goes to the filter line, and in Help to the search box, instead'],
     ['[[Mod+J]]', 'Open or close ask clark'],
     ['[[/]] [[/]]', 'With a peek open: Sneak peek, change it in words. A single [[/]] opens ask clark after a moment'],
@@ -328,7 +328,7 @@
     ['[[/]] in an editor', 'The command menu, at the start of a line or after a space. [[Up]], [[Down]], [[Enter]] and [[Esc]] work in it'],
     ['[[Up]]', 'In an empty Sneak peek box: your last instruction'],
     ['[[Up]] [[Down]] [[Enter]]', 'In any menu: move and choose. [[Esc]] closes it'],
-    ['[[V]] [[E]]', 'On the Dashboard: View mode and Edit mode, as the **View** and **Edit** buttons do (when you aren’t typing in a box, and no menu, box or peek is open). The letter keys V, E, C and [[/]] all follow one switch: **Single-key shortcuts** in Settings, Personal. With it off they do nothing; arrows, Enter, Esc, Space and anything with Ctrl or Cmd still work'],
+    ['[[V]] [[E]]', 'On the Dashboard: View mode and Edit mode, as the **View** and **Edit** buttons do (when you aren’t typing in a box, and no menu, box or peek is open). The letter keys V, E, C and [[/]], and [[?]] for Help, all follow one switch: **Single-key shortcuts** in Settings, Personal. With it off they do nothing; arrows, Enter, Esc, Space and anything with Ctrl or Cmd still work'],
     ['[[Mod+K]]', 'Anywhere, even in a box: the command palette. Type to find a command, a page, a project, a work item (by its ID or words in its title) or a milestone; [[Up]] and [[Down]] move, [[Enter]] opens or runs, [[Esc]] or [[Mod+K]] again closes it. It works when Single-key shortcuts are off'],
     ['[[Mod+Z]] on a page', 'On the Dashboard, Work items and Milestones: undo the last change, the same step as the **Undo** in the message. Not while typing in a box or an editor, which keep their own undo'],
     ['[[Alt+Up]] [[Alt+Down]]', 'Dashboard in Edit, on a section’s grip: move the section'],
@@ -539,6 +539,7 @@
       ['p', 'Each publish is noted on the project, and the Dashboard says when it was last published. **Preview the page in a new tab** shows the page without saving it.'] ] },
     { id: 'published-reports', g: 'Publishing', t: 'Published reports', w: 'Settings › Published reports · profile circle', b: [
       ['tbl', ['Column', 'Shows'], [['#', 'The publication’s number for this project, counting up from 1'], ['Date and time', 'When it was published'], ['Where', 'Local, or Local and to client; with Word or PDF when ticked'], ['Who', 'The name in your profile'], ['Open', 'The kept copy of the page, in a new tab; or “Not kept” for an older one']]],
+      ['p', 'A publication cannot be undone: it keeps its number and its copy. Cmd or Ctrl+Z, Undo several and a restore from a backup never take one back.'],
       ['p', 'The last 10 copies are kept in this browser’s database. A later release ties a client’s comment to the publication the client saw.'] ] },
     { id: 'client-page', g: 'Publishing', t: 'The published client page', b: [
       ['ul', ['**The cover**: the project, the week ending and who it is for.', '**Four tabs**: Dashboard, Work items, Milestones and Use Cases.', '**Dashboard**: the report in the section style you chose, with **On this page** at the right.', '**Work items**: actions, risks and issues, and decisions shown to the client, with a search box.', '**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.', '**Use Cases**: only the use cases on the dashboard. A row opens where it stands, the next steps and the milestones shown to the client; nothing else.', 'A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.', 'A tile opens the Work items tab. A use case row opens its detail.']],
@@ -745,7 +746,7 @@
   /* ── keys: ? opens Help from any page; in Help, / goes to the search box (before the page's own / opens ask clark) ── */
   const blocked = () => C.typing(document.activeElement) || C.$('#dlg')?.open || (C.popOpen && C.popOpen()) || (C.askIsOpen && C.askIsOpen()) || (C.edIsOpen && C.edIsOpen());
   document.addEventListener('keydown', e => {
-    if (e.metaKey || e.ctrlKey || e.altKey || blocked()) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || blocked() || !C.keysOn()) return;   /* with single-key shortcuts off, ? and / are plain keys */
     if (e.key === '?') { e.preventDefault(); if (C.UI.view === 'help') { C.$('#hpQ')?.focus(); return; } C.help.open(); return; }
     if (e.key === '/' && C.UI.view === 'help' && !C.UI.peek) { const q = C.$('#hpQ'); if (q) { e.preventDefault(); e.stopImmediatePropagation(); q.focus(); q.select(); } }
   }, true);

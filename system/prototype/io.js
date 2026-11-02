@@ -132,7 +132,7 @@
   }
   function pubData() {
     const p = C.P(), r = p.report, its = C.items().filter(x => x.client), ms = C.mss().filter(m => m.client), ucs = D.S.usecases.filter(u => u.code === p.code && u.client && !u.archived);
-    return { p, r, its, ms, ucs, secs: C.pubOrder(r.sections).filter(s => C.onPub(s, p)), docs: (p.docs || []).filter(d => !d.hidden && !d.archived), glance: r.glance.filter(f => !f.hidden) };
+    return { p, r, its, ms, ucs, secs: C.pubOrder(r.sections).filter(s => C.onPub(s, p)), docs: (p.docs || []).filter(d => !d.hidden && !d.archived), glance: r.glance.filter(f => !f.hidden && f.k !== 'stale') };   /* the Not reviewed tile is for you only: never in the published page or the Word file */
   }
   /* the use case summary as the editor shows it in View mode, every row closed; a row's links open the item's detail */
   function ucView(p) {
@@ -148,7 +148,7 @@
     const sec = s => {
       let b = '';
       if (s.type === 'current') b = `<div class="prose">${p.current || ''}</div>`;
-      if (s.type === 'glance') b = forWord ? `<p>${glance.map(f => f.k === 'health' ? `<b>Project health: ${H[p.health]}.</b> ${esc(p.reason)}` : g[f.k] ? `<span class="fig"><b>${g[f.k].v}</b> ${g[f.k].k}</span>` : '').join(' ')}</p>` : C.glanceHtml(p, p.report, false);
+      if (s.type === 'glance') b = forWord ? `<p>${glance.map(f => f.k === 'health' ? `<b>Project health: ${H[p.health]}.</b> ${esc(p.reason)}` : g[f.k] ? `<span class="fig"><b>${g[f.k].v}</b> ${g[f.k].k}</span>` : '').join(' ')}</p>` : C.glanceHtml(p, p.report, false, true);
       if (s.type === 'usecases') b = ucs.length ? (forWord ? tbl(['ID', 'Use case', 'Status', 'Headline'], ucs.map(u => [`<b>${esc(u.ref || u.id)}</b>`, esc(u.title).replace(/\n/g, '<br>'), `<b>${esc(u.status.toUpperCase())}</b>`, esc(u.headline)]))
         : ucView(p)) : '<p class="muted">No use cases to show.</p>';
       if (s.type === 'milestones') {
@@ -222,7 +222,7 @@ html[data-dash=head] main:not(.open) section{padding-top:0}html[data-dash=head] 
   const printCss = n => `@media print{@page{size:A4;margin:14mm 12mm 18mm;${n ? '@bottom-left{content:"Publication ' + n + ' · ' + D.fd(D.TODAY) + '";font:9px Arial,sans-serif;color:#5A6270}' : ''}@bottom-right{content:"Page " counter(page);font:9px Arial,sans-serif;color:#5A6270}}
 :root{color-scheme:light}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{background:#fff!important;color:#18232B!important}
 body::before,.tabsbar,.toc,#panel,.cfbar,.cfchips,.msv,.mv-bar,.wsearch,.ib,.mlg,.toc-top{display:none!important}
-.view{display:block!important}#v-work,#v-milestones,#v-usecases{break-before:page}.grid,.solo,main{max-width:none;margin:0;padding:0}.cover{padding:16px 20px}
+.view{display:block!important}.msl-row[data-more][hidden]{display:grid!important}.msl-all{display:none!important}#v-work,#v-milestones,#v-usecases{break-before:page}.grid,.solo,main{max-width:none;margin:0;padding:0}.cover{padding:16px 20px}
 section,.pair>section,.wl-row,.ucr,tr,.msl-row{break-inside:avoid}.pair{display:block}html:not([data-dash=one]) main:not(.open) section{box-shadow:none;margin-top:8px;padding:14px 18px}
 a{color:inherit;text-decoration:none}footer{margin:12px 0 0;padding:0}}`;
   /* clark's icon (assets/clark-icon.svg), carried inside the published file so its tab shows it with no outside address */
@@ -331,9 +331,9 @@ table{border-collapse:collapse;width:100%} th{background:#3B5BDB;color:#fff;text
         /* numbered, with a kept copy of the page and of its text sections (to start next week's report from); the project holds the row */
         const rec = { at: D.stamp(), week, local: localPath, client: toClient ? loc.client : '', word, pdf, n, who: (D.S.profile || {}).name || 'You', where: toClient ? 'Local and to client' : 'Local', hseq: D.lastSeq() };
         await D.pubKeep(p.code, n, { n, code: p.code, at: rec.at, html, texts: Object.fromEntries((p.report.sections || []).filter(x => x.type === 'text').map(x => [x.id, x.html || ''])) });
-        const u = D.change('project', p, { published: [...(p.published || []), rec] }, D.who('by publishing the report')); C.refresh();
+        D.change('project', p, { published: [...(p.published || []), rec] }, D.who('by publishing the report')); C.refresh();   /* no Undo after a publication: it keeps its number and its copy (#111) */
         if (pdf) { if (pw && pw.document) { pw.document.write(html.replace('</body>', '<script>setTimeout(function(){window.print()},800)<\/script></body>')); pw.document.close(); } else C.toast('Your browser blocked the new tab for the PDF'); }
-        C.toast((toClient ? `Publication ${n}: published locally and to the client folder (prototype: not sent; it would go to ${loc.client})` : `Publication ${n}: published locally`) + (pdf ? '. Prototype: your browser’s print box opens; choose Save as PDF.' : ''), u);
+        C.toast((toClient ? `Publication ${n}: published locally and to the client folder (prototype: not sent; it would go to ${loc.client})` : `Publication ${n}: published locally`) + (pdf ? '. Prototype: your browser’s print box opens; choose Save as PDF.' : ''));
         go.removeAttribute('aria-busy'); go.classList.add('ok'); go.innerHTML = `${C.icon('check', 's tick')}Published (Publication ${n})`;
         setTimeout(() => { if (d.open && form.isConnected) d.close(); }, 1200);
       });

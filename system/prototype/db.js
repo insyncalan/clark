@@ -222,7 +222,8 @@
       const was = label || rows[0].text || 'change to ' + rows.map(r => fieldName(r.field, kind).toLowerCase()).join(', '), back = [];
       rows.forEach(r => { if (JSON.stringify(rec[r.field]) !== JSON.stringify(before[r.field])) back.push({ kind, id: r.id, code: rec.code, field: r.field, from: keep(rec[r.field]), to: keep(before[r.field]), how: who('undo'), text: 'Undone: ' + was }); });
       rows.forEach(r => { if (!(r.field in before)) delete rec[r.field]; });   /* a field that was not there before goes again */
-      Object.assign(rec, before);
+      const pubs = kind === 'project' && !rows.some(r => r.field === 'published') ? rec.published : undefined;   /* an Undo of an earlier project change never takes a publication back (#111) */
+      Object.assign(rec, before); if (pubs !== undefined) rec.published = pubs;
       { const st = ++stepSeq; back.forEach(r => { r.step = st; }); }
       write([[store, 'put', rec], ...addHistory(back.length ? back : [{ kind, id: rows[0].id, code: rec.code, field: '*', how: who('undo'), text: 'Undone: ' + was }])]);
     };
@@ -264,11 +265,12 @@
   const tooManyWords = n => `You have chosen ${n}. Choose at most ${MOST_UNDO} changes at a time.`;
   const sureWords = n => `This will undo ${n} changes in one go. You can undo them all again afterwards. Undo all ${n}?`;
   const stepKey = h => String(h.step || 'r' + h.seq);
-  const whyNot = h => h.refused ? h.refused : /^[+\-*]$/.test(h.field) ? WHY_NO_STEP : /^Undone/.test(h.text || '') ? WHY_UNDO : COMMENT.includes(h.field) ? WHY_COMMENT : '';
+  const WHY_PUBLICATION = "A publication can't be undone.", WHY_ARCHIVED = 'Restore it first to undo a change.';
+  const whyNot = h => h.refused ? h.refused : h.field === 'published' ? WHY_PUBLICATION : /^[+\-*]$/.test(h.field) ? WHY_NO_STEP : /^Undone/.test(h.text || '') ? WHY_UNDO : COMMENT.includes(h.field) ? WHY_COMMENT : '';
   /* the dry run: each change that would go back, and each that stays with its reason */
   function planUndo(kind, rec, steps) {
     const id = idOf(kind, rec), rows = S.history.filter(h => h.kind === kind && h.id === id && h.code === rec.code && steps.includes(stepKey(h))).sort((a, b) => b.seq - a.seq), cur = clone(rec), undo = [], skip = [];
-    rows.forEach(h => { const name = fieldName(h.field, kind), why = whyNot(h);
+    rows.forEach(h => { const name = fieldName(h.field, kind), why = rec.archived ? WHY_ARCHIVED : whyNot(h);   /* an archived record is read-only: nothing goes back until it is restored */
       if (why) { skip.push({ ref: id, field: name, why }); return; }
       if (JSON.stringify(cur[h.field]) !== JSON.stringify(h.to)) { skip.push({ ref: id, field: name, why: 'It has changed since.' }); return; }
       cur[h.field] = h.from === undefined ? '' : clone(h.from); undo.push({ ref: id, f: h.field, field: name, v: cur[h.field] }); });
@@ -276,7 +278,7 @@
   }
   /* one new change puts them all back, named 'Undo several' on every row it writes, and is itself undoable */
   function undoMany(kind, rec, plan) {
-    if (!plan.undo.length) return null;
+    if (!plan.undo.length || rec.archived) return null;
     const batch = ++batchSeq, n = S.history.length, u = change(kind, rec, Object.fromEntries(plan.undo.map(x => [x.f, x.v])), who('undo (Undo several)'), 'Undone: several changes');
     S.history.slice(n).forEach(r => { r.batch = batch; write([['history', 'put', r]]); });
     return u;
@@ -292,7 +294,7 @@
   /* ── Safety (#111): a daily backup, and Restore from a backup, with a preview. A backup here is a closed copy of the data kept in this browser's
      database; the real clark keeps a zip. Never in a backup: AI keys, logs. Restore first keeps what is there now, then puts the backup back. ── */
   const KEEP_BACKUPS = 14;
-  const snapOf = () => clone({ projects: S.projects, items: S.items, milestones: S.milestones, usecases: S.usecases, history: S.history });
+  const snapOf = () => clone({ projects: S.projects.map(({ published, ...q }) => q), items: S.items, milestones: S.milestones, usecases: S.usecases, history: S.history });
   const countsOf = d => ({ projects: d.projects.length, items: d.items.length, milestones: d.milestones.length });
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + 's'}`;
   const holds = c => `${plural(c.projects, 'project')}, ${plural(c.items, 'work item')} and ${plural(c.milestones, 'milestone')}`;
@@ -321,10 +323,13 @@
     const b = S.backups.find(x => x.id === id); if (!b) return { ok: false, message: `No backup called ${id} is in the backups folder.` };
     if (b.damaged) return { ok: false, message: DAMAGED(b) };
     S.backups.unshift(backupMake('restore', stamp()));   /* what is there now is kept first */
-    const d = clone(b.snap); Object.assign(S, { projects: d.projects, items: d.items, milestones: d.milestones, usecases: d.usecases, history: d.history });
-    seq = Math.max(0, ...S.history.map(h => h.seq || 0)); stepSeq = Math.max(0, ...S.history.map(h => +h.step || 0)); batchSeq = Math.max(0, ...S.history.map(h => +h.batch || 0));
+    const d = clone(b.snap), was = seq;
+    d.projects.forEach(q => { const cur = S.projects.find(x => x.code === q.code); if (cur && cur.published) q.published = clone(cur.published); else delete q.published; });   /* every publication is kept: a restore never rolls them back (#111) */
+    d.projects.push(...S.projects.filter(x => !d.projects.some(q => q.code === x.code) && (x.published || []).length).map(x => clone(x)));   /* a project with publications is never lost to a restore */
+    Object.assign(S, { projects: d.projects, items: d.items, milestones: d.milestones, usecases: d.usecases, history: d.history });
+    seq = Math.max(was, ...S.history.map(h => h.seq || 0)); stepSeq = Math.max(0, ...S.history.map(h => +h.step || 0)); batchSeq = Math.max(0, ...S.history.map(h => +h.batch || 0));   /* the row count never goes back, so a kept publication's place in the history still holds */
     await write([...STORES.slice(0, 5).map(x => [x, 'clear']), ...seedOps(d), ...d.history.map(h => ['history', 'put', h])]); backupsSave();
-    return { ok: true, message: `Restored the backup from ${fd(b.at.slice(0, 10))}. Your data from before is kept in case you need it.` };
+    return { ok: true, message: `Restored the backup from ${fd(b.at.slice(0, 10))}. Your data from before is kept in case you need it. Your published reports were not touched.` };
   }
 
   /* ── reading history back: plain field names, formatted values, local time (FR-43a) ── */
@@ -419,6 +424,6 @@
     return () => { S.people = before; write([['meta', 'put', { k: 'people', v: before }]]); };
   }
 
-  window.ClarkDB = { S, load, reset, flush, change, create, remove, archive, batch, setProfile, PROFILE, historyOf, who, whoHow, FN, fieldName, RICH, COMMENT, showVal, when, whenIso, fresh, notReviewed, gap, STALE_DAYS, STALE_MAX, staleDays, staleCheck, closeRefusal, BEFORE_RAISED, whyNot, stepKey, planUndo, undoMany, MOST_UNDO, CONFIRM_ABOVE, tooManyWords, sureWords, WHY_COMMENT, WHY_UNDO, WHY_NO_STEP, WHY_IMPORT, setSetting, backups, backupStatus, backupPreview, backupRestore, holds, plural, pubNo, pubNext, pubCopy, pubKeep, PUB_KEEP, lastSeq, setPeople, msState, msWord, nextMsId, migrate, slip, expected, write, clone, defaultReport,
+  window.ClarkDB = { S, load, reset, flush, change, create, remove, archive, batch, setProfile, PROFILE, historyOf, who, whoHow, FN, fieldName, RICH, COMMENT, showVal, when, whenIso, fresh, notReviewed, gap, STALE_DAYS, STALE_MAX, staleDays, staleCheck, closeRefusal, BEFORE_RAISED, whyNot, stepKey, planUndo, undoMany, MOST_UNDO, CONFIRM_ABOVE, tooManyWords, sureWords, WHY_COMMENT, WHY_UNDO, WHY_NO_STEP, WHY_PUBLICATION, WHY_ARCHIVED, KEEP_BACKUPS, WHY_IMPORT, setSetting, backups, backupStatus, backupPreview, backupRestore, holds, plural, pubNo, pubNext, pubCopy, pubKeep, PUB_KEEP, lastSeq, setPeople, msState, msWord, nextMsId, migrate, slip, expected, write, clone, defaultReport,
     TYPES, STATUSES, PRIORITIES, TODAY, toIso, addDays, fd, days, stamp, friday, pad };
 })();
