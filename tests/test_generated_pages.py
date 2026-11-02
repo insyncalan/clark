@@ -130,11 +130,11 @@ class EnsureBuilt(unittest.TestCase):
 
     def test_an_unwritable_cache_falls_back_to_the_in_process_lock(self):
         (self.tmp / "cache").write_text("a file, not a folder", encoding="utf-8")      # mkdir fails: OSError
-        ok = lambda *a, **k: (self.pages[0].write_text("b"), self.pages[1].write_text("b"), subprocess.CompletedProcess(a, 0, "", ""))[2]  # noqa: E731
+        ok = lambda *a, **k: (self.pages[0].write_text("b", encoding="utf-8"), self.pages[1].write_text("b", encoding="utf-8"), subprocess.CompletedProcess(a, 0, "", ""))[2]  # noqa: E731
         with mock.patch.object(page, "BUILDER", self._builder()), mock.patch.object(page, "source_stamp", return_value="a"), \
                 mock.patch.object(clark_platform.subprocess, "run", side_effect=ok), mock.patch("sys.stderr") as err:
             page.ensure_built()                     # built and served; neither the lock file nor the stamp could be written
-        self.assertEqual(self.pages[0].read_text(), "b")
+        self.assertEqual(self.pages[0].read_text(encoding="utf-8"), "b")
         self.assertIn("this process only", "".join(c.args[0] for c in err.write.call_args_list))
 
     def test_the_file_lock_gives_up_after_the_limit(self):
