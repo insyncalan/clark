@@ -33,6 +33,12 @@ def fingerprint(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest(), counts
 
 
+CLOCK_WORDS = (
+    "The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.",
+    "The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.",
+)
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -168,19 +174,25 @@ class Refusals(Base):
                     self.send(**kw)
                 msg = str(caught.exception)
                 self.assertTrue(msg.endswith("Nothing was saved."), msg)
-                if "clock" not in msg:      # the two date-clock refusals are older wording this patch did not change
+                if msg in CLOCK_WORDS:      # the two date-clock refusals are pinned exactly, with their own ceiling
+                    self.assertLessEqual(len(msg), 140, msg)
+                else:
                     self.assertLessEqual(len(msg), 120, msg)
 
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:
             st.archive("projects", "ABC")
         self.refuses("archived")
+        with self.assertRaises(Invalid) as caught:
+            self.send()
+        from clark import draft_email_feed
+        self.assertEqual(str(caught.exception), draft_email_feed.ARCHIVED + " Nothing was saved.")
 
     def test_a_step_that_is_open_is_not_broken_into(self):
         with self.store.step("dashboard", USER):
             with self.assertRaises(Invalid) as caught:
                 self.send()
-            self.assertIn("part-way through another change", str(caught.exception))
+            self.assertIn("Another change is still being saved", str(caught.exception))
             self.assertNotIn("sent record", str(caught.exception))
 
     def test_the_email_words_are_in_no_column(self):

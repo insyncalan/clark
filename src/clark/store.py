@@ -2642,7 +2642,7 @@ class Store:
         if sent > now + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
-            raise Invalid("clark is part-way through another change. Wait a moment, then try again. Nothing was saved.")
+            raise Invalid("Another change is still being saved. Wait a moment, then try again. Nothing was saved.")
         try:
             self.con.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as e:
@@ -2652,7 +2652,7 @@ class Store:
             if row is None:
                 raise Invalid("There is no project with that code. Nothing was saved.")
             if row["archived"]:
-                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first. Nothing was saved.")
+                raise Invalid("That project is archived, so no email can be drafted for it. Restore it first. Nothing was saved.")
             def ours(item):
                 return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
                            for table in ("actions", "raid", "decisions"))
