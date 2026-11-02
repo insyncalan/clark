@@ -264,6 +264,30 @@ class TimerWindows(unittest.TestCase):
             self.assertEqual(len(self.lines()), window + 1, self.lines())
         self.assertEqual([MANY.search(x).group(1) for x in self.lines()], ["20"] * 3)
 
+    def test_a_refusal_every_sixth_of_a_window_with_timers_firing_when_due_writes_three_lines_over_three_windows(self):
+        """#328: finer than the flood above: each timer is fired as soon as its time comes, before the refusal at that same
+        instant, so the count is written by the timer and never twice."""
+        now = lambda: self.ticks[0]  # noqa: E731
+        due = []
+
+        class T(self.Fake):
+            def __init__(me, interval, fn, args):
+                super().__init__(interval, fn, args)
+                me.at = now() + interval
+                due.append(me)
+        r = sv.Refused(clock=now, timer=T)
+        step, total = sv.CSP_REPORT_WINDOW / 6, 18
+        for _ in range(total):
+            self.ticks[0] += step
+            for t in [t for t in due if t.at <= self.ticks[0]]:
+                due.remove(t)
+                t.fire()
+            r.count()
+        r.flush()
+        lines = self.lines()
+        self.assertEqual(len(lines), 3, lines)
+        self.assertEqual(sum(int(MANY.search(x).group(1)) for x in lines), total)
+
     def test_a_steady_flood_with_no_timer_firing_still_writes_one_line_a_window(self):
         r = self.refused(timer=self.Fake)
         for _ in range(4):
