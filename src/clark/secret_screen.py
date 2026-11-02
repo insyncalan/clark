@@ -98,7 +98,7 @@ LETTER_QUOTED = r"""(?i)""" + _LEFT + r"""(?:""" + _CONNECTED + r"""|""" + _BARE
 # into a hit that the text as written does not have. A key word that a line break cut in two, and a connector (`:`, `=`, is, was)
 # before a quoted word on the next line, are still caught.
 LETTER_QUOTED_JOINED = r"""(?i)""" + _LEFT + _CONNECTED + _PLACEHOLDER + _PAIR
-# Known gaps, kept as Tech Debt: a key word in another language before a quoted letters-only word (`Passwort: "Sommerzeit"`), an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
+# Known gaps, kept as Tech Debt: a short bare mixed token with no key word ("Hunter2xyz9") and a bare lower-case hex string (accepted in writing by the Head, 02-11-2026; pinned by a test), a key word in another language before a quoted letters-only word (`Passwort: "Sommerzeit"`), an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
 # a bare 40-character hex string with no key word, a key word with some other suffix (`password_backup: "..."`) and a bare password
 # word after a colon (`Note: password "..."`) are not caught; guessing them would drop too many ordinary files.
 # A file's name: a key word, then - _ . or a space and a mixed value of 8 or more characters ("notes-password-Hunter2xyz9.txt").
@@ -285,8 +285,11 @@ def _in_base64_at(text, depth):
 
 
 def _cut_bare(text):
-    """The bare form (`password "<letters>"`) in text whose line breaks are taken out, counted only when a break cut the key word
-    itself ("pass", a break, then `word "orangebicycle"`); a break next to the space or the quote is just the end of a line."""
+    """The bare form (`password "<letters>"`) in text whose line breaks are taken out, counted when a break sits anywhere inside the hit:
+    in the key word ("pass", a break, then `word "orangebicycle"`) or between the key word and the quoted word (`my password`, a
+    line break (CRLF, blank lines, trailing spaces), `"orangebicycle"`). A break that only ends the line before the key word or
+    follows the quote is not inside the hit. Refused on purpose, as the text as written was refused before #340: `Forgot password`
+    at the end of a line with a quoted word starting the next cannot be told apart from a password written over two lines."""
     parts = _BREAKS.split(text)
     if len(parts) < 2:
         return False
@@ -295,7 +298,7 @@ def _cut_bare(text):
         at += len(part)
         cuts.append(at)
     for m in _LETTERS.finditer("".join(parts)):
-        if m.start("kw") >= 0 and bisect.bisect_right(cuts, m.start("kw")) < bisect.bisect_left(cuts, m.end("kw")):
+        if m.start("kw") >= 0 and bisect.bisect_right(cuts, m.start("kw")) < bisect.bisect_left(cuts, m.end()):
             return True
     return False
 
