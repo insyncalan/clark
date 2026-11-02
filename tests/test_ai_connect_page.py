@@ -95,7 +95,7 @@ class Card(unittest.TestCase):
             self.assertEqual(js(f"{Q}('.ai-how').innerText"), "API key · Claude Opus 5.5, Claude Sonnet 5.5, Claude Haiku 5.5")
             self.assertEqual(js(f"{Q}('#ai-connect-dialog')"), None, "the box is gone")
             # nowhere on the page, nowhere in the browser
-            for piece in (KEY, KEY[-4:], KEY[:20]):
+            for piece in (KEY, KEY[-12:], KEY[:20]):      # long enough not to be a chance run of letters in the page's own script
                 self.assertFalse(js(f"document.documentElement.outerHTML.includes({json.dumps(piece)})"), piece)
                 self.assertFalse(js(f"document.body.innerText.includes({json.dumps(piece)})"), piece)
                 self.assertFalse(js(f"JSON.stringify([localStorage, sessionStorage]).includes({json.dumps(piece)})"), piece)
