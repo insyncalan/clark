@@ -78,6 +78,36 @@
   const me = t => { C.$('#askLog').insertAdjacentHTML('beforeend', `<div class="msg me">${esc(t)}</div>`); scroll(); };
   function bot(h) { C.$('#askLog').insertAdjacentHTML('beforeend', `<div class="msg bot">${h}</div>`); scroll(); wire(); }
   const link = x => `<a class="link" data-open="${x.id}">${x.id}</a> ${esc(x.title)}`;
+  /* ── passages from files (#212, ask clark slice 5). The real clark reads the project's saved source folders, read only: text, Markdown and Word. A PDF is not read yet and is
+     said so, never guessed at. Every passage has an id (P1, P2…) and every answer cites ids and names the file. The panel says how many files were left out for safety, how many
+     PDFs were not read and, when too many passages matched, that only the closest were used. The prototype cannot open a folder: a folder you choose in Settings › Asking
+     holds a few made-up files, by its last name (Minutes, Designs, Status reports); any other folder is empty here. The words are the product's (ask_service.py). ── */
+  const FILES = {
+    'Minutes': [
+      { n: 'Steering committee 21-10-2026.md', k: 'md', t: 'The steering committee agreed to hold the go-live date and asked the supplier for a written recovery plan by Friday. Access to the source data is the main blocker.' },
+      { n: 'Finance workshop.txt', k: 'txt', t: 'The finance workshop agreed the invoice matching rules. Exceptions go to a named reviewer, and the reviewers are trained before the pilot.' },
+      { n: 'Supplier call.docx', k: 'docx', t: 'The supplier confirmed that capacity is limited in November and offered two more people from December, once a signed change request is in.' },
+      { n: 'Contract summary.pdf', k: 'pdf' }, { n: 'Notes.zip', k: 'other' }, { n: '.env', k: 'secret' }],
+    'Designs': [
+      { n: 'Data model.md', k: 'md', t: 'The data model keeps one table for invoices and one for matches. A match records who confirmed it and when.' },
+      { n: 'Screens.pdf', k: 'pdf' }],
+    'Status reports': [
+      { n: 'Week 41 status.md', k: 'md', t: 'Week 41: the pilot data load is on track. The supplier has not yet sent the recovery plan, and the data access request is still open.' },
+      { n: 'Week 42 status.docx', k: 'docx', t: 'Week 42: testing started on the invoice matching. Two defects are open and both are due to be fixed before the board review.' }] };
+  const ASK_MAX_PASSAGES = 3, STOP_WORDS = new Set(['what', 'which', 'when', 'where', 'about', 'there', 'their', 'have', 'does', 'with', 'from', 'that', 'this', 'were', 'your', 'into', 'files', 'file', 'folder', 'folders', 'notes', 'said', 'says']);
+  C.askRead = (q, p = C.P()) => {
+    const src = (p && p.sources) || []; if (!src.length) return null;
+    const files = src.flatMap(s => FILES[String(s).replace(/\/+$/, '').split('/').pop()] || []);
+    const words = String(q || '').toLowerCase().split(/\W+/).filter(w => w.length > 3 && !STOP_WORDS.has(w));
+    const hits = files.filter(f => f.t).map(f => ({ f, n: words.filter(w => f.t.toLowerCase().includes(w)).length })).filter(x => x.n).sort((a, b) => b.n - a.n);
+    const kept = hits.slice(0, ASK_MAX_PASSAGES).map((x, i) => ({ id: 'P' + (i + 1), file: x.f.n, text: x.f.t }));
+    return { passages: kept, tooMany: hits.length > kept.length, pdf: files.filter(f => f.k === 'pdf').length, other: files.filter(f => f.k === 'other').length, safety: files.filter(f => f.k === 'secret').length, read: files.filter(f => f.t).length };
+  };
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  C.askFileNotes = f => [f.safety ? `${plural(f.safety, 'file was', 'files were')} left out for safety.` : '', f.pdf ? `${plural(f.pdf, 'PDF file was', 'PDF files were')} not read: PDF is not supported yet.` : '',
+    f.other ? `${plural(f.other, 'file was', 'files were')} not read because of its type.` : '', f.tooMany ? 'Some of the report was too long to send in full, so only the parts closest to your question were used.' : ''].filter(Boolean);
+  const fileHtml = f => `${f.passages.length ? `From your folders:<ul class="ask-pass">${f.passages.map(x => `<li><b>${x.id}</b> <i>${esc(x.file)}</i>: “${esc(x.text)}”</li>`).join('')}</ul>` : 'I did not find that in the files in your folders.'}${C.askFileNotes(f).map(n => `<p class="ask-note">${esc(n)}</p>`).join('')}`;
+
   function wire() {
     C.$$('#askLog [data-open]').forEach(a => a.onclick = () => C.openItem(a.dataset.open, C.items().map(i => i.id)));
     C.$$('#askLog [data-ms]').forEach(a => a.onclick = () => C.openMs(a.dataset.ms));
@@ -112,6 +142,8 @@
     const p = C.P(), s = q.toLowerCase(), its = C.items(), open = its.filter(C.isOpen); let m;
     if ((m = /draft an update for ([a-z]+-[a-z]-\d+)/i.exec(q))) { const x = its.find(i => i.id.toLowerCase() === m[1].toLowerCase()); if (!x) return 'I could not find that item.'; const t = C.draftUpdate(x);
       return `A draft for ${link(x)}:<p style="margin:8px 0 0"><i>"${esc(t)}"</i></p><div class="acts"><button class="btn sm" data-do="update" data-id="${x.id}" data-text="${encodeURIComponent(t)}">Save as the latest update</button></div>`; }
+    const fl = /\b(minutes|notes|files?|folders?|documents?|steering|workshop|supplier call|contract|designs?|according to)\b/.test(s) ? C.askRead(q, p) : null;
+    if (fl) return fileHtml(fl);
     if (/check|accurate|wrong|review the report/.test(s)) return check();
     if (/overdue|late|behind/.test(s)) { const xs = open.filter(x => x.type === 'A' && x.due && D.days(x.due) < 0); return xs.length ? `${xs.length} overdue action${xs.length > 1 ? 's' : ''}:<ul>${xs.map(x => `<li>${link(x)}, ${esc(x.owner)}, due ${D.fd(x.due)}${x.client ? '' : ' <span class="tag">not on the page</span>'}</li>`).join('')}</ul>` : 'Nothing is overdue.'; }
     if (/red|risk|issue/.test(s)) { const xs = open.filter(x => (x.type === 'R' || x.type === 'I') && (s.includes('red') ? (['R', 'I'].includes(x.type) && C.ragOf(x) === 'R') : true)); return xs.length ? `${s.includes('red') ? 'Red' : 'Open'} risks and issues:<ul>${xs.map(x => `<li>${link(x)} (${C.look(x)[1]})</li>`).join('')}</ul>` : `No ${s.includes('red') ? 'red' : 'open'} risks or issues.`; }
@@ -121,17 +153,29 @@
     if (/summar|week|report|status/.test(s)) { const h = C.draftCurrent(p); return `A summary for this week:<div style="margin-top:6px">${h}</div><div class="acts"><button class="btn sm" data-do="summary" data-html="${encodeURIComponent(h)}">Use it as the Summary</button></div>`; }
     if (/who|most|owner|busiest/.test(s)) { const c = {}; open.filter(x => x.type === 'A').forEach(x => c[x.owner] = (c[x.owner] || 0) + 1); const top = Object.entries(c).sort((a, b) => b[1] - a[1]); return top.length ? `Open actions by owner:<ul>${top.map(([n, k]) => `<li>${esc(n)}: ${k}</li>`).join('')}</ul>` : 'There are no open actions.'; }
     const words = s.split(/\W+/).filter(w => w.length > 3), hits = its.filter(x => words.some(w => (x.title + ' ' + x.desc).toLowerCase().includes(w))).slice(0, 6);
-    const src = (p.sources || []).length ? ` I'd also search the ${(p.sources || []).length} source folder${(p.sources || []).length > 1 ? 's' : ''} (the prototype can't read folders).` : '';
+    const fr = C.askRead(q, p), src = fr && (fr.passages.length || C.askFileNotes(fr).length) ? `<div style="margin-top:8px">${fileHtml(fr)}</div>` : '';
     return hits.length ? `These items match:<ul>${hits.map(x => `<li>${link(x)}</li>`).join('')}</ul>${src}` : `I can check the report, or answer about overdue actions, risks, milestones, use cases, owners and this week's summary.${src}`;
   }
   /* while it works, the pills go and the working line sits where they were (above the box), so the box never moves; the pills return with the answer */
-  let busy = 0;
+  /* the ways a question can end without an answer (#284): Stop, a timeout and a sign-out each say their own thing, never one generic "failed" line. Stop works at once,
+     including right after the question went (nothing is "not started yet" here). The Stop and sign-out lines are the product's (askWords.js); the timeout line has no
+     approved wording yet, so this one is the prototype's own. The prototype's answers always come back within a few seconds, so a real timeout (a minute) is drawn, not met. */
+  const ENDS = { stopped: 'Stopping. Your question and the earlier answers stay here.', timeout: 'The answer took too long, so clark stopped waiting. Your question and the earlier answers stay here. Ask again.',
+    signedout: 'Claude is not signed in on this computer, so there is nothing to ask yet. Sign in to Claude on this computer, then open this panel again.' };
+  const jobs = new Set();
   const working = on => { C.$('#askWork').hidden = !on; C.$('#askChips').hidden = on; };
+  C.askEnd = kind => { if (!jobs.size) return false; jobs.forEach(j => { clearTimeout(j.answer); clearTimeout(j.limit); }); jobs.clear(); working(false); drawPrev();
+    C.$('#askLog').insertAdjacentHTML('beforeend', `<div class="msg bot ask-end" role="status" data-end="${kind}">${esc(ENDS[kind])}</div>`); scroll(); return true; };
+  C.askSignedOut = () => C.askEnd('signedout');
   function run(q) {
     if (!C.askOn()) { C.askOffDraw(true); return; }   /* Settings › Asking is off: nothing is sent */
-    me(q); busy++; drawPrev();
-    C.$('#askWork').innerHTML = `<span class="mdots"><i></i><i></i><i></i></span><span class="quip" aria-hidden="true">${C.quipNow()}</span><span class="sr">Working</span>`; working(true);
-    setTimeout(() => { if (!--busy) working(false); bot(answer(q)); }, C.reduce ? 0 : 1100 + Math.random() * 1400);
+    me(q); drawPrev();
+    C.$('#askWork').innerHTML = `<span class="mdots"><i></i><i></i><i></i></span><span class="quip" aria-hidden="true">${C.quipNow()}</span><span class="sr">Working</span><button type="button" class="link ask-stop" id="askStop">Stop</button>`; working(true);
+    C.$('#askStop').addEventListener('click', () => C.askEnd('stopped'));
+    const job = {};
+    job.limit = setTimeout(() => C.askEnd('timeout'), C.askTimeoutMs || 60000);
+    job.answer = setTimeout(() => { if (!jobs.delete(job)) return; clearTimeout(job.limit); if (!jobs.size) working(false); bot(answer(q)); }, C.reduce ? 0 : 1100 + Math.random() * 1400);
+    jobs.add(job);
   }
   document.addEventListener('DOMContentLoaded', () => {
     C.$('#askBtn').addEventListener('click', C.askToggle);

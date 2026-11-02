@@ -564,6 +564,8 @@ select.field { appearance: none; padding-right: 30px; cursor: pointer; backgroun
 .msg.bot::before { content: ""; position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 8px; background: url("assets/clark-icon.svg") center / cover; }
 .msg.bot ul { margin: 6px 0 0; padding-left: 18px; }
 .msg.bot li { margin: 6px 0; }
+.msg.bot .ask-note { margin: 6px 0 0; font-size: 13px; color: var(--text-muted); }
+.msg.bot.ask-end { color: var(--text-muted); font-style: italic; }
 .msg.bot a { cursor: pointer; }
 .msg .acts { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
 /* suggestions: one scrolling row, faded at the right edge; the faint picture and the glow sit behind them and the box */
@@ -573,6 +575,7 @@ select.field { appearance: none; padding-right: 30px; cursor: pointer; backgroun
 .ask-chips button:focus-visible { outline: 2px solid var(--brand-blue); }
 /* while it works the pills go and this line sits where they were, so the box does not move */
 .ask-work { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 6px 20px 10px; font-size: 13px; font-style: italic; color: var(--text-muted); animation: msg-in 220ms var(--ease-enter); }
+.ask-work .ask-stop { margin-left: auto; font-style: normal; flex: none; }
 .ask-work .quip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mdots { display: inline-flex; gap: 3px; } .mdots i { width: 5px; height: 5px; border-radius: 50%; background: var(--grey-500); animation: dot 1s var(--ease-toggle) infinite; }
 .mdots i:nth-child(2) { animation-delay: 150ms; } .mdots i:nth-child(3) { animation-delay: 300ms; }
@@ -1052,6 +1055,7 @@ body.bfull main { max-width: none; padding: 14px 20px 48px; } body.bfull .view >
 .prose p:empty { min-height: 1.5em; }
 
 /* Draft email from the peek: the fields, then the email as Outlook will get it, on white whatever the theme */
+.mail-err { margin: 0 0 12px; padding: 6px 10px; border-radius: var(--radius); background: var(--status-red-tint); color: var(--status-red-text); font-size: 14px; } .mail-err:empty { display: none; }
 .mail-f { display: grid; grid-template-columns: 90px 1fr; gap: 8px 12px; align-items: center; margin: 0 0 12px; font-size: 14px; } .mail-f .chk { display: inline-flex; gap: 6px; align-items: center; }
 .mail-prev { background: #fff; color: #1E1F1E; border: 1px solid var(--grey-200); border-radius: var(--radius); padding: 14px 16px; max-height: 320px; overflow: auto; outline: none; } .mail-prev:focus { border-color: var(--brand-blue); }
 

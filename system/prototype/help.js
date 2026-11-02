@@ -111,7 +111,7 @@
       'Press your profile circle at the top right and choose **Publish…**. It opens the Dashboard first.',
       '**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.',
       'Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so, with a link to Settings › Publishing. A line reminds you that the client will see the page.',
-      'Tick **Also a Word document** for a Word copy beside the web page, and **Also a PDF** for a PDF: your browser’s print box opens on the page in a new tab, and you choose **Save as PDF**.',
+      'Tick **Also a Word document** for a Word copy beside the web page, and **Also a PDF** for a PDF: your browser’s print box opens on the page in a new tab, and you choose **Save as PDF**. In the print box, untick Headers and footers so the PDF has no web address on it.',
       'At the top of the box, a yellow note may say how many items have no owner or date, or were not reviewed in 14 days. **Show them** opens Work items filtered to them. It is a warning only: you can still publish.',
       'The box says which publication this will be. Each publish gets the next number, and a copy of the page is kept: see [Find a past publication](#howto-find-a-past-publication).',
       'Press **Publish locally** (or **Publish and send to the client**). The line at the top of the Dashboard then says when it was published, and whether to the client or locally.',
@@ -464,7 +464,7 @@
       ['tbl', ['Dashboard sections (yours)', 'What it does'], [
         ['Slim gaps (standard)', 'Each section is its own card, with a slim gap that shows the page picture.'],
         ['Roomy gaps', 'The same, with more space between the sections.'],
-        ['Grey headers', 'Slim gaps, and each section title in a grey band.'],
+        ['Grey headers', 'Slim gaps, and each section title in a grey band, like the Work items groups.'],
         ['One card', 'All the sections in one long card.'] ]] ] },
     { id: 'work-items', g: 'Screens', t: 'Work items', b: [
       ['p', 'From the top: the import and export icons and **+**; the saved views as tabs; the **filter line**, with **View** (Group by and swimlanes) and the **Table** and **Board** icons beside it; then the count of items. On a phone the line takes the full width and each item is a card with its status, owner, priority and due date. When nothing matches, the list says why and gives one **Clear** button.'],
@@ -549,7 +549,7 @@
     /* ── Publishing ── */
     { id: 'publishing', g: 'Publishing', t: 'Publishing', w: 'Profile circle › Publish…', b: [
       ['p', 'Publish lives in the menu behind your profile circle (point at the circle and it says: Your menu: Publish, Preview, Export, Settings).'],
-      ['ul', ['**Local**: always. Saved through your browser’s own save window, which opens where you last saved for the project (or your downloads, where the browser has no save window).', '**To client**: only when ticked, to the client folder in Settings › Publishing.', '**Also a Word document**: a Word copy beside the web page.', '**Also a PDF**: the page opens in a new tab with the print box, and you choose Save as PDF. Prototype: the real clark makes the PDF with Chrome.', 'A yellow note lists items with no owner or date, and items not reviewed in 14 days. It warns only.', 'The box stays open while it works: the **Publish** button shows a spinner, then a tick and **Published (Publication N)**, and the box closes. If you cancel the save window, the box stays so you can try again.']],
+      ['ul', ['**Local**: always. Saved through your browser’s own save window, which opens where you last saved for the project (or your downloads, where the browser has no save window).', '**To client**: only when ticked, to the client folder in Settings › Publishing.', '**Also a Word document**: a Word copy beside the web page.', '**Also a PDF**: the page opens in a new tab with the print box, and you choose Save as PDF. In the print box, untick Headers and footers so the PDF has no web address on it. Prototype: the real clark makes the PDF with Chrome.', 'A yellow note lists items with no owner or date, and items not reviewed in 14 days. It warns only.', 'The box stays open while it works: the **Publish** button shows a spinner, then a tick and **Published (Publication N)**, and the box closes. If you cancel the save window, the box stays so you can try again.']],
       ['p', 'Each publish gets the next number for the project (Publication 1, 2, 3…), is noted with the date and time, where it went and who published it, and keeps a copy of the page: see [Published reports](#ref-published-reports). The page’s foot says “Publication N · date”.'],
       ['p', 'The PDF has print rules: the four tabs one after another, no buttons, menus or contents, each section kept whole, light colours only, and the publication and page number at the foot of every page.'],
       ['p', 'The web page holds only what the report shows in View. Anything left out is dropped before the file is made. The Word document has the cover, the health and the sections as tables.'],

@@ -734,7 +734,17 @@
       ok('#276 Enter on a cell does not open the peek, and is left to the button (its own click opens the picker)', !$('#peek').classList.contains('on') && !ev.defaultPrevented);
       cb.click(); await sleep(50); ok('#276 and the button\'s click opens the owner picker', !!$('#ownIn')); key($('#ownIn'), 'Escape'); await sleep(40);
       cb.focus(); key(act(), 'ArrowRight'); ok('#194 Right on a cell moves to the next cell of the row', act() === cell(order[0], 'due')); key(act(), 'ArrowLeft'); key(act(), 'ArrowLeft'); ok('#194 Left on the first cell goes back to the row', act() === row(order[0]));
-      cell(order[0], 'priority').focus(); key(act(), 'ArrowDown'); ok('#194 Down on a cell goes to the same cell of the next row', act() === cell(order[1], 'priority')); }
+      cell(order[0], 'priority').focus(); key(act(), 'ArrowDown'); ok('#194 Down on a cell goes to the same cell of the next row', act() === cell(order[1], 'priority'));
+      /* #381: the edges of the same keys */
+      cell(order.at(-1), 'priority').focus(); key(act(), 'ArrowDown'); ok('#381 Down on a cell of the last row stays on that cell: no wrap, no jump', act() === cell(order.at(-1), 'priority') && !$('#peek').classList.contains('on'));
+      cell(order[0], 'priority').focus(); key(act(), 'ArrowUp'); ok('#381 Up on a cell of the first row stays on that cell', act() === cell(order[0], 'priority'));
+      { const last = [...row(order[0]).querySelectorAll('[data-pick], [data-weye]')].at(-1); last.focus(); key(act(), 'ArrowRight'); ok('#381 Right on the last cell of a row stays on it, and the peek stays shut', act() === last && !$('#peek').classList.contains('on')); }
+      { const eye = $('[data-weye]', row(order[0])), ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }), c0 = item(order[0]).client; eye.focus(); eye.dispatchEvent(ev); await sleep(40);
+        ok('#381 Enter on the eye cell does not open the peek and leaves the key to the button, which switches the eye with its click', !$('#peek').classList.contains('on') && !ev.defaultPrevented && item(order[0]).client === c0); }
+      { const cb2 = cell(order[0], 'status'); cb2.focus(); cb2.click(); await sleep(50); const open = !!$('.menu'); key(document.activeElement, 'Escape'); await sleep(50);
+        ok('#381 Esc in a cell\'s picker closes it and the keyboard is back on that cell', open && !$('.menu') && act() === cb2, act().tagName + ' ' + (act().dataset.prop || act().id)); }
+      { const cb3 = cell(order[1], 'owner'); cb3.focus(); key(act(), 'ArrowDown'); key(act(), 'ArrowUp'); ok('#381 Down then Up on a cell comes back to the same cell, and the cursor follows', act() === cb3 && M.cursor === order[1]); }
+    }
     /* the board */
     click($('[data-layout=board]')); await sleep(80);
     { const cs = () => $$('#wlist [data-card]').map(c => c.dataset.card), cd = id => $(`[data-card="${id}"]`); const co = cs();
@@ -834,6 +844,30 @@
       await undo(); ok('import: undo puts the live row back', live.owner === lo0); um(); ux(); C.refresh(); await sleep(60); }
   });
 
+  await step('import from Excel: new rows and IDs (#129)', async () => {
+    const DB = window.ClarkDB, base = item('PDF-A-015'), a0 = C.nextId('A'), r0 = C.nextId('R'), an = (k) => a0.replace(/\d+$/, String(+a0.match(/\d+$/)[0] + k).padStart(3, '0'));
+    const rows = [['ID', 'Type', 'Workstream', 'Title', 'Owner', 'Due', 'Status'],
+      ['', 'Action', 'Data platform', 'Brand new action one', 'Jo Ellis', '15-12-2026', 'Open'], ['', 'Action', 'Data platform', 'Brand new action two', 'Jo Ellis', '16-12-2026', 'Open'], ['', 'Risk', 'Data platform', 'Brand new risk', 'Jo Ellis', '17-12-2026', 'Open'],
+      ['PDF-A-099', 'Action', 'Data platform', 'Typed id action', 'Jo Ellis', '18-12-2026', 'Open'], ['PDF-A-777', 'Action', base.ws, base.title, base.owner, DB.fd(base.due), 'Open'], ['PDF-A-016', 'Action', '', item('PDF-A-016').title, 'Pat Quill', '', '']];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Actions'); const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const feed = async name => { const dt = new DataTransfer(); dt.items.add(new File([buf], name)); const fi = $('#fileIn'); fi.files = dt.files; fi.dispatchEvent(new Event('change')); for (let i = 0; i < 40 && !($('#dlg').open && $('#impF') && $('#impF').textContent.includes(name)); i++) await sleep(100); };
+    const n0 = S().items.length, own0 = item('PDF-A-016').owner; C.go('work'); await sleep(60);
+    click($('#impBtn')); await sleep(60); await feed('new rows.xlsx'); const lines = $$('#impLines li').map(l => l.textContent);
+    ok('#129 an empty ID is a new item: the plan line reads "New: <title> → <ID>", IDs in row order with no gaps', lines.includes(`New: Brand new action one → ${an(0)}`) && lines.includes(`New: Brand new action two → ${an(1)}`) && lines.includes(`New: Brand new risk → ${r0}`), lines.join(' | '));
+    ok('#129 an ID typed that clark does not know is renamed, and the plan names it, in the product\'s words', lines.includes("Row 5: the ID PDF-A-099 isn't one clark knows, so the item gets a new ID.") && lines.includes(`New: Typed id action → ${an(2)}`), lines.join(' | '));
+    ok('#129 a changed existing ID is refused for that row only, in the product\'s words', lines.includes("Row 6: the ID was changed. IDs can't be edited; the row was skipped.") && /1\s*refused \(ID changed\)/.test($('#impF .stat').textContent) && !lines.some(l => /^New: .* → /.test(l) && l.includes(base.title)), lines.join(' | '));
+    ok('#129 the others still apply: four new and one updated', /4\s*new/.test($('#impF .stat').textContent) && /1\s*updated/.test($('#impF .stat').textContent) && $('#impF button.pri').textContent === 'Import 5 rows');
+    $('#impF').requestSubmit(); await sleep(150);
+    const made = t => S().items.filter(x => x.title === t);
+    ok('#129 the new items got the IDs the plan showed, and the typed ID was not used', made('Brand new action one')[0]?.id === an(0) && made('Brand new action two')[0]?.id === an(1) && made('Typed id action')[0]?.id === an(2) && made('Brand new risk')[0]?.id === r0 && !item('PDF-A-099'), made('Typed id action')[0]?.id);
+    ok('#129 the refused row changed nothing: no item with that ID, the other item as it was, and the update applied', !item('PDF-A-777') && S().items.filter(x => x.title === base.title).length === 1 && item('PDF-A-016').owner === 'Pat Quill' && S().items.length === n0 + 4);
+    ok('#129 the history says the item was made by Excel import and the file name', S().history.some(h => h.id === an(0) && h.field === '+' && h.how === DB.who('by Excel import (new rows.xlsx)')));
+    click($('#impBtn')); await sleep(60); await feed('new rows.xlsx'); const again = $$('#impLines li').map(l => l.textContent);
+    ok('#129 the same file again makes no duplicates: the rows are already in clark, and the typed ID is refused as changed', /0\s*new/.test($('#impF .stat').textContent) && again.some(l => l === `Row 2: already in clark as ${an(0)}, so no second copy is made.`) && /already there/.test($('#impF .stat').textContent), again.join(' | '));
+    $('#dlg').close(); await sleep(40); ok('#129 nothing was added by looking at it again', S().items.length === n0 + 4); await undo(); await sleep(60);
+    ok('#129 Undo of the import takes the new items away in one step', S().items.length === n0 && item('PDF-A-016').owner === own0, S().items.length + ' vs ' + n0);
+  });
+
   await step('item peek', async () => {
     { const metas = $$('#main table.items .meta').map(m => m.textContent); ok('UC4 dashboard: a work item row says "use case", never "UC"', metas.some(t => /· use case \d/.test(t)) && !metas.some(t => /\bUC\b/.test(t)), metas.find(t => /\bUC\b/.test(t)) || ''); }
     click($('tr[data-id="PDF-A-012"] td')); await sleep(100); ok('row opens the peek', $('#peek').classList.contains('on') && $('#pkTitle').textContent.includes('handover'));
@@ -867,10 +901,41 @@
     const uc = $('#pkUc'); uc.value = '1.5'; uc.dispatchEvent(new Event('change')); await sleep(60); ok('use case link', item('PDF-A-012').uc === '1.5');
     click($('#pkEye')); await sleep(60); ok('eye in the peek', item('PDF-A-012').client === false); click($('#pkEye')); await sleep(60);
     click($$('.pk-tabs button')[2]); await sleep(40); ok('Updates tab', /Latest update/.test($('#pkFeed').textContent));
+    const pfMail = window.ClarkDB.setProfile({ name: 'Test Person' });   /* "I sent it" needs the name of who pressed it (#208) */
     { click($('#pkMail')); await sleep(80); const d = $('dialog[open]');
       ok('Draft email from the peek: a chase, written in plain code', !!d && /Draft email/.test(d.textContent) && /Good (morning|afternoon|evening) /.test($('#mlPrev').textContent) && /PDF-A-012/.test($('#mlPrev').textContent) && /Update request|Reminder|Reply needed/.test($('#mlSub').value) && !/hope you|holding up|Action needed/i.test($('#mlPrev').textContent + $('#mlSub').value));
       ok('the email is drawn for Outlook: inline styles, no classes', !$('#mlPrev').querySelector('[class]') && !!$('#mlPrev td[style]'));
-      click($('#mlSent')); await sleep(80); ok('I sent it records the chase in history, with Undo', S().history.some(h => h.id === 'PDF-A-012' && h.field === 'chase') && !$('#toastUndo').hidden); await undo(); }
+      click($('#mlSent')); await sleep(150); ok('I sent it records the chase in history, with Undo', S().history.some(h => h.id === 'PDF-A-012' && h.field === 'chase') && !$('#toastUndo').hidden); await undo(); }
+    /* #258, #208, #425: Draft email's "I sent it" and its window */
+    { const x = item('PDF-A-012'), chases = () => S().history.filter(h => h.id === x.id && h.field === 'chase').length, c0 = chases(), ch0 = x.chase || 0;
+      click($('#pkMail')); await sleep(80); const sent = $('#mlSent'); click(sent); click(sent); await sleep(15);
+      ok('#258 while "I sent it" is being recorded the button is off, busy, and says so', sent.disabled && sent.getAttribute('aria-busy') === 'true' && sent.textContent === 'Recording…');
+      await sleep(150); ok('#258 a second press while one is being recorded does nothing: one chase recorded, and the window closes', chases() === c0 + 1 && !$('dialog[open]'));
+      await undo(); ok('#258 Undo takes that one chase back', (x.chase || 0) === ch0);
+      const refusals = [];
+      const press = async () => { click($('#pkMail')); await sleep(80); const n = chases(); click($('#mlSent')); await sleep(120); const t = $('#mlErr').textContent, open = !!$('dialog[open]'), same = chases() === n; refusals.push(t); $('#dlg').close(); await sleep(30); return { t, open, same }; };
+      const keep = { client: x.client, status: x.status, archived: x.archived, due: x.due };
+      x.client = false; { const r = await press(); ok('#258 an item hidden from the report is refused, in plain words, and nothing is saved', r.t === "This item can't be recorded: it is hidden from the report, closed or marked Sensitive. Close this window and look at the item again. Nothing was saved." && r.open && r.same, r.t); } x.client = keep.client;
+      x.sensitive = true; { const r = await press(); ok('#258 a Sensitive item is refused the same way', /marked Sensitive/.test(r.t) && r.open && r.same); } delete x.sensitive;
+      x.archived = true; { const r = await press(); ok('#258 an archived item is refused too', /can't be recorded/.test(r.t) && r.same); } x.archived = keep.archived;
+      x.status = 'Closed'; C.mailPane(x); await sleep(80); { const n = chases(); click($('#mlSent')); await sleep(120); ok('#258 a closed item is refused, and the window stays open with the reason', /closed or marked Sensitive/.test($('#mlErr').textContent) && chases() === n && !!$('dialog[open]')); refusals.push($('#mlErr').textContent); $('#dlg').close(); await sleep(30); } x.status = keep.status;
+      { const ei = C.edIsOpen; C.edIsOpen = () => true; const r = await press(); C.edIsOpen = ei; ok('#208 (b) while another change is being made: "This can\'t be recorded while another change is being made. Finish that change first. Nothing was saved." (no "sent record", no "step")', r.t === "This can't be recorded while another change is being made. Finish that change first. Nothing was saved." && !/sent record|step/i.test(r.t) && r.same, r.t); }
+      pfMail(); { const r = await press(); ok('#208 (a) no name: "Add your name in Settings, then try again. Nothing was saved."', r.t === 'Add your name in Settings, then try again. Nothing was saved.' && r.open && r.same, r.t); }
+      ok('#208 (d) every refusal ends "Nothing was saved."', refusals.length === 6 && refusals.every(t => /^.+ Nothing was saved\.$/.test(t)) && new Set(refusals).size >= 3, refusals.join(' | '));
+      const pf2 = window.ClarkDB.setProfile({ name: 'Test Person' });
+      x.due = window.ClarkDB.addDays(window.ClarkDB.TODAY, -3); C.mailPane(x); await sleep(80);
+      ok('#208 (c) the tone steps read First chase, Second chase, Firmer chase, and nowhere does the window say a bare First, Second or Firmer', $$('#dlg [data-tone]').map(b => b.textContent).join('|') === 'First chase|Second chase|Firmer chase' && !/\b(First|Second|Firmer)\b(?! chase)/.test($('#dlg').textContent), $$('#dlg [data-tone]').map(b => b.textContent).join('|'));
+      click($('#dlg [data-tone=firmer]')); await sleep(60); ok('#208 (c) choosing Firmer chase marks that button, and still says only chase', $('#dlg [data-tone=firmer]').getAttribute('aria-pressed') === 'true' && !/\b(First|Second|Firmer)\b(?! chase)/.test($('#dlg').textContent));
+      $('#dlg').close(); await sleep(30); x.due = keep.due;
+      /* #425: it is a real modal: with the peek and ask clark open behind it, nothing behind can be reached */
+      C.askOpen(); await sleep(80); $('#pkMail').focus(); click($('#pkMail')); await sleep(80);
+      const behind = ['#pkNext', '#askIn', '#askSend', '#meBtn', '.tab[data-view=work]', '#logoBtn'].map(q => $(q)).filter(Boolean);
+      ok('#425 Draft email is a modal dialog, and the peek and ask clark stay open behind it', $('#dlg').open && $('#dlg').matches(':modal') && $('#peek').classList.contains('on') && $('#ask').classList.contains('on'));
+      ok('#425 nothing behind it takes the focus: the peek, the ask panel, the top bar and the tabs', behind.length === 6 && behind.every(el => { el.focus(); return document.activeElement !== el; }), behind.map(el => el.id || el.className).join());
+      ok('#425 and a click on the page outside it does not reach the peek or ask clark', behind.every(el => { const r = el.getBoundingClientRect(), at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !el.contains(at); }));
+      $('#dlg').close(); await sleep(60); ok('#425 closed, the keyboard goes back to the button that opened it, and everything behind works again', document.activeElement === $('#pkMail') && (() => { $('#askIn').focus(); return document.activeElement === $('#askIn'); })());
+      C.askClose(); await sleep(40); pf2 && pf2(); }
+    pfMail && pfMail();
     const id0 = $('.pk-meta').textContent; click($('#pkNext')); await sleep(80); ok('next item', $('.pk-meta').textContent !== id0); click($('#pkPrev')); await sleep(80); ok('previous item', $('.pk-meta').textContent === id0);
     click($('#pkWide')); await sleep(40); ok('across the whole screen', $('#peek').classList.contains('wide') && C.store.get('peekWide') === true);
     click($('#pkWide')); await sleep(40); ok('back to the user\'s width', !$('#peek').classList.contains('wide'));
@@ -1061,7 +1126,37 @@
     for (const c of $$('#askChips button').slice(1)) { const k = $$('#askLog .msg.bot').length; click(c); await answered(k); ok('chip: ' + c.textContent, $$('#askLog .msg.bot').length === k + 1, `${k} to ${$$('#askLog .msg.bot').length}, working ${!$('#askWork').hidden}`); }
     const use = $$('#askLog [data-do=summary]').at(-1); if (!use) ok('the summary answer offers "Use it"', false, `project ${C.UI.code}; projects ${S().projects.map(p => p.code).join(',')}; items ${S().items.length}, PDF items ${S().items.filter(x => x.code === 'PDF').length}, milestones ${S().milestones.length}, use cases ${S().usecases.length}; view ${C.UI.view}`); click(use); await sleep(80); ok('ask clark writes the Summary, with Undo', P().report.sections.find(s => s.id === 'summary').html.includes('Data Platform Pilot is') && !$('#toastUndo').hidden);
     const ai = $('#askIn'), k0 = $$('#askLog .msg.bot').length; ai.value = 'draft an update for PDF-A-018'; key(ai, 'Enter'); await answered(k0); click($$('#askLog [data-do=update]').at(-1)); await sleep(80); ok('ask clark saves a latest update', item('PDF-A-018').update.length > 10 && S().history.some(h => h.id === 'PDF-A-018' && h.how === window.ClarkDB.who('via ask clark') && /^.+, via ask clark$/.test(h.how)));
-    key($('#askIn'), 'Escape'); await sleep(40); ok('Esc closes it', !$('#ask').classList.contains('on'));
+    /* #212: answers quote named files from the saved folders; a PDF says it is not read yet */
+    { const p = P(), DBa = window.ClarkDB, uSrc = DBa.change('project', p, { sources: [`~/Documents/${p.name}/Minutes`, `~/Documents/${p.name}/Designs`, `~/Documents/${p.name}/Status reports`] }, DBa.who('test'));
+      const ask = async q => { const k = $$('#askLog .msg.bot').length, i = $('#askIn'); i.value = q; key(i, 'Enter'); await answered(k); return $$('#askLog .msg.bot').at(-1); };
+      C.askReset(); let a = await ask('What did the steering committee say about the supplier recovery plan?'), pass = [...a.querySelectorAll('.ask-pass li')];
+      ok('#212 the answer quotes a named file, with a passage id', pass.length >= 1 && /^P1 Steering committee 21-10-2026\.md: “.*written recovery plan.*”$/.test(pass[0].textContent) && /^From your folders:/.test(a.textContent), a.textContent.slice(0, 160));
+      ok('#212 every passage has its own id, in order, and shows a file name and never a path', pass.every((li, i) => li.querySelector('b').textContent === 'P' + (i + 1) && !/[\/~]/.test(li.querySelector('i').textContent)));
+      ok('#212 a PDF is said to be not read yet, never quoted', /2 PDF files were not read: PDF is not supported yet\./.test(a.textContent) && !/Contract summary|Screens\.pdf/.test(a.querySelector('.ask-pass').textContent));
+      ok('#212 a file named like a secret is left out, and counted for safety, never quoted', /1 file was left out for safety\./.test(a.textContent) && !/\.env/.test(a.querySelector('.ask-pass').textContent) && /1 file was not read because of its type\./.test(a.textContent));
+      a = await ask('Which files talk about the supplier data pilot?');
+      ok('#212 when more passages match than can be sent, only the closest three go, and the panel says so', [...a.querySelectorAll('.ask-pass li')].length === 3 && /Some of the report was too long to send in full, so only the parts closest to your question were used\./.test(a.textContent), String([...a.querySelectorAll('.ask-pass li')].length));
+      a = await ask('What do the minutes say about the zebra?');
+      ok('#212 with nothing found it says so, and still says what was not read', /I did not find that in the files in your folders\./.test(a.textContent) && !a.querySelector('.ask-pass') && /PDF is not supported yet/.test(a.textContent));
+      uSrc && uSrc(); a = await ask('What did the steering committee say about the supplier recovery plan?');
+      ok('#212 with no folders saved it does not talk about files at all', !/From your folders|not supported yet|left out for safety/.test(a.textContent));
+      C.askReset(); }
+    /* #284: Stop, a timeout and a sign-out each end the question with their own line */
+    { const chips = () => !$('#askChips').hidden, ends = () => $$('#askLog [data-end]'), bots = () => $$('#askLog .msg.bot').length, ai = $('#askIn');
+      C.askReset(); ai.value = 'Check this report'; key(ai, 'Enter'); await sleep(30);
+      ok('#284 while it works there is a Stop button in the working line', !$('#askWork').hidden && $('#askStop') && $('#askStop').textContent === 'Stop');
+      click($('#askStop')); await sleep(40);
+      ok('#284 Stop ends it at once, even right after the question went: "Stopping. Your question and the earlier answers stay here."', ends().length === 1 && ends()[0].dataset.end === 'stopped' && ends()[0].textContent === 'Stopping. Your question and the earlier answers stay here.' && $('#askWork').hidden && chips());
+      await sleep(2900); ok('#284 and no answer arrives afterwards; the question stays in the chat', ends().length === 1 && bots() === 1 && $$('#askLog .msg.me').length === 1);
+      C.askTimeoutMs = 150; ai.value = 'Which risks are red?'; key(ai, 'Enter'); await sleep(450); C.askTimeoutMs = 0;
+      ok('#284 a timeout has its own line, not a generic "failed"', ends().length === 2 && ends()[1].dataset.end === 'timeout' && ends()[1].textContent === 'The answer took too long, so clark stopped waiting. Your question and the earlier answers stay here. Ask again.' && !/fail/i.test(ends()[1].textContent) && $('#askWork').hidden && chips());
+      await sleep(2900); ok('#284 and the late answer is dropped', bots() === 2 && ends().length === 2);
+      ai.value = 'Next milestone?'; key(ai, 'Enter'); await answered(bots()); ok('#284 after either, a new question is answered as usual', $$('#askLog .msg.bot').length === 3 && !/Stopping|took too long/.test($$('#askLog .msg.bot').at(-1).textContent));
+      key($('#askIn'), 'Escape'); await sleep(40); ok('Esc closes it', !$('#ask').classList.contains('on'));
+      const view0 = C.UI.view; C.store.set('aiConn', { claude: { how: 'API key', models: ['Claude Sonnet 5.5'], ids: ['claude-sonnet'] } }); C.go('settings'); await sleep(100);
+      C.askRun('Check this report'); await sleep(30); click($('[data-aidisc=claude]')); await sleep(60);
+      ok('#284 signing out while a question is being answered ends it with the sign-in line', ends().length === 3 && ends()[2].dataset.end === 'signedout' && ends()[2].textContent === 'Claude is not signed in on this computer, so there is nothing to ask yet. Sign in to Claude on this computer, then open this panel again.' && $('#askWork').hidden);
+      C.store.set('aiConn', {}); C.store.set('aiModel', ''); C.askReset(); C.go(view0); await sleep(60); }
   });
 
   await step('settings', async () => {
@@ -1103,7 +1198,7 @@
     const sw = $('#askSw');
     ok('#170 the switch is a real switch named ask clark, On by default, with the word On beside it', sw.getAttribute('role') === 'switch' && sw.getAttribute('aria-label') === 'ask clark' && sw.getAttribute('aria-checked') === 'true' && $('#askSwSt').textContent === 'On' && $('.ask-sw').textContent.includes('ask clark') && p0.ask === undefined && C.askOn());
     ok('#170 the connect sentence is on the card', $('#askConnect').textContent === 'When you ask, your question and the parts of your report and files it needs are sent to Claude, run by Anthropic (up to 40,000 characters each time). They count towards your Claude plan. You can turn ask clark off here.');
-    ok('#170 the line under the folders says what ask clark reads', $('#askReads').textContent === 'ask clark reads text and Markdown files and PDFs in these folders, and the project’s own folders. Parts of what it reads are sent to Claude when you ask.' && rect('#askReads').top > rect('#askFolders').bottom);
+    ok('#170 the line under the folders says what ask clark reads', $('#askReads').textContent === 'ask clark reads text, Markdown and Word files in these folders, and the project’s own folders. A PDF is not read yet. Parts of what it reads are sent to Claude when you ask.' && rect('#askReads').top > rect('#askFolders').bottom);
     ok('#170 no box to type a location in, and Choose folder has the Client folder button\'s look', !$('#sources input, #sources textarea') && $('#askChoose').className === 'btn' && $('#askChoose').textContent === 'Choose folder');
     /* the switch: off, kept with the project's settings, and kept over a reload */
     click($('#askSw')); await sleep(100);
@@ -1220,7 +1315,22 @@
     const un = window.ClarkDB.change('item', item('PDF-A-018'), { priority: item('PDF-A-018').priority === 'Low' ? 'High' : 'Low' }); ok('a save is logged with the item ID only', has('INFO save item PDF-A-018 priority') && !C.logLines(3).join().includes(item('PDF-A-018').title)); un && un();
     C.onError({ error: new TypeError('Zed Quill is missing'), filename: 'file:///x/views.js', lineno: 42 }); C.onReject({ reason: new RangeError('zed@example.org') });
     ok('a caught error is logged as error "page" by kind and place, never its message', has('ERROR page TypeError at views.js:42') && has('ERROR page RangeError not handled') && !has('Zed Quill') && !has('zed@example.org'));
-    C.refresh(); await sleep(40); ok('Errors in the last 7 days lists them', $$('#dgErrs li').length === 2 && /TypeError/.test($('#dgErrs').textContent));
+    C.refresh(); await sleep(40);
+    const TRY = 'Try again. If it keeps happening, use Copy diagnostics and send it to the person who is helping you.';
+    ok('Errors in the last 7 days lists them, one plain line each (#295)', $$('#dgErrs li').length === 2 && $$('#dgErrs li').every(li => new RegExp(`^Last on \\d\\d-\\d\\d-\\d{4} \\d\\d:\\d\\d\\. Happened once\\. Part of the page stopped working\\. ${TRY.replace(/[.?]/g, '\\$&')}$`).test(li.textContent)), $$('#dgErrs li').map(l => l.textContent).join(' | '));
+    ok('#295 the list shows no file name, line number or class name from those two errors', !/TypeError|RangeError|views\.js|:42|\.js/.test($('#dgErrs').textContent));
+    { /* one error of each kind, each as technical as the log holds it */
+      const kinds = [['save', 'POST /api/change failed: TypeError at store.py:88 in save_change', 'Saving a change did not work.'], ['store', 'OperationalError at db.py:12 in write_all', 'Reading or saving your project data did not work.'],
+        ['publish', 'POST /api/publish failed: OSError at publish_flow.py:445', 'Publishing did not work.'], ['export', 'GET /api/export failed: KeyError at excel.py:9', 'Making the Excel workbook did not work.'],
+        ['word', 'POST /api/word-export failed: ValueError at docx_build.py:77', 'Making the Word file did not work.'], ['ask', 'POST /api/ask failed: TimeoutError at ask_claude.py:210', 'Asking clark did not work.'],
+        ['mail', 'POST /api/draft-email/sent failed: Invalid at store.py:2587', 'Drafting the email did not work.'], ['load', 'GET /api/data failed: ConnectionError at server.py:30', 'Loading part of the page did not work.'],
+        ['scan', 'something odd in check_things()', 'Something did not work.']];
+      kinds.forEach(([a, m]) => C.log('error', a, m)); C.log('error', 'save', 'POST /api/change failed: TypeError at store.py:88 in save_change');
+      C.refresh(); await sleep(40); const li = $$('#dgErrs li').map(l => l.textContent), rest = t => t.replace(/^Last on \d\d-\d\d-\d{4} \d\d:\d\d\. /, '');
+      ok('#295 each kind of error is one plain line: the fixed sentence for its kind, then what to do next', kinds.every(([, , w]) => li.some(t => rest(t).includes(w + ' ' + TRY))) && li.length === 2 + kinds.length, li.length + ' lines');
+      ok('#295 the same error twice is one line that says "Happened 2 times."', li.filter(t => /Happened 2 times\. Saving a change did not work\./.test(t)).length === 1 && li.filter(t => /Saving a change/.test(t)).length === 1, li.filter(t => /Saving/.test(t)).join(' | '));
+      ok('#295 the list shows no file name, line number, class name, route or function name', li.every(t => !/\.(js|py)\b|:\d|\/api|Error\b|Exception|\b\w+_\w+\b|\(\)|\bIn\b/.test(rest(t))), li.filter(t => /\.(js|py)\b|:\d|\/api|Error\b|\b\w+_\w+\b|\(\)/.test(rest(t))).join(' | '));
+      ok('#295 Copy diagnostics keeps the technical detail, because it is for support', /ERROR save POST \/api\/change failed: TypeError at store\.py:88 in save_change/.test(C.diagText()) && /ERROR page TypeError at views\.js:42/.test(C.diagText())); }
     for (let i = 0; i < 250; i++) C.log('info', 'test', 'fill ' + i); ok('the log keeps the last 200 lines', C.logLines().length === 200 && C.logLines().at(-1).endsWith('fill 249'));
     /* Copy diagnostics: no names, emails or project names */
     const uPf = window.ClarkDB.setProfile({ name: 'Zed Quill', email: 'zed@example.org', org: 'Quill Holdings' }); C.log('info', 'test', 'before copy'); C.go('settings'); await sleep(60);
@@ -1288,6 +1398,14 @@
     const ACTIONS = ['ask', 'preview', 'publish', 'dashboard+edit'], noScreen = [];
     for (const g of gos) { const [v, anchor] = g.split('#'); if (ACTIONS.includes(v)) continue; C.go(v); await sleep(60); if (C.UI.view !== v || (anchor && !document.getElementById(anchor))) noScreen.push(g); }
     ok('help: every screen Help sends you to exists' + (noScreen.length ? ' (missing: ' + noScreen.join(', ') + ')' : ''), gos.size > 3 && !noScreen.length);
+    /* #294: Help gives the Grey headers line Settings gives; #402: Help names the Use cases link; #465: Help carries the headers-and-footers advice */
+    C.go('settings'); await sleep(80); const setLines = $$('[data-secs] small').map(b => b.textContent), setLine = $('[data-secs=head] small').textContent;
+    C.go('help'); await sleep(80); click($('#hpTab-reference')); await sleep(60); const row = [...$$('#hp-ref-layouts td')].find(td => td.textContent === 'Grey headers')?.nextElementSibling.textContent;
+    ok('#294 Help\'s Grey headers line is Settings\' line, "like the Work items groups"', setLine === 'Slim gaps, and each section title in a grey band, like the Work items groups.' && row === setLine, `${row} | ${setLine}`);
+    ok('#294 and the four section-style lines in Help are the four in Settings', $$('#hp-ref-layouts tbody tr').map(r => r.cells[1].textContent).join('|') === setLines.join('|'));
+    click($('#hpTab-howto')); await sleep(80); { const t = $('#hp-howto-work-the-use-cases').textContent.replace(/\s+/g, ' ');
+      ok('#402 Help names the crumb on a use case: "Use cases at the top, or the Back button of your browser, brings you back to the list"', /Use cases at the top, or the Back button of your browser, brings you back to the list/.test(t) && !/Back returns to the list/.test(t) && /Esc on a use case goes back to the row you came from/.test(t)); }
+    click($('#hpTab-howto')); await sleep(60); ok('#465 Help\'s Publish steps say to untick Headers and footers in the print box', $$('#hpPane .hp-task').some(a => /In the print box, untick Headers and footers so the PDF has no web address on it\./.test(a.textContent)));
     C.go('dashboard'); await sleep(60);
   });
 
@@ -1429,7 +1547,7 @@
     const n0 = DB.pubNext(P()), wo = window.open, wrote = []; window.open = () => ({ document: { write(h) { wrote.push(h); }, close() {} }, close() {} });
     click($('#meBtn')); await sleep(40); await menuPick('Publish'); await sleep(60);
     ok('PDF: the Publish box has an Also a PDF tick beside Word, and says which publication this is', !!$('#pubPdf') && /Also a PDF/.test($('#dlg').textContent) && !!$('#pubWord') && new RegExp('Publication ' + n0).test($('#dlg .dlg-h').textContent));
-    ok('PDF: the prototype note shows when it is ticked', $('#pubPdfNote').hidden); $('#pubPdf').checked = true; $('#pubPdf').dispatchEvent(new Event('change')); ok('PDF: ... and reads as asked', !$('#pubPdfNote').hidden && $('#pubPdfNote').textContent === 'Prototype: your browser’s print box opens; choose Save as PDF.');
+    ok('PDF: the prototype note shows when it is ticked', $('#pubPdfNote').hidden); $('#pubPdf').checked = true; $('#pubPdf').dispatchEvent(new Event('change')); ok('#465 the Publish box note carries the advice to untick Headers and footers, beside Save as PDF', /choose Save as PDF\. In the print box, untick Headers and footers so the PDF has no web address on it\.$/.test($('#pubPdfNote').textContent) && !$('#pubPdfNote').hidden); ok('PDF: ... and reads as asked', !$('#pubPdfNote').hidden && $('#pubPdfNote').textContent === 'Prototype: your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers so the PDF has no web address on it.');
     $('#pubF').requestSubmit(); await sleep(1800); window.open = wo;
     { const rec = P().published.slice(-1)[0], cp = DB.pubCopy('PDF', n0), pg = cp ? cp.html : '';
       ok('publications: a publish gets the next number, with who and where', rec.n === n0 && rec.who === 'Sam Taylor' && rec.where === 'Local' && rec.pdf === true && /^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(rec.at), JSON.stringify(rec));

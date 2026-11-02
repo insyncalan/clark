@@ -54,19 +54,31 @@
   const get = (r, k) => { const key = Object.keys(r).find(c => c.trim().toLowerCase() === k.toLowerCase()); return key ? String(r[key]).trim() : ''; };
   const yes = v => /^(yes|y|true|1)$/i.test(v);
   async function readFile(f) {
-    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true }), p = C.P(), plan = { add: [], upd: [], skip: 0, arch: [], done: [] };
+    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true }), p = C.P(), plan = { add: [], upd: [], skip: 0, arch: [], done: [], lines: [], refused: 0, same: 0 };
     const rows = n => wb.SheetNames.filter(s => s.trim().toLowerCase() === n).flatMap(s => XLSX.utils.sheet_to_json(wb.Sheets[s], { defval: '', raw: false }));
     const itemSheets = wb.SheetNames.filter(s => !['milestones', 'use cases', 'history'].includes(s.trim().toLowerCase()));   /* History is a record, never read back in */
-    itemSheets.flatMap(s => XLSX.utils.sheet_to_json(wb.Sheets[s], { defval: '', raw: false })).forEach(r => {
-      const title = get(r, 'Title'); if (!title) { plan.skip++; return; }
+    /* New rows (#129, #38b): a row with no ID is a new item and gets the next free ID for its type, in row order with no gaps; an ID typed that clark does not know is not used,
+       the item gets a new one and the check says so; a changed ID (the row is the same item as one clark has, under another ID) is refused for that row only; a row that is already
+       in clark (same type, title, workstream, owner and due date) is not made twice. The words are the product's (excel_import.py). The prototype checks only what the file holds. */
+    const nextOf = {}, newId = type => { const first = C.nextId(type), raid = type === 'R' || type === 'I', k = raid ? 'RI' : type, num = +first.match(/\d+$/)[0];
+      nextOf[k] = nextOf[k] === undefined ? num : nextOf[k] + 1; return first.replace(/\d+$/, '') + String(nextOf[k]).padStart(3, '0'); };
+    const series = t => t === 'R' || t === 'I' ? 'RI' : t, same = (x, v) => x.code === p.code && series(x.type) === series(v.type) && x.title.trim().toLowerCase() === v.title.trim().toLowerCase();
+    itemSheets.forEach(sn => XLSX.utils.sheet_to_json(wb.Sheets[sn], { defval: '', raw: false }).forEach((r, ri) => {
+      const rowNo = ri + 2, title = get(r, 'Title'); let nid = ''; if (!title) { plan.skip++; return; }
       const type = ({ action: 'A', risk: 'R', issue: 'I', decision: 'D' })[get(r, 'Type').toLowerCase()] || 'A', id = get(r, 'ID'), ex = id && D.S.items.find(x => x.id === id && x.code === p.code);
       const ms = C.mss().find(m => m.name.toLowerCase() === get(r, 'Milestone').toLowerCase());
       const v = { type, ws: get(r, 'Workstream') || p.ws[0], title, owner: get(r, 'Owner'), due: dateOf(get(r, 'Due')), status: D.STATUSES[type].find(s => s.toLowerCase() === ({ 'in progress': 'open', done: 'closed', agreed: 'made' }[get(r, 'Status').toLowerCase()] || get(r, 'Status').toLowerCase())) || D.STATUSES[type][0],
         priority: D.PRIORITIES.find(s => s.toLowerCase() === get(r, 'Priority').toLowerCase()) || ({ red: 'High', amber: 'Medium', green: 'Low' })[get(r, 'Rating').toLowerCase()] || 'Medium',
         uc: get(r, 'Use case'), ms: ms ? ms.id : '', client: get(r, 'Client-visible') ? yes(get(r, 'Client-visible')) : true, clientText: get(r, 'Client wording'), desc: get(r, 'Description'), update: get(r, 'Latest update') };
       if (ex && ex.archived) { plan.arch.push(ex.id); return; }   /* an archived record is read-only: the import leaves it alone and says so (#166) */
-      (ex ? plan.upd : plan.add).push({ kind: 'item', ex, v });
-    });
+      if (!ex) {
+        const twin = D.S.items.find(x => same(x, v) && (x.ws || '') === v.ws && (x.owner || '') === v.owner && (x.due || '') === v.due);
+        if (id && D.S.items.some(x => same(x, v) && x.code === p.code && x.id !== id)) { plan.refused++; plan.lines.push(`Row ${rowNo}: the ID was changed. IDs can't be edited; the row was skipped.`); return; }
+        if (!id && twin) { plan.same++; plan.lines.push(`Row ${rowNo}: already in clark as ${twin.id}, so no second copy is made.`); return; }
+        nid = newId(type); if (id) plan.lines.push(`Row ${rowNo}: the ID ${id} isn't one clark knows, so the item gets a new ID.`); plan.lines.push(`New: ${title} → ${nid}`);
+      }
+      (ex ? plan.upd : plan.add).push({ kind: 'item', ex, v, nid });
+    }));
     rows('milestones').forEach(r => {
       const name = get(r, 'Milestone'); if (!name) { plan.skip++; return; }
       const id = get(r, 'ID'), ex = C.mssAll().find(m => (id && m.id === id) || m.name.toLowerCase() === name.toLowerCase()), agreed = dateOf(get(r, 'Agreed')) || ex?.agreed || D.addDays(D.TODAY, 30);
@@ -92,11 +104,12 @@
     const p = C.P(), n = plan.add.length + plan.upd.length, cnt = k => [plan.add.filter(x => x.kind === k).length, plan.upd.filter(x => x.kind === k).length];
     const [ia, iu] = cnt('item'), [ma, mu] = cnt('ms'), [ua, uu] = cnt('uc');
     C.dialog(`<form id="impF"><div class="dlg-h"><h2>Check the import</h2><p>${esc(f.name)} into ${esc(p.name)}</p></div>
-      <div class="dlg-b"><div class="stat"><span><b>${plan.add.length}</b>new</span><span><b>${plan.upd.length}</b>updated</span><span><b>${plan.skip}</b>skipped (no name)</span>${plan.arch.length ? `<span><b>${plan.arch.length}</b>left alone (archived)</span>` : ''}</div>
+      <div class="dlg-b"><div class="stat"><span><b>${plan.add.length}</b>new</span><span><b>${plan.upd.length}</b>updated</span><span><b>${plan.skip}</b>skipped (no name)</span>${plan.refused ? `<span><b>${plan.refused}</b>refused (ID changed)</span>` : ''}${plan.same ? `<span><b>${plan.same}</b>already there</span>` : ''}${plan.arch.length ? `<span><b>${plan.arch.length}</b>left alone (archived)</span>` : ''}</div>
       <p style="margin:0 0 8px">Work items: ${ia} new, ${iu} updated · Milestones: ${ma} new, ${mu} updated · Use cases: ${ua} new, ${uu} updated</p>
       ${plan.arch.length ? `<p class="imp-arch" style="margin:0 0 8px">${plan.arch.map(esc).join(', ')} ${plan.arch.length === 1 ? 'is' : 'are'} archived, so ${plan.arch.length === 1 ? 'its row is' : 'their rows are'} left alone. Restore ${plan.arch.length === 1 ? 'it' : 'them'} first to update ${plan.arch.length === 1 ? 'it' : 'them'} from a sheet.</p>` : ''}
       ${plan.done.length ? `<p class="imp-done" style="margin:0 0 8px">Use case${plan.done.length === 1 ? '' : 's'} ${plan.done.map(esc).join(', ')} ${plan.done.length === 1 ? 'says' : 'say'} Done in the sheet. A use case is On track, Flag or High risk, so ${plan.done.length === 1 ? 'it comes' : 'they come'} in as On track.</p>` : ''}
       ${[...plan.add, ...plan.upd].slice(0, 8).map(({ kind, ex, v }) => `<div style="padding:6px 0;border-top:1px solid var(--grey-100)">${kind === 'item' ? `<span class="type ${v.type}">${v.type}</span>` : `<span class="tag">${kind === 'ms' ? 'Milestone' : 'Use case'}</span>`} ${esc(v.title || v.name)} <span class="muted">· ${ex ? 'updates ' + esc(ex.id || ex.name) : 'new'}</span></div>`).join('')}
+      ${plan.lines.length ? `<ul class="imp-lines" id="impLines" style="margin:8px 0 0;padding-left:18px;font-size:14px">${plan.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
       ${n > 8 ? `<p class="muted">and ${n - 8} more</p>` : ''}</div>
       <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri" ${n ? '' : 'disabled'}>Import ${n} rows</button></div></form>`, d => C.$('#impF', d).addEventListener('submit', ev => {
       ev.preventDefault(); d.close();
@@ -309,7 +322,7 @@ table{border-collapse:collapse;width:100%} th{background:#3B5BDB;color:#fff;text
         <label class="pubopt"><input type="checkbox" id="pubLocal" checked disabled><span><b>Local</b><small>Always. ${window.showSaveFilePicker ? 'You choose the folder and name in the save window; it opens where you last saved' : 'Saved to your downloads'}</small></span></label>
         <label class="pubopt${loc.client ? '' : ' off'}"><input type="checkbox" id="pubClient" ${loc.client ? '' : 'disabled'}><span><b>To client</b><small>${loc.client ? 'Sent to the client folder: ' + esc(loc.client) : 'No client folder yet. Set it in <button type="button" class="link" id="pubToSet">Settings, Publishing</button>.'}</small></span></label>
         <label class="pubopt"><input type="checkbox" id="pubWord"><span><b>Also a Word document</b><small>Beside the web page, in the same places</small></span></label>
-        <label class="pubopt"><input type="checkbox" id="pubPdf"><span><b>Also a PDF</b><small>The page as it prints: the four tabs one after another, no controls, with the publication number in the foot</small><small class="pdfnote" id="pubPdfNote" hidden>Prototype: your browser’s print box opens; choose Save as PDF.</small></span></label>
+        <label class="pubopt"><input type="checkbox" id="pubPdf"><span><b>Also a PDF</b><small>The page as it prints: the four tabs one after another, no controls, with the publication number in the foot</small><small class="pdfnote" id="pubPdfNote" hidden>Prototype: your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers so the PDF has no web address on it.</small></span></label>
       </div><p class="muted" id="pubWarn" style="font-size:13px;margin:10px 0 0" hidden>The client will see this page. Only what is shown in View mode is included.</p></div>
       <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri" id="pubGo">Publish locally</button></div></form>`, d => {
       const cl = C.$('#pubClient', d), go = C.$('#pubGo', d);

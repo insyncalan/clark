@@ -228,6 +228,12 @@
     const text = `${greet()} ${first},\n\n${open}\n\n${x.id}  ${x.title}\nDue: ${dueTxt} · Priority: ${x.priority}${o.update && C.plain(x.update) ? `\nLatest: ${C.plain(x.update)}` : ''}\n\n${ask}${o.by && kind !== 'decision' ? ` If you can reply by ${D.fd(o.by)}, that would help.` : ''}\n\nThank you.\n\nKind regards,\n${me.split(/\s+/)[0] || ''}`;
     return { kind, tone, subject, html, text, chased };
   }
+  /* "I sent it" (#258, #208): what it refuses, in the product's plain words (store.py, draft_email_route.py). Every refusal ends "Nothing was saved." and says what to do.
+     An item that is hidden from the report, closed, archived or marked Sensitive could not have been in the email, so it cannot be recorded as sent. (The prototype has no
+     Sensitive label to set: an item with sensitive: true is refused, and that is all it draws of it.) "Another change is being made" is an editor still open. */
+  const SENT_NO = { name: 'Add your name in Settings, then try again. Nothing was saved.', busy: "This can't be recorded while another change is being made. Finish that change first. Nothing was saved.",
+    item: "This item can't be recorded: it is hidden from the report, closed or marked Sensitive. Close this window and look at the item again. Nothing was saved." };
+  C.mailRefusal = x => !((D.S.profile || {}).name || '').trim() ? SENT_NO.name : C.edIsOpen() ? SENT_NO.busy : (x.archived || !C.isOpen(x) || x.client === false || x.sensitive) ? SENT_NO.item : '';
   function mailPane(x) {
     const o = { by: workdays(D.TODAY, 2), update: false, tone: '' };
     const draw = () => { const m = mailText(x, o);
@@ -238,6 +244,7 @@
           ${m.kind === 'chase' ? `<label>Tone</label><span class="seg">${[['first', 'First chase'], ['second', 'Second chase'], ['firmer', 'Firmer chase']].map(([v, t]) => `<button type="button" data-tone="${v}" aria-pressed="${m.tone === v}">${t}</button>`).join('')}</span>` : ''}
           <label></label><label class="chk"><input type="checkbox" id="mlUpd" ${o.update ? 'checked' : ''}> Include the latest update</label></div>
         <div class="mail-prev" id="mlPrev" contenteditable="true" aria-label="The email; you can edit it">${m.html}</div>
+        <p class="mail-err" id="mlErr" role="alert"></p>
         <div class="dlg-f"><button type="button" class="btn quiet" id="mlSent">I sent it</button><span class="sp"></span><button type="button" class="btn" id="mlText">Copy as text</button><button type="button" class="btn pri" id="mlCopy">Copy for Outlook</button></div>`, d => {
         C.$('#mlBy', d).addEventListener('change', e => { o.by = e.target.value < D.TODAY ? D.TODAY : e.target.value; d.close(); draw(); });
         C.$('#mlUpd', d).addEventListener('change', e => { o.update = e.target.checked; d.close(); draw(); });
@@ -246,7 +253,11 @@
           try { if (rich && window.ClipboardItem) await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([h], { type: 'text/html' }), 'text/plain': new Blob([t], { type: 'text/plain' }) })]); else await navigator.clipboard.writeText(rich ? t : `Subject: ${sub}\n\n${t}`); C.toast(rich ? 'Copied for Outlook' : 'Copied as text'); }
           catch (e) { const r = document.createRange(); r.selectNodeContents(C.$('#mlPrev', d)); getSelection().removeAllRanges(); getSelection().addRange(r); C.toast('Press ⌘C to copy'); } };
         C.$('#mlCopy', d).addEventListener('click', () => copy(true)); C.$('#mlText', d).addEventListener('click', () => copy(false));
-        C.$('#mlSent', d).addEventListener('click', () => { const u = D.change('item', x, { chase: (x.chase || 0) + 1 }, D.who('sent ' + (m.kind === 'update' ? 'an update' : 'a ' + m.kind) + ' email'), `${m.kind === 'chase' ? 'Chased' : 'Asked'} ${x.owner || ''} on ${D.fd(D.TODAY)}`); d.close(); C.refresh(); C.toast(`Recorded: ${m.kind === 'chase' ? 'chased' : 'emailed'} ${x.owner || 'the owner'} on ${D.fd(D.TODAY)}`, u); });
+        /* a second press while one is being recorded does nothing, and the button says it is working until it is done (#258) */
+        let sending = false;
+        C.$('#mlSent', d).addEventListener('click', e => { if (sending) return; const why = C.mailRefusal(x), err = C.$('#mlErr', d); err.textContent = why; if (why) return;
+          sending = true; const b = e.currentTarget; b.disabled = true; b.setAttribute('aria-busy', 'true'); b.textContent = 'Recording…';
+          setTimeout(() => { const u = D.change('item', x, { chase: (x.chase || 0) + 1 }, D.who('sent ' + (m.kind === 'update' ? 'an update' : 'a ' + m.kind) + ' email'), `${m.kind === 'chase' ? 'Chased' : 'Asked'} ${x.owner || ''} on ${D.fd(D.TODAY)}`); d.close(); C.refresh(); C.toast(`Recorded: ${m.kind === 'chase' ? 'chased' : 'emailed'} ${x.owner || 'the owner'} on ${D.fd(D.TODAY)}`, u); }, 40); });
       }); };
     draw();
   }

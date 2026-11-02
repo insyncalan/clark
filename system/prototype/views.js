@@ -1338,13 +1338,13 @@
       '', 'Last 20 log lines:', ...(C.logLines(20).length ? C.logLines(20) : ['(none)'])].join('\n');
   };
   function dgCard() {
-    const lv = C.logLevel(), since = C.store.get('logLevelSince', 0), days = since ? Math.floor((Date.now() - since) / 864e5) : 0, errs = C.logErrors(7);
+    const lv = C.logLevel(), since = C.store.get('logLevelSince', 0), days = since ? Math.floor((Date.now() - since) / 864e5) : 0, errs = C.logErrorLines(7);
     return `<div class="card" id="diagnostics"><div class="card-h"><h2>Diagnostics</h2></div>
       <div class="form wide"><span class="fl" id="dgLvLab">Log level</span><div class="fc"><div class="seg" role="group" aria-labelledby="dgLvLab">${[['info', 'Normal'], ['debug', 'Debug']].map(([v, t]) => `<button data-ll="${v}" aria-pressed="${lv === v}">${t}</button>`).join('')}</div>
           <small>Debug adds detail for fixing problems. Logs hold only counts, IDs and times, never your report text, names or keys.</small>${lv === 'debug' && since && days >= 7 ? `<div class="dg-note" id="dgOld">Debug has been on for ${days} days. Switch back to Normal when you're done.</div>` : ''}</div>
         <span class="fl">Log folder</span><div class="fc"><span>clark’s own log folder</span><button class="btn sm" id="dgOpen">Open the folder</button></div>
         <span class="fl">Report</span><div class="fc"><button class="btn sm" id="dgCopy">Copy diagnostics</button><small>The version, counts, safe settings and the last 20 log lines, for pasting into a chat: no names, emails or report text.</small></div>
-        <span class="fl">Errors in the last 7 days</span><div class="fc" id="dgErrs">${errs.length ? `<ul class="dg-errs">${errs.slice(-5).reverse().map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : '<span class="muted">None</span>'}</div></div>
+        <span class="fl">Errors in the last 7 days</span><div class="fc" id="dgErrs">${errs.length ? `<ul class="dg-errs">${errs.slice(-20).reverse().map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : '<span class="muted">None</span>'}</div></div>
       <p class="muted" style="font-size:13px;margin:12px 0 0">clark keeps one log a day (5 MB at most) and keeps 7 days.</p></div>`;
   }
   function dgWire() {
@@ -1416,7 +1416,7 @@
       <ul class="docs" id="askFolders">${src.map((s, i) => `<li><span class="dic">${C.icon('folder', 's')}</span><span class="ask-loc">${esc(s)}</span><span></span><button class="btn sm" data-sd="${i}" aria-label="Remove ${esc(s)} from the list">Remove</button></li>`).join('') || '<li><span></span><span class="muted">No folders yet.</span></li>'}</ul>
       <div class="ask-fr"><button type="button" class="btn" id="askChoose" data-choose-folder>Choose folder</button><span class="muted" id="askCount">${src.length} of ${ASK_MAX} folders</span></div>
       <p class="ask-msg" id="askFMsg" role="alert">${esc(askMsg)}</p>
-      <p class="muted" style="font-size:13px;margin:8px 0 0" id="askReads">ask clark reads text and Markdown files and PDFs in these folders, and the project’s own folders. Parts of what it reads are sent to Claude when you ask.</p></div>`; };
+      <p class="muted" style="font-size:13px;margin:8px 0 0" id="askReads">ask clark reads text, Markdown and Word files in these folders, and the project’s own folders. A PDF is not read yet. Parts of what it reads are sent to Claude when you ask.</p></div>`; };
   const askPick = p => C.dialog(`<div class="dlg-h"><h2>Choose a folder</h2><p>Prototype: the real clark opens your Mac’s own folder window. Here, pick one of these.</p></div>
       <div class="dlg-b"><ul class="docs ask-pick">${ASK_PLACES(p).map(([k, path, t]) => `<li><span class="dic">${C.icon(k === 'file' ? 'doc' : 'folder', 's')}</span><span><b style="font-weight:500">${esc(t)}</b><br><span class="muted ask-loc">${esc(path)}</span></span><span></span><button class="btn sm" data-pick="${esc(path)}" data-kind="${k}">Choose</button></li>`).join('')}</ul></div>
       <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button></div>`, d => {
@@ -1484,7 +1484,7 @@
       C.$('#pubL')?.addEventListener('change', e => saveProject({ publish: { ...(p.publish || {}), local: e.target.value.trim() } }, 'Local folder saved'));
       C.$('#pubC')?.addEventListener('change', e => { if (e.target.value && !e.target.checkValidity()) { e.target.reportValidity(); return; } saveProject({ publish: { ...(p.publish || {}), client: e.target.value.trim() } }, 'Client folder saved'); });
       C.$$('[data-aicon]').forEach(b => b.addEventListener('click', () => aiConnect(b.dataset.aicon)));
-      C.$$('[data-aidisc]').forEach(b => b.addEventListener('click', () => { const all = aiConn(), k = b.dataset.aidisc; delete all[k]; C.store.set('aiConn', all); if (!aiModels().some(([v]) => v === C.store.get('aiModel', ''))) C.store.set('aiModel', aiModels()[0]?.[0] || ''); C.render(); C.toast('Disconnected; its models are out of the list'); }));
+      C.$$('[data-aidisc]').forEach(b => b.addEventListener('click', () => { const all = aiConn(), k = b.dataset.aidisc; delete all[k]; C.store.set('aiConn', all); if (!aiModels().some(([v]) => v === C.store.get('aiModel', ''))) C.store.set('aiModel', aiModels()[0]?.[0] || ''); C.render(); C.askSignedOut && C.askSignedOut(); C.toast('Disconnected; its models are out of the list'); }));
       C.$('#aiModel')?.addEventListener('change', e => { C.store.set('aiModel', e.target.value); C.toast('ask clark will use ' + e.target.selectedOptions[0].textContent); });
       C.$$('[data-secs]').forEach(b => b.addEventListener('click', () => { C.secs(b.dataset.secs); C.$$('[data-secs]').forEach(z => z.setAttribute('aria-checked', z === b)); C.toast('Dashboard sections: ' + b.querySelector('b').textContent); }));
       C.$$('[data-theme-pick]').forEach(b => b.addEventListener('click', () => { C.themeSet(b.dataset.themePick); C.$$('[data-theme-pick]').forEach(z => z.setAttribute('aria-pressed', z === b)); }));   /* the same words as the profile menu's Dark mode (S7) */

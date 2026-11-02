@@ -37,11 +37,20 @@
     level = String(level || 'info').toLowerCase();
     if (level === 'debug' && C.logLevel() !== 'debug') return;
     const d = new Date(), at = `${d.getFullYear()}-${lpad(d.getMonth() + 1)}-${lpad(d.getDate())} ${lpad(d.getHours())}:${lpad(d.getMinutes())}:${lpad(d.getSeconds())}`;
-    logRows.push({ t: d.getTime(), level, line: `${at} ${level.toUpperCase()} ${area} ${msg}` });
+    logRows.push({ t: d.getTime(), level, area: String(area), msg: String(msg), line: `${at} ${level.toUpperCase()} ${area} ${msg}` });
     if (logRows.length > LOG_MAX) logRows.splice(0, logRows.length - LOG_MAX);
   };
   C.logLines = n => logRows.slice(n ? -n : 0).map(r => r.line);
   C.logErrors = days => logRows.filter(r => r.level === 'error' && Date.now() - r.t <= days * 864e5).map(r => r.line);
+  /* The Errors list in Settings › Diagnostics says each error in plain words (#295), as the product's Diagnostics does: when it was last and how many times, a fixed sentence for
+     its kind (the sentences are log_routes.py's), and what to do next. Errors of one kind from one place are one line. None of the error's own text reaches the list, so no
+     file name, line number, class name, route or function name shows; Copy diagnostics keeps the technical lines, because it is for support. */
+  const WHAT = { save: 'Saving a change did not work.', page: 'Part of the page stopped working.', store: 'Reading or saving your project data did not work.', publish: 'Publishing did not work.',
+    export: 'Making the Excel workbook did not work.', word: 'Making the Word file did not work.', ask: 'Asking clark did not work.', mail: 'Drafting the email did not work.', load: 'Loading part of the page did not work.' };
+  const TRY_AGAIN = 'Try again. If it keeps happening, use Copy diagnostics and send it to the person who is helping you.';
+  C.logErrorLines = days => { const g = new Map(); logRows.filter(r => r.level === 'error' && Date.now() - r.t <= days * 864e5).forEach(r => { const k = r.area + ' ' + r.msg, e = g.get(k) || { n: 0, area: r.area }; e.n++; e.t = r.t; g.set(k, e); });
+    return [...g.values()].sort((a, b) => a.t - b.t).map(e => { const d = new Date(e.t), pad = n => String(n).padStart(2, '0');
+      return `Last on ${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}. Happened ${e.n === 1 ? 'once' : e.n + ' times'}. ${WHAT[e.area] || 'Something did not work.'} ${TRY_AGAIN}`; }); };
   /* a caught error is logged by its kind and place only: the message could carry a name */
   C.onError = e => C.log('error', 'page', `${(e.error && e.error.name) || 'Error'} at ${String(e.filename || '').split('/').pop() || 'page'}:${e.lineno || 0}`);
   C.onReject = e => C.log('error', 'page', `${(e.reason && e.reason.name) || 'Rejection'} not handled`);
@@ -170,6 +179,8 @@
   document.addEventListener('scroll', e => { if (!openPop || openPop.el.contains(e.target)) return; if (e.target === document || e.target === document.documentElement) { if (openPop.anchor.isConnected) place(openPop.el, openPop.anchor, openPop.align); else C.closePop(); } else if (e.target.contains && e.target.contains(openPop.anchor)) C.closePop(); }, true);   // another area scrolling (the timeline finding today) leaves the menu alone
 
   /* ── dialog ── */
+  /* a real modal (showModal): while one is open, everything behind it is inert, so the peek, ask clark, the top bar and the page take no focus and no click, and Esc or Close puts
+     the keyboard back on the button that opened it (#425: the Draft email window, among the others) */
   C.dialog = (html, wire) => {
     const d = C.$('#dlg'); d.innerHTML = html; if (!d.open) d.showModal();
     C.$$('[data-close]', d).forEach(b => b.addEventListener('click', () => d.close()));
