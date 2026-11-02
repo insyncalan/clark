@@ -5,8 +5,9 @@
 // file under clientreport/, so one part can be replaced (the Progress tracker, #189) without touching the others.
 // The page is drawn in View and in Edit, and a published file carries it as a tab (publish.py): there it reads only what the file
 // holds. Nothing on it is an instruction to the author or an explanation of how a figure is worked out: the client reads it.
-import { data, asAt, fromFile } from "../stores/report.js";
+import { data, asAt, fromFile, mode } from "../stores/report.js";
 import { showDate, todayIso } from "../workItems.js";
+import { sectionsShown } from "../logic/clientReport.js";
 import { Overall } from "./clientreport/Overall.jsx";
 import { Plans } from "./clientreport/Plans.jsx";
 import { Highlights, NextWeek } from "./clientreport/Pair.jsx";
@@ -32,6 +33,9 @@ export function ClientReport({ tools }) {
   const d = data.value;
   const client = d.project.client_name;
   const on = statusDate(d.project, asAt.value, fromFile.value);
+  const editing = mode.value === "edit" && !fromFile.value;
+  const shown = sectionsShown(d, fromFile.value, editing, on);      // a part with nothing to say, or hidden from the client, is left out; only Edit keeps its prompts
+  const both = shown.includes("highlights") && shown.includes("nextweek");
   return (
     <section class="frame report client-report" id="clientreport">
       <header class="cr-band">
@@ -39,8 +43,8 @@ export function ClientReport({ tools }) {
         <p class="cr-cover"><b>WEEKLY PROGRESS SNAPSHOT</b> · Status as at <span class="num">{showDate(on)}</span>{client ? ` · for ${client}` : ""}</p>
       </header>
       <div class="secs">
-        {SECTIONS.map((s) => (
-          <article key={s.id} class={`sec slot-${s.slot}`} id={`cr-${s.id}`} data-sec={s.id}>
+        {SECTIONS.filter((s) => shown.includes(s.id)).map((s) => (
+          <article key={s.id} class={`sec slot-${s.slot === "full" || both ? s.slot : "full"}`} id={`cr-${s.id}`} data-sec={s.id}>
             <header class="sec-head"><h2 class="sec-h">{s.title}</h2></header>
             <s.Body tools={tools} on={on} />
           </article>

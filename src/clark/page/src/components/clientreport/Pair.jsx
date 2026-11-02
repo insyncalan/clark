@@ -4,11 +4,7 @@
 // cleanHtml), and in Edit through the dashboard's own editor (tools.RichField) once that is switched on. A published file's text was
 // cleaned when it was published and is drawn as the dashboard draws it.
 import { data, mode, fromFile } from "../../stores/report.js";
-import { sectionFor } from "../../logic/clientReport.js";
-
-const HIGHLIGHTS = /highlight|this week/i;
-const NEXT = /next week/i;
-
+import { sectionFor, HIGHLIGHTS, NEXT } from "../../logic/clientReport.js";
 
 function Words({ pattern, tools }) {
   const sec = sectionFor(data.value.report_sections, pattern, data.value.report_hidden);

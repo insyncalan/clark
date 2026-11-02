@@ -2,7 +2,7 @@
 // group has a table (number, description, end date, status word with its mark, planned, achieved with a small bar) and its total.
 // A line behind plan shows "▼n" and says "n points behind plan" to a screen reader; colour is never the only signal.
 // This file and Overall.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
-import { data, fromFile } from "../../stores/report.js";
+import { data, fromFile, mode } from "../../stores/report.js";
 import { showDate } from "../../workItems.js";
 import { progress, behindWords, clientRules } from "../../logic/clientReport.js";
 import { MsMark } from "../MsMark.jsx";
@@ -11,7 +11,7 @@ const pct = (n) => (n === null || n === undefined ? "–" : `${n}%`);
 
 function Achieved({ l }) {
   const behind = l.behind ? <span class="cr-behind" title={behindWords(l.behind)}><span aria-hidden="true">▼{l.behind}</span><span class="sr">{behindWords(l.behind)}</span></span> : null;
-  if (l.achieved === null) return <span class="msl-prog"><span class="muted">Not set</span>{behind}</span>;
+  if (l.achieved === null) return <span class="msl-prog"><span class="muted">{mode.value === "edit" && !fromFile.value ? "Not set" : "–"}</span>{behind}</span>;      // Edit keeps the prompt; the client reads a dash
   return (
     <span class="msl-prog" title={`${l.achieved}% achieved`}>
       <span class="pbar"><i style={{ width: `${l.achieved}%` }}></i></span><b class="num">{l.achieved}%</b>{behind}
@@ -44,6 +44,6 @@ function Group({ g }) {
 
 export function Plans({ on }) {
   const { groups } = progress(data.value.milestones, on, true, clientRules(data.value, fromFile.value));   // the client's milestones and words, as the file shows them
-  if (!groups.length) return <p class="muted" data-no-lines>No milestones yet.</p>;
+  if (!groups.length) return mode.value === "edit" && !fromFile.value ? <p class="muted" data-no-lines>No milestones yet.</p> : null;      // the client's page leaves the section out (ClientReport.jsx)
   return <div class="cr-groups">{groups.map((g) => <Group key={g.name} g={g} />)}</div>;
 }

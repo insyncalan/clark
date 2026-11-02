@@ -5,6 +5,8 @@ The file carries the tab (named "Weekly snapshot": a client has not asked for an
 exactly the rows the file kept. Source tests pin the tab rule; the browser test opens the finished file from file:// with no
 server, at 1400 and 900 px, light and dark, and reads the page as the client does.
 """
+import json
+import subprocess
 import tempfile
 import time
 import unittest
@@ -15,8 +17,27 @@ import _publish_fixture as fx
 from clark import page, publish
 from test_publish import EMPTY_BRANDING, block, made, opened, tearDownModule  # noqa: F401  (the module's own clean-up of the brand-free folder)
 from test_server import chrome, wait
+from test_client_report import MODULE
+from test_work_items import bundled
 
-NOTHING_FOR_THE_AUTHOR = r"on the Dashboard|Nothing written|Nothing here yet|not built|counts the same|Click to write"
+NOTHING_FOR_THE_AUTHOR = r"on the Dashboard|Nothing written|Nothing here yet|not built|counts the same|Click to write|Not set|No milestones yet|[Nn]o open risks"
+
+
+def hide_risks(plant):
+    for s in plant["sections"]:
+        if s["type"] == "raid":
+            s["hidden"] = 1
+
+
+def shown(pub, editing=False, mutate=None):
+    """The ids CR.sectionsShown gives for a published file's data, run by Node (no browser): what the file's view draws."""
+    d = {**pub["data"], "report_sections": pub["sections"]}
+    if mutate:
+        mutate(d)
+    expr = f"CR.sectionsShown({json.dumps(d)}, true, {json.dumps(editing)}, {json.dumps(pub['as_at'] or '2026-10-20')})"
+    done = subprocess.run(["node", "-e", bundled(MODULE, "CR") + f";console.log(JSON.stringify({expr}))"], capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    return json.loads(done.stdout)
 
 
 def words(plant):
@@ -47,6 +68,42 @@ class Tab(unittest.TestCase):
             self.assertNotIn("response_action", publish.PUBLISH_FIELDS[table])
         _, _, text = made()
         self.assertNotIn("response_action", text)
+
+
+class Nothing(unittest.TestCase):
+    """The client reads this page: a part with no value is left out, never a placeholder, and Risks that are hidden are never "none"."""
+
+    def test_hidden_risks_leave_the_whole_part_out_of_the_file(self):
+        _, pub, _ = made(hide_risks)
+        self.assertEqual(pub["data"]["raid"], [])
+        self.assertIn("clientreport", pub["tabs"], "the tab stays: the part leaves, not the page")
+        self.assertNotIn("raid", [s["type"] for s in pub["sections"]])
+        self.assertNotIn("raid", shown(pub))
+        _, shown_pub, _ = made()
+        self.assertIn("raid", shown(shown_pub), "with Risks shown the part is there")
+
+    def test_a_shown_risks_section_with_no_open_rows_may_say_so(self):
+        # only a Risks section that is shown can say there is nothing: that is true of it
+        _, pub, _ = made()
+        d = {**pub["data"], "raid": []}
+        pub2 = {**pub, "data": d}
+        self.assertIn("raid", shown(pub2))
+
+    def test_a_part_with_nothing_to_say_is_left_out_of_the_file_and_kept_in_edit(self):
+        _, pub, _ = made(lambda p: p["sections"].__setitem__(slice(None), [s for s in p["sections"] if s["type"] != "text"]))
+        got = shown(pub)
+        self.assertNotIn("highlights", got)
+        self.assertNotIn("nextweek", got)
+        self.assertEqual(shown(pub, editing=True), ["progress", "plans", "highlights", "nextweek", "raid"], "Edit keeps its boxes and prompts")
+
+    def test_no_milestones_and_no_health_leave_the_progress_parts_out(self):
+        _, pub, _ = made()
+        def bare(d):
+            d["milestones"] = []
+            d["project"] = {**d["project"], "health": ""}
+        got = shown(pub, mutate=bare)
+        self.assertNotIn("progress", got)
+        self.assertNotIn("plans", got)
 
 
 class RealBrowser(unittest.TestCase):
@@ -88,9 +145,27 @@ class RealBrowser(unittest.TestCase):
             shown = js("document.querySelector('#clientreport').innerText")
             for out in ("ZQ-HIDDEN-MILESTONE", "ZQ-FLAG-OFF-MILESTONE", "ZQ-FLAG-OFF-RISK"):
                 self.assertNotIn(out, shown)
-            self.assertNotRegex(shown, NOTHING_FOR_THE_AUTHOR)
+            self.assertNotRegex(shown, NOTHING_FOR_THE_AUTHOR, "no placeholder text: not 'Not set', not an empty-state sentence")
+            self.assertEqual(js("[...document.querySelectorAll('[data-line]')].every(l => l.querySelector('.c-ac').innerText.trim() !== '')"), True, "an Achieved with no percent is a dash, not blank")
             self.assertEqual(js("document.querySelectorAll('#clientreport input, #clientreport textarea, #clientreport select, #clientreport [contenteditable], #clientreport [data-placeholder]').length"), 0)
             self.assertEqual(js("window.violations"), [], "the policy blocked nothing")
+
+    def test_a_file_with_the_risks_hidden_has_no_risks_part_and_no_claim_of_none(self):
+        plant = fx.load()
+        words(plant)
+        hide_risks(plant)
+        pub = publish.select(fx.inputs(plant))
+        path = Path(self.tmp.name) / "no-risks.html"
+        path.write_text(publish.render(pub, page.page_html(EMPTY_BRANDING), plant["as_at"], pub["data"]["project"]["name"]), encoding="utf-8")
+        with chrome() as cdp:
+            sid = opened(cdp, path.as_uri())
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
+            cdp.js("document.querySelector('[data-view=clientreport]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#clientreport .sec')", sid)))
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#clientreport .sec')].map(e => e.dataset.sec)", sid), ["progress", "plans", "highlights", "nextweek"])
+            text = cdp.js("document.querySelector('#clientreport').innerText", sid)
+            self.assertNotRegex(text, r"(?i)no open risks|Risks, delays")
+            self.assertNotIn("Not set", text)
 
     def test_it_fits_at_1400_and_900_light_and_dark(self):
         with chrome() as cdp:

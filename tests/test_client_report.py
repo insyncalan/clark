@@ -64,6 +64,19 @@ class Source(unittest.TestCase):
         css = (PAGE / "shell.css").read_text(encoding="utf-8")
         self.assertNotIn("cr-placeholder", css)
 
+    def test_a_not_set_prompt_is_only_ever_drawn_in_edit(self):
+        # the client's page (a file, and the View) shows nothing rather than a placeholder: every "Not set" or "No milestones yet" in the
+        # view's parts sits behind the Edit check, and a part with nothing to say is left out by sectionsShown
+        for rel in ("clientreport/Overall.jsx", "clientreport/Plans.jsx"):
+            code = re.sub(r"//[^\n]*", "", text("components", *rel.split("/")))
+            for line in code.splitlines():
+                if re.search(r"Not set|No milestones yet", line):
+                    self.assertTrue(re.search(r"editing|mode\.value", line) or "overall ||" in line or "overall ?" in line or "health ||" in line,
+                                    f"{rel}: a prompt not behind Edit: {line.strip()}")
+        body = text("components", "ClientReport.jsx")
+        self.assertIn("sectionsShown(", body)
+        self.assertNotIn("There are no", text("components", "ClientReport.jsx"))
+
     def test_no_author_instruction_and_no_explainer_on_the_page(self):
         # The owner's rule: the client reads this page. No sentence tells the author to go and write something, none says how a
         # figure is worked out, none says something is not built. (The editor's own placeholder in Edit is a control.)
@@ -234,8 +247,8 @@ class Drawn(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#clientreport .sec')", sid)), "the page drew")
         return sid
 
-    def check(self, cdp, sid, where):
-        self.assertEqual(cdp.js("[...document.querySelectorAll('#clientreport .sec')].map(a => a.dataset.sec)", sid), SECTION_ORDER,
+    def check(self, cdp, sid, where, order=SECTION_ORDER):
+        self.assertEqual(cdp.js("[...document.querySelectorAll('#clientreport .sec')].map(a => a.dataset.sec)", sid), order,
                          f"{where}: the sections in the fixed order")
         self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, f"{where}: no sideways scroll")
         self.assertEqual(cdp.js("(() => { const f = document.querySelector('#clientreport').getBoundingClientRect();"
@@ -263,7 +276,8 @@ class Drawn(unittest.TestCase):
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
                     time.sleep(0.3)
-                    self.check(cdp, sid, f"{'Edit' if edit else 'View'} {width}px {theme}")
+                    # the demo has no Highlights or Next week text: the View leaves those two boxes out, Edit keeps them for the author to fill
+                    self.check(cdp, sid, f"{'Edit' if edit else 'View'} {width}px {theme}", SECTION_ORDER if edit else ["progress", "plans", "raid"])
 
     def test_view_at_1400_and_900_in_light_and_dark(self):
         self.run_view(False)
@@ -301,16 +315,20 @@ class Drawn(unittest.TestCase):
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].every(t => t.getBoundingClientRect().height < 60 && t.innerText.split('\\n').length === 1)", sid), True,
                              "no tab wraps onto two lines at 900")
 
-    def test_a_project_with_no_milestones_shows_not_set_and_never_a_made_up_number(self):
+    def test_a_project_with_no_milestones_shows_no_figure_in_view_and_a_prompt_in_edit_never_a_made_up_number(self):
         data = {**self.store.data_for("TUL"), "milestones": []}
         s = Running(data_for=lambda code: data, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = self.open_page(cdp, s.port)
-            self.assertEqual(cdp.js("[...document.querySelectorAll('[data-fig=actual] .v, [data-fig=planned] .v')].map(e => e.textContent)", sid), ["Not set", "Not set"])
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-fig=actual], [data-fig=planned], [data-bar], [data-gap], [data-line], [data-no-lines], #cr-plans').length", sid), 0, "View: no figure, no bar, no lines, no Plans part")
+            self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid), r"Not set|No milestones yet")
+            self.assertEqual(json.loads(cdp.js(AUDIT, sid)), [])
+            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)), "Edit is on")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('[data-fig=actual] .v, [data-fig=planned] .v')].map(e => e.textContent)", sid), ["Not set", "Not set"], "Edit keeps its prompt")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-bar], [data-gap], [data-line]').length", sid), 0, "no bar, no gap line, no lines")
             self.assertEqual(cdp.js("!!document.querySelector('[data-no-lines]')", sid), True)
-            self.assertEqual(json.loads(cdp.js(AUDIT, sid)), [])
 
 
 if __name__ == "__main__":

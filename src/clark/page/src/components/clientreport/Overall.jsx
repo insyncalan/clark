@@ -1,8 +1,9 @@
 // Client Requested Report View (#192): Overall progress. The project's health and reason, Actual and Planned as two figures, and a bar
 // filled to Actual with a marker at Planned. Every figure is worked out in logic/clientReport.js from the milestones; what each means
-// is said there, not on the page (the client reads this page), and "Not set" is shown when there is nothing to measure (never an invented number).
+// is said there, not on the page (the client reads this page). When there is nothing to measure the client's page leaves the figure (or the health) out, and never invents a number;
+// only Edit keeps the "Not set" prompts.
 // This file and Plans.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
-import { data, fromFile } from "../../stores/report.js";
+import { data, fromFile, mode } from "../../stores/report.js";
 import { HEALTH_WORDS } from "../../glanceTiles.js";
 import { showDate } from "../../workItems.js";
 import { progress, gapWords, clientRules } from "../../logic/clientReport.js";
@@ -18,10 +19,11 @@ export function Overall({ on }) {
   const lines = groups.reduce((n, g) => n + g.lines.length, 0);
   const health = d.project.health || "", rag = HEALTH_WORDS[health] || "n", reason = d.project.health_reason || "";
   const gap = gapWords(overall);
+  const editing = mode.value === "edit" && !fromFile.value;      // the author's page keeps its prompts; a file and the View leave out what has no value
   return (
     <>
       <div class="glance cr-tiles">
-        <div class="tcell health">
+        {health || editing ? <div class="tcell health">
           <div class={`fig health-fig rag-${rag}`} data-fig="health">
             <span class="k"><i class="ragdot" aria-hidden="true"></i>Project health</span>
             <div class="hrow">
@@ -29,15 +31,15 @@ export function Overall({ on }) {
               {reason ? <span class="hreason">{reason}</span> : null}
             </div>
           </div>
-        </div>
-        <div class="tcell"><div class="fig" data-fig="actual" role="group" aria-label={`Actual: ${overall ? overall.actual + "%" : "Not set"}`}>
+        </div> : null}
+        {overall || editing ? <><div class="tcell"><div class="fig" data-fig="actual" role="group" aria-label={`Actual: ${overall ? overall.actual + "%" : "Not set"}`}>
           <span class="k">Actual</span><span class="v num">{overall ? `${overall.actual}%` : "Not set"}</span>
           <span class="dd">{overall ? `of ${lines} ${lines === 1 ? "milestone" : "milestones"}` : "No milestones yet"}</span>
         </div></div>
         <div class="tcell"><div class="fig" data-fig="planned" role="group" aria-label={`Planned: ${overall ? overall.planned + "%" : "Not set"}`}>
           <span class="k">Planned</span><span class="v num">{overall ? `${overall.planned}%` : "Not set"}</span>
           <span class="dd">{overall ? <>by <span class="num">{showDate(on)}</span></> : "No milestones yet"}</span>
-        </div></div>
+        </div></div></> : null}
       </div>
       {overall ? (
         <>
