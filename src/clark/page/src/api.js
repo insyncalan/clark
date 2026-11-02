@@ -222,8 +222,8 @@ export async function sendMilestoneRestore(project, id) {
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, reply };
     const said = reply && typeof reply.message === "string" ? reply.message : "";
-    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
-    return { ok: false, message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+    const mine = (r.status === 400 || r.status === 409) ? knownRefusal(said) : "";      // only clark's own fixed sentences, never other server text
+    return { ok: false, message: mine || plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
     return { ok: false, message: plainChange(0) };
   }

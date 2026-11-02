@@ -1,5 +1,5 @@
 """C-M4, Show archived on Milestones: a button with the count of the project's archived milestones, an Archived box of read-only
-rows (name, the word Archived, agreed date, work items still linked) with Restore as the only action, Restore and Undo against the
+rows (name, the word Archived, agreed date, work items linked, none said for none) with Restore as the only action, Restore and Undo against the
 real change route; a failed read never shows a count of 0; a project change clears the rows; a published file has none of it.
 
 Run: python3 dev/run_tests.py test_milestones_archived
@@ -77,8 +77,8 @@ class Archived(Base):
                 self.assertIn("Archived 2 milestones", cdp.js("document.querySelector('#ms-archived-list .ma-h').textContent.replace(/\\s+/g, ' ')", sid))
                 self.assertEqual(cdp.js("[...document.querySelectorAll('#ms-archived-list .tag')].map(t => t.textContent).join()", sid), "Archived,Archived")
                 said = cdp.js(f"[...document.querySelectorAll('{ROWS}')].map(r => r.dataset.id + '|' + r.querySelector('.ma-name').textContent + '|' + r.querySelector('.ma-meta').textContent)", sid)
-                self.assertIn(f"{self.dated}|Go live|Agreed 01-06-2030 · 1 work item still linked", said)
-                self.assertIn(f"{self.undated}|Hand over the keys|No agreed date · 0 work items still linked", said)
+                self.assertIn(f"{self.dated}|Go live|Agreed 01-06-2030 · 1 work item linked", said)
+                self.assertIn(f"{self.undated}|Hand over the keys|No agreed date", said)
                 self.assertEqual(cdp.js("document.querySelectorAll('#ms-archived input, #ms-archived select, #ms-archived textarea, #ms-archived [contenteditable]').length", sid), 0)
                 self.assertEqual(cdp.js("[...document.querySelectorAll('#ms-archived-list button')].map(b => b.textContent).join()", sid), "Restore,Restore", "Restore is the only action")
                 self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
@@ -99,6 +99,7 @@ class Archived(Base):
         from test_server import chrome
         with chrome() as cdp:
             sid = self.go(cdp)
+            self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
             self.assertEqual(cdp.js(f"document.querySelector('{ROWS}[data-id=\"{self.dated}\"] .ma-restore').getAttribute('aria-label')", sid), "Restore Go live")
@@ -122,10 +123,12 @@ class Archived(Base):
 
     def test_a_failed_read_never_says_zero_and_keeps_the_last_good_rows(self):
         from test_server import chrome
-        real, down = self.s.httpd.data_for, {"on": False}
+        real, down = self.s.httpd.data_for, {"on": False, "failed": 0}
+        done_reads = "performance.getEntriesByType('resource').filter((e) => e.name.includes('archived=only')).length"
 
         def data_for(code, archived="hide"):
             if archived == "only" and down["on"]:
+                down["failed"] += 1
                 raise RuntimeError("the read failed")
             return real(code, archived=archived)
         self.s.httpd.data_for = data_for
@@ -133,8 +136,8 @@ class Archived(Base):
             down["on"] = True
             sid = self.go(cdp)
             self.until(cdp, sid, "!!document.querySelector('.msv')", "the Plan")
-            import time
-            time.sleep(1.5)
+            self.until(cdp, sid, f"{done_reads} >= 1", "the failed read finished")
+            self.assertGreaterEqual(down["failed"], 1)
             self.assertFalse(cdp.js(f"!!document.querySelector('{PILL}')", sid), "no button, so no false count, when the first read fails")
             self.assertNotIn("(0)", cdp.js("document.querySelector('#milestones').textContent", sid))
             down["on"] = False
@@ -145,16 +148,40 @@ class Archived(Base):
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
             down["on"] = True
+            failed, read = down["failed"], cdp.js(done_reads, sid)
             click(cdp, sid, f"{ROWS}[data-id='{self.dated}'] .ma-restore")
             self.until(cdp, sid, "document.querySelector('.msv').textContent.includes('Go live')", "the restored milestone")
-            time.sleep(1.5)
+            self.until(cdp, sid, f"{done_reads} > {read}", "the read after the restore finished")
+            self.assertGreater(down["failed"], failed, "that read failed")
             self.assertEqual(self.pill(cdp, sid), "Show archived (2)", "the rows last read stay while the read fails")
             self.assertEqual(cdp.js(f"document.querySelectorAll('{ROWS}').length", sid), 2)
+
+    def test_a_refused_restore_shows_only_clarks_own_sentences(self):
+        from test_server import chrome
+        STUB = """(reply, status) => { const real = window.fetch; window.fetch = (u, o) => (String(u).includes('/api/change') && o && String(o.body).includes('"restore"'))
+          ? Promise.resolve(new Response(JSON.stringify({ok: false, message: reply}), {status, headers: {'Content-Type': 'application/json'}})) : real(u, o); }"""
+        with chrome() as cdp:
+            sid = self.go(cdp)
+            self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
+            click(cdp, sid, PILL)
+            self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
+            for said, expect_said in (("Traceback in /srv/clark/changes.py line 9", False), ("That milestone isn't in this project.", True)):
+                cdp.js(f"({STUB})({json.dumps(said)}, 409)", sid)
+                click(cdp, sid, f"{ROWS}[data-id='{self.dated}'] .ma-restore")
+                self.until(cdp, sid, "!!document.querySelector('.toast-text')", "a toast")
+                text = cdp.js("document.querySelector('.toast-text').textContent", sid)
+                if expect_said:
+                    self.assertEqual(text, said)
+                else:
+                    self.assertNotIn("Traceback", text)
+                    self.assertNotIn("/srv", text)
+                cdp.js("document.querySelectorAll('.toast').forEach((t) => t.remove())", sid)
 
     def test_a_project_change_clears_the_rows(self):
         from test_server import chrome
         with chrome() as cdp:
             sid = self.go(cdp)
+            self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
             cdp.js("location.hash = '#milestones&p=XYZ'", sid)
