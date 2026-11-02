@@ -371,7 +371,7 @@ class PublishLooks(tpd.Base):
                     self.assertGreater(p.js("document.querySelector('.spin').offsetWidth"), 0, "and it is there")
                 self.assertEqual(p.js("document.querySelector('[data-cancel]').disabled"), True)
                 p.js("window.__release()")
-                p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+                p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
                 self.assertFalse(p.js("!!document.querySelector('.spin')"), "the ring is gone when the work ends")
                 self.assertTrue(p.js("!!document.querySelector('.pub-tick')"), "the tick is shown")
                 self.assertTrue(p.message(), "and the words are still there")
