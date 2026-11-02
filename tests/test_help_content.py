@@ -300,5 +300,16 @@ class LowWordsRound(unittest.TestCase):
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
 
+    def test_the_prototype_help_gives_the_section_style_lines_its_own_settings_gives(self):
+        """#294: the prototype's help.js and its Settings card (views.js) say the same thing for each of the four section styles."""
+        help_js = (PROTO / "help.js").read_text(encoding="utf-8")
+        proto = (PROTO / "views.js").read_text(encoding="utf-8")
+        card = re.search(r"\[\['slim'.*?\]\]\.map", proto, re.S).group(0)
+        lines = re.findall(r"\['\w+', '([^']+)', '([^']+)'\]", card)
+        self.assertEqual([n for n, _ in lines], ["Slim gaps", "Roomy gaps", "Grey headers", "One card"])
+        for name, line in lines:
+            self.assertIn(f"'{line}'", help_js, f"{name}: the prototype's Help line is its Settings line")
+
+
 if __name__ == "__main__":
     unittest.main()
