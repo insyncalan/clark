@@ -285,6 +285,40 @@ class EditRows(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)))
             self.assertEqual(cdp.js("document.querySelectorAll('.idl,.wl-open,[data-eye],.add-in,[data-showing]').length", sid), 0, "the file has no button, no click and no Edit control")
 
+    def test_what_a_client_reads_has_no_edit_control_and_nothing_internal(self):
+        """Client safety: the published file and the served View carry no Edit part of these rows, and none of the team's own text."""
+        edit_only = ("document.querySelectorAll('[data-eye],.add-in,[data-add-line],[data-addfrom],[data-showing],[data-edit-only],[data-cell],"
+                     ".item-rows-edit,.wl-add,.add-from,[contenteditable],input,textarea,select').length")
+        words = "document.querySelector('#report').innerText"
+        internal = (HIDDEN, RESPONSE, NO_WORDING)
+        ours = ("Add from your project record", "Take off the page", "Showing ", "Add a risk", "Add an action", "Add a decision", "Select any part to change it")
+        def check(js, where):
+            self.assertEqual(js(edit_only), 0, f"{where}: no Edit control among the rows")
+            text = js(words)
+            for bad in internal + ours:
+                self.assertNotIn(bad, text, f"{where}: {bad!r} is not for a client")
+        s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, s.port)
+            p.ready()
+            check(p.js, "View")
+            p.edit()
+            p.view()
+            check(p.js, "View after Edit")
+        folder = tempfile.mkdtemp(prefix="clark-pub-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        done = publish.publish(self.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)
+        source = Path(done["path"]).read_text(encoding="utf-8")
+        for bad in (HIDDEN, RESPONSE, "data-add-line", "Add from your project record"):
+            self.assertNotIn(bad, source, f"the file's own source does not hold {bad!r}")
+        with chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)))
+            check(lambda e: cdp.js(e, sid), "the file")
+
 
 if __name__ == "__main__":
     unittest.main()
