@@ -312,10 +312,11 @@ class Live(unittest.TestCase):
                 self.until(cdp, sid, "location.hash.includes('item=TUL-A-001')", "a double click on a row opens the item's peek (its address)")
                 self.assertEqual(cdp.js("clarkPage.peek()", sid), {"kind": "item", "id": "TUL-A-001"})
                 cdp.js("clarkPage.closePeek()", sid)
-                self.until(cdp, sid, "!location.hash.includes('item=')", "the peek closed")
+                self.until(cdp, sid, "!location.hash.includes('item=') && clarkPage.peek() === null", "the peek closed, in the address and in the page")
                 # the peek hands focus back to the row that opened it, after the next draw; wait for that before moving focus
                 self.until(cdp, sid, "document.activeElement && document.activeElement.dataset.id === 'TUL-A-001'", "focus went back to the opening row")
                 cdp.js("document.querySelector(\"tr[data-id='TUL-007']\").focus()", sid)
+                self.until(cdp, sid, "document.activeElement === document.querySelector(\"tr[data-id='TUL-007']\")", "the row has the focus")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-007')", "Enter on a row opens its peek")
 
@@ -361,6 +362,7 @@ class Live(unittest.TestCase):
                 self.assertEqual(self.focused(cdp, sid), f"{rows[1]}:owner", "an arrow in the picker's box stays in the box")
                 self.assertEqual(cdp.js(stops, sid), [rows[1]], "still one tab stop")
                 cdp.js(f"document.querySelector(\"tr[data-id='{rows[1]}']\").focus()", sid)
+                self.until(cdp, sid, f"document.activeElement === document.querySelector(\"tr[data-id='{rows[1]}']\")", "the row has the focus")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Enter on a row opens its peek")
 
