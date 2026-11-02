@@ -51,6 +51,21 @@ class ProjectSwitch(Base):
                 p.until("!document.querySelector('#project-menu')", "Esc closed it")
                 p.until("document.activeElement.id === 'project-name'", "focus is back on the name")
 
+    def test_C_the_counts_are_read_again_each_time_the_menu_opens(self):
+        """Work done since the page drew (an item closed or added) shows in the menu's counts without a reload."""
+        now = [dict(r) for r in TWO]
+        self.rig.httpd.projects = lambda: [dict(r) for r in now]
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_menu(p)
+            self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme3 open items", "Second Programme1 open item"])
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#project-menu')", "Esc closed it")
+            now[0]["open"], now[1]["open"] = 2, 4          # one item closed in the first project, three added to the second
+            self.open_menu(p)
+            p.until("document.querySelector('#project-menu [aria-checked=true] small').textContent === '2 open items'", "the fresh count")
+            self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme2 open items", "Second Programme4 open items"])
+
     def test_C_choosing_a_project_changes_the_address_and_says_so(self):
         self.rig.httpd.projects = lambda: TWO
         with chrome() as cdp:
