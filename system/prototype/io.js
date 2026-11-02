@@ -43,7 +43,7 @@
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([UCOLS, ['3.1', '', 'Example: automated report checks', 'On track', 'Specification signed', '', 'Yes', '']]), 'Use cases');
     XLSX.writeFile(wb, 'clark import template.xlsx'); };
 
-  C.importExcel = () => C.dialog(`<div class="dlg-h"><h2>Import from Excel</h2><p>Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved.</p></div>
+  C.importExcel = () => C.dialog(`<div class="dlg-h"><h2>Import from Excel</h2><p>Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.</p></div>
     <div class="dlg-b"><p class="muted">Columns, in any order (only the name or title is needed):</p><p style="font-size:13px"><b>Work items</b> ${ICOLS.join(', ')}<br><b>Milestones</b> ${MCOLS.join(', ')}<br><b>Use cases</b> ${UCOLS.slice(0, 7).join(', ')}</p></div>
     <div class="dlg-f"><button class="btn quiet" id="tpl" style="margin-right:auto">${C.icon('dl', 's')}Get the template</button><button class="btn quiet" data-close>Cancel</button><button class="btn pri" id="pick">${C.icon('ul', 's')}Choose a file</button></div>`, d => {
     C.$('#tpl', d).addEventListener('click', C.importTemplate);
@@ -54,12 +54,17 @@
   const get = (r, k) => { const key = Object.keys(r).find(c => c.trim().toLowerCase() === k.toLowerCase()); return key ? String(r[key]).trim() : ''; };
   const yes = v => /^(yes|y|true|1)$/i.test(v);
   async function readFile(f) {
-    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true }), p = C.P(), plan = { add: [], upd: [], skip: 0, arch: [], done: [] };
+    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true }), p = C.P(), plan = { add: [], upd: [], skip: 0, arch: [], done: [], refused: [], seen: new Set(), types: new Set() };
     const rows = n => wb.SheetNames.filter(s => s.trim().toLowerCase() === n).flatMap(s => XLSX.utils.sheet_to_json(wb.Sheets[s], { defval: '', raw: false }));
     const itemSheets = wb.SheetNames.filter(s => !['milestones', 'use cases', 'history'].includes(s.trim().toLowerCase()));   /* History is a record, never read back in */
     itemSheets.flatMap(s => XLSX.utils.sheet_to_json(wb.Sheets[s], { defval: '', raw: false })).forEach(r => {
       const title = get(r, 'Title'); if (!title) { plan.skip++; return; }
       const type = ({ action: 'A', risk: 'R', issue: 'I', decision: 'D' })[get(r, 'Type').toLowerCase()] || 'A', id = get(r, 'ID'), ex = id && D.S.items.find(x => x.id === id && x.code === p.code);
+      plan.types.add(type); if (id) plan.seen.add(id);
+      /* a row that breaks a rule refuses the whole file, as the product's import does (#38, #444): the check names every such row and nothing is added */
+      const stRaw = get(r, 'Status').toLowerCase(), stOk = !stRaw || D.STATUSES[type].some(z => z.toLowerCase() === ({ 'in progress': 'open', done: 'closed', agreed: 'made' }[stRaw] || stRaw)), dueRaw = get(r, 'Due');
+      if (!stOk) { plan.refused.push({ kind: 'item', name: title, why: `Status "${get(r, 'Status')}" is not one of ${D.STATUSES[type].join(', ')}.` }); return; }
+      if (dueRaw && !dateOf(dueRaw)) { plan.refused.push({ kind: 'item', name: title, why: `Due "${dueRaw}" is not a date. Use DD-MM-YYYY.` }); return; }
       const ms = C.mss().find(m => m.name.toLowerCase() === get(r, 'Milestone').toLowerCase());
       const v = { type, ws: get(r, 'Workstream') || p.ws[0], title, owner: get(r, 'Owner'), due: dateOf(get(r, 'Due')), status: D.STATUSES[type].find(s => s.toLowerCase() === ({ 'in progress': 'open', done: 'closed', agreed: 'made' }[get(r, 'Status').toLowerCase()] || get(r, 'Status').toLowerCase())) || D.STATUSES[type][0],
         priority: D.PRIORITIES.find(s => s.toLowerCase() === get(r, 'Priority').toLowerCase()) || ({ red: 'High', amber: 'Medium', green: 'Low' })[get(r, 'Rating').toLowerCase()] || 'Medium',
@@ -86,29 +91,57 @@
     });
     return plan;
   }
+  /* the staged changes (#38): each row of the workbook is a new row, a changed row (what differs, field by field) or no change, and every item
+     of a type the workbook has a sheet for, that the workbook does not mention, is offered as "Not in the workbook" (Accept archives it; the default is Reject, and Accept all leaves it alone).
+     Each has Accept or Reject; only the accepted ones are applied, as one step with Undo. */
+  const DIFF = { item: ['title', 'owner', 'due', 'status', 'priority', 'ws', 'uc', 'ms', 'client'], ms: ['name', 'ws', 'agreed', 'forecast', 'owner', 'progress', 'client'], uc: ['title', 'status', 'headline', 'ref', 'client'] };
+  const shown = (f, x) => f === 'client' ? (x ? 'Yes' : 'No') : ['due', 'agreed', 'forecast'].includes(f) ? (D.fd(x) || 'none') : f === 'ms' ? (C.msName(x) || 'none') : (x === '' || x == null ? 'none' : String(x));
+  const diffs = ({ kind, ex, v }) => ex ? DIFF[kind].filter(f => (ex[f] ?? '') !== (v[f] ?? '')).map(f => `${D.fieldName(f)}: ${shown(f, ex[f])} to ${shown(f, v[f])}`) : [];
+  function stage(plan) {
+    const rows = [...plan.add.map(r => ({ ...r, st: 'new' })), ...plan.upd.map(r => ({ ...r, st: 'changed', d: diffs(r) }))];
+    const gone = plan.seen.size ? C.items().filter(x => plan.types.has(x.type) && !plan.seen.has(x.id)).map(x => ({ kind: 'gone', ex: x, st: 'gone', v: x })) : [];
+    return [...rows, ...gone].map((r, i) => ({ ...r, i, on: r.st !== 'gone' })); }
+  const stRow = r => { const v = r.v, name = r.kind === 'gone' ? r.ex.title : v.title || v.name, id = r.ex ? (r.ex.id || r.ex.name) : '';
+    const lead = r.kind === 'item' ? `<span class="type ${v.type}">${v.type}</span>` : r.kind === 'gone' ? `<span class="type ${r.ex.type}">${r.ex.type}</span>` : `<span class="tag">${r.kind === 'ms' ? 'Milestone' : 'Use case'}</span>`;
+    const t = r.st === 'new' ? ['cl', 'New'] : r.st === 'gone' ? ['arch', 'Not in the workbook'] : r.d.length ? ['cl', 'Changed'] : ['arch', 'No change'];
+    const note = r.st === 'gone' ? 'Accept archives it. It is not deleted.' : r.st === 'new' ? 'gets the next free ID' : r.d.length ? r.d.join('; ') : 'nothing differs';
+    return `<div class="st-row" data-st="${r.i}"><div class="st-main">${lead} <b>${esc(name)}</b> <span class="muted">${id ? '· ' + esc(id) : ''}</span> <span class="tag ${t[0]}">${t[1]}</span><small>${esc(note)}</small></div>
+      <div class="st-act" role="radiogroup" aria-label="${esc(name)}"><label><input type="radio" name="st${r.i}" value="1"${r.on ? ' checked' : ''}>Accept</label><label><input type="radio" name="st${r.i}" value="0"${r.on ? '' : ' checked'}>Reject</label></div></div>`; };
+  const imp = k => `Import ${k} ${k === 1 ? 'change' : 'changes'}`;
   document.addEventListener('DOMContentLoaded', () => C.$('#fileIn').addEventListener('change', async e => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     let plan; try { plan = await readFile(f); } catch (err) { C.toast('That file could not be read as a spreadsheet.'); return; }
-    const p = C.P(), n = plan.add.length + plan.upd.length, cnt = k => [plan.add.filter(x => x.kind === k).length, plan.upd.filter(x => x.kind === k).length];
-    const [ia, iu] = cnt('item'), [ma, mu] = cnt('ms'), [ua, uu] = cnt('uc');
+    /* a row that breaks a rule refuses the whole file, in a plain sentence naming each such row (the product's import, #444) */
+    if (plan.refused.length) { const k = plan.refused.length, pr = C.P();
+      C.dialog(`<div class="dlg-h"><h2>Check the import</h2><p>${esc(f.name)} into ${esc(pr.name)}</p></div>
+        <div class="dlg-b"><div class="imp-refused" id="impRefused" role="status"><b>Nothing was imported, because ${k} ${k === 1 ? 'row breaks a rule' : 'rows break a rule'}:</b><ul>${plan.refused.map(x => `<li>${esc(x.name)}: ${esc(x.why)}</li>`).join('')}</ul><p style="margin:8px 0 0">Fix ${k === 1 ? 'it' : 'them'} in the workbook and import again. Nothing was changed.</p></div></div>
+        <div class="dlg-f"><button type="button" class="btn pri" data-close>Close</button></div>`); return; }
+    const p = C.P(), cnt = k => [plan.add.filter(x => x.kind === k).length, plan.upd.filter(x => x.kind === k).length];
+    const [ia, iu] = cnt('item'), [ma, mu] = cnt('ms'), [ua, uu] = cnt('uc'), staged = stage(plan);
     C.dialog(`<form id="impF"><div class="dlg-h"><h2>Check the import</h2><p>${esc(f.name)} into ${esc(p.name)}</p></div>
-      <div class="dlg-b"><div class="stat"><span><b>${plan.add.length}</b>new</span><span><b>${plan.upd.length}</b>updated</span><span><b>${plan.skip}</b>skipped (no name)</span>${plan.arch.length ? `<span><b>${plan.arch.length}</b>left alone (archived)</span>` : ''}</div>
+      <div class="dlg-b"><div class="stat"><span><b>${plan.add.length}</b>new</span><span><b>${plan.upd.length}</b>updated</span><span><b>${plan.skip}</b>skipped (no name)</span>${plan.arch.length ? `<span><b>${plan.arch.length}</b>left alone (archived)</span>` : ''}${plan.refused.length ? `<span><b>${plan.refused.length}</b>refused</span>` : ''}${staged.some(r => r.st === 'gone') ? `<span><b>${staged.filter(r => r.st === 'gone').length}</b>not in the workbook</span>` : ''}</div>
       <p style="margin:0 0 8px">Work items: ${ia} new, ${iu} updated · Milestones: ${ma} new, ${mu} updated · Use cases: ${ua} new, ${uu} updated</p>
       ${plan.arch.length ? `<p class="imp-arch" style="margin:0 0 8px">${plan.arch.map(esc).join(', ')} ${plan.arch.length === 1 ? 'is' : 'are'} archived, so ${plan.arch.length === 1 ? 'its row is' : 'their rows are'} left alone. Restore ${plan.arch.length === 1 ? 'it' : 'them'} first to update ${plan.arch.length === 1 ? 'it' : 'them'} from a sheet.</p>` : ''}
       ${plan.done.length ? `<p class="imp-done" style="margin:0 0 8px">Use case${plan.done.length === 1 ? '' : 's'} ${plan.done.map(esc).join(', ')} ${plan.done.length === 1 ? 'says' : 'say'} Done in the sheet. A use case is On track, Flag or High risk, so ${plan.done.length === 1 ? 'it comes' : 'they come'} in as On track.</p>` : ''}
-      ${[...plan.add, ...plan.upd].slice(0, 8).map(({ kind, ex, v }) => `<div style="padding:6px 0;border-top:1px solid var(--grey-100)">${kind === 'item' ? `<span class="type ${v.type}">${v.type}</span>` : `<span class="tag">${kind === 'ms' ? 'Milestone' : 'Use case'}</span>`} ${esc(v.title || v.name)} <span class="muted">· ${ex ? 'updates ' + esc(ex.id || ex.name) : 'new'}</span></div>`).join('')}
-      ${n > 8 ? `<p class="muted">and ${n - 8} more</p>` : ''}</div>
-      <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri" ${n ? '' : 'disabled'}>Import ${n} rows</button></div></form>`, d => C.$('#impF', d).addEventListener('submit', ev => {
-      ev.preventDefault(); d.close();
-      const how = D.who('by Excel import (' + f.name + ')'), steps = [];
-      plan.upd.forEach(({ kind, ex, v }) => steps.push(() => D.change(kind, ex, v, how)));
-      plan.add.forEach(({ kind, v }) => {
-        if (kind === 'item') steps.push(() => { if (!p.ws.includes(v.ws)) D.change('project', p, { ws: [...p.ws, v.ws] }, how); return D.create('item', { id: C.nextId(v.type), code: p.code, ...v, updatedAt: D.stamp(), source: f.name }, how); });
-        if (kind === 'ms') steps.push(() => { const id = D.nextMsId(p.code); return D.create('ms', { key: p.code + '/' + id, id, code: p.code, clientText: '', ...v }, how); });
-        if (kind === 'uc') steps.push(() => D.create('uc', { key: p.code + '/' + v.id, code: p.code, ...v }, how));
-      });
-      const u = D.batch(steps); C.refresh(); C.toast(`${n} rows imported`, u);
-    }));
+      ${staged.length ? `<div class="st-bar"><span class="muted">Changes to check</span><span><button type="button" class="link" id="stAll">Accept all</button> · <button type="button" class="link" id="stNone">Reject all</button></span></div><div class="st-list" id="stList">${staged.map(stRow).join('')}</div>` : ''}</div>
+      <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri" id="impGo" ${staged.some(r => r.on) ? '' : 'disabled'}>${imp(staged.filter(r => r.on).length)}</button></div></form>`, d => {
+      const form = C.$('#impF', d), go = C.$('#impGo', d), chosen = () => staged.filter(r => (form.querySelector(`input[name="st${r.i}"]:checked`) || {}).value === '1');
+      const recount = () => { const k = chosen().length; go.textContent = imp(k); go.disabled = !k; };
+      form.addEventListener('change', recount);
+      C.$('#stAll', d)?.addEventListener('click', () => { staged.forEach(r => { const x = form.querySelector(`input[name="st${r.i}"][value="${r.st === 'gone' ? 0 : 1}"]`); if (x) x.checked = true; }); recount(); });   /* new and changed rows only: a row missing from the workbook is accepted one by one */
+      C.$('#stNone', d)?.addEventListener('click', () => { form.querySelectorAll('input[value="0"]').forEach(x => { x.checked = true; }); recount(); });
+      form.addEventListener('submit', ev => {
+        ev.preventDefault(); d.close();
+        const how = D.who('by Excel import (' + f.name + ')'), steps = [], take = chosen(), k = take.length;
+        take.filter(r => r.st === 'changed').forEach(({ kind, ex, v }) => steps.push(() => D.change(kind, ex, v, how)));
+        take.filter(r => r.st === 'gone').forEach(({ ex }) => steps.push(() => D.archive(ex, true, how, 'item')));
+        take.filter(r => r.st === 'new').forEach(({ kind, v }) => {
+          if (kind === 'item') steps.push(() => { if (!p.ws.includes(v.ws)) D.change('project', p, { ws: [...p.ws, v.ws] }, how); return D.create('item', { id: C.nextId(v.type), code: p.code, ...v, updatedAt: D.stamp(), source: f.name }, how); });
+          if (kind === 'ms') steps.push(() => { const id = D.nextMsId(p.code); return D.create('ms', { key: p.code + '/' + id, id, code: p.code, clientText: '', ...v }, how); });
+          if (kind === 'uc') steps.push(() => D.create('uc', { key: p.code + '/' + v.id, code: p.code, ...v }, how));
+        });
+        const u = D.batch(steps); C.refresh(); C.toast(`${k} ${k === 1 ? 'change' : 'changes'} imported`, u);
+      }); });
   }));
 
   /* ═════════════ publish ═════════════ */
@@ -210,6 +243,7 @@ table{width:100%;border-collapse:separate;border-spacing:2px;font-size:14px}th{b
 #panel h3{font-size:22px;font-weight:500;margin:6px 0 14px}#panel dl{display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:14px}#panel dt{color:var(--muted)}#panel button{float:right;border:1px solid var(--line);background:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit}.ro{font-size:12px;color:var(--muted)}
 .cfbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}.cfbar .wsearch{margin:0 0 0 auto}.cfseg{display:inline-flex;border:1px solid var(--ctl);border-radius:999px;padding:3px;background:#fff}.cfseg button{all:unset;padding:5px 14px;border-radius:999px;cursor:pointer;font-size:14px;color:var(--muted)}.cfseg button[aria-pressed=true]{background:var(--navy);color:#fff}.cfl{font-size:13px;color:var(--muted)}.cfbar select{font:inherit;font-size:14px;padding:6px 10px;border:1px solid var(--ctl);border-radius:6px;background:#fff}.cfbar select.on{border-color:var(--blue);color:#2A4FE0}.cfchips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin:0 0 12px}.cfchips .fchip{background:#E9EBEE;color:var(--ink);border-radius:4px;padding:2px 4px 2px 8px}.cfchips .fchip button{border:0;background:none;cursor:pointer;margin-left:2px}.cfchips .link{border:0;background:none;color:#2A4FE0;cursor:pointer;text-decoration:underline}
 footer{max-width:1232px;margin:0 auto 40px;color:var(--muted);font-size:12px;padding:0 4px}
+#panel .cm{margin-top:20px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}#panel .cm h4{margin:0 0 6px;font-size:14px;font-weight:500}#panel .cm label{display:block;color:var(--muted);font-size:13px;margin:8px 0 2px}#panel .cm input,#panel .cm textarea{width:100%;font:inherit;padding:6px 8px;border:1px solid var(--ctl);border-radius:6px}#panel .cm button{float:none;margin:8px 8px 0 0}#panel .cm ul{margin:8px 0 0;padding-left:18px}#panel .cm small{color:var(--muted);display:block;margin-top:6px}
 body::before{content:"";position:fixed;inset:0 0 0 40%;z-index:-1;pointer-events:none;background:var(--cover) center right/cover no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent,#000 45%);mask-image:linear-gradient(90deg,transparent,#000 45%);opacity:.85;transform:scale(1.03);animation:bg-in .2s cubic-bezier(.16,1,.3,1) both}
 html:not([data-dash=one]) main:not(.open){background:transparent;border:0;padding:0}
 html:not([data-dash=one]) main:not(.open) section{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 2px rgba(19,35,42,.08),0 2px 8px rgba(19,35,42,.06);padding:22px 40px;margin-top:var(--sec-gap,10px)}
@@ -233,7 +267,7 @@ a{color:inherit;text-decoration:none}footer{margin:12px 0 0;padding:0}}`;
     const o = pageHtml(false), B = o.B, cover = await dataUrl(B.cover), mark = await dataUrl(B.mark);
     const data = { items: Object.fromEntries(o.its.map(x => [x.id, { id: x.id, kind: D.TYPES[x.type], title: word(x), owner: x.owner, due: D.fd(x.due), status: C.look(x)[1], priority: x.priority, t: x.type === 'I' ? 'R' : x.type, ws: x.ws, dueb: !x.due ? 'No date' : D.days(x.due) < 0 ? 'Overdue' : D.days(x.due) <= 7 ? 'Due in 7 days' : 'Later', update: C.plain(x.update), desc: C.plain(x.desc) }])),
       ms: Object.fromEntries(o.ms.map(m => [m.id, { title: m.clientText || m.name, state: D.msWord(D.msState(m), true), agreed: D.fd(m.agreed), forecast: D.slip(m) > 0 ? D.fd(D.expected(m)) : '', progress: m.progress == null ? 'Not set' : m.progress + '%', desc: C.plain(m.desc) }])) };
-    const js = `const D=${JSON.stringify(data).replace(/</g, '\\u003c')};const P=document.getElementById('panel'),SM=matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const js = `const PN=${+opts.n || 0};const PC=${JSON.stringify(C.P().code)};const D=${JSON.stringify(data).replace(/</g, '\\u003c')};const P=document.getElementById('panel'),SM=matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function peek(h){P.innerHTML='<button onclick="P.classList.remove(\\'on\\')">Close</button><div class="ro">View only</div>'+h;P.classList.add('on');P.querySelector('button').focus()}
 document.addEventListener('mousedown',e=>{if(!P.classList.contains('on')||e.button!==0)return;if(e.target.closest('#panel,[data-item],[data-ms],.wl-row'))return;P.classList.remove('on')},true);
 document.addEventListener('click',e=>{const a=e.target.closest('[data-item],[data-ms]')||(!e.target.closest('a,button,input')&&e.target.closest('.wl-row')?.querySelector('[data-item]'));if(!a||a.closest('[data-mv]'))return;e.preventDefault();if(a.dataset.item){const x=D.items[a.dataset.item];if(!x)return;peek('<div class="ro">'+esc(x.id)+' · '+esc(x.kind)+'</div><h3>'+esc(x.title)+'</h3><dl><dt>Status</dt><dd>'+esc(x.status)+'</dd><dt>Owner</dt><dd>'+esc(x.owner)+'</dd><dt>Due</dt><dd>'+esc(x.due)+'</dd><dt>Priority</dt><dd>'+esc(x.priority)+'</dd><dt>Latest update</dt><dd>'+esc(x.update||'None')+'</dd>'+(x.desc?'<dt>About</dt><dd>'+esc(x.desc)+'</dd>':'')+'</dl>')}else{const m=D.ms[a.dataset.ms];if(!m)return;peek('<div class="ro">Milestone</div><h3>'+esc(m.title)+'</h3><dl><dt>State</dt><dd>'+esc(m.state)+'</dd><dt>Agreed date</dt><dd>'+esc(m.agreed)+'</dd>'+(m.forecast?'<dt>Expected</dt><dd>'+esc(m.forecast)+'</dd>':'')+'<dt>Progress</dt><dd>'+esc(m.progress)+'</dd>'+(m.desc?'<dt>About</dt><dd>'+esc(m.desc)+'</dd>':'')+'</dl>')}});
@@ -254,7 +288,8 @@ const ch=document.getElementById('cfChips');if(ch){ch.innerHTML='<span>'+n+' ite
 ch.querySelectorAll('[data-cfx]').forEach(b=>b.addEventListener('click',()=>{delete CF.f[b.dataset.cfx];cfSave()}));const cl=document.getElementById('cfClear');cl&&cl.addEventListener('click',()=>{CF.t='all';CF.f={};if(W)W.value='';cfSave()})}}
 function cfSave(){try{localStorage.setItem('clark.cf',JSON.stringify(CF))}catch(e){}cfRun()}
 document.querySelectorAll('[data-ft]').forEach(b=>b.addEventListener('click',()=>{CF.t=b.dataset.ft;cfSave()}));document.querySelectorAll('[data-cf]').forEach(sl=>sl.addEventListener('change',()=>{CF.f[sl.dataset.cf]=sl.value;cfSave()}));W&&W.addEventListener('input',cfRun);cfRun();
-${C.UCP_JS}`;
+${C.UCP_JS}
+${C.PUB_CM_JS || ''}`;
     return `<!doctype html><html lang="en-GB" data-dash="${C.store.get('secs', 'slim')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(o.p.name)}: week ending ${D.fd(o.week)}</title>
 <link rel="icon" href="data:image/svg+xml,${encodeURIComponent(CLARK_ICON)}"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@800&display=swap" rel="stylesheet"><style>${pubCss(o.body + o.lists + o.msView + o.ucTab + o.glance)}\n${(window.BRAND || {}).tokens || ''}\n${CSS}:root{--cover:${cover ? `url(${cover})` : 'none'}}\n${printCss(opts.n)}</style></head><body>
 <a class="skip" href="#v-dashboard">Skip to content</a>
@@ -308,7 +343,7 @@ table{border-collapse:collapse;width:100%} th{background:#3B5BDB;color:#fff;text
       <div class="dlg-b">${warnHtml}<div class="pubopts">
         <label class="pubopt"><input type="checkbox" id="pubLocal" checked disabled><span><b>Local</b><small>Always. ${window.showSaveFilePicker ? 'You choose the folder and name in the save window; it opens where you last saved' : 'Saved to your downloads'}</small></span></label>
         <label class="pubopt${loc.client ? '' : ' off'}"><input type="checkbox" id="pubClient" ${loc.client ? '' : 'disabled'}><span><b>To client</b><small>${loc.client ? 'Sent to the client folder: ' + esc(loc.client) : 'No client folder yet. Set it in <button type="button" class="link" id="pubToSet">Settings, Publishing</button>.'}</small></span></label>
-        <label class="pubopt"><input type="checkbox" id="pubWord"><span><b>Also a Word document</b><small>Beside the web page, in the same places</small></span></label>
+        <label class="pubopt"><input type="checkbox" id="pubWord"><span><b>Also a Word document</b><small>Beside the web page, in the same places. It gets the same number as the web page (Publication ${nextN}).</small><small id="pubWordTpl">${C.wordTplLine ? C.wordTplLine() : ''}</small></span></label>
         <label class="pubopt"><input type="checkbox" id="pubPdf"><span><b>Also a PDF</b><small>The page as it prints: the four tabs one after another, no controls, with the publication number in the foot</small><small class="pdfnote" id="pubPdfNote" hidden>Prototype: your browser’s print box opens; choose Save as PDF.</small></span></label>
       </div><p class="muted" id="pubWarn" style="font-size:13px;margin:10px 0 0" hidden>The client will see this page. Only what is shown in View mode is included.</p></div>
       <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri" id="pubGo">Publish locally</button></div></form>`, d => {
@@ -329,10 +364,10 @@ table{border-collapse:collapse;width:100%} th{background:#3B5BDB;color:#fff;text
         const html = C.lastPublished || ''; if (word) await C.publish('word', null, { n });
         /* numbered, with a kept copy of the page and of its text sections (to start next week's report from); the project holds the row */
         const rec = { at: D.stamp(), week, local: localPath, client: toClient ? loc.client : '', word, pdf, n, who: (D.S.profile || {}).name || 'You', where: toClient ? 'Local and to client' : 'Local', hseq: D.lastSeq() };
-        await D.pubKeep(p.code, n, { n, code: p.code, at: rec.at, html, texts: Object.fromEntries((p.report.sections || []).filter(x => x.type === 'text').map(x => [x.id, x.html || ''])) });
-        const u = D.change('project', p, { published: [...(p.published || []), rec] }, D.who('by publishing the report')); C.refresh();
+        await D.pubKeep(p.code, n, { n, code: p.code, at: rec.at, html, data: C.pubSnapshot(p, D.TODAY), sum: C.pubSum(html), texts: Object.fromEntries((p.report.sections || []).filter(x => x.type === 'text').map(x => [x.id, x.html || ''])) });
+        D.change('project', p, { published: [...(p.published || []), rec] }, D.who('by publishing the report')); C.refresh();   /* no Undo on the toast: a publication keeps its number and its kept copy, and the next one would reuse the number and overwrite that copy */
         if (pdf) { if (pw && pw.document) { pw.document.write(html.replace('</body>', '<script>setTimeout(function(){window.print()},800)<\/script></body>')); pw.document.close(); } else C.toast('Your browser blocked the new tab for the PDF'); }
-        C.toast((toClient ? `Publication ${n}: published locally and to the client folder (prototype: not sent; it would go to ${loc.client})` : `Publication ${n}: published locally`) + (pdf ? '. Prototype: your browser’s print box opens; choose Save as PDF.' : ''), u);
+        C.toast((toClient ? `Publication ${n}: published locally and to the client folder (prototype: not sent; it would go to ${loc.client})` : `Publication ${n}: published locally`) + (pdf ? '. Prototype: your browser’s print box opens; choose Save as PDF.' : ''));
         go.removeAttribute('aria-busy'); go.classList.add('ok'); go.innerHTML = `${C.icon('check', 's tick')}Published (Publication ${n})`;
         setTimeout(() => { if (d.open && form.isConnected) d.close(); }, 1200);
       });
