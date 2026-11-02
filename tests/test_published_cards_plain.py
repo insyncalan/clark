@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from _demo import USER
+from _publish import PublishedFile
 import test_glance_page as glance
 from test_server import chrome
 
@@ -79,10 +80,7 @@ def findings_js():
     return FINDINGS % (json.dumps(CARD_SELECTOR), json.dumps(CARD_CLASS.pattern + "|\\.secpick"))
 
 
-class Plain(glance.Setup):
-    publish = glance.Published.publish
-    draw = glance.Published.draw
-
+class Plain(PublishedFile, glance.Setup):
     def every_kind(self):
         """Four glance tiles, a use case (planted by Setup), RAID cards at three and four across and a link preview."""
         status, _ = self.real_change({"project": "ABC", "kind": "glance_tiles", "op": "update", "id": "decisions", "changes": {"hidden": 0}})
