@@ -553,6 +553,7 @@ class Box(Base):
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual(self.beside_flags(), flags, "Summary is on its own row again")
             self.assertEqual(p.js("document.querySelectorAll('.sec.slot-left').length"), 1, "only the first pair is left")
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
             self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 0, "nothing more to undo")
 
@@ -617,6 +618,7 @@ class Box(Base):
             self.assertGreater(undos[0], undos[1], "the flag first, then the new section")
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag is as it was")
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
 
     def test_a_failed_second_request_says_so_plainly_and_undo_removes_the_section(self):
@@ -634,6 +636,7 @@ class Box(Base):
             p.until("document.querySelectorAll('.sec').length === 11", "Undo removed the section")
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one step to take back: the flag was never changed")
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
 
     def test_if_the_first_undo_fails_the_section_stays_and_the_toast_says_so(self):
@@ -685,6 +688,7 @@ class Box(Base):
             p.js("document.querySelector('[data-undo]').click()")
             p.until("document.querySelectorAll('.sec').length === 11", "a second try removes the section")
             self.assertEqual(self.ids_in_store(), IDS)
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
 
     def test_a_stale_beside_add_that_clark_refuses_reads_the_page_again(self):
@@ -708,7 +712,64 @@ class Box(Base):
         src = (SRC / "clark" / "page" / "src" / "stores" / "changes.js").read_text(encoding="utf-8")
         self.assertIn("linked.delete(gone.step)", src, "a step that falls out of the kept list leaves the pairing")
         body = src[src.index("export function undo("):]
-        self.assertLess(body.index("linked.delete(applyId)"), body.index("await sendUndo(code, applyId)"), "removed before the request, so a failure leaves nothing behind")
+        self.assertLess(body.index("await sendUndo(code, applyId)"), body.index("linked.delete(applyId)"), "removed once the first Undo worked, so a failure keeps the pairing for a retry")
+        self.assertLess(body.index("linked.delete(applyId)"), body.index("await sendUndo(code, earlier)"), "and before the second step is tried")
+
+    def add_below_stale_flag(self, p):
+        p.edit()
+        self.open_box(p, "ABC-S-011")
+        p.js("document.querySelector('button[data-place]').click()")
+        p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+
+    def test_after_a_failed_first_undo_the_toast_offers_undo_again_and_the_retry_takes_both_steps_back(self):
+        self.stale_flag_on_the_last_section()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.add_below_stale_flag(p)
+            self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"})
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
+            self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "Undo is offered again")
+            self.failure = None
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11", "the retry removed the section")
+            undos = [r[1]["apply_id"] for r in self.sent if r[0] == "undo"]
+            self.assertEqual(len(undos), 3, "the failed try, then both steps")
+            self.assertEqual(self.ids_in_store(), IDS)
+            self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag went back too: the pairing was kept for the retry")
+            p.toast_is("Undone.")
+
+    def break_reads(self, p):
+        p.js("window.__realFetch = window.fetch; window.fetch = (u, o) => String(u).includes('/api/data') ? Promise.reject(new Error('down')) : window.__realFetch(u, o)")
+
+    def test_if_the_page_cannot_be_read_again_after_an_undo_the_toast_says_to_reload(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-003")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            self.break_reads(p)
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says the page could not be refreshed")
+            self.assertEqual(p.toast(), "The change was undone, but the page could not be refreshed. Reload the page to see it.")
+
+    def test_if_the_second_undo_fails_and_the_page_cannot_be_read_the_toast_says_to_reload(self):
+        self.stale_flag_on_the_last_section()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.add_below_stale_flag(p)
+            seen = []
+
+            def fail_the_second(req):
+                seen.append(req["apply_id"])
+                return (400, {"ok": False, "message": "x", "code": "refused"}) if len(seen) == 2 else self.real_undo(req)
+            self.failure = fail_the_second
+            self.break_reads(p)
+            p.js("document.querySelector('[data-undo]').click()")
+            self.assertTrue(wait(lambda: len(seen) == 2, 10), f"both undos were tried: {seen}")
+            p.until("!!document.querySelector('.toast.problem') && document.querySelector('.toast').textContent.includes('reload it')", "the reload words")
+            self.assertTrue(p.toast().startswith("The section above was put back as it was, but the new section could not be removed. The page could not be refreshed, so reload it to see what was kept. "), p.toast())
 
     def test_the_plain_add_is_one_step_and_one_undo(self):
         with chrome() as cdp:

@@ -1,11 +1,11 @@
 """#412: a use case can be Done. The migration step that widens use_cases.status to take 'Done' (src/clark/store.py, guarded).
 
-SQLite cannot widen a CHECK in place, so the step makes the use_cases table again from its own frozen text (schema_v10.sql),
+SQLite cannot widen a CHECK in place, so the step makes the use_cases table again from its own frozen text (schema_v11.sql),
 copies every row by column name with its id and rowid, and drops the old copy: the same pattern as the section-types step.
 Nothing points at use_cases by a key, an index of its own or a trigger (actions, raid and decisions name a use case in a plain
 text column; links and item_labels by text), so those rows are checked to be kept as they were.
 
-The step's number is STEP below. If another step lands first, renumbering is: STEP here, SCHEMA_VERSION's line and the literal
+The step's number is STEP below. It was step 10 and was renumbered to 11 when #120 (publication numbers) took 10. If another step lands first, renumbering is: STEP here, SCHEMA_VERSION's line and the literal
 beside migrate_use_case_done in store.py's MIGRATIONS, the frozen file's name (and its line in store.py and in
 tests/test_migration_chain.py's FROZEN). Fictional data only.
 
@@ -25,7 +25,7 @@ from clark import backup, changes, store as store_module
 from clark.store import Invalid, connect, migrate, open_store
 from test_store_migration import make_v1, version
 
-STEP = 10                                           # this step's number (see the docstring)
+STEP = 11                                           # this step's number (see the docstring)
 BEFORE = str(STEP - 1)                              # the version this step brings a file from
 NOW = str(store_module.SCHEMA_VERSION)              # the version a plain open brings a file to (this step and any later one)
 FROZEN_FILE = f"schema_v{STEP}.sql"
@@ -153,9 +153,10 @@ class TheNumber(Base):
         self.assertEqual(store_module.SCHEMA_USE_CASES_DONE.name, FROZEN_FILE)
         self.assertNotRegex(store_module.SCHEMA_USE_CASES_DONE.read_text(encoding="utf-8"), rf"\b{STEP}\b")
 
-    def test_the_step_before_this_one_is_the_people_step(self):
+    def test_the_step_before_this_one_is_the_publication_numbers_step(self):
         steps = dict(store_module.MIGRATIONS)
-        self.assertIs(steps[STEP - 1], store_module.migrate_people)
+        self.assertIs(steps[STEP - 1], store_module.migrate_publication_numbers)
+        self.assertIs(steps[STEP - 2], store_module.migrate_people)
         self.assertIs(steps[STEP], store_module.migrate_use_case_done)
 
     def test_the_step_changes_no_other_table_index_or_trigger(self):
@@ -167,7 +168,7 @@ class TheNumber(Base):
 
 
 class Migrating(Base):
-    def test_a_version_9_file_keeps_every_use_case_id_status_and_link_and_takes_the_new_version(self):
+    def test_a_version_10_file_keeps_every_use_case_id_status_and_link_and_takes_the_new_version(self):
         """The old-database upgrade: use cases in all three old statuses and every row that names one, all kept, ids kept."""
         path = make_before(self.dir)
         self.assertEqual(version(path), BEFORE)
@@ -190,6 +191,17 @@ class Migrating(Base):
         self.assertEqual([r[0] for r in after["use_cases"]], [2, 5, 8, 11], "the rowids are kept, gaps and all")
         self.assertIn("'Done'", table_sql(path))
         self.assertEqual(len(self.copies()), 1)
+
+    def test_a_version_9_file_goes_through_both_steps_and_keeps_its_use_cases(self):
+        """The older old-database upgrade: 9 to 10 (publication numbers) to 11 (Done), the use cases kept."""
+        path = make_at(self.dir, STEP - 2)
+        self.assertEqual(version(path), str(STEP - 2))
+        add_use_cases(path)
+        before = use_cases_of(path)
+        open_store(path, onedrive_roots=[]).close()
+        self.assertEqual(version(path), NOW)
+        self.assertEqual(use_cases_of(path), before)
+        self.assertIn("'Done'", table_sql(path))
 
     def test_a_version_1_file_goes_through_every_step_and_keeps_its_use_cases(self):
         path = make_v1(self.dir)
