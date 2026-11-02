@@ -298,6 +298,28 @@ class Box(Base):
                              ["All templates13", "Text and pictures2", "Figures2", "Work items3", "Files and links3", "People and dates2", "Notes1"])
             self.assertEqual(self.sent, [], "opening sends nothing")
 
+    def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
+        """#425: the ask panel and a toast with Undo are behind the box too; every layer in the page root is inert but the message area."""
+        every = ("[...document.querySelector('#app').children].filter(c => !c.querySelector('[role=dialog]') && !c.matches('.toasts') && c.tagName !== 'SCRIPT')"
+                 ".map(c => c.hasAttribute('inert'))")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "the ask panel opened")
+            p.replace_title("ABC-S-003", "Renamed")
+            p.saved()
+            self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-004"] [data-drag]')
+            self.assertTrue(p.js("document.querySelector('#ask-panel').hasAttribute('inert')"), "the ask panel is inert")
+            self.assertTrue(p.js("document.querySelector('.toast [data-undo]').closest('[inert]') !== null"), "the toast's Undo is inert")
+            self.assertFalse(p.js("document.querySelector('.toasts').hasAttribute('inert')"), "the message area stays live")
+            states = p.js(every)
+            self.assertTrue(states and all(states), f"every layer outside the box is inert: {states}")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('[role=dialog]')", "Esc closed it")
+            self.assertFalse(any(p.js(every)), "nothing is inert after it closes")
+            self.assertFalse(p.js("document.querySelector('#ask-panel').hasAttribute('inert')"))
+
     def test_it_takes_the_event_exactly_as_the_gutter_sends_it(self):
         """The contract with #101: a cancelable event on the document, detail {after, opener}; the box claims it and opens."""
         with chrome() as cdp:
