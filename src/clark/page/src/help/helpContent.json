@@ -282,10 +282,10 @@
      "**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.",
      "Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
      "Tick **Also a Word document** for a Word copy beside the web page.",
-     "Press **Publish locally** (or **Publish and send to the client**). The line at the top of the Dashboard then says when it was published, and whether to the client or locally.",
+     "Press **Publish locally** (or **Publish and send to the client**). The box then says, for example, “Published (Publication 3).” The line at the top of the Dashboard says when it was published, and whether to the client or locally.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
-    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”."
+    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on), shown at the foot of the page with its date. A Word copy takes the next number as well. Each publish adds a line to History."
    },
    {
     "id": "add-a-work-item",
@@ -437,6 +437,21 @@
      "Each row has **Edit**, **Leave out** (or **Include**) and **Remove**. A row you leave out stays in Edit and is not shown in View or on the published page.",
      "A date that has passed shows the word **Overdue** beside it. In View and on the published page the section is a table you can read but not change.",
      "Each row you add, change, leave out or remove is one change with its own **Undo**."
+    ]
+   },
+   {
+    "id": "show-progress",
+    "g": "The report",
+    "t": "Show progress against the plan",
+    "w": "Dashboard › Edit › Progress tracker",
+    "go": "dashboard+edit",
+    "s": [
+     "On the **Dashboard**, press **Edit**. In a **Progress tracker** section, press **Add a group**, give it a name and press **Add**. A group holds the plan lines for one part of the work.",
+     "In a group, press **Add a line**. Give it a number if you like, say what it is, and pick its **Status**: Planned, In progress, Completed or Late. Type its **Weight**, what was **Planned** and what was **Achieved** as percentages, and its start and end as DD-MM-YYYY. Weight is how much of the whole plan the line is worth. Across all the lines, the weights, the Planned figures and the Achieved figures can each add up to 100% at most. Press **Add**.",
+     "Each line has **Edit**, the arrows to move it up or down, and **Remove**. A group has **Rename**, the arrows and **Remove group**.",
+     "The figures at the top are worked out for you: Achieved and Planned are the totals of all the lines. A line, a group or the whole that is behind plan shows ▼ and how many points behind. If the weights do not add up to 100%, a note under the section in Edit says so. Change a weight to fix it.",
+     "Pick the **Health** (On track, At risk or Off track), write a line about it, and switch on the Tasks, Agents or Workflows columns if you want them. Each of those columns holds a count you type for every line. In View and on the published page the section can be read but not changed.",
+     "Each line, group or setting you change is one change with its own **Undo**."
     ]
    },
    {

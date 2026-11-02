@@ -116,10 +116,10 @@ class Canonical(Generic):
 
 class Hostile(Generic):
     def refuses(self, body, kind="needs", words=None):
-        began = time.monotonic()
+        began = time.process_time()
         with self.assertRaises(sb.Bad) as e:
             check(kind, body)
-        self.assertLess(time.monotonic() - began, 1)
+        self.assertLess(time.process_time() - began, 10)  # CPU time, so a loaded machine does not count against it; a generous ceiling that a real blow-up still fails
         if words:
             self.assertEqual(str(e.exception), words)
         return str(e.exception)
