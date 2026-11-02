@@ -73,6 +73,26 @@ class Link(unittest.TestCase):
             self.assertIsNone(self.s.read(kind, ref=ref)["use_case"])
             self.assertTrue(cleared["undoable"])
 
+    def test_a_closed_item_can_be_linked_changed_and_put_back(self):
+        """#540: a finished work item is still a work item; linking it, moving the link and undoing the move all work."""
+        with self.s.step("dashboard", USER) as st:
+            closed = [("actions", st.create("actions", {"project": "ABC", "description": "Done long ago", "raised": "2026-09-01",
+                                                         "status": "Closed", "source": "demo"})),
+                      ("raid", st.create("raid", {"project": "ABC", "type": "Issue", "description": "Fixed", "raised": "2026-09-01",
+                                                  "status": "Closed", "source": "demo"})),
+                      ("decisions", st.create("decisions", {"project": "ABC", "decision": "Withdrawn plan", "status": "Withdrawn",
+                                                            "source": "demo"}))]
+        for kind, ref in closed:
+            with self.subTest(kind=kind):
+                code, body = self.change(self.req(kind, ref, self.uc))
+                self.assertEqual((code, body["ok"], body["item"]["use_case"]), (200, True, self.uc), body)
+                _, moved = self.change(self.req(kind, ref, self.second))
+                self.assertEqual(self.s.read(kind, ref=ref)["use_case"], self.second)
+                code, back = self.undo({"project": "ABC", "apply_id": moved["apply_id"]})
+                self.assertEqual(code, 200, back)
+                self.assertEqual(self.s.read(kind, ref=ref)["use_case"], self.uc, "undo puts back the use case it moved from")
+                self.assertEqual(back["words"], f"Put back: the use case of {ref} is back to {self.uc}.")
+
     def test_an_empty_string_clears_the_link_and_stores_nothing_empty(self):
         self.change(self.req("actions", self.a, self.uc))
         code, body = self.change(self.req("actions", self.a, ""))

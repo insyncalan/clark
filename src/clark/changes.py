@@ -35,7 +35,7 @@ import re
 import threading
 from contextlib import contextmanager
 import unicodedata
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from clark import backup, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
@@ -150,6 +150,7 @@ NOT_MINE_RECORD = "That isn't in this project. Reload the page and try again."  
 NOT_A_TILE = "That tile isn't in this project."          # an unknown tile and another project's: the same words
 BAD_OUTLINE = "That outline colour isn't one clark has."
 BAD_WEEK = "The week ending date must be a real date. The old date was kept. Pick a date and try again."
+NOT_FRIDAY = "Week ending is a Friday. Pick Friday {friday}."      # #570: {friday} is DD-MM-YYYY, the Friday on or after the date
 BAD_HEALTH = "Health can be On track, At risk or Off track."
 HEALTH_NEEDS_REASON = "Say why in a line or two before the health changes."
 PROJECT_NOT_ACTIVE = "That project is archived. Restore it first."
@@ -655,6 +656,8 @@ def _do_change(store, by_user, req):
             ref = _add(st, project, rows, ids, title, after, new_type)
             if beside:
                 st.update(table, after, {"beside": 1})              # the same step: one Undo removes the section and the pairing
+            elif ids and after in (None, ids[-1]) and rows[-1]["beside"] == 1 and _on_its_own(rows, ids[-1]):
+                st.update(table, ids[-1], {"beside": 0})            # #244: a stale flag on the lone last section would pair the new one with it; cleared in the same step, so one Undo restores both
         else:
             _mine(ref, ids, NOT_MINE)
             if op == UPDATE:
@@ -1259,9 +1262,12 @@ def _checked_project_changes(fields):
             try:
                 if not isinstance(v, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", v):
                     raise ValueError(v)
-                date.fromisoformat(v)
+                day = date.fromisoformat(v)
             except ValueError:
                 raise Refused(BAD_WEEK) from None
+            if day.weekday() != 4:       # #570: Friday is the week end everywhere; the Friday offered is the one on or after that day (a weekend rolls forward)
+                friday = day + timedelta(days=(4 - day.weekday()) % 7)
+                raise Refused(NOT_FRIDAY.format(friday=friday.strftime("%d-%m-%Y")))
         if k == "health_reason":
             try:
                 out[k] = clark_store.health_reason_text(v)      # the store's own check, called here so the first refusal is the route's
