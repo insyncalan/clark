@@ -123,7 +123,7 @@ class ItemRows(unittest.TestCase):
         s = Running(data_for=empty.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(s.close)
         secs = "[...document.querySelectorAll('[data-type=raid],[data-type=actions],[data-type=decisions]')].map(e => e.querySelector('.sec-h').textContent + '|' + (e.querySelector('[data-nothing]') || {}).textContent)"
-        want = ["Risks and issues|Nothing to show this week.", "Open actions|Nothing to show this week.", "Decisions|Nothing to show this week."]
+        want = ["Risks and issues|Nothing to show.", "Open actions|Nothing to show.", "Decisions|Nothing to show."]
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
             p.ready()

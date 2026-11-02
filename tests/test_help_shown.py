@@ -159,7 +159,8 @@ class AgainstThePage(unittest.TestCase):
         # 58 measured on the merged tree (main: 59), names printed: one name left the absent list, Show milestone details, which this branch's remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 58 with the report rows' Edit parts (A-D5): Help's bold Add from your project record is on the page now (measured on the merged tree)
         # 57 with the report rows' Edit parts (A-D5): Help's bold Add from your project record is on the page now (measured on the merged tree: 57, was 58)
-        self.assertGreaterEqual(len(names), 57)
+        # 55 measured on the merged tree (the parent branch is 56): the report rows' Edit parts (A-D5) put Help's bold Add from your project record on the page as well
+        self.assertGreaterEqual(len(names), 55)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
