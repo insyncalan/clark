@@ -32,7 +32,7 @@ CONTRACT = frozenset("""--brand-blue --brand-navy --brand-ink --brand-cyan --gre
 --data-1 --data-2 --data-3 --data-4 --data-5 --data-6 --size-body --size-caption --size-small --size-h3 --size-h2 --size-h1
 --size-display --leading --weight-light --weight-regular --weight-medium --weight-semibold --tracking-caps --space-1 --space-2
 --space-3 --space-4 --space-5 --space-6 --space-7 --space-8 --max-width --radius-pill --stagger --ease-out --ease-enter
---ease-exit --ease-toggle --dur-instant --dur-state --dur-layout --dur-enter --image-cover --image-fade --profile-bg --profile-fg --profile-ring --profile-size
+--ease-exit --ease-toggle --dur-instant --dur-state --dur-layout --dur-enter --image-cover --image-logo --image-fade --profile-bg --profile-fg --profile-ring --profile-size
 --pill-bg --pill-color --pill-fg --pill-glow --pill-glow-hover --bar-end --accent-line --font-head --font-label --font-office --font-email --art-home --art-home-height""".split())
 TOKEN_NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 
