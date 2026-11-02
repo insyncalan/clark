@@ -228,7 +228,7 @@
     return [...new Set(D.S.items.filter(use).map(i => i.owner).concat(D.S.milestones.filter(use).map(m => m.owner)).filter(Boolean))].sort(); };
 
   /* ── the shell ── */
-  const VIEWS = { dashboard: 'Dashboard', work: 'Work items', milestones: 'Milestones', usecases: 'Use cases', settings: 'Settings', help: 'Help', past: 'Past reports' };
+  const VIEWS = { dashboard: 'Dashboard', work: 'Work items', milestones: 'Milestones', usecases: 'Use cases', settings: 'Settings', help: 'Help', past: 'Past reports', pastpub: 'Past publication' };
   C.drawTop = () => {
     const p = C.P();
     C.$('#projBtn .v').textContent = p ? p.name : 'No project';
@@ -348,7 +348,7 @@
     /* the profile circle: your initials, and a menu with Settings and Dark mode */
     C.$('#meBtn').addEventListener('click', e => { e.stopPropagation(); const me = D.S.profile || {}, dark = document.documentElement.dataset.theme === 'dark';
       C.menu(e.currentTarget, [{ lab: me.name ? me.name + (me.email ? ' · ' + me.email : '') : 'No name yet: add it in Settings › Profile' },
-        ...(C.P() ? [{ html: `${C.icon('ext')} Publish…`, onPick: () => { if (UI.view !== 'dashboard') C.go('dashboard'); C.publishDialog(); } }, { html: `${C.icon('eye')} Preview the page in a new tab`, onPick: () => C.publish('tab') }, { html: `${C.icon('dl')} Export to Excel`, onPick: () => C.exportExcel() }, { html: `${C.icon('doc')} Published reports`, onPick: () => { C.go('settings'); setTimeout(() => { const el = document.getElementById('pubs'); if (el) el.scrollIntoView({ block: 'start', behavior: C.reduce ? 'auto' : 'smooth' }); }, 60); } }, { html: `${C.icon('eye')} Past reports (mockup)`, onPick: () => C.go('past') }, { sep: true }] : []),   // the dashboard's Excel export moved here too (its tooltip was hidden under the cover)   // Publish lives here
+        ...(C.P() ? [{ html: `${C.icon('ext')} Publish…`, onPick: () => { if (UI.view !== 'dashboard') C.go('dashboard'); C.publishDialog(); } }, { html: `${C.icon('eye')} Preview the page in a new tab`, onPick: () => C.publish('tab') }, { html: `${C.icon('dl')} Export to Excel`, onPick: () => C.exportExcel() }, { html: `${C.icon('doc')} Excel file layout (preview)`, onPick: () => C.xlsxLayout && C.xlsxLayout() }, { html: `${C.icon('doc')} Export to Word…`, onPick: () => C.wordExport && C.wordExport() }, ...(UI.editing ? [{ html: `${C.icon('ul')} Import from Word…`, onPick: () => C.wordImport && C.wordImport() }] : []), { html: `${C.icon('doc')} Published reports`, onPick: () => { C.go('settings'); setTimeout(() => { const el = document.getElementById('pubs'); if (el) el.scrollIntoView({ block: 'start', behavior: C.reduce ? 'auto' : 'smooth' }); }, 60); } }, { html: `${C.icon('eye')} Past reports (mockup)`, onPick: () => C.go('past') }, { sep: true }] : []),   // the dashboard's Excel export moved here too (its tooltip was hidden under the cover)   // Publish lives here
         { html: `${C.icon('gear')} Settings`, onPick: () => C.go('settings') },
         { html: `${C.icon('info')} Help`, onPick: () => C.help.open() },
         { html: `${C.icon('moon')} Dark mode`, selected: dark, onPick: () => { C.themeSet(dark ? 'light' : 'dark'); if (UI.view === 'settings') C.render(); } }], { align: 'right' }); });
