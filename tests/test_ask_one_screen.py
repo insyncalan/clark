@@ -24,9 +24,10 @@ COVERED = {
     "password colon, digits": "pass" + "word: 12345",
     "private key": "-----BEGIN " + "OPENSSH PRIVATE KEY",
     "a long mixed run": "Ab1+/=" * 6,
+    "sk- key": "s" + "k-" + "abcdefgh12345678",
+    "access-key colon": "access-" + "key: k9k9k9",
 }
 GAPS = {
-    "sk- key": "s" + "k-" + "abcdefgh12345678",
     "pk- key": "p" + "k-" + "abcdefgh12345678",
     "rk- key": "r" + "k-" + "abcdefgh12345678",
     "sk- key, letters only": "s" + "k-" + "A" * 20,
@@ -38,7 +39,6 @@ GAPS = {
     "api key is": "api " + "key is x9y8z7",
     "api_key equals, 4 characters": "api_" + "key=ab12",
     "token is, digits": "tok" + "en is 12345678",
-    "access-key colon": "access-" + "key: k9k9k9",
     "a long mixed run of letters and digits": "A" * 10 + "b" * 10 + "1" * 12,
     "private key, other kind": "-----BEGIN " + "CERTIFICATE PRIVATE KEY",
 }
