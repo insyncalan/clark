@@ -42,7 +42,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import milestones, page, platform, section_bodies
-from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, open_store
+from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
@@ -214,10 +214,7 @@ def clean_html(text):
 def _excluded_labels(rules):
     """The label names (lower case) that keep a row out: Sensitive, and any label whose behaviour or default choice is
     exclude."""
-    out = {"sensitive"}
-    out.update(str(r.get("name", "")).casefold() for r in rules or ()
-               if r.get("behaviour") == "exclude" or r.get("default_choice") == "exclude")
-    return out
+    return excluded_label_names(rules)
 
 
 REASON_LIMIT = 2000                                             # the writer's cap on a project's health reason (store.REASON_LIMIT)
