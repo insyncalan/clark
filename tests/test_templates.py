@@ -673,6 +673,65 @@ class Box(Base):
             self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "stopped after the first Undo failed")
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12)
 
+    def test_if_the_second_undo_fails_the_page_shows_what_clark_holds_and_says_so(self):
+        """The Undo of two linked steps: the flag goes back first, then the section is removed. When the removal fails the page
+        reads clark again: the section is still there, the flag is as it was, and the toast says so and offers Undo for the section."""
+        self.stale_flag_on_the_last_section()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-011")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            new = [i for i in p.ids() if i not in IDS][0]
+            section_step = [r[1] for r in self.sent if r[1].get("op") == "new"]
+            self.assertEqual(len(section_step), 1)
+            seen = []
+
+            def fail_the_second(req):
+                seen.append(req["apply_id"])
+                if len(seen) == 2:
+                    return 400, {"ok": False, "message": "x", "code": "refused"}
+                return self.real_undo(req)
+            self.failure = fail_the_second
+            p.js("document.querySelector('[data-undo]').click()")
+            self.assertTrue(wait(lambda: len(seen) == 2, 10), f"both undos were tried: {seen}")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says the removal failed")
+            self.assertIn("The section above was put back", p.toast())
+            self.assertIn("could not be removed", p.toast())
+            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12, "the section is still there")
+            self.assertEqual(p.js(f"!!document.querySelector('[data-id=\"{new}\"]')"), True)
+            self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag was put back")
+            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1, "Undo is offered for the section")
+            self.failure = None
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelectorAll('.sec').length === 11", "a second try removes the section")
+            self.assertEqual(self.ids_in_store(), IDS)
+            self.assertEqual(p.toast(), "Undone.")
+
+    def test_a_stale_beside_add_that_clark_refuses_reads_the_page_again(self):
+        """The page was out of date (a section was added elsewhere); clark refuses the beside add, and the page shows what clark holds."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+
+            def refuse_after_a_change_elsewhere(req):
+                if req.get("op") == "new":
+                    self.real_change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "text", "title": "Added elsewhere"},
+                                      "after": "ABC-S-003", "place": "report"})
+                    return 400, {"ok": False, "message": "x", "code": "refused"}
+                return self.real_change(req)
+            self.failure = refuse_after_a_change_elsewhere
+            self.place_beside(p, "ABC-S-011")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
+            p.until("document.querySelectorAll('.sec').length === 12", "the page was read again and shows the section added elsewhere")
+
+    def test_the_linked_map_is_cleaned_when_a_pair_is_resolved_or_can_no_longer_be_undone(self):
+        src = (SRC / "clark" / "page" / "src" / "stores" / "changes.js").read_text(encoding="utf-8")
+        self.assertIn("linked.delete(gone.step)", src, "a step that falls out of the kept list leaves the pairing")
+        body = src[src.index("export function undo("):]
+        self.assertLess(body.index("linked.delete(applyId)"), body.index("await sendUndo(code, applyId)"), "removed before the request, so a failure leaves nothing behind")
+
     def test_the_plain_add_is_one_step_and_one_undo(self):
         with chrome() as cdp:
             p = self.visit(cdp)

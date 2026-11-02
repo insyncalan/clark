@@ -253,7 +253,7 @@ class RunsAsAProcess(TempFolder):
         self.assertEqual(get(port, "/api/data?project=TUL", headers={"X-Clark-Token": "wrong"})[0], 403)
         self.assertEqual(p.stop(), 0)
         self.assertEqual((db.stat().st_size, db.read_bytes()[:16]), marker)       # opened again, not made again
-        self.assertEqual([x.name for x in folder.iterdir() if not x.name.startswith("clark.db")], [])
+        self.assertEqual([x.name for x in folder.iterdir() if not x.name.startswith(("clark.db", ".clark-lock"))], [])
 
     def test_a_data_folder_inside_onedrive_is_refused_and_nothing_is_made(self):
         cloud = self.tmp / "Library" / "CloudStorage" / "OneDrive-DemoOrg"
@@ -273,8 +273,8 @@ class RunsAsAProcess(TempFolder):
         self.assertTrue((pl.data_dir(self.tmp, on=pl.MAC) / "clark.db").is_file())
 
     def test_argument_errors_are_plain(self):
-        for args, text in ((["--port", "abc"], "The port setting (--port) must be a whole number from 1 to 65535."),
-                           (["--port", "70000"], "The port setting (--port) must be a whole number from 1 to 65535."),
+        for args, text in ((["--port", "abc"], "The start-up number (set with --port) must be a whole number from 1 to 65535. Change it, then start clark again."),
+                           (["--port", "70000"], "The start-up number (set with --port) must be a whole number from 1 to 65535. Change it, then start clark again."),
                            (["--demo", "--data", str(self.tmp)], "--demo makes its own temporary folder. Use --data or "
                                                                  "--demo, not both."),
                            (["--foo"], "The option --foo isn't recognised."),
@@ -286,7 +286,7 @@ class RunsAsAProcess(TempFolder):
             self.assertNotIn("Traceback", "\n".join(err))
         code, out, err = self.start("--demo", home=self.tmp, env={"CLARK_PORT": "x"}).finish()
         self.assertEqual(code, 2)
-        self.assertEqual(err[0], "The port setting (CLARK_PORT) must be a whole number from 1 to 65535.")
+        self.assertEqual(err[0], "The start-up number (set with CLARK_PORT) must be a whole number from 1 to 65535. Change it, then start clark again.")
 
     def test_the_help_text_is_plain(self):
         code, out, err = self.start("--help", home=self.tmp).finish()

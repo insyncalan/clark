@@ -5,6 +5,8 @@ ensure when we build for mac we make allowances for the future"). Only the Mac b
 raises NotBuiltYet. No other module may start a program, call osascript or ctypes, or name a system folder: a source test
 (tests/test_platform_source.py) fails if one does. See docs/handoff/portability-and-sharing.md.
 
+Known gap: Windows has no data-folder lock yet (hold_data_lock checks nothing there), so two clarks can open one folder.
+
 Standard library only, Python 3.9.
 """
 import errno
@@ -22,6 +24,11 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+
+try:
+    import fcntl               # the Mac's and Linux's file lock; there is none on Windows
+except ImportError:
+    fcntl = None
 
 MAC = "darwin"
 WINDOWS = "win32"
@@ -180,6 +187,82 @@ def private_file(path):
     fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)       # the umask can only remove bits
     os.close(fd)
     return Path(path)
+
+
+# One clark to a data folder
+
+LOCK_NAME = ".clark-lock"       # in the data folder; empty, and never written to
+_HELD_LOCKS = {}                # data folder -> the open lock file; kept open for as long as this clark runs
+
+
+def already_open(folder, restoring=False):
+    """What a person reads when another clark has `folder` open. `restoring`: the words for `clark restore NAME`."""
+    if restoring:
+        return "Nothing was restored: clark is open with this data. Close its window, wait a minute for clark to stop, then run the restore again."
+    return (f"Nothing was started: clark is already open with the data in {with_tilde(folder)}. Switch to its window. If you can't "
+            "find it, wait a minute and try again: clark stops by itself a minute after its last window closes.")
+
+
+def cant_check(folder, restoring=False):
+    """What a person reads when the lock on `folder` can't be looked at (not when another clark holds it)."""
+    nothing = "Nothing was restored" if restoring else "Nothing was started"
+    return (f"{nothing}: clark can't check whether it is already open with the data in {with_tilde(folder)}. "
+            "Check that you can save files there, then try again.")
+
+
+def _busy(error):
+    """True when `error` from the lock call means another clark holds it (and not that the lock can't be looked at)."""
+    return isinstance(error, BlockingIOError) or error.errno in (errno.EAGAIN, errno.EWOULDBLOCK)
+
+
+
+def _lock_file(folder):
+    fd = os.open(str(Path(folder) / LOCK_NAME), os.O_RDONLY | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(fd)
+        raise
+    return fd
+
+
+def hold_data_lock(folder, restoring=False):
+    """Take the lock on `folder` for as long as this process lives. Raises PlatformError(already_open) if another clark has it,
+    and PlatformError(cant_check) if the lock can't be looked at (no permission, or any other error): only a busy lock means
+    "already open". The system drops the lock when the process ends, however it ends, so a crash leaves nothing stale. Where
+    there is no file lock (Windows, not built yet) nothing is checked."""
+    key = str(Path(folder).resolve())
+    if fcntl is None:
+        return
+    if key in _HELD_LOCKS:
+        raise PlatformError(already_open(folder, restoring))
+    try:
+        _HELD_LOCKS[key] = _lock_file(folder)
+    except OSError as e:
+        raise PlatformError(already_open(folder, restoring) if _busy(e) else cant_check(folder, restoring)) from None
+
+
+def release_data_lock(folder):
+    """Let go of the lock this process holds on `folder` (a clean stop; the system does it anyway at exit)."""
+    fd = _HELD_LOCKS.pop(str(Path(folder).resolve()), None)
+    if fd is not None:
+        os.close(fd)
+
+
+def data_lock_held(folder):
+    """True when another clark holds the lock on `folder`; nothing is kept. False when there is no lock to check. Raises
+    PlatformError(cant_check) when the lock can't be looked at, which is not the same as held."""
+    if fcntl is None:
+        return False
+    try:
+        if not (Path(folder) / LOCK_NAME).exists():
+            return False
+        os.close(_lock_file(folder))
+    except OSError as e:
+        if _busy(e):
+            return True
+        raise PlatformError(cant_check(folder)) from None
+    return False
 
 
 # Opening files and the system's own dialogs
@@ -477,7 +560,7 @@ def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
             return (popen or subprocess.Popen)(list(argv), cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                                start_new_session=True)
     except OSError as e:
-        raise PlatformError(f"The app could not start. Try again; if it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
+        raise PlatformError(f"Nothing was started, because this Mac would not run clark. Close this window and try again. If it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
 
 
 def open_app_window(url, chrome, popen=None, on=None):
@@ -490,7 +573,7 @@ def open_app_window(url, chrome, popen=None, on=None):
         (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
-        raise PlatformError("The window could not be opened.") from e
+        raise PlatformError("Chrome could not be started, so clark's window did not open.") from e
 
 
 # The Claude command (ask clark). Found on the PATH and started from an argument list. A .cmd or .bat is refused on every

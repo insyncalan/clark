@@ -1,6 +1,6 @@
 // What each edit control asks of clark: one change, one request, one toast (stores/changes.js). The ordered list is the one on
 // the page (data.report_sections), which is the one clark last sent. Nothing here edits it.
-import { data } from "../stores/report.js";
+import { data, project, reread } from "../stores/report.js";
 import { change, changeThen } from "../stores/changes.js";
 import { keep } from "./focus.js";
 import { note } from "./notes.js";
@@ -41,6 +41,17 @@ export const canStep = (id, dir) => step(list(), id, dir);
 export const canBeside = (id) => besideOf(list(), id);
 export const inPair = (id) => rows(list()).some((r) => r.length === 2 && r.some((s) => s.id === id));
 
+// The eye on a milestone row: leave it out of the published page (`hide`) or put it back. One change, one Undo; a second press on
+// the same row while the first is on its way is ignored, so the same change is never sent twice.
+const eyeBusy = new Set();
+export function setMsHidden(id, hide, name) {
+  if (eyeBusy.has(id)) return Promise.resolve(null);
+  eyeBusy.add(id);
+  const what = name ? String(name) : "Milestone";
+  const words = hide ? `${what} left out of the published page.` : `${what} included in the published page.`;
+  return change({ kind: "report_hidden", op: hide ? "new" : "delete", id, place: "report" }, words).finally(() => eyeBusy.delete(id));
+}
+
 export function rename(id, title) {
   return change({ op: "update", id, changes: { title }, place: "cell" }, "Title changed.");
 }
@@ -77,5 +88,6 @@ export async function addFromTemplate(id, after, beside) {
     ? await changeThen(one, () => two, p.words, p.partial)
     : await change(one, p.words);
   if (first) keep(Promise.resolve(first), "new", "title");
+  else await reread(project.value);       // clark said no: the page may be out of date (the section above gone, or paired since), so it shows what clark holds
   return first;
 }
