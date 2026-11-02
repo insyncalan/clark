@@ -39,6 +39,12 @@ def open_list(p, width):
 class Minimap(Base):
     LISTED = "[...document.querySelectorAll('.toc li button')].map(b => b.dataset.id)"
 
+    def setUp(self):
+        super().setUp()
+        status, body = self.real_change({"project": "ABC", "kind": "documents", "op": "new", "place": "report", "values": {
+            "title": "Steering minutes", "kind": "Minutes", "url": "https://example.com/minutes", "date": ""}})
+        self.assertEqual(status, 200, body)          # #74: with a document, Supporting documents (the last section) shows in View too
+
     def listed(self, p):
         return p.js(self.LISTED)
 

@@ -272,21 +272,22 @@ TRACKER_LINE_KEYS = ("no", "text", "start", "end", "status", "weight", "planned"
 
 TRACKER_SHAPE = "The progress tracker holds an overall figure, the columns shown, and groups of lines."
 TRACKER_OVERALL = "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty."
-TRACKER_NOTE_LONG = f"The note can be {TRACKER_NOTE_MAX} characters at most. Shorten it and try again."
+TRACKER_NOTE_LONG = f"A line about it can be {TRACKER_NOTE_MAX} characters at most. Shorten it and try again."
 TRACKER_COLUMNS_BAD = "Each extra column is either shown or not."
 TRACKER_GROUP_SHAPE = "A group holds a name and its lines."
 TRACKER_TOO_MANY_GROUPS = f"A tracker can have at most {TRACKER_MAX_GROUPS} groups."
 TRACKER_NAME_MISSING = "Give each group a name."
-TRACKER_NAME_LONG = f"A group name can be {TRACKER_NAME_MAX} characters at most."
+TRACKER_NAME_LONG = f"A group name can be {TRACKER_NAME_MAX} characters at most. Shorten it and try again."
 TRACKER_TOO_MANY_LINES = f"A group can have at most {TRACKER_MAX_LINES_PER_GROUP} lines and a tracker {TRACKER_MAX_LINES} in all."
 TRACKER_LINE_SHAPE = "A line holds a number, a description, dates, a status, a weight, what was planned and what was achieved."
 TRACKER_TEXT_MISSING = "Describe each line."
 TRACKER_TEXT_LONG = f"A line description can be {TRACKER_TEXT_MAX} characters at most. Shorten it and try again."
-TRACKER_NO_BAD = f"A line number can be {TRACKER_NO_MAX} characters at most."
+TRACKER_NO_BAD = f"A line number can be {TRACKER_NO_MAX} characters at most. Shorten it and try again."
 TRACKER_DATE = f"A date must be a real day between {NEEDS_YEARS[0]} and {NEEDS_YEARS[1]}, or empty."
 TRACKER_DATE_ORDER = "A line can't end before it starts."
 TRACKER_STATUS = "Choose Planned, In progress, Completed or Late."
-TRACKER_PERCENT = "A percentage must be a number from 0 to 100."
+TRACKER_PERCENT = "Type a percentage from 0 to 100, with one decimal at most."
+TRACKER_TOTAL = "Weight, Planned or Achieved adds up to more than 100% across all the lines. Lower one of the figures and try again."
 TRACKER_COUNT = f"A count must be a whole number from 0 to {TRACKER_COUNT_MAX}, or empty."
 
 
@@ -383,6 +384,9 @@ def _checked_tracker(value, rules):
             raise Bad(TRACKER_TOO_MANY_LINES)
         checked_groups.append({"name": _tracker_text(group["name"], rules, TRACKER_NAME_MAX, TRACKER_NAME_LONG, TRACKER_NAME_MISSING),
                                "lines": [_checked_tracker_line(line, rules) for line in lines]})
+    for key in ("weight", "planned", "achieved"):          # the reading is "shares of the whole" (logic/tracker.js): no total can pass the whole
+        if sum(line[key] for group in checked_groups for line in group["lines"]) > TRACKER_TENTHS[1]:
+            raise Bad(TRACKER_TOTAL)
     return {"v": TRACKER_VERSION, "overall": checked_overall, "columns": {k: columns.get(k, False) for k in TRACKER_COLUMNS},
             "groups": checked_groups}
 
@@ -461,4 +465,6 @@ def published(kind, value, ctx=None):
     if kind == NEEDS:
         rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
         return {"rows": rows} if rows else None
+    if kind != TRACKER:
+        return None                     # an unknown kind fails closed: nothing of it is published
     return _published_tracker(value)
