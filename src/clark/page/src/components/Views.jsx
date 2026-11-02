@@ -10,7 +10,8 @@ function Empty({ title, children, action }) {
 
 export function Milestones({ tools }) {
   const Wrap = tools && tools.MilestonesPage;     // the owner's Plan / Movement switch and Movement view (#136, C-M2): Edit only, so a published page has none
-  const plan = <MsBlock place="page" />;
+  const Archived = tools && tools.ArchivedMilestones;   // Show archived (C-M4): the served page only; a published file holds no archived row
+  const plan = <><MsBlock place="page" tools={tools} />{Archived ? <Archived /> : null}</>;
   return (
     <section class="frame milestones" id="milestones">
       <h1>Milestones</h1>

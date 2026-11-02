@@ -18,6 +18,7 @@ from _paths import ROOT
 import _testpage as testpage
 
 from clark import changes, page, server as sv, sneak  # noqa: E402
+from _real_server import real_server
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 from test_work_filters import click, dblclick, key as basic_key  # noqa: E402
@@ -264,8 +265,9 @@ class Browser(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def load_page(self, cdp, width, hash_=None, change=None):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.store.read("projects"), page_html=lambda: testpage.html(), sneak=sneak.make_read(self.store.data_for),
-                    change=change or changes.make_change(self.store.path, [], "Demo User"), undo=changes.make_undo(self.store.path, [], "Demo User"))
+        extra = {"change": change} if change else {}
+        s = real_server(self.store.path, self.store.data_for, who="Demo User", projects=lambda: self.store.read("projects"),
+                        page_html=lambda: testpage.html(), **extra)
         self.addCleanup(s.close)
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
