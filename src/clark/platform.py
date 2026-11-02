@@ -267,6 +267,13 @@ def data_lock_held(folder):
 
 # Opening files and the system's own dialogs
 
+def run_program(args, cwd=None, run=None):
+    """Run a program from an argument list (never through a shell), wait, and return the finished process with its output
+    as text. The page build uses it to run dev/tools/build_page.py in a source checkout."""
+    return (run or subprocess.run)([str(a) for a in args], cwd=None if cwd is None else str(cwd), capture_output=True,
+                                   text=True, check=False)
+
+
 def _run(args, run=None):
     """Start a program from an argument list (never through a shell) and return the finished process."""
     return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False)

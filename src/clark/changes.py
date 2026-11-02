@@ -1014,9 +1014,7 @@ def _hidable(ref):
 def _blocked_labels(store):
     """The label names (lower case) that keep a row out of every published file: Sensitive, and any label whose behaviour or default
     choice is exclude. The same rule as publish._excluded_labels, so the picker's Add never offers what a publish would drop."""
-    out = {"sensitive"}
-    out.update(str(r["name"]).casefold() for r in store.read("labels") if r["behaviour"] == "exclude" or r["default_choice"] == "exclude")
-    return out
+    return clark_store.excluded_label_names(dict(r) for r in store.read("labels"))
 
 
 def _hidden_ids(store, code):
