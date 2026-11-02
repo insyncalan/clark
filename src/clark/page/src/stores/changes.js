@@ -146,7 +146,7 @@ export function changeItem(req, done) {
 
 // Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). A step
 // made together with an earlier one (changeThen) takes the earlier one back after it; if the first Undo fails nothing more is
-// undone, and if the second fails the toast says so and offers Undo for what is left. If some rows were left as they are, the toast
+// undone and the toast offers Undo again, and if the second fails the toast says so and offers Undo for what is left. If some rows were left as they are, the toast
 // says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
 // or that it is undone.
 export function undo(applyId, code = project.value) {
@@ -154,9 +154,13 @@ export function undo(applyId, code = project.value) {
   if (at >= 0) undoable.splice(at, 1);
   return enqueue(async () => {
     const earlier = linked.get(applyId);
-    linked.delete(applyId);          // the pair is resolved by this Undo, whatever it does: a failure offers no Undo for this step again
     let r = await sendUndo(code, applyId);
-    if (!r.ok) { say("problem", earlier ? `${r.message} The section was not removed.` : r.message); return null; }
+    if (!r.ok) {
+      // Nothing was undone: the pairing stays and the toast offers Undo again, so a retry takes both steps back.
+      say("problem", earlier ? `${r.message} The section was not removed.` : r.message, applyId, code);
+      return null;
+    }
+    linked.delete(applyId);          // the first step is back: the pair is resolved here (a failed second Undo offers Undo for `earlier` alone)
     redraw(code, r.reply);
     undone.value++;
     if (earlier) {
