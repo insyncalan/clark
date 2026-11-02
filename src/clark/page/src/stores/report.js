@@ -285,6 +285,8 @@ const CHANGE_KNOWN = {
   "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
   // #220: a text section's body clark would not save (clark/changes.py's words)
   "That text is too long to save. Shorten it and try again.": "That text is too long to save, and nothing was changed. Shorten it and try again.",
+  // the server's words when the whole request is over the change limit (server.py MESSAGES change_too_large): no Reload here, it would lose what was typed
+  "That is too big to save. Shorten a line or remove some lines, then try again.": "That is too big to save, and nothing was changed. Shorten it and try again.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";

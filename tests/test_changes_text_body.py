@@ -42,9 +42,9 @@ class TextBody(Api):
     def refused_body(self, ref, body, words=None):
         before = self.state()
         status, got = self.write(ref, body)
-        self.assertEqual((status, got["ok"]), (400, False))
+        self.assertEqual((status, got["ok"]), (400, False), f"a body that can't be saved is refused, not taken: {got}")
         if words is not None:
-            self.assertEqual(got["message"], words)
+            self.assertEqual(got["message"], words, "the refusal says the same plain words every time")
         self.assertEqual(self.state(), before, "nothing was written")
         return got["message"]
 
@@ -66,64 +66,78 @@ class Writing(TextBody):
         for never in ("<script", "ZQ_RAN", "onerror", "onclick", "onmouseover", "javascript:", "avascript:", "<style", "color:red", "<img", "target="):
             self.assertNotIn(never, stored, never)
         for kept in ("ZQ-BAD-LINK", "ZQ-ENC-LINK", "ZQ-SAFE-LINK", "<strong>bold</strong>", "<li>one</li>"):
-            self.assertIn(kept, stored, kept)
-        self.assertEqual(re.findall(r'href="([^"]*)"', stored), ["https://example.com/notes"])
+            self.assertIn(kept, stored, f"{kept} is kept")
+        self.assertEqual(re.findall(r'href="([^"]*)"', stored), ["https://example.com/notes"], "only the safe address is left")
 
     def test_a_reply_never_carries_the_body(self):
         status, got = self.write(SUMMARY, "<p>ZQ-IN-A-BODY</p>")
-        self.assertEqual(status, 200)
-        self.assertNotIn("ZQ-IN-A-BODY", json.dumps(got))
-        self.assertNotIn("body", got["sections"][0])
-        self.assertEqual([r["id"] for r in got["sections"]], [r["id"] for r in self.rows()])
+        self.assertEqual(status, 200, "the save is accepted")
+        self.assertNotIn("ZQ-IN-A-BODY", json.dumps(got), "the reply never repeats the words saved")
+        self.assertNotIn("body", got["sections"][0], "a section in the reply has no body field")
+        self.assertEqual([r["id"] for r in got["sections"]], [r["id"] for r in self.rows()], "the reply lists every section, in order")
 
     def test_one_save_is_one_step_and_one_undo_puts_the_old_body_back(self):
         self.write(SUMMARY, "<p>First</p>")
         steps = self.snapshot()[0]
         status, got = self.write(SUMMARY, "<p>Second</p>")
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 200, "the second save is accepted")
         self.assertEqual(self.snapshot()[0], steps + 1, "one save, one step")
-        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertEqual(self.undone(got["apply_id"])[0], 200, "the step is undone once")
         self.assertEqual(self.stored(SUMMARY), "<p>First</p>")
         self.assertEqual(self.undone(got["apply_id"])[0], 409, "the same step can't be undone twice")
 
     def test_a_save_is_recorded_in_the_history_without_the_words_themselves(self):
         status, got = self.write(SUMMARY, "<p>ZQ-HISTORY-WORDS</p>")
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 200, "the save is accepted")
         rows = self.s.con.execute("SELECT item_id, field FROM change_log WHERE apply_id = ?", (got["apply_id"],)).fetchall()
-        self.assertEqual([(r["item_id"], r["field"]) for r in rows], [(SUMMARY, "body")])
+        self.assertEqual([(r["item_id"], r["field"]) for r in rows], [(SUMMARY, "body")], "the history says which section and field, not the words")
         words = self.undone(got["apply_id"])[1]["words"]
-        self.assertIn("the content of", words)
-        self.assertNotIn("ZQ-HISTORY-WORDS", words)
+        self.assertIn("the content of", words, "the Undo words name the content, not the text")
+        self.assertNotIn("ZQ-HISTORY-WORDS", words, "the Undo words never repeat what was written")
 
     def test_saving_the_same_text_again_makes_no_step_and_saving_twice_keeps_the_body(self):
         first = self.write(SUMMARY, "<p>Same</p>")[1]
-        self.assertIsNotNone(first["apply_id"])
+        self.assertIsNotNone(first["apply_id"], "a first save is a step with an Undo")
         before = self.snapshot()
         again = self.write(SUMMARY, "<p>Same</p>")[1]
         self.assertIsNone(again["apply_id"], "nothing changed: no Undo")
-        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.snapshot(), before, "saving the same text again changes nothing")
         self.write(SUMMARY, "<p>Same</p><p>More</p>")
-        self.assertEqual(self.stored(SUMMARY), "<p>Same</p><p>More</p>")
+        self.assertEqual(self.stored(SUMMARY), "<p>Same</p><p>More</p>", "a longer text replaces the whole body")
 
     def test_a_save_leaves_the_other_sections_and_fields_alone(self):
         self.write(THIS_WEEK, "<p>Other</p>")
         row = self.s.read(KIND, ref=SUMMARY)
         title, beside = row["title"], row["beside"]
         self.write(SUMMARY, "<p>Mine</p>")
-        self.assertEqual(self.stored(THIS_WEEK), "<p>Other</p>")
+        self.assertEqual(self.stored(THIS_WEEK), "<p>Other</p>", "another section's body is left alone")
         row = self.s.read(KIND, ref=SUMMARY)
-        self.assertEqual((row["title"], row["beside"], row["type"]), (title, beside, "text"))
+        self.assertEqual((row["title"], row["beside"], row["type"]), (title, beside, "text"), "title, place and type are as they were")
 
     def test_the_title_and_the_body_can_change_in_one_step(self):
         status, got = self.change(self.req("update", id=SUMMARY, changes={"title": "Overview", "body": "<p>x</p>"}))
         self.assertEqual(status, 200, got)
-        self.assertEqual((self.s.read(KIND, ref=SUMMARY)["title"], self.stored(SUMMARY)), ("Overview", "<p>x</p>"))
+        self.assertEqual((self.s.read(KIND, ref=SUMMARY)["title"], self.stored(SUMMARY)), ("Overview", "<p>x</p>"), "both the title and the body were saved")
+
+    def test_bidi_marks_are_dropped_and_a_zero_width_joiner_stays(self):
+        marks = "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+        status, got = self.write(SUMMARY, f"<p>abc{marks}def \U0001F468\u200d\U0001F469</p>")
+        self.assertEqual(status, 200, got)
+        self.assertEqual(self.stored(SUMMARY), "<p>abcdef \U0001F468\u200d\U0001F469</p>", "the nine marks are gone and the emoji joiner is kept")
+
+    def test_a_bidi_mark_cannot_hide_a_script_link_from_the_cleaner(self):
+        status, got = self.write(SUMMARY, '<a href="java\u202escript:window.ZQ_RAN=1">ZQ-HIDDEN-LINK</a><a href="https://example.com/\u202ex">ZQ-OK</a>')
+        self.assertEqual(status, 200, got)
+        stored = self.stored(SUMMARY)
+        self.assertNotIn("javascript:", stored, "the link is judged without the mark, so it is dropped")
+        self.assertEqual(re.findall(r'href="([^"]*)"', stored), ["https://example.com/x"], "only the safe link stays, with no mark in it")
+        self.assertIn("ZQ-HIDDEN-LINK", stored, "the words of the dropped link are kept")
 
     def test_an_empty_body_is_kept_as_empty(self):
         self.write(SUMMARY, "<p>x</p>")
         status, got = self.write(SUMMARY, "")
         self.assertEqual(status, 200, got)
-        self.assertEqual(self.stored(SUMMARY), "")
+        self.assertEqual(self.stored(SUMMARY), "", "an empty body is stored as empty")
 
 
 class Refusing(TextBody):
@@ -139,14 +153,14 @@ class Refusing(TextBody):
 
     def test_a_body_over_its_limit_is_refused_in_words_and_nothing_is_written(self):
         words = self.refused_body(SUMMARY, "<p>" + "a" * changes.TEXT_BODY_MAX + "</p>")
-        self.assertEqual(words, changes.WORDS_TOO_LONG)
-        self.assertNotIn("Traceback", words)
-        self.assertIn("too long", words)
+        self.assertEqual(words, changes.WORDS_TOO_LONG, "the limit refusal is the one set of words")
+        self.assertNotIn("Traceback", words, "no error text reaches the person")
+        self.assertIn("too long", words, "the words say what is wrong")
 
     def test_the_limit_counts_what_is_stored_and_the_edge_is_accepted(self):
         edge = "a" * (changes.TEXT_BODY_MAX - len("<p></p>"))
-        self.assertEqual(self.write(SUMMARY, f"<p>{edge}</p>")[0], 200)
-        self.assertEqual(len(self.stored(SUMMARY).encode("utf-8")), changes.TEXT_BODY_MAX)
+        self.assertEqual(self.write(SUMMARY, f"<p>{edge}</p>")[0], 200, "a body exactly at the limit is saved")
+        self.assertEqual(len(self.stored(SUMMARY).encode("utf-8")), changes.TEXT_BODY_MAX, "and is stored whole")
         self.refused_body(SUMMARY, f"<p>{edge}a</p>", changes.WORDS_TOO_LONG)
 
     def test_the_limit_counts_bytes_so_wide_letters_cannot_get_past_it(self):
@@ -179,10 +193,10 @@ class Publishing(TextBody):
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(self.s, "ABC", folder, by_user=USER, now="2026-10-28", branding=tempfile.mkdtemp(prefix="clark-no-brand-"))
         text = Path(done["path"]).read_text(encoding="utf-8")
-        self.assertIn("ZQ-NEXT-WORDS", text)
-        self.assertIn("ZQ-SAFE-LINK", text)
+        self.assertIn("ZQ-NEXT-WORDS", text, "the saved words reach the file")
+        self.assertIn("ZQ-SAFE-LINK", text, "a safe link keeps its words")
         for never in ("ZQ-HIDDEN-WORDS", "ZQ_RAN", "onerror", "onclick", "javascript:", "avascript:"):
-            self.assertNotIn(never, text, never)
+            self.assertNotIn(never, text, f"{never} must not reach the file")
 
     def test_the_published_body_is_the_stored_text_for_the_everyday_formatting(self):
         # Not yet the same for a checklist box (the file drops it) and an http: link (the file keeps the words, not the address): the
@@ -199,17 +213,25 @@ class Publishing(TextBody):
 class Seam(unittest.TestCase):
     def test_the_page_lists_the_body_write_as_the_first_line_of_the_seam(self):
         rich = (SRC / "clark" / "page" / "src" / "edit" / "richSave.js").read_text(encoding="utf-8")
-        self.assertIn('body: (id, html) => ({ kind: "report_sections", op: "update", id, changes: { body: html } }),', rich)
-        self.assertNotIn("export const RICH_WRITES = {};", rich)
+        self.assertIn('body: (id, html) => ({ kind: "report_sections", op: "update", id, changes: { body: html } }),', rich, "the seam has the body write")
+        self.assertNotIn("export const RICH_WRITES = {};", rich, "the seam is no longer empty")
 
     def test_only_the_body_is_switched_on(self):
         rich = (SRC / "clark" / "page" / "src" / "edit" / "richSave.js").read_text(encoding="utf-8")
         block = rich.split("export const RICH_WRITES = {", 1)[1].split("};", 1)[0]
-        self.assertEqual(re.findall(r"^\s*(\w+):", block, re.M), ["body"])
+        self.assertEqual(re.findall(r"^\s*(\w+):", block, re.M), ["body"], "only the body is switched on")
 
     def test_the_page_has_its_own_words_for_a_body_that_is_too_long(self):
         report = (SRC / "clark" / "page" / "src" / "stores" / "report.js").read_text(encoding="utf-8")
         self.assertIn(f'"{changes.WORDS_TOO_LONG}":', report, "the page picks words that say nothing was changed, not the generic failure")
+
+    def test_a_request_over_the_change_limit_has_words_that_do_not_say_reload(self):
+        report = (SRC / "clark" / "page" / "src" / "stores" / "report.js").read_text(encoding="utf-8")
+        said = sv.MESSAGES["change_too_large"]
+        line = next((l for l in report.splitlines() if l.strip().startswith(f'"{said}":')), "")
+        self.assertTrue(line, "the page has an entry for the server's too-big words, so it never falls back to the Reload words")
+        self.assertIn("nothing was changed", line, "the entry says nothing was changed")
+        self.assertNotIn("Reload", line, "a person is not told to reload while their typed text would be lost")
 
 
 if __name__ == "__main__":
