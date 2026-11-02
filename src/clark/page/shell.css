@@ -829,6 +829,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .node.fill.c-green { background: var(--status-green); }
 .msl-date b { display: block; font-weight: var(--weight-medium); } .msl-date small { display: block; font-size: var(--size-small); color: var(--text-muted); } .msl-date small.late { color: var(--status-red-text); }
 .msl-name { font-weight: var(--weight-medium); }
+/* C-M10: at laptop widths the date's second line ("Expected a date · N days later") reads on one line, so the date cell is wide enough for it;
+   a long name wraps inside its own cell, and below this width the line may wrap as before. */
+.msl-name { min-width: 0; overflow-wrap: anywhere; }
+@media (min-width: 1201px) { .msl-cells { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; } .msl-date small { white-space: nowrap; } }
 .mst { display: inline-flex; align-items: center; gap: 6px; font-size: var(--size-small); font-weight: var(--weight-medium); } .mst .ms-i { width: 16px; height: 16px; flex: none; }
 .mst.c-green { color: var(--status-green-text); } .mst.c-amber { color: var(--status-amber-text); } .mst.c-red { color: var(--status-red-text); } .mst.c-blue { color: var(--status-blue-text); } .mst.c-grey { color: var(--text-muted); }
 .msl-prog { display: flex; align-items: center; gap: 8px; font-size: var(--size-small); }
