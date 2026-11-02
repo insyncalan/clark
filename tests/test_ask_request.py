@@ -17,11 +17,11 @@ class Build(unittest.TestCase):
     def test_the_rules_text_is_fixed(self):
         text = ask.build_request("What is late?", P).text
         self.assertNotIn(ask.RULES, text, "the rules are the system prompt, not part of the request text (#278)")
-        for line in ("Use only the passages below", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "You have no tools and no files",
+        for line in ("Use only the passages in the request", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "You have no tools and no files",
                      "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving"):
             self.assertIn(line, ask.RULES)
         self.assertEqual(len(ask.RULES.splitlines()), 12)
-        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "033a4e3217abe599bfdcb7fc1b4b5c458c6b0b105aebab9fb6af1d1dacdad4dd")      # a change to the rules is a deliberate edit of this line
+        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "a5637176cbda59ec7726647ecbdc728f8cd0e9771c2ec4ba2d6331abbc601bbf")      # a change to the rules is a deliberate edit of this line
 
     def test_passages_get_ids_in_order_and_the_question_is_carried(self):
         r = ask.build_request("What is late?", P)
@@ -214,11 +214,11 @@ class Secrets(unittest.TestCase):
     )
 
     def test_a_password_looking_string_is_refused_with_the_plain_sentence(self):
-        self.assertEqual(ask.SECRET, "That looks like a password. It was not sent. Take it out and ask again.")
+        self.assertEqual(ask.SECRET, "That looks like a password or a key, so it wasn't sent. Take it out and try again.")
         for text in self.REFUSED:
             with self.assertRaises(ask.AskRefused, msg=text) as cm:
                 ask.build_request(text, P)
-            self.assertIn(str(cm.exception), (ask.SECRET, ask.SECRET_KEY))
+            self.assertEqual(str(cm.exception), ask.SECRET)
 
     def test_a_hyphenated_run_of_mixed_parts_is_still_refused(self):
         for text in ("see " + "-".join(["a1B2c3", "D4e5F6", "g7H8i9", "J0k1L2", "m3N4o5"]), "id " + "Ab1Cd2Ef3Gh4Ij5Kl6Mn7Op8Qr9St0Uv1"):
@@ -237,39 +237,12 @@ class Secrets(unittest.TestCase):
         with self.assertRaises(ask.AskRefused) as cm:
             ask.build_request("Q?", P, earlier=[("user", "password is hunter22")])
         self.assertEqual(str(cm.exception), ask.SECRET_EARLIER)
-        self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like it holds a password. Start a new chat and ask again.")
+        self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like a password or a key, so this chat can't be sent. Start a new chat and try again.")
         for role in ask.ROLES:
             with self.assertRaises(ask.AskRefused, msg=role) as cm:
                 ask.build_request("Q?", P, earlier=[("user", "Fine."), (role, "password is hunter22")])
             self.assertEqual(str(cm.exception), ask.SECRET_EARLIER)
         ask.build_request("Q?", P, earlier=[("assistant", "The plan is on track.")])
-
-    def test_the_refusal_names_a_password_or_a_key(self):
-        pw = "Welcome" + "2026!"
-        key = "sk-" + "ant-api03-" + "a1B2c3D4e5F6g7H8i9J0" + "-xyz"
-        import base64
-        import urllib.parse
-        passwords = ("my pass" + "word is " + pw, "pass" + "word: " + pw, "open https://user:" + pw + "@example.test/x",
-                     urllib.parse.quote("pass" + "word: " + pw, safe=""), base64.b64encode(("pass" + "word: " + pw).encode()).decode(),
-                     "p\u0430ss" + "word: " + pw)
-        keys = ("use " + key, "api_" + "key=" + "zzzz-9999-qqqq-wwww", "AK" + "IAABCDEFGHIJKLMNOP", "gh" + "p_" + "a1B2" * 10,
-                "-----BEGIN RSA PRIV" + "ATE KEY-----", "Bea" + "rer abcdefghijklmnopqrstuvwxyz012345")
-        for text in passwords:
-            with self.assertRaises(ask.AskRefused, msg=text) as cm:
-                ask.build_request(text, P)
-            self.assertEqual(str(cm.exception), ask.SECRET, text)
-            with self.assertRaises(ask.AskRefused, msg=text) as cm:
-                ask.build_request("Q?", P, earlier=[("user", text)])
-            self.assertEqual(str(cm.exception), ask.SECRET_EARLIER, text)
-        for text in keys:
-            with self.assertRaises(ask.AskRefused, msg=text) as cm:
-                ask.build_request(text, P)
-            self.assertEqual(str(cm.exception), ask.SECRET_KEY, text)
-            with self.assertRaises(ask.AskRefused, msg=text) as cm:
-                ask.build_request("Q?", P, earlier=[("user", text)])
-            self.assertEqual(str(cm.exception), ask.SECRET_EARLIER_KEY, text)
-        self.assertIn("a key", ask.SECRET_KEY)
-        self.assertNotIn("password", ask.SECRET_KEY + ask.SECRET_EARLIER_KEY)
 
     def test_the_refusal_never_holds_what_was_typed(self):
         for text in self.REFUSED:

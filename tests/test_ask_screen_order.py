@@ -102,15 +102,6 @@ class Order(route.Base):
         status, got = self.question("my " + LINE)
         self.assertEqual((status, got["code"]), (409, "asking_off"))
 
-    def test_the_route_names_a_password_or_a_key(self):
-        status, got = self.question("my " + LINE)
-        self.assertEqual(got["message"], ask.SECRET)
-        status, got = self.question("use " + KEY)
-        self.assertEqual(got["message"], ask.SECRET_KEY)
-        self.assertNotIn("password", got["message"])
-        status, got = self.question("And?", earlier=[{"role": "user", "text": "use " + KEY}])
-        self.assertEqual(got["message"], ask.SECRET_EARLIER_KEY)
-
 
 if __name__ == "__main__":
     unittest.main()

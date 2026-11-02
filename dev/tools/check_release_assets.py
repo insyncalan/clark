@@ -3,14 +3,18 @@
 Run by whoever verifies the release (step 20 of dev/RELEASING.md), after publishing and before saying a release is done:
     python3 dev/tools/check_release_assets.py            # every published release
     python3 dev/tools/check_release_assets.py v0.4.0     # one tag
+    python3 dev/tools/check_release_assets.py --repo owner/name v0.4.0     # releases kept in another repository
 
-It reads only `gh api repos/<owner>/<repo>/releases` (REST, no GraphQL), page by page. A release passes when it has an asset
+It reads only `gh api repos/<owner>/<repo>/releases` (REST, no GraphQL), page by page, from insyncalan/clark unless
+`--repo owner/name` (or `--repo=owner/name`) names another repository. A release passes when it has an asset
 named clark-<version>-mac.zip that is not empty, is marked Pre-release, has "(Beta)" in its title and "Beta" in its text.
-From 0.5.0 on it must also carry a 64-character SHA-256 in its text, and its zip must have been attached before the release was
-published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
+From 0.5.0 on it must also carry the zip's own SHA-256 in its text (the 64-character digest GitHub reports for the zip asset;
+when GitHub gives no digest for the asset, as on an older release, any 64-character SHA-256 in the text passes and the check says
+so), and its zip must have been attached before the release was published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
-Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read.
-The pure check is `problems(releases, tags)`, tested with made-up data.
+Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
+60 seconds, or an unreadable answer).
+The pure check is `problems(releases, tags, notes)`, tested with made-up data.
 """
 import json
 import re
@@ -18,6 +22,8 @@ import subprocess
 import sys
 
 REPO = "insyncalan/clark"
+REPO_FORM = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+GH_TIMEOUT = 60              # seconds one `gh api` call may take before the check gives up (exit 2)
 FIRST_CHECKED = (0, 1, 0)
 FIRST_ORDERED = (0, 5, 0)    # the first release cut with the build-attach-launch-then-publish steps
 DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])")
@@ -38,8 +44,18 @@ def _fix(tag):
             f"(steps 5 to 10), then run this check again.")
 
 
-def _rules(r, tag, want):
-    """The lines for a release that has its zip but breaks a release rule (Beta, pre-release, digest, publish order)."""
+def _zip_digest(r, want):
+    """The SHA-256 GitHub reports for the zip asset (lower case, 64 characters), or None when it gives none."""
+    for a in r.get("assets", []):
+        d = a.get("digest") or ""
+        if a.get("name") == want and d.lower().startswith("sha256:") and DIGEST.fullmatch(d[7:]):
+            return d[7:].lower()
+    return None
+
+
+def _rules(r, tag, want, notes=None):
+    """The lines for a release that has its zip but breaks a release rule (Beta, pre-release, digest, publish order).
+    A line added to `notes` (when given) is not a failure: it says a check was done in its looser form."""
     out = []
     if not r.get("prerelease"):
         out.append(f"{tag}: the release is not marked Pre-release. Every clark release is a pre-release until version 1.0: "
@@ -52,9 +68,19 @@ def _rules(r, tag, want):
                    f"from the notes file.")
     if _ver(tag) < FIRST_ORDERED:
         return out
-    if not DIGEST.search(r.get("body") or ""):
+    body = r.get("body") or ""
+    own = _zip_digest(r, want)
+    if not DIGEST.search(body):
         out.append(f"{tag}: the release text has no SHA-256 for {want}. Run `shasum -a 256 {want}` and paste the 64-character "
                    f"line into the release text (dev/RELEASING.md steps 7 and 9).")
+    elif own is None:
+        if notes is not None:
+            notes.append(f"{tag}: GitHub gives no SHA-256 for {want}, so the check could only see that the release text holds "
+                         f"some 64-character SHA-256, not that it is the zip's. Run `shasum -a 256 {want}` on the download "
+                         f"and compare it with the release text yourself.")
+    elif own not in {m.group(0).lower() for m in DIGEST.finditer(body)}:
+        out.append(f"{tag}: the SHA-256 in the release text is not the zip's. GitHub says the zip {want} is {own}. Edit the "
+                   f"release text on GitHub and put that line in place of the wrong one (dev/RELEASING.md step 9).")
     attached = max((a.get("created_at") or "" for a in r.get("assets", []) if a.get("name") == want), default="")
     if r.get("published_at") and attached > r["published_at"]:
         out.append(f"{tag}: the zip was attached after the release was published. The zip must be attached to the draft and "
@@ -63,7 +89,7 @@ def _rules(r, tag, want):
     return out
 
 
-def problems(releases, tags=None):
+def problems(releases, tags=None, notes=None):
     """One plain line for each published release (or the named tags) that lacks its clark-X.Y.Z-mac.zip asset, and one for each
     named tag that matches no published release."""
     out = []
@@ -79,7 +105,7 @@ def problems(releases, tags=None):
         want = f"clark-{tag.lstrip('v')}-mac.zip"
         have = {a.get("name"): a.get("size", 0) for a in r.get("assets", [])}
         if have.get(want):
-            out.extend(_rules(r, tag, want))
+            out.extend(_rules(r, tag, want, notes))
             continue
         if want in have:
             why = f"{want} is on the release but it is empty."
@@ -91,22 +117,60 @@ def problems(releases, tags=None):
     return out
 
 
+def _args(argv):
+    """(repository, tags) from the command line, or None after printing a plain line when --repo is not owner/name."""
+    repo, tags, i = REPO, set(), 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--repo" or a.startswith("--repo="):
+            if a == "--repo":
+                i += 1
+            repo = argv[i] if a == "--repo" and i < len(argv) else a[7:]
+            if not REPO_FORM.fullmatch(repo) or repo.split("/")[0] in (".", "..") or repo.split("/")[1] in (".", ".."):
+                print("--repo needs the repository as owner/name, for example --repo insyncalan/clark.", file=sys.stderr)
+                return None
+        else:
+            tags.add(a)
+        i += 1
+    return repo, tags
+
+
 def main(argv=None):
-    tags = set(argv if argv is not None else sys.argv[1:])
+    parsed = _args(argv if argv is not None else sys.argv[1:])
+    if parsed is None:
+        return 2
+    repo, tags = parsed
     releases = []
     for page in range(1, 50):
-        run = subprocess.run(["gh", "api", f"repos/{REPO}/releases?per_page=100&page={page}"], capture_output=True, text=True,
-                             encoding="utf-8")
+        try:
+            run = subprocess.run(["gh", "api", f"repos/{repo}/releases?per_page=100&page={page}"], capture_output=True,
+                                 text=True, encoding="utf-8", timeout=GH_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            print(f"The releases can't be read: GitHub did not answer within {GH_TIMEOUT} seconds. Check the network "
+                  f"connection, then try again.", file=sys.stderr)
+            return 2
+        except OSError:
+            print("The releases can't be read: the gh command was not found. Install the GitHub command line tool (gh), "
+                  "run `gh auth login`, then try again.", file=sys.stderr)
+            return 2
         if run.returncode != 0:
             print("The releases can't be read (is gh signed in?). Run `gh auth login`, then try again.", file=sys.stderr)
             return 2
-        got = json.loads(run.stdout)
+        try:
+            got = json.loads(run.stdout)
+        except ValueError:
+            print("The releases can't be read: GitHub's answer was not what the check expects. Try again in a minute.",
+                  file=sys.stderr)
+            return 2
         releases.extend(got)
         if len(got) < 100:
             break
-    found = problems(releases, tags)
+    notes = []
+    found = problems(releases, tags, notes)
     for line in found:
         print(line)
+    for line in notes:
+        print("Note: " + line)
     if not found:
         print("Every published release has its download attached.")
     return 1 if found else 0
