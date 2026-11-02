@@ -160,7 +160,7 @@ class AgainstThePage(unittest.TestCase):
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
-        # 56 with #421: the held use-case entry no longer bolds '+ Add use case', 'Draft from the project', '+ Link an existing work item', 'Archive use case', 'Show archived' (use cases) or 'See all work items' (measured)
+        # 56 with #421: the held use-case entry no longer bolds '+ Add use case', '+ Link an existing work item' or 'Archive use case' (measured: 56, was 59)
         self.assertGreaterEqual(len(names), 56)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
