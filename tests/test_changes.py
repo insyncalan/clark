@@ -943,7 +943,7 @@ class ByUser(Api):
 
 
 ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description"},
-               "raid": {"status", "workstream", "owner", "due_date", "milestone", "use_case", "description"},
+               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description"},
                "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision"}}      # #67: + the title
 
 
@@ -1173,12 +1173,46 @@ class Items(Api):
         self.no(self.item("actions", self.a, colour="red"), "The field 'colour' can't be set here.")
         self.no(self.item("actions", self.a, type="raid"), changes.ITEM_KEEPS_TYPE)
         self.no(self.item("raid", self.r, type="Issue"), changes.ITEM_KEEPS_TYPE)
-        self.no(self.item("raid", self.r, impact="Low"), "The field 'impact' can't be set here.")
+        self.no(self.item("raid", self.r, raised="2026-10-02"), "The field 'raised' can't be set here.")
         self.no(self.item("actions", self.a, **{"status; DROP TABLE actions": "x"}), "The field 'status DROP TABLE actions' can't be set here.")
         self.no({**self.item("actions", self.a, status="Closed"), "values": {}}, "That change doesn't take 'values'.")
         self.no({**self.item("actions", self.a, status="Closed"), "after": None}, "That change doesn't take 'after'.")
         self.no(self.item("actions", self.a), "Say what to change.")
         self.no({**self.item("actions", self.a), "changes": ["status"]}, "Send the changes as an object.")
+
+    def test_a_risks_new_impact_and_likelihood_say_back_the_priority_worked_out(self):
+        body = self.go("raid", self.r, impact="Medium", likelihood="Medium")
+        self.assertEqual({k: body["item"][k] for k in ("impact", "likelihood", "priority")}, {"impact": "Medium", "likelihood": "Medium", "priority": "Medium"})
+        self.assertEqual(body["item"]["priority"], self.s.read("raid", ref=self.r)["priority"], "the reply says what the store holds")
+        self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["update"], "said back, never taken")
+        self.no(self.item("raid", self.r, priority="Low"), changes.NO_RAID_PRIORITY)
+        status, back = self.undone(body["apply_id"])
+        self.assertEqual(status, 200, back)
+        row = self.s.read("raid", ref=self.r)
+        self.assertEqual((row["impact"], row["likelihood"], row["priority"]), ("High", "Medium", "High"), "Undo puts all three back")
+
+    def test_a_rating_is_refused_in_its_own_words_and_never_cleared(self):
+        self.assertEqual(changes.NOT_A_RATING, "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick a rating from the list.")
+        self.no(self.item("raid", self.r, impact="Severe"), changes.NOT_A_RATING)
+        self.no(self.item("raid", self.r, likelihood="Often", impact="Low"), changes.NOT_A_RATING)
+        self.no(self.item("raid", self.r, impact=None), changes.ITEM_VALUE_WORDS)
+        self.no(self.item("raid", self.r, likelihood=None), changes.ITEM_VALUE_WORDS)
+        self.assertEqual(self.s.read("raid", ref=self.r)["priority"], "High", "the priority is still worked out")
+
+    def test_only_an_open_risk_or_issue_takes_a_rating(self):
+        with self.s.step("dashboard", USER) as st:
+            others = [st.create("raid", {"project": "ABC", "type": t, "description": f"An {t.lower()}", "impact": "High",
+                                         "likelihood": "Medium", "raised": "2026-10-01", "source": "demo"}) for t in ("Assumption", "Dependency", "Issue")]
+        for ref in others[:2]:
+            self.no(self.item("raid", ref, impact="Low"), changes.RATING_NOT_THIS_KIND)
+            self.no(self.item("raid", ref, likelihood="Low"), changes.RATING_NOT_THIS_KIND)
+        self.assertEqual(self.go("raid", others[2], impact="Low", likelihood="Low")["item"]["priority"], "Low", "an issue takes one")
+        self.no(self.item("raid", self.r, status="Closed", impact="Low"), changes.RATING_NOT_OPEN)
+        self.go("raid", self.r, status="Closed")
+        self.no(self.item("raid", self.r, impact="Low", likelihood="Low"), changes.RATING_NOT_OPEN)
+        self.go("raid", self.r, status="Cancelled")
+        self.no(self.item("raid", self.r, likelihood="Low"), changes.RATING_NOT_OPEN)
+        self.assertEqual(self.go("raid", self.r, status="Open", impact="Low")["item"]["impact"], "Low", "reopened and rated in one change")
 
     def test_a_risks_priority_and_a_decisions_workstream_have_their_own_words(self):
         self.no(self.item("raid", self.r, priority="Low"), changes.NO_RAID_PRIORITY)
