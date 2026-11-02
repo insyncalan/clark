@@ -54,6 +54,19 @@ class PassageScreen(unittest.TestCase):
         self.assertEqual([label for _p, label in req.passages], ["Plan", "Risks"])
         self.assertEqual(req.passage_ids, ("P1", "P2"))
 
+    def test_a_password_ending_at_the_row_cut_is_dropped_and_a_cut_one_never_sends_its_value_whole(self):
+        """ask_data cuts a row at MAX_PASSAGE (4,000). A password whole before the cut is caught by the screen in build_request;
+        one the cut splits never sends the whole value, wherever the cut falls."""
+        pw = "password: " + "hunter22"
+        for before in range(0, len(pw) + 1):             # how many characters of the password sit before the cut
+            head = len(ask_data.row_line("actions", {"id": "ABC-A-001", "description": "x"})) - 1       # what the row shows before the text
+            filler = ("Delivery notes. " * 400)[:ask.MAX_PASSAGE - head - before - 1]
+            row = {"id": "ABC-A-001", "description": filler + " " + pw + " tail"}
+            passages = ask_data._cut("Actions", [ask_data.row_line("actions", row)])
+            req = ask.build_request("What is late?", passages)
+            self.assertNotIn("hunter22", req.text, before)
+            self.assertEqual(req.left_out_secret, 1 if before >= 17 else 0, before)       # 17+: enough is left to match
+
     def test_a_password_and_a_key_in_a_label_are_dropped_too(self):
         passages = [CLEAN[0], ("Login", FAKE_PASSWORD), ("Row " + FAKE_KEY, "Harmless words.")]
         req = ask.build_request("Q?", passages)
@@ -149,6 +162,48 @@ class ThroughTheRoute(route_base.Base):
         self.assertIn(ask.secret_note(1), got["notes"])
         self.assertNotIn(FAKE_KEY, repr(got))
         self.assertNotIn(FAKE_KEY, "\n".join(sink.lines))
+
+    def _row_across_the_cut(self):
+        """Store an action whose description puts the password across the 4,000-character cut of its row."""
+        from clark import store as st
+        for pad in range(3800, 4000):
+            row = {"id": "ZQ-A-1", "description": "ok " * (pad // 3) + FAKE_PASSWORD, "raised": "2026-10-01"}
+            line = ask_data.row_line("actions", row)
+            at = line.find("password")
+            if 0 <= at < ask.MAX_PASSAGE < at + len(FAKE_PASSWORD):
+                break
+        else:
+            self.fail("could not place the password across the cut")
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as s:
+                s.create("actions", {"project": route_base.CODE, "description": row["description"], "raised": "2026-10-01",
+                                     "client_visible": 1, "source": "demo"})
+        finally:
+            store.close()
+
+    def test_a_password_across_the_cut_of_a_real_row_is_not_sent(self):
+        self._row_across_the_cut()
+        status, got = self.question("What are the actions?")
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        (text,) = self.provider.sent
+        self.assertIn("ZQ-KEEP-RISK-1", text)                 # the other passages still go
+        self.assertNotIn("hunter", text)
+        self.assertNotIn("password", text)
+        self.assertNotIn("hunter", repr(got))
+        self.assertIn(ask.secret_note(1), got["notes"])        # the same note as a passage left out for a key
+        self.assertEqual(got["notes"], [ask.secret_note(1)])        # and not the "too long to send" one
+
+    def test_a_long_line_with_a_password_is_left_out_and_counted(self):
+        line = "ok " * 1400 + FAKE_PASSWORD
+        passages, left = ask_data._cut_screened("L", [line, "a short line"])
+        self.assertEqual(left, 1)
+        self.assertEqual([p.text for p in passages], ["a short line"])
+
+    def test_a_long_line_with_no_password_is_still_cut_and_kept(self):
+        passages, left = ask_data._cut_screened("L", ["ok " * 2000])
+        self.assertEqual(left, 0)
+        self.assertEqual([len(p.text) for p in passages], [ask.MAX_PASSAGE])
 
     def _args(self):
         from clark import store as st
