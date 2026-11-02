@@ -11,8 +11,8 @@ import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }, clientreport: "Client Requested Report View", settings: "Settings" };   // the published tab is "Use Cases"
-export const SHORT_TITLES = { clientreport: "Client report" };   // the tab button on a narrow window; the page keeps its full name (#192)
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }, get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // the published tabs are "Use Cases" and "Weekly snapshot" (a client has not asked for anything by that name)
+export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snapshot" : "Client report"; } };   // the tab button on a narrow window; the page keeps its full name (#192)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
@@ -282,7 +282,9 @@ const CHANGE_KNOWN = {
   "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
   "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
   "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
-  "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
+  "That content is too long to save.": "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.",
+  // the whole change was over the size clark takes (server.py's words; any kind of section can be that big)
+  "That is too big to save. Make the text shorter, or take some of the list out, then try again.": "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";
