@@ -33,12 +33,14 @@ function MsHead({ Add }) {
 }
 
 export function Milestones({ tools }) {
+  const Archived = tools && tools.ArchivedMilestones;   // Show archived (C-M4): the served page only; a published file holds no archived row
   const More = tools && tools.MilestoneMore;      // the owner's extra block under the Plan view (#136): Edit only, so a published page has none
   const Add = tools && !fromFile.value && mode.value === "edit" ? tools.MsAdd : null;      // the owner's Add milestone (#458): Edit only (a write), and never in a published file
   return (
     <section class="frame milestones" id="milestones">
       <MsHead Add={Add} />
-      <MsBlock place="page" />
+      <MsBlock place="page" tools={tools} />
+      {Archived ? <Archived /> : null}
       {More ? <More /> : null}
     </section>
   );

@@ -127,10 +127,14 @@ class MacZipTest(unittest.TestCase):
         self.assertNotIn("open Terminal in this folder", text, "the drag-into-Terminal steps are given instead")
         self.assertNotIn("!", text)
 
-    def test_the_default_build_says_it_is_for_the_team_only(self):
+    def test_the_default_build_says_what_is_true_of_the_tree_it_was_built_from(self):
+        """This checkout is what is published on the public repository (#463): it tracks no private-only path, so the zip
+        is not 'for the team only'. DefaultAudienceTest pins both lines and the tree that holds a private path."""
         with zipfile.ZipFile(self.zip) as z:
             text = z.read(f"{self.top}/START-HERE.txt").decode("utf-8")
-        self.assertEqual("This download is for the team only; it is built from the private copy.", text.splitlines()[0])
+        self.assertEqual([], package.private_paths(package.ROOT), "no private-only path is tracked on main")
+        self.assertEqual(package.PUBLIC_BUILD, text.splitlines()[0])
+        self.assertNotIn("team only", text)
         self.assertNotIn(package.TEAM_ONLY, package.start_here("mac", for_client=True))
 
 
@@ -175,7 +179,8 @@ class CommandTest(unittest.TestCase):
             self.assertEqual([package.zip_name("mac")], os.listdir(tmp))
             self.assertTrue(out.startswith("Built the Mac download: "), out)
             self.assertIn(package.zip_name("mac"), out)
-            self.assertTrue(out.strip().endswith("This download is for the team only; it is built from the private copy."), out)
+            self.assertTrue(out.strip().endswith(package.audience(package.ROOT)), out)
+            self.assertNotIn("team only", out)
 
     def test_the_built_line_shows_no_home_folder(self):
         self.assertEqual(package.shown(package.ROOT / "dist" / "x.zip"), "dist/x.zip")
@@ -304,6 +309,76 @@ class ForClientTest(unittest.TestCase):
         self.assertNotIn("team only", start)
         self.assertEqual(package.start_here("mac", for_client=True), start)
         self.assertIsNone(package.snapshot_problem(root))
+
+
+class DefaultAudienceTest(unittest.TestCase):
+    """The audience line of a default build (not --for-client) follows the tree: a tree that tracks any private-only path
+    is for the team only, whatever else is true of it; a tree that tracks none is built from the public repository (#463).
+    Small temporary repos only."""
+    PUBLIC = "This download is built from the public repository; it holds none of the team's private notes."
+    TEAM = "This download is for the team only; it is built from the private copy."
+
+    def tree(self, extra=None):
+        root = ForClientTest.snapshot(self, extra or {})
+        return root
+
+    def small_build(self, root):
+        out = Path(tempfile.mkdtemp(prefix="clark package "))
+        self.addCleanup(shutil.rmtree, out, True)
+        with mock.patch.object(package, "SHARED", ("README.md", "src/clark/")), \
+                mock.patch.object(package, "SYSTEMS", {"mac": ("clark.command",)}):
+            target = package.build("mac", out / "o", root=root)
+        with zipfile.ZipFile(target) as z:
+            return z.read("clark-0.0.1/START-HERE.txt").decode("utf-8")
+
+    def built_line(self, root):
+        err, out = io.StringIO(), io.StringIO()
+        with mock.patch.object(package, "ROOT", root), \
+                mock.patch.object(package, "build", functools.partial(package.build, root=root)), \
+                mock.patch.object(package, "SHARED", ("README.md", "src/clark/")), \
+                mock.patch.object(package, "SYSTEMS", {"mac": ("clark.command",)}), \
+                contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+            code = package.main(["mac", "--out", str(root / "dist")])
+        self.assertEqual(0, code, err.getvalue())
+        return out.getvalue().strip()
+
+    def test_the_two_lines_are_pinned(self):
+        self.assertEqual(self.PUBLIC, package.PUBLIC_BUILD)
+        self.assertEqual(self.TEAM, package.TEAM_ONLY)
+
+    def test_a_tree_with_no_private_path_says_public_in_start_here_and_in_the_built_line(self):
+        root = self.tree()
+        self.assertEqual([], package.private_paths(root))
+        self.assertEqual(self.PUBLIC, package.audience(root))
+        start = self.small_build(root)
+        self.assertEqual(self.PUBLIC, start.splitlines()[0])
+        self.assertNotIn("team only", start)
+        self.assertNotIn("private copy", start)
+        line = self.built_line(root)
+        self.assertTrue(line.endswith(self.PUBLIC), line)
+        self.assertNotIn("team only", line)
+
+    def test_a_tree_that_still_tracks_a_private_path_stays_team_only(self):
+        for path in ("dev/HEAD-LOG.md", "docs/DECISIONS.md", "docs/TEAM-AND-ROLES.md", "docs/public/README.md"):
+            with self.subTest(path=path):
+                root = self.tree({path: "A fictional note.\n"})
+                self.assertEqual([path], package.private_paths(root))
+                self.assertEqual(self.TEAM, package.audience(root))
+                start = self.small_build(root)
+                self.assertEqual(self.TEAM, start.splitlines()[0])
+                self.assertNotIn("built from the public repository", start)
+                line = self.built_line(root)
+                self.assertTrue(line.endswith(self.TEAM), line)
+
+    def test_a_folder_git_cannot_read_is_team_only(self):
+        tmp = tempfile.mkdtemp(prefix="clark not a repo ")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.assertIsNone(package.private_paths(tmp))
+        self.assertEqual(self.TEAM, package.audience(tmp))
+
+    def test_a_client_zip_has_no_audience_line(self):
+        self.assertNotIn(self.TEAM, package.start_here("mac", for_client=True))
+        self.assertNotIn(self.PUBLIC, package.start_here("mac", for_client=True))
 
 
 if __name__ == "__main__":
