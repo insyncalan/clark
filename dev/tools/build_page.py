@@ -344,7 +344,9 @@ def main(argv):
         print("page.html and page-view.html are up to date")
         return 0
     for f, text in made:
-        f.write_bytes(text.encode("utf-8"))      # bytes, so no newline translation and it works on Python 3.9
+        tmp = f.with_name(f.name + ".tmp")      # written beside the page and swapped in whole: a reader never sees half a page
+        tmp.write_bytes(text.encode("utf-8"))      # bytes, so no newline translation and it works on Python 3.9
+        os.replace(tmp, f)
         print(f"wrote {f.relative_to(ROOT)} ({len(text):,} bytes)")
     return 0
 
