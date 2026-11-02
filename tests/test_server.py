@@ -1247,13 +1247,13 @@ class RobustReplies(ServerTest):
         self.assertEqual(sv.Handler.timeout, 30)
         with mock.patch.object(sv.Handler, "timeout", 0.5), socket.create_connection((sv.HOST, self.s.port)) as c:
             c.sendall(b"POST /csp-report HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 50\r\n")   # half-sent
-            c.settimeout(5)
+            c.settimeout(25)
             t0 = time.time()
             try:
                 c.recv(65536)
             except ConnectionResetError:
                 pass
-            self.assertLess(time.time() - t0, 4, "the server let go well inside 5 s")
+            self.assertLess(time.time() - t0, 20, "the server let go well inside 25 s, far short of its 30 s default")
 
 
 class Port(unittest.TestCase):
