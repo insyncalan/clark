@@ -774,9 +774,15 @@ class Box(Base):
                     for (var i=0;i<3;i++) ok = ok && !!(ks[i].compareDocumentPosition(ks[i+1]) & Node.DOCUMENT_POSITION_FOLLOWING);
                     return {ok: ok, prevDisplay: getComputedStyle(q('.ad-prev')).display, prevBox: q('.ad-prev').getBoundingClientRect().width > 0,
                       label: q('.ad-prev').getAttribute('aria-label'), live: q('.ad-prev').getAttribute('aria-live'),
-                      announced: [...document.querySelectorAll('.ad-prev [aria-live]')].map(e => e.tagName)};})()""")
-                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "About this template", "live": None, "announced": ["H3", "P"]},
-                                 f"{width}: only the heading and the description are announced when the choice changes, not the whole preview")
+                      announced: [...document.querySelectorAll('.ad-prev [aria-live]')].map(e => e.tagName),
+                      say: (q('[data-ad-say]') || {}).textContent, sayLive: q('[data-ad-say]') && q('[data-ad-say]').getAttribute('aria-live'),
+                      sayOutside: !!q('[data-ad-say]') && !q('[data-ad-say]').closest('.ad-prev'),
+                      name: q('.ad-prev h3').textContent, desc: q('.ad-prev h3 + p').textContent};})()""")
+                say = order.pop("say"); name = order.pop("name"); desc = order.pop("desc")
+                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "About this template", "live": None, "announced": [],
+                                         "sayLive": "polite", "sayOutside": True},
+                                 f"{width}: the name and description are announced from one live line outside the preview, which remounts on each move")
+                self.assertEqual(say, f"{name}. {desc}", f"{width}: the live line says the chosen template's name and description")
                 seq = []
                 for _ in range(16):
                     p.key("Tab", code="Tab", vk=9)

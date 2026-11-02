@@ -57,8 +57,8 @@ class Page(n.PageChecks):
             base = f"[data-id={json.dumps(ref)}]"
             p.until(f"!!document.querySelector('{base} [aria-label=\"Person 2 role\"]')", "the fields")
             n.fill(p, n.field_js(ref, "Person 1 name"), " ")
-            p.until(f"!!document.querySelector('{base} [role=status]')", "the hint")
-            self.assertIn("Add a name", p.js(f"document.querySelector('{base} [role=status]').textContent"))
+            p.until(f"!!document.querySelector('{base} p[role=status]')", "the hint")       # p: the section's drag hint (#131) is a span[role=status] too
+            self.assertIn("Add a name", p.js(f"document.querySelector('{base} p[role=status]').textContent"))
             self.assertEqual(self.body_of(ref), before)
 
     def test_add_a_person_and_remove_one(self):

@@ -14,6 +14,7 @@
 // is ever added here.
 import { dropAt, fromFile, data } from "../stores/report.js";
 import { templateFor } from "../templates/index.js";
+import { isChanged, WORD } from "../stores/changed.js";
 import { anchorId } from "../logic/minimap.js";
 import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
@@ -38,13 +39,15 @@ export function Section({ section, index, count, slot, anchor, tools, clean, onE
   const drop = editing && dropAt.value ? dropAt.value : null;      // what a drag would draw (#95)
   const mark = !drop ? "" : drop.line === "before" && drop.ids.includes(section.id) ? " drop-before"
     : drop.outline === section.id ? ` drop-${drop.side}` : "";
+  const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
   return (
-    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${mark}`}
-      id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type}>
+    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}`}
+      id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
+        {changed ? <span class="tag chg">{WORD}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
       </header>
       {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />

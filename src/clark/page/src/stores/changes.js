@@ -5,6 +5,7 @@ import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
+import { diffIds, markChanged } from "./changed.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
 export const toast = signal(null);
@@ -64,9 +65,24 @@ async function readAgain(code, what) {
   return false;
 }
 
+// What the page holds now that a step can change: the sections, the work items and the milestones, each with its id.
+function held() {
+  const d = data.value;
+  return d ? [...(d.report_sections || []), ...(d.actions || []), ...(d.raid || []), ...(d.decisions || []), ...(d.milestones || [])] : [];
+}
+
+// Runs a step and marks what it changed (the rows whose data differs afterwards), so a person sees what the step, or its Undo, did.
+// Only when the page is still on the project the step began in.
+async function marking(task) {
+  const code = project.value, before = held();
+  const out = await task();
+  if (project.value === code && data.value) markChanged(diffIds(before, held()));
+  return out;
+}
+
 // Runs `task` after every earlier one has finished, whether it worked or not.
 export function enqueue(task) {
-  const run = tail.then(task);
+  const run = tail.then(() => marking(task));
   tail = run.catch(() => {});
   return run;
 }

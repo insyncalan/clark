@@ -21,6 +21,7 @@ import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPl
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
+import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
@@ -84,14 +85,14 @@ function Row({ row, today, Cell, stop }) {
   };
   const dbl = (e) => { if (on && ownClick(e.target, e.currentTarget)) pickOpen(row.id); };
   return (
-    <tr data-id={row.id} data-kind={row.kind} class={`${isOpen(row) ? "" : "done"}${picked ? " picked" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-label={on ? `Select or open ${row.id}` : `Open ${row.id}`}
+    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${isOpen(row) ? "" : "done"}${picked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-label={on ? `Select or open ${row.id}` : `Open ${row.id}`}
       aria-selected={on ? (picked ? "true" : "false") : undefined}
       onFocusIn={() => { active.value = row.id; if (on) sel.moveCursor(row.id); }} onKeyDown={(e) => keys(e, row)} onMouseDown={on ? noTextRange : undefined} onClick={click} onDblClick={dbl}>
       <td class="c-type"><span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span></td>
       <td class="c-item">
         {picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}
         <span class="t">{row.title}</span>
-        <span class="meta">{metaOf(row)}{row.client && !fromFile.value ? <span class="tag cl">Shown to client</span> : null}</span>
+        <span class="meta">{metaOf(row)}{row.client && !fromFile.value ? <span class="tag cl">Shown to client</span> : null}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
       </td>
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
@@ -170,7 +171,7 @@ function List({ Board, Cell, Bulk }) {
       {selecting() ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
       {Bulk ? <Bulk.Layer /> : null}
       <div class="factive">
-        <span id="work-count" class="num">{countText(filtered.length, st.mode)}</span>
+        <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
         {cs.map((c) => (
           <span class="fchip" key={c.field} data-chip={c.field}>{c.text}
             <button type="button" data-fx={c.field} aria-label={`Remove the ${c.name} filter`} onClick={() => setFilterState(removeFilter(filterState.value, c.field))}>{"×"}</button>

@@ -300,6 +300,7 @@ class Browser(unittest.TestCase):
                 self.assertIn("Owner", labels)
                 self.assertIn("Status", labels)
                 self.assertNotIn("Shown to client", labels, "an internal field is not in View or a published file")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
                 self.assertEqual(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid), cdp.js("document.documentElement.clientWidth", sid))
                 self.assertEqual(cdp.js("!!document.querySelector('[data-sneak-open],[data-sneak]')", sid), False, "no words box in View")
                 # Previous and Next replace the entry (they add none) and follow the list that opened it
@@ -341,6 +342,7 @@ class Browser(unittest.TestCase):
                 s, sid = self.load_page(cdp, width)
                 cdp.js("clarkPage.openPeek(document.querySelector('#work tbody tr[data-id]').dataset.id)", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the peek's slide-in (#131) has ended, so its edge is where it rests")
                 w = lambda: cdp.js("document.querySelector('#peek').getBoundingClientRect().width", sid)
                 default = w()
                 client = cdp.js("document.documentElement.clientWidth", sid)

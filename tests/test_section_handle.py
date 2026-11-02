@@ -48,6 +48,10 @@ class SectionHandle(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
+            # The first time in Edit, the first handle shows at full strength with its hint (#131); a key ends it, as for a person.
+            p.until("!!document.querySelector('.sec-ctl.hint') || !!localStorage.getItem('clark.handleHint')", "the first-time hint")
+            p.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Shift'}))")
+            p.until("!document.querySelector('.sec-ctl.hint')", "the hint has gone")
             for scheme in ("light", "dark"):
                 for w in WIDTHS:
                     rows = self.at(cdp, p, w, scheme)

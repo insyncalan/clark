@@ -17,10 +17,10 @@ export function Switches({ children }) {
   return (
     <div class="wbar">
       <div class="seg" role="group" aria-label="Type">
-        {TYPES.map(([v, w]) => <button type="button" key={v} data-type={v} aria-pressed={st.type === v ? "true" : "false"} onClick={() => setFilterState(setType(filterState.value, v))}>{w} <em class="num">{t[v]}</em></button>)}
+        {TYPES.map(([v, w]) => <button type="button" key={v} data-type={v} aria-pressed={st.type === v ? "true" : "false"} onClick={() => setFilterState(setType(filterState.value, v))}>{w} <em class="num" key={t[v]}>{t[v]}</em></button>)}
       </div>
       <div class="seg" role="group" aria-label="Open or closed">
-        {MODES.map(([v, w]) => <button type="button" key={v} data-show={v} aria-pressed={st.mode === v ? "true" : "false"} onClick={() => setFilterState(setMode(filterState.value, v))}>{w} <em class="num">{n[v]}</em></button>)}
+        {MODES.map(([v, w]) => <button type="button" key={v} data-show={v} aria-pressed={st.mode === v ? "true" : "false"} onClick={() => setFilterState(setMode(filterState.value, v))}>{w} <em class="num" key={n[v]}>{n[v]}</em></button>)}
       </div>
       {children ? <div class="vctl">{children}</div> : null}
     </div>
