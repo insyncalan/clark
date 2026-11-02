@@ -36,6 +36,8 @@ WAITS = {
     "howto-save-as-a-pdf": ("the PDF option in the Publish box", r"PDF", ("page", "src", "edit", "Publish.jsx")),
     "howto-add-people-details": ("the People card in Settings", r"[\"'>]People[\"'<]"),
     "ref-people": ("the People card in Settings", r"[\"'>]People[\"'<]"),
+    "howto-word-in-and-out": ("Export to Word and Import from Word on the page", r"Import from Word"),
+    "howto-excel-file-layout": ("the Excel file layout with drop-downs and locked IDs (drawn in the prototype only)", r"Excel file layout"),
 }
 # prototype entries the build has under another id, written for what the page does
 REPLACED = {
@@ -65,7 +67,7 @@ def held_ids():
 class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
     def test_the_prototype_has_the_entries_this_test_expects(self):
         ids = prototype_ids()
-        self.assertEqual((len([i for i in ids if i.startswith("howto-")]), len([i for i in ids if i.startswith("ref-")])), (33, 36))
+        self.assertEqual((len([i for i in ids if i.startswith("howto-")]), len([i for i in ids if i.startswith("ref-")])), (35, 36))
 
     def test_each_one_is_shown_held_replaced_or_waiting(self):
         known = shown_ids() | held_ids() | set(WAITS) | set(REPLACED)
