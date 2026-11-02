@@ -25,7 +25,7 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # and the product build renames it (#47).
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Keep the date', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Who agreed it', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
+CHECKED_BY_HAND = set(['Keep the date', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Who agreed it', 'Archive use case', '+ Add use case', 'Add a group', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -68,7 +68,7 @@ class Shape(unittest.TestCase):
         """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (29, 33))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (30, 33))
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -160,7 +160,7 @@ class Places(unittest.TestCase):
 
 class Words(unittest.TestCase):
     JARGON = re.compile(r"\b(sweeps?|proposals?|stag(?:e|ed|ing)|vault|live server|extract(?:s|ed|ion)?|refus(?:e|ed|al)|valid|invalid|"
-                        r"tracker|prototype|demo|creaite|Claude|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
+                        r"(?<!Progress )tracker|prototype|demo|creaite|Claude|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
     # "close the list to apply it" is ordinary English for a filter; nothing here means creaite's apply
     PATH = re.compile(r"(?:\w+/){2,}|\.py\b|\.js\b|\.json\b|\.md\b|~/|\\")
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)

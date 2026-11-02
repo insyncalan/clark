@@ -112,7 +112,7 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
         self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 29)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 30)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -156,7 +156,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 29 + 33)
+        self.assertEqual(len(p), 7 + 30 + 33)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -301,7 +301,7 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-milestones-page"],
+        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-milestones-page"],
                          "only entries that say what is or is not on the published page; no Publish entry is shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
