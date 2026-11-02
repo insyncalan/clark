@@ -469,6 +469,14 @@ textarea.tpl-field { resize: vertical; }
 .arch-read dt { color: var(--text-muted); }
 .arch-read dd { margin: 0; }
 .arch-restore { grid-row: 1; grid-column: 2; }
+/* The bar above the page (A-D2): the week, where the report stands, and in Edit the notes. Tokens only. */
+.rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: var(--size-small); color: var(--text-muted); }
+.rbar-week { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.rbar-week input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; }
+.rbar-week input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.rbar-state { padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
+.rbar-hint { color: var(--text-muted); }
+
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
 .ms-eye.is-left { color: var(--status-blue-text); }
