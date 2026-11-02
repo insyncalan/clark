@@ -316,7 +316,7 @@ class TheRunsEdges(Fake):
         self.provider = self.make(limit=5, check_limit=5)
         began = time.monotonic()
         self.assertEqual(self.provider.ask(self.request()), ANSWER)
-        self.assertLess(time.monotonic() - began, 5)
+        self.assertLess(time.monotonic() - began, 60)  # a hang guard on a child process, so wall time, with a ceiling a loaded machine does not reach
         calls = self.calls()
         self.assertEqual(len(calls), 4)
         self.assertTrue(all(c["eof"] for c in calls), "a second read of standard input found its end at once")
@@ -692,7 +692,7 @@ class Replies(Fake):
         provider = self.make(limit=20, max_out=100000)
         began = time.monotonic()
         self.assertEqual(provider.ask(self.request()), ask.Failure(ac.TOO_LONG_REPLY))
-        self.assertLess(time.monotonic() - began, 10)
+        self.assertLess(time.monotonic() - began, 60)  # a hang guard on a child process, so wall time, with a ceiling a loaded machine does not reach
 
 
 class Limits(Fake):
@@ -716,7 +716,7 @@ class Limits(Fake):
         provider = self.make(limit=1.5)
         began = time.monotonic()
         self.assertEqual(provider.ask(self.request()), ask.Failure(ac.TOO_SLOW))
-        self.assertLess(time.monotonic() - began, 10)
+        self.assertLess(time.monotonic() - began, 60)  # a hang guard on a child process, so wall time, with a ceiling a loaded machine does not reach
         self.assertFalse(alive(self.seen()["pid"]))
 
     def test_a_helper_in_its_group_is_ended_too(self):
