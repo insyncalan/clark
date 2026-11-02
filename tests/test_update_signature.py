@@ -329,15 +329,26 @@ class OneSetOfBytesTest(SignedBase):
 
 
 class ShippedKeyTest(unittest.TestCase):
-    def test_the_pinned_key_is_the_placeholder_or_a_real_key_that_is_not_a_test_key(self):
+    # AFTER `sign_release.py keygen` (the owner, offline): set this to hashlib.sha256(<the key>).hexdigest(), the digest published
+    # in that release's notes. Until then it is None, and the test below accepts only the exact placeholder. #473 LOW 5.
+    PINNED_KEY_SHA256 = None
+    PLACEHOLDER_HEX = "5245504c4143452d574954482d5448452d52454c454153452d4b455921212121"
+
+    def test_the_pinned_key_is_exactly_the_placeholder_until_the_owner_pins_a_real_one(self):
         # No test trusts a key at import any more (trust_test_key patches one test at a time), so this reads the shipped constant.
         key = updates.RELEASE_PUBLIC_KEY
         self.assertIsInstance(key, bytes)
         self.assertEqual(32, len(key))
-        if key == updates.PLACEHOLDER_KEY:
+        if self.PINNED_KEY_SHA256 is None:
+            # no real key is pinned yet: the shipped key must be the placeholder, byte for byte, so any change to the constant
+            # (another key, a test key, a stray edit) fails here; and the check must refuse everything ('nokey')
+            self.assertEqual(self.PLACEHOLDER_HEX, key.hex(), "RELEASE_PUBLIC_KEY changed: pin its sha256 in PINNED_KEY_SHA256")
+            self.assertEqual(self.PLACEHOLDER_HEX, updates.PLACEHOLDER_KEY.hex())
+            with self.assertRaises(UpdateError) as said:
+                updates.check_signature(b"anything", b"\0" * updates.SIGNATURE_BYTES)
+            self.assertEqual("nokey", said.exception.key)
             return
-        # AFTER `sign_release.py keygen` (the owner, offline): add here a pin of hashlib.sha256(key).hexdigest() to the digest
-        # published in that release's notes, so a swapped key fails this test. Until then, the shape rules below are all we can hold.
+        self.assertEqual(self.PINNED_KEY_SHA256, hashlib.sha256(key).hexdigest(), "the shipped release key is not the pinned one")
         self.assertNotIn(key, (sg.TEST_PUBLIC, sg.OTHER_PUBLIC) + tuple(bytes.fromhex(v[1]) for v in VECTORS))
         self.assertIsNotNone(ev.decode(key), "the pinned key is not a point on the curve")
         self.assertFalse(ev.small_order(ev.decode(key)))
