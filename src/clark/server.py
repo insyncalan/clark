@@ -114,7 +114,7 @@ def change_body_limit(body_max=SECTION_BODY_MAX):
 
 
 CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378: 132 KB today; moves with the three above, never with a bare number
-ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
@@ -320,23 +320,53 @@ def csp_take(n):
 
 class Refused:
     """Requests turned away before authorised() let them in (#234): counted, never a line of their own, so a page on another
-    site looping requests at this port cannot fill the day's log. Once `interval` seconds are up, the next one writes the
-    count in one line: a number only, nothing of any request (no path, query, header or Origin). `clock` is monotonic, so a
-    clock stepping back never holds the line back; tests pass their own."""
+    site looping requests at this port cannot fill the day's log. A burst in one window of `interval` seconds writes exactly
+    one line, when the window ends: how many were turned away and how long the window was. A timer writes it, so a lone
+    refusal or a last burst before quiet is still written; a later request writes it too if the timer has not yet. Nothing is
+    written when the first request arrives. Only two whole numbers are written: nothing of any request (no path, query, header
+    or Origin). `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
+    `timer=None`."""
 
-    def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic):
-        self.interval, self.clock, self.lock = interval, clock, threading.Lock()
-        self.since, self.n = None, 0
+    def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic, timer=threading.Timer):
+        self.interval, self.clock, self.timer, self.lock = interval, clock, timer, threading.Lock()
+        self.since, self.n, self.gen = None, 0, 0
+
+    def _close(self):
+        """End the window (the lock is held): the count of the requests in it, or 0."""
+        n, self.since, self.n = self.n, None, 0
+        return n
+
+    def flush(self, gen=None):
+        """Write what the window counted and end it (the timer calls this, for the window it was started for)."""
+        with self.lock:
+            if gen is not None and gen != self.gen:
+                return                                   # that window already ended; a newer one has its own timer
+            n = self._close()
+        self._say(n)
+
+    def _say(self, n):
+        """The one line for a window that has ended: fixed words (one message for 1, one for more), with only whole numbers
+        (how many, and how many seconds the window was) as values."""
+        secs = int(round(self.interval))
+        if n == 1:
+            LOG.warning("1 request was turned away in the last %d seconds.", secs)
+        elif n:
+            LOG.warning("%d requests were turned away in the last %d seconds.", n, secs)
 
     def count(self):
+        done = 0
         with self.lock:
             now = self.clock()
-            n = 0
-            if self.since is None or now - self.since >= self.interval:
-                n, self.since, self.n = self.n, now, 0
+            if self.since is not None and now - self.since >= self.interval:
+                done = self._close()                     # the window ended before the timer wrote it
+            if self.since is None:
+                self.since, self.gen = now, self.gen + 1
+                if self.timer:
+                    t = self.timer(self.interval, self.flush, (self.gen,))
+                    t.daemon = True
+                    t.start()
             self.n += 1
-        if n:
-            LOG.warning("%d requests were turned away and not logged one by one", n)
+        self._say(done)
 
 
 REFUSED = Refused()
@@ -1144,6 +1174,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
     finally:
         wait_for_jobs()                   # a POST that began just before the stop finishes first (its write is not cut off)
         httpd.server_close()
+        REFUSED.flush()                   # the refused-request window still open is written now (#260): a last burst before exit is not lost
     return 0
 
 
