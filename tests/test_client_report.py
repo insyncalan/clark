@@ -30,7 +30,7 @@ def text(*parts):
 class Source(unittest.TestCase):
     def test_the_view_has_an_id_a_name_and_a_page(self):
         self.assertRegex(text("router.js"), r'export const VIEWS = \["dashboard", "work", "milestones", "usecases", "clientreport", "settings"\]')
-        self.assertIn('"Client Requested Report View"', text("stores", "report.js"))
+        self.assertIn('"Client Requested Report View"', text("stores", "report.js"))   # the name stays in the store; the served page does not offer the tab (#559)
         self.assertIn('fromFile.value ? "Weekly snapshot"', text("stores", "report.js"), "a client has not asked for anything: the file's tab has its own name")
         app = text("components", "App.jsx")
         self.assertIn('clientreport: ClientReport', app)
@@ -320,18 +320,6 @@ class Drawn(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('#clientreport input, #clientreport textarea, #clientreport select, #clientreport [contenteditable]').length", sid), 0)
             self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid), r"\d{4}-\d{2}-\d{2}", "dates are DD-MM-YYYY")
 
-    def test_the_tab_keeps_its_full_name_wide_and_a_short_one_when_narrow(self):
-        port = self.serve()
-        with chrome() as cdp:
-            sid = self.open_page(cdp, port)
-            tab = "[...document.querySelectorAll('.tab')].find(t => t.dataset.view === 'clientreport')"
-            self.assertEqual(cdp.js(f"{tab}.innerText", sid), "Client Requested Report View")
-            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-            time.sleep(0.3)
-            self.assertEqual(cdp.js(f"{tab}.innerText", sid), "Client report")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].every(t => t.getBoundingClientRect().height < 60 && t.innerText.split('\\n').length === 1)", sid), True,
-                             "no tab wraps onto two lines at 900")
-
     def test_a_project_with_no_milestones_shows_no_figure_in_view_and_a_prompt_in_edit_never_a_made_up_number(self):
         data = {**self.store.data_for("TUL"), "milestones": []}
         s = Running(data_for=lambda code: data, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
@@ -346,6 +334,42 @@ class Drawn(unittest.TestCase):
             self.assertEqual(cdp.js("[...document.querySelectorAll('[data-fig=actual] .v, [data-fig=planned] .v')].map(e => e.textContent)", sid), ["Not set", "Not set"], "Edit keeps its prompt")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-bar], [data-gap], [data-line]').length", sid), 0, "no bar, no gap line, no lines")
             self.assertEqual(cdp.js("!!document.querySelector('[data-no-lines]')", sid), True)
+
+
+class HiddenOnTheServedPage(unittest.TestCase):
+    """#559: the served page (View and Edit) has no client report; a published file keeps it as "Weekly snapshot"."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.store, cls.folder, _ = load_demo()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.store.close()
+        shutil.rmtree(str(cls.folder), ignore_errors=True)
+
+    def test_the_served_page_has_no_client_report_tab_in_view_or_edit_and_its_address_falls_back(self):
+        s = Running(data_for=self.store.data_for, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#clientreport&p=TUL"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the page drew")
+            for mode in ("view", "edit"):
+                if mode == "edit":
+                    cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)))
+                self.assertEqual(cdp.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)", sid),
+                                 ["dashboard", "work", "milestones", "usecases", "settings"], mode)
+                self.assertEqual(cdp.js("document.querySelectorAll('#clientreport').length", sid), 0, mode)
+                self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", mode)
+            self.assertNotIn("Client Requested Report View", cdp.js("document.body.innerText", sid))
+
+    def test_a_published_file_still_lists_the_tab_as_weekly_snapshot(self):
+        self.assertIn('fromFile.value ? "Weekly snapshot"', text("stores", "report.js"))
+        self.assertRegex(text("stores", "report.js"), r"tabs\.value = VIEWS\.filter\(\(v\) => p\.tabs\.includes\(v\)\)")
+        self.assertIn('tabs.append("clientreport")', (SRCDIR.parent.parent / "publish.py").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
