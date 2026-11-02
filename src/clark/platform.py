@@ -592,6 +592,69 @@ def find_claude(which=shutil.which):
     return found or None
 
 
+# A program started for a job that is waited for (the PDF export drives Chrome this way).
+
+class Child:
+    """A program this module started, with the few calls its users need: pid, poll, wait(timeout) (TimeoutError when it runs
+    on), terminate and kill. Made by start_child, either by os.posix_spawn or, where that is not there, by subprocess."""
+
+    def __init__(self, pid=None, popen=None):
+        self.pid, self._popen, self.returncode = (popen.pid if popen else pid), popen, None
+
+    def poll(self):
+        if self._popen is not None:
+            self.returncode = self._popen.poll()
+        elif self.returncode is None:
+            try:
+                done, status = os.waitpid(self.pid, os.WNOHANG)
+            except ChildProcessError:
+                self.returncode = 0
+                return 0
+            if done:
+                self.returncode = os.waitstatus_to_exitcode(status) if hasattr(os, "waitstatus_to_exitcode") else status
+        return self.returncode
+
+    def wait(self, timeout=None):
+        end = None if timeout is None else time.monotonic() + timeout
+        while self.poll() is None:
+            if end is not None and time.monotonic() > end:
+                raise TimeoutError("the program is still running")
+            time.sleep(0.02)
+        return self.returncode
+
+    def terminate(self):
+        self._send(15)
+
+    def kill(self):
+        self._send(9)
+
+    def _send(self, sig):
+        try:
+            os.kill(self.pid, sig)
+        except OSError:
+            pass
+
+
+def start_child(argv, pipe=None, **_unused):
+    """Start `argv` (an argument list, never a shell) in a process group of its own, with nothing on its standard streams.
+    With `pipe` = (read_fd, write_fd) (two descriptors of this program's), the child gets them as its descriptors 3 and 4 (what
+    Chrome's --remote-debugging-pipe reads and writes) and they are closed in the child's other places. Uses os.posix_spawn,
+    which is safe in a program with threads (no code runs in the child before the program starts). Returns a Child; raises
+    OSError if the program cannot be started."""
+    if hasattr(os, "posix_spawn"):
+        actions = [(os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0), (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
+                   (os.POSIX_SPAWN_OPEN, 2, os.devnull, os.O_WRONLY, 0)]
+        if pipe:
+            actions += [(os.POSIX_SPAWN_DUP2, pipe[0], 3), (os.POSIX_SPAWN_DUP2, pipe[1], 4),
+                        (os.POSIX_SPAWN_CLOSE, pipe[0]), (os.POSIX_SPAWN_CLOSE, pipe[1])]
+        args = [str(a) for a in argv]
+        return Child(pid=os.posix_spawn(args[0], args, os.environ, file_actions=actions, setpgroup=0))
+    if pipe:
+        raise OSError("this system cannot pass descriptors to a program this way")
+    return Child(popen=subprocess.Popen([str(a) for a in argv], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL))
+
+
 STOP_WAIT = 2.0          # seconds between the polite stop and the kill of a run_stoppable group
 
 
