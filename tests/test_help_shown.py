@@ -153,7 +153,8 @@ class AgainstThePage(unittest.TestCase):
         # 59 measured on this branch's merge with main: the bar above the page names one bold Help entry that was not on the page before (measured on the merged tree)
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
         # 58 measured on the merged tree (main is 59), names printed: one name left the absent list, Week ending, which this branch's report bar (A-D2) puts on the page
-        self.assertGreaterEqual(len(names), 58)
+        # 57 measured after #527: Help no longer names New project (the page has no such menu item), so that bold name left the count (was 58)
+        self.assertGreaterEqual(len(names), 57)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

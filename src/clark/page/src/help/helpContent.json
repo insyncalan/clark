@@ -59,7 +59,7 @@
    },
    {
     "t": "Pick a project",
-    "d": "The project name in the top bar switches projects. **New project…** in the same menu adds one."
+    "d": "The project name in the top bar switches projects."
    },
    {
     "t": "Bring in the work",
@@ -620,7 +620,7 @@
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Source folders for ask clark** and its **Publishing** folders.",
-     "The project name in the top bar switches projects, shows each one’s open items, and has **New project…** and **Project settings**."
+     "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
     ]
    },
    {
@@ -685,7 +685,7 @@
       "ul",
       [
        "**The logo** (or clark’s icon and name): back to the Dashboard.",
-       "**The project name**: switch projects. Each shows its count of open items; **New project…** and **Project settings** are at the foot.",
+       "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**ask clark**: opens the assistant down the right. The [[/]] beside it is its key.",
        "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
@@ -1133,7 +1133,7 @@
      ],
      [
       "p",
-      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. Take any real password out of a question before you send it."
+      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. A short mixed value typed after “api key” or “access key” (such as v2beta3) is not sent, on purpose, even when it is not a key. Take any real password out of a question before you send it."
      ]
     ]
    },
