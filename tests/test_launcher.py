@@ -524,6 +524,26 @@ class StoppedBetweenTwoMoves(unittest.TestCase):
     def test_no_clark_stand_in_after_a_stop_between_the_two_moves_is_recovered_too(self):
         self.check("clark")
 
+    def test_a_leftover_set_aside_folder_with_no_marker_is_never_put_back(self):
+        # LOW 1 of #473: a set-aside folder from an older update, no marker: putting it back would install an older version
+        from clark import update_helper as h
+        with tempfile.TemporaryDirectory() as tmp:
+            app, data, old = self.layout(tmp, "src")
+            h.marker_path(data).unlink()
+            done = self.run_command(app, data)
+            self.assertFalse((app / "src").exists(), done.stdout + done.stderr)
+            self.assertTrue((old / "src").is_dir())
+
+    def test_only_the_folder_the_marker_names_is_put_back_not_the_lexically_last(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            app, data, old = self.layout(tmp, "src")
+            other = app / ".clark-old-29991231T000000Z" / "src" / "clark"      # a leftover from another update, sorting last
+            other.mkdir(parents=True)
+            (other / "leftover_marker.txt").write_text("older version\n", encoding="utf-8")
+            self.run_command(app, data)
+            self.assertTrue((app / "src" / "clark" / "launch.py").is_file())
+            self.assertFalse((app / "src" / "clark" / "leftover_marker.txt").exists())
+
     def test_a_missing_folder_with_nothing_set_aside_is_left_alone(self):
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copy2(ROOT / "clark.command", Path(tmp) / "clark.command")
