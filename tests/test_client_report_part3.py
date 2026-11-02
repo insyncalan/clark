@@ -3,21 +3,22 @@ nothing in the place the delivery plan will take (it is on hold: no placeholder 
 
 Run: python3 dev/run_tests.py test_client_report_part3
 Source tests (no browser) pin the mapping words, the Escalate rule, that the text is cleaned and never drawn raw, that the page's
-cleaner stays out of a published file, and that the look is tokens only. The browser test (class Drawn) draws the page from the real
-server in View and in Edit, at 1400 and 900 px, light and dark: the sections exist in order, the pair is side by side at 1400 and
+cleaner stays out of a published file, and that the look is tokens only. The browser test (class Drawn) draws the client report from a published file (#559: the served page no longer offers it), at 1400 and 900 px, light and dark: the sections exist in order, the pair is side by side at 1400 and
 stacked at 900, the Delay, Risk and Monitor words are the mapped ones, nothing overflows, text is at least 13 px and 4.5:1.
 """
 import re
 import sys
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
 from _paths import SRC
 
-from clark import page, server as sv  # noqa: E402
-from test_page import navigate  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from clark import page, publish, server as sv  # noqa: E402
+from test_publish import EMPTY_BRANDING, opened  # noqa: E402
+from test_server import chrome, wait  # noqa: E402
 
 PAGE = SRC / "clark" / "page"
 SRCDIR = PAGE / "src"
@@ -209,20 +210,23 @@ class Drawn(unittest.TestCase):
         self.assertGreater(m["count"], 20, where)
         self.assertEqual(m["bad"], [], where)
 
-    def test_view_and_edit_at_1400_and_900_light_and_dark(self):
-        s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(None))
-        self.addCleanup(s.close)
+    def test_view_at_1400_and_900_light_and_dark(self):
+        # #559: drawn from a PUBLISHED FILE (read_inputs -> select -> render -> file://), because the served page no longer offers this
+        # view. The served-page run is dropped; every View assertion in check() is kept as it was.
+        pub = publish.select(publish.read_inputs(self.store, "ABC"))
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "report.html"
+        path.write_text(publish.render(pub, page.page_html(EMPTY_BRANDING), pub["as_at"], pub["data"]["project"]["name"]), encoding="utf-8")
         with chrome() as cdp:
-            sid = navigate(cdp, s.port, "#clientreport&p=ABC")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#cr-raid .wl-row').length > 0", sid), 20), "the page drew")
-            for edit in (False, True):
-                if edit:
-                    cdp.js("document.querySelector('[data-mode=edit]').click(); true", sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid), 10), "Edit is on")
-                for width in (1400, 900):
-                    for theme in ("light", "dark"):
-                        self.look(cdp, sid, width, theme)
-                        self.check(cdp, sid, width, theme, edit)
+            sid = opened(cdp, path.as_uri())
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1", 20), "the file drew")
+            cdp.js("document.querySelector('[data-view=clientreport]').click(); true", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#cr-raid .wl-row').length > 0", sid), 20), "the report view drew")
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    self.look(cdp, sid, width, theme)
+                    self.check(cdp, sid, width, theme, False)
 
 
 if __name__ == "__main__":
