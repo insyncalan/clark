@@ -481,6 +481,33 @@ class Source(unittest.TestCase):
         for marker in ("data-tr-tile", "data-tr-mark-label", "data-tr-scale", "tr-pbar", "of the whole project"):
             self.assertIn(marker, view, marker)
 
+    def test_a_published_file_carries_none_of_the_authors_words_for_the_tracker(self):
+        """#451 item 6: every word only Edit shows (logic/trackerEdit.js: buttons, placeholders, the sentences about a bad line) is in the
+        served page and in no part of the published file. Read from the words file itself, so a word added there is covered."""
+        words = (PAGE / "src" / "logic" / "trackerEdit.js").read_text(encoding="utf-8")
+        words = words[words.index("export const EDIT_WORDS"):words.index("// Every word, the reader's")]
+        chunks = set()
+        for value in re.findall(r'^  \w+: ([^\n]+),$', words, re.M):
+            first = re.split(r"\$\{[^}]*\}", value[1:-1])[0]                      # the fixed words a value starts with
+            if len(first.strip()) >= 10:
+                chunks.add(first)
+        self.assertGreater(len(chunks), 15, "the words were read")
+        # Said by other sections too (the date placeholder), so it proves nothing either way.
+        chunks -= {"DD-MM-YYYY"}
+        served = (PAGE / "page.html").read_text(encoding="utf-8")
+        view = (PAGE / "page-view.html").read_text(encoding="utf-8")
+        for chunk in sorted(chunks):
+            self.assertTrue(chunk in served, "Edit carries it: " + chunk)
+            self.assertFalse(chunk in view, "the published file must not: " + chunk)
+
+    def test_only_edit_imports_the_authors_tracker_files(self):
+        """The reader's component and the reader's logic never import the files that hold the author's words, so they cannot be bundled."""
+        for name in ("components/Tracker.jsx", "logic/tracker.js"):
+            text = (PAGE / "src" / name).read_text(encoding="utf-8")
+            imports = "\n".join(re.findall(r"^import .*$|^\} from .*$", text, re.M))
+            for banned in ("trackerEdit", "trackerNote"):
+                self.assertNotIn(banned, imports, name)
+
     def test_the_page_view_reads_the_publish_date_for_the_planned_tile(self):
         text = (PAGE / "src" / "components" / "Tracker.jsx").read_text(encoding="utf-8")
         self.assertIn("asAt", text)
