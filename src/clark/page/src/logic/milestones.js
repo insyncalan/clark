@@ -196,6 +196,18 @@ export function neighbour(kind, iso, k) {
   return inRange(day) ? buckets(kind, day, day)[0] : null;
 }
 
+/** The day an arrow key moves to from `iso`: a day for Left and Right, a week for Up and Down (system/prototype/views.js, the days
+ *  of the calendar). null for any other key, and when that day is past the years the page draws. */
+export function dayStep(iso, key) {
+  const k = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[key];
+  if (!k || !inRange(iso)) return null;
+  const to = addDays(iso, k);
+  return inRange(to) ? to : null;
+}
+
+/** The one day of a period that is a tab stop: the day last chosen if the period holds it, else today if it does, else the first day. */
+export const tabDay = (b, chosen, today) => [chosen, today].find((d) => typeof d === "string" && d >= b.start && d <= b.end) || b.start;
+
 /** The chips that fall in a period (a bucket), by date then in the order the calendar draws them. */
 export function periodChips(chips, b) {
   return Object.keys(chips).filter((d) => d >= b.start && d <= b.end).sort().flatMap((d) => chips[d]);
