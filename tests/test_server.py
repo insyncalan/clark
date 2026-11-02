@@ -421,7 +421,7 @@ class Saving(ServerTest):
         status, _, data = running.api("POST", "/api/change", over)
         got = json.loads(data)
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
-        self.assertIn("Shorten a line or remove some lines", got["message"])
+        self.assertIn("Make the text shorter, or take some of the list out", got["message"])
         self.assertFalse(got["message"].startswith("clark"))
         status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 16 * 1024 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
