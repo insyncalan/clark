@@ -17,7 +17,7 @@ from _paths import ROOT, SRC, TOOLS  # noqa: F401
 from clark import page, publish, to_client  # noqa: E402
 from clark.publish import PublishError  # noqa: E402
 from _growth import assert_growth  # noqa: E402
-from test_publish import ICON_LINK, TOUCH_LINK, made  # noqa: E402
+from test_publish import EMPTY_BRANDING, ICON_LINK, TOUCH_LINK, made  # noqa: E402
 
 OPENER = '<script type="application/json" id="clark-data">'
 _BASE = []
@@ -345,6 +345,65 @@ class BrandPictures(unittest.TestCase):
         publish.check_brand(self.style('.logo-icon { background-image: url("data:image/svg+xml;base64,PHN2Zz4="); }'))
         publish.check_brand(self.style("@font-face{font-family:X;src:url(data:font/woff2;base64,AAAA) format('woff2')}"))
         publish.check_brand(self.style('a{color:red}a[href^="x"]{background:none}'))
+
+    LOGO = '.logo-icon{background-image:url("data:image/svg+xml;base64,PHN2Zz4=")}'
+
+    def test_the_real_built_page_passes_the_brand_check(self):
+        """The page itself, with the logo rule and its CSS escapes (the tick), not a finished file: it once refused every publish."""
+        publish.check_brand(page.page_html(EMPTY_BRANDING))
+
+    def test_an_escape_elsewhere_in_the_style_does_not_void_the_logo_rule(self):
+        publish.check_brand(self.style(self.LOGO + '.x::before{content:"\\2713"}'))
+        publish.check_brand(self.style('.x::before{content:"\\2713"}' + self.LOGO))
+        publish.check_brand(self.style('.x::before{content:"\\2713 "}\n  ' + self.LOGO + '\n.y{content:"\\2714"}'))
+        publish.check_brand(self.style('.x::before{content:"\\2713"}') + self.style(self.LOGO))
+
+    def test_an_escape_elsewhere_does_not_void_a_look_picture(self):
+        tick = '.x::before{content:"\\2713"}'
+        for name in ("--art-home", "--image-cover", "--image-fade"):
+            for value in ("url(%s)", 'url("%s")', "URL( '%s' )"):
+                rule = ":root{%s:%s}" % (name, value % "data:image/png;base64,AAAA")
+                publish.check_brand(self.style(tick + rule))
+                publish.check_brand(self.style(rule + tick))
+                publish.check_brand(self.style(tick + rule + tick + self.LOGO + tick))
+
+    def test_an_escape_inside_the_logo_rule_still_refuses_it(self):
+        svg = 'data:image/svg+xml;base64,PHN2Zz4='
+        for rule in ('.l\\6fgo-icon{background-image:url("%s")}' % svg,
+                     '.logo\\-icon{background-image:url("%s")}' % svg,
+                     '\\.logo-icon{background-image:url("%s")}' % svg,
+                     '.logo\\2d icon{background-image:url("%s")}' % svg,
+                     '.logo-icon{background-image:u\\72l("%s")}' % svg,
+                     '.logo-icon{background-image:url("%s")}' % svg.replace("data", "d\\61ta"),
+                     '.logo-icon{background-image:url("%s")}' % svg.replace("svg+xml", "svg\\2bxml"),
+                     '.logo-icon{background-image:url("%s")}' % svg.replace("PHN2", "PH\\4e2"),
+                     '.logo-icon{b\\61ckground-image:url("%s")}' % svg,
+                     '.logo-icon{background-image:url("%s");color:red}' % svg,
+                     '/* %s */.l\\6fgo-icon{background-image:url("%s")}' % (self.LOGO, svg)):
+            for css in (rule, '.x::before{content:"\\2713"}' + rule, rule + '.x::before{content:"\\2713"}'):
+                with self.assertRaises(PublishError, msg=css):
+                    publish.check_brand(self.style(css))
+
+    def test_an_escape_inside_a_look_picture_still_refuses_it(self):
+        pic = "data:image/png;base64,AAAA"
+        for decl in ("--art\\-home:url(%s)" % pic, "--art-h\\6fme:url(%s)" % pic, "--art-home:u\\72l(%s)" % pic,
+                     "--art-home:url(%s)" % pic.replace("data", "d\\61ta"), "--art-home:url(%s)" % pic.replace("png", "p\\6eg"),
+                     "--art-home:url(%s)" % pic.replace("AAAA", "A\\41AA"), "--art-home:url(%s\\29" % pic):
+            for css in (":root{%s}" % decl, '.x::before{content:"\\2713"}:root{%s}' % decl):
+                with self.assertRaises(PublishError, msg=css):
+                    publish.check_brand(self.style(css))
+
+    def test_an_escape_elsewhere_does_not_spare_anything_else(self):
+        tick = '.x::before{content:"\\2713"}'
+        for css in ("", tick):
+            for body in (".logo-icon{background-image:url(data:image/png;base64,AAAA)}",
+                         ".logo-icon{background-image:url(data:image/svg+xml;base64,PHN2Zz4=);color:red}",
+                         self.LOGO + self.LOGO.replace(".logo-icon", ".card"), "@media print{" + self.LOGO + "}", ".a," + self.LOGO,
+                         ".card{background:url(data:image/png;base64,AAAA)}", ".card{background-image:url(data:image/svg+xml;base64,PHN2Zz4=)}",
+                         ":root{--art-home:url(data:image/png;base64,AAAA),url(data:image/png;base64,AAAA)}",
+                         ":root{--art-home-x:url(data:image/png;base64,AAAA)}"):
+                with self.assertRaises(PublishError, msg=css + body):
+                    publish.check_brand(self.style(css + body))
 
     LOOK_PICTURE = "data:image/png;base64,AAAA"
 
