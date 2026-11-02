@@ -445,7 +445,7 @@
       ['tbl', ['Dashboard sections (yours)', 'What it does'], [
         ['Slim gaps (standard)', 'Each section is its own card, with a slim gap that shows the page picture.'],
         ['Roomy gaps', 'The same, with more space between the sections.'],
-        ['Grey headers', 'Slim gaps, and each section title in a grey band.'],
+        ['Grey headers', 'Slim gaps, and each section title in a grey band, like the Work items groups.'],
         ['One card', 'All the sections in one long card.'] ]] ] },
     { id: 'work-items', g: 'Screens', t: 'Work items', b: [
       ['p', 'From the top: the import and export icons and **+**; the saved views as tabs; the **filter line**, with **View** (Group by and swimlanes) and the **Table** and **Board** icons beside it; then the count of items. On a phone the line takes the full width and each item is a card with its status, owner, priority and due date. When nothing matches, the list says why and gives one **Clear** button.'],
