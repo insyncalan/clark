@@ -229,5 +229,36 @@ class Check(unittest.TestCase):
             self.assertIn("insyncalan/clark", ln, ln[:60])
 
 
+    def _calls(self, argv):
+        """The repositories main() asks gh about for this command line, and its exit code and what it printed."""
+        run = mock.Mock(returncode=0, stdout=json.dumps([good("v0.5.0")]))
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(mod.subprocess, "run", return_value=run) as call, contextlib.redirect_stdout(out), \
+                contextlib.redirect_stderr(err):
+            code = mod.main(argv)
+        return code, [c.args[0][2] for c in call.call_args_list], out.getvalue() + err.getvalue()
+
+    def test_the_repository_is_an_argument_and_defaults_to_insyncalan_clark(self):
+        code, asked, _ = self._calls(["v0.5.0"])
+        self.assertEqual((code, asked), (0, ["repos/insyncalan/clark/releases?per_page=100&page=1"]))
+        code, asked, _ = self._calls(["--repo", "someone/else", "v0.5.0"])
+        self.assertEqual((code, asked), (0, ["repos/someone/else/releases?per_page=100&page=1"]))
+        code, asked, _ = self._calls(["v0.5.0", "--repo=someone/else"])
+        self.assertEqual((code, asked), (0, ["repos/someone/else/releases?per_page=100&page=1"]))
+
+    def test_a_repository_that_is_not_owner_slash_name_exits_2_and_asks_gh_nothing(self):
+        for argv in (["--repo"], ["--repo", "clark"], ["--repo", "a/b/c"], ["--repo", "a/b?x=1"], ["--repo", "../x"]):
+            code, asked, said = self._calls(argv)
+            self.assertEqual((code, asked), (2, []), argv)
+            self.assertIn("--repo", said)
+            self.assertIn("owner/name", said)
+
+    def test_the_checklist_and_the_tool_say_the_repository_can_be_given(self):
+        text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
+        step = [l for l in text.splitlines() if l.startswith("20. ")][0]
+        self.assertIn("--repo owner/name", step)
+        self.assertIn("--repo owner/name", mod.__doc__)
+
+
 if __name__ == "__main__":
     unittest.main()

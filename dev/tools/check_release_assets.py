@@ -3,8 +3,10 @@
 Run by whoever verifies the release (step 20 of dev/RELEASING.md), after publishing and before saying a release is done:
     python3 dev/tools/check_release_assets.py            # every published release
     python3 dev/tools/check_release_assets.py v0.4.0     # one tag
+    python3 dev/tools/check_release_assets.py --repo owner/name v0.4.0     # releases kept in another repository
 
-It reads only `gh api repos/<owner>/<repo>/releases` (REST, no GraphQL), page by page. A release passes when it has an asset
+It reads only `gh api repos/<owner>/<repo>/releases` (REST, no GraphQL), page by page, from insyncalan/clark unless
+`--repo owner/name` (or `--repo=owner/name`) names another repository. A release passes when it has an asset
 named clark-<version>-mac.zip that is not empty, is marked Pre-release, has "(Beta)" in its title and "Beta" in its text.
 From 0.5.0 on it must also carry the zip's own SHA-256 in its text (the 64-character digest GitHub reports for the zip asset;
 when GitHub gives no digest for the asset, as on an older release, any 64-character SHA-256 in the text passes and the check says
@@ -19,6 +21,7 @@ import subprocess
 import sys
 
 REPO = "insyncalan/clark"
+REPO_FORM = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 FIRST_CHECKED = (0, 1, 0)
 FIRST_ORDERED = (0, 5, 0)    # the first release cut with the build-attach-launch-then-publish steps
 DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])")
@@ -112,12 +115,33 @@ def problems(releases, tags=None, notes=None):
     return out
 
 
+def _args(argv):
+    """(repository, tags) from the command line, or None after printing a plain line when --repo is not owner/name."""
+    repo, tags, i = REPO, set(), 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--repo" or a.startswith("--repo="):
+            if a == "--repo":
+                i += 1
+            repo = argv[i] if a == "--repo" and i < len(argv) else a[7:]
+            if not REPO_FORM.fullmatch(repo) or repo.split("/")[0] in (".", "..") or repo.split("/")[1] in (".", ".."):
+                print("--repo needs the repository as owner/name, for example --repo insyncalan/clark.", file=sys.stderr)
+                return None
+        else:
+            tags.add(a)
+        i += 1
+    return repo, tags
+
+
 def main(argv=None):
-    tags = set(argv if argv is not None else sys.argv[1:])
+    parsed = _args(argv if argv is not None else sys.argv[1:])
+    if parsed is None:
+        return 2
+    repo, tags = parsed
     releases = []
     for page in range(1, 50):
         try:
-            run = subprocess.run(["gh", "api", f"repos/{REPO}/releases?per_page=100&page={page}"], capture_output=True,
+            run = subprocess.run(["gh", "api", f"repos/{repo}/releases?per_page=100&page={page}"], capture_output=True,
                                  text=True, encoding="utf-8")
         except OSError:
             print("The releases can't be read: the gh command was not found. Install the GitHub command line tool (gh), "
