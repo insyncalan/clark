@@ -1,4 +1,4 @@
-"""A-D14: the At a glance tiles fill the row, with Project health two tile widths, and nothing wraps at 900 px.
+"""A-D14: the At a glance tiles fill the row, with Project health two tile widths, and at 1180 px and below it has its own row.
 
 Run: python3 dev/run_tests.py test_glance_fill
 The first class reads the source and needs no browser: the layout rules sit in shell.css (shared by the editor and the published
@@ -16,6 +16,7 @@ from test_server import chrome
 PAGE = SRC / "clark" / "page"
 GAP, TILE_MIN = 12, 140          # the row gap and the least a tile may be, in px (shell.css)
 ROOM_900 = 900 - 2 * 16 - (2 * 16 + 2)   # the page's side padding, then the frame's padding and border at 900 px: 834 px
+BREAK = 1180                              # at this width and below Project health has a row to itself
 EDIT_GUTTER, SCROLL_BAR = 32, 15         # Edit's left gutter, and a classic scroll bar's width
 
 
@@ -48,9 +49,14 @@ class Source(unittest.TestCase):
         self.assertRegex(css, r'#report\[data-mode="edit"\] \.glance \.tcell\.is-hidden \.fig \{ padding-bottom: var\(--tile-tag\); \}')
         self.assertNotRegex(rule(css, ".fig .k"), "padding-right", "View keeps its label line as it was")
 
+    def test_health_has_its_own_row_at_1180_and_below(self):
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
+        self.assertIn("@media (max-width: 1180px) { .tcell.health { flex-basis: 100%; } }", css)
+
     def test_both_built_pages_carry_the_rules(self):
         for name in ("page.html", "page-view.html"):
             html = (PAGE / name).read_text(encoding="utf-8")
+            self.assertIn("@media (max-width: 1180px) { .tcell.health { flex-basis: 100%; } }", html, name)
             self.assertIn(f"flex: 2 1 {GAP}px", html, name)
             self.assertIn(f"min-width: {TILE_MIN}px", html, name)
 
@@ -64,12 +70,21 @@ class Fill(Setup):
         })()""")
         cells = box["cells"]
         self.assertEqual(len(cells), count)
-        self.assertEqual(len({round(c["top"]) for c in cells}), 1, f"one line at {width}")
-        self.assertAlmostEqual(cells[0]["left"], box["left"], delta=1.5)
-        self.assertAlmostEqual(cells[-1]["left"] + cells[-1]["width"], box["left"] + box["width"], delta=1.5, msg=f"fills the row at {width}")
         health, small = cells[0], cells[1]
         self.assertEqual(health["tile"], "health")
-        self.assertAlmostEqual(health["width"], 2 * small["width"] + box["gap"], delta=1.5)
+        right = box["left"] + box["width"]
+        self.assertAlmostEqual(cells[0]["left"], box["left"], delta=1.5)
+        if width <= BREAK:
+            # as the prototype: Project health alone on its own row, the others sharing the row under it
+            self.assertAlmostEqual(health["width"], box["width"], delta=1.5, msg=f"health fills its own row at {width}")
+            self.assertEqual(len({round(c["top"]) for c in cells[1:]}), 1, f"the other tiles share one row at {width}")
+            self.assertGreater(small["top"], health["top"] + 20, f"health is above the others at {width}")
+            self.assertAlmostEqual(cells[1]["left"], box["left"], delta=1.5)
+            self.assertAlmostEqual(cells[-1]["left"] + cells[-1]["width"], right, delta=1.5, msg=f"the second row fills at {width}")
+        else:
+            self.assertEqual(len({round(c["top"]) for c in cells}), 1, f"one line at {width}")
+            self.assertAlmostEqual(cells[-1]["left"] + cells[-1]["width"], right, delta=1.5, msg=f"fills the row at {width}")
+            self.assertAlmostEqual(health["width"], 2 * small["width"] + box["gap"], delta=1.5)
         for c in cells[1:]:
             self.assertAlmostEqual(c["width"], small["width"], delta=1.5)
             self.assertGreaterEqual(c["width"], TILE_MIN - 1.5)
@@ -83,7 +98,7 @@ class Fill(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     self.check(self.show(cdp, width, dark), width, 3)
 
-    def test_edit_shows_four_tiles_on_one_line_at_900_and_1400(self):
+    def test_edit_shows_four_tiles_on_one_line_at_1400_and_health_on_its_own_row_at_900(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
