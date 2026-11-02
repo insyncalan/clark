@@ -1,5 +1,6 @@
 """#253: the v0.3 release line "A key or a password typed into a question, or inside the text you selected, is refused before
-anything is sent", proved in code instead of by a hand check.
+anything is sent", proved in code instead of by a hand check. (#312: the released wording overstates the second half, because there
+is no live selection route yet; any later notes should say only "typed into a question".)
 
 The question path is driven through the REAL server and the REAL /api/ask route (a real store, a real HTTP request) with a fake
 provider that records every call. The selected-text path has no server route on main (see SelectionHasNoRoute), so it is driven
@@ -20,7 +21,7 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 import test_ask_route as route_base
 from test_ai_key_refusal import ATTACKS, REFUSED, SECRET_PART, TEXT
 from test_ai_menu import FakeProvider
-from clark import ai_menu as am, ask, server as sv
+from clark import ai_menu as am, ask, ask_passages, ask_service, secret_screen, server as sv
 
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
@@ -151,6 +152,40 @@ class EveryRouteThatSendsText(unittest.TestCase):
     def test_the_server_has_no_route_for_the_selection(self):
         routes = set(sv.GET_ROUTES) | set(sv.POST_ROUTES)
         self.assertEqual({r for r in routes if "suggest" in r or "edit" in r or r.startswith("/api/ai")}, set())
+
+
+class OneWordingForEveryLooksLikeAPasswordNote(unittest.TestCase):
+    """#406: every note that says "looks like a password or a key" uses the phrase held once in `ask.LOOKS_LIKE`, then says what
+    happened, then gives one next step, and the product name never starts a clause."""
+
+    def folder_note(self):
+        found = ask_passages.FolderData(safety=1, secret_labels=("saved/keys.txt",))     # the real type, so every field folder_notes reads is there
+        return [n for n in ask_service.folder_notes(found) if n.startswith("saved/keys.txt")][0]
+
+    def test_every_note_follows_the_rules(self):
+        self.assertEqual(ask.LOOKS_LIKE, "looks like a password or a key")
+        self.assertIs(am.SECRET_MESSAGE, ask.SECRET)
+        folder = self.folder_note()
+        # (note, what happened, how the next step starts)
+        cases = ((ask.SECRET, "so it wasn't sent", "Take it out"),
+                 (ask.SECRET_EARLIER, "so this chat can't be sent", "Start a new chat"),
+                 (folder, "so it was left out", "Take it out"))
+        for note, happened, step in cases:
+            with self.subTest(note=note):
+                self.assertIn(ask.LOOKS_LIKE, note)
+                self.assertIn(happened, note)
+                self.assertLess(note.index(ask.LOOKS_LIKE), note.index(happened))
+                self.assertTrue(note.split(". ")[-1].startswith(step), note)
+                self.assertNotIn("secret", note.lower())
+                self.assertIsNone(re.search(r"[,.;:] clark|^clark", note, re.IGNORECASE), note)
+
+    def test_the_exact_words(self):
+        self.assertEqual(ask.SECRET, "That looks like a password or a key, so it wasn't sent. Take it out and try again.")
+        self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like a password or a key, so this chat can't be sent. "
+                                             "Start a new chat and try again.")
+        self.assertEqual(self.folder_note(), "saved/keys.txt holds text that looks like a password or a key, so it was left out and "
+                                             "the answer may be missing something. Take it out of the file, or remove the file from "
+                                             "the saved folder, then ask again.")
 
 
 if __name__ == "__main__":
