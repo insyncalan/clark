@@ -121,6 +121,12 @@ def fixed_clock(start):
         clark_store.now, clark_store.today, clark_store.uuid = saved
 
 
+def friday_on_or_before(iso):
+    """#570: a project's Week ending is a Friday (the change route refuses any other day): the Friday on or before this day."""
+    day = datetime.strptime(iso, "%Y-%m-%d").date()
+    return (day - timedelta(days=(day.weekday() - 4) % 7)).isoformat()
+
+
 # ── The data ─────────────────────────────────────────────────────────────────────────────────────────────────────
 # Offsets are days from CLARK_NOW (negative: past). Each project is one spec; "ms", "uc" and "ws" in an item are the
 # position in that project's own milestones, use cases and workstreams (counting from 0).
@@ -131,7 +137,7 @@ def tulip(d):
                         health_reason="Scanning is a fortnight behind; the training date has already passed",
                         current_state="<p>Scanning is two thirds done and the planning archive is being indexed. "
                                       "Training was due last week and has not happened.</p>",
-                        week_ending=d(-2), layout="boxed"),
+                        week_ending=friday_on_or_before(d(-2)), layout="boxed"),
         "workstreams": [("Scanning", ADA), ("Indexing", BARNABY), ("Training", EDNA)],
         "use_cases": [
             dict(ref="1.1", title=UC_TULIP[0], status="Flag", headline="Two thirds scanned, a fortnight behind",
@@ -206,7 +212,7 @@ def mossgrove(d):
         "project": dict(code="MOSS", name=MOSSGROVE, sponsor=FENWICK, phase="Pilot", health="On track",
                         client_name=FIZZLEWICK, health_reason="Pilot sign-ups are ahead of plan",
                         current_state="<p>The pilot portal has 300 customers. Sign-in works; payments are being tested.</p>",
-                        week_ending=d(-2), layout="spine"),
+                        week_ending=friday_on_or_before(d(-2)), layout="spine"),
         "workstreams": [("Sign-in", GWENDOLEN), ("Payments", HAMISH), ("Mobile", DORIAN)],
         "use_cases": [
             dict(ref="1", title=UC_MOSS[0], status="On track", headline="Single sign-in live for the pilot",

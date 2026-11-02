@@ -239,7 +239,7 @@ class ThePageDrawsNeedsAndLeavesTheTrackerQuiet(unittest.TestCase):
         src = (self.PAGE / "Section.jsx").read_text(encoding="utf-8")
         self.assertIn('<p class="quiet">Not shown on this page yet.</p>', src)
         self.assertIn('section.type === "needs"', src)
-        self.assertNotIn("tracker", src)
+        self.assertIn('section.type === "tracker"', src)            # #189: the tracker is drawn, in Edit and in View and the file
 
     def test_a_published_file_draws_no_type_it_does_not_know(self):
         src = (self.PAGE / "Dashboard.jsx").read_text(encoding="utf-8")

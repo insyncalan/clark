@@ -2,7 +2,7 @@
 // reload keeps them; the project's data comes from GET /api/data with this run's token (#33, #31's data_for).
 // A published file (#39) has its data in an inline block, id="clark-data": then the page is a file (fromFile), reads that block
 // and nothing else: no fetch, no token, no Settings tab, and "today" is the date it was published (as_at).
-import { signal, computed } from "@preact/signals";
+import { signal, computed, batch } from "@preact/signals";
 import * as route from "../router.js";
 import { rowsOf } from "../workItems.js";
 import { decode, encode, fits, setPublished } from "../filters.js";
@@ -11,8 +11,8 @@ import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }, clientreport: "Client Requested Report View", settings: "Settings" };   // the published tab is "Use Cases"
-export const SHORT_TITLES = { clientreport: "Client report" };   // the tab button on a narrow window; the page keeps its full name (#192)
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
+export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snapshot" : "Client report"; } };   // the tab button on a narrow window; the page keeps its full name (#192)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
@@ -34,6 +34,7 @@ export const refusals = signal(0);                   // counts the refusals, so 
 export const status = signal(project.value ? "loading" : "none");   // none | loading | ready | missing | failed
 export const data = signal(null);
 export const message = signal("");
+export const publication = signal(0);       // a published file: its publication number (#120), else 0; the footer reads it
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
@@ -64,11 +65,13 @@ const where = () => ({ view: view.value, project: project.value, item: item.valu
 function apply(s) {
   if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
-  view.value = s.view;
-  item.value = s.item;
-  ms.value = s.ms;
-  uc.value = s.uc || "";
-  filterText.value = s.f;
+  batch(() => {                                          // one move: an effect (the client's kept choices) sees the page and its filters together, never a new page with the old page's filters
+    view.value = s.view;
+    item.value = s.item;
+    ms.value = s.ms;
+    uc.value = s.uc || "";
+    filterText.value = s.f;
+  });
   if (s.project !== project.value) {
     project.value = s.project;
     data.value = null;
@@ -214,6 +217,7 @@ function openPublished(p) {
   if (!tabs.value.includes(view.value)) view.value = tabs.value[0];
   project.value = p.data.project.code;
   asAt.value = p.as_at || "";
+  publication.value = p.publication && Number.isInteger(p.publication.n) && p.publication.n >= 1 ? p.publication.n : 0;
   useFileStyle(p.style);                                  // the look it was published with (#45); a file written before that has the default
   data.value = { ...p.data, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show
   status.value = "ready";
@@ -281,6 +285,28 @@ const CHANGE_KNOWN = {
   "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
   "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
   "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
+  // the change route's own limit (server.py MESSAGES change_too_large): said as the route says it, and that nothing was changed
+  "That is too big to save. Shorten a line or remove some lines, then try again.": "That is too big to save, and nothing was changed. Make it shorter, then try again.",
+  // #189: a 'Progress tracker' clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
+  "The progress tracker holds an overall figure, the columns shown, and groups of lines.": "That tracker can't be saved, and nothing was changed. Reload the page and try again.",
+  "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty.": "The overall figures could not be saved. Nothing was changed. Use numbers from 0 to 100, then try again.",
+  "A line about it can be 100 characters at most. Shorten it and try again.": "That line is too long (100 characters at most). Nothing was changed. Shorten it and try again.",
+  "Each extra column is either shown or not.": "That column setting could not be saved. Nothing was changed. Reload the page and try again.",
+  "A group holds a name and its lines.": "That group can't be saved, and nothing was changed. Reload the page and try again.",
+  "A tracker can have at most 10 groups.": "A tracker can have 10 groups at most, and nothing was changed. Remove one to add another.",
+  "Give each group a name.": "Give each group a name. Nothing was changed.",
+  "A group name can be 80 characters at most. Shorten it and try again.": "That group name is too long (80 characters at most). Nothing was changed. Shorten it and try again.",
+  "A group can have at most 47 lines and a tracker 47 in all.": "A tracker can have 47 lines in all, and nothing was changed. Remove one to add another.",
+  "A line holds a number, a description, dates, a status, a weight, what was planned and what was achieved.": "That line can't be saved, and nothing was changed. Reload the page and try again.",
+  "Describe each line.": "Describe each line. Nothing was changed.",
+  "A line description can be 100 characters at most. Shorten it and try again.": "That description is too long (100 characters at most). Nothing was changed. Shorten it and try again.",
+  "A line number can be 10 characters at most. Shorten it and try again.": "That number is too long (10 characters at most). Nothing was changed. Shorten it and try again.",
+  "A date must be a real day between 2000 and 2100, or empty.": "That date isn't right. Nothing was changed. Type it as DD-MM-YYYY, or leave it empty.",
+  "A line can't end before it starts.": "The end date is before the start date, and nothing was changed. Change one of the dates.",
+  "Choose Planned, In progress, Completed or Late.": "Choose Planned, In progress, Completed or Late. Nothing was changed.",
+  "Type a percentage from 0 to 100, with one decimal at most.": "Type a percentage from 0 to 100, with one decimal at most. Nothing was changed.",
+  "Weight, Planned or Achieved adds up to more than 100% across all the lines. Lower one of the figures and try again.": "Weight, Planned or Achieved adds up to more than 100% across all the lines. Nothing was changed. Lower one of the figures and try again.",
+  "A count must be a whole number from 0 to 99999, or empty.": "A count must be a whole number from 0 to 99999, or empty. Nothing was changed.",
   "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
   "That content is too long to save.": "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.",
   // #220: a text section's body clark would not save (clark/changes.py's words)
