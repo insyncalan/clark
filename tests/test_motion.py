@@ -1,10 +1,10 @@
-"""#131 motion: six of the ten mild motions whose screens exist today, each tested running and in its reduced form.
+"""#131 motion: the ten mild motions, each tested running and in its reduced form.
 
 Run: python3 dev/run_tests.py test_motion
-Built: 1 the placeholder fades out as the screen arrives (the issue's item 2), 2 a changed row glows then settles to the still
+Items: 1 the placeholder fades out as the screen arrives (the issue's item 2), 2 a changed row glows then settles to the still
 mark (item 3), 3 the health badge and reason settle when health changes (item 6), 4 the count line and counts fade when a filter
 changes (item 9), 5 Publish shows a ring then draws a tick (item 1), 6 the drop line and outline ease in while a section is dragged
-(item 5). Class More adds items 4, 7, 8 and 10 (the peek, the timeline and calendar swap, the handle's first-time hint, the Add a section preview). Part 1 reads the CSS: one Motion block, tokens only, nothing loops, no motion outside it. Part 2 runs the real
+(item 5), and items 4, 7, 8 and 10 (the peek, the timeline and calendar swap, the handle's first-time hint, the Add a section preview). Part 1 reads the CSS: one Motion block, tokens only, nothing loops, no motion outside it. Part 2 runs the real
 page in headless Chrome three ways: motion allowed (the effect runs), the computer asking for reduced motion, and clark's own
 setting (<html data-motion="reduce">). In both reduced forms nothing animates and the still mark is all there is.
 """

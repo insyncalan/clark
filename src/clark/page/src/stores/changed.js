@@ -25,7 +25,7 @@ export function diffIds(before, after) {
   const was = new Map((before || []).map((r) => [r.id, r]));
   return (after || []).filter((r) => {
     const old = was.get(r.id);
-    return !old || Object.keys(r).some((k) => JSON.stringify(r[k]) !== JSON.stringify(old[k]));
+    return !old || Object.keys(r).some((k) => r[k] !== old[k] && JSON.stringify(r[k]) !== JSON.stringify(old[k]));
   }).map((r) => r.id);
 }
 
@@ -34,6 +34,11 @@ export const isChanged = (id) => changed.value.indexOf(id) >= 0;
 export function clearChanged() {
   if (timer !== null) clock.clearTimeout(timer);
   timer = null;
+  if (listening && typeof document !== "undefined") {
+    listening = false;
+    document.removeEventListener("pointerdown", onAction, true);
+    document.removeEventListener("keydown", onAction, true);
+  }
   if (changed.value.length) changed.value = [];
 }
 

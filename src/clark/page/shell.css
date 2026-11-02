@@ -1195,7 +1195,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 /* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
    off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
    loops here (the publish ring, above, turns only while it works), only the --dur and --ease tokens are used, and nothing waits for it: the elements
-   stay live while it runs. */
+   stay live while it runs. The block uses native CSS nesting, so a browser without it (older than current Chrome or Edge) keeps the still forms only. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) {
     /* the placeholder fades out as the screen arrives */
