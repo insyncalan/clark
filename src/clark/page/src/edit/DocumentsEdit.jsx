@@ -5,14 +5,16 @@
 import { useState, useRef, useEffect } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change, changeItem } from "../stores/changes.js";
-import { visibleDocs, hiddenDocs, factsOf, changedFields, KINDS } from "../logic/documents.js";
+import { visibleDocs, hiddenDocs, factsOf, changedFields, isoDay, DATE_WORDS, KINDS } from "../logic/documents.js";
+import { dateWords } from "../templates/safe.js";
 import { Icon } from "../components/Icon.jsx";
 
 const EMPTY = { title: "", kind: "Report", url: "", date: "" };
 
 // The add or edit form. `doc` is the document being edited, or null to add one. Esc or Cancel closes it and gives the focus back.
 function DocForm({ doc, onClose }) {
-  const [form, setForm] = useState(doc ? { title: doc.title || "", kind: doc.kind || "Report", url: doc.url || "", date: doc.date || "" } : EMPTY);
+  const [form, setForm] = useState(doc ? { title: doc.title || "", kind: doc.kind || "Report", url: doc.url || "", date: dateWords(doc.date) } : EMPTY);
+  const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const first = useRef(null);
   useEffect(() => { if (first.current) first.current.focus(); }, []);      // the title box takes the focus when the form opens
@@ -21,14 +23,17 @@ function DocForm({ doc, onClose }) {
   const submit = async (e) => {
     e.preventDefault();
     if (busy) return;
+    const day = isoDay(form.date);
+    setProblem(day === null ? DATE_WORDS : "");
+    if (day === null) return;
     setBusy(true);
     let reply;
     if (doc) {
-      const changes = changedFields(doc, form);
+      const changes = changedFields(doc, { ...form, date: day });
       if (!Object.keys(changes).length) { setBusy(false); onClose(); return; }
       reply = await changeItem({ kind: "documents", op: "update", id: doc.id, changes, place: "report" }, "Document saved.");
     } else {
-      const values = { title: form.title.trim(), kind: form.kind, url: form.url.trim(), date: form.date };
+      const values = { title: form.title.trim(), kind: form.kind, url: form.url.trim(), date: day };
       reply = await changeItem({ kind: "documents", op: "new", values, place: "report" }, "Document added.");
     }
     setBusy(false);
@@ -47,7 +52,8 @@ function DocForm({ doc, onClose }) {
       <input id={`${id}-url`} type="text" inputMode="url" autocomplete="off" spellcheck={false} placeholder="https://" value={form.url} onInput={set("url")} />
       <span class="tpl-facts">The client sees this address. It must start with https://, http:// or mailto:</span>
       <label for={`${id}-date`}>Date (optional)</label>
-      <input id={`${id}-date`} type="date" value={form.date} onInput={set("date")} />
+      <input id={`${id}-date`} type="text" inputMode="numeric" autocomplete="off" placeholder="DD-MM-YYYY" value={form.date} onInput={set("date")} />
+      {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
       <span class="docs-form-buttons">
         <button type="submit" class="btn" disabled={busy}>{doc ? "Save" : "Add document"}</button>
         <button type="button" class="btn quiet" onClick={onClose}>Cancel</button>

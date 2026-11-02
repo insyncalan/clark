@@ -3,6 +3,7 @@
 // link again; this file only refuses to draw an address that is not http, https or mailto with nothing hidden in it, so a row
 // written around clark is never drawn as a link.
 import { dateWords } from "../templates/safe.js";
+import { dayNumber } from "../workItems.js";
 
 // The kinds a document may be: the same list, in the same order, as clark/doclinks.py KINDS (a test reads both).
 export const KINDS = ["Minutes", "Actions list", "Report", "Slides", "Plan", "Other"];
@@ -54,7 +55,20 @@ export function hiddenDocs(d) {
   return list.filter((doc) => doc && !doc.archived && hidden.has(doc.id));
 }
 
-// The fields of a form that differ from the saved document: what an edit sends ({} when nothing changed). A date is "" or YYYY-MM-DD.
+// A date as a person types it (DD-MM-YYYY, or nothing) as clark keeps it: "YYYY-MM-DD", "" for no date, or null when it is not a
+// real day. The form is a text box, never the browser's own calendar (one Esc closes one thing, #91).
+export const DATE_WORDS = "Write the date as DD-MM-YYYY, for example 05-01-2030, or leave it empty.";
+export function isoDay(text) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  const m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/.exec(t);
+  if (!m) return null;
+  const iso = `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return dayNumber(iso) === null ? null : iso;
+}
+
+// The fields of a form that differ from the saved document: what an edit sends ({} when nothing changed). `form.date` is already
+// as clark keeps it ("" or YYYY-MM-DD).
 export function changedFields(doc, form) {
   const out = {};
   for (const k of ["title", "kind", "url", "date"]) {
