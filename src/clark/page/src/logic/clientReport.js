@@ -31,12 +31,20 @@ export const ONLY = "Milestones";
 
 const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 
+/** The word a plan line shows, the Progress tracker's own four (the approved mockup): Completed when Done, Late when the agreed date
+ *  has passed and it is not done, In progress once any percent is complete, else Planned. */
+export function statusWord(r, on) {
+  if (r.status === "Done") return "Completed";
+  if (r.baseline && r.baseline < on) return "Late";
+  return r.percent > 0 ? "In progress" : "Planned";
+}
+
 /** One line from a milestone row (logic/milestones.js milestoneRows) and the status date. */
 export function line(r, on, no) {
   const achieved = r.status === "Done" ? 100 : r.percent === null || r.percent === undefined ? null : r.percent;
   const planned = r.baseline ? (r.baseline <= on ? 100 : 0) : null;
   const behind = planned !== null && planned > (achieved || 0) ? planned - (achieved || 0) : 0;
-  return { id: r.id, no, text: r.name, end: r.achieved || r.forecast || r.baseline || null, word: r.word, colour: r.colour, mark: r.mark, planned, achieved, behind };
+  return { id: r.id, no, text: r.name, end: r.achieved || r.forecast || r.baseline || null, word: statusWord(r, on), colour: r.colour, mark: r.mark, planned, achieved, behind };
 }
 
 /** The sums of some lines: { actual, planned } as whole percents, or null for no lines. */

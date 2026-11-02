@@ -166,6 +166,16 @@ class Logic(unittest.TestCase):
         self.assertEqual(other["total"], {"actual": 0, "planned": 0})
         self.assertEqual(got["overall"], {"actual": 47, "planned": 67}, "every line counts the same, across all groups")
 
+    def test_a_plan_line_says_completed_in_progress_planned_or_late(self):
+        """#430 item 7: the approved mockup's words, the Progress tracker's own, not the milestone states' (Achieved, On track...)."""
+        lst = [ms("W-1", "Signed off", status="Done", baseline_date="2026-10-01", actual_date="2026-10-02"),
+               ms("W-2", "Under way", baseline_date="2026-12-01", percent_complete=30),
+               ms("W-3", "Not started", baseline_date="2026-12-10"),
+               ms("W-4", "Behind", baseline_date="2026-10-10", percent_complete=40)]
+        got = self.run_js(f"CR.progress({json.dumps(lst)}, {json.dumps(ON)}, true)")
+        self.assertEqual({l["text"]: l["word"] for l in got["groups"][0]["lines"]},
+                         {"Signed off": "Completed", "Under way": "In progress", "Not started": "Planned", "Behind": "Late"})
+
     def test_a_hidden_milestone_never_shows_and_never_moves_a_figure(self):
         rules = f"CR.clientRules({json.dumps(DATA)})"
         with_hidden = self.run_js(f"CR.progress({json.dumps(LIST + HIDDEN)}, {json.dumps(ON)}, true, {rules})")
