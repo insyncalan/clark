@@ -476,6 +476,7 @@ REASONS = {
     "bad_copy": "the copy of your data kept from before the update didn't pass its checks",
     "mismatch": "the copy of your data kept from before the update belongs to a different version",
     "stopped": "something stopped it part way",
+    "unreadable": "your data could not be read after the update, so it was left exactly as it is",
     "unchecked": "the copy that was put back didn't pass its final check, so it was taken out again",
 }
 
@@ -935,8 +936,15 @@ class Run:
             self.save(data_restore=self.restored(db, before, None, True))
             return
         live = read_db_state(db)
+        if live is None and db.is_file():                # unreadable after the new version ran: leave it, and offer the Undo
+            try:
+                found = self.find_copy(before)
+            except Refused:
+                found = None
+            self.keep_pending(Refused("unreadable", "the database could not be read after the update"), None, found)
+            return
         if live is None or live["schema"] <= before:
-            return                                       # no migration ran, or the data is already back (or can't be read: left alone)
+            return                                       # no migration ran, or the data is already back (or there is no file)
         copy = None
         try:
             if not self.seams.process_gone(self.m.get("new_pid")):
@@ -946,7 +954,9 @@ class Run:
                 probe = probe_not_in_use(db)
                 try:
                     live = meta_state(probe)             # looked at again with the file held (through the probe: it holds the lock)
-                    if live is None or live["schema"] <= before:
+                    if live is None:
+                        raise Refused("unreadable", "the database could not be read with the file held")
+                    if live["schema"] <= before:
                         return
                     if self.m.get("db_id_before") and live["db_id"] != self.m["db_id_before"]:
                         raise Refused("mismatch", "the data belongs to another database")
@@ -960,10 +970,10 @@ class Run:
                 if held is not None:
                     held.close()
         except Refused as e:
-            self.keep_pending(e, live["schema"], copy)
+            self.keep_pending(e, live["schema"] if live else None, copy)
             return
         except (OSError, sqlite3.Error) as e:
-            self.keep_pending(Refused("stopped", f"{type(e).__name__}: {e}"), live["schema"], copy)
+            self.keep_pending(Refused("stopped", f"{type(e).__name__}: {e}"), live["schema"] if live else None, copy)
             return
         self.save(data_restore=self.restored(db, before, aside, changed))
 

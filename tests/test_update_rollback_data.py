@@ -193,6 +193,25 @@ class RefusedTest(Rolled):
         self.refused("the copy of your data kept from before the update couldn't be found", after=remove)
         self.assertEqual(seen["live"], digest(self.db))
 
+    def test_an_unreadable_live_database_is_kept_as_it_is_and_the_undo_is_offered(self):
+        # the new version ran and left a file that can not be read: it is not guessed at, nothing is replaced, and Undo is offered
+        seen = {}
+
+        def spoil(seams):
+            self.db.write_bytes(b"this is not a database at all" * 200)
+            seen["live"] = digest(self.db)
+        code, result = self.go(after=spoil)
+        self.assertEqual((h.ROLLED_BACK, "pending"), (code, result["data"]))
+        self.assertEqual(seen["live"], digest(self.db))                                  # byte for byte what it was
+        self.assertEqual([], self.asides())
+        self.assertIn("Your data was not put back automatically because your data could not be read", result["message"])
+        self.plain(result["message"])
+        folder, record = ui.last_update(self.data)
+        self.assertFalse(record["installed"])
+        self.assertIn("reason", record["data_restore_pending"])
+        self.assertIsNotNone(ui.migration_of(record))
+        self.assertIn("didn't install", self.up.status()[1]["last"]["line"])
+
     def test_a_corrupt_copy_is_refused_and_the_live_data_is_untouched(self):
         seen = {}
 
