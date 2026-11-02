@@ -3,7 +3,7 @@ nothing in the place the delivery plan will take (it is on hold: no placeholder 
 
 Run: python3 dev/run_tests.py test_client_report_part3
 Source tests (no browser) pin the mapping words, the Escalate rule, that the text is cleaned and never drawn raw, that the page's
-cleaner stays out of a published file, and that the look is tokens only. The browser test (class Drawn) draws the client report from a published file (#559: the served page no longer offers it) in View, at 1400 and 900 px, light and dark: the sections exist in order, the pair is side by side at 1400 and
+cleaner stays out of a published file, and that the look is tokens only. The browser test (class Drawn) draws the client report from a published file (#559: the served page no longer offers it), at 1400 and 900 px, light and dark: the sections exist in order, the pair is side by side at 1400 and
 stacked at 900, the Delay, Risk and Monitor words are the mapped ones, nothing overflows, text is at least 13 px and 4.5:1.
 """
 import re
@@ -211,7 +211,7 @@ class Drawn(unittest.TestCase):
 
     def test_view_at_1400_and_900_light_and_dark(self):
         # #559: drawn from a PUBLISHED FILE (read_inputs -> select -> render -> file://), because the served page no longer offers this
-        # view. The Edit run is dropped (a file has no Edit mode); every View assertion in check() is kept as it was.
+        # view. The served-page run is dropped; every View assertion in check() is kept as it was.
         pub = publish.select(publish.read_inputs(self.store, "ABC"))
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)

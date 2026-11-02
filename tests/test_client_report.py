@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_client_report
 Source tests (no browser) pin the view's id and name, the fixed order of its sections, that the published file's tab list carries it
 (the file's own checks are in test_client_report_file), the cover band, that the page says nothing to its author and explains nothing
 (the client reads it), and that its look uses tokens only. The browser tests (class Drawn, added with the sections) draw the page from the real
-server in View and in Edit at 1400 and 900 px, light and dark.
+server at 1400 and 900 px, light and dark (View; from #559 the client report is drawn from the published file).
 """
 import json
 import re
@@ -238,8 +238,8 @@ AUDIT = """(function () {
 class Drawn(unittest.TestCase):
     """The client report drawn in a PUBLISHED FILE made from the demo database (TUL), at 1400 and 900 px, light and dark.
 
-    #559: the served page no longer offers this view, so the Edit halves of these tests are dropped (the file has no Edit mode) and the
-    View coverage runs on the published file (publish.read_inputs -> select -> render -> open from file://), as test_client_report_file does."""
+    #559: the served page no longer offers this view, so these tests run on the published file (View only)
+    and the coverage runs on it (publish.read_inputs -> select -> render -> open from file://), as test_client_report_file does."""
 
     @classmethod
     def setUpClass(cls):
@@ -288,7 +288,7 @@ class Drawn(unittest.TestCase):
                             r"on the Dashboard|Nothing written|Nothing here yet|not built|counts the same", f"{where}: nothing for the author and no explainer")
 
     def test_view_at_1400_and_900_in_light_and_dark(self):
-        # Dropped with #559: the Edit run (sections incl. the empty pair boxes, Edit's prompts); the file has no Edit mode.
+        # Dropped with #559: the served-page run; the published file is the only place the client report is drawn.
         url = self.serve()
         with chrome() as cdp:
             sid = self.open_page(cdp, url)
@@ -324,7 +324,7 @@ class Drawn(unittest.TestCase):
             self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid), r"\d{4}-\d{2}-\d{2}", "dates are DD-MM-YYYY")
 
     def test_a_project_with_no_milestones_shows_no_figure_never_a_made_up_number(self):
-        # Dropped with #559: the Edit half (the "Not set" prompts and [data-no-lines]); the file has no Edit mode. In a file with no
+        # Dropped with #559: the served-page run; the published file is the only place the client report is drawn. In a file with no
         # milestones the tab is left out (test_client_report_file), so the milestones are emptied after select, as the served page's data was.
         url = self.serve({"milestones": []})
         with chrome() as cdp:
@@ -335,7 +335,7 @@ class Drawn(unittest.TestCase):
 
 
 class HiddenOnTheServedPage(unittest.TestCase):
-    """#559: the served page (View and Edit) has no client report; a published file keeps it as "Weekly snapshot"."""
+    """#559: the served page has no client report tab; a published file keeps it as "Weekly snapshot". The tab bar is checked in both Dashboard modes (View, Edit): the mode switch exists only on the Dashboard."""
 
     @classmethod
     def setUpClass(cls):
@@ -346,7 +346,7 @@ class HiddenOnTheServedPage(unittest.TestCase):
         cls.store.close()
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
-    def test_the_served_page_has_no_client_report_tab_in_view_or_edit_and_its_address_falls_back(self):
+    def test_the_served_page_has_no_client_report_tab_in_either_dashboard_mode_and_its_address_falls_back(self):
         s = Running(data_for=self.store.data_for, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         with chrome() as cdp:
@@ -354,14 +354,14 @@ class HiddenOnTheServedPage(unittest.TestCase):
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#clientreport&p=TUL"}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the page drew")
-            for mode in ("view", "edit"):
-                if mode == "edit":
+            for dashboard_mode in ("view", "edit"):  # Dashboard mode
+                if dashboard_mode == "edit":
                     cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)))
                 self.assertEqual(cdp.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)", sid),
-                                 ["dashboard", "work", "milestones", "usecases", "settings"], mode)
-                self.assertEqual(cdp.js("document.querySelectorAll('#clientreport').length", sid), 0, mode)
-                self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", mode)
+                                 ["dashboard", "work", "milestones", "usecases", "settings"], dashboard_mode)
+                self.assertEqual(cdp.js("document.querySelectorAll('#clientreport').length", sid), 0, dashboard_mode)
+                self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", dashboard_mode)
             self.assertNotIn("Client Requested Report View", cdp.js("document.body.innerText", sid))
 
     def test_a_published_file_still_lists_the_tab_as_weekly_snapshot(self):
