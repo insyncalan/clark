@@ -296,7 +296,7 @@ class Shown(unittest.TestCase):
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
                          ["ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-milestones-page", "ref-freshness", "ref-archive-restore", "ref-diagnostics", "ref-keys"])      # by group: Screens, Working with items, Settings and data, Keys and icons
         self.assertEqual(s["index"], SEC)
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-keys"], ["dashboard+edit", "work", "milestones"]))
+        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-keys"], ["dashboard+edit", "publish", "work", "milestones"]))
         self.assertEqual(s["q"]["sneak"], [], "no Sneak peek entry is shown")      # "ask clark" is left out: the board entry says \"clark remembers\", which the search reads as a match
         self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
