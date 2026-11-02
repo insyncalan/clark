@@ -1005,6 +1005,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .dlg-f { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
 .btn.pri { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .btn.pri:disabled { opacity: .55; cursor: default; }
+.btn.pri[data-go] { display: inline-flex; align-items: center; gap: 8px; }
+.btn.pri[aria-busy="true"]:disabled { opacity: 1; }
+.btn.pri .spin { border-color: rgba(255,255,255,.4); border-top-color: var(--text-on-brand); }
+.btn.pri.ok { background: var(--status-green-text); border-color: var(--status-green-text); }
+.btn.pri .pub-tick { background: var(--text-on-brand); color: var(--status-green-text); }
 .btn.quiet { background: transparent; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }

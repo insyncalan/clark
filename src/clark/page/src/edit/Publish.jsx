@@ -10,6 +10,12 @@ import { dialog, latest, NO_FOLDER, folderName, open, tick, pick, rename, confir
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 export const lastLine = (l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
 
+// The success line with "Published (Publication N)" picked out as #pub-done (#353); the words and their order are the server's own.
+function doneWords(m) {
+  const head = m.kind === "success" && m.number ? `Published (Publication ${m.number})` : null;
+  return head && m.text.startsWith(head) ? <><span id="pub-done">{head}</span>{m.text.slice(head.length)}</> : m.text;
+}
+
 function Dialog() {
   const s = dialog.value, el = useRef(null);
   const d = data.value, p = d && d.project;
@@ -73,13 +79,16 @@ function Dialog() {
         )}
         {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
-          {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />Publishing…</p>
-            : s.message ? <p class={s.message.kind}>{s.message.kind === "success" ? <span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span> : null}{s.message.text}</p> : null}
+          {working ? <p class="working">Publishing…</p>
+            : s.message ? <p class={s.message.kind}><span>{doneWords(s.message)}</span></p> : null}
         </div>
         <div class="dlg-f">
           {s.phase === "done" ? null : <button type="button" class="btn quiet" data-cancel onClick={cancel} disabled={working}>Cancel</button>}
-          <button type="submit" class="btn pri" data-go disabled={working || !ready(s)}>
-            {s.phase === "done" ? "Close" : s.phase === "clash" ? "OK" : s.ticked ? "Publish and send to the client" : "Publish locally"}
+          {/* #353 (Alan's ruling, the prototype's): the spinner and then the tick are on the button itself; once done the button is green and closes the box. */}
+          <button type="submit" id="pub-go" class={`btn pri${s.phase === "done" ? " ok" : ""}`} data-go aria-busy={working ? "true" : undefined} title={s.phase === "done" ? "Close" : undefined} disabled={working || !ready(s)}>
+            {working ? <><span class="spin" id="pub-spin" data-spin aria-hidden="true" />Publishing…</>
+              : s.phase === "done" ? <><span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span>{s.message && s.message.number ? `Published (Publication ${s.message.number})` : "Published"}</>
+              : s.phase === "clash" ? "OK" : s.ticked ? "Publish and send to the client" : "Publish locally"}
           </button>
         </div>
       </form>
