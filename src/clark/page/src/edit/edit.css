@@ -453,6 +453,11 @@ textarea.tpl-field { resize: vertical; }
 
 /* Show archived on Work items (B-5): a pill with the count, then muted rows with the word Archived and a Restore button */
 .archived { margin-top: 16px; }
+.arch-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--size-small); cursor: pointer; white-space: nowrap; }
+.arch-pill:hover { color: var(--text); }
+.arch-pill:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.arch-pill[aria-pressed="true"] { background: var(--brand-navy); border-color: var(--brand-navy); color: var(--white); }
+:root[data-theme=dark] .arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); }
 .arch-box { margin-top: 8px; border: 1px solid var(--grey-200); border-radius: var(--radius); padding: 4px 12px; background: var(--surface); }
 .arch-rows { list-style: none; margin: 0; padding: 0; }
 .arch-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: start; padding: 8px 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }

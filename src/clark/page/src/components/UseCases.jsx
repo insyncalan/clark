@@ -62,7 +62,7 @@ function Row({ s, shown, toggle }) {
               <h3>{`Next steps \u00b7 ${s.steps.length}`}</h3>
               {s.steps.length ? <ul class="plain">{s.steps.map((r) => {
                 const due = dueField(r), see = () => openPeek(r.id, "item");
-                return <li key={r.id}><b>{(r.owner || "No owner").trim() || "No owner"}:</b> {r.title} <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span>{due ? <span class="muted">{` \u00b7 due ${showDate(due)}`}</span> : null}</li>;
+                return <li key={r.id}><b>{(r.owner || "No owner").trim() || "No owner"}:</b> {String(r.client_message || "").trim() || r.title} <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span>{due ? <span class="muted">{` \u00b7 due ${showDate(due)}`}</span> : null}</li>;
               })}</ul> : <p class="muted">No open next steps.</p>}
             </div>
           </div>

@@ -18,7 +18,7 @@ BAND = """(() => {
   const h = c.querySelector('h1'), line = c.querySelector('.cover-line');
   const f = document.querySelector('.frame').getBoundingClientRect(), r = c.getBoundingClientRect();
   return {name: h.textContent, line: line.textContent, kind: c.querySelector('.cover-kind').textContent,
-          bg: getComputedStyle(c).backgroundColor, left: r.left - f.left, right: f.right - r.right,
+          bg: getComputedStyle(c).backgroundColor, top: r.top - f.top, left: r.left - f.left, right: f.right - r.right,
           h1count: document.querySelectorAll('h1').length, wide: document.documentElement.scrollWidth <= window.innerWidth,
           fg: getComputedStyle(h).color, crumbs: document.querySelectorAll('.report .crumbs').length};
 })()"""
@@ -47,6 +47,7 @@ class Served(Setup):
                 self.assertLessEqual(abs(b["left"] - 1), 1.5, "full width of the frame, inside its border")
                 self.assertLessEqual(abs(b["right"] - 1), 1.5)
                 self.assertTrue(b["wide"], "no sideways scroll")
+                self.assertGreaterEqual(b["top"], -1.5, "the band does not start above the frame")
                 self.assertGreaterEqual(min(p.js(LUM)), 4.5)
 
 
