@@ -27,9 +27,10 @@ function AboutYou() {
   const [said, setSaid] = useState({ name: "", email: "" });
   useEffect(() => { loadProfile(); }, []);
   const typedIn = useRef({ name: false, email: false });
-  // The boxes follow what clark has when it is read late (a read that finished after Settings opened), but only a box nobody has typed in:
-  // a person who keeps typing while a save is on its way must never see the box go back to what was saved (and a box typed in before that
-  // effect ran must not be emptied by it). A saved value is put back in its box by save(), below, and only when the box still holds what was sent.
+  // The boxes follow what clark has when it is read late (a read that finished after Settings opened), but only a box nobody has typed in
+  // since it was last saved: a person who keeps typing while a save is on its way must never see the box go back to what was saved (and a
+  // box typed in before that effect ran must not be emptied by it). A saved value is put back in its box by save(), below, and only when
+  // the box still holds what was sent; that box is then no longer typed in, so a later read can fill it again.
   useEffect(() => {
     setTyped((t) => ({ name: typedIn.current.name ? t.name : profile.value.name, email: typedIn.current.email ? t.email : profile.value.email }));
   }, [profile.value.name, profile.value.email]);
@@ -44,7 +45,8 @@ function AboutYou() {
     if (!r.newest) return;
     if (r.ok) {
       // what clark kept (it may be tidied, such as spaces cut off the ends) goes back in a box only if the box still holds what was sent:
-      // a box changed since is left as it is
+      // a box changed since is left as it is (and stays typed in)
+      for (const [f, ref] of [["name", name], ["email", email]]) if ((ref.current ? ref.current.value : typed[f]) === sent[f]) typedIn.current[f] = false;
       setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
       setSaid({ name: "", email: "" });
       return;
