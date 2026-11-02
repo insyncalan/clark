@@ -356,7 +356,7 @@ class Page(Base):
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             self.assertIsNone(self.store.read("decisions", ref=decision["id"]))
 
-    def test_movement_titles_fit_the_200_character_limit_when_the_milestone_name_is_very_long(self):      # Stark's LOW: a name over about 190 characters
+    def test_movement_titles_fit_the_200_character_limit_when_the_milestone_name_is_very_long(self):      # the reviewer's LOW: a name over about 190 characters
         long_name = "Go live " + "z" * 188
         with self.store.step("dashboard", USER) as st:
             st.update("milestones", GO_LIVE, {"name": long_name})
