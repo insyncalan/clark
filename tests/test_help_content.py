@@ -319,15 +319,13 @@ class LowWordsRound(unittest.TestCase):
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
     def test_use_case_help_says_what_the_page_says(self):
-        """The page's button reads "See all N open work items" and a use case has three statuses (UseCases.jsx)."""
+        """The page's button reads "See all N open work items" and a use case has four statuses, Done included (UseCases.jsx; #412)."""
         page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
         self.assertIn("See all ${n} open work", page)
         self.assertEqual(self.ALL.count("**See all N open work items**"), 2)
         self.assertNotIn("See all work items", self.ALL)
-        self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];', page)
-        self.assertIn("Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red).", self.ALL)
-        self.assertNotIn("or **Done**", self.ALL)
-        self.assertNotIn("**Done** (grey)", self.ALL)
+        self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];', page)
+        self.assertIn("Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).", self.ALL)
 
 
     def test_the_prototype_help_gives_the_section_style_lines_its_own_settings_gives(self):
