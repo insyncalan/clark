@@ -513,6 +513,24 @@ class WhatIsSent(Base):
         self.suggest(instruction="ZQ-NOT-FOR-THIS-OPTION")
         self.assertNotIn("ZQ-NOT-FOR-THIS-OPTION", self.provider.requests[0].text)
 
+    def test_the_request_carries_the_suggestion_rules_and_a_fresh_canary(self):
+        self.suggest()
+        self.suggest()
+        a, b = self.provider.requests
+        self.assertEqual((a.system, b.system), (ai_menu.SUGGEST_RULES, ai_menu.SUGGEST_RULES))
+        self.assertTrue(a.canary and b.canary and a.canary != b.canary)
+        self.assertNotIn(a.canary, a.text)
+
+    def test_a_reply_that_holds_the_canary_is_dropped(self):
+        class Leaky(Fake):
+            def ask(self, request):
+                self.requests.append(request)
+                return "<<<SUGGESTION\nfine " + request.canary.upper() + "\nSUGGESTION>>>"
+        self.service.provider = Leaky()
+        status, got = self.suggest()
+        self.assertEqual((status, got["ok"], got["code"], got["message"]), (200, False, "held", ask.HELD_BACK))
+        self.assertNotIn("html", got)
+
     def test_the_route_asks_the_asking_providers_own_seam(self):
         self.assertIs(self.s.httpd.ai.provider, self.service.provider)
 

@@ -18,6 +18,7 @@ person or tool is given. The log holds the option, the place and the length, nev
 Every answer is (status, {ok, ...}); a refusal has a stable `code` and a plain `message` with no fault text, path or key.
 """
 import logging
+import secrets
 import threading
 
 from clark import ai_menu, ask, ask_claude, secret_screen
@@ -40,6 +41,7 @@ MESSAGES = {
     "failed": ai_menu.FAULT_MESSAGES["default"],
     "stopped": ai_menu.FAULT_MESSAGES["stopped"],
     "timeout": ask_claude.TOO_SLOW,
+    "held": ask.HELD_BACK,
     "not_running": "No suggestion is being made just now.",
     "stopping": "Stopping.",
     "ready": "AI suggestions are on. The text you select and your instruction go to Claude, which Anthropic runs.",
@@ -134,10 +136,14 @@ class AiService:
             if not self.ask_service.enabled():       # the switch again, just before anything leaves
                 return 409, self.fail("off")
             LOG.info("ai suggest option=%s place=%s length=%d", req["option"], req["place"], len(text))
+            canary = secrets.token_urlsafe(16)       # #277: new for each request, in memory for this call only, as ask.ask_provider does
             try:
-                reply = self.provider.ask(ask.Request(text=req["prompt"], question="", owner=self.owner, cancel=self.stopped))
+                reply = self.provider.ask(ask.Request(text=req["prompt"], question="", system=ai_menu.SUGGEST_RULES, canary=canary,
+                                                      owner=self.owner, cancel=self.stopped))
             except Exception:  # noqa: BLE001  a provider fault is one plain line; its text could hold the request
                 reply = ask.Failure(MESSAGES["failed"])
+            if isinstance(reply, str) and ask.leaks(reply, canary):    # the whole reply is dropped; neither it nor the marker is kept
+                return 200, self.fail("held")
             if self.stopped.is_set():
                 return 200, self.fail("stopped")
             if isinstance(reply, ask.Failure):       # a plain line of the provider's own is shown as ask clark shows it
