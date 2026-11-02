@@ -28,6 +28,22 @@
 .mvm-en.undone .mv-en-text { color: var(--text-muted); text-decoration: line-through; }
 .mvm-en.undone { opacity: .75; }
 .mv-en-by, .mv-en-dec { font-size: 13px; }
+/* Show archived on Milestones (C-M4): a button with the count, then a box of muted rows, each with the word Archived and Restore. Tokens only. */
+.ma { margin-top: 20px; }
+.ma-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; }
+.ma-pill[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); font-weight: var(--weight-medium); }
+.ma-pill[aria-pressed="true"]::before { content: "\2713"; }
+.ma-box { margin-top: 8px; border: 1px solid var(--grey-200); border-radius: var(--radius); padding: 8px 14px 10px; background: var(--surface); }
+.ma-h { margin: 0 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.ma-h .muted { font-size: var(--size-small); font-weight: var(--weight-light); margin-left: 8px; }
+.ma-rows { list-style: none; margin: 0; padding: 0; }
+.ma-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }
+.ma-row:first-child { border-top: 0; }
+.ma-name { grid-column: 1; overflow-wrap: anywhere; }
+.ma-row .tag { grid-column: 1; justify-self: start; }
+.ma-meta { grid-column: 1; font-size: var(--size-small); }
+.ma-restore { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+.ma-note { margin: 4px 0 0; font-size: var(--size-small); }
 .mv-en-why { flex-basis: 100%; font-size: 14px; color: var(--text-muted); }
 .mvm-help { margin: 0 0 8px; }
 .mvm-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; }
@@ -438,6 +454,9 @@ textarea.tpl-field { resize: vertical; }
 .projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }
 .projects table.proj-table tr.arch td { color: var(--text-muted); }
 .projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
+/* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
+.msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
+.ms-eye.is-left { color: var(--status-blue-text); }
 
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }

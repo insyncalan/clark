@@ -199,6 +199,36 @@ export async function sendBulk(project, req) {
   }
 }
 
+// Show archived on Milestones (C-M4, #126): the project's archived milestones (GET /api/data with archived=only) and Restore of one
+// (op restore: one step, one Undo). The read is {ok: true, rows, links} or {ok: false}; Restore answers {ok: true, reply} or
+// {ok: false, message}, in the server's own fixed sentence when it is a short one (a refusal says why), else plainChange's words.
+export async function getArchivedMilestones(project) {
+  try {
+    const r = await fetch(`/api/data?project=${encodeURIComponent(project)}&archived=only`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const body = await r.json().catch(() => null);
+    const d = r.ok && body && body.ok === true ? body.data : null;
+    return d && Array.isArray(d.milestones) ? { ok: true, rows: d.milestones } : { ok: false };
+  } catch (e) {
+    return { ok: false };
+  }
+}
+
+export async function sendMilestoneRestore(project, id) {
+  try {
+    const r = await fetch("/api/change", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project, kind: "milestones", op: "restore", id, place: "menu" }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
+    return { ok: false, message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
+  }
+}
+
 // One change to a milestone from the Movement block (#136), in the Movement place (clark/changes.py). {ok: true, reply} or
 // {ok: false, message, known}: `known` is true when the message is clark's own fixed refusal (shown as it is).
 export async function sendMilestoneChange(project, req) {
