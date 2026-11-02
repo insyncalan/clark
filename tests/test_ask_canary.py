@@ -103,6 +103,26 @@ class Canary(tr.Base):
         got = ask.ask_provider(Leaky(lambda canary: "".join(canary[i:i + 3] + ZW for i in range(0, len(canary), 3))), request())
         self.assertEqual(got, ask.Failure(ask.HELD_BACK))
 
+    def test_dropping_the_underscore_and_hyphen_keeps_the_match_strong_and_never_lets_a_leak_through(self):
+        """#298: `_squash` drops "_" and "-" from the canary as well as from the reply. Keeping them in the canary would let a reply
+        that puts any punctuation between the marker's characters escape, so they stay dropped (the check can only refuse more).
+        What is left must still be far too long to turn up by chance."""
+        import secrets
+        c = "Ab3_dEf-9XyZ12345678"
+        for reply in (c, c.replace("_", "-"), c.replace("-", "_"), c.replace("_", " ").replace("-", " "), c.replace("_", "").replace("-", ""),
+                      "-".join(c), "_".join(c), ".".join(c)):
+            self.assertTrue(ask.leaks("Answer. " + reply + " end", c), reply)
+        for _ in range(2000):
+            canary = secrets.token_urlsafe(16)
+            kept = ask._squash(canary)
+            self.assertGreaterEqual(len(kept), 12, "at least 12 letters or digits are left of the 22: more than 60 bits, in any capitals")
+            self.assertTrue(ask.leaks("x " + canary.upper() + " y", canary))
+            self.assertFalse(ask.leaks("A reply about the plan and its owners, with no marker.", canary))
+        worst = "_-_-_-" + "aB3dE6gH9jK2" + "-_-_"                   # the fewest characters a canary of this length could keep and still be one
+        self.assertEqual(ask._squash(worst), "ab3de6gh9jk2")
+        self.assertTrue(ask.leaks("see " + worst.replace("-", " ") + " ok", worst))
+        self.assertFalse(ask.leaks("ab3de6gh9jk3", worst))
+
     def test_the_routes_stay_not_found_without_the_service(self):
         self.s.httpd.ask = None
         self.assertEqual(self.question()[0], 404)
