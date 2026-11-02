@@ -2687,16 +2687,16 @@ class Store:
         one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
         transaction. Returns the record's number."""
         if not str(by_user or "").strip():
-            raise Invalid("A sent record needs who pressed it.")
+            raise Invalid("Add your name in Settings, then try again. Nothing was saved.")
         if mode not in self.EMAIL_MODES:
-            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
+            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision. Nothing was saved.")
         if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
-            raise Invalid("Tick at least one item before you press I sent it.")
+            raise Invalid("Tick at least one item before you press I sent it. Nothing was saved.")
         ids = list(dict.fromkeys(i.strip() for i in ids if i.strip()))
         if not ids:
-            raise Invalid("Tick at least one item before you press I sent it.")
+            raise Invalid("Tick at least one item before you press I sent it. Nothing was saved.")
         if len(ids) > self.EMAIL_MAX_IDS:
-            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts.")
+            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts. Nothing was saved.")
         try:
             if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(day)):
                 raise ValueError
@@ -2709,7 +2709,7 @@ class Store:
         if sent > now + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
-            raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
+            raise Invalid("Another change is still being saved. Wait a moment, then try again. Nothing was saved.")
         try:
             self.con.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as e:
@@ -2717,9 +2717,9 @@ class Store:
         try:
             row = self.con.execute("SELECT archived FROM projects WHERE code = ?", (code,)).fetchone()
             if row is None:
-                raise Invalid("There is no project with that code.")
+                raise Invalid("There is no project with that code. Nothing was saved.")
             if row["archived"]:
-                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first.")
+                raise Invalid("That project is archived, so no email can be drafted for it. Restore it first. Nothing was saved.")
             def ours(item):
                 return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
                            for table in ("actions", "raid", "decisions"))
