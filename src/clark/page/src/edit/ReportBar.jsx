@@ -24,6 +24,10 @@ export function fridayOfThisWeek(today = todayIso()) {
   return d.getUTCFullYear() + "-" + two(d.getUTCMonth() + 1) + "-" + two(d.getUTCDate());
 }
 
+// #570: Friday is the week end. The Friday of the Monday-to-Sunday week a day is in (the same words the server's refusal uses).
+export const isFriday = (iso) => new Date(iso + "T00:00:00Z").getUTCDay() === 5;
+export const notFriday = (iso) => `Week ending is a Friday. Pick Friday ${shownDate(fridayOfThisWeek(iso))}.`;
+
 export function ReportBar() {
   useEffect(() => { refreshLatest(); }, [project.value]);
   if (!data.value || !data.value.project) return null;
@@ -43,13 +47,14 @@ export function ReportBar() {
     }
     if (!raw || iso === week) { el.value = shownDate(week); return; }
     if (!iso) { say("problem", problem.day + " The old week ending date was kept."); el.value = shownDate(week); return; }       // not a day: the old one comes back
+    if (!isFriday(iso)) { say("problem", notFriday(iso) + " The old week ending date was kept."); el.value = shownDate(week); return; }       // #570: the server says the same
     change({ kind: "projects", op: "update", changes: { week_ending: iso }, place: "cell" }, `Week ending changed to ${shownDate(iso)}.`)
       .then((reply) => { if (!reply) { const x = document.getElementById("week-ending"); if (x) x.value = shownDate(week); } });
   };
   return (
     <div class="rbar" id="report-bar">
       {editing ? (
-        <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder={week ? "DD-MM-YYYY" : shownDate(fridayOfThisWeek())} title={week ? undefined : "Press Enter to use this Friday, or type a date"} id="week-ending" key={week} defaultValue={shownDate(week)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") { if (!week && !e.currentTarget.value.trim()) save(e, true); else e.currentTarget.blur(); } }} /></label>
+        <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder={week ? "DD-MM-YYYY" : shownDate(fridayOfThisWeek())} title={week ? undefined : "Press Enter to use this Friday, or type a Friday"} id="week-ending" key={week} defaultValue={shownDate(week)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") { if (!week && !e.currentTarget.value.trim()) save(e, true); else e.currentTarget.blur(); } }} /></label>
       ) : (
         <span class="rbar-week" id="week-ending-text">{week ? `Week ending ${shownDate(week)}` : "No week ending date yet"}</span>
       )}

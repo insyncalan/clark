@@ -312,6 +312,29 @@ class Health(Base):
                 self.refused(self.proj(week_ending=value), changes.BAD_WEEK)
                 self.assertEqual(self.project()["week_ending"], old)
 
+    def test_a_week_ending_that_is_not_a_friday_is_refused_with_the_friday_to_pick_and_the_old_date_kept(self):
+        # #570: Friday is the week end everywhere. The Friday offered is the one in the date's Monday-to-Sunday week.
+        old = self.project()["week_ending"]
+        for value, friday in (("2026-11-02", "06-11-2026"), ("2026-11-05", "06-11-2026"), ("2026-11-07", "06-11-2026"),
+                              ("2026-11-08", "06-11-2026"), ("2024-02-29", "01-03-2024"), ("2026-12-31", "01-01-2027")):
+            with self.subTest(value=value):
+                self.refused(self.proj(week_ending=value), changes.NOT_FRIDAY.format(friday=friday))
+                self.assertEqual(self.project()["week_ending"], old)
+        self.assertEqual(changes.NOT_FRIDAY.format(friday="06-11-2026"), "Week ending is a Friday. Pick Friday 06-11-2026.")
+
+    def test_every_friday_is_accepted_even_over_a_year_end_and_a_leap_day(self):
+        for value in ("2026-11-06", "2026-12-25", "2027-01-01", "2024-03-01", "2028-02-25"):
+            with self.subTest(value=value):
+                self.assertEqual(self.ok(self.proj(week_ending=value))["project"]["week_ending"], value)
+
+    def test_a_health_change_does_not_need_a_friday_so_an_old_non_friday_week_ending_is_left_alone(self):
+        # #570: no migration. A week ending stored before the rule stays as it is; only a change TO a non-Friday is refused.
+        with self.s.step("team", USER) as st:
+            st.update("projects", "ABC", {"week_ending": "2026-10-29"})        # a Thursday, written straight to the store as old data is
+        body = self.ok(self.proj(health="At risk", health_reason="Late"))
+        self.assertEqual(body["project"]["week_ending"], "2026-10-29")
+        self.assertEqual(self.project()["week_ending"], "2026-10-29")
+
     def test_week_ending_and_health_change_in_one_step(self):
         old = self.project()["week_ending"]
         body = self.ok(self.proj(health="At risk", health_reason="Late", week_ending="2026-11-13"))

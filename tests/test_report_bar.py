@@ -116,6 +116,25 @@ class Bar(Base):
                     self.assertEqual(p.js("document.querySelector('#week-ending').value"), shown)
                     self.assertEqual(self.week(), before)
 
+    def test_a_typed_day_that_is_not_a_friday_keeps_the_old_date_and_names_the_friday(self):
+        # #570: Friday is the week end everywhere. 05-05-2031 is a Monday; the Friday of its week is 09-05-2031.
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            before = self.week()
+            shown = "-".join(reversed(before.split("-"))) if before else ""
+            self.type_week(p, "05-05-2031")
+            p.until("/Pick Friday 09-05-2031/.test(document.body.textContent)", "the plain words")
+            self.assertIn("The old week ending date was kept.", p.js("document.body.textContent"))
+            self.assertEqual(p.js("document.querySelector('#week-ending').value"), shown)
+            self.assertEqual(self.week(), before)
+
+    def test_the_route_refuses_a_real_day_that_is_not_a_friday(self):
+        req = {"project": "ABC", "kind": "projects", "op": "update", "changes": {"week_ending": "2031-05-05"}}
+        status, _, raw = self.s.api("POST", "/api/change", json.dumps(req).encode("utf-8"))
+        self.assertEqual(status, 400)
+        self.assertEqual(json.loads(raw).get("message"), "Week ending is a Friday. Pick Friday 09-05-2031.")
+
     def test_the_route_refuses_a_date_that_is_not_one(self):
         for bad in ("2031-02-30", "tomorrow", "09-05-2031", 20310509, None):
             with self.subTest(bad=bad):
