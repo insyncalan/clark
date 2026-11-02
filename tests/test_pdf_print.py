@@ -69,6 +69,8 @@ class Logic(unittest.TestCase):
     def test_the_tabs_print_in_the_page_order_with_use_cases_last_and_never_settings(self):
         self.assertEqual(logic('P.printTabs(["usecases","settings","milestones","work","dashboard"])'),
                          ["dashboard", "work", "milestones", "usecases"])
+        self.assertEqual(logic('P.printTabs(["dashboard","work","milestones","usecases","clientreport"])'),
+                         ["dashboard", "work", "milestones", "clientreport", "usecases"], "the weekly snapshot prints, and Use cases is still last")
 
     def test_a_file_with_three_tabs_prints_three(self):
         self.assertEqual(logic('P.printTabs(["dashboard","work","milestones"])'), ["dashboard", "work", "milestones"])
@@ -183,12 +185,14 @@ class Browser(unittest.TestCase):
             with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                 sid = open_page(cdp, self.path.as_uri(), width, scheme)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
-                tabs = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.textContent.trim())", sid)
+                tabs = cdp.js("[...document.querySelectorAll('.tab')].map(t => (t.querySelector('.tl-full') || t).textContent.trim())", sid)
+                self.assertIn("Use cases", tabs, "the demo file has Use cases, so the last-page check below is not vacuous")
+                self.assertIn("Weekly snapshot", tabs, "the demo file has the weekly snapshot tab, which prints too")
+                tabs = [t for t in tabs if t != "Use cases"] + ["Use cases"]          # the file's order with Use cases last
                 self.printed(cdp, sid)
                 titles = cdp.js("[...document.querySelectorAll('.print-tab-title')].map(t => t.textContent.trim())", sid)
                 self.assertEqual(titles, tabs, "the printed tabs are the file's tabs, in its order")
-                if "Use Cases" in tabs:
-                    self.assertEqual(titles[-1], "Use Cases", "Use Cases last")
+                self.assertEqual(titles[-1], "Use cases", "Use cases last")
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.top')).display", sid), "none")
                 self.assertEqual(cdp.js("document.querySelectorAll('.print-tab').length", sid), len(tabs))
                 self.assertEqual(cdp.js("getComputedStyle(document.body).backgroundColor", sid), "rgb(255, 255, 255)", "light, whatever the computer prefers")
@@ -201,7 +205,7 @@ class Browser(unittest.TestCase):
             sid = open_page(cdp, self.path.as_uri(), 1400, "light")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
             seen = set()
-            names = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.textContent.trim())", sid) or []
+            names = cdp.js("[...document.querySelectorAll('.tab')].map(t => (t.querySelector('.tl-full') || t).textContent.trim())", sid) or []
             for i in range(len(names)):
                 cdp.js(f"document.querySelectorAll('.tab')[{i}].click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(f"document.querySelectorAll('.tab')[{i}].getAttribute('aria-selected') === 'true'", sid)), f"{names[i]} is the open tab")
