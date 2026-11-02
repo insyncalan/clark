@@ -335,6 +335,15 @@ def canonical_labels(con, value):
     return out
 
 
+def excluded_label_names(rules):
+    """The label names (case-folded) that keep a row off every client file and out of every email: Sensitive, and any label whose
+    behaviour or default choice is 'exclude'. The one place this rule is written; publish, changes and the sent record all call it."""
+    out = {"sensitive"}
+    out.update(str(r.get("name", "")).casefold() for r in rules or ()
+               if r.get("behaviour") == "exclude" or r.get("default_choice") == "exclude")
+    return out
+
+
 def labels_of(con, item_id):
     """An item's label names, in alphabetical order."""
     return [r[0] for r in con.execute("SELECT label FROM item_labels WHERE item_id = ? ORDER BY label COLLATE NOCASE",
@@ -2585,7 +2594,7 @@ class Store:
                                             "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
                            for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
                                              ("decisions", ("Withdrawn", "Withdrawn"))))):
-                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Nothing was saved. Reload the page and tick again.")
             # The same person pressing the same record again within seconds (a second tab) is the same record, not a second chase.
             for r in self.con.execute("SELECT seq FROM email_sent WHERE project = ? AND day = ? AND mode = ? AND by_user = ? "
                                       "AND at >= datetime('now', ?)",
@@ -2603,13 +2612,14 @@ class Store:
             raise
 
     def sensitive_among(self, ids):
-        """True when any of the item ids is labelled Sensitive or carries a label whose behaviour or default choice is 'exclude': the one test for
-        what may never go in an email (the sent record refuses it here)."""
+        """True when any of the item ids carries a label kept off every client file (excluded_label_names: the one rule publish.py and
+        changes.py use too), so the sent record refuses it here."""
         values = list(ids)
         if not values:
             return False
-        return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({', '.join('?' * len(values))}) "
-                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude' OR b.default_choice = 'exclude')", values).fetchone())
+        blocked = excluded_label_names(dict(r) for r in self.con.execute("SELECT name, behaviour, default_choice FROM labels"))
+        return any(str(r["label"]).casefold() in blocked for r in self.con.execute(
+            f"SELECT label FROM item_labels WHERE item_id IN ({', '.join('?' * len(values))})", values))
 
     def email_sent_for(self, code, limit=200):
         """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],

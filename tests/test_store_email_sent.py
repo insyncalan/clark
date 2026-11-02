@@ -406,8 +406,23 @@ class Refusals258(Base):
             st.create("item_labels", {"item_id": item, "label": "Keep quiet"})
             st.create("item_labels", {"item_id": other, "label": "Never"})
         self.refuses("hidden, closed or marked Sensitive", ids=[self.a, item])
-        self.refuses("hidden, closed or marked Sensitive", ids=[other])
+        self.refuses("hidden, closed or marked Sensitive. Nothing was saved.", ids=[other])
         self.assertTrue(self.send(ids=[self.a]))
+
+    def test_the_sent_record_publish_and_the_picker_agree_on_which_labels_are_kept_off(self):
+        from clark import changes, publish
+        a, b, c, d = (self.demo.action(description=n) for n in "abcd")
+        with self.store.step("dashboard", USER) as st:
+            st.create("labels", {"name": "Keep quiet", "behaviour": "warn", "default_choice": "exclude"})
+            st.create("labels", {"name": "Never", "behaviour": "exclude", "default_choice": "include"})
+            st.create("labels", {"name": "Fine", "behaviour": "warn", "default_choice": "include"})
+            for item, label in ((a, "Keep quiet"), (b, "Never"), (c, "Fine"), (d, "Sensitive")):
+                st.create("item_labels", {"item_id": item, "label": label})
+        rules = [dict(r) for r in self.store.read("labels")]
+        publish_set, picker_set = publish._excluded_labels(rules), changes._blocked_labels(self.store)
+        self.assertEqual(publish_set, picker_set)
+        for item, label in ((a, "Keep quiet"), (b, "Never"), (c, "Fine"), (d, "Sensitive")):
+            self.assertEqual(self.store.sensitive_among([item]), label.casefold() in publish_set, label)
 
     def test_the_same_press_again_within_seconds_is_one_record_and_anything_different_is_another(self):
         first = self.send(ids=[self.a, self.b])
