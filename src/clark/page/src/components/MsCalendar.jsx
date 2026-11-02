@@ -83,8 +83,6 @@ export function MsCalendar({ rows, today, open, place, client }) {
     // From a chip, Shift+Tab, or Esc when no peek is open, goes back to the day it sits in.
     if (chip && ((e.key === "Tab" && e.shiftKey) || (e.key === "Escape" && !document.getElementById("peek")))) { e.preventDefault(); back(chip.dataset.d); return; }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-    const k = { PageUp: -1, PageDown: 1 }[e.key];
-    if (k) { e.preventDefault(); go(k); return; }
     const onDay = t.classList && t.classList.contains("cal-d") && t.dataset.d, onBox = t === box.current;
     if (!onDay && !onBox) return;
     if (e.key === "Enter") { const c = onDay && t.querySelector("button.cal-ms"); if (c) { e.preventDefault(); c.focus(); } return; }
@@ -115,7 +113,7 @@ export function MsCalendar({ rows, today, open, place, client }) {
   }
   return (
     <div class="cal" data-scale={scale} data-at={here.key} onKeyDown={keys} ref={box} tabIndex={-1} role="group" aria-label="Milestone calendar" aria-describedby="cal-hint">
-      <span id="cal-hint" class="sr-only">Tab to a day, then the arrows move by a day or a week, Enter goes to its first milestone, and Escape comes back to the day. Page Up and Page Down move to the earlier or later period.</span>
+      <span id="cal-hint" class="sr-only">Tab to a day, then the arrows move by a day or a week, Enter goes to its first milestone, and Escape comes back to the day.</span>
       <span class="sr-only" role="status" aria-live="polite" data-cal-say>{moved ? `Now on ${here.label}` : ""}</span>
       <div class="cal-bar">
         <button type="button" class="ib" data-cal="-1" aria-label="Earlier" onClick={() => go(-1)}><Icon name="left" /></button>
