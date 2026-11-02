@@ -74,7 +74,7 @@ class PeekExit(unittest.TestCase):
             self.assertEqual(cdp.js("window.__seen", sid), [])
 
     def test_the_stylesheet_has_the_prototypes_exit(self):
-        css = (ROOT / "src/clark/page/shell.css").read_text()
+        css = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
         self.assertIn("animation: pk-out var(--dur-instant) var(--ease-exit) forwards", css)
         self.assertIn("@keyframes pk-out { to { transform: translateX(104%); } }", css)
 
