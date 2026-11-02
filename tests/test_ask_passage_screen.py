@@ -1,4 +1,4 @@
-"""A passage that looks like a key or a password is left out of the ask request before anything is sent (Hawkeye's finding on #187).
+"""A passage that looks like a key or a password is left out of the ask request before anything is sent (#187).
 
 `ask.build_request` is the one place passages become request text, so the screen sits there: each passage (and its label) is
 checked, a refused one is dropped (the question goes ahead without it), and only a count is kept. The fake key is built from
