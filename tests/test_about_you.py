@@ -10,7 +10,6 @@ a refusal says why in its words, ends "Nothing was saved.", writes nothing and l
 Chrome is required: these tests fail, never skip, without it.
 """
 import json
-import time
 import unittest
 
 from _paths import SRC
@@ -66,10 +65,11 @@ class AboutYou(Base):
     def slow_saves(self, p, ms=1500, delays=None):
         """Hold back clark's answer to each save by `ms` in the page itself (the save is written at once; the page hears of it late), as on a
         busy computer. `delays` instead gives the hold for each save in the order they are sent (a later one can be answered first).
-        window.__answered counts the answers the page has been handed."""
-        p.js("(() => { window.__answered = 0; window.__sentn = 0; const d = " + json.dumps(delays) + "; const f = window.fetch; "
+        window.__answered counts the answers the page has been handed; window.__handled counts those it has had time to take in (their body read and two drawn frames),
+        so a test that checks that a late answer changed nothing waits on it, not on a fixed time."""
+        p.js("(() => { window.__answered = 0; window.__handled = 0; window.__sentn = 0; const d = " + json.dumps(delays) + "; const f = window.fetch; "
              "window.fetch = (u, o) => (String(u).includes('/api/profile') && o && o.method === 'POST') "
-             f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ window.__answered++; ok(r); }}, d ? d[Math.min(window.__sentn++, d.length - 1)] : {ms}))) : f(u, o); }})()")
+             f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ const c = r.clone(); window.__answered++; ok(r); c.text().then(() => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => window.__handled++)), 0)); }}, d ? d[Math.min(window.__sentn++, d.length - 1)] : {ms}))) : f(u, o); }})()")
 
     def top(self, p):
         return p.js("(() => { const w = document.querySelector('#profile-menu .who'); if (w) return {name: w.querySelector('b').textContent, "
@@ -249,7 +249,8 @@ class AboutYou(Base):
 
     def test_C_an_older_good_answer_arriving_late_does_not_clear_a_newer_refusal(self):
         """A slow good save is sent first, a refused one second; the refusal is answered first and shows; the older good answer then arrives.
-        It must not clear the refusal: the box still holds the refused text, so the message is what tells the person it is not saved."""
+        It must not clear the refusal: the box still holds the refused text, so the message is what tells the person it is not saved.
+        REGRESSION GUARD, not a test of #262's fix: this already held before it (the older answer is dropped by the existing `!r.newest` check)."""
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
@@ -263,7 +264,7 @@ class AboutYou(Base):
             p.until(f"{bad} !== ''", "the refusal shows")
             p.until("window.__answered >= 2", "the older good save was answered too")
             self.handled(p, "Sam Lee")                               # the page has taken the good answer
-            time.sleep(0.3)
+            p.until("window.__handled >= 2", "the late answer has been taken in")
             self.assertEqual(p.js(bad), "Your name is too long. Use 60 characters or fewer. Nothing was saved.", "the refusal is still shown")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "what was typed is still in the box")
             self.assertEqual(p.js("document.querySelector('#about-name').getAttribute('aria-invalid')"), "true")
@@ -271,7 +272,8 @@ class AboutYou(Base):
 
     def test_C_an_older_refusal_arriving_late_does_not_show_over_a_newer_good_save(self):
         """A slow refused save is sent first, a good one second; the good one is answered first; the older refusal then arrives. It must not
-        show over the good text: that text is saved."""
+        show over the good text: that text is saved.
+        REGRESSION GUARD, not a test of #262's fix: this already held before it (the older answer is dropped by the existing `!r.newest` check)."""
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
@@ -281,7 +283,7 @@ class AboutYou(Base):
             p.until("window.__answered >= 1", "the good save was answered")
             self.handled(p, "Sam Lee")
             p.until("window.__answered >= 2", "the older refused save was answered too")
-            time.sleep(0.3)
+            p.until("window.__handled >= 2", "the late answer has been taken in")
             bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
             self.assertEqual(p.js(bad), "", "no refusal over the saved text")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee")
