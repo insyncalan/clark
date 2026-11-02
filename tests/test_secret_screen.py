@@ -62,6 +62,15 @@ FAMILIES = {
     "ssh key name": "ssh_private" + "_key=" + "A1b2C3d4E5f6G7h8I9j0K1l2",
     "pass header table": "user,p" + "w\nmail," + "Welcome" + "2026!",
     "quoted passphrase with spaces": "pass" + 'word = "correct horse 9 battery"',
+    "short sk key": "s" + "k-" + "abc123def456",
+    "sk key, 16 mixed": "s" + "k-" + "Ab12Cd34Ef56ghij",
+    "sk key, 28 mixed": "s" + "k-" + "Ab12Cd34Ef56Gh78Ij90Kl12Mn34",
+    "short api key": "api_" + "key=" + "abc123",
+    "short api key, colon": "api_" + "key: " + "x9y8z7q",
+    "short api key, quoted": "api_" + 'key = "ab12cd"',
+    "API key with a space": "API " + "key: " + "AbCd1234EfGh5678Ij",
+    "API key with a space, quoted": "API " + 'key = "AbCd1234Ef"',
+    "api key with a space, short quoted": "api " + 'key: "ab12cd34"',
     "long token near a word": "the api " + "key is " + "Xk9" + "Qm2Lp7" * 5 + "Zt4Rw8Vb1Nc",
 }
 
@@ -70,6 +79,17 @@ class Screen(unittest.TestCase):
         for name, text in FAMILIES.items():
             with self.subTest(name):
                 self.assertTrue(secret_screen.looks_like_secret("Notes before.\n" + text + "\nNotes after."))
+
+    def test_short_sk_and_api_key_near_misses_pass(self):
+        for text in ("sk-learn", "skeleton-crew-2026", "ask-me-anything-2", "task-force-2026-plan", "api_key=ab1",
+                     "API key: 2026-11-01", "api_key rotation: monthly", "the api key is in the vault", "api key rotation: monthly"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_ask_refuses_the_new_short_shapes(self):
+        for text in ("what is s" + "k-abc123def456?", "my api_" + "key=abc123", "API " + "key: AbCd1234EfGh5678Ij"):
+            with self.subTest(text):
+                self.assertTrue(ask._secret(text))
 
     def test_ordinary_technical_text_is_not(self):
         text = "\n".join((
@@ -166,6 +186,17 @@ class Screen(unittest.TestCase):
                      'click "Forgot password" "Submit"', "the password is 'orangebicycle\"", 'secret "orangebicycle"'):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_the_words_password_and_secret_are_not_placeholders(self):
+        for text in ('password: "password"', 'secret = "secret"', '"password": "secret"', "db_password: 'password'"):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+
+    def test_placeholder_redacted_and_example_are_placeholders(self):
+        for word in ("placeholder", "redacted", "example"):
+            for text in ('password: "%s"', 'secret = "%s"', 'the password "%s"'):
+                with self.subTest(text % word):
+                    self.assertFalse(secret_screen.looks_like_secret(text % word))
 
     def test_a_prefixed_or_suffixed_key_word_with_a_quoted_letters_value_is_refused(self):
         """The commonest config shapes: a prefix such as DB_ or client_, camel case, and a suffix that still names the secret."""
@@ -322,8 +353,8 @@ class OnTheRoute(tp.OnTheRoute):
         self.assertNotIn("ZQ-CREDS", text)
         note = [n for n in got["notes"] if "creds.txt" in n]
         self.assertEqual(len(note), 1, got["notes"])
-        self.assertIn("looks like it holds a secret", note[0])
-        self.assertIn("Remove the secret from the file or move it out of the saved folder.", note[0])
+        self.assertIn("holds text that looks like a password or a key, so it was left out", note[0])
+        self.assertIn("Take it out of the file, or remove the file from the saved folder, then ask again.", note[0])
         self.assertGreaterEqual(got["left_out_for_safety"], 2)
         for blob in (json.dumps(got), "\n".join(logs.output)):
             self.assertNotIn(PW, blob)
