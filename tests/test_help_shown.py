@@ -152,9 +152,11 @@ class AgainstThePage(unittest.TestCase):
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
         # 59 measured on this branch's merge with main: the bar above the page names one bold Help entry that was not on the page before (measured on the merged tree)
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
+        # 58 on the merge with Show archived on Milestones (59 on main): the Supporting documents section (#74) is one more of Help's bold names on the page (measured on the merged tree)
         # 58 measured on the merged tree (main is 59), names printed: one name left the absent list, Week ending, which this branch's report bar (A-D2) puts on the page
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
-        self.assertGreaterEqual(len(names), 57)
+        # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
+        self.assertGreaterEqual(len(names), 56)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

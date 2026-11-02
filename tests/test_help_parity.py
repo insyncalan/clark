@@ -148,13 +148,14 @@ class ReportSectionsHasNeedsFromYou(unittest.TestCase):
         self.assertNotRegex(row, r"(?i)pending decision|Needed from the client|straight after|Word file")     # what the page does not do (yet)
 
     def test_the_table_has_no_row_for_a_section_the_page_does_not_draw(self):
-        """Risks and issues, Open actions, Decisions and Supporting documents show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
+        """Risks and issues, Open actions and Decisions show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
         names = [r[0] for r in self.TABLE[2]]
         self.assertEqual(names, ["At a glance", "Use case summary", "Milestones", "Summary, This week, Next week", "Needs from you"])
         section = read("page", "src", "components", "Section.jsx")
         self.assertIn("Not shown on this page yet.", section)
-        for t in ("raid", "actions", "decisions", "docs"):
+        for t in ("raid", "actions", "decisions"):
             self.assertNotRegex(section, rf'section\.type === "{t}"')
+        self.assertIn('section.type === "docs"', section)       # Supporting documents are drawn now
 
     def test_the_needs_entry_links_to_the_task_and_the_task_is_shown(self):
         self.assertIn("(#howto-ask-for-what-you-need)", json.dumps(entry("ref", "needs-from-you"), ensure_ascii=False))
@@ -167,13 +168,14 @@ class TheWeekEndsOnAFriday(unittest.TestCase):
         every = json.dumps(SHOWN, ensure_ascii=False)
         self.assertNotIn("The week ends on a Friday", every)
 
-    def test_the_page_has_no_friday_week_end(self):
-        """The 'this week' of the Work items filters ends on a Sunday (client_filters.week_end, logic/board.js), and the week ending of a
-        report is typed in: no default to a Friday. When the owner decides, either the page changes or Help says what it does."""
+    def test_the_page_week_end_is_a_friday(self):
+        """#570 (option a2): the board's 'this week' ends on a Friday (logic/board.js fridayOnOrAfter) and a week ending that is not a
+        Friday is refused (changes.NOT_FRIDAY). Help's 'Dates and IDs' lines say so and are held in helpLater until the release shows them.
+        client_filters.week_end (the Sunday of the client filters) is outside #570 and is raised with the owner."""
         from clark import client_filters
-        self.assertEqual(client_filters.week_end("2026-11-02", 0), "2026-11-08")          # a Monday: the Sunday after
-        self.assertIn("the week ends on Sunday", read("page", "src", "logic", "board.js"))
-        self.assertNotRegex(read("publish_flow.py") + read("store.py"), r"(?i)friday")
+        self.assertEqual(client_filters.week_end("2026-11-02", 0), "2026-11-08")
+        self.assertIn("fridayOnOrAfter", read("page", "src", "logic", "board.js"))
+        self.assertIn("NOT_FRIDAY", read("changes.py"))
 
 
 class MovementEntries(unittest.TestCase):
