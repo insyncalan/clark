@@ -216,6 +216,16 @@ class Check(unittest.TestCase):
         self.assertIn("the gh command was not found", said)
         self.assertNotIn("Traceback", said)
 
+    def test_gh_not_answering_exits_2_with_a_plain_line_and_the_call_has_a_timeout(self):
+        with mock.patch.object(mod.subprocess, "run", side_effect=mod.subprocess.TimeoutExpired("gh", mod.GH_TIMEOUT)) as run:
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+                code = mod.main([])
+        self.assertEqual(code, 2)
+        self.assertIn("did not answer within", err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+        self.assertEqual(run.call_args.kwargs.get("timeout"), mod.GH_TIMEOUT)
+
     def test_an_answer_that_is_not_json_exits_2(self):
         code, said = self._exit(return_value=mock.Mock(returncode=0, stdout="<html>"))
         self.assertEqual(code, 2)
@@ -227,6 +237,37 @@ class Check(unittest.TestCase):
         self.assertGreaterEqual(len(steps), 6)
         for ln in steps:
             self.assertIn("insyncalan/clark", ln, ln[:60])
+
+
+    def _calls(self, argv):
+        """The repositories main() asks gh about for this command line, and its exit code and what it printed."""
+        run = mock.Mock(returncode=0, stdout=json.dumps([good("v0.5.0")]))
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(mod.subprocess, "run", return_value=run) as call, contextlib.redirect_stdout(out), \
+                contextlib.redirect_stderr(err):
+            code = mod.main(argv)
+        return code, [c.args[0][2] for c in call.call_args_list], out.getvalue() + err.getvalue()
+
+    def test_the_repository_is_an_argument_and_defaults_to_insyncalan_clark(self):
+        code, asked, _ = self._calls(["v0.5.0"])
+        self.assertEqual((code, asked), (0, ["repos/insyncalan/clark/releases?per_page=100&page=1"]))
+        code, asked, _ = self._calls(["--repo", "someone/else", "v0.5.0"])
+        self.assertEqual((code, asked), (0, ["repos/someone/else/releases?per_page=100&page=1"]))
+        code, asked, _ = self._calls(["v0.5.0", "--repo=someone/else"])
+        self.assertEqual((code, asked), (0, ["repos/someone/else/releases?per_page=100&page=1"]))
+
+    def test_a_repository_that_is_not_owner_slash_name_exits_2_and_asks_gh_nothing(self):
+        for argv in (["--repo"], ["--repo", "clark"], ["--repo", "a/b/c"], ["--repo", "a/b?x=1"], ["--repo", "../x"]):
+            code, asked, said = self._calls(argv)
+            self.assertEqual((code, asked), (2, []), argv)
+            self.assertIn("--repo", said)
+            self.assertIn("owner/name", said)
+
+    def test_the_checklist_and_the_tool_say_the_repository_can_be_given(self):
+        text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
+        step = [l for l in text.splitlines() if l.startswith("20. ")][0]
+        self.assertIn("--repo owner/name", step)
+        self.assertIn("--repo owner/name", mod.__doc__)
 
 
 if __name__ == "__main__":
