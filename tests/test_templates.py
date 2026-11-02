@@ -688,6 +688,7 @@ class Box(Base):
             p.js("document.querySelector('[data-undo]').click()")
             p.until("document.querySelectorAll('.sec').length === 11", "a second try removes the section")
             self.assertEqual(self.ids_in_store(), IDS)
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
 
     def test_a_stale_beside_add_that_clark_refuses_reads_the_page_again(self):
