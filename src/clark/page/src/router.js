@@ -18,7 +18,7 @@
 // key written in the address would. `f` is written with navigate({...state, f}, {replace: true}): a filter change never pushes an
 // entry, so Back never stops on one. navigate() replaces by itself when only `f` differs, even if the caller forgets. A change
 // of page or project that also changes `f` pushes one entry, like any other change, and Back and Forward bring `f` back.
-export const VIEWS = ["dashboard", "work", "milestones", "usecases", "settings"];
+export const VIEWS = ["dashboard", "work", "milestones", "usecases", "clientreport", "settings"];   // "clientreport": Client Requested Report View (#192)
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
 const UC_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;        // a use case's address key: its reference as written ("1.2") or its id; only the Use cases page reads it

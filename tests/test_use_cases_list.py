@@ -122,7 +122,7 @@ class Tab(Setup):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#dashboard&p=ABC")
             p.ready()
-            self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.textContent)"), ["Dashboard", "Work items", "Milestones", "Use cases", "Settings"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.innerText)"), ["Dashboard", "Work items", "Milestones", "Use cases", "Client Requested Report View", "Settings"])
             p.js("document.querySelector('[data-view=usecases]').click()")
             p.until("location.hash === '#usecases&p=ABC' && !!document.querySelector('#usecases .ucl-row')", "the tab opened the page at its own address")
             self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Use cases")

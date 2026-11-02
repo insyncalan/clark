@@ -2003,13 +2003,15 @@ class TheVeryLongLine(unittest.TestCase):
     """Round 3 review: a line over MAX_LINE characters is not read by the prose rules (a 40,000-character run took half a minute);
     it is left as it is and the guard, which is fast, refuses it by file number if it holds a listed word."""
     def test_a_long_run_is_quick_in_the_scrub_and_the_guard(self):
-        import time
+        # The old check was a wall-clock limit (5 s for 40,000 characters); it is now the growth from 20,000 to 40,000 characters in CPU time.
         for unit in ("a", "a-", " ", " and ", "-_ ", "a/"):
-            data = ((unit * (40000 // len(unit))) + "\n").encode()
-            start = time.time()
-            pp.scrub("docs/x.md", data)
-            pp.guard_kinds("docs/x.md", data)
-            self.assertLess(time.time() - start, 5, repr(unit))
+            def work(size, unit=unit):
+                data = ((unit * (size // len(unit))) + "\n").encode()
+                pp.scrub("docs/x.md", data)
+                pp.guard_kinds("docs/x.md", data)
+            small, big, ratio = growth_ratio(work, 20000)
+            print("long line %r: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (unit, small, big, ratio))
+            self.assertLessEqual(ratio, GROWTH_LIMIT, "%r: t(n)=%.3f t(2n)=%.3f" % (unit, small, big))
 
     def test_a_listed_word_on_a_long_line_is_left_by_the_scrub_and_refused_by_the_guard(self):
         line = ("word " * (pp.MAX_LINE // 5 + 1)) + OWNER_N + "\n"
@@ -2403,26 +2405,31 @@ class TheAuthorFlagsAreChecked(Base):
 class TheScrubHasALimit(Base):
     """Review of fb9b5a0: a million newlines, a million '<', or 500 long lines took the scrub over 40 s and the dry run over 100 s, and
     some Python files raised MemoryError. Each of those is now quick (or refused by file number) and never a traceback."""
-    def quick(self, path, data, seconds=4):
+    def grows_slowly(self, path, make, n, seconds=4):
+        """The scrub and the guard on make(n) and make(2 * n): judged by the growth in CPU time (growth_ratio), not by a wall-clock limit
+        (the old quick() asserted `seconds` of wall time, which a loaded runner broke). The alarm is only a hang guard: a regression must
+        fail the test, not hang it."""
         import signal
-        import time
 
         def too_slow(_signum, _frame):
-            raise AssertionError("still reading after %d seconds" % (seconds * 4))
-        old = signal.signal(signal.SIGALRM, too_slow)        # a regression must fail the test, not hang it
-        signal.alarm(seconds * 4)
+            raise AssertionError("still reading after %d seconds" % (seconds * 16))
+        old = signal.signal(signal.SIGALRM, too_slow)
+        signal.alarm(seconds * 16)
         try:
-            start = time.time()
-            pp.scrub(path, data)
-            pp.guard_kinds(path, data)
+            def work(size):
+                data = make(size)
+                pp.scrub(path, data)
+                pp.guard_kinds(path, data)
+            small, big, ratio = growth_ratio(work, n)
         finally:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old)
-        self.assertLess(time.time() - start, seconds)
+        print("%s: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (self.id().split(".")[-1], small, big, ratio))
+        self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
 
     def test_a_million_newlines_is_refused_by_file_number_without_being_read(self):
         data = b"\n" * 1000000
-        self.quick("docs/x.md", data)
+        self.grows_slowly("docs/x.md", lambda n: b"\n" * n, 500000)
         entry = pp.Entry(7, "100644", "0" * 40, len(data), "docs/x.md")
         self.assertEqual(pp.scrub_limit_findings([entry], [data]), ["file #7: too long to scrub safely (over %d lines or %d KB)"
                                                                       % (pp.MAX_SCRUB_LINES, pp.MAX_SCRUB_BYTES // 1024)])
@@ -2462,16 +2469,16 @@ class TheScrubHasALimit(Base):
         self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
 
     def test_a_run_of_square_brackets_is_quick(self):
-        self.quick("docs/x.md", b"[" * 900000)
+        self.grows_slowly("docs/x.md", lambda n: b"[" * n, 450000)
 
     def test_the_repo_name_and_a_hyphen_over_and_over_is_quick(self):
-        self.quick("docs/x.md", (PLAN_REPO.split("-")[0] + "-").encode() * 100000)
+        self.grows_slowly("docs/x.md", lambda n: (PLAN_REPO.split("-")[0] + "-").encode() * n, 50000)
 
     def test_many_long_lines_are_quick(self):
         for unit in ("a", " ", "x  ", "the  x", "-_ ", " and ", "[", "<", "[x](", "(", "`", "*"):
             with self.subTest(unit=repr(unit)):
                 line = (unit * (1990 // len(unit) + 1))[:1990] + "\n"
-                self.quick("docs/x.md", (line * 100).encode())
+                self.grows_slowly("docs/x.md", lambda n, line=line: (line * n).encode(), 50)
 
     def test_long_runs_of_white_space_are_left_alone_and_a_name_beside_one_is_still_scrubbed(self):
         self.assertEqual(clean("docs/x.md", "a%sb %s here\n" % (" " * 100, OWNER_N)), "a%sb the owner here\n" % (" " * 100))
@@ -2489,8 +2496,9 @@ class TheScrubHasALimit(Base):
                 self.assertEqual(pp.scrub("src/a.py", data), data)
 
     def test_the_real_python_repros_do_not_crash(self):
-        for text in ((OWNER_N + " ") * 143000, "-" * 1000000, "the  x " * 140000):
-            self.quick("src/a.py", text.encode(), seconds=8)
+        for unit, n in (((OWNER_N + " "), 71500), ("-", 500000), ("the  x ", 70000)):
+            with self.subTest(unit=unit[:12]):
+                self.grows_slowly("src/a.py", lambda k, unit=unit: (unit * k).encode(), n, seconds=8)
 
     def test_a_statement_too_deep_to_parse_is_left_alone_without_calling_the_parser(self):
         import ast
