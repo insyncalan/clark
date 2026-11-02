@@ -201,6 +201,36 @@ class AboutYou(Base):
             self.assertEqual(p.js("document.querySelectorAll('#profile-menu').length"), 1)
             self.close_menu(p)
 
+    def refused_under(self, p, field):
+        return p.js(f"document.querySelector('#about-{field}').closest('.fld').querySelector('.fld-bad').textContent")
+
+    def test_C_a_refusal_shows_under_the_box_it_is_about_email_left_first_then_a_name_is_typed(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "email", "nope", leave="blur")
+            p.until("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the email refusal shows")
+            self.type_into(p, "name", "Sam Lee")
+            p.until("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent !== ''", "still under the email")
+            time.sleep(1)
+            self.assertEqual(self.refused_under(p, "name"), "", "nothing under the name box")
+            self.assertEqual(self.refused_under(p, "email"), "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
+            self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["Sam Lee", "nope"])
+            self.assertEqual(self.saved(), {})
+
+    def test_C_a_refusal_shows_under_the_box_it_is_about_name_left_first_then_an_email_is_typed(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "N" * 61, leave="blur")
+            p.until("document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the name refusal shows")
+            self.type_into(p, "email", "sam@example.test")
+            time.sleep(1)
+            self.assertEqual(self.refused_under(p, "email"), "", "nothing under the email box")
+            self.assertEqual(self.refused_under(p, "name"), "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+            self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["N" * 61, "sam@example.test"])
+            self.assertEqual(self.saved(), {})
+
     def test_C_text_typed_while_a_save_is_on_its_way_stays_in_the_box(self):
         """The page must not put the saved value back over a box typed in since the save was sent (a person who keeps typing during a slow
         save would see the box go back)."""

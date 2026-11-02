@@ -164,7 +164,7 @@ export async function saveProfile(name, email) {
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, name: String(reply.name || ""), email: String(reply.email || "") };
     const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
-    if (r.status === 400 && said) return { ok: false, message: said };
+    if (r.status === 400 && said) return { ok: false, message: said, field: reply.field === "name" || reply.field === "email" ? reply.field : "" };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
     return { ok: false, message: plainChange(0) };
