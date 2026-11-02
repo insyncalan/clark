@@ -85,4 +85,7 @@ function switches(rows_, ctx) {
 const pickMode = (v) => setLine(rebuild(lineText.value, rows.value, filterCtx(), (s0) => stateMode(s0, v)));
 const pickType = (v) => setLine(rebuild(lineText.value, rows.value, filterCtx(), (s0) => stateType(s0, v)));
 
-export const LINE_CORE = { lineText, setLine, view, switches, pickMode, pickType, restore, remember, usable, base: FL.BASE, apply: (rows_, ctx) => FL.apply(rows_, lineText.value, ctx), toState: (rows_, ctx) => FL.toState(lineText.value, rows_, ctx).state };
+/** The rows an older-form state shows by the line's own rules: what a tile counts is what the table shows once the tile is opened. */
+const rowsOf = (rows_, st, ctx) => FL.apply(rows_, FL.fromState(st), ctx);
+
+export const LINE_CORE = { rowsOf, lineText, setLine, view, switches, pickMode, pickType, restore, remember, usable, base: FL.BASE, apply: (rows_, ctx) => FL.apply(rows_, lineText.value, ctx), toState: (rows_, ctx) => FL.toState(lineText.value, rows_, ctx).state };

@@ -1,6 +1,7 @@
 // The At a glance tiles on the Dashboard (#79; rules as in glance.py, the reference, and the prototype's glanceData): plain
 // functions with no DOM and no clock (today is passed in). Each tile counts with the SAME filter state it opens Work items with
-// (filters.js applyFilters), so the number on a tile is always the number of rows in the list it opens.
+// (filters.js applyFilters in a published file; the app hands in the filter line's own rules, so the table and a tile are one
+// implementation), so the number on a tile is always the number of rows in the list it opens.
 import { applyFilters, initial, setType, setFilter } from "./filters.js";
 import { isOpen, dueField, showDate, dayNumber, plural } from "./workItems.js";
 
@@ -16,10 +17,11 @@ export const FILTERS = {
 export const HEALTH_WORDS = { "On track": "g", "At risk": "a", "Off track": "r" };
 
 /** The tiles after Project health, in order: [{key, label, value, detail, rag ("g" "a" "r"), filter}]. */
-export function tiles(rows, today) {
-  const n = (s) => applyFilters(rows, s, today).length;
+export function tiles(rows, today, rowsFor) {
+  const pick = rowsFor || ((s) => applyFilters(rows, s, today));          // the rows a state shows; the app hands in the filter line's own
+  const n = (s) => pick(s).length;
   const open = (type) => rows.filter((r) => isOpen(r) && (type === "action" ? r.kind === "action" : r.kind !== "action" && r.kind !== "decision")).length;
-  const over = n(FILTERS.overdue), high = n(FILTERS.risks), dec = applyFilters(rows, FILTERS.decisions, today);
+  const over = n(FILTERS.overdue), high = n(FILTERS.risks), dec = pick(FILTERS.decisions);
   const dates = dec.map((r) => dueField(r)).filter((d) => dayNumber(d) !== null).sort();
   const risksOpen = open("risk");
   return [
@@ -72,8 +74,8 @@ export function layout(glanceRows) {
 export const shownRag = (outline, auto) => (outline ? (outline === "N" ? "n" : outline.toLowerCase()) : auto || "n");
 
 /** Every tile in order, hidden ones kept (Edit draws them dimmed; View leaves them out). Project health is first in the default order. */
-export function allTiles(rows, today, project, glanceRows) {
-  const lay = layout(glanceRows), by = Object.fromEntries(tiles(rows, today).map((t) => [t.key, t]));
+export function allTiles(rows, today, project, glanceRows, rowsFor) {
+  const lay = layout(glanceRows), by = Object.fromEntries(tiles(rows, today, rowsFor).map((t) => [t.key, t]));
   const health = (project && project.health) || "";
   by.health = { key: "health", label: TILE_TITLES.health, value: health || "Not set", detail: "", rag: HEALTH_WORDS[health] || "n", filter: null, reason: (project && project.health_reason) || "" };
   return lay.order.map((key) => {

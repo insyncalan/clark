@@ -383,6 +383,20 @@ class Line(unittest.TestCase):
                     self.assertEqual(self.say(cdp, sid), "", "no message on landing")
                     self.assertEqual(cdp.js("window.__errs", sid), [], "no error on the page")
 
+    def test_a_tile_counts_what_the_table_shows_when_it_opens(self):
+        # One implementation: the tile's number is the number of rows in the list it opens (the line's rules, not the older filter's).
+        s = self.serve()
+        for tile in ("overdue", "risks"):
+            with self.subTest(tile=tile), chrome() as cdp:
+                sid = self.load(cdp, s.port)
+                cdp.js("location.hash = '#dashboard&p=TUL'", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector('[data-fig={tile}]')", sid)))
+                counted = cdp.js(f"parseInt(document.querySelector('[data-fig={tile}]').innerText.match(/\\d+/)[0], 10)", sid)
+                click(cdp, sid, f"[data-fig={tile}]")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work-list').length", sid) == 1))
+                self.assertTrue(wait(lambda: len(self.chips(cdp, sid)) >= 1))
+                self.assertEqual(len(self.shown(cdp, sid)), counted, f"{tile}: tile {counted}")
+
     def test_a_chip_says_what_it_means_and_the_older_filters_are_all_reachable(self):
         s = self.serve()
         with chrome() as cdp:

@@ -2,7 +2,8 @@
 // the outline and the hidden flags that glance_tiles holds. View leaves a hidden tile out; Edit draws it dimmed with its controls
 // (`tools.glance`, edit/GlanceEdit.jsx). A published file draws the figures the file carries (data.glance, worked out at publish
 // time from the rows the file keeps) and nothing else: no button, no control.
-import { data, rows, openWork, fromFile } from "../stores/report.js";
+import { data, rows, openWork, fromFile, filterCtx } from "../stores/report.js";
+import { lineApi } from "../stores/lineSlot.js";
 import { todayIso } from "../workItems.js";
 import { allTiles, fileTiles } from "../glanceTiles.js";
 
@@ -42,7 +43,7 @@ function Health({ t, tools, editing }) {
 
 export function Glance({ tools }) {
   const d = data.value, editing = !!(tools && tools.glance) && !fromFile.value;
-  const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles).filter((t) => editing || !t.hidden);
+  const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles, lineApi.current ? (st) => lineApi.current.rowsOf(rows.value, st, filterCtx()) : null).filter((t) => editing || !t.hidden);
   const Wrap = editing ? tools.glance.Cell : Cell;
   const order = list.map((t) => t.key);
   return (
