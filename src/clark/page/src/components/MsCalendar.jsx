@@ -1,7 +1,9 @@
-// The Calendar view (#44a): Month (the opening scale), Week and Quarter, with Earlier, Later and Today. A chip carries the
-// state's mark; a slipped milestone also shows on its expected date as a dashed "Expected" chip. Only the shown scale and place
-// is drawn. A day with milestones names them for a screen reader. Each day is a tab stop (one of them at a time, the way the
-// prototype does it): the arrows move by a day or a week, Enter goes to the day's first chip, Esc or Shift+Tab comes back.
+// The Calendar view (#44a): Month (the opening scale), Week and Quarter, with Earlier, Later and Today. A chip is the state's
+// mark and the name, as in the prototype (system/prototype/views.js:105); a slipped milestone also shows on its expected date as
+// a dashed chip that begins "Expected: ". Only the shown scale and place is drawn. A day with milestones names them for a screen
+// reader. Each day is a tab stop (one of them at a time, the way the prototype does it): the arrows move by a day or a week, Enter
+// goes to the day's first chip, Esc or Shift+Tab comes back. The "Milestones in this period" list is for a phone only, as in the
+// prototype (app.css:1297, 1306): above 700 px it is hidden.
 import { useState, useRef, useEffect } from "preact/hooks";
 import { recall, remember } from "../logic/remember.js";
 import { MsMark } from "./MsMark.jsx";
@@ -18,7 +20,7 @@ function Chip({ c, say, open }) {
   const label = c.ghost ? `Expected: ${c.name}` : c.name;
   return (
     <Tag {...(open ? { type: "button", onClick: () => open(c.id) } : {})} class={`cal-ms c-${c.colour}${c.ghost ? " ghost" : ""}${open ? "" : " plain"}`} data-ms={c.id} data-ghost={c.ghost ? "1" : "0"}
-      title={`${c.name} · ${showDate(c.date)} · ${c.ghost ? "expected" : c.word}`} aria-label={`${label}, ${c.word}`}><MsMark name={c.mark} /><span>{label}</span>{c.ghost ? null : <small class="cal-w">{c.word}</small>}</Tag>
+      title={`${c.name} · ${showDate(c.date)} · ${c.ghost ? "expected" : c.word}`} aria-label={`${label}, ${c.word}`}><MsMark name={c.mark} /><span>{c.ghost ? "Expected: " : ""}{c.name}</span></Tag>
   );
 }
 
