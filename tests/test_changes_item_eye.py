@@ -224,6 +224,30 @@ class Duplicate(unittest.TestCase):
         self.assertEqual((status, undone["ok"]), (200, True), undone)
         self.assertEqual((self.s.read("actions", ref=copy), self.labels(copy), self.hidden(copy)), (None, [], False))
 
+    def set_eye(self, kind, ref, eye):
+        with self.s.step("dashboard", USER) as st:
+            st.update(kind, ref, {"client_visible": eye})
+
+    def test_a_copy_keeps_the_items_eye_whether_or_not_the_request_carries_it(self):
+        """#424: a client-visible source gives a client-visible copy, a hidden one a hidden copy; one Undo removes it all."""
+        for kind in self.KINDS:
+            for eye in (1, 0):
+                for sent in (False, True):
+                    with self.subTest(kind=kind, eye=eye, sent=sent):
+                        src = self.make(kind, f"ZQEYE{kind}{eye}{sent}")
+                        self.set_eye(kind, src, eye)
+                        self.label(src, "Sensitive")
+                        field, extra = self.KINDS[kind]
+                        values = {field: "Copy of x", **extra, **({"client_visible": 1 - eye} if sent else {})}
+                        status, body = self.change({"project": "ABC", "kind": kind, "op": "new", "values": values, "copy_of": src, "place": "menu"})
+                        self.assertEqual(status, 200, body)
+                        copy = body["ref"]
+                        self.assertEqual(self.s.read(kind, ref=copy)["client_visible"], eye)
+                        status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+                        self.assertEqual((status, undone["ok"]), (200, True), undone)
+                        self.assertEqual((self.s.read(kind, ref=copy), self.labels(copy)), (None, []))
+                        self.assertEqual(self.s.read(kind, ref=src)["client_visible"], eye)
+
     def test_copy_of_must_be_an_active_item_of_this_project_of_the_same_kind(self):
         src = self.make("actions", "ZQBAD")
         other = self.make("raid", "ZQBADR")

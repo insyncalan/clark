@@ -746,6 +746,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
             if was is None or was["project"] != project or was["archived"]:
                 raise Refused(ITEM_NOT_MINE)
             values["labels"] = clark_store.labels_of(st.con, source)
+            values["client_visible"] = 1 if was["client_visible"] else 0   # #424: the eye is the item's own, whatever the request carried
             hide = store.read("report_hidden", ref=f"{project}|{source}") is not None
         try:
             ref = st.create(table, values)
