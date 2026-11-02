@@ -214,7 +214,7 @@ class Secrets(unittest.TestCase):
     )
 
     def test_a_password_looking_string_is_refused_with_the_plain_sentence(self):
-        self.assertEqual(ask.SECRET, "That looks like a password. It was not sent. Take it out and ask again.")
+        self.assertEqual(ask.SECRET, "That looks like a password or a key, so it wasn't sent. Take it out and try again.")
         for text in self.REFUSED:
             with self.assertRaises(ask.AskRefused, msg=text) as cm:
                 ask.build_request(text, P)
@@ -237,7 +237,7 @@ class Secrets(unittest.TestCase):
         with self.assertRaises(ask.AskRefused) as cm:
             ask.build_request("Q?", P, earlier=[("user", "password is hunter22")])
         self.assertEqual(str(cm.exception), ask.SECRET_EARLIER)
-        self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like it holds a password. Start a new chat and ask again.")
+        self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like a password or a key, so this chat can't be sent. Start a new chat and try again.")
         ask.build_request("Q?", P, earlier=[("assistant", "password is hunter22")])
 
     def test_passage_text_is_not_refused(self):
