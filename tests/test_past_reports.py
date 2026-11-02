@@ -356,6 +356,49 @@ class TheRoutes(Base):
         self.assertEqual(resp.getheader("Cache-Control"), "no-store")
         self.assertEqual(self.get(got["url"], token=False)[0], 404, "once")
 
+    @staticmethod
+    def directives(resp):
+        """The Content-Security-Policy as {directive: value}. Every reply also carries clark's one-line frame-ancestors policy as a
+        header of its own; a browser applies all of them, so they are read as one."""
+        out = {}
+        for header in resp.msg.get_all("Content-Security-Policy"):
+            for part in header.split(";"):
+                name, _, value = part.strip().partition(" ")
+                out[name] = value
+        return out
+
+    def test_a_kept_page_is_sandboxed_so_it_cannot_run_as_clark(self):
+        done, body = self.publish()
+        url = self.json(f"/api/past-report?project=PUB&number={done['number']}")[1]["url"]
+        status, resp, raw = self.get(url, token=False)
+        self.assertEqual((status, raw), (200, body), "the sandbox changes the headers, never the bytes")
+        csp = self.directives(resp)
+        self.assertEqual(csp.get("sandbox"), "allow-scripts", "scripts only: a null origin")
+        for flag in ("allow-same-origin", "allow-top-navigation", "allow-popups", "allow-forms", "allow-modals"):
+            self.assertNotIn(flag, csp["sandbox"])
+        self.assertIn("script-src", csp, "the hash-only script policy is still there")
+        self.assertNotIn("'unsafe-inline'", csp["script-src"])
+        self.assertEqual(csp.get("frame-ancestors"), "'none'")
+        self.assertEqual(resp.getheader("X-Content-Type-Options"), "nosniff")
+        self.assertEqual(resp.getheader("Cache-Control"), "no-store")
+
+    def test_a_planted_script_in_a_kept_copy_has_no_way_to_clarks_origin(self):
+        planted = (b"<!doctype html><title>Fictional</title><script>fetch('/').then(r=>r.text()).then(t=>"
+                   b"fetch('/api/change',{method:'POST',headers:{'X-Clark-Token':t.match(/clark-boot[^>]*/)[0]},body:'{}'}))</script>")
+        seam = past_reports.PastReports(self.db)
+        seam.take = lambda nonce: planted if nonce == "planted" else None
+        self.httpd.past = seam
+        status, resp, raw = self.get("/past?id=planted", token=False)
+        self.assertEqual((status, raw), (200, planted))
+        csp = self.directives(resp)
+        self.assertEqual(csp.get("sandbox"), "allow-scripts")
+        self.assertNotIn("allow-same-origin", csp["sandbox"], "with it the planted script would be clark's own origin")
+        # what a sandboxed page's own fetch to clark looks like: Origin null. Neither the API nor the address take it.
+        for path, token in (("/api/publications?project=PUB", True), ("/api/past-report?project=PUB&number=1", True),
+                            ("/past?id=planted", False)):
+            with self.subTest(path=path):
+                self.assertEqual(self.get(path, token=token, headers={"Origin": "null"})[0], 403)
+
     def test_the_address_checks_this_machine_and_takes_nothing_but_its_id(self):
         done, body = self.publish()
         url = self.json(f"/api/past-report?project=PUB&number={done['number']}")[1]["url"]

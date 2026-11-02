@@ -7,6 +7,7 @@ system's Save and folder windows are replaced through the publisher's two seams;
 temporary folders. Nothing is sent anywhere. Chrome is required: these tests fail, never skip, without it. Widths: 1400 and 900.
 The non-browser checks (the published page names no publish route and holds no dialog) need no browser.
 """
+import re
 import unittest
 from pathlib import Path
 
@@ -344,8 +345,13 @@ class Published(unittest.TestCase):
         for f in PAGE_SRC.rglob("*"):
             if f.is_file() and f.name != "publishApi.js":
                 body = f.read_text(encoding="utf-8")
+                # "/api/publication" alone: /api/publications is the Published reports list (#443), which only pastReportsApi.js names
                 for route in ("/api/publish", "/api/client-folder", "/api/publication"):
-                    self.assertNotIn(route, body, f"{f.name} names {route}")
+                    found = re.search(re.escape(route) + ("(?!s)" if route == "/api/publication" else ""), body)
+                    self.assertIsNone(found, f"{f.name} names {route}")
+                if f.name != "pastReportsApi.js":
+                    for route in ("/api/publications", "/api/past-report"):
+                        self.assertNotIn(route, body, f"{f.name} names {route}")
 
     def test_the_words_in_the_page_are_the_specs(self):
         src = "".join(f.read_text(encoding="utf-8") for f in PAGE_SRC.rglob("edit/*") if f.is_file())

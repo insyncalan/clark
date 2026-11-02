@@ -170,6 +170,9 @@ class Words(unittest.TestCase):
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder",
+                                  "Published reports · Example Programme",      # #443: the card; the page has no server here, so its list says it could not be read
+                                  "Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.",
+                                  "The published reports could not be read. Reload the page and try again. Try again",
                                   "Personal",    # #45: Settings › Personal, the section styles
                                   "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.",
                                   "Dashboard sections", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture.",

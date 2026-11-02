@@ -548,6 +548,7 @@ def milestones_route(handler):
 
 
 PAST_ROUTE = "/past"
+PAST_SANDBOX = "sandbox allow-scripts"          # a kept page may run its own script, but as a null origin: never as clark (no allow-same-origin)
 PUBLICATION_NUMBER = re.compile(r"[1-9][0-9]{0,5}")           # a whole number from 1 to 999999, as the kept copies' names allow
 
 
@@ -595,7 +596,11 @@ def past_page_route(handler):
     body = seam.take(given[0])
     if body is None:
         return handler.send(404, error_body("not_found"))
-    return handler.send(200, body, "text/html")
+    # The kept page runs in a sandbox with scripts but WITHOUT allow-same-origin: its origin is null, so it cannot read clark's page or
+    # token (the cross-origin fetch of "/" is refused), and its /api calls arrive with Origin: null, which csp_local turns away.
+    # The usual hash-only policy stays, so the sandbox only adds to it. (no-store and nosniff come from end_headers.)
+    policy = csp_policy(body, handler.headers.get("Host")) + "; " + PAST_SANDBOX
+    return handler.send(200, body, "text/html", extra={"Content-Security-Policy": policy})
 
 
 ARCHIVED_VIEWS = ("hide", "show", "only")          # what ?archived= may be on /api/data (#126); never passed on unchecked

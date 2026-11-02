@@ -224,7 +224,8 @@ class Card(InBrowser):
         self.replies(tab=False)
         self.mount()
         self.click("[data-pubopen='3']")
-        self.assertEqual(self.text(".pub-msg"), self.val("T.logic.OPEN_FAILED"))
+        self.assertEqual(self.text(".pub-msg"), self.val("T.logic.BLOCKED"))
+        self.assertEqual(self.val("T.calls[1]"), ["ready", {"code": "PDF", "n": 3}], "the real tab helper asks for the address either way")
 
     def test_nothing_published_says_so(self):
         self.replies(list=OK({**LIST, "total": 0, "shown": 0, "publications": []}))

@@ -11,9 +11,9 @@ window.T = T;
 const answer = (key, extra) => { T.calls.push([key, extra]); const r = T.replies[key]; return Promise.resolve(typeof r === "function" ? r(extra) : r); };
 const api = { list: (code) => answer("list", code), ready: (code, n) => answer("ready", { code, n }) };
 const openTab = async (getUrl) => {
-  if (T.replies.tab === false) return false;
-  const url = await getUrl();
-  if (typeof url !== "string") return false;
+  const blocked = T.replies.tab === false;
+  const url = await getUrl();                              // as the real openInNewTab: the address is asked for even when the tab was blocked
+  if (blocked || typeof url !== "string") return false;
   T.tabs.push(url);
   return true;
 };
