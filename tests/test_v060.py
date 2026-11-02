@@ -70,6 +70,14 @@ COVERED = [
      "test_templates::Box::test_if_the_page_cannot_be_read_again_after_an_undo_the_toast_says_to_reload"),
     ("#320", "If the second Undo fails and the page cannot be read, the toast says to reload",
      "test_templates::Box::test_if_the_second_undo_fails_and_the_page_cannot_be_read_the_toast_says_to_reload"),
+    ("#242", "A short sk- key, a short api or access key value and 'API key:' with a space are refused; near misses pass",
+     "test_secret_screen::Screen::test_short_sk_and_api_key_near_misses_pass"),
+    ("#242", "Ask refuses the new short key shapes",
+     "test_secret_screen::Screen::test_ask_refuses_the_new_short_shapes"),
+    ("#297", "Preview refuses a section style clark does not have, in the words publish uses",
+     "test_preview_export_route::Preview::test_a_junk_section_style_is_refused_in_the_words_publish_uses"),
+    ("#299", "A provider's failure text that holds the private marker gives the plain refusal, not the text",
+     "test_ask_canary::Canary::test_a_failure_whose_text_holds_the_canary_gives_the_plain_refusal"),
 ]
 
 # Live: the real page. Not repeated from COVERED; these are the checks a person would make in the app itself.
