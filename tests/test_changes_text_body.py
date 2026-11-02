@@ -156,8 +156,10 @@ class Refusing(TextBody):
     def test_text_the_cleaner_refuses_is_refused_in_the_same_words(self):
         self.refused_body(SUMMARY, "a" * (sanitise.MAX_CHARS + 1), changes.WORDS_TOO_LONG)
 
-    def test_the_limit_is_the_one_the_change_route_carries(self):
-        self.assertEqual(changes.TEXT_BODY_MAX, sv.SECTION_BODY_MAX)
+    def test_a_cleaned_text_body_is_never_larger_than_the_change_route_carries(self):
+        # The rule, not a number: what is stored must fit what the route lets in, whatever the route's limit is (it may be raised).
+        self.assertLessEqual(changes.TEXT_BODY_MAX, sv.SECTION_BODY_MAX, "a text body may not be larger than the largest section body the route carries")
+        self.assertLessEqual(sv.change_body_limit(changes.TEXT_BODY_MAX), sv.CHANGE_BODY_LIMIT, "the widest escaped text body fits the change route's limit")
 
     def test_a_section_of_another_type_is_still_refused_a_text_body(self):
         for row in self.rows():
