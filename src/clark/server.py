@@ -81,7 +81,7 @@ MESSAGES = {
     "send_json": f"That could not be read. {RELOAD}",
     "length_required": f"That could not be read. {RELOAD}",
     "too_large": "That is too big for clark to take. Try again with less in it.",
-    "change_too_large": "That is too big to save. Shorten a line or remove some lines, then try again.",
+    "change_too_large": "That is too big to save. Make the text shorter, or take some of the list out, then try again.",
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
