@@ -266,7 +266,7 @@ class Formatting(unittest.TestCase):
         """The Actions mapping is checked against the page's own .prio rules (app.css), so the two cannot drift."""
         import re
         css = (Path(__file__).resolve().parent.parent / "system" / "prototype" / "app.css").read_text(encoding="utf-8")
-        family = {"status-red": "red", "status-amber": "amber", "grey-500": "grey", "grey-700": "grey"}
+        family = {"status-red": "red", "status-amber": "amber", "grey-100": "grey", "grey-500": "grey", "grey-700": "grey"}
         found = {}
         for level in ("Urgent", "High", "Medium", "Low"):
             m = re.search(r"\.prio\." + level + r"\s*\{\s*background:\s*var\(--([a-z0-9-]+)\)", css)
