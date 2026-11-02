@@ -1004,7 +1004,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
 .ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
-.ucstepl .av { width: 22px; height: 22px; font-size: 11px; }
+.ucstepl .av { width: 26px; height: 26px; font-size: 13px; }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; gap: 8px; } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): slim is the default. */
