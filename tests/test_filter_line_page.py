@@ -663,6 +663,24 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: "priority:High" in self.chips(cdp, sid)))
             self.assertEqual(cdp.js("document.querySelectorAll('.vtab').length", sid), 3)
 
+    def test_the_chosen_filter_and_the_view_edit_toggle_look_different_from_the_others(self):
+        # Replaces the older bar's check (#153): the highlight rules in shell.css must match the aria-pressed the buttons set
+        # (a rename of the attribute once lost them), and a chosen filter on the line is drawn as a chip, not as plain text.
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            bg = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).backgroundColor", sid)
+            for on, off in (("[data-type][aria-pressed=true]", "[data-type][aria-pressed=false]"),
+                            ("[data-show][aria-pressed=true]", "[data-show][aria-pressed=false]"),
+                            (".mode[aria-pressed=true]", ".mode[aria-pressed=false]")):
+                with self.subTest(on=on):
+                    self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(on)}) && !!document.querySelector({json.dumps(off)})", sid), "one of each is drawn")
+                    self.assertNotEqual(bg(on), bg(off), "the pressed button has its own background")
+            self.put(cdp, sid, "priority:High")
+            self.assertTrue(wait(lambda: len(self.chips(cdp, sid)) == 1))
+            self.assertNotEqual(bg(".fline .fchip"), bg(".fline"), "a chosen filter is drawn as a chip with its own background")
+            self.assertNotEqual(bg(".fline .fchip"), "rgba(0, 0, 0, 0)")
+
     def test_the_targets_are_big_enough_and_the_colours_come_from_the_tokens(self):
         s = self.serve()
         for theme in THEMES:

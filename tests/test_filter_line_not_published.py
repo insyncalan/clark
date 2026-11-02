@@ -78,7 +78,6 @@ class NotPublished(unittest.TestCase):
             self.assertEqual(count_of(cdp, sid, ".fline-wrap"), 1)
             self.assertEqual(count_of(cdp, sid, ".fbar [data-fb]"), 0, "the app does not draw the older bar")
 
-
     def test_peek_next_and_previous_step_through_the_rows_the_published_filters_leave(self):
         # The published Due filter has "Earlier" (a finished item's due day, before the file's day), which the line does not know:
         # the peek must step with the older bar's rows, not the line's.
