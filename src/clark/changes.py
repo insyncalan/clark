@@ -52,7 +52,7 @@ NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK = "new update move delet
 # be a column of the table (tests/test_changes.py asserts it for each). sort_order, project, id and type (after creation)
 # are in no list: they are never taken from a request.
 NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a report row can be added to (use cases: never from here)
-ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
+ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents", "publications")      # #126: archive and restore, no fields
 CHANGE_KINDS = {
     "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
@@ -97,7 +97,7 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "projects": ("health", "health_reason", "week_ending", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement"),     # #136: a Movement step; its decision is a work item's row (see _movement_step)
-            "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",), "workstreams": ("archived",)}
+            "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",), "publications": ("archived",), "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone")      # #67: a row added in the report: no id,
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone")   # raised, status or source
@@ -694,7 +694,7 @@ def _belongs(table, ref, project):
         return False
     if table == "projects":
         return ref == project
-    return ref.startswith(project + ("|" if table == "documents" else "-"))
+    return ref.startswith(project + ("|" if table in ("documents", "publications") else "-"))
 
 
 def _do_archive(store, by_user, project, table, op, place, ref):

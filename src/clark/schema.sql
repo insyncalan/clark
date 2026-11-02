@@ -309,6 +309,7 @@ CREATE TABLE IF NOT EXISTS publications (
   checks      TEXT NOT NULL CHECK (checks IN ('passed','not needed')),
   by_user     TEXT NOT NULL,
   number      INTEGER NOT NULL CHECK (number >= 1),                 -- clark (#120, schema version 10): Publication N, per project, max + 1 in the insert's own transaction
+  archived    INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),  -- clark (#342, schema version 11): hidden from the Published reports list; the only column that may change. Nothing is deleted
   UNIQUE (project, number)                                          -- a number is never given twice, whatever the kind (a Word copy takes the next one too)
 );
 

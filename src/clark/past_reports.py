@@ -3,7 +3,8 @@
 `PastReports` answers three requests for the server (server.past_route, server.past_page_route), each as (status, body):
 - listing(code): GET /api/publications?project=. The newest 10 publications of the project, each as {number, when, where, who,
   word, kept}, and how many there are in all. Nothing is read but the number, the time, who, whether a copy went to the client
-  and whether it was a Word copy: no path and no SHA-256 leaves. Every publication is kept (#348); only the list is cut to 10.
+  and whether it was a Word copy: no path and no SHA-256 leaves. Every publication is kept (#348); only the list is cut to 10. An archived one (#342) is left out of the
+  list and counted in `archived`; it is still on disk, and Open still reads it if its number is given.
 - visit(code, number): GET /api/past-report?project=&number=. The publication's kept copy (published_copies.read) is checked
   against the SHA-256 its row holds, and kept in memory for one visit to the address in `url` (a new tab cannot send the token, so
   the address is the one-visit secret, as the Preview's is). The request names a code and a number and nothing else: the copy's
@@ -61,9 +62,10 @@ class PastReports:
             try:
                 if con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone() is None:
                     return 404, self.fail("project_not_found")
-                total = con.execute("SELECT count(*) FROM publications WHERE project = ?", (code,)).fetchone()[0]
+                total = con.execute("SELECT count(*) FROM publications WHERE project = ? AND archived = 0", (code,)).fetchone()[0]
+                hidden = con.execute("SELECT count(*) FROM publications WHERE project = ? AND archived = 1", (code,)).fetchone()[0]
                 rows = con.execute("SELECT at, number, word, client_path IS NOT NULL AS to_client, by_user FROM publications "
-                                   "WHERE project = ? ORDER BY number DESC LIMIT ?", (code, SHOWN)).fetchall()
+                                   "WHERE project = ? AND archived = 0 ORDER BY number DESC LIMIT ?", (code, SHOWN)).fetchall()
             finally:
                 con.close()
         except Exception:
@@ -75,7 +77,7 @@ class PastReports:
             out.append({"number": r["number"], "when": history.when_text(r["at"], None)[0], "where": where,
                         "who": (r["by_user"] or "").strip() or NOT_RECORDED, "word": word,
                         "kept": not word and published_copies.is_kept(self.data_dir, code, r["number"])})
-        return 200, {"ok": True, "project": code, "total": total, "shown": len(out), "limit": SHOWN, "publications": out}
+        return 200, {"ok": True, "project": code, "total": total, "archived": hidden, "shown": len(out), "limit": SHOWN, "publications": out}
 
     def visit(self, code, number):
         if not isinstance(code, str) or not published_copies.PROJECT_CODE.fullmatch(code):
