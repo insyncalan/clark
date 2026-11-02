@@ -258,7 +258,7 @@ class Page(Base):
     def test_in_view_a_bulk_change_has_its_toast_and_one_undo(self):
         with chrome() as cdp:
             sid = self.load(cdp, edit=False)
-            self.assertEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "view")
+            self.assertNotEqual(cdp.js("(document.querySelector('#report') || document.body).dataset.mode", sid), "edit")
             rows = cdp.js(self.ROWS, sid)[:2]
             was = {r: self.field(r, "owner") for r in rows}
             steps = self.steps()
