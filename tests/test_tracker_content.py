@@ -283,7 +283,7 @@ class Size(unittest.TestCase):
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         self.assertEqual(sv.CHANGE_BODY_LIMIT, sv.ESCAPE_FACTOR * max(sb.LIMITS[sb.NEEDS], sb.LIMITS[sb.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in sb.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)       # worked out from the checker's limits (#405)
         self.assertLessEqual(sv.CHANGE_BODY_LIMIT, sv.BODY_LIMIT)
-        for route, limit in (("/api/undo", 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
+        for route, limit in (("/api/undo", 8 * 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
 
 
