@@ -52,6 +52,37 @@ class EnsureBuilt(unittest.TestCase):
             page.ensure_built()
             self.assertEqual(run.call_count, 1)
 
+    def test_threads_together_build_once_and_never_read_half_a_page(self):
+        import threading
+        import time
+        builder = self.tmp / "build_page.py"
+        builder.write_text("", encoding="utf-8")
+
+        def fake(*a, **k):
+            time.sleep(0.2)
+            for p in self.pages:
+                tmp = p.with_name(p.name + ".tmp")
+                tmp.write_text("built", encoding="utf-8")
+                __import__("os").replace(tmp, p)
+            return subprocess.CompletedProcess(a, 0, "", "")
+        seen, errors = [], []
+
+        def worker():
+            try:
+                page.ensure_built()
+                seen.append([p.read_text(encoding="utf-8") for p in self.pages])
+            except Exception as e:      # noqa: BLE001
+                errors.append(e)
+        with mock.patch.object(page, "BUILDER", builder), mock.patch.object(page.subprocess, "run", side_effect=fake) as run:
+            threads = [threading.Thread(target=worker) for _ in range(6)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        self.assertEqual(errors, [])
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(seen, [["built", "built"]] * 6)
+
     def test_a_failed_build_is_a_page_error(self):
         builder = self.tmp / "build_page.py"
         builder.write_text("", encoding="utf-8")

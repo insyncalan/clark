@@ -29,6 +29,7 @@ without that element, when there is a local brand, raises PageError rather than 
 import re
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -141,10 +142,17 @@ def newest_source():
     return max(times, default=0)
 
 
+_build_lock = threading.Lock()
+
+
 def ensure_built():
     """Make sure both generated pages exist. In a source checkout (dev/tools/build_page.py is there) a missing page, or one
     older than its sources, is built once per process with the pinned bundler. Anywhere else (the download) nothing is built:
-    a missing page is a PageError. Never installs anything; the bundler is fetched by dev/tools/esbuild.py only in development."""
+    a missing page is a PageError. Never installs anything; the bundler is fetched by dev/tools/esbuild.py only in development.
+    The check and the build run under one lock (checked again inside it), so two threads never build at once and a thread that
+    arrives during the build waits for it; the builder writes each page to a temporary file and swaps it in, so a reader never
+    sees half a page. The server builds at start (clark.__main__), not at the first request. A source edited while a server
+    runs is not rebuilt: restart the server."""
     global _checked
     pages = (PAGE, VIEW_PAGE)
     if not BUILDER.is_file():
@@ -153,12 +161,15 @@ def ensure_built():
         return
     if _checked and all(p.is_file() for p in pages):
         return
-    if not all(p.is_file() for p in pages) or min(p.stat().st_mtime for p in pages) < newest_source():
-        done = subprocess.run([sys.executable, str(BUILDER)], cwd=str(ROOT), capture_output=True, text=True)
-        if done.returncode != 0 or not all(p.is_file() for p in pages):
-            raise PageError("The page could not be built (python3 dev/tools/build_page.py): "
-                            + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
-    _checked = True
+    with _build_lock:
+        if _checked and all(p.is_file() for p in pages):
+            return
+        if not all(p.is_file() for p in pages) or min(p.stat().st_mtime for p in pages) < newest_source():
+            done = subprocess.run([sys.executable, str(BUILDER)], cwd=str(ROOT), capture_output=True, text=True)
+            if done.returncode != 0 or not all(p.is_file() for p in pages):
+                raise PageError("The page could not be built (python3 dev/tools/build_page.py): "
+                                + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+        _checked = True
 
 
 DEMO_OPEN = re.compile(r"<style\b[^>]*?\sid\s*=\s*[\"']?" + DEMO_ID + r"[\"']?(?=[\s>/])[^>]*>", re.I)
