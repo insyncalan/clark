@@ -10,7 +10,6 @@ a refusal says why in its words, ends "Nothing was saved.", writes nothing and l
 Chrome is required: these tests fail, never skip, without it.
 """
 import json
-import time
 import unittest
 
 from _paths import SRC
@@ -66,10 +65,14 @@ class AboutYou(Base):
     def slow_saves(self, p, ms=1500, delays=None):
         """Hold back clark's answer to each save by `ms` in the page itself (the save is written at once; the page hears of it late), as on a
         busy computer. `delays` instead gives the hold for each save in the order they are sent (a later one can be answered first).
-        window.__answered counts the answers the page has been handed."""
-        p.js("(() => { window.__answered = 0; window.__sentn = 0; const d = " + json.dumps(delays) + "; const f = window.fetch; "
+        window.__answered counts the answers the page has been handed; window.__handled counts the answers the page has finished with:
+        it goes up in a later task than the one that read the answer's body, so the page's own follow-up on that answer (all promise
+        steps) has run by then. Wait on `__handled` before asserting that a late answer changed nothing; never sleep."""
+        p.js("(() => { window.__answered = 0; window.__handled = 0; window.__sentn = 0; const d = " + json.dumps(delays) + "; const f = window.fetch; "
              "window.fetch = (u, o) => (String(u).includes('/api/profile') && o && o.method === 'POST') "
-             f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ window.__answered++; ok(r); }}, d ? d[Math.min(window.__sentn++, d.length - 1)] : {ms}))) : f(u, o); }})()")
+             f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ window.__answered++; "
+             "const body = r.json.bind(r); r.json = () => body().finally(() => setTimeout(() => { window.__handled++; }, 0)); "
+             f"ok(r); }}, d ? d[Math.min(window.__sentn++, d.length - 1)] : {ms}))) : f(u, o); }})()")
 
     def top(self, p):
         return p.js("(() => { const w = document.querySelector('#profile-menu .who'); if (w) return {name: w.querySelector('b').textContent, "
@@ -217,6 +220,7 @@ class AboutYou(Base):
             self.handled(p, "Sam Lee and more")
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee and more")
 
+    # Regression guard, not a test of #262: this already held before it (the older-refusal case is the existing `!r.newest` check); it fails if that check goes.
     def test_C_an_older_good_answer_arriving_late_does_not_clear_a_newer_refusal(self):
         """A slow good save is sent first, a refused one second; the refusal is answered first and shows; the older good answer then arrives.
         It must not clear the refusal: the box still holds the refused text, so the message is what tells the person it is not saved."""
@@ -233,12 +237,13 @@ class AboutYou(Base):
             p.until(f"{bad} !== ''", "the refusal shows")
             p.until("window.__answered >= 2", "the older good save was answered too")
             self.handled(p, "Sam Lee")                               # the page has taken the good answer
-            time.sleep(0.3)
+            p.until("window.__handled >= 2", "the page has finished with both answers")
             self.assertEqual(p.js(bad), "Your name is too long. Use 60 characters or fewer. Nothing was saved.", "the refusal is still shown")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "what was typed is still in the box")
             self.assertEqual(p.js("document.querySelector('#about-name').getAttribute('aria-invalid')"), "true")
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "the store holds the name that was saved, not the refused one")
 
+    # Regression guard, not a test of #262: this already held before it (the older-refusal case is the existing `!r.newest` check); it fails if that check goes.
     def test_C_an_older_refusal_arriving_late_does_not_show_over_a_newer_good_save(self):
         """A slow refused save is sent first, a good one second; the good one is answered first; the older refusal then arrives. It must not
         show over the good text: that text is saved."""
@@ -250,8 +255,7 @@ class AboutYou(Base):
             self.type_into(p, "name", "Sam Lee")                     # sent second, answered first
             p.until("window.__answered >= 1", "the good save was answered")
             self.handled(p, "Sam Lee")
-            p.until("window.__answered >= 2", "the older refused save was answered too")
-            time.sleep(0.3)
+            p.until("window.__handled >= 2", "the page has finished with the older refused answer too")
             bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
             self.assertEqual(p.js(bad), "", "no refusal over the saved text")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee")
@@ -268,12 +272,12 @@ class AboutYou(Base):
             self.type_into(p, "name", "N" * 61)                      # sent, refused, answered late
             self.type_into(p, "name", "N", leave="none")
             self.type_into(p, "name", "N" * 61, leave="none")        # back to the refused words, not sent
-            p.until("window.__answered >= 1", "the refusal was answered")
-            time.sleep(0.3)
+            p.until("window.__handled >= 1", "the page has finished with the late refusal")
             bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
             self.assertEqual(p.js(bad), "", "no refusal over a box typed in since")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61)
 
+    # Regression guard, not a test of #262: this already held before it (the older-refusal case is the existing `!r.newest` check); it fails if that check goes.
     def test_C_the_email_box_keeps_a_newer_refusal_and_an_older_refusal_arriving_late_does_not_show_over_a_good_save(self):
         """The same two late-answer rules as the name box, for the email box."""
         bad = "document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent"
@@ -284,24 +288,22 @@ class AboutYou(Base):
             self.type_into(p, "email", "a@b@c")                      # sent first, refused, answered last
             self.type_into(p, "email", "sam@example.com")            # sent second, answered first
             p.until("window.__answered >= 1", "the good save was answered")
-            p.until("window.__answered >= 2", "the older refused save was answered too")
-            time.sleep(0.3)
+            p.until("window.__handled >= 2", "the page has finished with the older refused answer too")
             self.assertEqual(p.js(bad), "", "no refusal over the saved email")
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), None)
             self.assertEqual(self.saved().get("profile_email"), "sam@example.com")
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
-            self.type_into(p, "email", "sam@example.com")
-            p.until("document.querySelector('#about-email').value === 'sam@example.com'", "typed")
-            time.sleep(0.5)
-            self.slow_saves(p, delays=[2000, 300])
-            self.type_into(p, "email", "sam@example.org")            # good, sent first, answered last
+            self.slow_saves(p, delays=[0, 2000, 300])
+            self.type_into(p, "email", "sam@example.com")            # the first save, answered at once: waited for, so the next two are the 2nd and 3rd
+            p.until("window.__handled >= 1", "the page has finished with the first save")
+            self.assertEqual(self.saved().get("profile_email"), "sam@example.com")
+            self.type_into(p, "email", "sam@example.org")            # good, sent second, answered last
             self.type_into(p, "email", "a@b@c")                      # refused, answered first
-            p.until("window.__answered >= 1", "the refusal was answered")
+            p.until("window.__answered >= 2", "the refusal was answered")
             p.until(f"{bad} !== ''", "the refusal shows")
-            p.until("window.__answered >= 2", "the older good save was answered too")
-            time.sleep(0.3)
+            p.until("window.__handled >= 3", "the page has finished with the older good answer too")
             self.assertNotEqual(p.js(bad), "", "the refusal is still shown")
             self.assertEqual(p.js("document.querySelector('#about-email').value"), "a@b@c")
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
