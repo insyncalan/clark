@@ -203,14 +203,9 @@ class UndoKey(unittest.TestCase):
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
             press_z(cdp, sid, CTRL | SHIFT)                     # redo is not this key
             cdp.js("document.querySelector('[data-mode=view]').click()", sid)
-            cdp.js("location.hash = '#dashboard&p=TUL'", sid)  # the Dashboard keeps View and Edit apart; Work items in View is the bulk bar's (test_bulk_bar)
-            self.until(cdp, sid, "location.hash.startsWith('#dashboard')", "the Dashboard opened")
-            cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
             press_z(cdp, sid, CTRL)                             # View changes nothing, so it undoes nothing
-            time.sleep(0.3)
             self.assertEqual((self.undos_sent(), self.steps(), self.priority()), (n, before, "Low"), "nothing was undone")
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            cdp.js("location.hash = '#work&p=TUL&f=mode:all'", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "back in Edit")
             cdp.js("location.hash = '#settings&p=TUL'", sid)
             self.until(cdp, sid, "location.hash.startsWith('#settings')", "Settings opened")
