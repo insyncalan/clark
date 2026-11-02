@@ -1,7 +1,7 @@
 """One generic finder for the page's Edit-only parts (#65; #66 and #67 re-use it unchanged).
 
 `edit_elements(cdp, sid)` lists every form field (input, textarea, select), every element with a contenteditable attribute and every
-element marked data-edit-only that is in the page, except the report bar's Week ending date, which View has as well as Edit (the
+element marked data-edit-only that is in the page, except the report bar's Week ending box (still typed as DD-MM-YYYY), which View has as well as Edit (the
 prototype's bar, views.js:509; #439). View must give []: View removes the Edit parts, it does not hide them, so
 it does not matter whether one is shown (display, opacity, size). Edit gives a list, which a test looks into by kind.
 Each entry is a short text such as `button[data-edit-only][data-drag]` or `span[contenteditable=plaintext-only][data-title]`.

@@ -265,6 +265,7 @@ const CHANGE_KNOWN = {
   "That step has been undone already.": "That change has been undone already. Reload the page to see how the report is now.",
   // #80: a work item change clark would not make (clark/changes.py's words; the page says its own)
   "That item isn't in this project.": "That item is no longer in this project, and nothing was changed. Reload the page.",
+  "The week ending date must be a real date. The old date was kept. Pick a date and try again.": "That isn't a real day, so the old week ending date was kept. Type another date as DD-MM-YYYY.",
   "Pick a real date.": "That date isn't a real day, and nothing was changed. Pick another date.",
   "That status isn't available for this item.": "That status isn't one this item can have, and nothing was changed.",
   "A decision that is made needs the date it was made.": "A made decision needs the date it was made, and nothing was changed. Pick a date.",
