@@ -210,9 +210,14 @@ class PlainWordsMedium(unittest.TestCase):
 
     def test_the_python_and_script_copies_of_the_nothing_ticked_wording_match(self):
         js = (Path(de.__file__).parent / "page" / "src" / "logic" / "draftEmail.js").read_text(encoding="utf-8")
-        found = re.search(r'export const NOTHING_TO_RECORD = "([^"]*)";', js)
+        found = re.search(r'export const NOTHING_TO_RECORD = "([^"]*)"(?: \+ NOTHING_SAVED)?;', js)
         self.assertIsNotNone(found, "draftEmail.js no longer exports NOTHING_TO_RECORD")
-        self.assertEqual(found.group(1), de.NOTHING_TO_RECORD)
+        words = found.group(1)
+        if "+ NOTHING_SAVED" in found.group(0):          # the closing sentence is the shared NOTHING_SAVED constant
+            saved = re.search(r'export const NOTHING_SAVED = "([^"]*)";', js)
+            self.assertIsNotNone(saved, "draftEmail.js no longer exports NOTHING_SAVED")
+            words += saved.group(1)
+        self.assertEqual(words, de.NOTHING_TO_RECORD)
 
     def test_an_empty_selection_blocks_copying(self):
         d = build(picked=[])
