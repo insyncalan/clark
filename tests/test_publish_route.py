@@ -665,7 +665,8 @@ class TheTakenName(Base):
         self.assertEqual((self.rig.everything_written(), self.rig.saves), (before, []))
 
     def test_the_same_file_already_there_copies_nothing_and_is_logged_with_its_path(self):
-        self.taken.write_bytes((self.rig.local / "chosen.html").read_bytes())
+        # #120: every publish says its own number, so "the same file" is the one the next publish will make (Publication 2)
+        self.taken.write_bytes(publish.build(self.rig.store, "PUB", DAY, EMPTY_BRANDING)["body"])
         status, got = self.rig.publish(to_client=True)
         self.assertEqual((status, got["ok"], got["action"]), (200, True, "nothing_to_do"))
         self.assertEqual(self.rig.rows()[-1]["client_path"], str(self.taken))
