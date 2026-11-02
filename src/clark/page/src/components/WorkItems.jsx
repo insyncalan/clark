@@ -1,7 +1,8 @@
 // The Work items list (#36, read only; #64a filters and Add): one project's actions, risks, issues, assumptions, dependencies and
 // decisions from GET /api/data, one flat table: type, item, owner, due date in words, priority, status. The list rules are in
 // ../workItems.js, the filter rules in ../filters.js. A filter change redraws the list region and the switches' words only.
-// In Edit (#80), the Owner, Due, Priority and Status cells change in place (tools.Cell, edit/cells/): each opens its own picker.
+// In View and in Edit (#80, #442: the owner's ruling on gap B-9), the Owner, Due, Priority and Status cells change in place
+// (tools.Cell, edit/cells/): each opens its own picker. A published file has no tools, so no pickers.
 // A click on the row anywhere else opens the item's peek, in View and in Edit.
 // The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (in
 // Edit, from a cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
@@ -191,7 +192,7 @@ function List({ Board, Cell, Bulk }) {
 export function WorkItems({ tools }) {
   useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const d = data.value, plan = addPlan(filterState.value.type), Board = tools && tools.Board;
-  const Cell = tools && tools.Cell && mode.value === "edit" && !fromFile.value ? tools.Cell : null;
+  const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
   const board = !!Board && work.value.view === "board";
   return (
     <section class="frame work" id="work">

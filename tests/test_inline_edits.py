@@ -303,11 +303,18 @@ class Live(unittest.TestCase):
         self.assertFalse(text.lower().startswith("clark"), text)
         self.assertNotIn("Ask clark", text)
 
-    def test_view_has_no_pickers_and_a_row_double_click_opens_the_peek(self):
+    def test_view_has_the_four_pickers_and_a_row_double_click_opens_the_peek(self):
+        # #442 (gap B-9, ruled 02-11-2026): owner, due, priority and status change in View as in Edit; nothing else does.
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-cell], [data-pop], .cell-pick').length", sid), 0, "View changes nothing")
+                self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work [data-cell]')].map(c => c.dataset.cell.split(':')[1]))].sort()", sid),
+                                 ["due", "owner", "priority", "status"], "View shows the four pickers")
+                before = self.steps()
+                click(cdp, sid, "[data-cell='TUL-A-001:status']")
+                self.until(cdp, sid, "!!document.querySelector('[data-pop]')", "a click on a cell in View opens its picker")
+                key(cdp, sid, "Escape")
+                self.assertEqual(self.steps(), before, "opening and leaving a picker changes nothing")
                 dblclick(cdp, sid, "tr[data-id='TUL-A-001'] .t")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-A-001')", "a double click on a row opens the item's peek (its address)")
                 self.assertEqual(cdp.js("clarkPage.peek()", sid), {"kind": "item", "id": "TUL-A-001"})
