@@ -35,11 +35,11 @@ export const healthWord = (h) => (HEALTH.find((x) => x[0] === h) || ["", ""])[1]
 // Every word the section shows or says. A test reads each one: no jargon, and no sentence that starts with the product name.
 export const WORDS = {
   title: "Progress tracker",
-  actual: "Actual",
+  actual: "Achieved",
   planned: "Planned",
   achieved: "Achieved",
   weight: "Weight",
-  no: "No.",
+  no: "Number",
   what: "Description",
   start: "Start",
   end: "End",
@@ -49,7 +49,11 @@ export const WORDS = {
   group: "Group name",
   total: "Total",
   noLines: "No lines yet",
+  noLinesEdit: "No lines yet. Press Add a line.",
   none: "Nothing is being tracked yet.",
+  noneEdit: "Nothing is being tracked yet. Press Add a group to start.",
+  notPublished: "A tracker with no lines is not published. Add a line to show it.",
+  weightHint: "Weight is how much of the whole plan the line is worth. Weight, Planned and Achieved can each add up to 100% at most across all the lines.",
   behindLabel: "behind plan",
   addLine: "Add a line",
   addGroup: "Add a group",
@@ -65,29 +69,32 @@ export const WORDS = {
   overall: "Overall",
   columns: "Show these columns",
   datePlaceholder: "DD-MM-YYYY",
-  percentPlaceholder: "0 to 100",
+  percentPlaceholder: "Part of 100",
   noHealth: "Not set",
   added: "Line added.",
   saved: "Saved.",
   removed: "Line removed.",
   moved: "Moved.",
   groupAdded: "Group added.",
-  groupRemoved: "Group removed.",
+  groupRemoved: "Group and its lines removed.",
   fullLines: `A tracker can have ${MAX_LINES} lines in all. Remove one to add another.`,
   fullGroups: `A tracker can have ${MAX_GROUPS} groups at most. Remove one to add another.`,
   problems: {
     text: "Describe each line.",
+    // The words below that the store also says (text, textLong, noLong, percent, order, status, count, name, nameLong) are the store's own
+    // (clark/section_bodies.py, guarded) and tests/test_tracker_logic.py holds the page to them; the page's fuller wording for the same
+    // refusals is in stores/report.js (CHANGE_KNOWN).
     textLong: `A line description can be ${TEXT_MAX} characters at most.`,
     noLong: `A line number can be ${NO_MAX} characters at most.`,
     percent: "A percentage must be a number from 0 to 100.",
-    date: `A date must be a real day written DD-MM-YYYY, between ${YEARS[0]} and ${YEARS[1]}, or empty.`,
+    date: "That date isn't right. Type it as DD-MM-YYYY, or leave it empty.",
     order: "A line can't end before it starts.",
     status: "Choose Planned, In progress, Completed or Late.",
     count: `A count must be a whole number from 0 to ${COUNT_MAX}, or empty.`,
     name: "Give each group a name.",
     nameLong: `A group name can be ${NAME_MAX} characters at most.`,
     total: "The lines' weight, planned and achieved figures can each add up to 100% at most.",
-    noteLong: `The note can be ${NOTE_MAX} characters at most.`,
+    noteLong: `That line is too long (${NOTE_MAX} characters at most). Shorten it and try again.`,
   },
 };
 export const ALL_WORDS = () => {
@@ -171,7 +178,7 @@ export const behindOf = (line) => Math.max(0, line.planned - line.achieved);
 // The figures the section shows, all in tenths. `groups[i]` is { name, weight, planned, achieved, behind, none } (`none`: no lines, so
 // 0 everywhere and the words "No lines yet"), each with `lines[j].behind`. `overall` is { actual, planned, behind, health, note, fromLines }
 // (actual and planned are null only when there are no lines and none were typed). `weights` is the sum of every weight, and
-// `weightsNote` says so ("Weights add up to 94%") only when there are lines and the sum is not the whole.
+// `weightsNote` says so ("The weights add up to 94%, not 100%. ...") only when there are lines and the sum is not the whole.
 export function totals(tracker) {
   const groups = tracker.groups.map((g) => {
     const planned = sum(g.lines, "planned"), achieved = sum(g.lines, "achieved");
@@ -185,7 +192,7 @@ export function totals(tracker) {
   const planned = fromLines ? sum(groups, "planned") : o.planned;
   const behind = actual !== null && planned !== null ? Math.max(0, planned - actual) : 0;
   const weights = sum(groups, "weight");
-  return { groups, lines, weights, weightsNote: fromLines && weights !== WHOLE ? `Weights add up to ${fmt(weights)}%` : "",
+  return { groups, lines, weights, weightsNote: fromLines && weights !== WHOLE ? `The weights add up to ${fmt(weights)}%, not 100%. Change a weight so they add up to 100%.` : "",
     overall: { actual, planned, behind, behindWords: behindWords(behind), health: o.health, note: o.note, fromLines } };
 }
 

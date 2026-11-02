@@ -108,10 +108,10 @@ class Page(Base):
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-planned]")), "50%")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-health]")), "At risk")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-behind]")), "5 points behind plan")
-            self.assertEqual(p.js(self.text_of(ref, "[data-tr-weights]")), "Weights add up to 94%")
+            self.assertEqual(p.js(self.count(ref, "[data-tr-weights]")), 0, "the weights note is for Edit only: a reader never sees it")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-group] caption")), "Foundations")
             self.assertEqual(p.js("[..." + self.many(ref, "th.t-what, thead th") + "].slice(0, 8).map(e => e.textContent)"),
-                             ["No.", "Description", "Start", "End", "Status", "Weight", "Planned", "Achieved"])
+                             ["Number", "Description", "Start", "End", "Status", "Weight", "Planned", "Achieved"])
             row = p.js("[..." + self.one(ref, "[data-tr-line='1']") + ".cells].map(td => td.textContent.replace(/\\s+/g, ' ').trim())")
             self.assertEqual((row[1], row[2], row[3], row[4], row[5], row[6]), ("Set up the site", "05-01-2026", "27-03-2026", "In progress", "30%", "10%"))
             self.assertIn("▼ 5", row[7])
@@ -119,7 +119,11 @@ class Page(Base):
             self.assertEqual(p.js(self.count(ref, "[data-tr-line] .tr-behind")), 1, "only the line behind plan is flagged")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-nolines]")), "No lines yet")
             total = p.js("[..." + self.many(ref, "[data-tr-total]") + "].map(tr => [...tr.cells].map(c => c.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean))")
-            self.assertEqual(total[0][:4], ["Total", "50%", "30%", "25%▼ 55 points behind plan"], total)
+            self.assertEqual(total[0][:3], ["Total", "50%", "30%"], total)
+            self.assertTrue(total[0][3].startswith("25%"), total)
+            self.assertIn("▼ 5", total[0][3])                       # the mark, then a space, then the words for a screen reader
+            self.assertIn("5 points behind plan", total[0][3])
+            self.assertNotIn("▼ 55", total[0][3], "the mark and the spoken words never run together into 55")
             self.assertEqual(total[1][:4], ["Total", "44%", "20%", "20%"])
             self.assertEqual(edit_elements(cdp, p.sid), [], "View has no field, button or edit part")
             self.assertEqual(p.js(self.count(ref, "button, input, select, textarea, a")), 0)
@@ -247,7 +251,7 @@ class Page(Base):
             cases = (({"text": ""}, sb.TRACKER_TEXT_MISSING), ({"text": "x" * 101}, "A line description can be 100 characters at most."),
                      ({"text": "Fine", "planned": "101"}, sb.TRACKER_PERCENT), ({"text": "Fine", "planned": "50", "achieved": "-1"}, sb.TRACKER_PERCENT),
                      ({"text": "Fine", "achieved": "", "weight": "abc"}, sb.TRACKER_PERCENT),
-                     ({"text": "Fine", "weight": "", "start": "31-02-2026"}, "A date must be a real day written DD-MM-YYYY, between 2000 and 2100, or empty."),
+                     ({"text": "Fine", "weight": "", "start": "31-02-2026"}, "That date isn't right. Type it as DD-MM-YYYY, or leave it empty."),
                      ({"text": "Fine", "start": "27-03-2026", "end": "05-01-2026"}, sb.TRACKER_DATE_ORDER))
             for fields, words in cases:
                 self.fill(p, ref, **{"text": "Fine", "planned": "", "achieved": "", "weight": "", "start": "", "end": "", **fields})
@@ -283,7 +287,7 @@ class Page(Base):
             self.fill(p, ref, text="Fine")
             self.click(p, ref, "[data-save]")
             p.until("!!document.querySelector('.toast-text') && /too big to save/i.test(document.querySelector('.toast-text').textContent)", "the plain sentence")
-            self.assertEqual(p.toast(), "That is too big to save, and nothing was changed. Shorten a line or remove some lines, then try again.")
+            self.assertEqual(p.toast(), "That is too big to save, and nothing was changed. Make it shorter, then try again.")
             self.assertTrue(p.js(self.present(ref, "[data-line-form]")), "the form stays open")
 
     def test_the_totals_sit_under_their_headings_at_1400_and_900(self):
@@ -303,7 +307,7 @@ class Page(Base):
                 row = p.js(self.one(ref, "[data-tr-total]") + ".cells[0].textContent")
                 self.assertEqual(row, "Total")
                 if width == 900:
-                    self.assertEqual(p.js("[..." + self.one(ref, "thead tr") + ".cells].map(c => c.textContent)"), ["No.", "Description", "Status", "Weight", "Planned", "Achieved"], "no dates or counts at 900")
+                    self.assertEqual(p.js("[..." + self.one(ref, "thead tr") + ".cells].map(c => c.textContent)"), ["Number", "Description", "Status", "Weight", "Planned", "Achieved"], "no dates or counts at 900")
                     self.assertEqual(p.js(self.one(ref, "[data-tr-total]") + ".cells[0].colSpan"), 3, "the label spans the three columns before the figures")
                     self.assertGreater(p.js(self.one(ref, "thead tr") + ".cells[5].getBoundingClientRect().width"), 40, "Achieved stays in view")
 
@@ -380,6 +384,8 @@ class Page(Base):
             p = self.visit(cdp)
             p.edit()
             self.assertTrue(p.js(self.present(ref, "[data-edit-only]")), "Edit draws the tracker's own parts")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-weights]")), "The weights add up to 94%, not 100%. Change a weight so they add up to 100%.", "the weights note shows in Edit")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-nolines]")), "No lines yet. Press Add a line.", "Edit says what to do next")
             self.assertEqual(p.js(self.count(ref, "[data-tr-group]")), 3)
 
     def test_it_fits_at_1400_and_900_in_light_and_dark_in_view_and_in_edit_full_and_half(self):
@@ -412,7 +418,7 @@ class Source(unittest.TestCase):
 
     def test_a_published_file_carries_no_edit_code_for_the_tracker(self):
         view = (PAGE / "page-view.html").read_text(encoding="utf-8")
-        for marker in ("tracker-edit", "data-line-form", "t-form-row", "data-add-group", "data-remove-group", "OverallNumber"):
+        for marker in ("tracker-edit", "data-line-form", "t-form-row", "data-add-group", "data-remove-group", "OverallNumber", "data-tr-weights"):
             self.assertNotIn(marker, view, marker)
         self.assertIn("data-tr-overall", view, "the reading part is in it")
         served = (PAGE / "page.html").read_text(encoding="utf-8")

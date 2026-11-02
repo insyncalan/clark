@@ -435,7 +435,7 @@ textarea.tpl-field { resize: vertical; }
 .tracker-edit .t-gtools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px; margin: 8px 0 2px; }
 .tracker-edit .t-group { margin: 0 0 8px; }
 .tracker-edit .t-add { margin: 4px 0 12px; }
-.tracker-edit td.t-tools, .tracker-edit th.t-tools { width: 22%; text-align: right; }
+.tracker-edit td.t-tools, .tracker-edit th.t-tools { width: 12%; text-align: right; }
 .tracker-edit .tr-list li { grid-template-columns: minmax(0, 1fr) auto auto; }
 .tracker-edit .tr-list li .t-tools-wrap { grid-column: 1 / -1; }
 .tracker-edit li.t-form-row { display: block; }       /* a table row stays a table row, or its cell stops spanning the table */

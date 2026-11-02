@@ -377,9 +377,9 @@ table.needs .n-over { margin-left: 2px; }
 .tr-v { font-family: var(--font-head); font-size: 34px; line-height: 1.1; color: var(--heading); }
 .tr-health { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-bottom: 4px; }
 .tr-note { color: var(--text); font-size: 14px; }
-.tr-bar { position: relative; height: 14px; margin: 10px 0 4px; border-radius: 999px; background: var(--grey-100); overflow: visible; }
+.tr-bar { position: relative; height: 14px; margin: 10px 0 4px; border-radius: 999px; background: var(--grey-200); box-shadow: inset 0 0 0 1px var(--grey-500); overflow: visible; }
 .tr-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--brand-blue); min-width: 0; }
-.tr-mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--text); }
+.tr-mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--heading); box-shadow: 0 0 0 1px var(--surface); }
 .tr-behindline { margin: 4px 0 0; font-size: 14px; color: var(--status-red-text); }
 .tr-behind { margin-left: 6px; font-size: 13px; color: var(--status-red-text); white-space: nowrap; }
 .pill.v { background: var(--grey-100); color: var(--text); }
@@ -389,11 +389,12 @@ table.tracker caption.tr-cap, .tr-half .tr-cap { text-align: left; font-family: 
 table.tracker th { text-align: left; font-weight: 400; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 8px; border-top: 1px solid var(--grey-200); }
 table.tracker td { padding: 8px 8px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 table.tracker th:first-child, table.tracker td:first-child { padding-left: 4px; }
-table.tracker .t-no { width: 6%; }
-table.tracker .t-date { width: 11%; }
-table.tracker .t-status { width: 13%; }
-table.tracker .t-n { width: 9%; text-align: right; }
-table.tracker .t-count { width: 8%; }
+/* Description takes what the fixed columns leave: 15% at the least (Edit with all three counts), 42% in View without them. */
+table.tracker .t-no { width: 5%; }
+table.tracker .t-date { width: 9%; }
+table.tracker .t-status { width: 11%; }
+table.tracker .t-n { width: 8%; text-align: right; }
+table.tracker .t-count { width: 5%; }
 table.tracker tr.tr-total th, table.tracker tr.tr-total td { border-top: 1px solid var(--grey-300); color: var(--heading); font-weight: var(--weight-medium); text-transform: none; letter-spacing: 0; font-size: 14px; }
 table.tracker tr.tr-none td { text-align: left; }
 .tr-sub { font-family: var(--font); font-size: 14px; color: var(--text-muted); }
@@ -403,9 +404,9 @@ table.tracker tr.tr-none td { text-align: left; }
 .tr-list .tr-text { overflow-wrap: anywhere; }
 .tr-weights { margin: 4px 0 0; }
 @media (max-width: 900px) {
-  table.tracker .t-n { width: 14%; }
-  table.tracker .t-status { width: 20%; }
-  table.tracker .t-no { width: 8%; }
+  table.tracker .t-n { width: 11%; }
+  table.tracker .t-status { width: 15%; }
+  table.tracker .t-no { width: 6%; }
 }
 @media print { .tr-bar, .tr-fill, .tr-mark { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
 

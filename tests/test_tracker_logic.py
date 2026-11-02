@@ -129,12 +129,12 @@ class Totals(unittest.TestCase):
         self.assertEqual(self.k("behindWords(0)"), "")
 
     def test_a_weights_note_appears_only_when_they_do_not_add_up(self):
-        self.assertEqual(self.totals()["weightsNote"], "Weights add up to 94%")
+        self.assertEqual(self.totals()["weightsNote"], "The weights add up to 94%, not 100%. Change a weight so they add up to 100%.")
         self.assertEqual(self.totals()["weights"], 940)
         whole = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 600, 0, 0), line("Two", 400, 0, 0)]}]}
         self.assertEqual(self.totals(whole)["weightsNote"], "")
         half = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 945, 0, 0)]}]}
-        self.assertEqual(self.totals(half)["weightsNote"], "Weights add up to 94.5%")
+        self.assertEqual(self.totals(half)["weightsNote"], "The weights add up to 94.5%, not 100%. Change a weight so they add up to 100%.")
         empty = {**TRACKER, "groups": [{"name": "Nothing yet", "lines": []}]}
         self.assertEqual(self.totals(empty)["weightsNote"], "")
 
