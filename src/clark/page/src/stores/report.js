@@ -263,6 +263,8 @@ const CHANGE_KNOWN = {
   "That section isn't in this project.": "That section is no longer in this report, and nothing was changed. Reload the page.",
   "That step can't be undone from here.": "That change can't be undone any more. Reload the page to see how the report is now.",
   "That step has been undone already.": "That change has been undone already. Reload the page to see how the report is now.",
+  // The eye of the Work items table (#456) cannot show a Sensitive item: clark's refusal of it, in the page's words.
+  "A Sensitive item is never published, so it can't be added to the report.": "A Sensitive item is never shown to the client, and nothing was changed. Take the Sensitive label off first.",
   // #80: a work item change clark would not make (clark/changes.py's words; the page says its own)
   "That item isn't in this project.": "That item is no longer in this project, and nothing was changed. Reload the page.",
   "Pick a real date.": "That date isn't a real day, and nothing was changed. Pick another date.",

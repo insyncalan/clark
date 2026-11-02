@@ -164,7 +164,7 @@ class Table(unittest.TestCase):
         finally:
             st.close()
 
-    def open(self, cdp, width, mode="view", theme="light"):
+    def load(self, cdp, width, mode="view", theme="light"):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
@@ -187,7 +187,7 @@ class Table(unittest.TestCase):
                 for mode in ("view", "edit"):
                     for theme in ("light", "dark"):
                         where = f"{width} px, {mode}, {theme}"
-                        got = self.measure(cdp, self.open(cdp, width, mode, theme))
+                        got = self.measure(cdp, self.load(cdp, width, mode, theme))
                         self.assertNotIn("Type", got["heads"], where + ": no Type column")
                         self.assertEqual(set(got["heads"]), {"Item", "Owner", "Due", "Priority", "Status", "Client-visible"}, where)
                         self.assertGreater(len(got["cards"]), 1, where + ": more than one group")
@@ -211,16 +211,16 @@ class Table(unittest.TestCase):
 
     def test_the_eye_shows_who_the_client_sees(self):
         with chrome() as cdp:
-            got = {r["id"]: r for r in self.measure(cdp, self.open(cdp, 1400))["rows"]}
+            got = {r["id"]: r for r in self.measure(cdp, self.load(cdp, 1400))["rows"]}
         self.assertEqual((got["TUL-A-002"]["eye"], got["TUL-A-004"]["eye"]), ("true", "false"), "A-002 is shown to the client, A-004 is not")
         self.assertEqual(got["TUL-A-001"]["eye"], "false", "A-001 has the client flag on but carries the Sensitive label, so a publish leaves it out and the eye says so")
         self.assertTrue(got["TUL-A-002"]["eyeLabel"].startswith("Shown to the client: "))
-        self.assertTrue(got["TUL-A-004"]["eyeLabel"].startswith("Not shown to the client: "))
+        self.assertTrue(got["TUL-A-004"]["eyeLabel"].startswith("Hidden from the client: "))
 
     def test_the_eye_in_view_is_a_read_only_mark_and_a_click_changes_nothing(self):
         eye = "tr[data-id='TUL-A-002'] .weye"
         with chrome() as cdp:
-            sid = self.open(cdp, 1400)
+            sid = self.load(cdp, 1400)
             got = json.loads(cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(eye)}); return JSON.stringify({{ tag: e.tagName, role: e.getAttribute('role'), label: e.getAttribute('aria-label'), tab: e.tabIndex, pressed: e.hasAttribute('aria-pressed'), buttons: document.querySelectorAll('#work .c-eye button').length }}); }})()", sid))
             self.assertEqual((got["tag"], got["role"], got["pressed"], got["buttons"]), ("SPAN", "img", False, 0), "no button, no pressed state")
             self.assertLess(got["tab"], 0, "not a focus stop")
@@ -237,7 +237,7 @@ class Table(unittest.TestCase):
     def test_the_eye_in_edit_turns_an_item_off_and_on_with_a_toast_and_undo(self):
         ref, eye = "TUL-A-002", "tr[data-id='TUL-A-002'] .weye"
         with chrome() as cdp:
-            sid = self.open(cdp, 1400, "edit")
+            sid = self.load(cdp, 1400, "edit")
             self.assertEqual(self.hidden(), set())
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'false'", sid)), "the eye turned off")
@@ -257,7 +257,7 @@ class Table(unittest.TestCase):
     def test_the_eye_turns_an_item_on_by_its_own_flag_and_refuses_a_sensitive_one_in_words(self):
         eye = "tr[data-id='TUL-A-004'] .weye"
         with chrome() as cdp:
-            sid = self.open(cdp, 1400, "edit")
+            sid = self.load(cdp, 1400, "edit")
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", sid)), "the eye turned on")
             mine = {r["id"]: r for r in self.read("TUL")["actions"]}
@@ -269,7 +269,7 @@ class Table(unittest.TestCase):
 
     def test_the_arrow_keys_reach_the_eye_in_edit_and_the_table_stays_one_tab_stop(self):
         with chrome() as cdp:
-            sid = self.open(cdp, 1400, "edit")
+            sid = self.load(cdp, 1400, "edit")
             stops = cdp.js("[...document.querySelectorAll('#work table.items *')].filter(e => e.tabIndex >= 0 && !e.disabled && !e.closest('tr.grp')).length", sid)
             self.assertEqual(stops, 1, "one tab stop")
             cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
@@ -282,7 +282,7 @@ class Table(unittest.TestCase):
 
     def test_the_arrow_keys_in_view_stay_on_the_row_and_the_eye_is_no_stop(self):
         with chrome() as cdp:
-            sid = self.open(cdp, 1400)
+            sid = self.load(cdp, 1400)
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work .c-eye *')].filter(e => e.tabIndex >= 0).length", sid), 0, "the eye column holds no focus stop")
             cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "ArrowRight", "code": "ArrowRight", "windowsVirtualKeyCode": 39}, sid)

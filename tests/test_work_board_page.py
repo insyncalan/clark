@@ -214,8 +214,8 @@ class GroupBy(Base):
             self.assertEqual(names, ["Workstream", "Status", "Due", "Owner", "Priority", "Milestone", "Type", "Nothing"])
             click(cdp, sid, ".ddmenu [data-kind=status]")
             self.until(cdp, sid, "document.querySelector('#group-by').textContent === 'Group by: Status'")
-            groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, +t.querySelector('.gc').textContent])", sid)
-            self.assertTrue(groups and all(n == c for _, n, c in groups), groups)
+            groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, parseInt(t.querySelector('.gc').textContent, 10)])", sid)
+            self.assertTrue(groups and all(n == c for _, n, c in groups), groups)       # the heading says "N items" (#456); its number is the row count
             self.assertEqual(sum(n for _, n, _ in groups), cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid))
             click(cdp, sid, "#group-by")
             click(cdp, sid, ".ddmenu [data-kind=nothing]")

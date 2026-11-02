@@ -351,10 +351,10 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }
   table.items tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 6px 12px; padding: 10px 4px; border-top: 1px solid var(--grey-100); }
   table.items td, table.items td:first-child { display: block; min-width: 0; width: auto; padding: 0; border-top: 0; }
   table.items .c-item { grid-column: 1 / 4; grid-row: 1; }
-  table.items .c-owner { grid-column: 1 / 4; grid-row: 2; }
-  table.items tr { position: relative; }
-  table.items tr.has-eye .c-item { padding-right: 32px; }
-  table.items td.c-eye { position: absolute; top: 6px; right: 2px; grid-column: auto; padding: 0; }
+  table.items .c-owner { grid-column: 1 / -1; grid-row: 2; }
+  
+  table.items tr.has-eye { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr) 28px; }
+  table.items tr.has-eye td.c-eye { grid-column: 4; grid-row: 1; justify-self: end; align-self: start; width: 28px; padding: 0; }
   table.items tr.colh { display: none; }
   table.items .c-status { grid-column: 1; grid-row: 3; }
   table.items .c-due { grid-column: 2; grid-row: 3; }

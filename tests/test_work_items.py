@@ -152,6 +152,7 @@ class RealBrowser(unittest.TestCase):
 
     def rows(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => ({id: r.dataset.id, kind: r.dataset.kind,"
+                      " badge: (r.querySelector('.kb') || {}).textContent, badgeWord: (r.querySelector('.kb') || {}).title,"
                       " text: r.innerText, late: !!r.querySelector('.due-l.late'), words: (r.querySelector('.due-l') || {}).textContent,"
                       " pill: r.querySelector('.pill').textContent, pillClass: r.querySelector('.pill').className}))", sid)
 
@@ -309,8 +310,8 @@ class RealBrowser(unittest.TestCase):
             self.assertIn("13-10-2026", closed["text"])
             self.assertEqual(closed["pill"], "Closed")
             self.assertEqual(rows["TUL-007"]["words"], "In 7 days")
-            self.assertIn("Dependency", rows["TUL-011"]["text"])      # all four RAID types are listed, by word
-            self.assertIn("Assumption", rows["TUL-009"]["text"])
+            self.assertEqual((rows["TUL-011"]["badge"], rows["TUL-011"]["badgeWord"]), ("P", "Dependency"))      # the RAID types are told by a letter badge that names its word (#456)
+            self.assertEqual((rows["TUL-009"]["badge"], rows["TUL-009"]["badgeWord"]), ("S", "Assumption"))
             self.assertEqual(rows["TUL-D-016"]["pill"], "Pending")
             self.assertEqual(rows["TUL-D-013"]["pill"], "Made")
             self.assertIn("19-08-2026", rows["TUL-D-013"]["text"])    # a made decision shows the date it was made
