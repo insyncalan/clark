@@ -17,11 +17,11 @@ class Build(unittest.TestCase):
     def test_the_rules_text_is_fixed(self):
         text = ask.build_request("What is late?", P).text
         self.assertNotIn(ask.RULES, text, "the rules are the system prompt, not part of the request text (#278)")
-        for line in ("Use only the passages below", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "You have no tools and no files",
+        for line in ("Use only the passages in the request", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "You have no tools and no files",
                      "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving"):
             self.assertIn(line, ask.RULES)
         self.assertEqual(len(ask.RULES.splitlines()), 12)
-        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "033a4e3217abe599bfdcb7fc1b4b5c458c6b0b105aebab9fb6af1d1dacdad4dd")      # a change to the rules is a deliberate edit of this line
+        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "a5637176cbda59ec7726647ecbdc728f8cd0e9771c2ec4ba2d6331abbc601bbf")      # a change to the rules is a deliberate edit of this line
 
     def test_passages_get_ids_in_order_and_the_question_is_carried(self):
         r = ask.build_request("What is late?", P)
