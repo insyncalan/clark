@@ -97,6 +97,23 @@ class Workflow(unittest.TestCase):
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
+    def test_the_plan_sets_full_for_a_guarded_file_and_fails_safe(self):
+        plan = self.jobs["plan"]
+        self.assertIn("pull-requests: read", plan)
+        self.assertNotIn("actions/checkout", plan)
+        self.assertNotIn("eval ", plan)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", plan)
+        self.assertIn("PR_NUMBER: ${{ github.event.pull_request.number }}", plan)
+        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq \'.[].filename\'', plan)
+        for guarded in ("src/clark/store.py", "src/clark/server.py", "src/clark/publish.py", "src/clark/secret_screen.py",
+                        "src/clark/updates.py", "src/clark/platform.py", "src/clark/schema.sql", "src/clark/history.py",
+                        ".github/*"):
+            self.assertIn(guarded, plan)
+        # a failed API call is full, not cheap
+        self.assertRegex(plan, r"else\s+echo \"could not list[^\n]*\n\s+FULL=1; MACOS=1")
+        # the filenames are text from the pull request: only through the shell variable, never in a ${{ }} expression
+        self.assertNotRegex(plan, r"\$\{\{[^}]*(filename|files)")
+
     def test_never_pull_request_target_no_secrets_read_only(self):
         self.assertNotIn("pull_request_target", self.text)          # the header comment says "never"
         self.assertNotIn("secrets.", self.text)
@@ -104,7 +121,11 @@ class Workflow(unittest.TestCase):
         self.assertEqual(block(self.text, "permissions").split(), ["contents:", "read"])
         self.assertNotRegex(self.text, r"\bwrite\b")
         for job, body in self.jobs.items():
-            self.assertNotIn("permissions:", body, f"{job} widens the permissions")
+            if job != "plan":
+                self.assertNotIn("permissions:", body, f"{job} widens the permissions")
+        # only the plan job widens, by one read scope (the changed-files API call); every other scope stays absent
+        self.assertEqual(code(block(self.jobs["plan"], "permissions", 4)).split(), ["contents:", "read", "pull-requests:", "read"])
+        self.assertEqual(self.text.count("pull-requests: read"), 1)
         self.assertEqual(self.text.count("persist-credentials: false"), self.text.count("actions/checkout@"))
 
     def test_a_newer_pull_request_run_cancels_the_older_and_a_main_or_release_run_never_is(self):
