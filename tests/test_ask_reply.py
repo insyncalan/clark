@@ -7,11 +7,11 @@ import ast
 import json
 import random
 import re
-import time
 import unittest
 
 from _paths import SRC
 from clark import ask
+from _growth import assert_near_baseline
 
 CODES = ["ABC", "XYZ"]
 ITEMS = {"ABC-A-001": {"title": "Order the test kit", "owner": "Owner One"},
@@ -246,13 +246,13 @@ class Speed(unittest.TestCase):
     OLD_OWNER = (r"\b(?:owner|owned by|assigned to)\b\s*(?:is\b|:|-)?\s*"
                  r"([A-Z][\w'\u2019.-]*(?:\s+[A-Z][\w'\u2019.-]*){0,2})")
 
-    def timed(self, text):
-        t = time.perf_counter()
-        read(text, facts=facts)
-        return time.perf_counter() - t
+    def quick(self, text, label):
+        """The text against a plain one of the same length, in CPU time, in the same run (a fixed limit in seconds failed on a loaded Mac)."""
+        plain = ("ABC-A-001 is open. " * (len(text) // 19 + 1))[:len(text)]
+        assert_near_baseline(self, lambda: read(text, facts=facts), lambda: read(plain, facts=facts), label)
 
     def test_a_long_run_of_spaces_after_owner_is_quick(self):
-        self.assertLess(self.timed("ABC-A-001 owner" + " " * 59000 + "x"), 1.0)
+        self.quick("ABC-A-001 owner" + " " * 59000 + "x", "spaces after owner")
 
     def test_adversarial_lines_of_sixty_thousand_characters_are_quick(self):
         n = 60000
@@ -261,16 +261,15 @@ class Speed(unittest.TestCase):
                      "ABC-A-001 " + '"a' * 29000, "ABC-A-001 " * 6000, "[P1" * 20000, "CITE: " + "P1 " * 20000,
                      "ABC-A-001\n" * 6000):
             with self.subTest(text=text[:30]):
-                self.assertLess(self.timed(text[:n]), 1.0)
+                self.quick(text[:n], text[:30])
 
     def test_the_secret_check_is_quick_on_adversarial_text(self):
         n = 60000
         for text in ("password" + " " * n, "password is " * 5000, "Bearer " * 8000, "http://a:" * 7000, "aA1" * 20000,
                      "api key " * 7000, "-----BEGIN " + "A " * 29000):
             with self.subTest(text=text[:20]):
-                t = time.perf_counter()
-                ask.looks_like_secret(text[:n])
-                self.assertLess(time.perf_counter() - t, 1.0)
+                plain = ("plain words here " * n)[:len(text[:n])]
+                assert_near_baseline(self, lambda: ask.looks_like_secret(text[:n]), lambda: ask.looks_like_secret(plain), text[:20])
 
     def test_a_line_over_the_limit_is_not_checked_for_title_or_owner(self):
         wrong = "ABC-A-001 owner is Somebody Else"
