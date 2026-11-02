@@ -394,7 +394,7 @@ class Numbers120(unittest.TestCase):
         schema = read(SRC / "clark" / "schema.sql")
         for name in ("publications_no_delete", "publications_number_fixed", "publications_never_replaced"):
             self.assertRegex(schema, rf"CREATE TRIGGER IF NOT EXISTS {name}\b", name)
-        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 10\b")
+        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 1[01]\b")    # 11 is #342 (the archive flag)
 
     def test_120_2_a_number_is_fixed_and_never_reused(self):
         schema = read(SRC / "clark" / "schema.sql")
