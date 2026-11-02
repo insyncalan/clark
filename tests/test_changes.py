@@ -129,7 +129,7 @@ class Refusals(Api):
         self.refused(self.req("new", before="ABC-S-001"), "That change doesn't take 'before'.")
         self.refused(self.req("update", id="ABC-S-005", values={"title": "x"}), "That change doesn't take 'values'.")
         self.refused(self.req("update", id="ABC-S-005", changes={"sort_order": 1}), "The field 'sort_order' can't be set here.")
-        self.refused(self.req("update", id="ABC-S-005", changes={"body": "x"}), changes.NO_BODY_HERE)         # a text section's body write stays closed
+        self.refused(self.req("update", id="ABC-S-001", changes={"body": "x"}), changes.NO_BODY_HERE)         # a built-in section takes no body (a text section does: test_changes_text_body)
         self.refused(self.req("update", id="ABC-S-005", changes={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("update", id="ABC-S-005", changes={}), "Say what to change.")
         self.refused(self.req("update", id="ABC-S-005"), "Say what to change.")

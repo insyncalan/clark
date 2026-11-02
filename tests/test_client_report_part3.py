@@ -199,7 +199,8 @@ class Drawn(unittest.TestCase):
         self.assertEqual(js("document.querySelectorAll('#cr-highlights script, #cr-highlights img, #cr-highlights [onclick]').length"), 0, "cleaned: " + where)
         self.assertIsNone(js("window.__bad"), where)
         self.assertEqual(js("document.querySelectorAll('#cr-nextweek li').length"), 2, where)
-        self.assertEqual(js("document.querySelectorAll('#cr-highlights [data-edit-only], #cr-nextweek [data-edit-only]').length"), 0, "read-only until the body editor is on: " + where)
+        self.assertEqual(js("document.querySelectorAll('#cr-highlights [data-edit-only], #cr-nextweek [data-edit-only]').length"), 2 if edit else 0,
+                         "read-only in View; in Edit each of the two is the text section's own editor field (#220): " + where)
         self.assertLessEqual(js("document.documentElement.scrollWidth"), js("window.innerWidth"), "no sideways scroll: " + where)
         self.assertEqual(js("[...document.querySelectorAll('#cr-highlights, #cr-nextweek, #cr-raid, #cr-delivery')].filter(function(e){return e.scrollWidth > e.clientWidth + 1}).length"), 0, "no overflow: " + where)
         m = js(MEASURE)

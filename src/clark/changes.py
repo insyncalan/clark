@@ -16,8 +16,9 @@ What it does, and does not:
   does not make an empty database, when clark.db isn't there.
 - The reply carries only what the page needs of each section: id, type, title, beside, hidden, sort_order. Never its body.
 - A section may be added as text, needs or tracker (NEW_SECTION_TYPES, an allow-list). An update may write `body` only for a
-  needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type; each save replaces
-  the whole body in one step with one Undo. A needs or tracker section may be deleted like a text one (Undo-able, kept in
+  needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type, or for a text section
+  through sanitise.clean_html (_text_body); each save replaces the whole body in one step with one Undo. A needs or tracker
+  section may be deleted like a text one (Undo-able, kept in
   change_log): "we archive, we never delete" is about work items and is not breached.
 - #96 R1, pictures: a section template that holds pictures (its section_kinds module has `with_picture`) never takes one through
   /api/change: a body sent there may not name `pictures`, may be at most the module's TEXT_LIMIT, and keeps the pictures already
@@ -221,6 +222,8 @@ NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new s
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
+BIDI_CONTROLS = re.compile("[\u202a-\u202e\u2066-\u2069]")   # the nine bidi override, embedding and isolate marks: they can make text read backwards (zero-width joiners stay: emoji need them)
+TEXT_BODY_MAX = 64 * 1024               # bytes of a text section's body as stored; never more than server.SECTION_BODY_MAX, the most the change route carries (a test holds it at or under, so either may be raised alone)
 KEEPS_TYPE = "A section keeps its type."
 FLAG_WORDS = "That must be 0 or 1."
 NO_UNDO = "That step can't be undone from here."
@@ -382,9 +385,11 @@ def _checked_changes(fields):
 def _section_body(section, body):
     """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
     (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
-    takes a body here; a text section's body write stays closed until its own item opens it. A refusal is plain words and never
+    takes a body here, and a text section (Summary, This week, Next week) through the cleaner (_text_body). A refusal is plain words and never
     quotes the content. The store checks it again on write (every write, an Undo too). A section that holds pictures (#96 R1)
     takes its words here and keeps its stored pictures (_keep_pictures)."""
+    if section["type"] == "text":
+        return _text_body(body)
     if section["type"] not in section_bodies.CHECKERS:
         raise Refused(NO_BODY_HERE)
     try:
@@ -393,6 +398,19 @@ def _section_body(section, body):
         return clark_store.check_section_body(section["type"], body)
     except Invalid as e:
         raise Refused(str(e)) from None
+
+
+def _text_body(body):
+    """A text section's body as it is stored: the server's own cleaner (sanitise.clean_html) decides what is kept, never the page's
+    copy of it. Bidi override marks are dropped first. Over TEXT_BODY_MAX bytes once cleaned, or text the cleaner refuses (too long), is refused in plain words."""
+    body = BIDI_CONTROLS.sub("", body)      # dropped BEFORE the cleaner, so it judges the text that is kept (a mark inside a link's address can't hide it)
+    try:
+        text = sanitise.clean_html(body)
+    except sanitise.SanitiseError:
+        raise Refused(WORDS_TOO_LONG) from None
+    if len(text.encode("utf-8")) > TEXT_BODY_MAX:
+        raise Refused(WORDS_TOO_LONG)
+    return text
 
 
 # ── Pictures in a section template (#96 R1) ───────────────────────────────────

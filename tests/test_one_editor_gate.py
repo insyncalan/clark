@@ -4,9 +4,8 @@ Run: python3 dev/run_tests.py test_one_editor_gate
 Adapted from creaite's gate, not copied: creaite's file is a Markdown round trip and counts nothing. Here:
   - a source check: no other `new Editor`, `createEditor` or `contenteditable` in the page's source outside core/editor.js (the section
     title's plain-text field is the one named exception, below);
-  - a page check: with the rich fields switched on (a copy of the page's source with the seam in edit/richSave.js listing the text
-    section's body), Edit opens every rich field and finds only clarkEditor() instances (a .ProseMirror with a handle), and with the
-    seam as shipped (empty) no rich field has an editor;
+  - a page check: Edit opens every rich field (the seam in edit/richSave.js lists the text section's body, #220) and finds only
+    clarkEditor() instances (a .ProseMirror with a handle); View has no rich field at all;
   - the editor adds no <style> element when it mounts, and the Edit page loads.
 """
 import re
@@ -14,7 +13,6 @@ import shutil
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
@@ -23,8 +21,7 @@ from _paths import SRC, TOOLS
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 
-from clark import changes, order, page, server as sv  # noqa: E402
-from clark.store import open_store  # noqa: E402
+from clark import changes, order, page, sanitise, server as sv  # noqa: E402
 from test_page import navigate  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
@@ -56,9 +53,10 @@ class Source(unittest.TestCase):
                     found.append(f"{rel}:{n}: {line.strip()[:80]}")
         self.assertEqual(found, [])
 
-    def test_the_seam_ships_empty_and_names_the_three_rich_fields_it_will_take(self):
+    def test_the_seam_lists_the_text_section_body_and_nothing_else_yet(self):
         text = (PAGE_SRC / "edit" / "richSave.js").read_text(encoding="utf-8")
-        self.assertRegex(text, r"export const RICH_WRITES = \{\};")
+        block = text.split("export const RICH_WRITES = {", 1)[1].split("};", 1)[0]
+        self.assertEqual(re.findall(r"^\s*(\w+):", block, re.M), ["body"])
 
     def test_core_editor_is_the_only_importer_of_the_vendored_editor(self):
         importers = [f.relative_to(PAGE_SRC).as_posix() for f in PAGE_SRC.rglob("*.js*") if re.search(r"from\s+[\"']tiptap[\"']", f.read_text(encoding="utf-8"))]
@@ -79,24 +77,11 @@ ORIGINAL = "<p>Original words the programme manager wrote.</p>"
 
 
 class PageGate(unittest.TestCase):
-    """The real page, built from a copy of the source with the seam switched on for the text section's body."""
+    """The real page and the real write kind: the seam lists the text section's body (#220)."""
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.mkdtemp(prefix="clark-gate-")
-        cls.src = Path(cls.tmp) / "src"
-        shutil.copytree(PAGE_SRC, cls.src, ignore=shutil.ignore_patterns("shown"))
-        seam = cls.src / "edit" / "richSave.js"
-        seam.write_text(seam.read_text(encoding="utf-8").replace(
-            "export const RICH_WRITES = {};",
-            'export const RICH_WRITES = { body: (id, html) => ({ kind: "report_sections", op: "update", id, changes: { body: html } }) };'),
-            encoding="utf-8")
-        with mock.patch.object(build_page, "SRC", cls.src):
-            cls.page_on = build_page.build()
-
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.tmp, ignore_errors=True)
+        cls.page_on = build_page.build()
 
     def setUp(self):
         self.demo = DemoStore()
@@ -105,7 +90,6 @@ class PageGate(unittest.TestCase):
         self.real = changes.make_change(self.store.path, [], USER)
         self.sent = []
         self.fail_reads = False
-        self.body_writes = False                 # #188: the stand-in body write kind (stand_in) answers instead of the real server
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
         self.addCleanup(quiet.stop)
@@ -121,19 +105,16 @@ class PageGate(unittest.TestCase):
         return s
 
     def change(self, req):
-        if self.body_writes:
-            return self.stand_in(req)
         self.sent.append(req)
         return self.real(req)
 
     def seed_body(self):
-        """The demo project's first text section gets a body; returns nothing, sets self.sec. Also switches the stand-in on."""
+        """The demo project's first text section gets a body; returns nothing, sets self.sec."""
         rows = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "text"]
         self.assertTrue(rows, "the demo project has a text section")
         self.sec = rows[0]["id"]
         with self.store.step("dashboard", USER) as st:
             st.update("report_sections", self.sec, {"body": ORIGINAL})
-        self.body_writes = True
 
     def edit(self, cdp, s):
         sid = navigate(cdp, s.port, "#dashboard&p=ABC")
@@ -143,12 +124,21 @@ class PageGate(unittest.TestCase):
         self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
         return js, sid
 
-    def test_with_the_seam_empty_no_rich_field_has_an_editor(self):
-        s = self.serve(page.page_html(EMPTY_BRANDING))
+    def test_only_the_three_text_sections_have_a_rich_field_and_only_in_edit(self):
+        s = self.serve(self.page_on)
         with chrome() as cdp:
-            js, _ = self.edit(cdp, s)
-            self.assertEqual(js("document.querySelectorAll('.ProseMirror, [data-rich]').length"), 0)
-            self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet').length > 0"), True)
+            sid = navigate(cdp, s.port, "#dashboard&p=ABC")
+            js = lambda e: cdp.js(e, sid)  # noqa: E731
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('.sec').length > 0"), 15))
+            self.assertEqual(js("document.querySelectorAll('.ProseMirror, [data-rich]').length"), 0, "View has no rich field")
+            js("document.querySelector('[data-mode=edit]').click()")
+            self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
+            self.assertEqual(js("[...document.querySelectorAll('[data-rich]')].map(function(f){ return f.closest('.sec').dataset.id; })"),
+                             ["ABC-S-005", "ABC-S-006", "ABC-S-007"])
+            self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet:not([data-rich] .quiet)').length"), 0)
+            js("document.querySelector('[data-mode=view]').click()")
+            self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode !== 'edit'"), 10))
+            self.assertEqual(js("document.querySelectorAll('.ProseMirror, [data-rich]').length"), 0, "back in View there is no rich field again")
 
     def test_every_rich_field_opens_a_clark_editor_and_nothing_else(self):
         s = self.serve(self.page_on)
@@ -167,6 +157,9 @@ class PageGate(unittest.TestCase):
             self.assertEqual(js("document.querySelectorAll('style').length"), before, "a mount adds no <style>")
 
     def test_a_save_that_the_server_refuses_says_so_in_plain_words_and_keeps_the_field_open(self):
+        small = mock.patch.object(changes, "TEXT_BODY_MAX", 10)        # the server thread reads the same module: a body over 10 bytes is too long
+        small.start()
+        self.addCleanup(small.stop)
         s = self.serve(self.page_on)
         with chrome() as cdp:
             js, sid = self.edit(cdp, s)
@@ -178,25 +171,13 @@ class PageGate(unittest.TestCase):
             self.assertTrue(wait(lambda: any(r.get("changes", {}).get("body") for r in self.sent), 30), "the change was sent")  # a bounded poll: the hosted macOS runner can take longer than 10 s
             self.assertTrue(wait(lambda: js("!!document.querySelector('.toast')"), 30))
             self.assertTrue(js("!!document.querySelector('.ProseMirror')"), "the field stays open")
-            self.assertNotIn("Traceback", js("document.querySelector('.toast-text').textContent"))
+            toast = js("document.querySelector('.toast-text').textContent")
+            self.assertNotIn("Traceback", toast)
+            self.assertIn("too long to save", toast)
+            self.assertIn("nothing was changed", toast)
 
     def stored(self):
         return next(r for r in self.store.read("report_sections", "ABC") if r["id"] == self.sec)["body"]
-
-    def stand_in(self, req):
-        """The body write kind that is not built yet (changes.py is guarded): stores the body as the real one will and replies as the
-        real server does, with the sections and no bodies."""
-        self.sent.append(req)
-        body = (req.get("changes") or {}).get("body")
-        if req.get("kind") == "report_sections" and body is not None:
-            mine = open_store(self.store.path, onedrive_roots=[])          # the server calls this on its own thread
-            try:
-                with mine.step("dashboard", USER) as st:
-                    st.update("report_sections", req["id"], {"body": body})
-                return 200, {"ok": True, "apply_id": 1, "ref": req["id"], "sections": changes._shown_rows(changes._sections(mine, "ABC"))}
-            finally:
-                mine.close()
-        return self.real(req)
 
     def open_field(self, cdp, js, sid):
         js("document.querySelector('[data-rich]').click()")
@@ -243,6 +224,25 @@ class PageGate(unittest.TestCase):
             self.assertIn("Added words", second)
             self.assertIn("Second edit", second)
             self.assertIn("Original words", self.stored())
+
+    def test_a_saved_body_is_clean_in_the_store_and_shows_in_view_after_a_reload(self):
+        self.seed_body()
+        s = self.serve(self.page_on)
+        with chrome() as cdp:
+            js, sid = self.edit(cdp, s)
+            self.open_field(cdp, js, sid)
+            js("document.querySelector('.ProseMirror').cxed.editor.commands.insertContent('<p>ZQ-SAVED <strong>bold</strong></p>'); true")
+            self.key(cdp, sid, "Enter", "Enter", 13, self.mod(js))
+            self.assertTrue(wait(lambda: "ZQ-SAVED" in self.stored(), 15), "the save reached the store")
+            self.assertEqual(self.stored(), sanitise.clean_html(self.stored()), "what is stored is clean")
+            self.assertIn("<strong>bold</strong>", self.stored())
+            cdp.call("Page.reload", {}, sid)
+            view = f"document.querySelector('[data-id=\"{self.sec}\"] [data-view-text]')"
+            self.assertTrue(wait(lambda: js(f"!!{view}"), 15), "View draws the body after a reload")
+            self.assertIn("ZQ-SAVED", js(f"{view}.textContent"))
+            self.assertIn("Original words", js(f"{view}.textContent"))
+            self.assertEqual(js(f"{view}.querySelector('strong').textContent"), "bold")
+            self.assertEqual(js("document.querySelectorAll('.ProseMirror, [data-rich], [contenteditable]').length"), 0, "nothing is editable in View")
 
     def test_esc_puts_the_focus_back_on_the_field_and_keeps_the_stored_text(self):
         self.seed_body()
