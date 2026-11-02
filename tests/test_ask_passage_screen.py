@@ -57,7 +57,7 @@ class PassageScreen(unittest.TestCase):
     def test_a_password_ending_at_the_row_cut_is_dropped_and_a_cut_one_never_sends_its_value_whole(self):
         """ask_data cuts a row at MAX_PASSAGE (4,000). A password whole before the cut is caught by the screen in build_request;
         one the cut splits never sends the whole value, wherever the cut falls."""
-        pw = "password" + ": " + "hunter22"
+        pw = "password: " + "hunter22"
         for before in range(0, len(pw) + 1):             # how many characters of the password sit before the cut
             head = len(ask_data.row_line("actions", {"id": "ABC-A-001", "description": "x"})) - 1       # what the row shows before the text
             filler = ("Delivery notes. " * 400)[:ask.MAX_PASSAGE - head - before - 1]
