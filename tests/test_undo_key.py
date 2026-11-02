@@ -202,11 +202,14 @@ class UndoKey(unittest.TestCase):
             self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the menu closed")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
             press_z(cdp, sid, CTRL | SHIFT)                     # redo is not this key
+            cdp.js("location.hash = '#dashboard&p=TUL'", sid)   # View and Edit exist only on the Dashboard (#442): the other pages are always editable
+            self.until(cdp, sid, "!!document.querySelector('[data-mode=view]') && location.hash.startsWith('#dashboard')", "the Dashboard opened")
             cdp.js("document.querySelector('[data-mode=view]').click()", sid)
-            press_z(cdp, sid, CTRL)                             # View changes nothing, so it undoes nothing
+            self.until(cdp, sid, "document.querySelector('[data-mode=view]').getAttribute('aria-pressed') === 'true'", "View is on")
+            cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
+            press_z(cdp, sid, CTRL)                             # View on the Dashboard changes nothing, so it undoes nothing
+            time.sleep(0.5)
             self.assertEqual((self.undos_sent(), self.steps(), self.priority()), (n, before, "Low"), "nothing was undone")
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "back in Edit")
             cdp.js("location.hash = '#settings&p=TUL'", sid)
             self.until(cdp, sid, "location.hash.startsWith('#settings')", "Settings opened")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)

@@ -92,7 +92,7 @@ class Archived(Base):
             self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the button in View")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
-            self.assertEqual(cdp.js("document.querySelectorAll('#ms-archived-list button, [data-edit-only]').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('#ms-archived-list button, #ms-archived-list [data-edit-only]').length", sid), 0)
             self.assertIn("switch to Edit", cdp.js("document.querySelector('#ms-archived-list').textContent", sid))
 
     def test_restore_puts_the_milestone_back_with_one_undo_and_focus_goes_to_the_button(self):
