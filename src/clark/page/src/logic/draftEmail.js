@@ -80,10 +80,11 @@ export function sentWords(entry, saved = false, failed = false) {
 }
 
 /** What a person reads when "I sent it" got no message of the server's own (a fault, no answer, an old page): by the status of the
- *  reply (0 for none), each ending "Nothing was saved." and saying what to do next. */
+ *  reply (0 for none), each saying what to do next and, but for no reply at all, ending "Nothing was saved." */
 export function sentFailedWords(status) {
   const tail = " " + NOTHING_SAVED;
-  if (status === 0) return "clark did not answer. Start it again from clark.command, then try again." + tail;
+  // No reply at all: the email may already be recorded (the request can arrive before the connection drops), so no "Nothing was saved."
+  if (status === 0) return "There was no answer from clark. Start it again from clark.command, then look at the history before you try again.";
   if (status === 403) return "This page is out of date. Reload the page and try again." + tail;
   if (status === 500) return "A problem came up recording that. Try again. If it happens again, restart clark." + tail;
   if (status === 503) return "That could not be recorded just now. Wait a moment and try again. If it keeps happening, restart clark." + tail;
