@@ -54,7 +54,8 @@ class Look(unittest.TestCase):
 
     def test_the_label_is_13px_and_the_target_is_at_least_24px(self):
         b = narrow_block()
-        self.assertIn("font-size: var(--size-small)", b)
+        # the 13 px caption size (var(--size-caption)): the former 13 px places use it, not the 14 px small size
+        self.assertIn("font-size: var(--size-caption)", b)
         height = int(re.search(r"\.toc-lines \{[^}]*min-height: (\d+)px", b).group(1))
         self.assertGreaterEqual(height, 24)
         item = int(re.search(r"\.toc li button \{ min-height: (\d+)px", b).group(1))
