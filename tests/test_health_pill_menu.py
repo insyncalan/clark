@@ -59,7 +59,8 @@ class Source(unittest.TestCase):
         self.assertNotRegex(block, r"#[0-9A-Fa-f]{3,6}\b", "no hard-coded colour")
         self.assertIn("text-transform: uppercase", rule(".hpill"))
         self.assertIn("var(--radius-sm)", rule(".hpill"))
-        self.assertIn("font-size: var(--size-small)", rule(".hpill"))
+        # the 13 px caption size (var(--size-caption)): the former 13 px places use it, not the 14 px small size
+        self.assertIn("font-size: var(--size-caption)", rule(".hpill"))
 
     def test_the_menu_rows_are_pills_with_a_check_mark_shape(self):
         menu = (PAGE / "src" / "components" / "Menu.jsx").read_text(encoding="utf-8")
