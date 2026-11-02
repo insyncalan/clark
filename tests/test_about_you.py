@@ -41,12 +41,12 @@ class AboutYou(Base):
         p.until("!!document.querySelector('#about-name')", "About you drew")
 
     def type_into(self, p, field, text, leave="enter"):
-        """Type `text` into the box and leave it: Enter, or a blur (headless Chrome's page has no focus, so a real blur never fires and
+        """Type `text` into the box and leave it: Enter, or a blur, or (leave="none") stay in it (headless Chrome's page has no focus, so a real blur never fires and
         is dispatched)."""
         p.js(f"(() => {{ const el = document.querySelector('#about-{field}'); el.value = {json.dumps(text)}; "
              "el.dispatchEvent(new Event('input', {bubbles: true})); "
              + ("el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));" if leave == "enter"
-                else "el.dispatchEvent(new FocusEvent('blur'));") + " })()")
+                else "el.dispatchEvent(new FocusEvent('blur'));" if leave == "blur" else "") + " })()")
 
     def wait_saved(self, key, value, seconds=6):
         end = time.time() + seconds
@@ -55,6 +55,17 @@ class AboutYou(Base):
                 return True
             time.sleep(0.1)
         return False
+
+    def handled(self, p, name):
+        """Wait for the page signal that its save was handled: the menu's top line shows the saved name (the store alone is not enough)."""
+        self.open_menu(p)
+        p.until(f"(document.querySelector('#profile-menu .who b') || {{}}).textContent === {json.dumps(name)}", "the page handled the save")
+        self.close_menu(p)
+
+    def slow_saves(self, p, ms):
+        """Hold every answer to a save of About you back by `ms`, as a loaded machine would."""
+        p.js("(() => { const f = window.fetch; window.fetch = (u, o) => { const r = f(u, o); "
+             f"return o && o.method === 'POST' && String(u).indexOf('/api/profile') >= 0 ? r.then(x => new Promise(ok => setTimeout(() => ok(x), {ms}))) : r; }}; }})()")
 
     def top(self, p):
         return p.js("(() => { const w = document.querySelector('#profile-menu .who'); if (w) return {name: w.querySelector('b').textContent, "
@@ -154,6 +165,7 @@ class AboutYou(Base):
             self.open_settings(p)
             self.type_into(p, "name", "Sam Lee")
             self.assertTrue(self.wait_saved("profile_name", "Sam Lee"))
+            self.handled(p, "Sam Lee")
             before = self.saved()
             self.type_into(p, "name", "N" * 61)
             p.until("document.querySelector('#about-name-line').parentElement.querySelector('.fld-bad').textContent !== ''", "the refusal shows")
@@ -168,6 +180,18 @@ class AboutYou(Base):
                              "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
             self.assertEqual(self.saved(), before)
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
+
+    def test_C_text_typed_while_a_save_is_still_being_answered_is_not_put_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, 600)
+            self.type_into(p, "name", "Sam Lee")
+            self.type_into(p, "name", "N" * 61, leave="none")        # typed more before the first answer arrives
+            self.assertTrue(self.wait_saved("profile_name", "Sam Lee"))
+            self.handled(p, "Sam Lee")                                # the late answer has been taken in by the page
+            time.sleep(0.3)
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "the answer to the earlier save did not overwrite it")
 
 
 class Source(unittest.TestCase):

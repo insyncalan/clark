@@ -26,10 +26,15 @@ function AboutYou() {
   const [typed, setTyped] = useState({ name: profile.value.name, email: profile.value.email });
   const [said, setSaid] = useState({ name: "", email: "" });
   useEffect(() => { loadProfile(); }, []);
-  const mounted = useRef(false);
-  // The boxes follow what clark saved (a read that finished after Settings opened, or a save), never on the first draw: a box typed in
-  // before that effect ran must not be emptied by it.
-  useEffect(() => { if (mounted.current) setTyped({ name: profile.value.name, email: profile.value.email }); mounted.current = true; }, [profile.value.name, profile.value.email]);
+  // The boxes follow what clark saved (a read that finished after Settings opened, or the answer to a save), but a box the person has
+  // changed since the value it last followed is theirs and is never overwritten: a slow answer to an earlier save must not put the old
+  // text back over what was typed after it was sent.
+  const followed = useRef({ name: profile.value.name, email: profile.value.email });
+  useEffect(() => {
+    const was = followed.current, now = { name: profile.value.name, email: profile.value.email };
+    followed.current = now;
+    setTyped((t) => ({ name: t.name === was.name ? now.name : t.name, email: t.email === was.email ? now.email : t.email }));
+  }, [profile.value.name, profile.value.email]);
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
