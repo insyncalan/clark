@@ -747,7 +747,8 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
                 raise
             raise Refused(words_) from None
         if any(values.get(f) for f in EXPLAIN_FIELDS):              # #487: a row that starts with Movement's explanation line starts hidden from the client (the eye off), in this same step so one Undo takes both back; the owner shows it when he chooses
-            st.create("report_hidden", {"project": project, "item_id": ref})
+            if st.con.execute("SELECT 1 FROM report_hidden WHERE project = ? AND item_id = ?", (project, ref)).fetchone() is None:
+                st.create("report_hidden", {"project": project, "item_id": ref})     # only if no hiding row is there yet (a Duplicate of a hidden item makes one too; the key is project + item, so a second would fail)
         apply_id = st.peek_apply_id()
     row = store.read(table, ref=ref)
     shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + EXPLAIN_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \

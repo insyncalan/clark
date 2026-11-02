@@ -156,6 +156,26 @@ class Requests(unittest.TestCase):
         self.assertIsNone(self.s.read("actions", ref=got["ref"]))
         self.assertEqual([r for r in self.s.read("report_hidden") if r["item_id"] == got["ref"]], [], "the hiding went with it")
 
+    def test_487_a_hiding_row_made_by_another_path_in_the_same_step_is_not_doubled_and_one_undo_takes_it(self):
+        from clark import store as clark_store
+        real = clark_store.Step.create
+
+        def create(step, kind, values):                          # what a Duplicate of a hidden item does: hide the copy at once
+            ref = real(step, kind, values)
+            if kind == "actions":
+                real(step, "report_hidden", {"project": values["project"], "item_id": ref})
+            return ref
+        clark_store.Step.create = create
+        try:
+            got = self.recover()                                 # carries the line too: both rules want the row
+        finally:
+            clark_store.Step.create = real
+        self.assertEqual([r["item_id"] for r in self.s.read("report_hidden") if r["item_id"] == got["ref"]], [got["ref"]], "exactly one")
+        status, undone = self.undo({"project": "ABC", "apply_id": got["apply_id"]})
+        self.assertEqual((status, undone["ok"]), (200, True), undone)
+        self.assertEqual([r for r in self.s.read("report_hidden") if r["item_id"] == got["ref"]], [])
+        self.assertIsNone(self.s.read("actions", ref=got["ref"]))
+
     def test_487_a_hidden_recovery_action_and_its_line_are_not_in_the_published_file_and_both_are_once_shown(self):
         got = self.recover()
         status, hidden = self.change({"project": "ABC", "kind": "report_hidden", "op": "new", "id": "ABC-A-999", "place": "report"})
