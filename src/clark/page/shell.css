@@ -898,8 +898,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-wk .cal-d { min-height: 180px; }
 .cal-q { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 6px; cursor: pointer; border-radius: 4px; padding: 0 4px; } .cal-qm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
-.cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms span { display: none; }
+.cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms:not(.ghost) span { display: none; }   /* a dashed "Expected: name" chip is kept whole, here too */
 .cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 4px; }
+.cal-d[data-d]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .cal-far { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; color: var(--status-amber-text); }
 .cal-list { display: none; margin-top: 14px; }   /* a phone only, as in the prototype (app.css:1297, 1306); shown at 700 px and below, below */
 .cal-list h4 { margin: 0 0 6px; color: var(--heading); font-weight: var(--weight-medium); }
