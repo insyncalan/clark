@@ -20,7 +20,6 @@
   "change-an-item-in-words": "Sneak peek",
   "choose-what-the-client-sees": "the client view",
   "import-and-export": "Import and Export",
-  "arrange-the-report": "the section menu and templates",
   "use-the-tiles": "At a glance tiles",
   "keep-the-use-cases": "use cases",
   "add-supporting-documents": "supporting documents",
@@ -37,19 +36,11 @@
  },
  "reference": {
   "top-bar": "the project menu and profile circle",
-  "profile-circle": "the profile circle",
   "dashboard": "the peek, Week ending and On this page",
-  "sections": "templates and the section grip",
-  "at-a-glance": "At a glance tiles",
-  "layouts": "Settings",
-  "work-items": "work item tools",
   "milestones-page": "Plan and Movement",
   "ask-clark": "ask clark",
   "peek": "the peek",
-  "status-words": "the peek",
   "sneak-peek": "Sneak peek",
-  "picker": "Add from your project record",
-  "milestone-states": "milestone marks",
   "milestone-peek": "the milestone peek",
   "timeline-calendar": "timeline and calendar",
   "editor": "the editor",
@@ -59,11 +50,11 @@
   "settings": "Settings",
   "updating-clark": "updates",
   "diagnostics": "diagnostics",
-  "excel": "Import and Export",
   "saving": "history and ask clark",
-  "dates-and-ids": "use cases and work item IDs",
-  "using-help": "links in Help",
-  "icons": "the icon set"
+  "sections": "the report sections' bodies (most show “Not shown on this page yet.”)",
+  "picker": "the picker (nothing opens it yet)",
+  "excel": "Excel import (the page only exports today)",
+  "icons": "the icons it names (many are not on the page yet)"
  },
  "keys": [
   {
