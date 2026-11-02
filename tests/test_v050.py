@@ -201,7 +201,7 @@ class Cut(unittest.TestCase):
     def cut_made(self):
         text = (ROOT / "src" / "clark" / "__init__.py").read_text(encoding="utf-8")
         found = re.search(r'__version__\s*=\s*"([^"]+)"', text)
-        if not found or not found.group(1).startswith("0.5"):
+        if not found or found.group(1) != VERSION:            # 0.5.1 and later have their own test_vNNN
             self.skipTest(f"the cut commit is not made yet (version is {found.group(1) if found else 'unknown'}); "
                           f"it sets {VERSION} in src/clark/__init__.py")
         return found.group(1)
