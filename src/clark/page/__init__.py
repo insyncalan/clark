@@ -26,6 +26,8 @@ file (which takes the same page text) carries no new address. The name is looked
 The brand block goes after the element with id="brand-demo" (DEMO_ID), found by that id and not by one exact string; a page
 without that element, when there is a local brand, raises PageError rather than leaving the brand out without a word.
 """
+import hashlib
+import os
 import re
 import subprocess
 import sys
@@ -132,27 +134,79 @@ class PageError(Exception):
 
 SOURCES = HERE / "src"
 BUILDER = ROOT / "dev" / "tools" / "build_page.py"      # in a source checkout only: the download has no dev/ folder
+CACHE = ROOT / "dev" / ".cache"                          # git-ignored: the build stamp and the build lock
+STAMP = CACHE / "pages.stamp"
+LOCK = CACHE / "pages.lock"
 _checked = False
 
+try:
+    import fcntl
+except ImportError:         # Windows: only the in-process lock
+    fcntl = None
 
-def newest_source():
-    """The latest modification time of the page's sources and its shell CSS; 0 when there are none."""
-    times = [f.stat().st_mtime for d in (SOURCES, HERE) for f in d.rglob("*") if f.is_file() and f.suffix != ".html"
-             and "__pycache__" not in f.parts] if SOURCES.is_dir() else []
-    return max(times, default=0)
+
+def build_inputs():
+    """Every file the build reads, sorted: the page's sources (not the built help copy), its shell CSS, this module (the build
+    imports it), its assets, the brand tokens, the vendored libraries and fonts, and the two build tools."""
+    files = []
+    if SOURCES.is_dir():
+        files += [f for f in SOURCES.rglob("*") if f.is_file() and "__pycache__" not in f.parts and "shown" not in f.relative_to(SOURCES).parts[:-1]]
+    files += [HERE / "shell.css", HERE / "__init__.py", ROOT / "src" / "clark" / "brand" / "tokens.css",
+              ROOT / "dev" / "tools" / "build_page.py", ROOT / "dev" / "tools" / "esbuild.py"]
+    for d in (HERE / "assets", ROOT / "vendor" / "preact", ROOT / "vendor" / "tiptap", ROOT / "vendor" / "fonts"):
+        if d.is_dir():
+            files += [f for f in d.rglob("*") if f.is_file() and "__pycache__" not in f.parts]
+    return sorted({f for f in files if f.is_file()})
+
+
+def source_stamp():
+    """A SHA-256 over the relative path and the content of every build input: the pages are stale when it differs from STAMP."""
+    h = hashlib.sha256()
+    for f in build_inputs():
+        try:
+            rel = f.relative_to(ROOT).as_posix()
+        except ValueError:
+            rel = f.as_posix()
+        h.update(rel.encode("utf-8") + b"\0")
+        h.update(f.read_bytes())
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def _stamp_is(want):
+    try:
+        return STAMP.read_text(encoding="utf-8").strip() == want
+    except OSError:
+        return False
 
 
 _build_lock = threading.Lock()
 
 
+class _file_lock:
+    """An exclusive flock on LOCK, so two processes never build at once; a no-op where fcntl does not exist."""
+
+    def __enter__(self):
+        self.f = None
+        if fcntl is not None:
+            CACHE.mkdir(parents=True, exist_ok=True)
+            self.f = open(LOCK, "a+b")
+            fcntl.flock(self.f, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *exc):
+        if self.f is not None:
+            self.f.close()          # closing releases the lock
+
+
 def ensure_built():
-    """Make sure both generated pages exist. In a source checkout (dev/tools/build_page.py is there) a missing page, or one
-    older than its sources, is built once per process with the pinned bundler. Anywhere else (the download) nothing is built:
-    a missing page is a PageError. Never installs anything; the bundler is fetched by dev/tools/esbuild.py only in development.
-    The check and the build run under one lock (checked again inside it), so two threads never build at once and a thread that
-    arrives during the build waits for it; the builder writes each page to a temporary file and swaps it in, so a reader never
-    sees half a page. The server builds at start (clark.__main__), not at the first request. A source edited while a server
-    runs is not rebuilt: restart the server."""
+    """Make sure both generated pages exist and match their sources. In a source checkout (dev/tools/build_page.py is there) a
+    missing page, or one built from other sources (the stamp differs: see source_stamp), is built with the pinned bundler.
+    Anywhere else (the download) nothing is built: a missing page is a PageError. Never installs anything; the bundler is fetched
+    by dev/tools/esbuild.py only in development. The check and the build run under an in-process lock and a cross-process file
+    lock (dev/.cache/pages.lock), and the check is made again inside them, so two threads or two servers build once and the
+    second waits for the first; the builder writes each page to a temporary file and swaps it in, so a reader never sees half a
+    page. The server builds at start (clark.__main__). A source edited while a server runs is not rebuilt: restart the server."""
     global _checked
     pages = (PAGE, VIEW_PAGE)
     if not BUILDER.is_file():
@@ -161,14 +215,19 @@ def ensure_built():
         return
     if _checked and all(p.is_file() for p in pages):
         return
-    with _build_lock:
+    with _build_lock, _file_lock():
         if _checked and all(p.is_file() for p in pages):
             return
-        if not all(p.is_file() for p in pages) or min(p.stat().st_mtime for p in pages) < newest_source():
+        want = source_stamp()
+        if not all(p.is_file() for p in pages) or not _stamp_is(want):
             done = subprocess.run([sys.executable, str(BUILDER)], cwd=str(ROOT), capture_output=True, text=True)
             if done.returncode != 0 or not all(p.is_file() for p in pages):
                 raise PageError("The page could not be built (python3 dev/tools/build_page.py): "
                                 + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+            CACHE.mkdir(parents=True, exist_ok=True)
+            tmp = STAMP.with_name(STAMP.name + ".tmp")
+            tmp.write_text(want, encoding="utf-8")
+            os.replace(tmp, STAMP)
         _checked = True
 
 

@@ -1,5 +1,7 @@
 """The generated pages are not committed (#495): where they come from. No browser, no bundler run (the build is mocked)."""
+import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -93,8 +95,95 @@ class EnsureBuilt(unittest.TestCase):
         self.assertIn("esbuild could not be fetched", str(said.exception))
 
 
+CHILD = """
+import subprocess, sys, time
+from pathlib import Path
+from unittest import mock
+sys.path.insert(0, sys.argv[1])
+from clark import page
+tmp = Path(sys.argv[2])
+def fake(*a, **k):
+    time.sleep(0.5)
+    with open(tmp / "runs", "a") as f:
+        f.write("x")
+    for n in ("page.html", "page-view.html"):
+        t = tmp / (n + ".tmp")
+        t.write_text("built")
+        __import__("os").replace(t, tmp / n)
+    return subprocess.CompletedProcess(a, 0, "", "")
+page.PAGE, page.VIEW_PAGE = tmp / "page.html", tmp / "page-view.html"
+page.BUILDER, page.CACHE = tmp / "build_page.py", tmp / "cache"
+page.STAMP, page.LOCK = page.CACHE / "pages.stamp", page.CACHE / "pages.lock"
+page.source_stamp = lambda: "same"
+with mock.patch.object(page.subprocess, "run", side_effect=fake):
+    page.ensure_built()
+"""
+
+
+@unittest.skipIf(page.fcntl is None, "no fcntl")
+class CrossProcess(unittest.TestCase):
+    def test_two_processes_build_once(self):
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            (tmp / "build_page.py").write_text("", encoding="utf-8")
+            procs = [subprocess.Popen([sys.executable, "-c", CHILD, str(ROOT / "src"), str(tmp)], stderr=subprocess.PIPE, text=True)
+                     for _ in range(2)]
+            errs = [p.communicate()[1] for p in procs]
+            self.assertEqual([p.returncode for p in procs], [0, 0], errs)
+            self.assertEqual((tmp / "runs").read_text(), "x")
+
+
+class Stamp(unittest.TestCase):
+    """The stamp covers every build input, not just the page's own sources."""
+    FILES = ("src/clark/page/src/main.jsx", "src/clark/page/shell.css", "src/clark/page/__init__.py", "src/clark/page/assets/a.svg",
+             "src/clark/brand/tokens.css", "vendor/preact/p.js", "vendor/tiptap/t.js", "vendor/fonts/inter/f.woff2",
+             "dev/tools/build_page.py", "dev/tools/esbuild.py")
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix="stamp "))
+        self.addCleanup(__import__("shutil").rmtree, self.root, True)
+        for f in self.FILES:
+            (self.root / f).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / f).write_text("one", encoding="utf-8")
+        here = self.root / "src/clark/page"
+        for p in (mock.patch.object(page, "ROOT", self.root), mock.patch.object(page, "HERE", here),
+                  mock.patch.object(page, "SOURCES", here / "src")):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_each_input_changes_the_stamp(self):
+        base = page.source_stamp()
+        self.assertEqual(page.source_stamp(), base)
+        for f in self.FILES:
+            path = self.root / f
+            path.write_text("two", encoding="utf-8")
+            self.assertNotEqual(page.source_stamp(), base, f)
+            path.write_text("one", encoding="utf-8")
+        self.assertEqual(page.source_stamp(), base)
+
+    def test_a_changed_input_rebuilds_and_an_unchanged_one_does_not(self):
+        builder = self.root / "dev/tools/build_page.py"
+        pages = (self.root / "p.html", self.root / "v.html")
+
+        def fake(*a, **k):
+            for p in pages:
+                p.write_text("built", encoding="utf-8")
+            return subprocess.CompletedProcess(a, 0, "", "")
+        with mock.patch.object(page, "PAGE", pages[0]), mock.patch.object(page, "VIEW_PAGE", pages[1]), \
+                mock.patch.object(page, "BUILDER", builder), mock.patch.object(page, "CACHE", self.root / "cache"), \
+                mock.patch.object(page, "STAMP", self.root / "cache/pages.stamp"), mock.patch.object(page, "LOCK", self.root / "cache/l"), \
+                mock.patch.object(page.subprocess, "run", side_effect=fake) as run:
+            for expect in (1, 1, 2):
+                with mock.patch.object(page, "_checked", False):
+                    if expect == 2:
+                        (self.root / "vendor/tiptap/t.js").write_text("changed", encoding="utf-8")
+                    page.ensure_built()
+                self.assertEqual(run.call_count, expect)
+
+
 class Package(unittest.TestCase):
     def test_the_pages_are_in_the_file_list_by_name(self):
+        page.ensure_built()          # a fresh checkout has no pages yet
         names = package.files("mac")
         for p in package.GENERATED_PAGES:
             self.assertIn(p, names)
