@@ -434,7 +434,7 @@ class Menu(board.Base):
             self.assertEqual((len(now), len(self.query("SELECT id FROM actions")), self.steps()), (1, n + 1, before + 1))
             copy = now[0]
             self.assertEqual((copy["owner"], copy["priority"], copy["due_date"], copy["workstream"], copy["milestone"], copy["status"]),
-                             (old["owner"], old["priority"], old["due_date"], old["workstream"], old["milestone"], "Open"))
+                             (old["owner"], old["priority"], old["due_date"], old["workstream"], old["milestone"], "Delayed"))
             self.assertEqual((t["text"], copy["source"], copy["status"], copy["latest_update"]),
                              (f"{copy['id']} added as a copy of {a}.", f"Duplicated from {a}", old["status"], old["latest_update"]))
             self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % copy['id']}\")", "the copy in the list")
