@@ -86,6 +86,15 @@ class Canary(tr.Base):
             self.assertNotIn(canary, line)
             self.assertNotIn("SECRETWORDS", line)
 
+    def test_the_page_is_not_sent_the_held_flag_but_the_log_still_gets_its_line(self):
+        """#300: the service marks a dropped reply `held` so the route can log it; the page has no use for it, so the route takes it out."""
+        self.use(lambda c: "the marker is " + c + "\nCITE: P1")
+        status, body = self.question()
+        self.assertEqual((status, body["ok"], body["message"]), (200, False, ask.HELD_BACK))
+        self.assertNotIn("held", body)
+        self.assertEqual(sum("private marker" in line for line in self.log.lines), 1, self.log.lines)
+        self.assertEqual(sorted(body), ["code", "message", "ok"])
+
     def test_a_reply_without_it_passes_unchanged(self):
         self.use(lambda c: "The plan is on track.\nCITE: P1")
         status, body = self.question()
