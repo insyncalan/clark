@@ -116,6 +116,20 @@ class Bar(Base):
                     self.assertEqual(p.js("document.querySelector('#week-ending').value"), shown)
                     self.assertEqual(self.week(), before)
 
+    def test_a_typed_weekend_day_names_the_coming_friday_like_the_boards_this_week(self):
+        # #570: a Saturday or Sunday rolls forward (fridayOnOrAfter). 10-05-2031 is a Saturday: the Friday offered is 16-05-2031.
+        for bad, friday in (("10-05-2031", "16-05-2031"), ("11-05-2031", "16-05-2031")):
+            with self.subTest(bad=bad), chrome() as cdp:
+                p = self.show(cdp)
+                p.edit()
+                self.type_week(p, bad)
+                p.until("/Pick Friday %s/.test(document.body.textContent)" % friday, "the coming Friday")
+
+    def test_the_bar_takes_its_friday_from_the_boards_helper(self):
+        src = (PAGE / "src" / "edit" / "ReportBar.jsx").read_text(encoding="utf-8")
+        self.assertIn("weekEndOf", src)
+        self.assertNotIn("getUTCDay() || 7", src)
+
     def test_a_typed_day_that_is_not_a_friday_keeps_the_old_date_and_names_the_friday(self):
         # #570: Friday is the week end everywhere. 05-05-2031 is a Monday; the Friday of its week is 09-05-2031.
         with chrome() as cdp:

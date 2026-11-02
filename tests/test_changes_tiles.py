@@ -313,10 +313,10 @@ class Health(Base):
                 self.assertEqual(self.project()["week_ending"], old)
 
     def test_a_week_ending_that_is_not_a_friday_is_refused_with_the_friday_to_pick_and_the_old_date_kept(self):
-        # #570: Friday is the week end everywhere. The Friday offered is the one in the date's Monday-to-Sunday week.
+        # #570: Friday is the week end everywhere. The Friday offered is the one on or after the date: a Saturday or Sunday rolls forward to the coming Friday.
         old = self.project()["week_ending"]
-        for value, friday in (("2026-11-02", "06-11-2026"), ("2026-11-05", "06-11-2026"), ("2026-11-07", "06-11-2026"),
-                              ("2026-11-08", "06-11-2026"), ("2024-02-29", "01-03-2024"), ("2026-12-31", "01-01-2027")):
+        for value, friday in (("2026-11-02", "06-11-2026"), ("2026-11-05", "06-11-2026"), ("2026-11-07", "13-11-2026"),
+                              ("2026-11-08", "13-11-2026"), ("2024-02-29", "01-03-2024"), ("2026-12-31", "01-01-2027")):
             with self.subTest(value=value):
                 self.refused(self.proj(week_ending=value), changes.NOT_FRIDAY.format(friday=friday))
                 self.assertEqual(self.project()["week_ending"], old)
