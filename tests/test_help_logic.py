@@ -301,8 +301,8 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-milestones-page"],
-                         "only entries that say what is or is not on the published page; no Publish entry is shown")
+        self.assertEqual(s["q"]["publish"], ["howto-save-as-a-pdf", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-milestones-page"],
+                         "only entries about Publish that are shown: the PDF task first, then the entries that say what is or is not on the published page")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
