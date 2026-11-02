@@ -159,6 +159,15 @@ def _clean(plain):
     return text if all(c.isprintable() or c in "\r\n\t" for c in text) else None
 
 
+def _random_look(run, often=True):
+    """Whether a run has the look of a random key: an upper case letter, a lower case letter and a digit, not a word-joined name, and the
+    class of character changing often (the long-run guess's own test)."""
+    if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run):
+        return False
+    kind = [("l" if c.islower() else "u" if c.isupper() else "d" if c.isdigit() else "o") for c in run]
+    return not often or sum(1 for x, y in zip(kind, kind[1:]) if x != y) >= len(run) // 2
+
+
 def _prose(run):
     """Whether a run is base64 of printable text (valid UTF-8, nothing else) with a space in it, read from the start of the run: such a run is read
     in full by `_in_base64` (the same rules as plain text), so the guess that it looks like a random key is not needed."""
@@ -166,7 +175,7 @@ def _prose(run):
         if offset == 0:
             words = _clean(plain)
             if words is not None and re.search(r"\S\s+\S", words):
-                return True
+                return not any(_random_look(m.group(), False) for m in re.finditer(r"[A-Za-z0-9+/_=-]{24,}", words))   # a bare key in the text keeps the guess
     return False
 
 
@@ -218,15 +227,13 @@ def _loose(text):
     address's path, not inside a picture's data address (the base64 look is decoded and read separately)."""
     for m in re.finditer(r"[A-Za-z0-9+/_=-]{32,}", text):
         run = m.group()
-        if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run):
+        if not _random_look(run):
             continue
         before = text[max(0, m.start() - 200):m.start()].rsplit(None, 1)
         word = before[-1] if before else ""
         if "://" in word or word.startswith("data:") or "base64," in word or _prose(run):
             continue
-        kind = [("l" if c.islower() else "u" if c.isupper() else "d" if c.isdigit() else "o") for c in run]
-        if sum(1 for x, y in zip(kind, kind[1:]) if x != y) >= len(run) // 2:
-            return True
+        return True
     for m in _SHORT.finditer(text):
         value = m.group(1).strip(".,;)'\"")
         if any(not c.isalpha() for c in value):

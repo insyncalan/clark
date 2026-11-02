@@ -223,6 +223,37 @@ class Screen(unittest.TestCase):
                 self.assertTrue(secret_screen.looks_like_secret(b64("so we know " + urllib.parse.quote(text, safe="") + " in full")))
         self.assertTrue(secret_screen.looks_like_secret(b64('password: "Sunshine"').rstrip("=")))
 
+    def test_the_three_prose_texts_the_old_random_guess_caught_in_base64_are_allowed_as_they_are_plain(self):
+        """A known gap, accepted in writing: these pass as plain text, so they pass as base64 too (the base64 of prose with a space is
+        read as the text it is, not guessed at as a random key). A change that refuses them again must change this test on purpose."""
+        import base64
+        for text in ("pass word is Hunter2xyz9", "deploy hash 9f86d081884c7d659a2feaa0c55ad015"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+                self.assertFalse(secret_screen.looks_like_secret(base64.b64encode(text.encode()).decode()))
+
+    def test_a_bare_mixed_token_of_24_or_more_in_base64_prose_is_still_refused(self):
+        import base64
+        token = "abcd" + "1234" + "EFGH" + "5678" + "ijkl" + "9012" + "mnop"      # 28 characters, built here
+        self.assertEqual(len(token), 28)
+        for text in ("my token " + token, "see the note.\n" + token + "\nthanks"):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(base64.b64encode(text.encode()).decode()))
+        for text in ("my notes are in the shared folder", '{"sha": "9f86d081884c7d659a2feaa0c55ad015", "note": "a b"}', "# Title\n\nSome *markdown* here."):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(base64.b64encode(text.encode()).decode()))
+
+    def test_each_known_key_shape_is_still_refused_when_it_is_base64(self):
+        import base64
+        shapes = ("api key", "aws key", "github token", "slack token", "web token", "private key", "bearer header")
+        for name in shapes:
+            plain = FAMILIES[name]
+            for how, text in (("standard", base64.b64encode(plain.encode()).decode()),
+                              ("url-safe", base64.urlsafe_b64encode(plain.encode()).decode()),
+                              ("no padding", base64.b64encode(plain.encode()).decode().rstrip("="))):
+                with self.subTest(name + " " + how):
+                    self.assertTrue(secret_screen.looks_like_secret(text))
+
     def test_a_base64_run_that_ends_mid_group_is_still_read_to_its_end(self):
         """A run stops at "=", so its last group may be short; the last characters hold the quoted word's closing quote."""
         import base64
