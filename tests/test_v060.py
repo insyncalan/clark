@@ -13,7 +13,7 @@ Same shape as test_v050.
 NOT YET MERGED to origin/main on 02-11-2026 (so WAITING, no test): #124 the PDF option on publishing (with its Tech Debt
 #269 and #270), #153 the one filter line for Work items (its Tech Debt #286, #287 and #305), the #130 and #132 UX sweep fixes
 beyond the Publish spinner, the tick and Publication N (phone layouts, timeline labels, the 12 px minimum), #131 the motion
-enrichments and #87 the design-system sizes (PR 240, with #428 after it). Merged and checked here: #120 numbered publications. The calendar (test_calendar_scales, #76) and the filter
+enrichments. Merged and checked here: #120 numbered publications and #87 the design-system sizes (PR 240). The calendar (test_calendar_scales, #76) and the filter
 line in test_filter_line are 0.4 features and are covered by test_v040, not here.
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.6.0, then fail if they are wrong.
 """
@@ -85,7 +85,6 @@ WAITING = [
     ("#153", "Work items has one filter line (the '/' key focuses it in View)", "open; Tech Debt #286, #287 and #305"),
     ("#130", "Settings tables stack at phone width, the timeline labels never overlap, text is 12 px or more", "open; phone checks go through the 390 px window but the rule is desktop only, so ask before writing them"),
     ("#131", "The ten mild motion improvements keep a static change marker with reduced motion", "open"),
-    ("#87", "Text sizes follow the design-system scale", "open; PR 240 (#428 follows it)"),
 ]
 
 # (item, check, kind, why, what the person does)
@@ -335,7 +334,7 @@ class Sizes87(unittest.TestCase):
     ALLOWED = (".tile .n", ".fig .v", ".tr-", "table.tracker", ".hp-", ".cp-m", ".ucp-body")
 
     def need(self):
-        pending(self, 240, TOKENS, "--size-body: 16px")        # merged on main; runs once this branch has main merged in
+        pending(self, 240, TOKENS, "--size-body: 16px")        # merged on main: always passes now, kept as a guard
 
     def test_87_1_the_size_scale_is_in_tokens_css(self):
         self.need()
@@ -479,17 +478,17 @@ class GeneratedPages495(unittest.TestCase):
 # --------------------------------------------------------------------------------------------------------------------
 EXTRA_WALK_THROUGH = [
     ("131.4", "judgement", "only an eye can tell the motions are mild and help rather than distract",
-     "In Edit make a change and Undo it; open the Add dialog; load a view. Then turn on Reduce motion (the Mac's or clark's) and repeat: nothing moves."),
+     "In Edit change a heading and press Undo; press Add and open the Add dialog, then close it; switch from Dashboard to Work items and back. Then turn on Reduce motion (the Mac's or clark's own) and repeat: nothing moves."),
     ("131.5", "judgement", "whether the handle hint reads well and goes at the next press",
-     "Reload in Edit: the first section's handle pulses once with the hint words; press a key and it goes; reload and it comes back once."),
+     "Reload and press Edit: the first handle pulses once beside the words Drag to move, + to add a template; press any key and the words go; reload, press Edit and they come back once."),
     ("87.4", "judgement", "whether the sizes look like one scale at both widths",
-     "Read the dashboard, Work items and a dialog at 1400 and 900 px, light and dark: body 16, small labels 14 or 13, headings clearly stepped."),
+     "Open Dashboard, Work items and the Publish dialog at 1400 px, then at 900 px, in light and dark: body 16, small labels 14 or 13, headings clearly stepped, nothing under 13."),
     ("559.3", "judgement", "only a person can judge the published Weekly snapshot reads as a report for a client",
-     "Publish a demo project, open the file and read the Weekly snapshot tab; then open the served page and see it has no such tab."),
+     "Publish a demo project, open the file and press the Weekly snapshot tab: a band with the project's name, then Progress, Plans, Highlights, Next week (and Risks and issues if flagged), nothing editable; then open the running page and see it has no such tab."),
     ("120.4", "live only", "the footer must be seen in a real file opened from disk",
-     "Publish twice, open both files: the footer reads Publication 1 and Publication 2 with the date, and View only."),
+     "Publish twice, open each file from its folder and read the foot: Publication 1 and Publication 2, each with its date, and View only."),
     ("495.4", "live only", "a fresh checkout and a downloaded zip are the only places the build can truly be proved",
-     "Clone fresh and start clark from source: the first start builds the pages. Unzip a release and start it: no bundler runs."),
+     "Clone fresh into an empty folder and run python3 -m clark --demo --open: the first start builds the pages. Unzip a release into another empty folder and run the same: no bundler runs."),
 ]
 
 
