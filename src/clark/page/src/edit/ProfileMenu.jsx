@@ -10,6 +10,7 @@ import { data, tabs, show, project, mode } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
+import { BarToast } from "./BarToast.jsx";
 import { latest } from "./publishState.js";
 import { previewRequest, exportRequest, words } from "./publishApi.js";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
@@ -107,7 +108,7 @@ export function ProfileMenu() {
   return (
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
-      {mode.value === "edit" ? null : <div class="toasts" role="status" aria-live="polite"><MenuNote /></div>}
+      {mode.value === "edit" ? null : <div class="toasts" role="status" aria-live="polite"><BarToast /><MenuNote /></div>}
     </>
   );
 }
