@@ -154,7 +154,10 @@ class Places(unittest.TestCase):
         for f in list(PROTO.glob("*.js")) + list((ROOT / "src" / "clark" / "page" / "src").rglob("*.js*")):
             used |= set(re.findall(r"help\.open\('([^']+)'\)", f.read_text(encoding="utf-8")))
         self.assertGreaterEqual(len(used), 4)
-        self.assertEqual(sorted(u for u in used if u not in self.ids and u not in BASE), [])
+        # The prototype's own Help (help.js) can be a step ahead of the product's source: its reference entries are places too.
+        ahead = {"ref-" + i for i in re.findall(r"\{ id: '([a-z0-9-]+)', g: '", (PROTO / "help.js").read_text(encoding="utf-8"))}
+        self.assertGreater(len(ahead), 10)
+        self.assertEqual(sorted(u for u in used if u not in self.ids and u not in ahead and u not in BASE), [])
 
 
 class Words(unittest.TestCase):

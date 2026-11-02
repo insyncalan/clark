@@ -60,6 +60,15 @@
       ],
     };
     P1.report.sections.find(s => s.id === 'summary').html = '<p>Two of three data domains are built. The test environment is the main risk to the plan.</p>';
+    /* the Progress tracker (#189) and the text the Client Requested Report View reads (#192): fictional plan lines, typed, with the sums left to clark */
+    { const ln = (no, text, end, st, w, pl, ac) => ({ id: 'l' + no + text.length, no: String(no), text, start: '', end: end ? d(end) : '', status: st, weight: w, planned: pl, achieved: ac, tasks: null, agents: null, workflows: null });
+      P1.report.sections.splice(P1.report.sections.findIndex(s => s.id === 'milestones') + 1, 0, { id: 'tracker', type: 'tracker', title: 'Progress tracker', tr: { health: 'A', note: 'The test environment is late, which puts the start of user testing at risk.', cols: {}, overall: { actual: null, planned: null }, groups: [
+        { id: 'g1', name: 'Foundation', lines: [ln(1, 'Mobilise the project team', -250, 'completed', 3, 3, 3), ln(2, 'Connect the first two data sources', -120, 'completed', 9, 9, 9), ln(3, 'Set up the test and live environments', -60, 'completed', 8, 8, 8)] },
+        { id: 'g2', name: 'Build and test', lines: [ln(1, 'Customer data domain', -30, 'completed', 6, 6, 6), ln(2, 'Product data domain', 0, 'inprogress', 6, 5, 4), ln(3, 'Supplier data domain', 45, 'inprogress', 6, 1, 1), ln(4, 'User testing', 120, 'planned', 12, 0, 0)] },
+        { id: 'g3', name: 'Training and handover', lines: [ln(1, 'Training plan agreed', -5, 'completed', 6, 6, 6), ln(2, 'Training wave 1', 60, 'inprogress', 16, 12, 12), ln(3, 'Training wave 2', 150, 'planned', 16, 0, 0), ln(4, 'Handover and support', 200, 'planned', 12, 0, 0)] }] } });
+      const t = id => P1.report.sections.find(s => s.id === id);
+      t('thisweek').html = '<ul><li>Pre-launch checks complete for the customer data domain</li><li>14 design specifications signed off; 2 in final review</li><li>Demo for the partner team closed with good feedback</li></ul>';
+      t('nextweek').html = '<ul><li>Close the 2 outstanding design specifications</li><li>Start acceptance testing of the product data domain</li></ul>'; }
     const P2 = { code: 'CPR', name: 'Customer Portal Refresh', client: 'Demo client', ws: ['Design', 'Build'], health: 'G', reason: 'Design is complete and build is on plan.', current: '<p>Designs are signed off and build is on plan for the beta.</p>', report: defaultReport(), docs: [] };
     const items = [
       it('PDF', 'PDF-A-012', 'A', 'Data platform', 'Confirm test environment handover date', 'Sam Rivers', d(-3), 'Open', { priority: 'High', desc: 'The supplier has not confirmed when the test environment will be handed over.', update: 'Chased the supplier on Monday; waiting for a date.', ms: 'PDF-M-003', client: true, clientText: 'We are confirming the test environment handover date with the supplier.', updatedAt: seen(-9) }),
@@ -72,8 +81,8 @@
       it('PDF', 'PDF-A-009', 'A', 'Data platform', 'Set up access for the analytics team', 'Ravi Mehta', d(-9), 'Closed'),
       it('PDF', 'PDF-003', 'R', 'Testing', 'Late test environment delays user testing', 'Priya Nair', d(14), 'Open', { priority: 'High', desc: 'If the environment is not ready by mid-month, user testing slips by at least two weeks.', update: 'Supplier escalation booked.', client: true, updatedAt: seen(-5) }),
       it('PDF', 'PDF-004', 'R', 'Change and training', 'Business units cannot release staff for training', 'Tom Hale', d(21), 'Open', { priority: 'Urgent' }),
-      it('PDF', 'PDF-005', 'R', 'Data platform', 'Source data quality is lower than expected', 'Jo Ellis', d(30), 'Open', { priority: 'Low' }),
-      it('PDF', 'PDF-002', 'I', 'Data platform', 'Nightly load fails on large files', 'Ravi Mehta', d(5), 'Open', { priority: 'High' }),
+      it('PDF', 'PDF-005', 'R', 'Data platform', 'Source data quality is lower than expected', 'Jo Ellis', d(30), 'Open', { priority: 'Low', client: true, update: 'Quality checks run each week; no action until the next review.', updatedAt: seen(-4) }),
+      it('PDF', 'PDF-002', 'I', 'Data platform', 'Nightly load fails on large files', 'Ravi Mehta', d(5), 'Open', { priority: 'High', client: true, update: 'A fix for large files is in test; the first clean run is expected this week.', updatedAt: seen(-3) }),
       it('PDF', 'PDF-D-007', 'D', 'Data platform', 'Pilot scope limited to two business units', 'Steering group', d(-5), 'Made', { client: true }),
       it('PDF', 'PDF-D-008', 'D', 'Testing', 'Use synthetic data for the first test cycle', 'Priya Nair', d(6), 'Pending', { updatedAt: seen(-8) }),
       it('CPR', 'CPR-A-004', 'A', 'Build', 'Set up the test pipeline', 'Lena Fox', d(6), 'Open', { updatedAt: seen(-3) }),

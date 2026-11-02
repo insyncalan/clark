@@ -13,6 +13,7 @@
     C.refresh(); C.toast(on ? `Archived ${d.title}. It's out of the list and the published page.` : `Restored ${d.title}. It's back in the list.`, u); };
   const rep = () => { const p = P(); if (!p.report) p.report = D.defaultReport(); if (!p.report.glance.some(f => f.k === 'health')) { p.report.glance = p.report.glance.filter(f => f.k !== 'next'); p.report.glance.unshift({ k: 'health', hidden: false }); } return p.report; };
   const setRep = (fn, msg) => { const r = D.clone(rep()); fn(r); saveProject({ report: r }, msg); };
+  C.rep = rep; C.setRep = setRep;
   const UC_CLS = { 'On track': 'g', Flag: 'a', 'High risk': 'r' };
   const ucBadge = s => `<span class="ucb ${UC_CLS[s] || 'n'}">${esc(s.toUpperCase())}</span>`;
 
@@ -278,6 +279,7 @@
     { id: 'banner', name: 'Banner', kind: 'text', fit: ['Full'], d: 'Open the report with a message: a milestone reached, a go-live, a change of phase.', els: ['Image (background, optional)', 'Heading', 'Text', 'Button'], sk: sk('', 'background:#22386A'), cols: '1fr', ph: [['Image (background, optional)', 'image'], ['Text', 'text'], ['Button', 'button']] },
     { id: 'figures-4', name: 'Key figures, four', kind: 'figures', fit: ['Full', 'Half'], d: 'Three or four numbers with labels and a change since last week.', els: ['Heading', 'Figure · live', 'Figure · live', 'Figure · typed', 'Figure · typed', 'Caption'], sk: sk('grid-template-columns:repeat(4,1fr)', '', '', '', ''), cols: 'repeat(4,minmax(0,1fr))', ph: [['Figure', 'figure'], ['Figure', 'figure'], ['Figure', 'figure'], ['Figure', 'figure'], ['Caption', 'caption', 1]] },
     { id: 'figures-3', name: 'Key figures, three', kind: 'figures', fit: ['Full', 'Half'], d: 'The same, for three numbers. Each card is wider, so a short note fits under the change.', els: ['Heading', 'Figure · live', 'Figure · live', 'Figure · typed'], sk: sk('grid-template-columns:repeat(3,1fr)', '', '', ''), cols: 'repeat(3,minmax(0,1fr))', ph: [['Figure', 'figure'], ['Figure', 'figure'], ['Figure', 'figure']] },
+    { id: 'progress-tracker', type: 'tracker', name: 'Progress tracker', kind: 'figures', fit: ['Full', 'Half'], live: true, d: 'Actual against planned: three Overall tiles, a bar, and groups of plan lines with weight, planned and achieved. You type the figures; clark adds up the totals.', els: ['Heading', 'Overall tiles · health, Actual, Planned', 'Bar with a Planned marker', 'Plan lines, in groups', 'Total for each group'], sk: sk('grid-template-rows:1fr 1fr 2fr', 'width:100%;background:#B9C8FF;height:6px;align-self:center', 'width:60%', 'width:90%'), cols: '1fr', ph: [], seed: () => ({ tr: C.trNew() }) },
     { id: 'gallery', name: 'Image gallery', kind: 'text', fit: ['Full'], d: 'Two to six pictures in a grid, each with a caption.', els: ['Heading', 'Image', 'Caption', 'Image', 'Caption', 'Image'], sk: sk('grid-template-columns:repeat(3,1fr)', 'background:#B9C8FF', 'background:#B9C8FF', 'background:#B9C8FF'), cols: 'repeat(3,minmax(0,1fr))', ph: [['Image', 'image'], ['Image', 'image'], ['Image', 'image'], ['Caption', 'caption', 1]] },
     { id: 'table', name: 'Table', kind: 'notes', fit: ['Full'], d: 'Anything with rows: a budget line, a cut-over plan, a training schedule.', els: ['Heading', 'Table'], sk: sk('grid-template-rows:repeat(4,1fr)', '', '', '', ''), cols: '1fr', ph: [['Table', 'table']] },
     { id: 'link', name: 'Link preview', kind: 'files', fit: ['Full'], d: 'A web page shown as a card: a dashboard, a news item, a recording.', els: ['Heading', 'Link (with preview)'], sk: sk('grid-template-columns:1fr 2fr', 'background:#B9C8FF', ''), cols: '1fr', ph: [['Link (with preview)', 'link']] },
@@ -313,7 +315,7 @@
   C.ND_NOONE = 'Not assigned yet';   /* a line with no owner says so plainly */
   C.needsDue = iso => { if (!iso) return 'No date set'; const late = D.days(iso) < 0; return `Needed by ${D.fd(iso)}${late ? ` <b class="tag od">Overdue</b> ${C.dueWords(iso)}` : ''}`; };
   /* on the published page the section sits straight after At a glance, and is left out when there is nothing to ask */
-  C.onPub = (s, p) => C.onPage(s) && (s.type !== 'needs' || C.needsRows(p || P(), s).length > 0);
+  C.onPub = (s, p) => C.onPage(s) && (s.type !== 'needs' || C.needsRows(p || P(), s).length > 0) && (s.type !== 'tracker' || C.trHas(s));
   C.pubOrder = secs => {
     const a = secs.map(s => ({ ...s })), nd = a.filter(s => s.type === 'needs'); if (!nd.length) return a;
     a.forEach((s, i) => { if (s.beside && a[i + 1] && a[i + 1].type === 'needs') delete s.beside; }); nd.forEach(s => delete s.beside);
@@ -358,6 +360,7 @@
     else if (s.type === 'docs') body = docsHtml(p, editing);
     else if (s.type === 'needs') body = C.needsHtml(editing, false, s);
     else if (s.type === 'tpl') body = tplHtml(s);
+    else if (s.type === 'tracker') body = C.trackerHtml(s, editing, (C.secRows(r.sections.filter(x => !(C.layOf(p) !== 'boxed' && x.type === 'glance'))).find(w => w.includes(s)) || []).length > 1);
     return `<section class="sec${out ? ' out' : ''}${s.type === 'tpl' ? ' sec-tpl' : ''}" id="sec-${s.id}" data-sec="${s.id}" data-i="${i}">${ctl}<h2 class="st">${title}${s.type === 'tpl' ? '<span class="tp-tag" aria-hidden="true">Heading</span>' : ''}<span class="sp"></span>${tools}</h2>${body}</section>`;
   }
   /* report work items as list rows (no boxed tables): a state pill, the item, a quiet line of who and when, the ID on the right.
@@ -433,6 +436,7 @@
     if (s.type === 'usecases') { const n = D.S.usecases.filter(u => u.code === p.code && u.client && !u.archived && u.status !== 'On track').length; return n ? `${n} flagged` : ''; }
     if (s.type === 'docs') { const n = (p.docs || []).filter(d => !d.hidden && !d.archived).length; return n ? `${n}` : ''; }
     if (s.type === 'needs') { const n = C.needsRows(p, s).length; return n ? `${n} needed` : ''; }
+    if (s.type === 'tracker') { const c = C.trCalc(s.tr, { pub: true }), b = c.groups.reduce((a, g) => a + g.lines.filter(l => l.behind > 0).length, 0); return b ? `${b} behind plan` : ''; }
     return '';
   };
   /* a discreet minimap at the right edge: one short line per section, the current one longer and darker, a warm line where
@@ -584,7 +588,7 @@
       C.$$('[data-doc-more]').forEach(b => b.addEventListener('click', e => { const id = b.dataset.docMore; C.menu(e.currentTarget, [{ html: `${C.icon('pencil', 's')} Edit`, onPick: () => docForm(p.docs.find(x => x.id === id)) }, { html: `${C.icon('archive', 's')} Archive`, onPick: () => docArch(id, true) }], { align: 'right' }); }));
       C.$$('[data-doc-back]').forEach(b => b.addEventListener('click', () => docArch(b.dataset.docBack, false)));
       wireUc(p);
-      if (editing) wireSections(r);
+      if (editing) { wireSections(r); C.trWire(); }
       C.wireToc();
     },
   };
@@ -637,7 +641,7 @@
     C.store.set('tplRecent', [tid, ...C.store.get('tplRecent', []).filter(x => x !== tid)].slice(0, 4));
     setRep(r2 => {
       const rows = C.secRows(r2.sections.filter(x => !gl(x))), k = rows.findIndex(w => w.some(x => x.id === afterId)), row = rows[k] || [r2.sections[r2.sections.length - 1]], nx = rows[k + 1];
-      const sec = T.id === 'text' ? { id: nid, type: 'text', title: 'New section', html: '' } : T.live ? { id: nid, type: T.id, title: T.name } : { id: nid, type: 'tpl', kind: T.id, title: T.name };   /* a live template is a section of its own type, drawn from the data and published */
+      const sec = T.id === 'text' ? { id: nid, type: 'text', title: 'New section', html: '' } : T.live ? { id: nid, type: T.type || T.id, title: T.name, ...(T.seed ? T.seed() : {}) } : { id: nid, type: 'tpl', kind: T.id, title: T.name };   /* a live template is a section of its own type, drawn from the data and published */
       if (place === 'beside' && nx && nx.length === 1) { sec.beside = true; r2.sections.splice(r2.sections.indexOf(nx[0]), 0, sec); }
       else r2.sections.splice(r2.sections.indexOf(row[row.length - 1]) + 1, 0, sec);
       tidySecs(r2.sections, r2.sections.filter(x => !gl(x)));
@@ -707,7 +711,7 @@
           : canBeside ? [{ html: `${C.icon('board', 's')} Place beside the next section`, onPick: () => reflow(a => placeSec(a, gl, id, { ref: nxt[0].id, side: 'l' }), `${s.title} placed beside ${nxt[0].title}`, id) }] : []),
         { sep: true },
         { html: `${C.icon(s.hidden ? 'eye' : 'eyeoff', 's')} ${s.hidden ? 'Include in the published page' : 'Leave out of the published page'}`, onPick: () => setRep(r2 => { r2.sections[i].hidden = !s.hidden; }, s.hidden ? `${s.title} included` : `${s.title} left out`) },
-        ...(s.type === 'text' || s.type === 'tpl' || s.type === 'needs' ? [{ html: `${C.icon('trash', 's')} Delete section`, danger: true, onPick: () => setRep(r2 => { const k = r2.sections.findIndex(x => x.id === id), g = C.secRows(r2.sections.filter(x => !gl(x))).find(w => w.some(x => x.id === id)); if (g) delete g[0].beside; r2.sections.splice(k, 1); }, `${s.title} deleted`) }] : []),
+        ...(s.type === 'text' || s.type === 'tpl' || s.type === 'needs' || s.type === 'tracker' ? [{ html: `${C.icon('trash', 's')} Delete section`, danger: true, onPick: () => setRep(r2 => { const k = r2.sections.findIndex(x => x.id === id), g = C.secRows(r2.sections.filter(x => !gl(x))).find(w => w.some(x => x.id === id)); if (g) delete g[0].beside; r2.sections.splice(k, 1); }, `${s.title} deleted`) }] : []),
       ]);
     }));
     C.$$('[data-addbelow]').forEach(b => b.addEventListener('click', () => addDialog(b.dataset.addbelow)));
