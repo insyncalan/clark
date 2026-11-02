@@ -77,6 +77,15 @@ else
     say "Not pushed. Run the checks, then push once."
     exit 0
   fi
+  if ! git cat-file -e "HEAD:src/clark/page/page.html" 2>/dev/null; then
+    say "Only the generated pages conflict. This branch no longer tracks them, so main's copies are not taken."
+    # shellcheck disable=SC2086
+    git rm -q --cached --ignore-unmatch -- $PAGES || exit 1
+    git commit -q -m "$MSG" || exit 1
+    say "Merge committed. The pages are built when clark or the tests need them (python3 dev/tools/build_page.py)."
+    say "Not pushed. Run the checks, then push once."
+    exit 0
+  fi
   say "Only the generated pages conflict. Taking main's copies and rebuilding."
   # shellcheck disable=SC2086
   git checkout --theirs $PAGES || exit 1
