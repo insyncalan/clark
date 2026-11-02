@@ -24,7 +24,8 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
 # 'Add a row' is the button of the Needs from you section (edit/NeedsEdit.jsx), which the prototype does not have; read against the page's own words (logic/needs.js).
-CHECKED_BY_HAND = set(['Add a row', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
+# 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
+CHECKED_BY_HAND = set(['Add a row', 'Keep the date', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Who agreed it', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -67,7 +68,7 @@ class Shape(unittest.TestCase):
         """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (28, 30))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (29, 33))
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -247,7 +248,7 @@ class WordingRound(unittest.TestCase):
 
     def test_no_leftover_from_the_prototype(self):                                           # MEDIUM
         self.assertNotIn("The real clark", self.ALL)
-        self.assertIn("The log keeps one file a day", self.ALL)
+        self.assertIn("Each day has its own file, 5 MB at most", self.ALL)      # the log's own rule (log.py MAX_BYTES, KEEP_DAYS)
 
     def test_published_line_is_plainer(self):                                                # LOW
         self.assertIn("“Published” on its date, to the client (or locally)", self.ALL)
@@ -286,7 +287,7 @@ class LowWordsRound(unittest.TestCase):
         self.assertIn("The report is the cover, then the sections in cards", self.ALL)
 
     def test_no_line_starts_with_ask_clark(self):
-        self.assertIn("The check in ask clark warns you when", self.ALL)
+        self.assertNotIn("The check in ask clark warns you when", self.ALL)       # ask clark has no such check on the page: the line was taken out of the health steps
         self.assertFalse([s for _, s in words() if re.match(r"(?i)ask clark[’']s\b", s.strip())])
 
     def test_the_section_style_lines_are_the_ones_settings_shows(self):
