@@ -957,7 +957,7 @@
       [
        [
         "Item",
-        "The type badge, the title, a Client tag, then the ID, use case and milestone"
+        "A letter for the kind of item (the key is in [Types, statuses and colours](#ref-status-words)), the title, then the ID, use case and milestone"
        ],
        [
         "Owner",
@@ -976,8 +976,8 @@
         "The state in words and colour: see [Status words](#ref-status-words)"
        ],
        [
-        "The eye",
-        "Client-visible on or off"
+        "The eye (Client-visible)",
+        "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. In View it is a mark only; in Edit, select it to turn the item on or off, with **Undo**"
        ]
       ]
      ],
@@ -1130,8 +1130,41 @@
       ]
      ],
      [
+      "tbl",
+      [
+       "Letter",
+       "Kind of item"
+      ],
+      [
+       [
+        "A",
+        "Action"
+       ],
+       [
+        "R",
+        "Risk"
+       ],
+       [
+        "I",
+        "Issue"
+       ],
+       [
+        "D",
+        "Decision"
+       ],
+       [
+        "S",
+        "Assumption (this letter waits for the owner to confirm)"
+       ],
+       [
+        "P",
+        "Dependency (this letter waits for the owner to confirm)"
+       ]
+      ]
+     ],
+     [
       "p",
-      "Choosing Red, Amber or Green on a risk or issue sets its priority. Priorities are Urgent, High, Medium and Low."
+      "The letter shows before the title in the Work items table. Choosing Red, Amber or Green on a risk or issue sets its priority. Priorities are Urgent, High, Medium and Low."
      ],
      [
       "p",
