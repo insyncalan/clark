@@ -167,6 +167,17 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_the_words_password_and_secret_are_not_placeholders(self):
+        for text in ('password: "password"', 'secret = "secret"', '"password": "secret"', "db_password: 'password'"):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+
+    def test_placeholder_redacted_and_example_are_placeholders(self):
+        for word in ("placeholder", "redacted", "example"):
+            for text in ('password: "%s"', 'secret = "%s"', 'the password "%s"'):
+                with self.subTest(text % word):
+                    self.assertFalse(secret_screen.looks_like_secret(text % word))
+
     def test_a_prefixed_or_suffixed_key_word_with_a_quoted_letters_value_is_refused(self):
         """The commonest config shapes: a prefix such as DB_ or client_, camel case, and a suffix that still names the secret."""
         word = "orange" + "bicycle"

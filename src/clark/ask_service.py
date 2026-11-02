@@ -134,6 +134,10 @@ class AskService:
             return 400, self.fail("bad_project_code")
         if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
+        try:
+            ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
+        except ask.AskRefused as e:
+            return 400, self.fail("refused", str(e))
         with self.lock:
             try:
                 store = self.reader()
@@ -169,7 +173,7 @@ class AskService:
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
-        notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret),
+        notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(data.left_out + found.left_out), *folder_notes(found)) if n]
         sent = tuple(data.passages) + tuple(found.passages)      # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
