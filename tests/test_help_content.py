@@ -24,8 +24,9 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
+# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) and 'Shown to client' (the tag on a work item row, components/WorkItems.jsx) are read on the page itself; the prototype words them differently
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Keep the date', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Who agreed it', 'Archive use case', '+ Add use case', 'Add a group', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
+CHECKED_BY_HAND = set(['+ Add use case', 'Add a group', 'Archive use case', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'See all work items', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -302,7 +303,8 @@ class LowWordsRound(unittest.TestCase):
 
     def test_the_report_has_no_look_to_choose(self):
         self.assertNotIn("one look", self.ALL)
-        self.assertIn("The report is the cover, then the sections in cards", self.ALL)
+        self.assertIn("The report is the cover, then the sections, with the contents at the right edge", self.ALL)
+        self.assertNotIn("sections in cards", self.ALL)       # the One card style is not cards
 
     def test_no_line_starts_with_ask_clark(self):
         self.assertNotIn("The check in ask clark warns you when", self.ALL)       # ask clark has no such check on the page: the line was taken out of the health steps
@@ -328,6 +330,21 @@ class LowWordsRound(unittest.TestCase):
         self.assertEqual([n for n, _ in lines], ["Slim gaps", "Roomy gaps", "Grey headers", "One card"])
         for name, line in lines:
             self.assertIn(f"'{line}'", help_js, f"{name}: the prototype's Help line is its Settings line")
+
+
+    def test_work_items_names_the_chips_and_clear_all_the_page_draws(self):
+        self.assertIn("A line under the filters shows how many items match, with a chip for each filter", self.ALL)
+        self.assertIn("When nothing matches, the list says so and offers **Clear all**", self.ALL)
+
+    def test_milestone_at_risk_uses_the_pages_own_legend_words(self):
+        """The page has no control that sets a state; its legend says 'Marked at risk by the project team.'"""
+        self.assertIn("Marked at risk by the project team.", self.ALL)
+        self.assertNotIn("Marked at risk by hand", self.ALL)
+
+    def test_ids_line_says_everything_numbered_code_001_shares_the_numbering(self):
+        """Assumptions and dependencies are stored with risks and issues (one CODE-001 series)."""
+        self.assertIn("Actions, decisions, and everything numbered CODE-001 share one numbering", self.ALL)
+        self.assertNotIn("Actions, risks, issues and decisions share one numbering", self.ALL)
 
 
 if __name__ == "__main__":

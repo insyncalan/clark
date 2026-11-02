@@ -90,6 +90,14 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
         self.assertEqual(sorted(want & held_ids()), [])
 
 
+# Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
+COMPUTED = {
+    "3 days late": "Due, built from the date (workItems.js dueCell)",
+    "In 5 days": "Due, built from the date (workItems.js dueCell)",
+    "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
+}
+
+
 class WhatIsShownIsOnThePage(unittest.TestCase):
     """Every control or label a shown entry names (its bold names, its quoted words, the first cell of a table row) is a word the page holds
     in its own source: the page's code, Help's own code, the tile titles and the default section titles."""
@@ -109,13 +117,19 @@ class WhatIsShownIsOnThePage(unittest.TestCase):
 
     def on_page(self, label):
         label = re.sub(r"[‘’]", "'", label)
-        return bool(re.search(r"(?<![\w])" + re.escape(label) + r"(?![\w])", self.CORPUS))
+        return bool(re.search(r"(?<![\w])" + re.escape(label) + r"(?![\w])", self.CORPUS)) or label in COMPUTED
 
     def missing(self, entries):
         return sorted({f"{e['id']}: {x}" for e in entries for x in self.labels_of(e) if not self.on_page(x)})
 
     def test_every_label_in_a_shown_entry_is_on_the_page(self):
         self.assertEqual(self.missing(SHOWN["howto"]["tasks"] + SHOWN["reference"]["sections"]), [])
+
+    def test_the_computed_words_are_still_in_shown_entries(self):
+        """A word excused as computed must still be quoted by a shown entry, or it is stale."""
+        every = json.dumps(SHOWN, ensure_ascii=False)
+        for w in COMPUTED:
+            self.assertIn(w, every)
 
     def test_the_check_fails_on_a_made_up_label(self):
         bad = {"id": "x", "b": [["p", "Press **Frobnicate** or see “Widget zone”."], ["tbl", ["A", "B"], [["Gizmo row", "c"]]]]}
@@ -163,14 +177,14 @@ class ReportSectionsHasNeedsFromYou(unittest.TestCase):
 
 
 class TheWeekEndsOnAFriday(unittest.TestCase):
-    """Row 64 (needs the owner): the prototype says 'The week ends on a Friday.' The page has no such rule, so the line stays out of Help."""
-    def test_help_does_not_say_it(self):
+    """Row 64: the prototype says 'The week ends on a Friday.' The page has the rule (#570), so Help's 'Dates and IDs' says it now it is released."""
+    def test_help_says_it(self):
         every = json.dumps(SHOWN, ensure_ascii=False)
-        self.assertNotIn("The week ends on a Friday", every)
+        self.assertIn("The week ends on a Friday", every)
 
     def test_the_page_week_end_is_a_friday(self):
         """#570 (option a2): the board's 'this week' ends on a Friday (logic/board.js fridayOnOrAfter) and a week ending that is not a
-        Friday is refused (changes.NOT_FRIDAY). Help's 'Dates and IDs' lines say so and are held in helpLater until the release shows them.
+        Friday is refused (changes.NOT_FRIDAY). Help's 'Dates and IDs' lines say so and are shown.
         client_filters.week_end (the Sunday of the client filters) is outside #570 and is raised with the owner."""
         from clark import client_filters
         self.assertEqual(client_filters.week_end("2026-11-02", 0), "2026-11-08")
