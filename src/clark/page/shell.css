@@ -30,7 +30,7 @@ a { color: var(--status-blue-text); }
 .tab[aria-selected="true"]::after { transform: scaleX(1); }
 
 /* One page frame for every view: the page's 1280 px less its padding (1232 px), so the Dashboard is as wide as Work items. */
-main { max-width: var(--max-width); margin: 0 auto; padding: 28px var(--space-5) 96px; }
+main { position: relative; max-width: var(--max-width); margin: 0 auto; padding: 28px var(--space-5) 96px; }
 .frame { width: 100%; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
 .frame h1 { margin: 0 0 var(--space-3); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .crumbs { margin: 0 0 2px; font-size: var(--size-caption); color: var(--text-muted); }
@@ -231,6 +231,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .head h1 { margin-bottom: 0; }
+.head-sub { margin: 2px 0 0; font-size: var(--size-small); color: var(--text-muted); }      /* the sentence under a page's title (the Milestones page) */
 .note { margin: var(--space-2) 0 0; font-size: var(--size-small); }
 .note:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -341,6 +342,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
   table.items .c-prio { grid-column: 3; grid-row: 3; }
   table.items td.c-type, table.items td.c-item, table.items td.c-owner, table.items td.c-due, table.items td.c-prio, table.items td.c-status { width: auto; overflow-wrap: anywhere; }
   table.items td.c-status .pill { white-space: normal; max-width: 100%; }
+  table.items td .cell-pick[data-cell], table.items td .cell-pick[data-cell] .cell-val { white-space: normal; min-width: 0; max-width: 100%; flex: 0 1 auto; overflow-wrap: anywhere; }   /* issue 442: the pickers now show in View too: in a card they wrap by word and never leave it, even in a very wide font */
   table.items tr.grp { display: block; padding: var(--space-2) var(--space-1); }
   table.items tr.grp th { display: block; min-width: 0; width: auto; padding: 0; text-align: left; overflow-wrap: anywhere; }
   table.items td.c-type::before, table.items td.c-owner::before, table.items td.c-status::before, table.items td.c-due::before, table.items td.c-prio::before { display: block; font-size: var(--size-small); color: var(--text-muted); }
@@ -684,7 +686,8 @@ table.items.grouped tr.grp th { padding: 10px var(--space-1) 6px; border-top: 1p
 .bcard.drag { opacity: .5; }
 .bcard.done .bc-title { color: var(--text-muted); }
 .bc-main { cursor: pointer; border-radius: var(--radius-sm); }
-.bc-main:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.bc-main:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }   /* the cursor: a drawn solid blue ring, never only colour */
+table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bc-top { display: flex; align-items: center; gap: var(--space-2); padding-right: 28px; }
 .bc-id { font-size: var(--size-small); color: var(--text-muted); }
 .eye { display: inline-flex; color: var(--status-blue-text); }
@@ -1005,6 +1008,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .dlg-f { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
 .btn.pri { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .btn.pri:disabled { opacity: .55; cursor: default; }
+.btn.pri[data-go] { display: inline-flex; align-items: center; gap: 8px; }
+.btn.pri[aria-busy="true"]:disabled { opacity: 1; }
+.btn.pri .spin { border-color: rgba(255,255,255,.4); border-top-color: var(--text-on-brand); }
+.btn.pri.ok { background: var(--status-green-text); border-color: var(--status-green-text); }
+.btn.pri .pub-tick { background: var(--text-on-brand); color: var(--status-green-text); }
 .btn.quiet { background: transparent; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
@@ -1029,7 +1037,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucn { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
 .meter { display: flex; gap: 2px; flex: 1 1 120px; max-width: 280px; height: 8px; }
 .meter i { flex: 1 1 0; border-radius: 2px; background: var(--status-grey); }
-.meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); }
+.meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); } .meter .m-n { background: var(--status-grey); }
 .ucrows { border-top: 1px solid var(--grey-200); }
 .ucrows > li.ucrow { padding: 0; border-top: 0; border-bottom: 1px solid var(--grey-100); }
 .ucbar { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 104px 112px; gap: var(--space-3); align-items: center; width: 100%; min-height: 40px; padding: 6px var(--space-1); cursor: pointer; font-size: var(--size-body); }
@@ -1045,6 +1053,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
+.ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
+.ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): slim is the default. */
@@ -1207,6 +1217,81 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .pk-stale { margin: 0 0 var(--space-2); }
 .pk-chip { display: inline-block; padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-caption); }
 
+/* Loading placeholder: still grey blocks in the shape of the screen, with no shimmer. Shown only after a short wait (Views.jsx). */
+.skel { display: block; background: var(--grey-100); border-radius: var(--radius-sm); }
+.skel-title { width: min(280px, 60%); height: 28px; margin-bottom: var(--space-4); }
+.skel-line { height: 14px; width: 100%; }
+.skel-line.wide { width: 100%; }
+.skel-line.half { width: 40%; }
+.skel-tiles { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-4); }
+.skel-tile { width: 160px; max-width: 100%; height: 64px; }
+.skel-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) 96px 80px; gap: var(--space-3); align-items: center; padding: 14px 0; border-top: 1px solid var(--grey-100); }
+.skel-row.one { grid-template-columns: minmax(0, 1fr); }
+.skel-sec { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid var(--grey-200); }
+@media (max-width: 900px) { .skel-row { grid-template-columns: 56px minmax(0, 1fr) 64px; } .skel-row > :nth-child(4) { display: none; } }
+@media (forced-colors: active) { .skel { border: 1px solid CanvasText; } }
+
+/* Changed rows: a tint, a bar on the left edge and the word "Changed", all still and paint only (no margin, padding or border), so
+   nothing shifts. The mark reads the same without motion or colour: the word and the bar are there. */
+.tag.chg { flex: none; background: var(--status-amber-tint); color: var(--status-amber-text); border: 1px solid var(--status-amber); }
+.sec.is-changed { background: var(--status-amber-tint); box-shadow: inset 4px 0 0 var(--status-amber); }
+table.items tr.changed td { background: var(--status-amber-tint); }
+table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-amber); }
+.msl-row.changed { background: var(--status-amber-tint); box-shadow: inset 4px 0 0 var(--status-amber); }
+@media (forced-colors: active) { .sec.is-changed, .msl-row.changed, table.items tr.changed td:first-child { outline: 2px solid CanvasText; outline-offset: -2px; } }
+
+/* The first-time hint beside the section handle: plain words, there with or without the pulse. */
+.sec-ctl.hint { opacity: 1; z-index: 20; }
+.sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
+
+/* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
+   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
+   loops here (the publish ring, above, turns only while it works), only the --dur and --ease tokens are used, and nothing waits for it: the elements
+   stay live while it runs. The block uses native CSS nesting, so a browser without it (older than current Chrome or Edge) keeps the still forms only. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) {
+    /* the placeholder fades out as the screen arrives */
+    .skel-leave { position: absolute; left: var(--space-5); right: var(--space-5); top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+    /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
+    .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
+    /* the peek slides in on opening and its body fades in as Previous or Next steps on */
+    .peek { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
+    .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
+    .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
+    .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
+    .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-state) var(--ease-enter) 1; }
+    /* the health badge and reason settle when health changes */
+    .hrow.settle { animation: m-settle var(--dur-state) var(--ease-enter) 1; }
+    /* the timeline and calendar swap: the new view rises 4 px and fades in */
+    .msv-swap { animation: m-rise var(--dur-state) var(--ease-enter) 1; }
+    /* the section handle shows itself once: the grip and + pulse over 700 ms */
+    .sec-ctl.hint .handle, .sec-ctl.hint .plus { animation: m-pulse var(--dur-enter) var(--ease-out) 1; }
+    /* the count line and the switches' counts fade in when a filter changes */
+    #work-count, .wbar em.num { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* the Add a section preview cross-fades as the selection moves; cards lift on hover on fine pointers */
+    .ad-prev > * { animation: m-in var(--dur-state) var(--ease-enter) 1; }
+    /* publish: the tick appears once (the ring is main's, and turns only until the work ends) */
+    .pub-tick { animation: m-tick var(--dur-state) var(--ease-out) 1; }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+    :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  }
+  @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
+  @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
+  @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
+  @keyframes m-outline { from { opacity: 0; transform: scale(.97); } }
+  @keyframes m-out { to { opacity: 0; } }
+  @keyframes m-in { from { opacity: 0; } }
+  @keyframes m-slide { from { opacity: 0; transform: translateX(24px); } }
+  @keyframes m-rise { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes m-pulse { 50% { transform: scale(1.35); background: var(--brand-blue-tint); } }
+  @keyframes m-settle { from { opacity: .35; } }
+  @keyframes m-glow { from { background-color: color-mix(in srgb, var(--status-amber) 40%, var(--status-amber-tint)); } }
+}
+
+
 /* G5 typed notes (#96): Callout, Quote, Contacts, Table, as the report and the published file draw them. Tokens only. */
 .tpl-callout { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); background: var(--surface-muted); color: var(--text); overflow-wrap: anywhere; }
 .tpl-callout.tone-info { border-left-color: var(--status-blue); }
@@ -1345,6 +1430,10 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 a.tpl-name, .tpl-lc-title a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
 a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .tpl-facts { color: var(--text-muted); font-size: var(--size-caption); }
+.docs-view-row { align-items: center; }
+.docs-ic { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.docs-ic .i { width: 18px; height: 18px; }
+.docs-open { flex: none; color: var(--text-muted); }
 .tpl-od-text, .tpl-lc-text { margin: var(--space-2) 0 0; color: var(--text); overflow-wrap: anywhere; }
 .tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-left: 4px solid var(--brand-blue); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
@@ -1418,3 +1507,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
 
+/* Publish progress: main draws the ring (.spin, a still ring with one strong quarter) and the green tick; clark's own setting
+   (<html data-motion="reduce">) also stops the ring, which the media query alone would not. */
+:root[data-motion="reduce"] .spin { animation: none; }
+@media (forced-colors: active) { .spin { border-color: CanvasText; border-top-color: Highlight; } }

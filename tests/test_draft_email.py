@@ -208,6 +208,12 @@ class PlainWordsMedium(unittest.TestCase):
             de.sent_entry([], "chase", TODAY)
         self.assertEqual(str(a.exception), "Tick at least one item before you press I sent it.")
 
+    def test_the_python_and_script_copies_of_the_nothing_ticked_wording_match(self):
+        js = (Path(de.__file__).parent / "page" / "src" / "logic" / "draftEmail.js").read_text(encoding="utf-8")
+        found = re.search(r'export const NOTHING_TO_RECORD = "([^"]*)";', js)
+        self.assertIsNotNone(found, "draftEmail.js no longer exports NOTHING_TO_RECORD")
+        self.assertEqual(found.group(1), de.NOTHING_TO_RECORD)
+
     def test_an_empty_selection_blocks_copying(self):
         d = build(picked=[])
         msg = "No items are ticked. Tick at least one to draft the email."
@@ -375,7 +381,7 @@ class Dates(unittest.TestCase):
         self.assertEqual(de.shown("2026-10-29"), "29-10-2026")
         self.assertEqual(de.weekday_date("2026-10-29"), "Thursday 29-10-2026")
         self.assertEqual(de.shown("0999-01-02"), "02-01-0999")
-        for text in ("20261029", "2026-W44-3", "2026-10-29T10:00", "2026-10-29 ", "2026-10-29\n", "2026-13-01", "2026-02-30",
+        for text in ("20261029", "2026-W44-3", "2026-10-29T10:00", "2026-10-29 ", "2026-10-29\n", "2026-13-01", "2026-02-30", "2026/10/29",
                      "\u0662\u0660\u0662\u0666-\u0661\u0660-\u0662\u0669", "", "12345"):
             with self.subTest(text=text):
                 self.assertEqual(de.shown(text), text)

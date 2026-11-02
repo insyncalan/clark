@@ -305,13 +305,13 @@ class Detail(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('[data-ucd-field=headline]').value", sid), was["headline"])
             self.assertEqual((len(self.sent), cdp.js("location.hash", sid)), (n, "#dashboard&p=TUL"), "Esc in a field only puts the text back")
 
-    def test_the_status_menu_offers_three_words_and_a_pick_is_one_change_with_one_undo(self):
+    def test_the_status_menu_offers_four_words_and_a_pick_is_one_change_with_one_undo(self):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
             before = self.steps()
             click(cdp, sid, "#ucd-status")
             self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "the menu opened")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('[role=menu] [role=menuitemradio]')].map(b => b.textContent.replace('✓', ''))", sid), ["On track", "Flag", "High risk"])
+            self.assertEqual(cdp.js("[...document.querySelectorAll('[role=menu] [role=menuitemradio]')].map(b => b.textContent.replace('✓', ''))", sid), ["On track", "Flag", "High risk", "Done"])
             self.assertEqual(cdp.js("document.querySelector('[role=menu] [aria-checked=true]').textContent.replace('✓', '')", sid), "Flag")
             click(cdp, sid, "[role=menu] [data-kind='High risk']")
             self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'High risk'", "the word changed")
@@ -319,6 +319,23 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["status"], "Flag")
             self.until(cdp, sid, "document.querySelector('[data-ucd] [data-word]').textContent === 'Flag'", "Undo draws the old word")
+
+    def test_done_in_the_status_menu_saves_and_shows_its_word_in_grey(self):
+        """#412: choosing Done in Edit saves it (one change, one Undo) and the page shows the word Done with the grey dot."""
+        with chrome() as cdp:
+            sid = self.open_detail(cdp)
+            before = self.steps()
+            click(cdp, sid, "#ucd-status")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "the menu opened")
+            click(cdp, sid, "[role=menu] [data-kind='Done']")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'Done'", "the word changed")
+            self.assertEqual((self.row()["status"], self.steps(), self.toast(cdp, sid)), ("Done", before + 1, "Status changed to Done."))
+            self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-word]').className", sid).split()[-1], "rag-n")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-ucd] [data-word] .ragdot')).backgroundColor", sid),
+                             cdp.js("(() => { const i = document.createElement('i'); i.style.color = 'var(--status-grey)'; document.body.append(i); "
+                                    "const c = getComputedStyle(i).color; i.remove(); return c; })()", sid))
+            self.undo(cdp, sid)
+            self.assertEqual(self.row()["status"], "Flag")
 
     def test_the_eye_is_said_in_words_and_toggles_with_one_undo(self):
         with chrome() as cdp:

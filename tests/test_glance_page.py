@@ -355,6 +355,22 @@ class UseCases(Setup):
                     for word in ("1.1", "Invoice matching", "Matching is live", "On track", "3 next steps"):
                         self.assertIn(word, first)
 
+    def test_done_has_its_word_its_count_and_a_grey_mark_in_the_meter(self):
+        """#412: a Done use case on the dashboard: the word Done in its row, a "1 Done" count after the others and a grey meter mark."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc2, {"status": "Done"})
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                self.assertEqual(p.js("[...document.querySelectorAll('.ucn')].map(e => e.dataset.count + ':' + e.textContent.trim() + ':' + e.className)"),
+                                 ["On track:1 On track:ucn rag-g", "Done:1 Done:ucn rag-n"])
+                self.assertEqual(p.js("[...document.querySelectorAll('.meter i')].map(e => e.className)"), ["m-g", "m-n"])
+                self.assertEqual(p.js("document.querySelector('.meter').getAttribute('aria-label')"), "1 On track, 1 Done")
+                grey = p.js("(() => { const i = document.createElement('i'); i.style.color = 'var(--status-grey)'; document.body.append(i); "
+                            "const c = getComputedStyle(i).color; i.remove(); return c; })()")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.meter .m-n')).backgroundColor"), grey)
+                self.assertEqual(p.js("[...document.querySelectorAll('.ucrow [data-word]')].map(e => e.textContent)"), ["On track", "Done"])
+
     def test_see_all_counts_only_the_open_items_and_opens_that_same_list(self):
         with self.store.step("dashboard", USER) as st:
             st.update("actions", self.a_open, {"status": "Closed"})
@@ -383,6 +399,27 @@ class UseCases(Setup):
             p.until("document.querySelectorAll('#work tbody tr[data-id]').length === 3", "filtered to the use case")
             p.js("history.back()")
             p.until("!!document.querySelector('.ucrow')", "back on the Dashboard")
+
+    def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
+        """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
+        uc = self.demo.use_case
+        with self.store.step("dashboard", USER) as st:
+            st.update("actions", self.a_open, {"client_message": "We will chase the supplier file this week"})
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "ZQ-risk own title", "raised": "2026-10-01", "source": "demo", "owner": "Sam Demo", "use_case": uc})
+            st.create("decisions", {"project": "ABC", "decision": "ZQ-decision own title", "source": "demo", "status": "Pending", "use_case": uc,
+                                    "made_by": "Lee Demo", "client_message": "A choice of shared drive is due"})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertIn("5 next steps", p.js("document.querySelector('.ucrow .ucbar').innerText"))
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail')", "the row opened")
+            text = p.js("document.querySelector('.ucdetail').innerText")
+            self.assertIn("Pat Demo: We will chase the supplier file this week", text)
+            self.assertNotIn("Chase the supplier file", text, "the item's own title is not shown beside its client wording")
+            self.assertIn("ZQ-risk own title", text, "an open risk is a next step; with no client wording its own title shows")
+            self.assertIn("Lee Demo: A choice of shared drive is due", text)
+            self.assertNotIn("ZQ-decision own title", text)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-step-av]')].map(e => e.textContent).sort()"), ["LD", "LD", "PD", "SD", "SD"])
 
 
 class Styles(Setup):
@@ -420,6 +457,18 @@ class Published(PublishedFile, Setup):
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
                 health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
                 self.assertAlmostEqual(health, 2 * overdue + 12, delta=1.5)
+
+    def test_the_file_draws_done_with_its_word_count_and_grey_mark(self):
+        """#412: the published page shows a Done use case as the dashboard does, from the file's own figures."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc2, {"status": "Done"})
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucn')].map(e => e.dataset.count + ':' + e.textContent.trim())"),
+                             ["On track:1 On track", "Done:1 Done"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.meter i')].map(e => e.className)"), ["m-g", "m-n"])
+            self.assertIn("Done", p.js("[...document.querySelectorAll('.ucrow [data-word]')].map(e => e.textContent)"))
 
     def test_a_use_case_lists_only_linked_items_that_are_client_flagged_and_not_hidden(self):
         path = self.publish()
