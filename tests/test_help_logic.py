@@ -289,12 +289,12 @@ class Shown(unittest.TestCase):
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
         SEC = ["howto-set-the-health", "howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
-               "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-milestones-page", "ref-diagnostics", "ref-keys"]
+               "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-milestones-page", "ref-diagnostics", "ref-keys"]
         self.assertEqual(s["places"], SEC)
         self.assertEqual(s["tabs"]["start"], [])
         self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:6])
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
-                         ["ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-milestones-page", "ref-freshness", "ref-diagnostics", "ref-keys"])      # by group: Screens, Working with items, Settings and data, Keys and icons
+                         ["ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-milestones-page", "ref-freshness", "ref-archive-restore", "ref-diagnostics", "ref-keys"])      # by group: Screens, Working with items, Settings and data, Keys and icons
         self.assertEqual(s["index"], SEC)
         self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-keys"], ["dashboard+edit", "work", "milestones"]))
         self.assertEqual(s["q"]["sneak"], [], "no Sneak peek entry is shown")      # "ask clark" is left out: the board entry says \"clark remembers\", which the search reads as a match
