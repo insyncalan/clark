@@ -37,6 +37,13 @@ class Page(PageBase):
         return p.js(f"[...document.querySelectorAll('{sel} .docs-list .tpl-dl-i')].map(li => [li.querySelector('.tpl-badge').textContent, "
                     "li.querySelector('.tpl-name').textContent, li.querySelector('.tpl-facts').textContent])")
 
+    def view_rows(self, p, sel):
+        """What a reader sees of each document in View and in a published file: title, the line under it, the open icon."""
+        return p.js(f"[...document.querySelectorAll('{sel} .docs-list .tpl-dl-i')].map(li => [li.querySelector('.tpl-name').textContent, "
+                    "li.querySelector('.tpl-facts').textContent, li.querySelector('a.docs-open').getAttribute('aria-label'), "
+                    "li.querySelector('a.docs-open').getAttribute('href'), li.querySelector('a.docs-open').target, li.querySelector('a.docs-open').rel, "
+                    "li.querySelector('a.docs-open svg').getAttribute('aria-hidden'), li.querySelectorAll('a').length])")
+
     @staticmethod
     def set_value(p, selector, value):
         p.js(f"(() => {{ const el = document.querySelector({json.dumps(selector)}); el.focus(); el.value = {json.dumps(value)};"
@@ -142,9 +149,14 @@ class InView(Page):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.until(f"!!document.querySelector('{sec} .docs-list')", "the list drew")
-            got = p.js(f"[...document.querySelectorAll('{sec} .docs-list a')].map(a => [a.textContent, a.getAttribute('href'), a.target, a.rel])")
+            got = p.js(f"[...document.querySelectorAll('{sec} .docs-list .tpl-name')].map(a => [a.textContent, a.getAttribute('href'), a.target, a.rel])")
             self.assertEqual(got, [["Steering minutes", "https://example.com/minutes", "_blank", "noopener noreferrer"],
                                    ["Team inbox", "mailto:pmo@example.com", "", "noopener noreferrer"]])
+            # the prototype's row: "Kind · date" under the title (no date, no stray " · "), and an icon link named "Open {title}"
+            self.assertEqual(self.view_rows(p, sec),
+                             [["Steering minutes", "Minutes · 10-01-2030", "Open Steering minutes", "https://example.com/minutes", "_blank", "noopener noreferrer", "true", 2],
+                              ["Team inbox", "Other", "Open Team inbox", "mailto:pmo@example.com", "", "noopener noreferrer", "true", 2]],
+                             "View: the icon is named, decorative inside, opens like the title; an email link opens no new tab")
             self.assertNotIn("Fictional hidden paper", p.js("document.body.textContent"))
             self.assertEqual(p.js(f"document.querySelectorAll('{sec} input, {sec} button, {sec} select, {sec} form').length"), 0)
 
@@ -153,6 +165,7 @@ class InTheFile(Page):
     def test_the_file_draws_the_visible_documents_at_both_widths_light_and_dark(self):
         sec = f"[data-id={json.dumps(self.docs_section())}]"
         self.add_doc("<b>Steering</b> minutes", "https://example.com/minutes")
+        self.add_doc("Team inbox", "mailto:pmo@example.com", kind="Other", date="")
         self.hide(self.add_doc("Fictional hidden paper", "https://example.com/hidden"))
         out = tempfile.mkdtemp(prefix="clark-74-")
         self.addCleanup(shutil.rmtree, out, ignore_errors=True)
@@ -169,7 +182,11 @@ class InTheFile(Page):
                 if dark:
                     p.js("document.documentElement.dataset.theme = 'dark'")
                 p.until(f"!!document.querySelector('{sec} .docs-list')", "the list is in the file")
-                self.assertEqual(self.rows(p, sec), [["Minutes", "<b>Steering</b> minutes", "10-01-2030 · example.com"]], "a title is text")
+                self.assertEqual(self.view_rows(p, sec),
+                                 [["<b>Steering</b> minutes", "Minutes · 10-01-2030", "Open <b>Steering</b> minutes", "https://example.com/minutes",
+                                   "_blank", "noopener noreferrer", "true", 2],
+                                  ["Team inbox", "Other", "Open Team inbox", "mailto:pmo@example.com", "", "noopener noreferrer", "true", 2]],
+                                 "a title is text, the line is Kind · date (no date, no stray ' · '), the icon is named Open {title}, an email opens no new tab")
                 self.assertEqual(p.js(f"document.querySelector('{sec} a').getAttribute('href')"), "https://example.com/minutes")
                 self.assertEqual(p.js(f"document.querySelectorAll('{sec} input, {sec} button, {sec} select, {sec} form').length"), 0)
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, "no sideways scroll")

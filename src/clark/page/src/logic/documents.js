@@ -35,6 +35,12 @@ export function factsOf(doc) {
   return [dateWords(doc && doc.date), siteOf(doc && doc.url)].filter(Boolean).join(" · ");
 }
 
+// What a reader sees under a document's title in View and in a published file, as in the prototype: its kind and its date,
+// "Minutes · 10-01-2030", each only when there is one (no date, no " · ").
+export function kindDateOf(doc) {
+  return [(doc && doc.kind) || "Link", dateWords(doc && doc.date)].filter(Boolean).join(" · ");
+}
+
 function hiddenSet(d) {
   return new Set(((d && d.report_hidden) || []).map((h) => (h && h.item_id) || h));
 }
