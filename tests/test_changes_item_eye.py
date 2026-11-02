@@ -8,7 +8,7 @@ import sqlite3
 import unittest
 
 from _demo import USER, DemoStore
-from clark import changes, history
+from clark import changes, history, publish
 from clark.publish import select
 
 
@@ -129,6 +129,119 @@ class Eye(unittest.TestCase):
             bad = self.change({"project": "ABC", "kind": kind, "op": "new", "values": {**vals, "client_visible": True}, "place": "menu"})
             self.assertNotEqual(bad[0], 200, "True is not 0 or 1")
             self.assertNotEqual(self.change({"project": "ABC", "kind": kind, "op": "new", "values": {**vals, "client_visible": "0"}, "place": "menu"})[0], 200)
+
+
+class Duplicate(unittest.TestCase):
+    """#488: Duplicate sends the item's id (`copy_of`) and the copy carries the item's labels and its hiding from the report, in the
+    same step with one Undo. A copy of a Sensitive (or default-excluded) item stays out of the published file."""
+    KINDS = {"actions": ("description", {}), "raid": ("description", {"type": "Risk", "impact": "High", "likelihood": "Low"}),
+             "decisions": ("decision", {})}
+
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.s = self.demo.store
+        self.change = changes.make_change(self.s.path, [], USER)
+        self.undo = changes.make_undo(self.s.path, [], USER)
+        with self.s.step("dashboard", USER) as st:
+            st.create("labels", {"name": "Embargoed", "default_choice": "exclude"})
+
+    def make(self, kind, title):
+        field, extra = self.KINDS[kind]
+        base = {"project": "ABC", "source": "demo", field: title, **extra}
+        if kind == "decisions":
+            base["status"] = "Pending"
+        else:
+            base["raised"] = "2026-10-01"
+        with self.s.step("dashboard", USER) as st:
+            return st.create(kind, base)
+
+    def label(self, item, name):
+        with self.s.step("dashboard", USER) as st:
+            st.create("item_labels", {"item_id": item, "label": name})
+
+    def hide(self, item):
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_hidden", {"project": "ABC", "item_id": item})
+
+    def labels(self, item):
+        return [r["label"] for r in self.s.read("item_labels") if r["item_id"] == item]
+
+    def hidden(self, item):
+        return self.s.read("report_hidden", ref=f"ABC|{item}") is not None
+
+    def dup(self, kind, ref):
+        field, extra = self.KINDS[kind]
+        values = {field: "Copy of " + self.s.read(kind, ref=ref)[field], **extra}
+        return self.change({"project": "ABC", "kind": kind, "op": "new", "values": values, "copy_of": ref, "place": "menu"})
+
+    def published(self):
+        return publish.build(self.s, "ABC", now="2026-10-29")["body"].decode("utf-8")
+
+    def test_a_copy_of_a_sensitive_or_default_excluded_item_stays_out_of_the_published_report(self):
+        for kind in self.KINDS:
+            for name in ("Sensitive", "Embargoed"):
+                with self.subTest(kind=kind, label=name):
+                    token = f"ZQ{kind}{name}SRC"
+                    src = self.make(kind, token)
+                    self.label(src, name)
+                    status, body = self.dup(kind, src)
+                    self.assertEqual(status, 200, body)
+                    self.assertEqual(self.s.read(kind, ref=body["ref"])["client_visible"], 1)
+                    self.assertEqual(self.labels(body["ref"]), [name])
+                    self.assertNotIn(token, self.published(), "neither the item nor its copy reaches the client")
+
+    def test_a_copy_of_a_report_hidden_item_stays_hidden(self):
+        for kind in self.KINDS:
+            with self.subTest(kind=kind):
+                token = f"ZQ{kind}HIDDENSRC"
+                src = self.make(kind, token)
+                self.hide(src)
+                status, body = self.dup(kind, src)
+                self.assertEqual(status, 200, body)
+                self.assertTrue(self.hidden(body["ref"]))
+                self.assertNotIn(token, self.published(), "the copy's title holds the item's title")
+
+    def test_a_plain_copy_is_published_and_has_no_labels_or_hiding(self):
+        for kind in self.KINDS:
+            with self.subTest(kind=kind):
+                token = f"ZQ{kind}PLAINSRC"
+                src = self.make(kind, token)
+                status, body = self.dup(kind, src)
+                self.assertEqual(status, 200, body)
+                self.assertEqual((self.labels(body["ref"]), self.hidden(body["ref"])), ([], False))
+                self.assertIn("Copy of " + token, self.published())
+
+    def test_the_labels_and_the_hiding_go_in_one_step_and_one_undo_takes_all_back(self):
+        src = self.make("actions", "ZQONESTEP")
+        self.label(src, "Sensitive")
+        self.hide(src)
+        status, body = self.dup("actions", src)
+        self.assertEqual(status, 200, body)
+        copy = body["ref"]
+        self.assertEqual((self.labels(copy), self.hidden(copy)), (["Sensitive"], True))
+        status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual((status, undone["ok"]), (200, True), undone)
+        self.assertEqual((self.s.read("actions", ref=copy), self.labels(copy), self.hidden(copy)), (None, [], False))
+
+    def test_copy_of_must_be_an_active_item_of_this_project_of_the_same_kind(self):
+        src = self.make("actions", "ZQBAD")
+        other = self.make("raid", "ZQBADR")
+        arch = self.make("actions", "ZQARCH")
+        with self.s.step("dashboard", USER) as st:
+            st.archive("actions", arch)
+        before = len(self.s.read("actions"))
+        for bad in ("ABC-A-999", other, arch, "XYZ-A-001", 7, ["x"], ""):
+            with self.subTest(copy_of=bad):
+                status, body = self.change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x"}, "copy_of": bad, "place": "menu"})
+                self.assertNotEqual(status, 200, body)
+        self.assertEqual(len(self.s.read("actions")), before, "a refusal writes nothing")
+        status, body = self.change({"project": "ABC", "kind": "milestones", "op": "new", "values": {"name": "m"}, "copy_of": src, "place": "menu"})
+        self.assertNotEqual(status, 200, body)
+
+    def test_a_new_row_may_not_send_the_eye_as_null(self):
+        status, body = self.change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x", "client_visible": None}, "place": "menu"})
+        self.assertNotEqual(status, 200, body)
 
 
 if __name__ == "__main__":

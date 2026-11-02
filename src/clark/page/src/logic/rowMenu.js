@@ -86,7 +86,7 @@ export function duplicateRequest(raw, table) {
   const values = {};
   for (const k of keep) if (raw[k] != null && raw[k] !== "") values[k] = raw[k];
   values[title] = ("Copy of " + String(raw[title])).slice(0, TITLE_LIMIT);
-  return { kind: table, op: "new", values, place: "menu" };
+  return { kind: table, op: "new", values, copy_of: raw.id, place: "menu" };   // copy_of: the server copies the labels and the hiding in the same step
 }
 
 /** The raw record of a row in the project's data (the page keeps a flat row; Duplicate needs every field). */

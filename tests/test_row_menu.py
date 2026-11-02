@@ -143,7 +143,7 @@ class Rules(unittest.TestCase):
         raw = json.dumps({"id": "ABC-A-001", "description": "Order the laptops", "owner": "Ada Quillfeather", "priority": "High", "due_date": None,
                           "workstream": "Data", "milestone": None, "status": "Closed", "closed": "2026-10-10", "client_visible": 0})
         self.assertEqual(self.js(f"RM.duplicateRequest({raw}, 'actions')"),
-                         {"kind": "actions", "op": "new", "place": "menu",
+                         {"kind": "actions", "op": "new", "place": "menu", "copy_of": "ABC-A-001",
                           "values": {"owner": "Ada Quillfeather", "priority": "High", "workstream": "Data", "client_visible": 0,
                                      "description": "Copy of Order the laptops"}}, "a hidden item's copy asks to be hidden too")
         shown = json.dumps({"id": "ABC-A-001", "description": "Book the room", "owner": "Ada Quillfeather", "client_visible": 1})

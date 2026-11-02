@@ -77,7 +77,7 @@ CHANGE_KINDS = {
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
     "report_hidden": {NEW: (), DELETE: (), PICK: ()},
 }
-KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
+KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy_of") if k in ("actions", "raid", "decisions") else ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
@@ -114,7 +114,7 @@ UC_FIELDS = CHANGE_KINDS["use_cases"][UPDATE]        # #164: what a request may 
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
 ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision")
-CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
+CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood", "client_visible")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
 TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
               for k in ITEM_KINDS}                   # what a reply says of a changed item
@@ -735,9 +735,20 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
     if table == "decisions":
         values.setdefault("status", "Pending")
     values.update(project=project, source=NEW_SOURCE)
+    source = req.get("copy_of")
+    if source is not None and (table not in ITEM_KINDS or not isinstance(source, str)):
+        raise Refused(ITEM_NOT_MINE)
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
+        if source is not None:                                      # Duplicate: the copy is the item again, so it carries the item's labels and its hiding from the report (a Sensitive item's copy stays Sensitive and unpublished), read inside the step
+            was = store.read(table, ref=source) if _belongs(table, source, project) else None
+            if was is None or was["project"] != project or was["archived"]:
+                raise Refused(ITEM_NOT_MINE)
+            values["labels"] = clark_store.labels_of(st.con, source)
+            hide = store.read("report_hidden", ref=f"{project}|{source}") is not None
         try:
             ref = st.create(table, values)
+            if source is not None and hide:
+                st.create("report_hidden", {"project": project, "item_id": ref})
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value
             words_ = _store_words(e)
             if words_ is None:
@@ -1396,6 +1407,15 @@ def _eligible(rows, project):
             return _row_is_ours(r, project, False, flagged)
         return (r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"])))
                 and r.get("field") in ("client_visible", "updated_at", "note"))
+    def copy_row(r):                                                # #488: Duplicate's one step: the new item, the labels it carries and its hiding from the report (all made here)
+        if r["table"] == "item_labels":
+            return r.get("op") == MADE_OP and any(items[k].fullmatch(str(r["key"]).split("|", 1)[0]) for k in ITEM_KINDS)
+        if r["table"] == "report_hidden":
+            return r.get("op") == MADE_OP and _row_is_ours(r, project, False, flagged)
+        return item_field_row(r) or item_stamp_row(r)
+    if (any(r["table"] in ITEM_KINDS and of_item(r) and r.get("op") == MADE_OP for r in rows)
+            and any(r["table"] in ("item_labels", "report_hidden") for r in rows)):
+        return all(r["via"] == VIA and copy_row(r) for r in rows)
     picked = any(r.get("field") == "note" and r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"]))) for r in rows)
     if (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
         return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA) and pick_row(r) for r in rows)
