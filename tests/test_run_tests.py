@@ -305,7 +305,8 @@ class Changed(unittest.TestCase):
                                                    "src/clark/server.py", ".github/workflows/tests.yml",
                                                    "src/clark/updates.py", "vendor/ed25519_verify/", "src/clark/update_helper.py",
                                                    "src/clark/update_install.py", "dev/tools/sign_release.py",
-                                                   "dev/tools/ed25519_sign.py", "tests/test_update_signature.py"})
+                                                   "dev/tools/ed25519_sign.py", "tests/test_update_signature.py",
+                                                   "clark.command", "src/clark/__main__.py", "src/clark/platform.py"})
         for p in run_tests.GUARDED:
             with self.subTest(p):
                 self.assertEqual(self.chosen([p]), every)
@@ -318,7 +319,7 @@ class Changed(unittest.TestCase):
                   if ln.strip() and not ln.startswith("#")}
         for path in run_tests.GUARDED:
             if path.startswith(("src/clark/update", "vendor/ed25519", "dev/tools/sign_release", "dev/tools/ed25519",
-                                "tests/test_update")):
+                                "tests/test_update", "clark.command", "src/clark/__main__", "src/clark/platform")):
                 with self.subTest(path):
                     self.assertIn("/" + path, owners)
 

@@ -17,3 +17,7 @@
 /dev/tools/sign_release.py @insyncalan
 /tests/test_update_signature.py @insyncalan
 /dev/tools/ed25519_sign.py @insyncalan
+# The launcher, the entry point and the platform layer that start, finish and undo an update.
+/clark.command @insyncalan
+/src/clark/__main__.py @insyncalan
+/src/clark/platform.py @insyncalan

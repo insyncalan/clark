@@ -96,7 +96,9 @@ GUARDED = ("src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py",
            ".github/workflows/tests.yml",
            # the update trust chain (#282): the pinned key, the signature check, the vendored verifier, the helper, the installer
            "src/clark/updates.py", "vendor/ed25519_verify/", "src/clark/update_helper.py", "src/clark/update_install.py",
-           "dev/tools/sign_release.py", "dev/tools/ed25519_sign.py", "tests/test_update_signature.py")
+           "dev/tools/sign_release.py", "dev/tools/ed25519_sign.py", "tests/test_update_signature.py",
+           # the launcher and the platform layer that start and finish an update
+           "clark.command", "src/clark/__main__.py", "src/clark/platform.py")
 DOCUMENTS = ("docs/",)                # and any *.md: these reach only the tests that name them (see `guard_tests`)
 NAMES_GUARD = "test_no_real_names"    # reads every tracked file, so any change runs it
 FILE_TIMEOUT = float(os.environ.get("CLARK_FILE_TIMEOUT") or 900)   # seconds; 0 means no limit (see --file-timeout)
