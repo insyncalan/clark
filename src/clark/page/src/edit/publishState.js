@@ -75,7 +75,8 @@ export async function go() {
     return;
   }
   const said = words(r, "publish");
-  if (r.status === 200 && b && b.ok === true) { set({ phase: "done", clash: null, message: { kind: "success", text: said } }); refreshLatest(); return; }
+  // #353: the number the server gave this publication (#120), so the success line can pick out "Published (Publication N)".
+  if (r.status === 200 && b && b.ok === true) { set({ phase: "done", clash: null, message: { kind: "success", text: said, number: Number.isInteger(b.publication) && b.publication > 0 ? b.publication : null } }); refreshLatest(); return; }
   const cancelled = r.status === 200 && b && (b.code === "cancelled" || b.code === "cancel");
   set({ phase: "error", clash: null, message: { kind: cancelled ? "info" : "error", text: said } });
   if (b && b.local_saved === true) refreshLatest();       // Local was saved and logged although the copy was not

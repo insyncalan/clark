@@ -607,17 +607,22 @@ class Moves(Base):
             self.assertEqual((self.steps(), len(self.sent)), before)
             self.assertEqual(cdp.js("location.hash.includes('item=')", sid), False, "a drag never opens the peek")
 
-    def test_in_view_nothing_moves(self):
+    def test_the_board_moves_cards_in_view_as_in_edit(self):
+        # #442 (ruled 02-11-2026): View and Edit exist only on the Dashboard; the Work items board always moves cards
         with chrome() as cdp:
             sid = self.visit(cdp, edit=False)
             self.board(cdp, sid, "status", mode="open")
             cdp.js("document.querySelector('[data-mode=view]').click()", sid)
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-move]').length", sid), 0)
+            self.assertGreater(cdp.js("document.querySelectorAll('[data-move]').length", sid), 0, "the Move to button is on each card in View")
+            self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('.lanebar').textContent", sid))
             a = self.id_of("Order the laptops")
-            before = len(self.sent)
+            before = self.steps()
             self.drag(cdp, sid, a, self.cell("Delayed"))
-            self.assertEqual(len(self.sent), before)
-            self.assertIn("Switch to Edit to move cards.", cdp.js("document.querySelector('.lanebar').textContent", sid))
+            t = self.wait_toast(cdp, sid, "done")
+            self.assertEqual(t["text"], f"{a} is now Delayed.")
+            self.assertTrue(t["undo"], "View shows the message with Undo")
+            self.assertEqual(self.row(a)["status"], "Delayed")
+            self.assertEqual(self.steps(), before + 1, "one step")
 
 
 class Collapse(Base):

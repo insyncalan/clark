@@ -143,7 +143,7 @@ class Refusals(unittest.TestCase):
 
         class T:
             def __init__(self, interval, fn, args):
-                self.fn, self.args, self.daemon = fn, args, False
+                self.interval, self.fn, self.args, self.daemon = interval, fn, args, False
                 started.append(self)
 
             def start(self):
@@ -155,6 +155,7 @@ class Refusals(unittest.TestCase):
         r.count()                                                               # the count is written, a new window opens
         self.assertEqual(len(started), 2)
         self.assertTrue(all(t.daemon for t in started))
+        self.assertEqual([t.interval for t in started], [sv.CSP_REPORT_WINDOW] * 2, "each timer waits one window")
         before = len(self.entries()[0])
         started[0].fn(*started[0].args)                                         # the first window's timer, late: nothing
         self.assertEqual(len(self.entries()[0]), before)
@@ -198,6 +199,108 @@ class Refusals(unittest.TestCase):
         self.assertIs(sv.Refused().clock, time.monotonic)
         self.assertIs(sv.Refused.__init__.__defaults__[1], time.monotonic)
         self.assertIs(sv.Refused.__init__.__defaults__[2], threading.Timer)
+
+
+class TimerWindows(unittest.TestCase):
+    """#328: the timer that writes a window's line, with a fake clock and a fake timer that records what it was given and
+    runs only when a test fires it (no real waiting)."""
+
+    def setUp(self):
+        folder = Path(tempfile.mkdtemp(prefix="clark-refused-timer-")).resolve()
+        self.addCleanup(shutil.rmtree, folder, True)
+        self.log = clog.Log(folder / "logs", data=folder, clock=lambda: NOW, routes=set(sv.GET_ROUTES) | set(sv.POST_ROUTES))
+        handler = clog.install(self.log)
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        self.ticks, self.timers = [500.0], []
+        test = self
+
+        class Fake:
+            def __init__(self, interval, fn, args):
+                self.interval, self.fn, self.args, self.daemon = interval, fn, args, False
+                test.timers.append(self)
+
+            def start(self):
+                pass
+
+            def fire(self):
+                self.fn(*self.args)
+        self.Fake = Fake
+
+    def refused(self, **kw):
+        return sv.Refused(clock=lambda: self.ticks[0], **kw)
+
+    def lines(self):
+        text = "".join(p.read_text(encoding="utf-8") for p in self.log.files())
+        return [x for x in text.splitlines() if clog.ENTRY.match(x)]
+
+    def test_one_refusal_then_the_timer_writes_one_line_with_count_1(self):
+        r = self.refused(timer=self.Fake)
+        r.count()
+        self.assertEqual(self.lines(), [], "nothing at the refusal itself")
+        self.assertEqual(len(self.timers), 1)
+        self.timers[0].fire()
+        lines = self.lines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertRegex(lines[0], ONE)
+
+    def test_a_burst_then_the_timer_writes_one_line_with_the_burst_count(self):
+        r = self.refused(timer=self.Fake)
+        for _ in range(9):
+            r.count()
+        self.assertEqual(len(self.timers), 1, "one timer for the window, not one per refusal")
+        self.timers[0].fire()
+        lines = self.lines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertEqual(MANY.search(lines[0]).group(1), "9")
+
+    def test_a_steady_flood_writes_one_line_a_window_not_two(self):
+        r = self.refused(timer=self.Fake)
+        for window in range(3):
+            for _ in range(20):
+                r.count()
+                self.ticks[0] += 1.0
+            self.ticks[0] += sv.CSP_REPORT_WINDOW                        # the window is up; the next refusal would close it
+            self.timers[-1].fire()                                       # the timer writes it first
+            self.assertEqual(len(self.lines()), window + 1, self.lines())
+        self.assertEqual([MANY.search(x).group(1) for x in self.lines()], ["20"] * 3)
+
+    def test_a_steady_flood_with_no_timer_firing_still_writes_one_line_a_window(self):
+        r = self.refused(timer=self.Fake)
+        for _ in range(4):
+            for _ in range(5):
+                r.count()
+            self.ticks[0] += sv.CSP_REPORT_WINDOW + 1
+        self.assertEqual(len(self.lines()), 3, "each later request writes the window before it")
+        r.flush()
+        self.assertEqual(len(self.lines()), 4)
+
+    def test_a_timer_that_cannot_start_is_skipped_without_a_traceback(self):
+        class Refuses:
+            def __init__(self, interval, fn, args):
+                self.daemon = False
+
+            def start(self):
+                raise RuntimeError("can't start new thread")
+        r = self.refused(timer=Refuses)
+        for _ in range(3):
+            r.count()                                                    # nothing raised
+        self.assertEqual(self.lines(), [])
+        self.ticks[0] += sv.CSP_REPORT_WINDOW + 1
+        r.count()                                                        # the next request writes the finished window
+        lines = self.lines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertEqual(MANY.search(lines[0]).group(1), "3")
+        self.assertNotIn("Traceback", "".join(p.read_text(encoding="utf-8") for p in self.log.files()))
+        r.flush()                                                        # and the stop writes the last one
+        self.assertRegex(self.lines()[-1], ONE)
+
+    def test_a_timer_that_cannot_be_made_is_skipped_too(self):
+        def none(interval, fn, args):
+            raise OSError("no threads")
+        r = self.refused(timer=none)
+        r.count()
+        r.flush()
+        self.assertRegex(self.lines()[-1], ONE)
 
 
 class ShutdownFlush(unittest.TestCase):

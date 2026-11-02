@@ -6,6 +6,7 @@
 import { useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
+import { isChanged, WORD } from "../stores/changed.js";
 import { showDate, railRows, railWord, RAIL } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
 
@@ -51,15 +52,15 @@ export function MsList({ rows, place, open, internalTag, Eye, left }) {
           const out = !!(Eye && left && left.has(r.id));          // left out of the published page: said in words, never by colour alone
           return (
           // The li stays a list item; in the editor the button is its child (role and keys), so the list keeps its semantics.
-          <li class={`msl-row${r.clientVisible ? "" : " out"}${open ? "" : " plain"}${Eye ? " has-eye" : ""}`} key={r.id} data-ms={r.id}>
+          <li class={`msl-row${r.clientVisible ? "" : " out"}${open ? "" : " plain"}${Eye ? " has-eye" : ""}${isChanged(r.id) ? " changed" : ""}`} key={r.id} data-ms={r.id} data-changed={isChanged(r.id) ? "1" : undefined}>
             <span class={`node c-${r.colour}${r.state === "Achieved" ? " fill" : ""}`} />
             <div class="msl-cells" {...(open ? { tabindex: "0", role: "button", "aria-label": `${r.name}, ${r.word}${out ? ", left out of the published page" : ""}`, onClick: () => open(r.id), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(r.id); } } } : {})}>
               <span class="msl-date"><When r={r} /></span>
-              <span class="msl-name">{r.name}{internalTag && !r.clientVisible ? <> <span class="tag">Internal only</span></> : null}{out ? <> <span class="tag hid" data-ms-left>Left out of the published page</span></> : null}</span>
+              <span class="msl-name">{r.name}{isChanged(r.id) ? <> <span class="tag chg">{WORD}</span></> : null}{internalTag && !r.clientVisible ? <> <span class="tag">Internal only</span></> : null}{out ? <> <span class="tag hid" data-ms-left>Left out of the published page</span></> : null}</span>
               <span class={`mst c-${r.colour}`}><MsMark name={r.mark} />{r.word}</span>
               <span class="msl-prog" title="Progress"><Progress value={r.percent} /></span>
             </div>
-            {Eye ? <Eye id={r.id} name={r.name} left={out} /> : null}
+            {Eye ? <Eye id={r.id} name={r.name} left={out} internal={!r.clientVisible} /> : null}
           </li>
           );
         })}
