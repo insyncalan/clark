@@ -276,7 +276,7 @@ class Screen(unittest.TestCase):
 
     def test_a_bare_26_character_mixed_token_is_refused_inside_base64_plain_and_wrapped(self):
         import base64
-        token = "aB3d" + "E5gH" + "7jK9" + "mN1p" + "Q3sT" + "5v"      # 26 characters, built here, letters and digits mixed
+        token = "aB3d" + "E5gH" + "7jK9" + "mN1p" + "Q3sT" + "5vW7" + "yZ"      # 26 characters, built here, letters and digits mixed
         self.assertEqual(len(token), 26)
         for text in (token, "note " + token):
             coded = base64.b64encode(text.encode()).decode()
