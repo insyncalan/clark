@@ -164,7 +164,14 @@ class Words(unittest.TestCase):
         self.assertEqual(flat.count("**Also a PDF**"), 2, "the steps and the Publishing bullets both name the tick")
         self.assertIn("your browser’s print box opens on the page in a new tab, and you choose **Save as PDF**", flat)
         self.assertIn("untick Headers and footers", flat)
-        self.assertNotIn("Chrome", flat)
+        # two PDF designs are live (PR 359 Chrome, PR 360 print box) until the owner rules: only that one entry may still say Chrome
+        def without_the_chrome_howto(node):
+            if isinstance(node, dict):
+                return {k: without_the_chrome_howto(v) for k, v in node.items()} if node.get("id") != "save-as-a-pdf" else {}
+            if isinstance(node, list):
+                return [without_the_chrome_howto(v) for v in node]
+            return node
+        self.assertNotIn("Chrome", json.dumps(without_the_chrome_howto(data), ensure_ascii=False))
 
 
 class Browser(unittest.TestCase):
