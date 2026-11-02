@@ -289,7 +289,7 @@ class RealChrome(unittest.TestCase):
 
 # ===== The Publish option (publish_pdf.py) =====
 import _publish_fixture as fx                                     # noqa: E402
-from test_publish_route import Rig, WANTED, DAY                   # noqa: E402
+from test_publish_route import Rig, WANTED, DAY, EMPTY_BRANDING                   # noqa: E402
 from clark import pdf_text as pdftext, publish_pdf, to_client                # noqa: E402
 from clark.store import Store                                       # noqa: E402
 
@@ -391,6 +391,27 @@ class PublishWithoutChrome(unittest.TestCase):
         self.assertEqual(rig.everything_written(), [])
         self.assertEqual(rig.rows(), [])
 
+    def test_the_pdfs_footer_has_the_publication_number_and_the_next_publish_has_the_next_one(self):
+        """#270: the number the publish was given (#120) is the number in the PDF's footer, not just the date."""
+        rig = Rig(self)
+        footers = []
+
+        def fake_print(page, out, orientation="portrait", footer_left=None, **kw):
+            footers.append(footer_left)
+            Path(out).write_bytes(b"%PDF-1.4\n")
+            return Path(out)
+        numbers = []
+        with mock.patch.object(pdf, "find_chrome", return_value="/x"), mock.patch.object(pdf, "make_pdf", fake_print), \
+                mock.patch.object(pdftext, "text_of", return_value="All fine."):
+            for name in ("first.html", "second.html"):
+                rig.save_to = rig.local / name
+                status, got = rig.publish(pdf=True)
+                self.assertEqual((status, got["ok"]), (200, True), got)
+                numbers.append(got["number"])
+        self.assertEqual(numbers[1], numbers[0] + 1, "a second publish has the next number")
+        self.assertEqual(footers, [f"Publication {n} \u00b7 28-10-2026" for n in numbers])
+        self.assertNotIn("Published 28-10-2026", footers)
+
     def test_without_the_tick_nothing_about_a_pdf_happens(self):
         rig = Rig(self)
         with mock.patch.object(publish_pdf, "make", side_effect=AssertionError("no PDF was asked for")):
@@ -425,7 +446,7 @@ class PublishRealChrome(unittest.TestCase):
         self.assertNotIn(squash(str(rig.client)), squashed)
         for word in ("Dashboard", "Work items", "Milestones", "28-10-2026", "Page 1 of"):
             self.assertIn(word, text)
-        self.assertIn("Published 28-10-2026", text, "the footer carries the date")
+        self.assertIn(f"Publication {got['number']} \u00b7 28-10-2026", text, "the footer carries the publication number and the date")
         self.assertNotIn("Filter by", text, "no controls")
         self.assertEqual(text.count("Programme notes"), 1, "the live page is not printed as well as the stack")
         # a taken name in the client folder is asked about first, and nothing is written for the question
@@ -1090,6 +1111,8 @@ class TheReviewFindings(unittest.TestCase):
         self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_failed"]), got["message"])
 
     def test_the_same_report_already_in_the_client_folder_says_no_pdf_was_copied(self):
+        # #120: every publish says its own number, so "the same report" is the one the next publish will make (Publication 2)
+        self.report.write_bytes(publish.build(self.rig.store, "PUB", DAY, EMPTY_BRANDING)["body"])
         status, got = self.go(to_client=True, pdf=True)
         self.assertEqual((status, got["ok"], got["action"], got["pdf_saved"]), (200, True, "nothing_to_do", False), got)
         self.assertIn(publish_pdf.MESSAGES["pdf_client_same"], got["message"])
