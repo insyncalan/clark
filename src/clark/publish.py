@@ -12,7 +12,8 @@ choice is "exclude" (Sensitive always, names compared without case). Each table 
 view shows, and nothing else is ever copied, so internal_note, movement, source and the project's folders are not in the file.
 select(), clean_html(), render(), csp_meta() and file_name() are pure; read_inputs() reads the database once, read-only.
 
-- Q1 yes: a hidden section of type actions, raid, decisions, milestones or usecases drops that kind's rows and its tab.
+- Q1 yes: a hidden section of type actions, raid, decisions, milestones or usecases drops that kind's rows and its tab (a hidden
+  Milestones section also drops the Client Requested Report View's tab, whose figures are the milestones).
 - Q2 yes (Head ruling on #39): publish() records the verified file with Store.log_publication, once, after the write is read
   back and compared: a `publications` row with the file's SHA-256 and nothing else (no step, no write to the project row). The
   folder to offer next time is read back from the latest publication (Store.last_publish_folder).
@@ -25,6 +26,7 @@ Standard library only, Python 3.9.
 """
 import argparse
 import base64
+import bisect
 import getpass
 import hashlib
 import heapq
@@ -378,6 +380,8 @@ def select(inputs):
         tabs.append("milestones")
     if out["use_case_pages"]:
         tabs.append("usecases")
+    if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
+        tabs.append("clientreport")
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at}
 
 
@@ -448,6 +452,22 @@ _PROPERTY = re.compile(r"\s*([\w-]+)\s*:")
 _PICTURE_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
 
 
+def _escape_places(css, plain):
+    """Where, in plain (= css_plain(css)), each escape of the style as typed put its character: two sorted lists, the starts and
+    the ends. One pass. None if the places cannot be told (an escape built a comment: plain is then shorter than the decoded
+    text). Used to ask whether a piece of the read text is spelled out as typed, with no escape in it."""
+    typed = _without_comments(css.replace("\x00", ""))
+    starts, ends, shift = [], [], 0
+    for m in _CSS_ESCAPE.finditer(typed):
+        put = len(_css_escape(m))
+        starts.append(m.start() + shift)
+        ends.append(m.start() + shift + put)
+        shift += put - (m.end() - m.start())
+    if len(typed) + shift != len(plain):
+        return None
+    return starts, ends
+
+
 def _picture_as_data(css, work=None):
     """True if style text has a data: URL that is not a font, the logo rule or one of the look's named pictures. Read as a browser
     reads it (css_plain), with the same pieces css_findings reads: url( and the string arguments of image functions. A running
@@ -456,8 +476,23 @@ def _picture_as_data(css, work=None):
         return False                                    # no escape and no data: in it: nothing to find
     work = work or Work()
     plain = css_plain(css)
-    escaped = "\\" in css                              # an escape could make the text read differently from a browser: spare nothing
+    escaped = "\\" in css                              # an escape could make the text read differently from a browser: ask of each spared piece
     stack, blocks, images, argument_start, decl = [], [], 0, False, 0
+
+    places = []
+
+    def spelled_out(begin, end):
+        """True if plain[begin:end] has no escape in it. An escape elsewhere in the style (the page's content:"\\2713" tick) says
+        nothing about a spared piece: only one inside the piece itself (a selector, a name, the value) takes its exception away."""
+        if not escaped:
+            return True
+        if not places:
+            places.append(_escape_places(css, plain))
+        if places[0] is None or "\\" in plain[begin:end]:
+            return False
+        starts, ends = places[0]
+        i = bisect.bisect_left(ends, begin)             # the first escape that ends at or after the piece begins
+        return i >= len(starts) or starts[i] > end
 
     def refused(mime, start, via_url):
         mime = mime.strip().lower()
@@ -467,12 +502,14 @@ def _picture_as_data(css, work=None):
         if mime == "application/octet-stream":
             prop = _PROPERTY.match(head)
             return not (blocks and blocks[-1][0] == "@font-face" and prop and prop.group(1).lower() == "src")
-        if escaped or not via_url:
+        if not via_url:
             return True
         if LOOK_PICTURES.match(head) and LOOK_PICTURE_TYPE.match(mime):
-            return False
+            close = plain.find(")", start)
+            if spelled_out(decl, len(plain) if close < 0 else close + 1):       # its name and its url(...), each as typed
+                return False
         logo = LOGO_RULE.match(plain, blocks[0][1]) if len(blocks) == 1 else None      # the rule's own block, nothing around it
-        return not (logo and start < logo.end())
+        return not (logo and start < logo.end() and spelled_out(blocks[0][1], logo.end()))
 
     for m in _PICTURE_PIECE.finditer(plain):
         work.spend()
