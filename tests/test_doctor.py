@@ -140,9 +140,9 @@ class DataFolder(DoctorCase):
         self.assertEqual(self.line(lines, "To fix: Your clark data is set to go"),
                          "To fix: Your clark data is set to go in ~/Library/CloudStorage/OneDrive-Fictional Ltd/clark, which "
                          "is inside OneDrive. OneDrive copies files while they are being written, which damages the data. "
-                         "Choose a folder on this computer that OneDrive doesn't sync. Then, in the Terminal window that "
-                         "START-HERE.txt describes, type python3 -m clark --data and that folder's name, and press Return. "
-                         "Backups can still go to OneDrive.")
+                         "Choose a folder on this computer that OneDrive doesn't sync. Then open Terminal, type cd and a space, drag clark's "
+                         "folder into the Terminal window and press Return. Type python3 -m clark --data and a space, drag the "
+                         "folder you chose into the window, and press Return. Backups can still go to OneDrive.")
         self.assertNotIn("(OneDrive-Fictional Ltd)", "\n".join(lines), "the OneDrive folder's own name isn't said")
 
 
@@ -188,7 +188,7 @@ class Port(DoctorCase):
         self.assertEqual(code, 1)
         self.assertEqual(asked[0][0], 8799)
         self.line(lines, "To fix: "
-                         "Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. Close that Terminal window or program, then double-click clark.command again. If that does not help, restart your Mac.")
+                         "Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. Close that Terminal window or program, then double-click clark.command again.")
 
     def test_another_copy_with_other_data(self):
         with mock.patch.object(Path, "home", return_value=self.home):        # launch.report writes ~ for the real home
