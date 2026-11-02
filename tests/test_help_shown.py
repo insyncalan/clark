@@ -157,7 +157,7 @@ class AgainstThePage(unittest.TestCase):
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
         # 58 measured on the merged tree (main is 59), names printed: one name left the absent list, Week ending, which this branch's report bar (A-D2) puts on the page
         # 56 with the Version and updates card on top of main's 58: Updates, Choose zip… and Undo update name things the page now draws (measured)
-        # 51 with the two update entries shown (#445): Installed, Update, Last update, Up to date, Review ... name things the Update card draws (measured by running this file)
+        # 51 with the two update entries shown (#445): Installed, Update, Last update, Up to date, Review ... name things the Update card draws (measured by running this file); the five names that left the absent list: Confirm undo, Install clark X.Y.Z, Installed, Last update, clark version and updates
         self.assertGreaterEqual(len(names), 51)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):

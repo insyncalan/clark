@@ -294,10 +294,10 @@ class Shown(unittest.TestCase):
         self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:5])
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]], SEC[5:])
         self.assertEqual(s["index"], SEC)
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "howto-add-a-section-from-a-template", "ref-keys"], ["work", "dashboard+edit"]))
+        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-updating-clark", "howto-add-a-section-from-a-template", "ref-keys"], ["work", "dashboard+edit", "settings#update"]))
         for q in ("peek", "sneak"):                      # "ask clark" is left out: the board entry says "clark remembers", which the search reads as a match
             self.assertEqual(s["q"][q], [], q)
-        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need"], "only the Needs from you task, which says a row left out is not on the published page; no Publish entry is shown")
+        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need", "howto-update-clark", "ref-updating-clark"], "the Needs from you task (a row left out is not on the published page) and, since #445, the two update entries, which say the update keeps published reports; no Publish entry is shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
