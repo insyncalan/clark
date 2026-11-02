@@ -12,6 +12,8 @@ import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
 import { latest } from "./publishState.js";
 import { previewRequest, exportRequest, words } from "./publishApi.js";
+import { toast } from "../stores/changes.js";
+import { ToastBox } from "./ToastBox.jsx";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
 
@@ -107,7 +109,7 @@ export function ProfileMenu() {
   return (
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
-      {mode.value === "edit" ? null : <div class="toasts" role="status" aria-live="polite"><MenuNote /></div>}
+      {mode.value === "edit" ? null : <div class="toasts" role="status" aria-live="polite"><MenuNote />{toast.value && toast.value.back ? <ToastBox key={toast.value.id} t={toast.value} /> : null}</div>}
     </>
   );
 }

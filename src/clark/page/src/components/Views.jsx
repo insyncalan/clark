@@ -2,7 +2,9 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { status, message, project, projects, projectsState, openProject, tryAgain } from "../stores/report.js";
 
+import { useEffect, useRef, useState } from "preact/hooks";
 import { MsBlock } from "./MsBlock.jsx";
+import { currentIndex } from "../logic/settingsSpy.js";
 
 function Empty({ title, children, action }) {
   return <section class="frame empty"><h1>{title}</h1><p class="muted">{children}</p>{action}</section>;
@@ -33,17 +35,41 @@ function goToCard(headId) {
   head.focus({ preventScroll: true });
 }
 
-function SettingsHead({ cards }) {
+function SettingsHead() {
   return (
     <section class="frame set-head">
       <h1>Settings</h1>
       <p class="muted">Where reports are published, how clark looks for you, the log, your backups and asking Claude.</p>
-      {cards.length ? (
-        <nav aria-label="Settings sections">
-          <ul class="set-nav">{cards.map(([, name, headId]) => <li key={headId}><button type="button" class="set-chip" onClick={() => goToCard(headId)}>{name}</button></li>)}</ul>
-        </nav>
-      ) : null}
     </section>
+  );
+}
+
+// The chip row (#440, rows 14 and 15): it stays under the top bar as the page scrolls, and the chip of the card being read is marked
+// (aria-current="location"), by the same rule as the prototype (logic/settingsSpy.js). A click marks its chip at once.
+function SettingsNav({ cards }) {
+  const bar = useRef(null);
+  const lock = useRef(0);                              // a click names its chip; the scroll it causes must not change it for a moment
+  const [now, setNow] = useState(cards.length ? cards[0][2] : "");
+  useEffect(() => {
+    if (!cards.length) return undefined;
+    const mark = () => {
+      if (Date.now() < lock.current) return;
+      const edge = (bar.current ? bar.current.getBoundingClientRect().bottom : 0) + 24;
+      const tops = cards.map(([, , headId]) => { const el = document.getElementById(headId); const sec = el && (el.closest("section") || el); return sec ? sec.getBoundingClientRect().top : Infinity; });
+      const at = currentIndex(tops, edge);
+      setNow(cards[at][2]);
+    };
+    mark();
+    window.addEventListener("scroll", mark, { passive: true });
+    return () => window.removeEventListener("scroll", mark);
+  }, [cards.map((c) => c[2]).join(",")]);
+  if (!cards.length) return null;
+  return (
+    <nav class="set-bar" aria-label="Settings sections" ref={bar}>
+      <ul class="set-nav">{cards.map(([, name, headId]) => (
+        <li key={headId}><button type="button" class="set-chip" aria-current={now === headId ? "location" : undefined} onClick={() => { lock.current = Date.now() + 1200; setNow(headId); goToCard(headId); }}>{name}</button></li>
+      ))}</ul>
+    </nav>
   );
 }
 
@@ -56,7 +82,8 @@ export function Settings({ tools }) {
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   return (
     <>
-      <SettingsHead cards={cards} />
+      <SettingsHead />
+      <SettingsNav cards={cards} />
       {ClientFolder ? <ClientFolder /> : null}
       {Personal ? <Personal /> : null}
       {Diagnostics ? <Diagnostics /> : null}

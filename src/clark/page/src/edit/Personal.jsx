@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
+import { sayWithBack, say } from "../stores/changes.js";
+import { savedWords } from "../logic/profileToast.js";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
@@ -37,6 +39,7 @@ function AboutYou() {
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
+    const before = profile.value;                         // what clark held before this save: Undo puts it back
     const r = await setProfile(sent.name, sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
@@ -47,6 +50,15 @@ function AboutYou() {
       // a box changed since is left as it is
       setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
       setSaid({ name: "", email: "" });
+      // #440 (row 5): "Name saved" or "Email saved", with Undo, which saves the old value again (the other box as it is now)
+      const words = savedWords(before, r);
+      if (words) sayWithBack(words, async () => {
+        const now = profile.value;
+        const back = await setProfile(before.name !== r.name ? before.name : now.name, before.email !== r.email ? before.email : now.email);
+        if (!back.ok) { say("problem", back.message); return; }
+        typedIn.current = { name: false, email: false };
+        setTyped({ name: back.name, email: back.email });
+      });
       return;
     }
     const mine = field === "name" ? name : email;

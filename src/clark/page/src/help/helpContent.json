@@ -502,7 +502,9 @@
     "s": [
      "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
      "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
-     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
+     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work.",
+     "The row of buttons under the Settings title jumps to each card. It stays in view as you scroll, and the button for the card you are reading is dark.",
+     "Saving your name or email in Personal shows a note, Name saved or Email saved, with Undo to put the old one back."
     ]
    },
    {

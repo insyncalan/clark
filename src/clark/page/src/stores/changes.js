@@ -33,6 +33,15 @@ export function say(kind, text, undo = null, code = project.value) {
   if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
 }
 
+/** A note with Undo for a change clark keeps outside the step list (#440: the profile's name and email). `back` runs when Undo is pressed
+ *  (it saves the old value again); it has no step, so Cmd or Ctrl+Z does not reach it. */
+export function sayWithBack(text, back) {
+  clearTimeout(timer);
+  const id = ++counter;
+  toast.value = { id, kind: "done", text, undo: null, back, code: project.value };
+  timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
+}
+
 export function dismiss() {
   clearTimeout(timer);
   toast.value = null;

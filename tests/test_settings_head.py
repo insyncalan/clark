@@ -111,11 +111,12 @@ class Head(Base):
                 p = self.page(cdp)
                 self.open_settings(p, 1400, mode)
                 got = p.js("""[...document.querySelectorAll('.set-nav .set-chip')].map(b => { const s = getComputedStyle(b);
-                    return [parseFloat(s.fontSize), s.color, s.backgroundColor, s.borderTopColor]; })""")
-                for size, color, ground, edge in got:
+                    return [parseFloat(s.fontSize), s.color, s.backgroundColor, s.borderTopColor, b.hasAttribute('aria-current')]; })""")
+                for size, color, ground, edge, current in got:
                     self.assertGreaterEqual(size, 13)
                     self.assertGreaterEqual(ratio(rgb(color), rgb(ground)), 4.5, f"{mode}: the chip text on its ground")
-                    self.assertGreaterEqual(ratio(rgb(edge), rgb(ground)), 3, f"{mode}: the chip's edge on its ground")
+                    if not current:                  # the marked chip is filled: its fill is its edge
+                        self.assertGreaterEqual(ratio(rgb(edge), rgb(ground)), 3, f"{mode}: the chip's edge on its ground")
                 p.js("document.querySelector('.set-nav .set-chip').focus()")
                 p.key("Tab", code="Tab", vk=9)
                 p.key("Tab", code="Tab", vk=9, )
