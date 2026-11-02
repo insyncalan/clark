@@ -367,6 +367,29 @@ class Component(InBrowser):
         self.assertFalse(self.val(disabled))
         self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
 
+    def test_a_failed_first_i_sent_it_frees_the_guard_so_the_next_press_goes_through(self):
+        # #314: the guard is freed in a finally, for a refusal and for a call that throws
+        click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()"
+        disabled = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').disabled"
+        for fail in ("T.finish = () => ok({ok: false, message: 'That could not be recorded.'})", "T.finish = () => no(new Error('boom'))"):
+            with self.subTest(fail=fail):
+                self.js("T.sent.length = 0")
+                self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
+                self.js(f"T.reply = new Promise((ok, no) => {{ {fail}; }})")
+                self.js(click)
+                self.js(click)
+                self.settle()
+                self.assertEqual(self.val("T.sent.length"), 1)
+                self.assertTrue(self.val(disabled))
+                self.js("T.finish()")
+                self.settle()
+                self.assertFalse(self.val(disabled), "the failed press let go of the button")
+                self.js("T.reply = {ok: true}")
+                self.js(click)
+                self.settle()
+                self.assertEqual(self.val("T.sent.length"), 2, "the next press went through")
+                self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
+
     def test_no_address_says_what_to_do_not_a_dash(self):
         self.mount(state(), draft(picked=["ABC-A-001"], email=""))
         self.assertIn("No address yet. Add one in your mail app.", self.text(".de-meta"))
