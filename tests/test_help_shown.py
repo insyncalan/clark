@@ -160,6 +160,38 @@ class AgainstThePage(unittest.TestCase):
                                 "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]"])
 
 
+class HeldUseCaseEntry(unittest.TestCase):
+    """#421: the held keep-the-use-cases entry names only controls the page has. It stays held (helpLater.json) until its own items land;
+    this checks its bold names against the page's own source, so it can be released later without naming a button that is not there.
+    Removed by this item, because the page has no such control: + Add use case, Draft from the project (in the AI menu), + Link an
+    existing work item, and Archive use case asking first. (Show archived is on the page for Milestones only.)"""
+    ENTRY = next(t for t in RAW["howto"]["tasks"] if t["id"] == "keep-the-use-cases")
+    CODE = page_code()
+
+    @staticmethod
+    def names(entry):
+        return sorted({b for t in strings(entry) for b in re.findall(r"\*\*(.+?)\*\*", t)})
+
+    def missing(self, names):
+        norm = lambda t: re.sub(r"[‘’]", "'", t).strip(" .,:;…")
+        code = re.sub(r"[‘’]", "'", self.CODE)
+        return [n for n in names if norm(n) not in code]
+
+    def test_the_entry_is_still_held(self):
+        self.assertIn("keep-the-use-cases", LATER["howto"])
+
+    def test_every_bold_name_in_the_entry_is_on_the_page(self):
+        names = self.names(self.ENTRY)
+        self.assertGreaterEqual(len(names), 10)
+        self.assertEqual(self.missing(names), [], "the held entry names buttons the page does not have: reword it")
+
+    def test_the_names_that_were_not_on_the_page_are_gone_and_the_check_would_catch_them(self):
+        gone = ["+ Add use case", "Draft from the project", "+ Link an existing work item", "Archive use case"]
+        self.assertEqual(self.missing(gone), gone, "a name that was left out has reached the page: the entry may use it again")
+        self.assertEqual([n for n in self.names(self.ENTRY) if n in gone], [])
+        self.assertNotIn("Add use case", json.dumps(self.ENTRY))
+
+
 class NeverDelete(unittest.TestCase):
     """HIGH 2 (the owner: we never delete, we archive): a record is archived, never deleted, in everything a person reads."""
     def user_text(self):
@@ -182,7 +214,7 @@ class NeverDelete(unittest.TestCase):
         for part in ("Archive hides the project and everything in it from the usual lists, the counts and the published page",
                      "**Show archived** finds it", "**Restore** and **Undo** bring it back"):
             self.assertIn(part, text)
-        self.assertIn("Archive use case", text)
+        self.assertIn("Archive this use case", text)
         self.assertIn("Archive milestone", text)
 
 

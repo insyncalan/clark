@@ -461,10 +461,10 @@
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
-     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all work items** opens Work items filtered to that use case.",
-     "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
-     "In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.",
-     "**Archive use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Show archived** finds it, and **Restore** or **Undo** brings it back."
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** link under them opens Work items filtered to that use case.",
+     "In Edit, open a use case from the **Use cases** tab. Click its name or its headline to change it. **Change status** offers **On track**, **Flag** or **High risk**, and **Put on the dashboard** or **Take off the dashboard** moves it in or out of this summary.",
+     "Click the text under **Where it stands** to write it. The **Work items** card lists the actions, risks, issues and decisions that name the use case.",
+     "In Edit, **Archive this use case** is at the foot of its page. It leaves the usual lists, the counts and the dashboard; nothing in it is deleted. The page stays open to read, with **Restore**, and **Undo** in the message brings it back."
     ]
    },
    {
