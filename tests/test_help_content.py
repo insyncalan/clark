@@ -300,5 +300,38 @@ class LowWordsRound(unittest.TestCase):
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
 
+class HelpMatchesThePage(unittest.TestCase):
+    """Three places where Help said less, or something other, than the page does (Tech Debt #401, #402, #403)."""
+    ALL = " ".join(s for _, s in words())
+    SRC = ROOT / "src" / "clark" / "page" / "src"
+
+    def test_the_work_items_filters_name_freshness_as_the_page_does(self):
+        names = (self.SRC / "filters.js").read_text(encoding="utf-8")
+        self.assertIn('reviewed: "Freshness"', names)
+        find = next(t for t in STEPS if t["id"] == "find-work-items")
+        self.assertIn("Milestone and Client, and Freshness once some item has a date it can go by", " ".join(find["s"]))
+        table = next(b for sec in SECTIONS if sec["id"] == "work-items" for b in sec["b"] if b[0] == "tbl" and b[1] == ["Filter", "Values"])
+        self.assertEqual(table[2][-1][0], "Freshness")
+        self.assertIn("Not reviewed in 14 days", table[2][-1][1])
+        self.assertIn("No owner or no date", table[2][-1][1])
+        self.assertIn("REVIEW_DAYS = 14", names)
+
+    def test_a_use_case_names_the_ways_back_the_page_has(self):
+        detail = (self.SRC / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8")
+        self.assertIn("data-uc-back", detail)
+        self.assertIn('"Escape"', detail)
+        find = next(t for t in STEPS if t["id"] == "find-a-use-case")
+        line = find["s"][-1]
+        self.assertIn("**Use cases** at the top, [[Esc]] or the Back button of your browser", line)
+        self.assertNotIn("Back returns", line)
+        self.assertNotIn("**Back**", line)       # the page has no button called Back
+
+    def test_delete_section_is_said_for_both_kinds_that_have_it(self):
+        gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")
+        self.assertIn('DELETABLE = ["text", "needs"]', gutter)
+        arrange = next(t for t in STEPS if t["id"] == "arrange-the-report")
+        self.assertIn("for a text section or the Needs from you section, **Delete section**", " ".join(arrange["s"]))
+
+
 if __name__ == "__main__":
     unittest.main()
