@@ -110,22 +110,17 @@ class Store(Base):
         self.assertEqual(out["skipped"], [], "the change's own time stamp does not block it")
         self.assertIsNone(self.action(a))
 
-    def test_the_time_stamp_alone_neither_blocks_an_undo_nor_counts_as_a_later_change(self):
-        """#279: `holds` and `changed_after` skip updated_at on purpose (the stamp follows every change and every undo). A
-        step whose only row is a stamp must not stand in the way; if either skip is taken out, a check below fails."""
+    def test_a_moved_time_stamp_does_not_stop_the_undo(self):
+        """#279: the stamp follows every change and every undo. The store's own checks are pinned in
+        test_holds_ignore_updated_at; this goes through the whole undo, with the stamp moved by an unrelated step."""
         a = self.demo.action()
         b = self.edit(a, owner="Sam Example")
-        rows = [dict(r) for r in self.s.con.execute("SELECT rowid, field, new_value FROM change_log WHERE apply_id = ?", (b,))]
-        self.assertIn("updated_at", {r["field"] for r in rows}, "the step's own rows include its stamp, as holds sees them")
         self.s.con.execute("UPDATE actions SET updated_at = ? WHERE id = ?", ("2031-01-01T00:00:00", a))     # the stamp moves
         self.s.con.commit()
         with self.s.step("dashboard", USER) as st:                      # a later step whose only row is a stamp
             store_module.log(st.con, st, "actions", a, "updated_at", "2031-01-01T00:00:00", "2031-01-02T00:00:00", "update")
-        self.assertTrue(store_module.holds(self.s.con, "actions", a, rows), "a moved stamp does not release the hold")
-        self.assertIsNone(store_module.changed_after(self.s.con, max(r["rowid"] for r in rows), "actions", a),
-                          "a later stamp is not a later change")
         out = self.s.undo(b, USER)
-        self.assertEqual(out["skipped"], [], "so the undo goes ahead")
+        self.assertEqual(out["skipped"], [], "the undo goes ahead")
         self.assertNotEqual(self.action(a)["owner"], "Sam Example")
 
     def test_a_later_change_not_chosen_leaves_its_item_as_it_is(self):

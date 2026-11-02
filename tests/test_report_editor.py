@@ -18,6 +18,7 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from _editor_checks import edit_elements
+from _real_server import real_server
 from _paths import SRC, TOOLS
 import _testpage as testpage
 
@@ -27,7 +28,7 @@ import esbuild  # noqa: E402
 
 from clark import changes, order, page, publish, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -108,7 +109,7 @@ class Pg:
         self.until("!!document.querySelector('[data-undo]')", "the change was saved")
 
     def toast(self):
-        return self.js("(document.querySelector('.toast-text') || {}).textContent || ''")
+        return wait_toast(lambda: self.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
 
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
@@ -176,8 +177,7 @@ class Base(unittest.TestCase):
         self.real_undo = changes.make_undo(self.store.path, [], USER)
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
-                         change=self.seam(self.real_change, "change"), undo=self.seam(self.real_undo, "undo"))
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)               # a fault on purpose is logged by the server
         quiet.start()
@@ -982,17 +982,17 @@ class Gutter(Base):
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
             p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.01" % (self.CTL % "ABC-S-004"), "following a light computer: .3")
 
-    def test_below_the_gutter_width_the_control_rests_at_three_quarters_in_both_themes(self):
-        """#130 point 2: in the card's left padding (900 px and below) the control is at about .75 at rest, light and dark; in the
-        margin at 1400 px it keeps the theme's rest strength (.3 light)."""
+    def test_below_the_gutter_width_the_control_rests_clearer_in_both_themes(self):
+        """#130 point 2, #285: in the card's left padding (900 px and below) the control is at about .85 at rest in light and .75 in dark;
+        in the margin at 1400 px it keeps the theme's rest strength (.3 light)."""
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             p.js("document.activeElement.blur()")
             p.mouse("mouseMoved", 5, 5)
-            for scheme, wide in (("light", 0.3), ("dark", 0.75)):
+            for scheme, wide, narrow in (("light", 0.3, 0.85), ("dark", 0.75, 0.75)):
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
-                for w, want in ((1400, wide), (900, 0.75)):
+                for w, want in ((1400, wide), (900, narrow)):
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                     p.until(f"window.innerWidth === {w}", "resized")
                     p.until("Math.abs(getComputedStyle(%s).opacity - %s) < 0.01" % (self.CTL % "ABC-S-004", want), f"{scheme} at {w}: {want}")

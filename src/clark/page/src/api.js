@@ -73,6 +73,10 @@ export async function sendUndoMany(project, steps, { preview = false, confirm = 
   }
 }
 
+// A refusal of the route's is a fixed plain sentence (each ends "Nothing was saved."). Up to this many characters it is shown as it is;
+// text longer than that, or with a control character in it, is not one of the route's, so plainChange speaks instead (#307).
+const SENT_REFUSAL_MAX = 600;
+
 // "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Answers
 // {ok: true} or {ok: false, message}; a refusal comes back in the route's own plain words, any other failure in plainChange's.
 export async function sendEmailSent(project, entry) {
@@ -83,7 +87,8 @@ export async function sendEmailSent(project, entry) {
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true };
-    const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
+    const text = reply && typeof reply.message === "string" ? reply.message : "";
+    const said = text.trim() && text.length <= SENT_REFUSAL_MAX && !/[\u0000-\u001f]/.test(text) ? text : "";
     if ((r.status === 400 || r.status === 404 || r.status === 409) && said) return { ok: false, message: said };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
@@ -191,6 +196,36 @@ export async function sendBulk(project, req) {
              leftOut: reply && Array.isArray(reply.left_out) ? reply.left_out : [], count: reply && Number.isInteger(reply.count) ? reply.count : 0 };
   } catch (e) {
     return { ok: false, message: plainChange(0), code: "", leftOut: [], count: 0 };
+  }
+}
+
+// Show archived on Milestones (C-M4, #126): the project's archived milestones (GET /api/data with archived=only) and Restore of one
+// (op restore: one step, one Undo). The read is {ok: true, rows, links} or {ok: false}; Restore answers {ok: true, reply} or
+// {ok: false, message}, in the server's own fixed sentence when it is a short one (a refusal says why), else plainChange's words.
+export async function getArchivedMilestones(project) {
+  try {
+    const r = await fetch(`/api/data?project=${encodeURIComponent(project)}&archived=only`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const body = await r.json().catch(() => null);
+    const d = r.ok && body && body.ok === true ? body.data : null;
+    return d && Array.isArray(d.milestones) ? { ok: true, rows: d.milestones } : { ok: false };
+  } catch (e) {
+    return { ok: false };
+  }
+}
+
+export async function sendMilestoneRestore(project, id) {
+  try {
+    const r = await fetch("/api/change", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project, kind: "milestones", op: "restore", id, place: "menu" }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
+    return { ok: false, message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
   }
 }
 
