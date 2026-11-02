@@ -273,7 +273,10 @@ class Scan:
             wrong = sorted({x for x in [ae, ce] if not NOREPLY.match(x)} | {x for x in EMAIL.findall(body) if not TRAILER_OK.match(x)})
             if wrong:
                 bad.append("commit #%d holds %d address(es) that are not GitHub no-reply addresses" % (n, len(wrong)))
-            if any(pp.guard_kinds("", s.encode("utf-8", "surrogateescape")) for s in (an, ae, cn, ce, body)):
+            # A team branch name (team-<name>-NNN) in a message is allowed (#501: "Merge main into <branch>" is an ordinary message);
+            # the bare name, a persona name or a full name beside it is still refused. Names and addresses get no such allowance.
+            plain = pp._TEAM_BRANCH.sub(lambda m: m.group(1) + m.group(2) + "a", body)
+            if any(pp.guard_kinds("", s.encode("utf-8", "surrogateescape")) for s in (an, ae, cn, ce, plain)):
                 bad.append("commit #%d holds a listed word in a name, an address or a message" % n)
         if n != expected:
             raise RuntimeError("commit count differs from git's")

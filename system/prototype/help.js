@@ -126,8 +126,22 @@
     { id: 'find-a-past-publication', g: 'Every week', t: 'Find or open a past publication', w: 'Settings › Published reports · profile circle › Published reports', go: 'settings#pubs', s: [
       'Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.',
       'Each row has the publication’s number, the date and time, where it went (Local, or Local and to client), and who published it. The newest is first.',
-      'Press **Open** to see the page as it was published, in a new tab. The foot of the page says “Publication N” and the date.',
-      'The last 10 copies are kept. An older row stays in the list, marked **Not kept**.' ] },
+      'Press **Open** to see the publication read only, behind a banner that says “Publication N · date · read only”, with **Back to now**. **New tab** opens the kept page in a new browser tab. The foot of the page says “Publication N” and the date.',
+      'Every publication is kept, and none is removed. The list shows the newest ten; **Show all** lists the rest. A publication cannot be undone: it keeps its number and its copy. Press **Archive** on an old one to hide it from the list and the pickers (**Show archived** brings it back, with **Restore**); it is never deleted. Archive and Restore have no Undo: press the other one to go back.',
+      'In an open publication, **Compare with the one before** marks what was added, changed and closed, and **As at a date** shows the dashboard rebuilt from the change history. If the kept file no longer matches what was saved, clark says so and what to do.',
+      'On the Dashboard, the list beside **Week ending** opens a published week; a week with two publications lists both. The search box in the Published reports card finds words across the kept data copies.' ] },
+    { id: 'word-in-and-out', g: 'Every week', t: 'Export to Word, or bring items in from a Word file', w: 'Profile circle › Export to Word · Import from Word (in Edit)', go: 'dashboard+edit', s: [
+      'Press your profile circle and choose **Export to Word…**. The report is saved as a Word file in the folder last used for this project. Tick **To client** to copy it to the client folder as well.',
+      'If a file with that name is already in the folder, you are asked: **Add a number**, **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.',
+      'A Word file made this way is not a publication and has no number. In **Publish**, tick **Also a Word document** and the Word copy gets the same number as the web page.',
+      'To use your own Word file, press **Use your own Word template** in the Export to Word box, or **Choose a template…** in Settings › Publishing. Put {{PROJECT_NAME}}, {{WEEK_ENDING}} and the other names where a value goes. If a name is unknown, nothing is written and clark says which: “Not filled: NAME. Nothing was written.”',
+      'In **Edit**, choose **Import from Word…** from the same menu, choose a .docx file and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed; nothing is added until you press the Add button, which reads **Add** and the number you ticked, such as **Add 3 items**. They stay hidden from the client until you turn them on, and Undo takes them all back.',
+      'If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again.' ] },
+    { id: 'excel-file-layout', g: 'Every week', t: 'See how the Excel file is laid out', w: 'Profile circle › Excel file layout (preview) · Settings › Data', go: 'settings#data', s: [
+      'Press your profile circle and choose **Excel file layout (preview)**. The prototype draws what the product’s workbook holds; its own Export to Excel saves a plain workbook.',
+      'The **Cover** sheet comes first: title, Current state, At a glance with the health pill, the text sections, the date and who exported it, a caution and a note on sending it back.',
+      'On the **Actions** sheet the header row and the ID column stay put as you scroll. Status and Priority are drop-downs with clark’s values and are coloured by value. The ID column is locked; **Add a row** shows the empty ID cell and its prompt.',
+      'In **Import from Excel**, the check lists each row as New, Changed or Not in the workbook, with **Accept** or **Reject**. **Accept all** takes the new and changed rows only; a row that is not in the workbook is archived only if you accept it. If a row breaks a rule, the whole file is refused: the check names each such row and nothing is imported.' ] },
     { id: 'start-from-last-report', g: 'Every week', t: 'Start from last week’s report and see what changed', w: 'Dashboard › Edit', go: 'dashboard+edit', s: [
       'On the **Dashboard**, press **Edit**. Above the report, **Since the last report (Publication N, date)** lists what changed after the last publication: items opened and closed, status, due date and owner moves, milestone dates that moved, and decisions made. Each ID opens the item. Only you see it: it is never published.',
       'Before anything has been published it says “Not published yet, so there is nothing to compare with.”',
@@ -223,7 +237,7 @@
     { id: 'keep-the-use-cases', g: 'The report', t: 'Keep the use case summary', w: 'Dashboard › Use case summary', go: 'dashboard', s: [
       'The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.',
       'Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all work items** opens Work items filtered to that use case.',
-      'In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag** or **High risk**.',
+      'In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.',
       'In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.',
       '**Delete use case** asks first. Its work items stay and lose the link.' ] },
     { id: 'work-the-use-cases', g: 'The report', t: 'Work through every use case', w: 'Use cases', go: 'usecases', s: [
@@ -231,7 +245,7 @@
       'The eye says **On the dashboard** or **Not on the dashboard**. It is the same switch as the one on the Dashboard: a use case that is on shows in the Use case summary and on the published page. One that is off stays on this page, muted. The Dashboard says how many more are here.',
       'Select a row to open that use case on its own page. **Use cases** at the top, or the Back button of your browser, brings you back to the list.',
       'With the keyboard, [[Tab]] reaches the list once. [[Up]] and [[Down]] move from row to row, [[Home]] and [[End]] go to the first and last, [[Right]] moves to the eye and [[Left]] back to the name. [[Enter]] opens a use case, and [[Space]] or [[Enter]] on the eye switches it. [[Esc]] on a use case goes back to the row you came from.',
-      'On a use case: click **Where it stands** (and the one line above it) to write it in the editor, press **Change status** to choose **On track**, **Flag** or **High risk**, and open any work item to see it beside the page. **Take off the dashboard** and **Put on the dashboard** do what the eye does. The linked milestones, the owner and the history of changes (who, how and when) are there too. Every change is one step with **Undo**.',
+      'On a use case: click **Where it stands** (and the one line above it) to write it in the editor, press **Change status** to choose **On track**, **Flag**, **High risk** or **Done**, and open any work item to see it beside the page. **Take off the dashboard** and **Put on the dashboard** do what the eye does. The linked milestones, the owner and the history of changes (who, how and when) are there too. Every change is one step with **Undo**.',
       'Narrow the list with the search box, the **Status** pill, and **All**, **On the dashboard** or **Not on the dashboard**. **Sort** orders by reference, status or open work items. The count above the list says how many are shown. Your choices are kept for each project.',
       '**Add a use case** asks for a reference, a name and a status. **Export to Excel** saves the use cases sheet.',
       '**Archive this use case** is at the foot of a use case. It takes it out of the lists, the counts, the Dashboard and the published page; nothing is deleted. **Show archived** under the list shows the archived ones, and **Restore** brings one back.' ] },
@@ -316,7 +330,7 @@
   const ic = n => `<span class="hp-ic">${C.icon(n)}</span>`;
   const MS_STATES = [['Achieved', 'Done, on the date it was achieved.'], ['On track', 'Expected on its agreed date.'], ['At risk', 'Marked at risk by hand.'], ['Slipped', 'Now expected after its agreed date. On the published page: Expected later.'], ['Overdue', 'Its agreed date has passed and it isn’t achieved. On the published page: Late.'], ['Forecast', 'A date not yet agreed.']];
   const SHORTCUTS = [
-    ['[[?]]', 'Help, from any page (when you aren’t typing in a box)'],
+    ['[[?]]', 'Help, from any page (when you aren’t typing in a box). It follows the **Single-key shortcuts** switch; with it off, use the Help button'],
     ['[[/]]', 'ask clark (when you aren’t typing in a box). On Work items it goes to the filter line, and in Help to the search box, instead'],
     ['[[Mod+J]]', 'Open or close ask clark'],
     ['[[/]] [[/]]', 'With a peek open: Sneak peek, change it in words. A single [[/]] opens ask clark after a moment'],
@@ -328,7 +342,9 @@
     ['[[/]] in an editor', 'The command menu, at the start of a line or after a space. [[Up]], [[Down]], [[Enter]] and [[Esc]] work in it'],
     ['[[Up]]', 'In an empty Sneak peek box: your last instruction'],
     ['[[Up]] [[Down]] [[Enter]]', 'In any menu: move and choose. [[Esc]] closes it'],
-    ['[[V]] [[E]]', 'On the Dashboard: View mode and Edit mode, as the **View** and **Edit** buttons do (when you aren’t typing in a box, and no menu, box or peek is open)'],
+    ['[[V]] [[E]]', 'On the Dashboard: View mode and Edit mode, as the **View** and **Edit** buttons do (when you aren’t typing in a box, and no menu, box or peek is open). The letter keys V, E, C and [[/]], and [[?]] for Help, all follow one switch: **Single-key shortcuts** in Settings, Personal. With it off they do nothing; arrows, Enter, Esc, Space and anything with Ctrl or Cmd still work'],
+    ['[[Mod+K]]', 'Anywhere, even in a box: the command palette. Type to find a command, a page, a project, a work item (by its ID or words in its title) or a milestone; [[Up]] and [[Down]] move, [[Enter]] opens or runs, [[Esc]] or [[Mod+K]] again closes it. It works when Single-key shortcuts are off'],
+    ['[[Mod+Z]] on a page', 'On the Dashboard, Work items and Milestones: undo the last change, the same step as the **Undo** in the message. Not while typing in a box or an editor, which keep their own undo'],
     ['[[Alt+Up]] [[Alt+Down]]', 'Dashboard in Edit, on a section’s grip: move the section'],
     ['[[Enter]] or [[Space]]', 'Dashboard in Edit, on a section’s grip: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them'],
     ['[[Alt+Left]] [[Alt+Right]]', 'Dashboard in Edit, on a tile: move the tile. On a board column’s heading: move the column'],
@@ -445,7 +461,7 @@
       ['tbl', ['Dashboard sections (yours)', 'What it does'], [
         ['Slim gaps (standard)', 'Each section is its own card, with a slim gap that shows the page picture.'],
         ['Roomy gaps', 'The same, with more space between the sections.'],
-        ['Grey headers', 'Slim gaps, and each section title in a grey band.'],
+        ['Grey headers', 'Slim gaps, and each section title in a grey band, like the Work items groups.'],
         ['One card', 'All the sections in one long card.'] ]] ] },
     { id: 'work-items', g: 'Screens', t: 'Work items', b: [
       ['p', 'From the top: the import and export icons and **+**; the saved views as tabs; the **filter line**, with **View** (Group by and swimlanes) and the **Table** and **Board** icons beside it; then the count of items. On a phone the line takes the full width and each item is a card with its status, owner, priority and due date. When nothing matches, the list says why and gives one **Clear** button.'],
@@ -471,6 +487,7 @@
       ['p', '**What will be sent**: above the box, one sentence says what a question carries: this project’s work items, milestones and use cases (with their size in words), the named source folders, and the provider, Claude. **Show details** gives each part. Mail, Teams and calendars are never sent.'],
       ['p', '**Settings › Asking** turns ask clark on or off for each project. It is On for a new project, and the choice is saved on this computer with the project’s settings. When it is off, the button and [[/]] still open the panel, which says “Asking is off. Turn it on in Settings.”, and nothing is sent.'],
       ['p', '**Folders ask clark may read**: press **Choose folder** and pick the folder in the window that opens; there is nothing to type. Up to 20 folders for each project. A folder that is too wide is refused, and nothing is changed: your whole home folder, the whole of OneDrive, the top of a disk, a file, and clark’s own data and backups. **Remove** takes a folder off the list only (no file is touched), with **Undo**.'],
+      ['p', 'Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. Take any real password out of a question before you send it.'],
       ['p', 'In this prototype, answers are worked out by rules from the project’s data, and folders are not read; nothing is sent.'] ] },
     /* ── Working with items ── */
     { id: 'peek', g: 'Working with items', t: 'The peek', b: [
@@ -486,7 +503,7 @@
         ['Risk, Issue', 'Open, Closed, Cancelled', 'Its colour from its priority: Urgent or High red, Medium amber, Low green'],
         ['Decision', 'Pending, Made, Withdrawn', 'Pending (blue), Made (green), Withdrawn (grey)'] ]],
       ['p', 'Choosing Red, Amber or Green on a risk or issue sets its priority. Priorities are Urgent, High, Medium and Low.'],
-      ['p', 'Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red).'] ] },
+      ['p', 'Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).'] ] },
     { id: 'sneak-peek', g: 'Working with items', t: 'Sneak peek', w: 'An open peek › the sparkle or [[/]] [[/]]', b: [
       ['tbl', ['You type', 'It changes'], [
         ['due Friday · move to next week · by 12-12-2026 · on in 3 days', 'The due date (today, tomorrow, next week, in n days or weeks, a weekday, next Monday, DD-MM-YYYY)'],
@@ -537,7 +554,8 @@
       ['p', 'Each publish is noted on the project, and the Dashboard says when it was last published. **Preview the page in a new tab** shows the page without saving it.'] ] },
     { id: 'published-reports', g: 'Publishing', t: 'Published reports', w: 'Settings › Published reports · profile circle', b: [
       ['tbl', ['Column', 'Shows'], [['#', 'The publication’s number for this project, counting up from 1'], ['Date and time', 'When it was published'], ['Where', 'Local, or Local and to client; with Word or PDF when ticked'], ['Who', 'The name in your profile'], ['Open', 'The kept copy of the page, in a new tab; or “Not kept” for an older one']]],
-      ['p', 'The last 10 copies are kept in this browser’s database. A later release ties a client’s comment to the publication the client saw.'] ] },
+      ['p', 'A publication cannot be undone: it keeps its number and its copy. Cmd or Ctrl+Z, Undo several and a restore from a backup never take one back. **Archive** and **Restore** of a publication have no Undo either: press the other one to go back.'],
+      ['p', 'Every publication is kept in this browser’s database, with a copy of its data; none is removed, and an old one can be archived. A client’s comment on the published page names the publication and the work item. Comments do not come back by themselves: the client presses **Copy my comments** and sends them to you, and you paste them into **Client comments** in this card. The item’s Activity shows them. A client’s comment cannot be undone: the “comments added” message has no Undo, and Cmd or Ctrl+Z does not take them back.'] ] },
     { id: 'client-page', g: 'Publishing', t: 'The published client page', b: [
       ['ul', ['**The cover**: the project, the week ending and who it is for.', '**Four tabs**: Dashboard, Work items, Milestones and Use Cases.', '**Dashboard**: the report in the section style you chose, with **On this page** at the right.', '**Work items**: actions, risks and issues, and decisions shown to the client, with a search box.', '**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.', '**Use Cases**: only the use cases on the dashboard. A row opens where it stands, the next steps and the milestones shown to the client; nothing else.', 'A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.', 'A tile opens the Work items tab. A use case row opens its detail.']],
       ['p', 'The footer says when it was published. The page carries clark’s icon in its tab and needs no other files.'] ] },
@@ -595,7 +613,7 @@
     if (k === 'types') return `<h3 class="hp-h3">Badges and words</h3><div class="hp-tw"><table class="hp-t"><thead><tr><th>Mark</th><th>Means</th></tr></thead><tbody>
       ${Object.entries(C.D.TYPES).map(([t, n]) => `<tr><td><span class="type ${t}">${t}</span></td><td>${esc(n)}</td></tr>`).join('')}
       <tr><td><span class="pill r">Overdue</span> <span class="pill a">Due soon</span> <span class="pill b">Open</span> <span class="pill g">Made</span> <span class="pill n">Closed</span></td><td>A work item’s state, in words and colour</td></tr>
-      <tr><td>${['On track', 'Flag', 'High risk'].map(s => C.ucWord ? C.ucWord(s) : esc(s)).join(' ')}</td><td>A use case’s status</td></tr>
+      <tr><td>${['On track', 'Flag', 'High risk', 'Done'].map(s => C.ucWord ? C.ucWord(s) : esc(s)).join(' ')}</td><td>A use case’s status</td></tr>
       <tr><td><span class="tag cl">${C.icon('eye', 's')}Client</span></td><td>Shown to the client</td></tr>
       <tr><td><span class="tag">Internal only</span></td><td>A milestone not shown to the client</td></tr>
       <tr><td><span class="av">JE</span></td><td>An owner’s initials</td></tr></tbody></table></div>`;
@@ -743,7 +761,7 @@
   /* ── keys: ? opens Help from any page; in Help, / goes to the search box (before the page's own / opens ask clark) ── */
   const blocked = () => C.typing(document.activeElement) || C.$('#dlg')?.open || (C.popOpen && C.popOpen()) || (C.askIsOpen && C.askIsOpen()) || (C.edIsOpen && C.edIsOpen());
   document.addEventListener('keydown', e => {
-    if (e.metaKey || e.ctrlKey || e.altKey || blocked()) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || blocked() || !C.keysOn()) return;   /* with single-key shortcuts off, ? and / are plain keys */
     if (e.key === '?') { e.preventDefault(); if (C.UI.view === 'help') { C.$('#hpQ')?.focus(); return; } C.help.open(); return; }
     if (e.key === '/' && C.UI.view === 'help' && !C.UI.peek) { const q = C.$('#hpQ'); if (q) { e.preventDefault(); e.stopImmediatePropagation(); q.focus(); q.select(); } }
   }, true);
