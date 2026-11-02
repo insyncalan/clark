@@ -549,12 +549,12 @@
     const dt = new DataTransfer(); dt.items.add(new File([buf], 'week import.xlsx')); const fi = $('#fileIn'); fi.files = dt.files; fi.dispatchEvent(new Event('change'));
     for (let i = 0; i < 40 && !$('#impF'); i++) await sleep(100);
     ok('check shows what changes', /3\s*new/.test($('#dlg').textContent) && /3\s*updated/.test($('#dlg').textContent) && /1\s*skipped/.test($('#dlg').textContent), $('.stat')?.textContent);
-    ok('an old sheet\'s Done comes in as On track, and the check says so in plain words', $('#dlg .imp-done')?.textContent.trim() === 'Use case 1.2 says Done in the sheet. A use case is On track, Flag or High risk, so it comes in as On track.', $('#dlg .imp-done')?.textContent);
+    ok('#412 a sheet\'s Done is a status now: the check has no note about it', !$('#dlg .imp-done'), $('#dlg .imp-done')?.textContent);
     const n0 = S().items.length, m0 = S().milestones.length, u0 = S().usecases.length, uh0 = S().usecases.find(u => u.key === 'PDF/1.2').headline; $('#impF').requestSubmit(); await sleep(120);
     ok('import adds and updates items', S().items.length === n0 + 1 && item('PDF-A-016').owner === 'Jo Ellis' && item('PDF-A-016').uc === '2.1' && P().ws.includes('Vendor'));
     const sup = S().items.find(y => y.title === 'Supplier capacity is limited'); ok('an old status word imports as creaite\'s, and a new risk takes the shared series', item('PDF-A-016').status === 'Open' && sup && /^PDF-\d{3}$/.test(sup.id) && sup.type === 'R' && S().items.filter(y => y !== sup && y.code === 'PDF' && (y.type === 'R' || y.type === 'I')).every(y => +y.id.split('-').pop() < +sup.id.split('-').pop()), `${item('PDF-A-016').status} ${sup && sup.id} ${sup && sup.type}`);
     ok('import milestones', S().milestones.length === m0 + 1 && S().milestones.some(m => m.name === 'Board review' && m.forecast === '2027-01-05'));
-    ok('import use cases (Done is never stored)', uh0 !== 'Live' && S().usecases.length === u0 + 1 && S().usecases.find(u => u.key === 'PDF/1.2').status === 'On track' && S().usecases.find(u => u.key === 'PDF/1.2').headline === 'Live' && S().usecases.every(u => u.status !== 'Done'));
+    ok('import use cases (#412: Done is read and stored as Done)', uh0 !== 'Live' && S().usecases.length === u0 + 1 && S().usecases.find(u => u.key === 'PDF/1.2').status === 'Done' && S().usecases.find(u => u.key === 'PDF/1.2').headline === 'Live');
     ok('an Excel import row says the file name, with the person first', S().history.some(h => h.id === 'PDF-A-016' && h.field === 'owner' && h.how === window.ClarkDB.who('by Excel import (week import.xlsx)')) && S().history.some(h => h.field === '+' && h.how === 'You, by Excel import (week import.xlsx)'));
     await undo(); ok('import undo', S().items.length === n0 && item('PDF-A-016').owner === 'Ravi Mehta' && S().milestones.length === m0 && S().usecases.find(u => u.key === 'PDF/1.2').status === 'On track' && S().usecases.find(u => u.key === 'PDF/1.2').headline === uh0);
     /* an archived work item or milestone is read-only: a sheet row with its ID leaves it alone, and the check says so in plain words (#166) */
@@ -2119,7 +2119,7 @@
       ok('UC2 the eye is the right-most part of the row', kids.slice(0, 6).every(k => rect(k).right <= rect(kids[6]).left + 8)); }
     { const refs = rows().map(r => r.querySelector('.ucx-ref').textContent); ok('UC2 a use case with two references shows both', refs.includes('UC 1.3 and 1.4') && refs.includes('UC 1.6 and 1.7'), refs.join(' | ')); }
     ok('UC2 the ones on the dashboard say "On the dashboard", the others "Not on the dashboard", in words beside the eye', liveUcs().every(u => row(u.key).querySelector('.ucx-eye .w').textContent === (u.client ? 'On the dashboard' : 'Not on the dashboard') && row(u.key).querySelector('.ucx-eye').getAttribute('aria-pressed') === String(!!u.client) && row(u.key).querySelector('.ucx-eye svg')));
-    ok('UC2 the status is a word with a dot, never colour alone', rows().every(r => { const w = r.querySelector('.ucx-st .ucw'); return !!w && ['On track', 'Flag', 'High risk'].includes(w.textContent.trim()) && getComputedStyle(w, '::before').content !== 'none'; }));
+    ok('UC2 the status is a word with a dot, never colour alone', rows().every(r => { const w = r.querySelector('.ucx-st .ucw'); return !!w && ['On track', 'Flag', 'High risk', 'Done'].includes(w.textContent.trim()) && getComputedStyle(w, '::before').content !== 'none'; }));
     ok('UC2 the count line says how many are shown, of how many, and how many are on the dashboard', $('#ucxCount').textContent === `Showing 8 of 8 · ${liveUcs().filter(u => u.client).length} on the dashboard`, $('#ucxCount').textContent);
     ok('UC2 the list page has Export to Excel, Add a use case and no Delete', !!$('#ucxExp') && !!$('#ucxAdd') && $('#ucxAdd').textContent.trim() === 'Add a use case' && !$$('#main button, #main a').some(b => /\b(Delete|Remove)\b/i.test(b.textContent + ' ' + (b.getAttribute('aria-label') || ''))));
 
@@ -2166,7 +2166,7 @@
     { const el = $('[data-ucx-name]'); el.focus(); el.textContent = 'Assisted invoice checks'; el.dispatchEvent(new Event('blur')); await sleep(80); ok('UC5 the name edits in place, and the toast says "Use case", never "UC"', uc('PDF/1.1').title.startsWith('Automated') === false && uc('PDF/1.1').title === 'Assisted invoice checks' && $('#toastMsg').textContent === 'Use case 1.1 saved', $('#toastMsg').textContent); await undo(); ok('UC5 one Undo puts the name back', uc('PDF/1.1').title === 'Automated loading of order data'); }
     { const el = $('[data-ucx-head]'); el.focus(); el.textContent = 'Dates confirmed in writing'; el.dispatchEvent(new Event('blur')); await sleep(80); ok('UC5 the one line edits in place, one step with Undo', uc('PDF/1.1').headline === 'Dates confirmed in writing'); await undo(); ok('UC5 and Undo puts it back', uc('PDF/1.1').headline.startsWith('Scope and access gaps')); }
     { const el = $('[data-ucx-owner]'); el.focus(); el.textContent = 'Ada Quillfeather'; el.dispatchEvent(new Event('blur')); await sleep(80); ok('UC5 the owner is written in place, and shown in the details', uc('PDF/1.1').owner === 'Ada Quillfeather' && $('.ucx-kv').textContent.includes('Ada Quillfeather')); await undo(); ok('UC5 and Undo puts it back to no owner', !uc('PDF/1.1').owner); }
-    { const h0 = hist('PDF/1.1'); click($('#ucxStatus')); await sleep(60); const m = $$('.menu [data-i]').map(o => o.textContent.trim()); ok('UC5 Change status offers the three status words', JSON.stringify(m) === JSON.stringify(['On track', 'Flag', 'High risk']), m.join());
+    { const h0 = hist('PDF/1.1'); click($('#ucxStatus')); await sleep(60); const m = $$('.menu [data-i]').map(o => o.textContent.trim()); ok('UC5 Change status offers the four status words (#412: Done is one)', JSON.stringify(m) === JSON.stringify(['On track', 'Flag', 'High risk', 'Done']), m.join());
       await menuPick('High risk'); ok('UC5 a status change is one step: the page, the history and the word follow', uc('PDF/1.1').status === 'High risk' && hist('PDF/1.1') === h0 + 1 && $('.ucx-sub .ucw').textContent.trim() === 'High risk');
       { const h = $('.ucx-hist li'); ok('UC5 the history says who, what, how and when', !!h && h.textContent.includes(DB.who('').replace(/, $/, '')) && /changed the status from Flag to High risk/.test(h.textContent) && h.textContent.includes('on the Use cases page') && /\d\d-\d\d-\d{4} \d\d:\d\d/.test(h.textContent), h && h.textContent); }
       ok('UC5 and the last change is shown in the details', $('.ucx-kv').textContent.includes(DB.fd(DB.TODAY)) || /\d\d-\d\d-\d{4}/.test($('.ucx-kv').textContent));
@@ -2184,7 +2184,7 @@
     await toList();
     { const s = $('#ucxS'); ok('UC6 the pills start as "Status" and "Sort: Reference"', s.textContent.trim() === 'Status' && $('#ucxSort').textContent.trim() === 'Sort: Reference');
       click(s); await sleep(80); const labs = $$('.ucx-pop label').map(l => l.textContent.trim());
-      ok('UC6 the Status drop-down offers the three status words and nothing else', JSON.stringify(labs) === JSON.stringify(['On track', 'Flag', 'High risk']), labs.join(' | '));
+      ok('UC6 the Status drop-down offers the four status words and nothing else', JSON.stringify(labs) === JSON.stringify(['On track', 'Flag', 'High risk', 'Done']), labs.join(' | '));
       const c = $$('.ucx-pop input').find(i => i.value === 'Flag'); c.checked = true; c.dispatchEvent(new Event('change')); await sleep(80); C.closePop();
       ok('UC6 choosing Flag narrows the list, says so on the pill and in the count', rows().length === liveUcs().filter(u => u.status === 'Flag').length && rows().length > 0 && rows().every(r => uc(r.dataset.ucx).status === 'Flag') && $('#ucxS').textContent.trim() === 'Status: Flag' && $('#ucxCount').textContent.startsWith(`Showing ${rows().length} of 8`), $('#ucxCount').textContent); }
     click($('[data-ucx-on=off]')); await sleep(60); ok('UC6 Not on the dashboard narrows it further', rows().length === 1 && rows()[0].dataset.ucx === 'PDF/2.2' && $('[data-ucx-on=off]').getAttribute('aria-pressed') === 'true');
@@ -2201,7 +2201,7 @@
     const ids = () => rows().map(r => uc(r.dataset.ucx).id);
     ok('UC6 the default sort is by reference', JSON.stringify(ids()) === JSON.stringify(['1.1', '1.2', '1.3', '1.5', '1.6', '2.1', '2.2', '3.2']), ids().join());
     click($('#ucxSort')); await sleep(60); { const o = $$('.menu [data-i]').map(e => e.textContent.trim()); ok('UC6 Sort offers Reference, Status and Open work items', JSON.stringify(o) === JSON.stringify(['Reference', 'Status', 'Open work items']), o.join()); }
-    await menuPick('Status'); { const W = ['High risk', 'Flag', 'On track'], st = rows().map(r => W.indexOf(uc(r.dataset.ucx).status)); ok('UC6 Sort: Status puts the worst first', st.every((v, i) => !i || v >= st[i - 1]) && $('#ucxSort').textContent.trim() === 'Sort: Status'); }
+    await menuPick('Status'); { const W = ['High risk', 'Flag', 'On track', 'Done'], st = rows().map(r => W.indexOf(uc(r.dataset.ucx).status)); ok('UC6 Sort: Status puts the worst first', st.every((v, i) => !i || v >= st[i - 1]) && $('#ucxSort').textContent.trim() === 'Sort: Status'); }
     click($('#ucxSort')); await sleep(60); await menuPick('Open work items'); { const n = rows().map(r => itemsOf(uc(r.dataset.ucx)).filter(C.isOpen).length); ok('UC6 Sort: Open work items, the most first', n.every((v, i) => !i || v <= n[i - 1]) && n[0] > 0, n.join()); }
     C.go('dashboard'); await sleep(100); await toList(); ok('UC6 the sort is remembered too', $('#ucxSort').textContent.trim() === 'Sort: Open work items'); click($('#ucxSort')); await sleep(60); await menuPick('Reference');
     { writes = []; const un = spyX(); click($('#ucxExp')); un(); const w = writes[0], sh = w && w.wb.Sheets['Use cases'], aoa = sh ? XLSX.utils.sheet_to_json(sh, { header: 1 }) : [];
@@ -2557,6 +2557,221 @@
     C.theme(pref); await sleep(200); C.go('dashboard'); await sleep(150);
     ok('Laptop sweep: the window is back to normal, and nothing it archived is left archived', innerWidth > 1000 && !(arch.x && arch.x.archived) && !(arch.m && arch.m.archived) && !P().docs.some(z => z.id === arch.d && z.archived), innerWidth);
     out.push(`NOTE the laptop sweep took ${Math.round((Date.now() - t0) / 1000)} s (reported, not checked)`);
+  });
+
+  /* ═════ the board's PEEK, SETTINGS and SMALLER items: #135, #197 with #239 #240 #245 #268, #111, #160, #193, #198, #412, #215, #427, and the published Milestones list ═════ */
+  await step('peek, settings and smaller items', async () => {
+    const DB = window.ClarkDB, kd = (el, k, o = {}) => { const ev = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...o }); el.dispatchEvent(ev); return ev.defaultPrevented; };
+    const mine = id => S().items.find(x => x.id === id), toast = () => $('#toastMsg').textContent, tab = k => { click($(`#peek [data-tab=${k}]`)); return sleep(80); };
+    C.UI.code = 'PDF'; C.go('dashboard'); await sleep(120); if (C.UI.editing) { click($('[data-mode=view]')); await sleep(60); }
+
+    /* #135: closing an item raised in the future is refused in plain words, with nothing written */
+    { const x = mine('PDF-A-015'), h0 = S().history.length; DB.change('item', x, { raised: DB.addDays(DB.TODAY, 5) }, DB.who('in the peek'));
+      C.go('work'); await sleep(120); C.openItem(x.id); await sleep(150); click($('#peek [data-prop=status]')); await sleep(50); await menuPick('Closed'); await sleep(80);
+      ok('#135 closing an item raised in the future is refused in the one plain sentence', x.status === 'Open' && toast() === "This item can't be closed or cancelled before the day it was raised. Check the raised date, then try again.", toast());
+      ok('#135 nothing was written (no status row), and the peek says so with a way to the Raised date', !S().history.slice(h0).some(h => h.field === 'status') && !!$('#pkRefuse') && /raised date/i.test($('#pkRefuse').textContent));
+      click($('#pkRaisedGo')); await sleep(60); ok('#135 the button opens Details and puts the cursor in the Raised date', $('details.pk-det').open && document.activeElement.id === 'pkRaised');
+      DB.change('item', x, { raised: DB.TODAY }, DB.who('in the peek')); C.refresh(); await sleep(80);
+      click($('#peek [data-prop=status]')); await sleep(50); await menuPick('Closed'); await sleep(80); ok('#135 closing on the raised day itself is allowed', x.status === 'Closed'); await undo(); ok('#135 and Undo reopens it', x.status === 'Open');
+      DB.change('item', x, { raised: DB.addDays(DB.TODAY, 5) }, DB.who('in the peek')); C.refresh(); await sleep(60);
+      ok('#135 the same refusal stands for Sneak peek and the board', !!DB.closeRefusal(x, { status: 'Cancelled' }) && !DB.closeRefusal(x, { status: 'Open' }) && !DB.closeRefusal(x, { priority: 'High' }));
+      DB.change('item', x, { raised: DB.TODAY }, DB.who('in the peek')); C.closePeek(); await sleep(80); }
+
+    /* #197: Cmd or Ctrl+Z */
+    { const x = mine('PDF-A-018'), o0 = x.owner; C.undoClear(); const u = DB.change('item', x, { owner: 'Zed Zed' }, DB.who('in the peek')); C.refresh(); C.toast('owner test', u); await sleep(40);
+      const inp = document.createElement('input'); document.body.appendChild(inp); inp.focus(); const taken = kd(inp, 'z', { ctrlKey: true }); inp.remove();
+      ok('#197 Cmd or Ctrl+Z is left alone while typing in a box', !taken && x.owner === 'Zed Zed');
+      click($('#meBtn')); await sleep(60); const inMenu = kd(document.body, 'z', { ctrlKey: true }); key(document.body, 'Escape'); await sleep(40); ok('#197 Cmd or Ctrl+Z with a menu open is left to the menu', !inMenu && x.owner === 'Zed Zed');
+      ok('#197 Ctrl+Z on the Dashboard undoes the last change, like the toast\'s Undo', kd(document.body, 'z', { ctrlKey: true }) && (await sleep(60), x.owner === o0 && /^Undone: owner test/.test(toast())), x.owner);
+      ok('#197 with nothing to undo it says "Nothing to undo"', (kd(document.body, 'z', { metaKey: true }), await sleep(40), toast() === 'Nothing to undo.'), toast());
+      C.go('milestones'); await sleep(100); const m = S().milestones.find(y => y.code === 'PDF' && !y.archived), p0 = m.progress; const um = DB.change('ms', m, { progress: 55 }, DB.who('in the peek')); C.refresh(); C.toast('progress test', um); await sleep(40);
+      kd(document.body, 'z', { ctrlKey: true }); await sleep(60); ok('#197 it works on Milestones and Work items too', m.progress === p0); C.go('dashboard'); await sleep(80); }
+
+    /* the Activity tab: ticks, the bar, the preview, Undo N, one row named Undo several */
+    { const x = mine('PDF-A-018'); C.go('work'); await sleep(100);
+      DB.change('item', x, { owner: 'Aa Bb' }, DB.who('in the peek')); DB.change('item', x, { priority: 'Urgent' }, DB.who('in the peek')); DB.change('item', x, { due: DB.addDays(DB.TODAY, 20) }, DB.who('by Excel import (a.xlsx)'));
+      C.openItem(x.id); await sleep(150); await tab('activity');
+      const why = $$('#peek [data-pa-why]').map(e => e.textContent);
+      ok('#197 a row that can be undone has a tick box, and one that cannot says why in words', $$('#peek [data-pa-tick]').length >= 2 && why.length >= 2 && why.every(t => t.length > 20), why.join(' | '));
+      ok('#240 #245 a row that came from an import has no tick and says it was an import (flagged on the row, not guessed from its words)', why.includes(DB.WHY_IMPORT) && S().history.some(h => h.id === x.id && h.field === 'due' && h.refused === DB.WHY_IMPORT) && !$$('#peek [data-activity-row]').find(r => /Excel import/.test(r.textContent) && r.querySelector('[data-pa-tick]')));
+      ok('#197 the header tick says "Select all changes that can be undone"', /Select all changes that can be undone/.test($('#peek [data-pa-all-label]').textContent));
+      let t = $$('#peek [data-pa-tick]'); click(t[t.length - 1]); await sleep(40); t = $$('#peek [data-pa-tick]'); click(t[t.length - 2]); await sleep(40);
+      ok('#197 the bar says N selected, with Undo N and Clear', $('#peek [data-pa-count]').textContent === '2 selected' && $('#peek [data-pa-undo-n]').textContent === 'Undo 2' && !!$('#peek [data-pa-clear]'));
+      click($('#peek [data-pa-undo-n]')); await sleep(60);
+      ok('#197 Undo N first shows what goes back and what stays, and why', !!$('#peek [data-pa-preview]') && $$('#peek [data-pa-will] li, #peek [data-pa-left] li').length >= 1 && /goes back|stays as it is/.test($('#peek [data-pa-preview]').textContent), $('#peek [data-pa-preview]')?.textContent);
+      click($('#peek [data-pa-go]')); await sleep(120);
+      ok('#197 one new change undoes them all, and the selection clears', /^\d+ changes? undone$/.test(toast()) && !$('#peek [data-pa-count]'), toast());
+      ok('#239 History shows the batch as one row named Undo several, with each field under it', $$('#peek .feed .hf').filter(e => e.textContent === 'Undo several').length === 1 && S().history.filter(h => h.batch).length >= 1 && !!$$('#peek .feed li').find(l => /Undo several/.test(l.textContent) && l.querySelector('.hn')));
+      ok('#239 that row is an undo, so it has no tick and says so', !!$$('#peek .feed li').find(l => /Undo several/.test(l.textContent) && l.querySelector('[data-pa-why]') && !l.querySelector('[data-pa-tick]')));
+      await undo(); ok('#197 and the batch is itself undoable', true);
+      click($('#peek [data-pa-all]')); await sleep(60); ok('#197 the header tick selects every row that can be undone', /^\d+ selected$/.test($('#peek [data-pa-count]').textContent) && $$('#peek [data-pa-tick]').every(i => i.checked));
+      key(document.body, 'Escape'); await sleep(60); ok('#197 Esc clears the selection first, and the peek stays open', !$('#peek [data-pa-count]') && !!C.UI.peek);
+      const pl = DB.planUndo('item', x, [DB.stepKey(S().history.filter(h => h.id === x.id && h.field === 'owner' && h.to === 'Aa Bb').pop())]);
+      ok('#197 a change that has changed since stays as it is, with the reason', pl.skip.length + pl.undo.length === 1);
+      C.closePeek(); await sleep(60); }
+
+    /* #268 and the second confirm: more than 100 is refused in plain words; more than 25 asks again */
+    { const x = mine('PDF-A-016'); for (let i = 0; i < 101; i++) DB.change('item', x, { title: 'Step title ' + i }, DB.who('in the peek'));
+      C.openItem(x.id); await sleep(200); await tab('activity'); click($('#peek [data-pa-all]')); await sleep(100);
+      ok('#268 more than 100 chosen says "Choose at most 100 changes at a time", and Undo is off', $('#peek [data-pa-over]')?.textContent === 'You have chosen 101. Choose at most 100 changes at a time.' && $('#peek [data-pa-undo-n]').disabled, $('#peek [data-pa-over]')?.textContent);
+      click($('#peek [data-pa-clear]')); await sleep(60); const t = $$('#peek [data-pa-tick]'); click(t[0]); await sleep(60); $$('#peek [data-pa-tick]')[25].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true })); await sleep(80);
+      ok('#197 Shift and the tick chooses a range', $('#peek [data-pa-count]').textContent === '26 selected');
+      click($('#peek [data-pa-undo-n]')); await sleep(60); click($('#peek [data-pa-go]')); await sleep(60);
+      ok('#197 above 25 a second confirm is asked, with the count', !!$('#peek [data-pa-yes]') && $('#peek [data-pa-sure]').textContent === DB.sureWords(26), $('#peek [data-pa-sure]')?.textContent);
+      click($('#peek [data-pa-yes]')); await sleep(200); ok('#197 Yes, undo all 26 undoes them in one go', toast() === '26 changes undone' && x.title === 'Step title 74', x.title);
+      C.closePeek(); await sleep(60); }
+
+    /* #160: Not reviewed after (days) */
+    { C.go('settings'); await sleep(250); const sub = async v => { $('#rvDays').value = v; $('#rvF').requestSubmit(); await sleep(100); return $('#rvMsg').textContent; };
+      const W = 'Use a whole number of days from 1 to 3650. The setting stays as it was.';
+      ok('#160 the setting is there, 14 until it is changed', $('#review') && $('#rvDays').value === '14' && DB.staleDays('PDF') === 14);
+      ok('#160 0, a word and a huge number are refused in plain words and the old number stays', (await sub('0')) === W && (await sub('abc')) === W && (await sub('3651')) === W && DB.staleDays('PDF') === 14 && $('#rvDays').getAttribute('aria-invalid') === 'true');
+      const stale0 = S().items.filter(x => x.code === 'PDF' && DB.notReviewed(x)).length;
+      ok('#160 a good number is saved and says what it does', (await sub('7')).startsWith('Saved. Items not reviewed in 7 days or more are flagged.') && DB.staleDays('PDF') === 7);
+      ok('#160 History records who, how and when', S().history.some(h => h.kind === 'project' && h.field === 'reviewDays' && h.to === 7 && h.how === DB.who('in Settings')) && /^Last changed \d\d-\d\d-\d{4} \d\d:\d\d by /.test($('#rvLast').textContent), $('#rvLast')?.textContent);
+      ok('#160 the chip, the filter and the Publish box follow it at once', S().items.filter(x => x.code === 'PDF' && DB.notReviewed(x)).length >= stale0 && C.fline.FIELDS.is.opts().find(o => o[0] === 'quiet')[1] === 'Not reviewed in 7 days');
+      C.publishDialog(); await sleep(80); ok('#160 the Publish box says 7 days', /not reviewed in 7 days/.test($('#pubStale')?.textContent || ''), $('#pubStale')?.textContent); $('#dlg').close();
+      const tile = C.glanceData(C.P()).stale; ok('#160 the optional tile counts them: "Not reviewed", "in 7 days", off to start with, and opens Work items on them', tile.k === 'Not reviewed' && tile.d === 'in 7 days' && tile.v === S().items.filter(x => x.code === 'PDF' && !x.archived && DB.notReviewed(x)).length && C.P().report.glance.find(f => f.k === 'stale').hidden === true && !$('[data-fig=stale]'));
+      C.go('dashboard'); await sleep(150); click($('[data-mode=edit]')); await sleep(150); ok('#160 in Edit it is not drawn until asked for, with a link to add it', !$('[data-fig=stale]') && !!$('[data-stale-on]'));
+      click($('[data-stale-on]')); await sleep(150); ok('#160 added: the tile shows with its eye and its words', !!$('[data-fig=stale]') && !!$('[data-fig-eye=stale]') && /Needs a look/.test($('[data-fig=stale]').textContent) && /Not reviewed/.test($('[data-fig=stale]').textContent));
+      click($('[data-fig-eye=stale]')); await sleep(150); ok('#160 the eye takes it off again', !$('[data-fig=stale]') && C.P().report.glance.find(f => f.k === 'stale').hidden === true); click($('[data-mode=view]')); await sleep(80);
+      C.go('settings'); await sleep(200); await sub('14'); ok('#160 and the old number comes back', DB.staleDays('PDF') === 14); }
+
+    /* #193: Single-key shortcuts */
+    { C.go('settings'); await sleep(200); ok('#193 the switch is in Settings, Personal, on to start with', $('#skSw').getAttribute('aria-checked') === 'true' && C.keysOn() && /Arrows, Enter, Esc and Ctrl or Cmd combinations still work/.test($('#skHelp').textContent));
+      click($('#skSw')); await sleep(80); ok('#193 off: it is read live and kept in the browser', !C.keysOn() && C.store.get('singleKeys') === false && $('#skSw').getAttribute('aria-checked') === 'false');
+      C.go('dashboard'); await sleep(150);
+      ok('#193 off: the tooltips drop their letter', $('[data-mode=edit]').title === 'Edit' && $('[data-mode=view]').title === 'View' && $('#askBtn').title === 'Open ask clark (Ctrl or Cmd + J)');
+      kd(document.body, 'e'); await sleep(60); ok('#193 off: E and V do nothing', !C.UI.editing); kd(document.body, '/'); await sleep(80); ok('#193 off: "/" does not open ask clark', !$('#ask').classList.contains('on'));
+      kd(document.body, 'j', { metaKey: true }); await sleep(80); ok('#193 off: Ctrl or Cmd + J still opens ask clark', $('#ask').classList.contains('on')); key(document.body, 'Escape'); await sleep(60);
+      C.openItem('PDF-A-012'); await sleep(150); kd(document.body, 'c'); await sleep(80); ok('#193 off: C does not open Draft email', !$('#dlg').open && !!$('#peek.on')); key(document.body, 'Escape'); await sleep(60);
+      C.go('work'); await sleep(150); ok('#193 off: the hint under Work items drops its key', !$('.fl-key')); C.go('settings'); await sleep(150); click($('#skSw')); await sleep(80);
+      C.go('dashboard'); await sleep(150); ok('#193 on again: the letters work and the tooltips have them', C.keysOn() && $('[data-mode=edit]').title === 'Edit (E)'); kd(document.body, 'e'); await sleep(80); ok('#193 on: E opens Edit', C.UI.editing); kd(document.body, 'v'); await sleep(80); }
+
+    /* #198: the command palette */
+    { C.go('dashboard'); await sleep(100); const find = async q => { const i = $('#palQ'); i.value = q; i.dispatchEvent(new Event('input', { bubbles: true })); await sleep(50); return $$('#palette .pal-row').map(r => ({ kind: r.dataset.kind, label: r.querySelector('.pal-label').textContent, more: r.querySelector('.pal-more')?.textContent || '', dis: r.getAttribute('aria-disabled') })); };
+      click($('#palBtn')); await sleep(80); ok('#198 the top bar button opens it, with one search box that has the focus', !!$('#palette[open]') && document.activeElement.id === 'palQ'); key($('#palQ'), 'Escape'); await sleep(60);
+      kd(document.body, 'k', { ctrlKey: true }); await sleep(80); ok('#198 Ctrl or Cmd + K opens it from anywhere', !!$('#palette[open]'));
+      let r = await find(''); ok('#198 empty: the commands first (Publish, Preview, Export to Excel, Settings, Help, Appearance), then pages, then projects', r.slice(0, 3).map(x => x.label).join('|') === 'Publish…|Preview the page in a new tab|Export to Excel' && r.some(x => x.label === 'Settings' && x.kind === 'Command') && r.findIndex(x => x.kind === 'Page') > r.findIndex(x => x.kind === 'Command') && r.findIndex(x => x.kind === 'Project') > r.findIndex(x => x.kind === 'Page'));
+      ok('#198 each result says what it is in words', r.every(x => x.kind.length > 3));
+      r = await find('PDF-A-012'); ok('#198 a work item is found by its ID', r.length === 1 && r[0].kind === 'Action' && r[0].more === 'PDF-A-012'); r = await find('test environment'); ok('#198 and by words in its title', r.some(x => x.more === 'PDF-A-012'));
+      r = await find('user testing'); ok('#198 a milestone is found by name', r.some(x => x.kind === 'Milestone' && x.more === 'PDF-M-003')); r = await find('customer'); ok('#198 a project is found by name', r.length === 1 && r[0].kind === 'Project');
+      r = await find('zzzz'); ok('#198 nothing found says so in words', r.length === 0 && /^Nothing matches/.test($('#palNone').textContent));
+      r = await find('a'); const first = $('#palette .pal-row.on')?.dataset.i; kd($('#palQ'), 'ArrowDown'); await sleep(30); ok('#198 Down moves through the results', $('#palette .pal-row.on')?.dataset.i !== first);
+      r = await find('PDF-A-012'); kd($('#palQ'), 'Enter'); await sleep(250); ok('#198 Enter on a work item opens its peek, and the palette closes', C.UI.peek === 'PDF-A-012' && !$('#palette')); C.closePeek(); await sleep(80);
+      kd(document.body, 'k', { ctrlKey: true }); await sleep(60); await find('Settings'); kd($('#palQ'), 'Enter'); await sleep(200); ok('#198 Enter on a command runs it', C.UI.view === 'settings');
+      kd(document.body, 'k', { ctrlKey: true }); await sleep(60); await find('help'); kd($('#palQ'), 'Enter'); await sleep(250); ok('#198 Help is a command too', C.UI.view === 'help'); C.go('dashboard'); await sleep(100);
+      C.go('work'); await sleep(200); $('#fl').focus(); kd($('#fl'), 'k', { metaKey: true }); await sleep(80); ok('#198 it opens even while typing in a box', !!$('#palette[open]')); kd($('#palQ'), 'k', { ctrlKey: true }); await sleep(60);
+      ok('#198 the same keys close it, and the focus goes back where it was', !$('#palette') && document.activeElement.id === 'fl'); $('#fl').blur();
+      DB.setSetting('x', 1); C.store.set('singleKeys', false); kd(document.body, 'k', { ctrlKey: true }); await sleep(60); ok('#198 with Single-key shortcuts off it still opens (it uses Ctrl or Cmd)', !!$('#palette[open]')); key($('#palQ'), 'Escape'); await sleep(60); C.store.set('singleKeys', true);
+      const h = await C.webPage(); ok('#198 the published page has no palette', !/id="palette"|palQ|palBtn/.test(h)); }
+
+    /* #412: a use case can be Done */
+    { C.go('dashboard'); await sleep(150); const strip = $('.uc-strip').textContent;
+      ok('#412 the strip counts Done, with its own word and a grey part of the meter', /Done\s*1/.test(strip) && !!$('.uc-meter i.n'), strip);
+      ok('#412 a Done row says Done in grey, in View', $$('.ucr .ucw.n').some(e => e.textContent === 'Done'));
+      click($('[data-mode=edit]')); await sleep(150); click($('[data-uc-status]')); await sleep(60); ok('#412 in Edit the status menu offers Done', $$('.menu [data-i]').some(e => e.textContent.trim() === 'Done')); key(document.body, 'Escape'); await sleep(40); click($('[data-mode=view]')); await sleep(80);
+      const h = await C.webPage(); ok('#412 the published page shows Done, grey, in its own word', />Done<\/span>/.test(h) && /ucw n"/.test(h));
+      C.go('usecases'); await sleep(200); ok('#412 the Use cases page lists Done and sorts it last', /Done/.test($('#main').textContent) && DB.S.usecases.some(u => u.status === 'Done')); C.go('dashboard'); await sleep(100); }
+
+    /* the published Milestones list: five rows, then Show all N */
+    { const h = await C.webPage(), f = document.createElement('iframe'); f.style.cssText = 'position:fixed;left:0;top:0;width:1100px;height:800px;opacity:0;pointer-events:none'; f.srcdoc = h; document.body.appendChild(f);
+      for (let i = 0; i < 60 && !(f.contentDocument && f.contentDocument.querySelector('[data-msmore]')); i++) await sleep(100);
+      const d = f.contentDocument, n = S().milestones.filter(m => m.code === 'PDF' && !m.archived && m.client).length, list = d.querySelector('#v-milestones .msl'), btn = d.querySelector('#v-milestones [data-msmore]');
+      ok('published Milestones: five rows, then a button "Show all N"', !!list && [...list.querySelectorAll('.msl-row')].filter(r => !r.hidden).length === 5 && btn.textContent === `Show all ${n}`, btn?.textContent);
+      btn.click(); await sleep(60); ok('published Milestones: Show all lists every milestone, and the same button takes it back', [...list.querySelectorAll('.msl-row')].filter(r => !r.hidden).length === n && btn.textContent === 'Show the first 5'); btn.click(); await sleep(40);
+      ok('published Milestones: back to five', [...list.querySelectorAll('.msl-row')].filter(r => !r.hidden).length === 5); f.remove(); }
+
+    /* #215: ask clark leaves files out for safety */
+    { const p = P(); ok('#215 no folders, no line', !C.sendPreview().left); const u = DB.change('project', p, { sources: ['~/Documents/Minutes'] }, DB.who('in Settings')); C.askOpen(); await sleep(120);
+      ok('#215 with a folder named, the details say "N files were left out for safety." and show nothing of them', $('#askLeft')?.textContent.startsWith('2 files were left out for safety.') && !/password|key=/i.test($('#askLeft').textContent.replace(/a key, a private-key block or a password line/, '')), $('#askLeft')?.textContent);
+      C.askClose(); u(); await sleep(40); }
+
+    /* #111: Safety */
+    { C.go('settings'); await sleep(250); const bks = () => $$('[data-bk]').map(l => l.dataset.bk);
+      ok('#111 a Safety card with the daily backup switch (on), the status and the backups by date', !!$('#safety') && $('#sfSw').getAttribute('aria-checked') === 'true' && bks().length >= 4 && /^Latest backup: \d\d-\d\d-\d{4} \d\d:\d\d\. A daily backup is always made\.$/.test($('#sfStatus').textContent), $('#sfStatus')?.textContent);
+      ok('#111 Settings has a Safety link in the chips', !!$('[data-sn=safety]'));
+      const ids = bks(); click($(`[data-sfp="${ids[2]}"]`)); await sleep(60); ok('#111 Preview says what the backup holds and what you have now, and changes nothing', /It holds 2 projects, 19 work items and 8 milestones\./.test($('#sfPanel').textContent) && /You have 2 projects, 2\d work items/.test($('#sfPanel').textContent), $('#sfPanel').textContent);
+      click($(`[data-sfp="${ids[3]}"]`)); await sleep(60); ok('#111 a damaged backup is refused in plain words', /is damaged and can't be used\. Nothing was changed\.$/.test($('#sfMsg').textContent) && $('#sfMsg').getAttribute('role') === 'alert', $('#sfMsg').textContent);
+      const n0 = S().items.length; click($(`[data-sfr="${ids[2]}"]`)); await sleep(60); ok('#111 Restore asks first: what you have now is kept first', /What you have now is kept first\.$/.test($('#sfConfirm').textContent));
+      click($('#sfGo')); await sleep(300); ok('#111 Put it back restores the backup and says so in one sentence, and keeps the data from before', S().items.length === 19 && n0 > 19 && /^Restored the backup from \d\d-\d\d-\d{4}\. Your data from before is kept in case you need it\. Your published reports were not touched\.$/.test($('#sfMsg').textContent) && $$('[data-bk] .tag').some(t => t.textContent === 'Before a restore'), $('#sfMsg').textContent);
+      const br = $$('[data-bk]').find(l => /Before a restore/.test(l.textContent)); click(br.querySelector('[data-sfr]')); await sleep(60); click($('#sfGo')); await sleep(300); ok('#111 the copy kept first puts everything back', S().items.length === n0);
+      click($('#sfSw')); await sleep(80); ok('#111 the switch turns the daily backup off, and the status says so', $('#sfSw').getAttribute('aria-checked') === 'false' && /The daily backup is off/.test($('#sfStatus').textContent)); click($('#sfSw')); await sleep(80); ok('#111 and on again', $('#sfSw').getAttribute('aria-checked') === 'true'); }
+
+    /* #427: the first-start guide */
+    { C.go('dashboard'); await sleep(100); $('#startBtn').focus(); click($('#startBtn')); await sleep(120);
+      ok('#427 the guide opens, with Docker the default route and the terminal route the alternative', !!$('#startGuide[open]') && $('[data-route=docker]').getAttribute('aria-checked') === 'true' && $('[data-route=terminal]').getAttribute('aria-checked') === 'false' && /Recommended/.test($('[data-route=docker]').textContent));
+      ok('#427 it checks Docker is installed, is running and that the port is free, in words and ticks', $$('#startGuide .st-checks > div').length === 3 && /Docker is installed, but it is not running\./.test($('#stSay').textContent));
+      click($('#stHowBtn')); await sleep(40); ok('#427 Show me how gives the steps to start Docker', !!$('#stHow') && /whale icon/.test($('#stHow').textContent));
+      click($('#stDocker')); await sleep(60); ok('#427 Start Docker starts it, saying what it is doing', /Starting Docker/.test($('#stSay').textContent)); for (let i = 0; i < 40 && !$('#stGo'); i++) await sleep(100);
+      ok('#427 once Docker runs, clark can start', !!$('#stGo') && /Docker is running, and clark’s port is free\./.test($('#stSay').textContent)); click($('#stGo')); for (let i = 0; i < 40 && !$('#stOpen'); i++) await sleep(100); ok('#427 clark starts and the page can be opened', !!$('#stOpen') && /clark is ready\./.test($('#stSay').textContent));
+      const w = $('#stWorld'); w.value = 'notinstalled'; w.dispatchEvent(new Event('change', { bubbles: true })); await sleep(60); ok('#427 not installed: says so, where to get Docker Desktop, its licence, a free alternative, and offers the terminal route', /Docker is not installed on this Mac\./.test($('#stSay').textContent) && /fewer than 250 people/.test($('#stSay').textContent) && /Colima/.test($('#stSay').textContent) && !!$('#stTerm'));
+      w.value = 'portbusy'; w.dispatchEvent(new Event('change', { bubbles: true })); await sleep(60); ok('#427 port in use: says what to do', /Port 8766 is in use\. Close the other clark window or program that is using it/.test($('#stSay').textContent));
+      click($('[data-route=terminal]')); await sleep(60); ok('#427 the terminal route leads through clark.command, step by step', /Double-click clark\.command/.test($('#stPane').textContent) && /Control-click clark\.command/.test($('#stPane').textContent) && $$('#stPane .st-steps li').length === 4);
+      key($('#startGuide'), 'Escape'); $('#startGuide').close(); await sleep(80); ok('#427 closing it gives the focus back', !$('#startGuide') && document.activeElement.id === 'startBtn'); C.store.set('startRoute', 'docker'); }
+
+    /* ═════ the review of the prototype (HIGH 1 and 2, MEDIUM 3 to 8, and the small ones) ═════ */
+    const waitUntil = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Date.now() - t0 < ms) await sleep(60); return !!f(); };
+    const toViewMode = async () => { C.go('dashboard'); await sleep(120); if ($('[data-mode=view]')) { click($('[data-mode=view]')); await sleep(80); } };
+    /* HIGH 1: a publication has no Undo, and Cmd or Ctrl+Z and Undo several never reach one */
+    { C.UI.code = 'PDF'; await toViewMode(); const p0 = P(), n = DB.pubNext(p0), r0 = p0.reason; C.undoClear();
+      const u1 = DB.change('project', p0, { reason: 'Reason for the undo test' }, DB.who('in the report')); C.toast('reason test', u1); await sleep(30);
+      C.publishDialog(); await sleep(100); $('#pubF').requestSubmit(); const got = await waitUntil(() => $('#pubGo .tick')); await waitUntil(() => !$('#dlg').open, 3000);
+      ok('HIGH 1: the publish toast has no Undo button', got && /Publication \d+/.test(toast()) && $('#toastUndo').hidden, toast());
+      C.go('work'); await sleep(120); const was = P().published.length; kd(document.body, 'z', { ctrlKey: true }); await sleep(80);
+      ok('HIGH 1: Ctrl+Z takes the change made before, and the publication stays (its number and its kept copy)', P().reason === r0 && P().published.length === was && P().published.slice(-1)[0].n === n && !!DB.pubCopy('PDF', n), `${P().reason} | ${P().published.length}/${was}`);
+      kd(document.body, 'z', { ctrlKey: true }); await sleep(60); ok('HIGH 1: the next Ctrl+Z says there is nothing to undo, and the publication is still there', toast() === 'Nothing to undo.' && P().published.length === was);
+      const row = S().history.find(h => h.kind === 'project' && h.field === 'published' && h.to.some(q => q.n === n));
+      ok('HIGH 1: the publication row of the history cannot be chosen for Undo several', !!row && DB.whyNot(row) === DB.WHY_PUBLICATION, row && DB.whyNot(row)); }
+    /* HIGH 2: an archived record has no Undo several */
+    { const x = mine('PDF-A-018'); C.go('work'); await sleep(100); DB.change('item', x, { owner: 'Arch Test' }, DB.who('in the peek')); const o1 = x.owner, h = S().history.filter(q => q.id === x.id && q.field === 'owner').pop();
+      DB.archive(x, true); C.refresh(); C.openItem(x.id); await sleep(150); await tab('activity');
+      ok('HIGH 2: an archived record shows no tick, no Select all and no Undo bar', !$('#peek [data-pa-tick]') && !$('#peek [data-pa-all]') && !$('#peek [data-pa-undo-n]') && !$('#peek [data-pa-bar]'));
+      ok('HIGH 2: its rows say why in words', $$('#peek [data-pa-why]').length >= 1 && $$('#peek [data-pa-why]').every(e => e.textContent === DB.WHY_ARCHIVED), $$('#peek [data-pa-why]').map(e => e.textContent).join(' | '));
+      const plan = DB.planUndo('item', x, [DB.stepKey(h)]);
+      ok('HIGH 2: even asked directly, nothing is undone on an archived record', plan.undo.length === 0 && plan.skip.length >= 1 && DB.undoMany('item', x, plan) === null && x.owner === o1);
+      DB.archive(x, false); C.closePeek(); C.refresh(); await sleep(80); C.openItem(x.id); await sleep(150); await tab('activity');
+      ok('HIGH 2: once restored the ticks are back', $$('#peek [data-pa-tick]').length >= 1); C.closePeek(); await sleep(60); }
+    /* MEDIUM 3: Cmd or Ctrl+Z on the Dashboard works in Edit only */
+    { const x = mine('PDF-A-018'), o0 = x.owner; await toViewMode(); C.undoClear(); const u = DB.change('item', x, { owner: 'View Test' }, DB.who('in the report')); C.toast('view test', u); await sleep(30);
+      const took = kd(document.body, 'z', { ctrlKey: true }); await sleep(60); ok('MEDIUM 3: in View, Ctrl+Z does nothing on the Dashboard', !took && x.owner === 'View Test');
+      click($('[data-mode=edit]')); await sleep(100); kd(document.body, 'z', { ctrlKey: true }); await sleep(80); ok('MEDIUM 3: in Edit it undoes the change', x.owner === o0, x.owner);
+      click($('[data-mode=view]')); await sleep(80); }
+    /* LOW: Ctrl+Z leaves an open dialog alone; with single keys off, ? does not open Help */
+    { const x = mine('PDF-A-018'); C.go('work'); await sleep(100); C.undoClear(); const u = DB.change('item', x, { owner: 'Dlg Test' }, DB.who('in the report')); C.toast('dialog test', u); await sleep(30);
+      click($('#startBtn')); await sleep(120); const took = kd(document.body, 'z', { ctrlKey: true }); await sleep(40); ok('LOW: Ctrl+Z is left alone while the first-start guide is open', !took && x.owner === 'Dlg Test'); $('#startGuide')?.close(); await sleep(80);
+      click($('#toastUndo')); await sleep(60);
+      C.store.set('singleKeys', false); C.drawTop(); key(document.body, '?'); await sleep(80); const stayed = C.UI.view !== 'help'; ok('LOW: with single-key shortcuts off, ? does not open Help, and the button no longer names the key', stayed && $('#helpBtn').title === 'Help', $('#helpBtn').title);
+      C.store.set('singleKeys', true); C.drawTop(); key(document.body, '?'); await sleep(120); ok('LOW: with them on, ? opens Help', C.UI.view === 'help'); C.go('dashboard'); await sleep(80); }
+    /* MEDIUM 6: the Not reviewed tile is for you only */
+    { await toViewMode(); const g = P().report.glance.find(f => f.k === 'stale'), was = g.hidden; g.hidden = false; C.refresh(); await sleep(80);
+      const ed = $('[data-fig=stale]'), pg = await C.webPage(), word = C.glanceHtml(P(), P().report, false, true);
+      ok('MEDIUM 6: switched on, the tile shows in the editor', !!ed);
+      ok('MEDIUM 6: but it is not on the published page, and the page does not name it', !/data-fig="stale"/.test(pg) && !/data-fig="stale"/.test(word));
+      g.hidden = was; C.refresh(); await sleep(60); }
+    /* MEDIUM 7: the raised-date refusal on the Dashboard's status menu */
+    { const x = mine('PDF-A-015'); await toViewMode(); DB.change('item', x, { raised: DB.addDays(DB.TODAY, 5) }, DB.who('in the peek')); click($('[data-mode=edit]')); await sleep(120); const h0 = S().history.length, st = x.status;
+      const pill = $(`[data-cst="${x.id}"]`); ok('MEDIUM 7: the action is on the Dashboard with its status menu', !!pill);
+      if (pill) { click(pill); await sleep(60); await menuPick('Closed'); await sleep(80); }
+      ok('MEDIUM 7: closing it from the Dashboard is refused in the one plain sentence, and nothing is written', x.status === st && toast() === DB.BEFORE_RAISED && S().history.length === h0, toast());
+      DB.change('item', x, { raised: DB.TODAY }, DB.who('in the peek')); click($('[data-mode=view]')); await sleep(80); }
+    /* MEDIUM 8: milestone rows 6 and over show in print */
+    { const h = await C.webPage(), f = document.createElement('iframe'); f.style.cssText = 'position:fixed;left:0;top:0;width:1100px;height:800px;opacity:0;pointer-events:none'; f.srcdoc = h; document.body.appendChild(f);
+      for (let i = 0; i < 60 && !(f.contentDocument && f.contentDocument.querySelector('[data-msmore]')); i++) await sleep(100);
+      const d = f.contentDocument, pr = []; [...d.styleSheets].forEach(sh => { try { [...sh.cssRules].forEach(r => { if (r.type === CSSRule.MEDIA_RULE && /print/.test(r.conditionText || r.media.mediaText)) [...r.cssRules].forEach(q => pr.push(q)); }); } catch (e) {} });
+      const own = pr.find(q => q.selectorText === '.msl-row[data-more][hidden]'), all = pr.find(q => q.selectorText === '.msl-all');
+      ok('MEDIUM 8: the print rules show the milestone rows that Show all would open, and hide the button', !!own && own.style.display === 'grid' && own.style.getPropertyPriority('display') === 'important' && !!all && all.style.display === 'none', pr.length + ' print rules');
+      f.remove(); }
+    ok('LOW: the Published reports card says a publication cannot be undone', (C.go('settings'), await sleep(250), /A publication cannot be undone/.test($('#pubs').textContent)));
+    /* MEDIUM 4 and 5: Restore leaves publications alone, and clears the steps that could be undone before it */
+    { C.go('settings'); await sleep(250); const nPub = P().published.length, copy = DB.pubCopy('PDF', P().published.slice(-1)[0].n);
+      const old = JSON.parse(JSON.stringify(S().backups.find(b => b.kind === 'daily' && !b.damaged))); old.id = 'clark-backup-old-with-publications'; old.snap.projects.forEach(q => { if (q.code === 'PDF') q.published = []; }); S().backups.push(old);
+      const r = await DB.backupRestore(old.id); ok('MEDIUM 5: a restore never rolls the publications back (even from a backup that holds none)', r.ok && P().published.length === nPub && DB.pubCopy('PDF', P().published.slice(-1)[0].n) === copy && /Your published reports were not touched\.$/.test(r.message), r.message);
+      S().backups = S().backups.filter(b => b.id !== old.id);
+      C.go('work'); await sleep(100); C.undoClear(); const x2 = S().items.find(y => y.code === 'PDF' && !y.archived && y.owner), o2 = x2.owner; const u = DB.change('item', x2, { owner: 'Before Restore' }, DB.who('in the report')); C.toast('before restore', u); await sleep(30);
+      C.go('settings'); await sleep(250); const id = DB.backups().find(b => b.kind === 'daily' && !b.damaged).id; click($(`[data-sfr="${id}"]`)); await sleep(60); click($('#sfGo')); await sleep(300);
+      C.go('work'); await sleep(100); const was = JSON.stringify(S().items); kd(document.body, 'z', { ctrlKey: true }); await sleep(80);
+      ok('MEDIUM 4: after a Restore, Ctrl+Z has nothing old to put back', toast() === 'Nothing to undo.' && JSON.stringify(S().items) === was, toast()); }
   });
 
   const wide = $$('body *').filter(e => { const r = e.getBoundingClientRect(); return r.width && r.right > innerWidth + 1 && !e.closest('.mv-wrap,.peek,.ask,.toast,table,.menu,dialog'); });

@@ -7,7 +7,7 @@
   'use strict';
   const C = window.C, D = C.D, esc = C.esc, UI = C.UI;
   const P = () => C.P();
-  const STATUSES = ['On track', 'Flag', 'High risk'], WORST = ['High risk', 'Flag', 'On track'];   /* the schema's three */
+  const STATUSES = ['On track', 'Flag', 'High risk', 'Done'], WORST = ['High risk', 'Flag', 'On track', 'Done'];   /* four: Done is grey and sorts last (#412) */
   const HOW = 'on the Use cases page';
   const word = s => C.ucWord(s);
   const refOf = u => u.ref || u.id, titles = u => String(u.title || '').split('\n'), nameOf = u => titles(u).join(' · ');
@@ -294,7 +294,7 @@
     const us = D.S.usecases.filter(u => u.code === p.code && u.client && !u.archived).sort(byNum);
     if (!us.length) return '<p class="muted">No use cases to show.</p>';
     const n = s => us.filter(u => u.status === s).length, order = STATUSES.filter(s => n(s));
-    const strip = `<div class="uc-strip ucp-strip"><span class="uc-total"><b>${us.length}</b> use case${us.length === 1 ? '' : 's'}</span>${order.map(s => `<span class="uc-count">${word(s)}<b>${n(s)}</b></span>`).join('')}<span class="uc-meter" aria-hidden="true">${order.map(s => `<i class="${{ 'On track': 'g', Flag: 'a', 'High risk': 'r' }[s]}" style="flex:${n(s)}"></i>`).join('')}</span></div>`;
+    const strip = `<div class="uc-strip ucp-strip"><span class="uc-total"><b>${us.length}</b> use case${us.length === 1 ? '' : 's'}</span>${order.map(s => `<span class="uc-count">${word(s)}<b>${n(s)}</b></span>`).join('')}<span class="uc-meter" aria-hidden="true">${order.map(s => `<i class="${{ 'On track': 'g', Flag: 'a', 'High risk': 'r', Done: 'n' }[s]}" style="flex:${n(s)}"></i>`).join('')}</span></div>`;
     return `${strip}<div class="ucp-list ucp-pub">${us.map((u, i) => {
       const xs = D.S.items.filter(x => x.code === p.code && x.uc === u.id && !x.archived), steps = xs.filter(x => x.client && isStep(x)).sort((a, b) => (a.due || '9').localeCompare(b.due || '9')), ms = msOf(steps).filter(m => m.client);
       /* the row is a real button with only words in it; the links to the next steps and milestones are in the detail below it */

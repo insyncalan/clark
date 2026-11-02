@@ -26,6 +26,8 @@
 <script src="past.js"></script>
 <script src="help.js"></script>
 <script src="ask.js"></script>
+<script src="palette.js"></script>
+<script src="start.js"></script>
 <script src="app-css.js"></script>
 <script src="io.js"></script>
 </head>
@@ -42,6 +44,7 @@
     <button class="tab" role="tab" data-view="usecases">Use cases</button>
   </nav>
   <span class="spacer"></span>
+  <button class="ghost" id="palBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Go to or do" title="Go to or do (Ctrl or Cmd + K)"><svg class="i s" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg></button>
   <button class="ghost" id="askBtn" aria-expanded="false" aria-label="ask clark" title="ask clark (/ or Ctrl or Cmd + J)"><svg class="i s" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3A2.5 2.5 0 0 1 4 10.5z"/></svg><span class="ask-w">ask clark</span> <kbd class="hide-s">/</kbd></button>
   <button class="ghost" id="helpBtn" aria-label="Help" title="Help (?)"><span aria-hidden="true">?</span></button>
   <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Your menu: Publish, Preview, Export, Settings" title="Your menu: Publish, Preview, Export, Settings"></button>
@@ -49,7 +52,7 @@
 
 <main id="main"></main>
 
-<footer class="proto">Prototype with demo data, kept in this browser's database.<button id="resetDemo">Reset demo data</button></footer>
+<footer class="proto">Prototype with demo data, kept in this browser's database.<button id="startBtn">Show the first-start guide</button><button id="resetDemo">Reset demo data</button></footer>
 
 <div class="scrim" id="scrim"></div>
 <aside class="peek" id="peek" aria-label="Detail" aria-hidden="true" inert></aside>

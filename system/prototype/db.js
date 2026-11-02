@@ -36,7 +36,7 @@
         { id: 'decisions', type: 'decisions', title: 'Decisions' },
         { id: 'docs', type: 'docs', title: 'Supporting documents' },
       ],
-      glance: [{ k: 'health', hidden: false }, { k: 'overdue', hidden: false }, { k: 'risks', hidden: false }, { k: 'decisions', hidden: true }],
+      glance: [{ k: 'health', hidden: false }, { k: 'overdue', hidden: false }, { k: 'risks', hidden: false }, { k: 'decisions', hidden: true }, { k: 'stale', hidden: true }],
       hide: {},          // work item id → true when left out of the published page
       hideMs: {},        // milestone id → true when left out
     };
@@ -98,7 +98,7 @@
       uc('PDF', '1.3', 'Assisted ticket sorting\nGuided ticket routing', 'On track', 'Combined specification signed today', '<p>The two use cases share one specification, signed today. Build starts next week.</p>', { ref: '1.3 and 1.4' }),
       uc('PDF', '1.5', 'Automated match of order and payment data', 'Flag', 'One clarification session from sign-off', '<p>One open question on the matching rules remains before sign-off.</p>'),
       uc('PDF', '1.6', 'Address clean-up, after import\nAddress clean-up, before import', 'High risk', 'Likely next year; new requirements from the business', '<p>New requirements arrived this week. Delivery this year is unlikely; a decision is needed on scope.</p>', { ref: '1.6 and 1.7' }),
-      uc('PDF', '2.1', 'Customer record checks and clean-up', 'On track', 'Specification signed; one test day each', '<p>Specification signed. One test day is booked for each record type.</p>'),
+      uc('PDF', '2.1', 'Customer record checks and clean-up', 'Done', 'Finished and in use; nothing more to do', '<p>All record types are checked and the clean-up is in use by both business units. Nothing is left to build.</p>'),
       /* two the dashboard does not show (the eye is off): the Use Cases page lists them, the published page leaves them out */
       uc('PDF', '2.2', 'Supplier record matching', 'Flag', 'Waiting for a sample of the supplier data', '<p>The matching rules are drafted. A sample of the supplier data is needed before testing can be planned.</p>', { client: false }),
       uc('PDF', '3.2', 'Automated monthly summaries', 'On track', 'Scoping starts next quarter', '<p>Agreed in principle. Scoping starts next quarter, after the pilot go-live.</p>', { client: false }),
@@ -143,9 +143,9 @@
   const flush = () => queue;
 
   /* ── the in-memory copy everything reads ── */
-  const S = { projects: [], items: [], milestones: [], usecases: [], history: [], profile: {}, people: {}, pubCopies: {}, ready: false, persistent: false };
+  const S = { projects: [], items: [], milestones: [], usecases: [], history: [], profile: {}, people: {}, pubCopies: {}, settings: {}, backups: undefined, ready: false, persistent: false };
   const PROFILE = ['name', 'alias', 'email', 'phone', 'org'];   // the user's own details (Settings › Profile); kept in meta, not with the demo data
-  let seq = 0;
+  let seq = 0, stepSeq = 0, batchSeq = 0;
 
   async function load() {
     try { db = await open(); S.persistent = true; } catch (e) { db = null; }
@@ -156,6 +156,7 @@
       const meta = await all('meta');
       S.profile = (meta.find(r => r.k === 'profile') || {}).v || {};
       S.people = (meta.find(r => r.k === 'people') || {}).v || {};
+      S.settings = (meta.find(r => r.k === 'settings') || {}).v || {}; S.backups = (meta.find(r => r.k === 'backups') || {}).v;
       S.pubCopies = {}; meta.filter(r => /^pub:/.test(r.k)).forEach(r => { S.pubCopies[r.k] = r.v; });   /* the kept copies of published pages (FR-83a) */
     }
     if (!data) {
@@ -163,7 +164,9 @@
       if (db) await write(seedOps(data));
     } else if (migrate(data) && db) await write([...STORES.slice(0, 5).map(s => [s, 'clear']), ...seedOps(data), ...data.history.map(h => ['history', 'put', h])]);
     Object.assign(S, data, { ready: true });
-    seq = Math.max(0, ...S.history.map(h => h.seq || 0));
+    seq = Math.max(0, ...S.history.map(h => h.seq || 0)); stepSeq = Math.max(0, ...S.history.map(h => +h.step || 0)); batchSeq = Math.max(0, ...S.history.map(h => +h.batch || 0));
+    S.projects.forEach(p => { if (p.report && p.report.glance && !p.report.glance.some(f => f.k === 'stale')) { p.report.glance.push({ k: 'stale', hidden: true }); write([['projects', 'put', p]]); } });   /* the optional Not reviewed tile (#160), off */
+    await backupsLoad();
     return S;
   }
   /* data saved by an earlier prototype used its own statuses and IDs: move it to creaite's, keeping every edit */
@@ -186,14 +189,15 @@
   }
   async function reset() {
     if (db) await write(STORES.map(s => [s, 'clear']));
-    const data = seed(); Object.assign(S, data, { history: [], people: {}, pubCopies: {} }); seq = 0;
-    if (db) await write([...seedOps(data), ['meta', 'put', { k: 'profile', v: S.profile }]]);   // the profile is the user's, not demo data: a reset keeps it
+    const data = seed(); Object.assign(S, data, { history: [], people: {}, pubCopies: {}, settings: {}, backups: undefined }); seq = 0; stepSeq = 0; batchSeq = 0;
+    if (db) await write([...seedOps(data), ['meta', 'put', { k: 'profile', v: S.profile }]]);
+    await backupsLoad();   // the profile is the user's, not demo data: a reset keeps it
   }
 
   const seedOps = d => [...d.projects.map(x => ['projects', 'put', x]), ...d.items.map(x => ['items', 'put', x]), ...d.milestones.map(x => ['milestones', 'put', x]), ...d.usecases.map(x => ['usecases', 'put', x])];
   const KIND = { item: ['items', 'id'], ms: ['milestones', 'key'], uc: ['usecases', 'key'], project: ['projects', 'code'] };
   const list = kind => kind === 'item' ? S.items : kind === 'ms' ? S.milestones : kind === 'uc' ? S.usecases : S.projects;
-  function addHistory(rows) { rows.forEach(r => { r.seq = ++seq; r.at = r.at || stamp(); r.tz = r.tz || tzNow(); S.history.push(r); window.C && C.log && C.log('info', 'save', `${r.kind} ${r.id} ${r.field}`); }); return rows.map(r => ['history', 'put', r]); }
+  function addHistory(rows) { rows.forEach(r => { r.seq = ++seq; if (/Excel import/.test(r.how || '') && !r.refused) r.refused = WHY_IMPORT; r.at = r.at || stamp(); r.tz = r.tz || tzNow(); S.history.push(r); window.C && C.log && C.log('info', 'save', `${r.kind} ${r.id} ${r.field}`); }); return rows.map(r => ['history', 'put', r]); }
 
   /* change(kind, record, {field: value}, how, label) → undo(); one history row per changed field.
      Undo writes one row per field put back, with the value it came from and the one it returned to (FR-43a). */
@@ -211,13 +215,16 @@
       rec[f] = v;
     });
     if (!rows.length) return null;
+    { const st = ++stepSeq; rows.forEach(r => { r.step = st; }); }   /* the rows of one change are one step: Undo several takes them together */
     if (kind === 'item' && !('updatedAt' in changes)) rec.updatedAt = stamp();
     write([[store, 'put', rec], ...addHistory(rows)]);
     return () => {
       const was = label || rows[0].text || 'change to ' + rows.map(r => fieldName(r.field, kind).toLowerCase()).join(', '), back = [];
       rows.forEach(r => { if (JSON.stringify(rec[r.field]) !== JSON.stringify(before[r.field])) back.push({ kind, id: r.id, code: rec.code, field: r.field, from: keep(rec[r.field]), to: keep(before[r.field]), how: who('undo'), text: 'Undone: ' + was }); });
       rows.forEach(r => { if (!(r.field in before)) delete rec[r.field]; });   /* a field that was not there before goes again */
-      Object.assign(rec, before);
+      const pubs = kind === 'project' && !rows.some(r => r.field === 'published') ? rec.published : undefined;   /* an Undo of an earlier project change never takes a publication back (#111) */
+      Object.assign(rec, before); if (pubs !== undefined) rec.published = pubs;
+      { const st = ++stepSeq; back.forEach(r => { r.step = st; }); }
       write([[store, 'put', rec], ...addHistory(back.length ? back : [{ kind, id: rows[0].id, code: rec.code, field: '*', how: who('undo'), text: 'Undone: ' + was }])]);
     };
   }
@@ -251,14 +258,88 @@
   function batch(fns) { const undos = fns.map(f => f()).filter(Boolean); return undos.length ? () => undos.reverse().forEach(u => u()) : null; }
   const historyOf = (kind, id) => S.history.filter(h => h.kind === kind && h.id === id).slice().reverse();
 
+  /* ── Undo several (#197, #239, #240, #245, #268): a row of the Activity tab can be chosen when it is a change with a step to undo; any other row
+     says why in words. The refusal is a flag written on the row when it is made (h.refused), never guessed from the 'how' phrase. ── */
+  const WHY_COMMENT = 'A comment has nothing to undo.', WHY_UNDO = "This was an undo, so it can't be chosen here. Undo it from the message after it.", WHY_NO_STEP = "This change can't be undone from here.", WHY_IMPORT = "This came from an Excel import, so it can't be undone from here.";
+  const MOST_UNDO = 100, CONFIRM_ABOVE = 25;
+  const tooManyWords = n => `You have chosen ${n}. Choose at most ${MOST_UNDO} changes at a time.`;
+  const sureWords = n => `This will undo ${n} changes in one go. You can undo them all again afterwards. Undo all ${n}?`;
+  const stepKey = h => String(h.step || 'r' + h.seq);
+  const WHY_PUBLICATION = "A publication can't be undone.", WHY_ARCHIVED = 'Restore it first to undo a change.';
+  const whyNot = h => h.refused ? h.refused : h.field === 'published' ? WHY_PUBLICATION : /^[+\-*]$/.test(h.field) ? WHY_NO_STEP : /^Undone/.test(h.text || '') ? WHY_UNDO : COMMENT.includes(h.field) ? WHY_COMMENT : '';
+  /* the dry run: each change that would go back, and each that stays with its reason */
+  function planUndo(kind, rec, steps) {
+    const id = idOf(kind, rec), rows = S.history.filter(h => h.kind === kind && h.id === id && h.code === rec.code && steps.includes(stepKey(h))).sort((a, b) => b.seq - a.seq), cur = clone(rec), undo = [], skip = [];
+    rows.forEach(h => { const name = fieldName(h.field, kind), why = rec.archived ? WHY_ARCHIVED : whyNot(h);   /* an archived record is read-only: nothing goes back until it is restored */
+      if (why) { skip.push({ ref: id, field: name, why }); return; }
+      if (JSON.stringify(cur[h.field]) !== JSON.stringify(h.to)) { skip.push({ ref: id, field: name, why: 'It has changed since.' }); return; }
+      cur[h.field] = h.from === undefined ? '' : clone(h.from); undo.push({ ref: id, f: h.field, field: name, v: cur[h.field] }); });
+    return { undo, skip };
+  }
+  /* one new change puts them all back, named 'Undo several' on every row it writes, and is itself undoable */
+  function undoMany(kind, rec, plan) {
+    if (!plan.undo.length || rec.archived) return null;
+    const batch = ++batchSeq, n = S.history.length, u = change(kind, rec, Object.fromEntries(plan.undo.map(x => [x.f, x.v])), who('undo (Undo several)'), 'Undone: several changes');
+    S.history.slice(n).forEach(r => { r.batch = batch; write([['history', 'put', r]]); });
+    return u;
+  }
+
+  /* ── settings kept with the person's data: the daily backup switch ── */
+  function setSetting(key, value) {
+    const before = { ...S.settings }; if (before[key] === value) return null;
+    S.settings = { ...before, [key]: value }; write([['meta', 'put', { k: 'settings', v: S.settings }]]);
+    return () => { S.settings = before; write([['meta', 'put', { k: 'settings', v: before }]]); };
+  }
+
+  /* ── Safety (#111): a daily backup, and Restore from a backup, with a preview. A backup here is a closed copy of the data kept in this browser's
+     database; the real clark keeps a zip. Never in a backup: AI keys, logs. Restore first keeps what is there now, then puts the backup back. ── */
+  const KEEP_BACKUPS = 14;
+  const snapOf = () => clone({ projects: S.projects.map(({ published, ...q }) => q), items: S.items, milestones: S.milestones, usecases: S.usecases, history: S.history });
+  const countsOf = d => ({ projects: d.projects.length, items: d.items.length, milestones: d.milestones.length });
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + 's'}`;
+  const holds = c => `${plural(c.projects, 'project')}, ${plural(c.items, 'work item')} and ${plural(c.milestones, 'milestone')}`;
+  const BACKUP_KIND = { daily: 'Daily', restore: 'Before a restore', manual: 'Chosen' };
+  const backupName = b => `clark-backup-${b.at.slice(0, 10)}${b.kind === 'restore' ? '-before-restore-' + b.at.slice(11, 16).replace(':', '') : ''}`;
+  function backupMake(kind, at, snap, extra) { const b = { id: '', at, kind, snap: snap || snapOf(), ...extra }; b.counts = countsOf(b.snap); b.id = backupName(b); return b; }
+  const backupsSave = () => write([['meta', 'put', { k: 'backups', v: S.backups }]]);
+  async function backupsLoad() {
+    if (!S.backups) {   /* the first visit: three earlier daily backups, so the list and Restore can be tried; the oldest is damaged, to show the refusal */
+      const now = snapOf(), older = clone(now); older.items = older.items.filter(x => !['PDF-A-024', 'PDF-A-025'].includes(x.id)); older.history = [];
+      S.backups = [backupMake('daily', addDays(TODAY, -1) + ' 04:00', clone(now)), backupMake('daily', addDays(TODAY, -2) + ' 04:00', older), backupMake('daily', addDays(TODAY, -3) + ' 04:00', clone(older), { damaged: true })];
+    }
+    if (S.settings.dailyBackup !== false && !S.backups.some(b => b.kind === 'daily' && b.at.slice(0, 10) === TODAY)) S.backups.unshift(backupMake('daily', stamp()));
+    S.backups = S.backups.slice(0, 40); backupsSave();
+  }
+  const backups = () => S.backups.slice().sort((a, b) => b.at.localeCompare(a.at)).map(b => ({ id: b.id, at: b.at, when: fd(b.at.slice(0, 10)) + ' ' + b.at.slice(11), kind: b.kind, label: BACKUP_KIND[b.kind] || b.kind, size: b.damaged ? '—' : Math.max(1, Math.round(JSON.stringify(b.snap).length / 1024)) + ' KB', damaged: !!b.damaged, counts: b.counts }));
+  const backupStatus = () => { const l = backups(); if (!l.length) return { ok: true, text: 'There are no backups yet. One is made when you open clark each day.' }; const n = l[0];
+    return n.damaged ? { ok: false, text: `The latest backup, from ${fd(n.at.slice(0, 10))}, is damaged and can't be used.` } : { ok: true, text: `Latest backup: ${n.when}. ${S.settings.dailyBackup === false ? 'The daily backup is off, so no new one is made.' : 'A daily backup is always made.'}` }; };
+  const DAMAGED = b => `The backup from ${fd(b.at.slice(0, 10))} is damaged and can't be used. Nothing was changed.`;
+  function backupPreview(id) {
+    const b = S.backups.find(x => x.id === id); if (!b) return { ok: false, message: `No backup called ${id} is in the backups folder.` };
+    if (b.damaged) return { ok: false, message: DAMAGED(b) };
+    return { ok: true, id, when: fd(b.at.slice(0, 10)) + ' ' + b.at.slice(11), label: BACKUP_KIND[b.kind] || b.kind, copy: b.counts, now: countsOf(S) };
+  }
+  async function backupRestore(id) {
+    const b = S.backups.find(x => x.id === id); if (!b) return { ok: false, message: `No backup called ${id} is in the backups folder.` };
+    if (b.damaged) return { ok: false, message: DAMAGED(b) };
+    S.backups.unshift(backupMake('restore', stamp()));   /* what is there now is kept first */
+    const d = clone(b.snap), was = seq;
+    d.projects.forEach(q => { const cur = S.projects.find(x => x.code === q.code); if (cur && cur.published) q.published = clone(cur.published); else delete q.published; });   /* every publication is kept: a restore never rolls them back (#111) */
+    d.projects.push(...S.projects.filter(x => !d.projects.some(q => q.code === x.code) && (x.published || []).length).map(x => clone(x)));   /* a project with publications is never lost to a restore */
+    Object.assign(S, { projects: d.projects, items: d.items, milestones: d.milestones, usecases: d.usecases, history: d.history });
+    seq = Math.max(was, ...S.history.map(h => h.seq || 0)); stepSeq = Math.max(0, ...S.history.map(h => +h.step || 0)); batchSeq = Math.max(0, ...S.history.map(h => +h.batch || 0));   /* the row count never goes back, so a kept publication's place in the history still holds */
+    await write([...STORES.slice(0, 5).map(x => [x, 'clear']), ...seedOps(d), ...d.history.map(h => ['history', 'put', h])]); backupsSave();
+    return { ok: true, message: `Restored the backup from ${fd(b.at.slice(0, 10))}. Your data from before is kept in case you need it. Your published reports were not touched.` };
+  }
+
   /* ── reading history back: plain field names, formatted values, local time (FR-43a) ── */
   const FN = { title: 'Title', status: 'Status', rag: 'Rating', owner: 'Owner', due: 'Due date', priority: 'Priority', ws: 'Workstream', ms: 'Milestone', uc: 'Use case', client: 'Client-visible', clientText: 'Client wording', desc: 'Description', update: 'Latest update', type: 'Type',
     name: 'Name', agreed: 'Agreed date', forecast: 'Forecast', achievedOn: 'Achieved date', manual: 'State', progress: 'Progress', original: 'Original date', note: 'Note', chase: 'Chases sent', standing: 'Where it stands', headline: 'Headline', health: 'Health',
-    current: 'Current state', report: 'Report layout', docs: 'Supporting documents', published: 'Published', source: 'Source', reason: 'Health reason', ref: 'Shown as', updatedAt: 'Last updated', publish: 'Publishing folders', clientAct: 'Needed from the client' };
+    current: 'Current state', report: 'Report layout', docs: 'Supporting documents', published: 'Published', source: 'Source', reason: 'Health reason', ref: 'Shown as', updatedAt: 'Last updated', publish: 'Publishing folders', clientAct: 'Needed from the client', raised: 'Raised date', reviewDays: 'Not reviewed after (days)' };
   const fieldName = (f, kind) => kind === 'project' && f === 'client' ? 'Client' : FN[f] || f.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
   /* rich text fields keep their whole from and to; the Activity tab shows these as a word diff */
   const RICH = ['update', 'desc', 'clientText', 'standing', 'current', 'note'], COMMENT = ['update', 'note', 'standing', 'current'];
-  const DATES = ['due', 'agreed', 'forecast', 'achievedOn', 'original'], HEALTH = { R: 'Red', A: 'Amber', G: 'Green' };
+  const DATES = ['due', 'agreed', 'forecast', 'achievedOn', 'original', 'raised'], HEALTH = { R: 'Red', A: 'Amber', G: 'Green' };
   /* a value as a person reads it: dates DD-MM-YYYY, true/false as on/off, "none" when empty; null when it is too big to show (a layout, a list of documents) */
   const showVal = (f, v) => {
     if (v && typeof v === 'object' && !(Array.isArray(v) && v.every(x => typeof x === 'string'))) return null;
@@ -281,16 +362,22 @@
      in with the seed has no such row, so the day it was imported stands in. Last reviewed = the latest change a person made by hand
      (not ask clark, not an Excel import, not an Undo); never earlier than raised. "Not reviewed in 14 days" is an open item whose
      last review is 14 or more days ago. ── */
-  const STALE_DAYS = 14, NOT_HAND = /^(via ask clark|by Excel import|undo)/;
+  const STALE_DAYS = 14, STALE_MAX = 3650, NOT_HAND = /^(via ask clark|by Excel import|undo)/;
   const byHand = h => { const w = whoHow(h); return !NOT_HAND.test(w.how) && !/^Imported from /.test(w.how); };
   function fresh(x) {
     const rows = S.history.filter(h => h.kind === 'item' && h.id === x.id && h.code === x.code), first = rows.slice().sort((a, b) => a.seq - b.seq)[0], made = rows.find(h => h.field === '+');
-    const raised = made ? whenIso(made).slice(0, 10) : x.imported || (first ? whenIso(first).slice(0, 10) : (x.updatedAt || '').slice(0, 10));
+    const raised = x.raised || (made ? whenIso(made).slice(0, 10) : x.imported || (first ? whenIso(first).slice(0, 10) : (x.updatedAt || '').slice(0, 10)));
     const mine = rows.filter(byHand).map(h => whenIso(h).slice(0, 10)).sort().pop() || '';
     const reviewed = [raised, mine].sort().pop() || raised;
     return { raised, reviewed, ago: reviewed ? -days(reviewed) : 0 };
   }
-  const notReviewed = x => isOpenItem(x) && fresh(x).ago >= STALE_DAYS;
+  /* "Not reviewed after (days)" (#160): one number for each project, 14 until it is changed; the chip, the filter, the tile and the Publish box all read it here */
+  const staleDays = code => { const p = S.projects.find(q => q.code === code), n = p && p.reviewDays; return Number.isInteger(n) && n >= 1 ? n : STALE_DAYS; };
+  const staleCheck = v => { const t = String(v == null ? '' : v).trim(); if (/^[0-9]{1,5}$/.test(t) && +t >= 1 && +t <= STALE_MAX) return { ok: true, days: +t }; return { ok: false, message: `Use a whole number of days from 1 to ${STALE_MAX}. The setting stays as it was.` }; };
+  const notReviewed = x => isOpenItem(x) && fresh(x).ago >= staleDays(x.code);
+  /* closing an item before the day it was raised is refused in plain words, and nothing is written (#135) */
+  const BEFORE_RAISED = "This item can't be closed or cancelled before the day it was raised. Check the raised date, then try again.";
+  const closeRefusal = (x, ch) => { if (!ch || ch.status === undefined || ch.status === x.status || isOpenItem({ status: ch.status })) return ''; return fresh(x).raised > TODAY ? BEFORE_RAISED : ''; };
   const isOpenItem = x => !['Closed', 'Cancelled', 'Withdrawn', 'Made'].includes(x.status);
   const gap = x => isOpenItem(x) && (!String(x.owner || '').trim() || !x.due);   /* open, and no owner or no due date */
 
@@ -337,6 +424,6 @@
     return () => { S.people = before; write([['meta', 'put', { k: 'people', v: before }]]); };
   }
 
-  window.ClarkDB = { S, load, reset, flush, change, create, remove, archive, batch, setProfile, PROFILE, historyOf, who, whoHow, FN, fieldName, RICH, COMMENT, showVal, when, whenIso, fresh, notReviewed, gap, STALE_DAYS, pubNo, pubNext, pubCopy, pubKeep, PUB_KEEP, lastSeq, setPeople, msState, msWord, nextMsId, migrate, slip, expected, write, clone, defaultReport,
+  window.ClarkDB = { S, load, reset, flush, change, create, remove, archive, batch, setProfile, PROFILE, historyOf, who, whoHow, FN, fieldName, RICH, COMMENT, showVal, when, whenIso, fresh, notReviewed, gap, STALE_DAYS, STALE_MAX, staleDays, staleCheck, closeRefusal, BEFORE_RAISED, whyNot, stepKey, planUndo, undoMany, MOST_UNDO, CONFIRM_ABOVE, tooManyWords, sureWords, WHY_COMMENT, WHY_UNDO, WHY_NO_STEP, WHY_PUBLICATION, WHY_ARCHIVED, KEEP_BACKUPS, WHY_IMPORT, setSetting, backups, backupStatus, backupPreview, backupRestore, holds, plural, pubNo, pubNext, pubCopy, pubKeep, PUB_KEEP, lastSeq, setPeople, msState, msWord, nextMsId, migrate, slip, expected, write, clone, defaultReport,
     TYPES, STATUSES, PRIORITIES, TODAY, toIso, addDays, fd, days, stamp, friday, pad };
 })();

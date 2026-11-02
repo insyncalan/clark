@@ -52,13 +52,19 @@
   C.openItem = (id, list) => open({ kind: 'item', id, list: list || (cur && cur.kind === 'item' ? cur.list : [id]) });
   C.openMs = (id, list) => open({ kind: 'ms', id, list: list || C.mss().map(m => m.id) });
   C.redrawPeek = () => { if (cur) draw(false, 'redraw'); };
-  function open(c) { const was = !!UI.peek, same = UI.peek === c.id; { const g = grabOpener(); if (!was) opener = g; else if (g) opener = g; /* moved by a click on another row: that row is the one to go back to */ } cur = c; UI.peek = c.id; tab = 'all'; C.sneakClose(true); draw(was, 'open'); markSel(); if (!same) C.nav && C.nav(was ? 'replace' : 'push'); }
+  function open(c) { const was = !!UI.peek, same = UI.peek === c.id; { const g = grabOpener(); if (!was) opener = g; else if (g) opener = g; /* moved by a click on another row: that row is the one to go back to */ } cur = c; UI.peek = c.id; tab = 'all'; sel.clear(); phase = null; lastTick = null; C.sneakClose(true); draw(was, 'open'); markSel(); if (!same) C.nav && C.nav(was ? 'replace' : 'push'); }
   function markSel() { C.$$('[data-id]').forEach(r => r.classList.toggle('sel', !!cur && cur.kind === 'item' && r.dataset.id === cur.id && r.tagName === 'TR'));
     C.$$('.mv-row, .mv-mk').forEach(r => r.classList.toggle('sel', !!cur && cur.kind === 'ms' && r.dataset.ms === cur.id)); }
 
   const findItem = id => D.S.items.find(x => x.id === id);
   const findMs = id => C.mssAll().find(m => m.id === id);   /* an archived milestone opens too, read-only */
-  const save = (kind, rec, ch, label, how = 'in the peek') => { const u = D.change(kind, rec, ch, D.who(how)); if (u) { C.refresh(); if (kind === 'item') C.changed(C.$(`tr[data-id="${rec.id}"], [data-card="${rec.id}"]`)); C.toast(label || `${kind === 'ms' ? rec.name : rec.id} saved`, u); } };
+  /* closing an item before the day it was raised is refused (#135): the sentence says what to do, nothing is saved, and in the peek a button goes to the Raised date */
+  C.refuseClose = (x, ch) => { const no = D.closeRefusal(x, ch); if (!no) return false;
+    C.toast(no, null, { ms: 7000 });
+    if (cur && cur.kind === 'item' && cur.id === x.id) { const f = C.$('#pkFresh', pk()); if (f && !C.$('#pkRefuse', pk())) { f.insertAdjacentHTML('beforebegin', `<div class="pk-warn" id="pkRefuse" role="alert">${C.icon('flash', 's')} ${esc(no)} <button class="link" id="pkRaisedGo">Change the raised date</button></div>`);
+      C.$('#pkRaisedGo', pk()).addEventListener('click', () => { const d = C.$('details.pk-det', pk()); d.open = true; C.$('#pkRaised', pk())?.focus(); }); } }
+    return true; };
+  const save = (kind, rec, ch, label, how = 'in the peek') => { if (kind === 'item' && C.refuseClose(rec, ch)) return; const u = D.change(kind, rec, ch, D.who(how)); if (u) { C.refresh(); if (kind === 'item') C.changed(C.$(`tr[data-id="${rec.id}"], [data-card="${rec.id}"]`)); C.toast(label || `${kind === 'ms' ? rec.name : rec.id} saved`, u); } };
 
   function draw(swap, how) {
     const p = pk(); applyWidth();
@@ -95,6 +101,7 @@
      formatted. Rich text (the latest update, notes) shows a compact word diff. The Activity tab carries a small filter. */
   const FN = D.FN, show = (f, v) => D.showVal(f, v) ?? 'changed';   /* the plain field names and values; Sneak peek reads them too */
   let actF = 'all';   /* the Activity tab's filter: all, changes or comments */
+  const sel = new Set(); let phase = null, lastTick = null;   /* Undo several (#197): the steps ticked on the Activity tab, and what the bar is showing (null, a preview, the second confirm or a problem) */
   const clip = (t, n = 140) => t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t;
   /* the words that changed, with a few words either side; the rest of an unchanged run becomes … (reuses the editor's word diff) */
   function compactDiff(from, to) {
@@ -107,9 +114,16 @@
     const out = []; t.forEach((w, i) => { if (keep[i]) out.push(w); else if (out[out.length - 1] !== '…') out.push('…'); });
     return out.join(' ');
   }
+  /* a row that can be chosen has a tick; one that cannot says why, in words (#240, #245), before any tick */
+  const rowAttr = tk => !tk ? '' : ` class="pa-row${tk.on ? ' picked' : ''}" data-activity-row${tk.why ? '' : ` data-step="${esc(tk.step)}"`}${tk.on ? ' data-picked="1"' : ''}`;
+  const tickHtml = tk => !tk ? '' : tk.why ? '<span class="pa-notick"></span>' : `<span class="gtick-hit"><input type="checkbox" class="gtick" data-pa-tick="${esc(tk.step)}" ${tk.on ? 'checked' : ''} aria-label="Select this change: ${esc(tk.field)}, ${esc(tk.when)}"></span>`;
+  const whyHtml = tk => tk && tk.why ? `<span class="muted pa-why" data-pa-why>${esc(tk.why)}</span>` : '';
+  /* an Undo several is one row naming it, with each field that went back under it (#239) */
+  function batchRow(hs, kind, tk) { const h = hs[0], w = D.whoHow(h), n = hs.length;
+    return { k: 'act', ch: true, html: `<li${rowAttr(tk)}>${tickHtml(tk)}<span class="fi">${C.icon('undo', 's')}</span><span class="hb"><span class="hh"><b>${esc(w.who || 'You')}</b>, Undo several <span class="t">· ${D.when(h)}</span></span><span class="hw"><span class="hf">Undo several</span> <span class="hv">${n} change${n === 1 ? '' : 's'} went back</span></span>${hs.slice().reverse().map(x => { const f = D.showVal(x.field, x.from), t = D.showVal(x.field, x.to); return `<span class="hn">${esc(D.fieldName(x.field, kind))}: ${f === null || t === null ? 'changed' : `${esc(f)} <span class="ar" aria-label="to">→</span> ${esc(t)}`}</span>`; }).join('')}${whyHtml(tk)}</span></li>` }; }
   const LIFE = { '+': 'Created', '-': 'Deleted', '*': 'Undone' }, LIFE_IC = { '+': 'plus', '-': 'trash', '*': 'undo' };
   /* one history row as a list item; k: 'upd' for comments and updates, 'act' for every other change */
-  function histRow(h, kind) {
+  function histRow(h, kind, tk) {
     const w = D.whoHow(h), who = w.who ? `<b>${esc(w.who)}</b>${w.how ? ', ' + esc(w.how) : ''}` : `<b>${esc(w.how || 'You')}</b>`, undone = /^Undone/.test(h.text || ''), life = LIFE[h.field];
     const head = `<span class="hh">${who} <span class="t">· ${D.when(h)}</span></span>`;
     let body, ic;
@@ -118,21 +132,64 @@
     else { const f = D.showVal(h.field, h.from), t = D.showVal(h.field, h.to);
       body = `<span class="hw"><span class="hf">${esc(D.fieldName(h.field, kind))}</span> ${f === null || t === null ? '<span class="hv">changed</span>' : `<span class="hv">${esc(f)} <span class="ar" aria-label="to">→</span> ${esc(t)}</span>`}</span>`; ic = 'doc'; }
     if (undone && !life) { body += `<span class="hn">${esc(h.text)}</span>`; ic = 'undo'; }
-    return { k: D.COMMENT.includes(h.field) && !undone ? 'upd' : 'act', ch: !D.COMMENT.includes(h.field), html: `<li><span class="fi">${C.icon(ic, 's')}</span><span class="hb">${head}${body}</span></li>` };
+    return { k: D.COMMENT.includes(h.field) && !undone ? 'upd' : 'act', ch: !D.COMMENT.includes(h.field), html: `<li${rowAttr(tk)}>${tickHtml(tk)}<span class="fi">${C.icon(ic, 's')}</span><span class="hb">${head}${body}${whyHtml(tk)}</span></li>` };
   }
   function feedHtml(kind, rec, which) {
-    const hs = D.historyOf(kind, kind === 'project' ? rec.code : rec.id).filter(h => h.code === rec.code);
-    let rows = hs.map(h => histRow(h, kind));
-    if (kind === 'item' && rec.updatedAt && !hs.some(h => h.field === '+')) rows.push({ k: 'act', ch: true, html: `<li><span class="fi">${C.icon('doc', 's')}</span><span class="hb"><span class="hh"><b>Imported</b> <span class="t">· ${D.fd(rec.updatedAt.slice(0, 10))}</span></span><span class="hw"><span class="hf">from ${esc(rec.source || 'the project record')}</span></span></span></li>` });
+    const hs = D.historyOf(kind, kind === 'project' ? rec.code : rec.id).filter(h => h.code === rec.code), ticking = which === 'activity' && (kind === 'item' || kind === 'ms');
+    const tk = h => { const why = rec.archived ? D.WHY_ARCHIVED : D.whyNot(h), step = D.stepKey(h); return { step, why, on: !why && sel.has(step), field: D.fieldName(h.field, kind), when: D.when(h) }; };
+    const rows = [], seenB = new Set();
+    hs.forEach(h => { if (h.batch) { if (seenB.has(h.batch)) return; seenB.add(h.batch); rows.push(batchRow(hs.filter(x => x.batch === h.batch), kind, ticking ? { why: rec.archived ? D.WHY_ARCHIVED : D.WHY_UNDO, on: false } : null)); } else rows.push(histRow(h, kind, ticking ? tk(h) : null)); });
+    if (kind === 'item' && rec.updatedAt && !hs.some(h => h.field === '+')) rows.push({ k: 'act', ch: true, html: `<li${rowAttr(ticking ? { why: rec.archived ? D.WHY_ARCHIVED : D.WHY_NO_STEP } : null)}>${tickHtml(ticking ? { why: rec.archived ? D.WHY_ARCHIVED : D.WHY_NO_STEP } : null)}<span class="fi">${C.icon('doc', 's')}</span><span class="hb"><span class="hh"><b>Imported</b> <span class="t">· ${D.fd(rec.updatedAt.slice(0, 10))}</span></span><span class="hw"><span class="hf">from ${esc(rec.source || 'the project record')}</span></span>${whyHtml(ticking ? { why: rec.archived ? D.WHY_ARCHIVED : D.WHY_NO_STEP } : null)}</span></li>` });
     if (kind === 'item') rows.push({ k: 'src', html: `<li><span class="fi">${C.icon('doc', 's')}</span><span class="hb"><span class="hh"><b>Source</b></span><span class="hw"><span class="hf">${esc(rec.source || 'Added by hand in clark')}</span></span></span></li>` });
-    rows = rows.filter(r => which === 'all' || (which === 'activity' && r.k !== 'src' && (actF === 'all' || (actF === 'changes' ? r.ch : !r.ch))) || (which === 'updates' && r.k === 'upd') || (which === 'source' && r.k === 'src'));
-    return rows.length ? `<ul class="feed">${rows.map(r => r.html).join('')}</ul>` : '<p class="muted" style="font-size:13px;padding:10px 0">Nothing here yet.</p>';
+    const shown = rows.filter(r => which === 'all' || (which === 'activity' && r.k !== 'src' && (actF === 'all' || (actF === 'changes' ? r.ch : !r.ch))) || (which === 'updates' && r.k === 'upd') || (which === 'source' && r.k === 'src'));
+    return shown.length ? `<ul class="feed">${shown.map(r => r.html).join('')}</ul>` : '<p class="muted" style="font-size:13px;padding:10px 0">Nothing here yet.</p>';
   }
   const tabsHtml = () => `<div class="pk-tabs" role="tablist">${[['all', 'All'], ['activity', 'Activity'], ['updates', 'Updates'], ['source', 'Source']].map(([k, t]) => `<button role="tab" data-tab="${k}" aria-selected="${tab === k}">${t}</button>`).join('')}</div><div id="pkFeed"></div>`;
   const filtHtml = () => `<div class="pk-filt"><div class="seg" role="group" aria-label="Show">${[['all', 'All'], ['changes', 'Changes'], ['comments', 'Comments and updates']].map(([k, t]) => `<button data-hf="${k}" aria-pressed="${actF === k}">${t}</button>`).join('')}</div></div>`;
-  function wireTabs(kind, rec) { const f = (focus) => { C.$('#pkFeed').innerHTML = (tab === 'activity' ? filtHtml() : '') + feedHtml(kind, rec, tab); C.$$('.pk-tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
-      C.$$('[data-hf]', pk()).forEach(b => b.addEventListener('click', () => { actF = b.dataset.hf; f(actF); })); if (focus) C.$(`[data-hf="${focus}"]`, pk())?.focus(); };
-    C.$$('.pk-tabs button').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; f(); })); f(); }
+  /* ── Undo several (#197): ticks on the Activity tab, a bar (N selected, Undo N, Clear), a preview of what goes back and what stays, a second confirm above 25 ── */
+  const ticksDrawn = () => [...new Set(C.$$('[data-pa-tick]', pk()).map(i => i.dataset.paTick))];
+  const undoBarHtml = () => { const n = sel.size, over = n > D.MOST_UNDO; if (!n && !phase) return '';
+    const bar = n ? `<div class="selbar" role="region" aria-label="Selection" data-pa-bar><span class="sb-n num" data-pa-count>${n} selected</span><button type="button" class="btn pa-do" data-pa-undo-n ${over || (phase && phase.kind === 'reading') ? 'disabled' : ''}>Undo ${n}</button><button type="button" class="link" data-pa-clear>Clear</button></div>` : '';
+    const msg = over ? `<p class="muted pa-msg" data-pa-over>${esc(D.tooManyWords(n))}</p>` : '';
+    let pv = '';
+    if (phase && (phase.kind === 'preview' || phase.kind === 'sure')) { const { undo, skip } = phase.plan, none = !undo.length, ask = phase.kind === 'sure', c = k => `${k} change${k === 1 ? '' : 's'}`;
+      pv = `<section class="pa-preview" aria-label="What Undo will do" data-pa-preview><h3 class="pa-h" tabindex="-1" data-pa-head>${none ? 'Nothing here can be undone' : `${c(undo.length)} will be undone`}</h3>
+        ${undo.length ? `<ul class="pa-lines" data-pa-will>${undo.map(e => `<li>${esc(e.ref)}: ${esc(e.field.toLowerCase())} goes back</li>`).join('')}</ul>` : ''}
+        ${skip.length ? `<h3 class="pa-h">${c(skip.length)} will be left as ${skip.length === 1 ? 'it is' : 'they are'}</h3><ul class="pa-lines" data-pa-left>${skip.map(e => `<li>${esc(e.ref)}: ${esc(e.field.toLowerCase())} stays as it is. ${esc(e.why)}</li>`).join('')}</ul>` : ''}
+        ${ask ? `<p class="pa-sure" data-pa-sure>${esc(D.sureWords(n))}</p>` : ''}
+        <div class="pa-acts">${!none && !ask ? `<button type="button" class="btn pa-do" data-pa-go>Undo ${undo.length}</button>` : ''}${ask ? `<button type="button" class="btn pa-do" data-pa-yes>Yes, undo all ${n}</button>` : ''}<button type="button" class="link" data-pa-back>${ask ? 'No, go back' : 'Cancel'}</button></div></section>`; }
+    return bar + msg + pv; };
+  function wireTabs(kind, rec) {
+    const ticking = () => tab === 'activity' && (kind === 'item' || kind === 'ms') && !rec.archived;   /* an archived record is read-only: no ticks, no Undo several */
+    const allHtml = () => { if (!ticking()) return ''; const t = ticksDrawn_(); if (!t.length) return ''; const on = t.filter(k => sel.has(k)).length;
+      return `<label class="pa-all" data-pa-all-label><input type="checkbox" class="gtick" data-pa-all ${on === t.length ? 'checked' : ''} data-mixed="${on > 0 && on < t.length}"><span>Select all changes that can be undone</span></label>`; };
+    /* the steps that can be chosen, in the order drawn, read from the model so the header knows them before the rows are drawn */
+    const ticksDrawn_ = () => { const out = []; if (rec.archived) return out; D.historyOf(kind, kind === 'project' ? rec.code : rec.id).filter(h => h.code === rec.code && !h.batch && !D.whyNot(h)).forEach(h => { const k = D.stepKey(h); if (!out.includes(k)) out.push(k); }); return out; };
+    const redraw = focus => { C.$('#pkFeed').innerHTML = (tab === 'activity' ? filtHtml() : '') + allHtml() + '<div class="pa-undo" id="paUndo" data-pa-undo></div>' + feedHtml(kind, rec, tab); C.$$('.pk-tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
+      C.$$('[data-hf]', pk()).forEach(b => b.addEventListener('click', () => { actF = b.dataset.hf; redraw(actF); })); if (focus) C.$(`[data-hf="${focus}"]`, pk())?.focus();
+      const m = C.$('[data-pa-all]', pk()); if (m) m.indeterminate = m.dataset.mixed === 'true';
+      drawBar(); wireRows(); };
+    const f = redraw;
+    const pick = (step, how) => { const order = ticksDrawn(); if (how.range && lastTick && order.includes(lastTick) && order.includes(step)) { const a = order.indexOf(lastTick), b = order.indexOf(step); order.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(k => sel.add(k)); }
+      else if (how.add) { sel.has(step) ? sel.delete(step) : sel.add(step); } else { const only = sel.size === 1 && sel.has(step); sel.clear(); if (!only) sel.add(step); }
+      lastTick = step; phase = null; redraw(); C.$(`[data-pa-tick="${CSS.escape(step)}"]`, pk())?.focus({ preventScroll: true }); };
+    const wireRows = () => {
+      C.$$('[data-pa-tick]', pk()).forEach(i => i.addEventListener('click', e => { e.stopPropagation(); pick(i.dataset.paTick, { add: true, range: e.shiftKey }); }));
+      C.$$('[data-activity-row][data-step]', pk()).forEach(r => r.addEventListener('click', e => { if (e.target.closest('input,button,a')) return; if (String(getSelection())) return; pick(r.dataset.step, { add: e.metaKey || e.ctrlKey, range: e.shiftKey }); }));
+      C.$('[data-pa-all]', pk())?.addEventListener('change', () => { const t = ticksDrawn(); if (t.every(k => sel.has(k))) t.forEach(k => sel.delete(k)); else t.forEach(k => sel.add(k)); phase = null; redraw(); C.$('[data-pa-all]', pk())?.focus({ preventScroll: true }); }); };
+    const rec2 = () => kind === 'item' ? findItem(rec.id) : findMs(rec.id);
+    const plan = () => D.planUndo(kind, rec2() || rec, [...sel]);
+    function drawBar() { const h = C.$('#paUndo', pk()); if (!h) return; h.innerHTML = undoBarHtml();
+      C.$('[data-pa-clear]', pk())?.addEventListener('click', () => { sel.clear(); phase = null; redraw(); });
+      C.$('[data-pa-undo-n]', pk())?.addEventListener('click', () => { phase = { kind: 'reading' }; drawBar(); phase = { kind: 'preview', plan: plan() }; drawBar(); C.$('[data-pa-head]', pk())?.focus(); });
+      C.$('[data-pa-back]', pk())?.addEventListener('click', () => { phase = null; drawBar(); C.$('[data-pa-undo-n]', pk())?.focus(); });
+      const go = () => { const u = D.undoMany(kind, rec2() || rec, plan()), n = sel.size; sel.clear(); phase = null; lastTick = null; if (u) { C.refresh(); C.toast(`${n} change${n === 1 ? '' : 's'} undone`, u); } else { redraw(); C.toast('Those changes cancel each other out, so nothing was changed.'); } };
+      C.$('[data-pa-go]', pk())?.addEventListener('click', () => { if (sel.size > D.CONFIRM_ABOVE) { phase = { kind: 'sure', plan: phase.plan }; drawBar(); C.$('[data-pa-head]', pk())?.focus(); } else go(); });
+      C.$('[data-pa-yes]', pk())?.addEventListener('click', go); }
+    C.$$('.pk-tabs button').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; redraw(); })); redraw(); }
+  C.peekSel = () => ({ size: sel.size, steps: [...sel] });
+  /* Esc clears the ticked rows first; the next Esc closes the peek */
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape' || !UI.peek || !sel.size || C.popOpen() || document.querySelector('dialog[open]') || (C.sneakIsOpen && C.sneakIsOpen()) || C.askIsOpen()) return; e.preventDefault(); e.stopPropagation(); sel.clear(); phase = null; C.redrawPeek(); }, true);
 
   /* ── the work item peek ── */
   function warn(x) {
@@ -153,7 +210,7 @@
     const msOpts = C.mssAll().filter(m => !m.archived || m.id === x.ms).map(m => `<option value="${m.id}"${x.ms === m.id ? ' selected' : ''}>${esc(C.msName(m.id))}</option>`).join('');   /* the link to an archived milestone is kept, and says so */
     const ucOpts = D.S.usecases.filter(u => u.code === x.code && (!u.archived || u.id === x.uc)).map(u => `<option value="${u.id}"${x.uc === u.id ? ' selected' : ''}>${esc(u.ref || u.id)}: ${esc(u.title.split('\n')[0])}</option>`).join('');
     return `${topBar(`<button class="ib" id="pkEye" aria-label="Client-visible: ${x.client ? 'on' : 'off'}" aria-pressed="${x.client}" title="${x.client ? 'Shown to the client' : 'Not shown to the client'}">${C.icon(x.client ? 'eye' : 'eyeoff')}</button>
-      <button class="ib" id="pkSneak" aria-label="Sneak peek: change this item in words">${C.icon('sparkle')}</button>${C.isOpen(x) ? `<button class="ib" id="pkMail" aria-label="Draft email (C)" title="Draft email (C)">${C.icon('mail')}</button>` : ''}<button class="ib" id="pkLink" aria-label="Copy link">${C.icon('link')}</button><button class="ib" id="pkMore" aria-label="More">${C.icon('more')}</button>`)}
+      <button class="ib" id="pkSneak" aria-label="Sneak peek: change this item in words">${C.icon('sparkle')}</button>${C.isOpen(x) ? `<button class="ib" id="pkMail" aria-label="Draft email${C.keyHint('C')}" title="Draft email${C.keyHint('C')}">${C.icon('mail')}</button>` : ''}<button class="ib" id="pkLink" aria-label="Copy link">${C.icon('link')}</button><button class="ib" id="pkMore" aria-label="More">${C.icon('more')}</button>`)}
     <div class="pk-scroll"><div class="pk-inner">
       <div class="pk-meta"><span class="type ${x.type}">${x.type}</span>${x.id} · ${esc(p.name)}${x.client ? ' <span class="tag cl">' + C.icon('eye', 's') + 'Client</span>' : ''}</div>
       ${warn(x)}
@@ -164,7 +221,7 @@
         <button class="pk-prop" data-prop="owner" aria-label="${x.type === 'D' ? 'Decision by' : 'Owner'}: ${esc(x.owner || 'none')}"><span class="av">${C.initials(x.owner)}</span><span class="v">${esc(x.owner || 'No owner')}</span></button>
         <button class="pk-prop${late ? ' late' : ''}" data-prop="due" aria-label="${x.type === 'D' ? 'Date' : 'Due'}: ${D.fd(x.due) || 'none'}" style="--ic:${late ? IC.r : x.due && C.isOpen(x) && D.days(x.due) <= 7 ? IC.a : x.due ? IC.b : IC.n}">${C.icon('cal')}<span class="v">${D.fd(x.due) || 'No date'}${late ? '<span class="od">overdue</span>' : x.due ? `<small>${C.dueWords(x.due)}</small>` : ''}</span></button>
       </div>
-      <div class="pk-fresh" id="pkFresh">${(f => `Raised ${D.fd(f.raised)} · Last reviewed ${D.fd(f.reviewed)}${D.notReviewed(x) ? ' <span class="tag" title="Open, and not changed by hand for 14 days or more">Not reviewed in 14 days</span>' : ''}`)(D.fresh(x))}</div>
+      <div class="pk-fresh" id="pkFresh">${(f => `Raised ${D.fd(f.raised)} · Last reviewed ${D.fd(f.reviewed)}${D.notReviewed(x) ? ' <span class="tag" title="Open, and not changed by hand for ' + D.staleDays(x.code) + ' days or more">Not reviewed in ' + D.staleDays(x.code) + ' days</span>' : ''}`)(D.fresh(x))}</div>
       <label class="sw pk-act"><button class="switch" id="pkAct" role="switch" aria-checked="${!!x.clientAct}" aria-label="Needed from the client"></button>Needed from the client<small>Lists it under “Needs from you”</small></label>
       <div class="pk-lab">Latest update <button class="pk-draft" id="pkDraft">${C.icon('sparkle', 's')}Draft</button></div>
       <div class="pk-text" id="pkUpd"></div>
@@ -176,6 +233,7 @@
         <label for="pkMs">Milestone</label><select class="field" id="pkMs" data-f="ms"><option value="">None</option>${msOpts}</select>
         <label for="pkUc">Use case</label><select class="field" id="pkUc" data-f="uc"><option value="">None</option>${ucOpts}</select>
         
+        <label for="pkRaised">Raised</label><input class="field" type="date" id="pkRaised" data-f="raised" value="${D.fresh(x).raised}">
         <label>Client wording</label><div class="field-inl" id="pkClT"></div>
       </div></details>
       ${tabsHtml()}
@@ -185,7 +243,7 @@
     const t = C.$('#pkTitle');
     t.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); t.blur(); } if (e.key === 'Escape') { e.stopPropagation(); t.textContent = x.title; t.blur(); } });
     t.addEventListener('blur', () => { const v = t.textContent.trim(); if (v && v !== x.title) save('item', x, { title: v }); else t.textContent = x.title; });
-    C.$$('[data-f]', pk()).forEach(el => el.addEventListener('change', () => save('item', x, { [el.dataset.f]: el.value.trim() })));
+    C.$$('[data-f]', pk()).forEach(el => el.addEventListener('change', () => { const v = el.value.trim(); if (el.dataset.f === 'raised' && !v) { el.value = D.fresh(x).raised; return; } save('item', x, { [el.dataset.f]: v }); }));
     C.$$('[data-move]', pk()).forEach(b => b.addEventListener('click', () => save('item', x, { due: b.dataset.move }, `${x.id} moved to ${D.fd(b.dataset.move)}`)));
     C.$('details.pk-det', pk()).addEventListener('toggle', e => C.store.set('pkDetails', e.target.open));
     C.$('#pkEye').addEventListener('click', () => save('item', x, { client: !x.client }, x.client ? `${x.id} hidden from the client` : `${x.id} shown to the client`, 'with the eye'));
@@ -251,7 +309,7 @@
     draw();
   }
   C.mailPane = x => mailPane(x);
-  document.addEventListener('keydown', e => { if (!UI.peek || e.key !== 'c' || e.metaKey || e.ctrlKey || e.altKey || C.typing(document.activeElement) || C.popOpen() || document.querySelector('dialog[open]') || C.edIsOpen()) return; const x = findItem(UI.peek); if (x && C.isOpen(x) && !x.archived) { e.preventDefault(); mailPane(x); } });
+  document.addEventListener('keydown', e => { if (!UI.peek || e.key !== 'c' || !C.keysOn() || e.metaKey || e.ctrlKey || e.altKey || C.typing(document.activeElement) || C.popOpen() || document.querySelector('dialog[open]') || C.edIsOpen()) return; const x = findItem(UI.peek); if (x && C.isOpen(x) && !x.archived) { e.preventDefault(); mailPane(x); } });
   C.propPick = (b, x, how) => propPick(b, x, how);   // the same pickers inline in the Work items table
   function propPick(b, x, how = 'in the peek') {
     const f = b.dataset.prop, sv = ch => save('item', x, ch, undefined, how);
@@ -446,6 +504,7 @@
   function apply() {
     const rec = cur.kind === 'item' ? findItem(cur.id) : findMs(cur.id); if (!rec || !snPlan) return;
     const text = C.$('#snIn').value.trim(); snHist = [text, ...snHist.filter(h => h !== text)].slice(0, 10);
+    if (cur.kind === 'item' && C.refuseClose(rec, Object.fromEntries(snPlan.changes.map(c => [c.f, c.v])))) { C.sneakClose(true); return; }
     const u = D.change(cur.kind, rec, Object.fromEntries(snPlan.changes.map(c => [c.f, c.v])), D.who('in words'));
     const fields = snPlan.changes.map(c => c.f);
     C.sneakClose(true); C.refresh();

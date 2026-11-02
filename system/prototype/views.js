@@ -11,9 +11,9 @@
   const docArch = (id, on) => { const p = P(), docs = D.clone(p.docs || []), d = docs.find(x => x.id === id); if (!d) return; if (on) d.archived = true; else delete d.archived;
     const u = D.change('project', p, { docs }, D.who('in the report'), `${on ? 'Archived' : 'Restored'} the document ${d.title}`); if (!u) return;
     C.refresh(); C.toast(on ? `Archived ${d.title}. It's out of the list and the published page.` : `Restored ${d.title}. It's back in the list.`, u); };
-  const rep = () => { const p = P(); if (!p.report) p.report = D.defaultReport(); if (!p.report.glance.some(f => f.k === 'health')) { p.report.glance = p.report.glance.filter(f => f.k !== 'next'); p.report.glance.unshift({ k: 'health', hidden: false }); } return p.report; };
+  const rep = () => { const p = P(); if (!p.report) p.report = D.defaultReport(); if (!p.report.glance.some(f => f.k === 'health')) { p.report.glance = p.report.glance.filter(f => f.k !== 'next'); p.report.glance.unshift({ k: 'health', hidden: false }); } if (!p.report.glance.some(f => f.k === 'stale')) p.report.glance.push({ k: 'stale', hidden: true }); return p.report; };
   const setRep = (fn, msg) => { const r = D.clone(rep()); fn(r); saveProject({ report: r }, msg); };
-  const UC_CLS = { 'On track': 'g', Flag: 'a', 'High risk': 'r' };
+  const UC_CLS = { 'On track': 'g', Flag: 'a', 'High risk': 'r', Done: 'n' };   /* Done is grey, and its own word: never colour alone (#412) */
   const ucBadge = s => `<span class="ucb ${UC_CLS[s] || 'n'}">${esc(s.toUpperCase())}</span>`;
 
   /* ═════════════ milestone line (creaite's): scrolls sideways; making it taller zooms in ═════════════ */
@@ -75,19 +75,19 @@
   const MS_CLS = { Achieved: 'g', 'On track': 'g', 'At risk': 'a', Slipped: 'r', Overdue: 'r', Forecast: 'b' };
   C.msListHtml = (list, editing, key) => msListHtml(list, editing, key);
   function msListHtml(list, editing, key) {
-    const allOn = C.store.get('msAll.' + key, false), shown = allOn ? list : list.slice(0, 5);
-    const rows = shown.map(m => {
+    const pub = key === 'pub', allOn = pub ? false : C.store.get('msAll.' + key, false), shown = allOn || pub ? list : list.slice(0, 5);
+    const rows = shown.map((m, i) => {
       const st = D.msState(m), sl = D.slip(m), say = D.msWord(st, key === 'pub');
       /* each date once, and the state is said once (in its own column): the sweep found both repeated (M5) */
       const date = st === 'Achieved' ? `<b>${D.fd(m.achievedOn)}</b><small>${m.achievedOn > m.agreed ? `${C.dy(D.days(m.achievedOn) - D.days(m.agreed))} after the agreed date` : 'On the agreed date'}</small>`
         : `<b>${D.fd(m.agreed)}</b><small${sl > 0 ? ' class="late"' : ''}>${st === 'Forecast' ? 'Not agreed yet' : sl > 0 ? `Expected ${D.fd(D.expected(m))} · ${C.dy(sl)} later` : 'Agreed'}</small>`;
-      return `<li class="msl-row${m.client ? '' : ' out'}" data-ms="${m.id}" tabindex="0" role="button" aria-label="${esc(m.name)}, ${say}"><span class="node ${MS_CLS[st]}${st === 'Achieved' ? ' fill' : ''}"></span>
+      return `<li class="msl-row${m.client ? '' : ' out'}"${pub && i >= 5 ? ' hidden data-more' : ''} data-ms="${m.id}" tabindex="0" role="button" aria-label="${esc(m.name)}, ${say}"><span class="node ${MS_CLS[st]}${st === 'Achieved' ? ' fill' : ''}"></span>
         <span class="msl-date">${date}</span><span class="msl-name">${esc(m.name)}${m.client ? '' : ' <span class="tag">Internal only</span>'}</span>
         <span class="mst ${C.msCls(st)}">${C.msMark(st)}${say}</span>
         <span class="msl-prog" title="Progress">${m.progress == null ? '<span class="muted">Not set</span>' : `<span class="pbar"><i style="width:${m.progress}%"></i></span>${m.progress}%`}</span>
         ${editing ? `<button class="ib" data-ms-eye="${m.id}" aria-label="${m.client ? 'Shown' : 'Hidden'}: ${esc(m.name)}">${C.icon(m.client ? 'eye' : 'eyeoff', 's')}</button>` : ''}</li>`;
     }).join('');
-    return `<ul class="msl">${rows}</ul>${list.length > 5 ? `<button class="link msl-all" data-msall="${key}">${allOn ? 'Show the first 5' : `Show all ${list.length} milestones`}</button>` : ''}`;
+    return `<ul class="msl">${rows}</ul>${list.length > 5 ? `<button class="link msl-all" ${pub ? 'data-msmore aria-expanded="false"' : `data-msall="${key}"`}>${allOn ? 'Show the first 5' : `Show all ${list.length}${pub ? '' : ' milestones'}`}</button>` : ''}`;
   }
 
   /* ── milestones: a Calendar view beside the timeline, with a discreet switcher ("add Calendar view... and a
@@ -200,12 +200,13 @@
     const over = its.filter(x => x.type === 'A' && C.isOpen(x) && x.due && D.days(x.due) < 0);
     const high = its.filter(x => (x.type === 'R' || x.type === 'I') && C.isOpen(x) && (x.priority === 'Urgent' || x.priority === 'High'));
     const dec = its.filter(x => x.type === 'D' && x.status === 'Pending');
-    const openA = its.filter(x => x.type === 'A' && C.isOpen(x)).length, red = high.filter(x => C.ragOf(x) === 'R').length;
+    const quiet = its.filter(D.notReviewed), openA = its.filter(x => x.type === 'A' && C.isOpen(x)).length, red = high.filter(x => C.ragOf(x) === 'R').length;
     /* rag: the tile's automatic colour, from the data; the user can set another with a right-click (Edit mode) */
     return {
       health: { k: 'Project health', rag: p.health },
       overdue: { v: over.length, k: 'Overdue actions', d: `of ${openA} open actions`, rag: over.length ? 'R' : 'G', go: () => C.workFilter({ type: 'A', due: ['overdue'] }) },
       risks: { v: high.length, k: 'High risks and issues', d: red ? `${red} red or urgent` : high.length ? 'None red' : 'None open', rag: red ? 'R' : high.length ? 'A' : 'G', go: () => C.workFilter({ type: 'R', priority: ['Urgent', 'High'] }) },
+      stale: { v: quiet.length, k: 'Not reviewed', d: `in ${C.dy(D.staleDays(p.code))}`, rag: quiet.length ? 'A' : 'G', go: () => C.workFilter({ fresh: ['stale'] }) },
       decisions: { v: dec.length, k: 'Decisions needed', d: dec.length ? `Oldest ${D.fd(dec.map(x => x.due).sort()[0])}` : 'None waiting', rag: dec.length ? 'A' : 'G', go: () => C.workFilter({ type: 'D', status: ['Pending'] }) },
     };
   };
@@ -228,17 +229,17 @@
      set by hand; a tile with no colour has no word. Three tiles say it more exactly: red Overdue actions are "Overdue", amber Decisions needed are "Waiting",
      and High risks and issues are "Watch" (amber) or "High" (red), so a count of risks never reads as late. Project health's word sits beside a pill that
      may say something else, so it says what it is: "Tile colour: Off track". The same tables as the product's glanceTiles.js */
-  const TILE_WORD = { G: 'On track', A: 'At risk', R: 'Off track' }, TILE_WORD_OF = { overdue: { R: 'Overdue' }, decisions: { A: 'Waiting' }, risks: { A: 'Watch', R: 'High' } };
+  const TILE_WORD = { G: 'On track', A: 'At risk', R: 'Off track' }, TILE_WORD_OF = { overdue: { R: 'Overdue' }, decisions: { A: 'Waiting' }, risks: { A: 'Watch', R: 'High' }, stale: { A: 'Needs a look' } };
   C.HEALTH_WORD_LABEL = 'Tile colour: ';
   C.tileWord = (k, rag) => (TILE_WORD_OF[k] || {})[rag] || TILE_WORD[rag] || '';
-  C.glanceHtml = (p, r, editing) => glanceHtml(p, r, editing);
-  function glanceHtml(p, r, editing) {
+  C.glanceHtml = (p, r, editing, pub) => glanceHtml(p, r, editing, pub);   /* pub: the published page, which never carries the Not reviewed tile (a staff check, and it counts internal items too) */
+  function glanceHtml(p, r, editing, pub) {
       const g = C.glanceData(p), HN = { G: 'On track', A: 'At risk', R: 'Off track' }, sug = editing ? C.healthSuggest(p) : null;
-      return `<div class="glance" data-glance>${r.glance.filter(f => editing || !f.hidden).map(f => { const d = g[f.k]; if (!d) return '';
+      return `<div class="glance" data-glance>${r.glance.filter(f => f.k === 'stale' ? !f.hidden && !pub : editing || !f.hidden).map(f => { const d = g[f.k]; if (!d) return '';
         const rag = f.rag || d.rag || '', word = f.rag === 'N' ? '' : C.tileWord(f.k, rag), sw = word ? `<span class="sw sw-${rag}">${word}</span>` : '';
         if (f.k === 'health') return `<div class="fig health-fig rag-${f.rag === 'N' ? 'N' : rag}" data-fig="health" ${editing ? 'draggable="true"' : ''}><div class="k">Project health${rag !== p.health && word ? `<span class="sw sw-${rag}">${C.HEALTH_WORD_LABEL}${word}</span>` : ''}</div><div class="hrow">${editing ? `<button class="hpill ${p.health}" id="hPill" aria-label="Project health: ${HN[p.health]}. Select to change">${HN[p.health]}</button><textarea id="hReason" rows="2" aria-label="Why the project has this health" ${sug.better ? 'required aria-required="true" aria-describedby="hReq"' : ''} placeholder="${sug.better ? 'Why is it better than the suggestion? (needed)' : 'Why, in a line or two'}">${esc(p.reason)}</textarea>` : `<span class="hpill ${p.health}">${HN[p.health]}</span><div class="hreason">${esc(p.reason).replace(/\n/g, '<br>')}</div>`}</div>${editing ? `<div class="hsug" id="hSug"><span>${esc(sug.text)}.</span>${sug.h !== p.health ? ' <button class="link" id="hUse">Use the suggestion</button>' : ' <span class="hsug-ok">Your choice matches it.</span>'}</div>${sug.better ? `<p class="hreq${p.reason.trim() ? ' ok' : ''}" id="hReq" role="${p.reason.trim() ? 'status' : 'alert'}">${p.reason.trim() ? 'Your health is better than the suggestion, so the reason is needed. It is there; check it still fits.' : 'Your health is better than the suggestion. Say why in the box above: the reason is needed.'}</p>` : ''}` : ''}</div>`;
         return `<div class="fig go kpi rag-${f.rag === 'N' ? 'N' : rag}${f.hidden ? ' out' : ''}" data-fig="${f.k}" ${editing ? 'draggable="true"' : ''} role="button" tabindex="0" aria-label="${esc(String(d.k))}: ${d.v}, ${esc(d.d || '')}${word ? ', ' + word : ''}. Open the list">${editing ? `<button class="ib eye" data-fig-eye="${f.k}" aria-label="${f.hidden ? 'Show' : 'Hide'} ${esc(String(d.k))}">${C.icon(f.hidden ? 'eyeoff' : 'eye', 's')}</button>` : ''}<div class="k"><i class="ragdot"></i>${d.k}</div><div class="vrow"><div class="v">${d.v}</div>${sw}</div>${d.d ? `<div class="d">${esc(d.d)}</div>` : ''}</div>`; }).join('')}</div>
-        ${editing ? '<p class="note">Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. Hidden tiles are left out of the published page.</p>' : ''}`;
+        ${editing ? `<p class="note">Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. Hidden tiles are left out of the published page, and the Not reviewed tile is never in it.${(r.glance.find(f => f.k === 'stale') || {}).hidden ? ' <button type="button" class="link" data-stale-on>Add the Not reviewed tile</button>' : ''}</p>` : ''}`;
   }
   /* the dashboard's rows (#95): a section with beside:true shares its row with the next one drawn, so a row holds one or two and pairs never chain.
      'secs' is what is drawn (At a glance is left out when it sits inside the cover); 'show' drops hidden sections, and a pair with one half hidden shows the other full width */
@@ -401,7 +402,7 @@
     const ucs = D.S.usecases.filter(u => u.code === p.code && u.client && !u.archived), hiddenN = D.S.usecases.filter(u => u.code === p.code && !u.client && !u.archived).length, openId = C.store.get('ucOpen', '');
     const back = editing && hiddenN ? `<button class="link add-from" data-ucback>+ Add a use case from your project record (${hiddenN})</button>` : '';
     if (!ucs.length) return `<p class="muted">No use cases on the page.${editing ? '' : ' Add one in Edit mode, or import them from Excel (a Use cases sheet).'}</p>${back}`;
-    const n = s => ucs.filter(u => u.status === s).length, order = ['On track', 'Flag', 'High risk'].filter(s => n(s));
+    const n = s => ucs.filter(u => u.status === s).length, order = ['On track', 'Flag', 'High risk', 'Done'].filter(s => n(s));
     const strip = `<div class="uc-strip"><span class="uc-total"><b>${ucs.length}</b> use case${ucs.length > 1 ? 's' : ''}</span>${order.map(s => `<span class="uc-count">${UC_WORD(s)}<b>${n(s)}</b></span>`).join('')}<span class="uc-meter" aria-hidden="true">${order.map(s => `<i class="${UC_CLS[s]}" style="flex:${n(s)}"></i>`).join('')}</span></div>`;
     return `${strip}<div class="ucl">${ucs.map(u => {
       const steps = C.items().filter(x => x.uc === u.id && C.isOpen(x) && (editing || x.client)), isOpen = openId === u.key, K = esc(u.key), titles = u.title.split('\n'), refs = (u.ref || u.id).split(/,| and /).map(x => x.trim()).filter(Boolean);
@@ -505,7 +506,7 @@
     html() {
       const p = P(), r = rep(), editing = UI.editing;
       const B = window.BRAND || {}, week = p.week || D.friday();
-      return `<div class="rbar"><div class="seg" role="group" aria-label="Mode"><button data-mode="view" aria-pressed="${!editing}" title="View (V)" aria-keyshortcuts="V">View</button><button data-mode="edit" aria-pressed="${editing}" title="Edit (E)" aria-keyshortcuts="E">${C.icon('pencil', 's')} Edit</button></div>
+      return `<div class="rbar"><div class="seg" role="group" aria-label="Mode"><button data-mode="view" aria-pressed="${!editing}" title="View${C.keyHint('V')}"${C.keysOn() ? ' aria-keyshortcuts="V"' : ''}>View</button><button data-mode="edit" aria-pressed="${editing}" title="Edit${C.keyHint('E')}"${C.keysOn() ? ' aria-keyshortcuts="E"' : ''}>${C.icon('pencil', 's')} Edit</button></div>
         <label class="muted" style="font-size:14px;display:flex;align-items:center;gap:8px">Week ending <input class="field" type="date" id="wk" value="${week}" style="width:auto"></label>
         <span class="state">${editing ? 'Editing · each change saves on its own' : (p.published || []).length ? `Published ${D.fd(p.published.slice(-1)[0].at.slice(0, 10))}${p.published.slice(-1)[0].client ? ' to the client' : ' locally'}` : 'Draft · not published yet'}</span>${editing && C.edHint ? '<span class="sh-hint" id="shHint">Drag to move, + to add a template</span>' : ''}<span class="sp"></span>${editing ? (() => { const lp = C.lastPub(p), kept = lp && D.pubCopy(p.code, lp.n); return `<button class="btn sm" id="startLast" ${kept ? '' : 'aria-disabled="true"'} title="${kept ? `Copy the text sections from Publication ${lp.n} (${D.fd(lp.date)})` : lp ? 'The copy of the last publication is no longer kept' : 'Publish once first: there is no last report to start from'}">Start from last week’s report</button>`; })() : ''}
         </div>
@@ -564,6 +565,7 @@
           f.addEventListener('drop', e => { e.preventDefault(); f.classList.remove('drop'); const from = e.dataTransfer.getData('text/fig'); if (from && from !== k) setRep(r2 => { const a = r2.glance, i = a.findIndex(x => x.k === from), it = a.splice(i, 1)[0]; a.splice(a.findIndex(x => x.k === k), 0, it); }, 'Tile moved'); });
         }
       });
+      C.$('[data-stale-on]')?.addEventListener('click', () => setRep(r2 => { r2.glance.find(x => x.k === 'stale').hidden = false; }, 'Not reviewed tile added'));
       C.$$('[data-fig-eye]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const k = b.dataset.figEye; setRep(r2 => { const f = r2.glance.find(x => x.k === k); f.hidden = !f.hidden; }, 'Tile ' + (r.glance.find(x => x.k === k).hidden ? 'shown' : 'hidden')); }));
       // milestones
       const tl = C.$('[data-tl]'); if (tl) { const list = C.mss().filter(m => m.client); C.timeline(tl, list, { key: 'dash' }); wireMsList(tl.closest('.sec') || tl.parentElement, list, 'dash'); C.wireMsViews(tl.closest('.sec') || document, list); }
@@ -590,7 +592,7 @@
   };
   /* V and E switch the Dashboard to View and Edit, unless the key is going into a box, an editor, a menu, a dialog, ask clark or a peek */
   document.addEventListener('keydown', e => {
-    if (UI.view !== 'dashboard' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || e.isComposing || (e.key !== 'v' && e.key !== 'V' && e.key !== 'e' && e.key !== 'E')) return;
+    if (UI.view !== 'dashboard' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || e.isComposing || (e.key !== 'v' && e.key !== 'V' && e.key !== 'e' && e.key !== 'E') || !C.keysOn()) return;
     if (C.typing(document.activeElement) || (C.popOpen && C.popOpen()) || document.querySelector('dialog[open]') || UI.peek || (C.askIsOpen && C.askIsOpen()) || (C.edIsOpen && C.edIsOpen())) return;
     const b = C.$(`[data-mode=${e.key.toLowerCase() === 'e' ? 'edit' : 'view'}]`); if (!b) return; e.preventDefault(); b.click();
   });
@@ -610,7 +612,7 @@
         const u = D.change('item', x, { [f]: f === 'update' ? C.toHtml(v) : v }, D.who('in the report')); C.refresh(); C.toast(`${x.id} saved`, u); }); });
     /* the pill's menu offers what the pill shows: a risk or issue's rating (with Close or Reopen below), otherwise the status */
     C.$$('[data-cst]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const x = D.S.items.find(i => i.id === b.dataset.cst);
-      const set = (ch, msg) => { const u = D.change('item', x, ch, D.who('in the report')); C.refresh(); C.toast(msg, u); };
+      const set = (ch, msg) => { const no = D.closeRefusal(x, ch); if (no) return C.toast(no, null, { ms: 6000 }); const u = D.change('item', x, ch, D.who('in the report')); C.refresh(); C.toast(msg, u); };   /* the same refusal as the peek and the board (#135) */
       if (x.type === 'R' || x.type === 'I') return C.menu(b, [{ lab: 'Rating' }, ...[['R', 'Red', 'r'], ['A', 'Amber', 'a'], ['G', 'Green', 'g']].map(([v2, t, c2]) => ({ html: `<span class="pill ${c2}">${t}</span>`, selected: C.ragOf(x) === v2 && C.isOpen(x), onPick: () => set(C.ragSet(x, v2), `${x.id} rated ${t}`) })),
         { sep: true }, C.isOpen(x) ? { html: `${C.icon('check', 's')} Close it`, onPick: () => set({ status: 'Closed' }, `${x.id} closed`) } : { html: `${C.icon('undo', 's')} Reopen it`, onPick: () => set({ status: 'Open' }, `${x.id} reopened`) }], { select: true });
       C.menu(b, D.STATUSES[x.type].map(s => ({ label: s, selected: x.status === s, onPick: () => set({ status: s }, `${x.id} set to ${s}`) })), { select: true }); }));
@@ -936,6 +938,7 @@
     const go = ch => { const laneCh = L.set && lk !== undefined && L.of(x) !== lk ? L.set(x, lk) : null;
       if (L.of && !L.set && lk !== undefined && L.of(x) !== lk) return C.toast(`A ${D.TYPES[x.type].toLowerCase()} can't change its type`);
       const all = { ...(ch || {}), ...(laneCh || {}) }; if (!Object.keys(all).length) return;
+      const no = D.closeRefusal(x, all); if (no) return C.toast(no, null, { ms: 6000 });
       const u = D.change('item', x, all, D.who('on the board')); C.toast(`${x.id} moved`, () => { u && u(); rer(); }); rer(); };
     if (G.ask) { if (ck === 'overdue') return C.toast('Overdue is worked out from the date. Pick a date instead'); if (ck === 'none') return go({ due: '' });
       const def = { week: friday(0) < D.TODAY ? D.TODAY : friday(0), next: friday(1), later: D.addDays(D.TODAY, 28) }[ck] || D.TODAY;
@@ -1030,7 +1033,7 @@
     return `<span class="fchip" data-tok="${esc(t)}" title="${esc(s)}" data-gloss="${esc(t + ': ' + s)}"><span class="fc-t">${esc(t)}</span><button type="button" data-fx="${i}" aria-label="Remove the filter: ${esc(s)}">${C.icon('x', 's')}</button></span>`; }).join('');
   const holder = () => W.chips.length ? '' : 'Filter by keyword or by field';
   function lineHtml() {
-    const key = FL.OPT.SLASH_KEY;
+    const key = C.keysOn() && FL.OPT.SLASH_KEY;
     return `<div class="fline-w${FL.OPT.HINTS === 'always' ? ' hints-always' : FL.OPT.HINTS === 'never' ? ' hints-never' : ''}" id="flw">
       <div class="fline" id="fline">${C.icon('filter', 's fl-ic')}<span class="fl-chips" id="flChips">${chipsHtml()}</span>
         <input id="fl" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="flList" aria-label="Filter work items" aria-describedby="flHelp" autocomplete="off" spellcheck="false" placeholder="${holder()}" value="${esc(W.q)}">
@@ -1163,13 +1166,14 @@
   };
   /* "/" on Work items puts the cursor in the filter line (FL.OPT.SLASH_KEY); everywhere else, and with a peek open, it opens ask clark as before */
   document.addEventListener('keydown', e => {
-    const k = FL.OPT.SLASH_KEY; if (!k || e.key !== k || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = FL.OPT.SLASH_KEY; if (!k || !C.keysOn() || e.key !== k || e.metaKey || e.ctrlKey || e.altKey) return;
     if (UI.view !== 'work' || UI.peek || C.typing(document.activeElement) || C.$('#dlg')?.open || C.popOpen() || (C.askIsOpen && C.askIsOpen())) return;
     const f = C.$('#fl'); if (!f) return; e.preventDefault(); e.stopImmediatePropagation(); f.focus(); f.setSelectionRange(f.value.length, f.value.length);
   }, true);
   /* so the ask clark button does not promise "/" on Work items: there it says Ctrl or Cmd + J */
-  { const dt = C.drawTop; C.drawTop = () => { dt(); const b = C.$('#askBtn'), on = UI.view === 'work' && !!FL.OPT.SLASH_KEY, k = C.$('kbd', b); if (!b) return;
-    b.title = on ? `Open ask clark (Ctrl or Cmd + J). Here, ${FL.OPT.SLASH_KEY} goes to the filter line` : 'Open ask clark (/ or Ctrl or Cmd + J)'; if (k) k.style.display = on ? 'none' : ''; }; }
+  { const dt = C.drawTop; C.drawTop = () => { dt(); { const hb = C.$('#helpBtn'); if (hb) hb.title = 'Help' + C.keyHint('?'); }   /* the Help button names its key only while single keys are on */
+    const b = C.$('#askBtn'), on = UI.view === 'work' && !!FL.OPT.SLASH_KEY && C.keysOn(), k = C.$('kbd', b); if (!b) return;
+    b.title = on ? `Open ask clark (Ctrl or Cmd + J). Here, ${FL.OPT.SLASH_KEY} goes to the filter line` : C.keysOn() ? 'Open ask clark (/ or Ctrl or Cmd + J)' : 'Open ask clark (Ctrl or Cmd + J)'; if (k) k.style.display = on || !C.keysOn() ? 'none' : ''; }; }
   function newItem(type) {
     const p = P(), x = { id: C.nextId(type), code: p.code, type, ws: one('workstream') || p.ws[0], title: `New ${D.TYPES[type].toLowerCase()}`, owner: '', due: type === 'D' ? D.TODAY : D.addDays(D.TODAY, 7), status: D.STATUSES[type][0], priority: 'Medium', desc: '', update: '', updatedAt: D.stamp(), client: true, clientText: '', ms: '', uc: '', source: 'Added by hand in clark' };
     const u = D.create('item', x, D.who(W.layout === 'board' ? 'on the board' : 'in the table')); Object.assign(W, { type: 'all', show: 'open', q: '', f: {}, not: {} }); W.open[x.ws] = true; saveW(); C.render();
@@ -1358,7 +1362,7 @@
   C.openPub = n => { const p = C.P(), cp = D.pubCopy(p.code, n); if (!cp) return C.toast('That copy is no longer kept.');
     const url = URL.createObjectURL(new Blob([cp.html], { type: 'text/html' })); const w = window.open(url, '_blank'); if (!w) C.toast('Your browser blocked the new tab'); setTimeout(() => URL.revokeObjectURL(url), 60000); };
   const pubsCard = p => { const pubs = (p.published || []).map((r, i) => ({ r, n: D.pubNo(p, i) })).reverse();
-    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. The last ${D.PUB_KEEP} copies are kept.</p>
+    return `<div class="card" id="pubs"><div class="card-h"><h2>Published reports · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. The last ${D.PUB_KEEP} copies are kept. A publication cannot be undone: it keeps its number and its copy.</p>
       ${pubs.length ? `<table class="set stack ppl"><thead><tr><th>#</th><th>Date and time</th><th>Where</th><th>Who</th><th></th></tr></thead><tbody>${pubs.map(({ r, n }) => `<tr data-pub="${n}"><td class="nm" data-l="Publication"><b style="font-weight:500">${n}</b></td><td data-l="Date and time">${D.fd(r.at.slice(0, 10))} ${esc(r.at.slice(11))}</td><td data-l="Where">${esc(r.where || (r.client ? 'Local and to client' : 'Local'))}${r.word ? ' · Word' : ''}${r.pdf ? ' · PDF' : ''}</td><td data-l="Who">${esc(r.who || 'Not recorded')}</td>
         <td class="acts">${D.pubCopy(p.code, n) ? `<button class="btn sm" data-pubopen="${n}">Open</button>` : '<span class="muted">Not kept</span>'}</td></tr>`).join('')}</tbody></table>` : '<p class="muted" id="pubsNone">Nothing published yet. Each publish is listed here with its number.</p>'}</div>`; };
   /* ── People (FR-31a, v0.5; a light simulation): a table from the distinct owners in the data, details by name, "Needs details" where the email is empty, and a paste from Excel ── */
@@ -1427,12 +1431,55 @@
       const u = D.change('project', p, { sources: (p.sources || []).filter((_, i) => i !== +b.dataset.sd) }, D.who('in Settings'), 'Folder removed'); C.refresh(); C.$('#askChoose')?.focus();
       if (u) C.toast(`${s} is off the list. No file was touched.`, u); }));
   };
+  /* Settings › Freshness (#160): "Not reviewed after (days)", one whole number for the project, 14 until it is changed. A number that is 0, a word or too big
+     is refused in plain words and the old one stays. It sets the peek's chip, the Not reviewed filter, the Publish box wording and the optional dashboard tile;
+     the change is one step with Undo, and History records who, how and when. */
+  let rvMsg = { kind: '', text: '' };
+  const reviewCard = p => { const last = D.S.history.filter(h => h.kind === 'project' && h.id === p.code && h.field === 'reviewDays').pop(), w = last && D.whoHow(last);
+    return `<div class="card" id="review"><div class="card-h"><h2>Not reviewed after (days) · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">An open item is flagged when nobody has changed it by hand for this many days. It sets the chip in the peek, the Not reviewed filter in Work items, the warning in the Publish box and the optional Not reviewed tile on the Dashboard.</p>
+      <form class="rv-form" id="rvF" novalidate><label for="rvDays">Days</label><input class="field days-box" id="rvDays" type="text" inputmode="numeric" autocomplete="off" value="${D.staleDays(p.code)}" aria-describedby="rvMsg"${rvMsg.kind === 'error' ? ' aria-invalid="true"' : ''}><button class="btn" type="submit" id="rvSave">Save</button></form>
+      <p class="rv-msg ${rvMsg.kind}" id="rvMsg" role="${rvMsg.kind === 'error' ? 'alert' : 'status'}" aria-live="polite">${esc(rvMsg.text)}</p>
+      ${last ? `<p class="muted" style="font-size:13px;margin:8px 0 0" id="rvLast">Last changed ${D.when(last)} by ${esc(w.who || 'You')}${w.how ? ', ' + esc(w.how) : ''}: ${last.from == null || last.from === '' ? D.STALE_DAYS : last.from} to ${last.to} days.</p>` : ''}</div>`; };
+  const reviewWire = p => {
+    C.$('#rvF')?.addEventListener('submit', e => { e.preventDefault(); const r = D.staleCheck(C.$('#rvDays').value);
+      if (!r.ok) { rvMsg = { kind: 'error', text: r.message }; C.render(); C.$('#rvDays')?.focus(); return; }
+      if (r.days === D.staleDays(p.code)) { rvMsg = { kind: 'note', text: 'That is the number already in use.' }; C.render(); C.$('#rvDays')?.focus(); return; }
+      const u = D.change('project', p, { reviewDays: r.days }, D.who('in Settings'), 'Not reviewed after changed'); rvMsg = { kind: 'note', text: `Saved. Items not reviewed in ${C.dy(r.days)} or more are flagged.` };
+      C.refresh(); C.$('#rvDays')?.focus(); if (u) C.toast(`Not reviewed after ${C.dy(r.days)}`, () => { u(); rvMsg = { kind: '', text: '' }; }); });
+    C.$('#rvDays')?.addEventListener('input', () => { if (rvMsg.kind) { rvMsg = { kind: '', text: '' }; const m = C.$('#rvMsg'); if (m) { m.textContent = ''; m.className = 'rv-msg'; } C.$('#rvDays').removeAttribute('aria-invalid'); } });
+  };
+  /* Settings › Safety (#111): the daily backup switch, the backups by date, Preview, and Restore (what is there now is kept first). A damaged backup is refused in plain words. */
+  let sfMsg = { kind: '', text: '' };
+  const safetyCard = () => { const on = D.S.settings.dailyBackup !== false, st = D.backupStatus(), list = D.backups();
+    return `<div class="card" id="safety"><div class="card-h"><h2>Safety</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">A copy of your data is kept each day, and before a restore. Choose one to look at, or to put back. AI keys and logs are never in a backup.</p>
+      <label class="sw key-sw"><button class="switch" id="sfSw" role="switch" aria-checked="${on}" aria-label="Daily backup"></button><span>Daily backup</span><b class="ask-sw-st" id="sfSwSt" aria-hidden="true">${on ? 'On' : 'Off'}</b></label>
+      <p id="sfStatus" class="sf-status${st.ok ? '' : ' bad'}">${esc(st.text)}</p>
+      ${list.length ? `<ul class="docs sf-list" id="sfList">${list.map(b => `<li data-bk="${esc(b.id)}"><span class="dic">${C.icon('doc', 's')}</span><span><span class="num">${b.when}</span> <span class="tag">${b.label}</span> <span class="muted sf-size">${b.size}</span></span><span></span><span class="acts"><button class="btn sm" data-sfp="${esc(b.id)}">Preview</button> <button class="btn sm" data-sfr="${esc(b.id)}">Restore</button></span></li>`).join('')}</ul>` : '<p class="muted">There are no backups to show yet.</p>'}
+      <p class="muted" style="font-size:13px;margin:8px 0 0">The last ${D.KEEP_BACKUPS} daily backups are kept.</p>
+      <div class="sf-panel" id="sfPanel" role="region" aria-label="Backup preview" hidden></div>
+      <p class="sf-msg ${sfMsg.kind}" id="sfMsg" role="${sfMsg.kind === 'error' ? 'alert' : 'status'}" aria-live="polite">${esc(sfMsg.text)}</p></div>`; };
+  const safetyWire = () => {
+    const say = (kind, text) => { sfMsg = { kind, text }; const m = C.$('#sfMsg'); if (m) { m.className = 'sf-msg ' + kind; m.setAttribute('role', kind === 'error' ? 'alert' : 'status'); m.textContent = text; } };
+    const panel = (html, wire) => { const b = C.$('#sfPanel'); b.innerHTML = html; b.hidden = false; wire && wire(b); b.scrollIntoView({ block: 'nearest', behavior: C.reduce ? 'auto' : 'smooth' }); };
+    const close = () => { const b = C.$('#sfPanel'); b.hidden = true; b.innerHTML = ''; };
+    const look = (id, confirming) => { say('', ''); const r = D.backupPreview(id); if (!r.ok) { close(); say('error', r.message); return; }
+      panel(`<p>This backup is from ${r.when}. It holds ${D.holds(r.copy)}.</p><p>You have ${D.holds(r.now)} now.</p>${confirming ? `<p><b id="sfConfirm">Put back the backup from ${r.when}? What you have now is kept first.</b></p><div class="row"><button class="btn pri" id="sfGo">Put it back</button><button class="btn quiet" id="sfNo">Cancel</button></div>`
+        : `<div class="row"><button class="btn" id="sfRestore">Restore</button><button class="btn quiet" id="sfNo">Close</button></div>`}`, b => {
+        C.$('#sfNo', b).addEventListener('click', () => { close(); say('', ''); });
+        C.$('#sfRestore', b)?.addEventListener('click', () => look(id, true));
+        C.$('#sfGo', b)?.addEventListener('click', async () => { const x = await D.backupRestore(id); if (!x.ok) { close(); say('error', x.message); return; }
+          if (!C.live().some(q => q.code === UI.code)) UI.code = C.live()[0]?.code || ''; C.undoClear(); C.closePeek({ quiet: true }); sfMsg = { kind: 'ok', text: x.message }; C.refresh(); C.toast(x.message, null, { ms: 5000 }); }); });
+      C.$(confirming ? '#sfGo' : '#sfRestore')?.focus(); };
+    C.$$('[data-sfp]').forEach(b => b.addEventListener('click', () => look(b.dataset.sfp, false)));
+    C.$$('[data-sfr]').forEach(b => b.addEventListener('click', () => look(b.dataset.sfr, true)));
+    C.$('#sfSw')?.addEventListener('click', () => { const on = D.S.settings.dailyBackup === false, u = D.setSetting('dailyBackup', on); sfMsg = { kind: '', text: '' }; C.refresh(); C.$('#sfSw')?.focus(); if (u) C.toast(on ? 'Daily backup is on' : 'Daily backup is off', () => { u(); C.refresh(); }); });
+  };
   C.views.settings = {
     html() {
       const p = C.P(), showArch = C.store.get('showArchived', false), nArch = D.S.projects.filter(x => x.archived).length, vis = D.S.projects.filter(x => showArch || !x.archived);
       const me = D.S.profile || {}, pf = (id, k, label, type, ph, ac) => `<label for="${id}">${label}</label><input class="field" id="${id}" data-pf="${k}" type="${type}" autocomplete="${ac}" value="${esc(me[k] || '')}" placeholder="${ph}">`;
       /* an in-page navigation (S2): a sticky row of links to the cards, a row of chips you can scroll sideways on a phone */
-      const nav = [['profile', 'Profile'], ['personal', 'Personal'], ['aiset', 'AI'], ['projects', 'Projects'], ['people', 'People'], ...(p ? [['sources', 'Asking'], ['publishing', 'Publishing'], ['pubs', 'Published reports']] : []), ['data', 'Data'], ['update', 'Version'], ['diagnostics', 'Diagnostics']];
+      const nav = [['profile', 'Profile'], ['personal', 'Personal'], ['aiset', 'AI'], ['projects', 'Projects'], ['people', 'People'], ...(p ? [['sources', 'Asking'], ['review', 'Freshness'], ['publishing', 'Publishing'], ['pubs', 'Published reports']] : []), ['data', 'Data'], ['safety', 'Safety'], ['update', 'Version'], ['diagnostics', 'Diagnostics']];
       return `<div class="head"><div><h1>Settings</h1><p>Your profile, projects, where reports are published, and the folders ask clark may read.</p></div></div>
       <nav class="set-nav" aria-label="Settings sections"><ul>${nav.map(([id, t]) => `<li><a href="#${id}" data-sn="${id}">${t}</a></li>`).join('')}</ul></nav>
       <div class="card" id="profile"><div class="card-h"><h2>Profile</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Who you are in clark: your name goes on your changes and on what you publish. Kept on this computer only.</p>
@@ -1440,7 +1487,9 @@
       <div class="card" id="personal"><div class="card-h"><h2>Personal</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">How clark looks for you. The section style is used on the published report too; Light or Dark is yours alone.</p>
         <h3 class="set-h">Dashboard sections</h3><div class="lays secs" role="radiogroup" aria-label="Dashboard sections">${[['slim', 'Slim gaps', 'Each section is its own card, with a slim gap that shows the page picture.'], ['roomy', 'Roomy gaps', 'The same, with more space between the sections.'], ['head', 'Grey headers', 'Slim gaps, and each section title in a grey band, like the Work items groups.'], ['one', 'One card', 'All the sections in one long card.']].map(([v, t, d]) => `<button class="lay sk-${v}" role="radio" aria-checked="${C.secs() === v}" data-secs="${v}"><span class="lay-sk" aria-hidden="true"><i></i><i></i><i></i></span><b>${t}</b><small>${d}</small></button>`).join('')}</div>
         <h3 class="set-h">Appearance</h3><div class="seg" role="group" aria-label="Appearance">${[['light', 'Light'], ['dark', 'Dark'], ['system', 'System']].map(([v, t]) => `<button data-theme-pick="${v}" aria-pressed="${C.themePref() === v}">${t}</button>`).join('')}</div>
-        <p class="muted" style="font-size:13px;margin:8px 0 0">System follows your Mac's Light or Dark setting, and changes when it does.</p></div>
+        <p class="muted" style="font-size:13px;margin:8px 0 0">System follows your Mac's Light or Dark setting, and changes when it does.</p>
+        <h3 class="set-h">Keys</h3><label class="sw key-sw"><button class="switch" id="skSw" role="switch" aria-checked="${C.keysOn()}" aria-label="Single-key shortcuts"></button><span>Single-key shortcuts</span><b class="ask-sw-st" id="skSwSt" aria-hidden="true">${C.keysOn() ? 'On' : 'Off'}</b></label>
+        <p class="muted" style="font-size:13px;margin:8px 0 0" id="skHelp">Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</p></div>
       <div class="card" id="aiset"><div class="card-h"><h2>AI</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Sign in to Claude for ask clark and the AI menu: the passages they send go to Claude. OpenAI comes in a later version. Keys stay in this computer's keychain, never in clark's files.</p>
         <div class="ai-provs">${AI_PROVS.map(([k, n, how, note, later]) => { const c = aiConn()[k]; return `<div class="ai-prov${c ? ' on' : ''}${later ? ' later' : ''}"><h3>${n} <span class="tag${c ? ' cl' : ''}">${c ? 'Connected' : later ? 'Later' : 'Not connected'}</span></h3><p class="muted">${note}</p>${later ? '' : c ? `<p class="ai-how">${esc(c.how)} · ${c.models.map(esc).join(', ')}</p><button class="btn sm" data-aidisc="${k}">Disconnect</button>` : `<button class="btn pri sm" data-aicon="${k}">Connect…</button>`}</div>`; }).join('')}</div>
         <div class="form" style="margin-top:12px"><label for="aiModel">Model for ask clark</label><select class="field" id="aiModel">${aiModels().length ? aiModels().map(([v, t, rec]) => `<option value="${v}"${C.store.get('aiModel', '') === v ? ' selected' : ''}>${t}${rec ? ' (recommended)' : ''}</option>`).join('') : '<option>Connect Claude first</option>'}</select></div></div>
@@ -1450,12 +1499,14 @@
           <td class="acts">${x.archived ? `<button class="btn sm" data-pr="${x.code}">Restore</button>` : `${x.code !== UI.code ? `<button class="btn sm" data-pop="${x.code}">Open</button> ` : ''}<button class="btn sm" data-pe="${x.code}">Edit</button> <button class="btn sm" data-pa="${x.code}">Archive</button>`}</td></tr>`).join('')}</tbody></table>` : `<p class="muted" id="projNone">${D.S.projects.length ? 'Every project is archived. Choose Show archived to restore one.' : 'No projects yet. Create one to start.'}</p>`}</div>
       ${peopleCard()}
       ${p ? askCard(p) : ''}
+      ${p ? reviewCard(p) : ''}
       ${p ? `<div class="card" id="publishing"><div class="card-h"><h2>Publishing · ${esc(p.name)}</h2></div><p class="muted" style="font-size:14px;margin:-4px 0 12px">Where Publish saves the report. Local is always used; the client folder only when you tick To client.</p>
         <div class="form"><label for="pubL">Local folder</label><input class="field" id="pubL" value="${esc((p.publish || {}).local || '')}" placeholder="A folder on this computer, for example Reports">
         <label for="pubC">Client folder (SharePoint)</label><input class="field" id="pubC" type="url" value="${esc((p.publish || {}).client || '')}" placeholder="https://yourcompany.sharepoint.com/sites/…/Client reports"></div></div>
       ${pubsCard(p)}` : ''}
       <div class="card" id="data"><div class="card-h"><h2>Data</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="sExp">${C.icon('dl', 's')}Export workbook</button><button class="btn" id="sImp">${C.icon('ul', 's')}Import workbook</button><button class="btn danger" id="sReset">Reset the demo data</button></div>
         <p class="muted" style="font-size:13px;margin:10px 0 0">The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases. ${D.S.persistent ? 'Everything is kept in this browser\'s database.' : 'This browser blocked its database, so changes last for this visit only.'}</p></div>
+      ${safetyCard()}
       ${updCard()}${dgCard()}`;
     },
     wire() {
@@ -1494,6 +1545,8 @@
         if (!rows.length) { C.$('#ppMsg').textContent = 'Nothing to add. Paste rows copied from Excel: name, email, organisation, role.'; return; }
         const u = D.setPeople(rows); if (!u) { C.$('#ppMsg').textContent = 'Those details are already in the list.'; return; }
         C.refresh(); C.toast(`${rows.length} ${rows.length === 1 ? 'person' : 'people'} updated`, () => { u(); C.refresh(); }); });
+      C.$('#skSw')?.addEventListener('click', () => { const on = !C.keysOn(); C.store.set('singleKeys', on); C.drawTop(); C.render(); C.$('#skSw')?.focus(); C.toast(on ? 'Single-key shortcuts are on' : 'Single-key shortcuts are off', () => { C.store.set('singleKeys', !on); C.drawTop(); C.render(); }); });
+      if (p) reviewWire(p); safetyWire();
       updWire(); dgWire();
       C.$('#sReset').addEventListener('click', () => C.confirm('Reset the demo data?', '<p>Every change you made in this prototype is replaced by the starting demo data.</p>', 'Reset', () => C.$('#resetDemo').click()));
     },

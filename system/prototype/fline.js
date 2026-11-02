@@ -47,7 +47,7 @@
     milestone: { t: 'Milestone', of: x => { const m = msOf(x); return m ? [m.name, m.id] : []; }, none: x => !x.ms, opts: () => C.mss().map(m => [m.name, m.name]) },
     client: { t: 'Client', of: x => x.client ? ['shown', 'yes'] : ['internal', 'no'], opts: () => [['shown', 'Shown to the client'], ['internal', 'Internal only']] },
     is: { t: 'Is', of: x => [C.isOpen(x) ? 'open' : 'closed', C.isOpen(x) && x.due && D.days(x.due) < 0 ? 'overdue' : '', D.notReviewed(x) ? 'quiet' : '', D.gap(x) ? 'incomplete' : '', x.clientAct ? 'needed' : ''].filter(Boolean),
-      opts: () => [['open', 'Open'], ['closed', 'Closed'], ['overdue', 'Open and overdue'], ['quiet', 'Not reviewed in 14 days'], ['incomplete', 'Open, with no owner or no date'], ['needed', 'Needed from the client']] },
+      opts: () => [['open', 'Open'], ['closed', 'Closed'], ['overdue', 'Open and overdue'], ['quiet', `Not reviewed in ${D.staleDays((C.P() || {}).code)} days`], ['incomplete', 'Open, with no owner or no date'], ['needed', 'Needed from the client']] },
   };
   const ALIAS = { ws: 'workstream', uc: 'usecase', 'use-case': 'usecase', ms: 'milestone', prio: 'priority', state: 'status' };
   const NAMES = Object.keys(FIELDS);
