@@ -128,7 +128,7 @@ class Archived(Base):
                 self.assertEqual(cdp.js("document.querySelectorAll('#archived-peek input, #archived-peek select, #archived-peek textarea, #archived-peek [contenteditable]').length", sid), 0, "read only: nothing to type in")
                 self.assertEqual(cdp.js("document.querySelector('#archived-peek [data-pk-restore]').textContent", sid), "Restore")
                 self.assertEqual(cdp.js("document.querySelector('#archived-peek [data-pk-restore]').getAttribute('aria-label')", sid), "Restore Go live")
-                self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid), "focus goes into the peek, to Close")
+                self.until(cdp, sid, "!!document.activeElement && document.activeElement.hasAttribute('data-pk-close')", "focus goes into the peek, to Close")
                 self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
                 self.assertTrue(cdp.js("(() => { const r = document.querySelector('#archived-peek').getBoundingClientRect(); return r.right <= window.innerWidth + 1 && r.left >= 0; })()", sid), "the peek fits the screen")
                 self.assertEqual(self.flags(), {self.dated: 1, self.undated: 1}, "opening it changes nothing")
