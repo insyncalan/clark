@@ -48,7 +48,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean, onE
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
         {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Add /> : null}
       </header>
-      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} tools={tools} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
+      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} tools={tools} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />
         : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} />)
         : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
         : editing && section.type === "text" && tools.richOn("body")
