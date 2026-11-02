@@ -25,9 +25,15 @@ import { Icon } from "./Icon.jsx";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
-// Adding an item is not built yet (#65 to #67): the Add button says so, in words, and records what was asked for.
+// The Add button (gap list B-8): in clark, a pick makes the item at once and opens it, with "<ID> added" and Undo in the toast
+// (tools.addItem, edit/addItem.js). The published file has no Add (#204); a page with no tools says, in words, that nothing was added.
 const asked = signal("");
-function onAdd(kind) { asked.value = `Add ${kind || "item"} is coming with a later release. Nothing was added.`; }
+function adder(tools) {
+  if (tools && typeof tools.addItem === "function" && !fromFile.value) {
+    return (kind) => { asked.value = ""; tools.addItem(kind, work.value.view === "board" ? "board" : "menu"); };
+  }
+  return (kind) => { const k = kind || "item"; asked.value = `Nothing was added. This page is read only. To add ${/^[aeiou]/.test(k) ? "an" : "a"} ${k}, open the project in clark.`; };
+}
 
 function Owner({ name }) {
   const o = ownerOf(name);
@@ -96,7 +102,7 @@ function Row({ row, today, Cell, stop }) {
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
       <td class="c-prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td>
-      <td class="c-status">{cell("status", row.status, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
+      <td class="c-status">{cell("status", pill.text, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
     </tr>
   );
 }
@@ -198,7 +204,7 @@ export function WorkItems({ tools }) {
       <p class="crumbs">{d.project.name}</p>
       <div class="head">
         <h1>Work items</h1>
-        {tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} /> : null}   {/* a published file is read only: no Add (#204) */}
+        {tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} /> : null}   {/* a published file is read only: no Add (#204) */}
       </div>
       <p class="muted note" role="status" id="work-note">{filterNote.value || asked.value}</p>
       <p class="sr" role="status" aria-live="polite" id="work-live">{announce.value}</p>

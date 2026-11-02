@@ -114,7 +114,7 @@ class Fill(Setup):
                       return out;
                     })()""")
                     self.assertEqual(found, [], f"nothing in a tile sits under its controls or its tag at {width}")
-                    self.assertTrue(p.js("!!document.querySelector('.glance .tgrip') && !!document.querySelector('.glance .teye') && !!document.querySelector('.glance .thid')"), "the controls and the tag were there to check")
+                    self.assertTrue(p.js("!document.querySelector('.glance .tgrip') && !!document.querySelector('.glance .teye') && !!document.querySelector('.glance .thid')"), "the eye and the tag were there to check (a tile has no grip now, A-D19)")
 
     def test_a_lone_health_tile_fills_the_row(self):
         with chrome() as cdp:

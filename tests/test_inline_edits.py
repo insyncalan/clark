@@ -86,6 +86,21 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.change(self.MADE, "due", "2026-10-21")["changes"], {"date": "2026-10-21"})
         self.assertEqual(self.change(self.MADE, "owner", "")["changes"], {"made_by": None}, "a decider may be cleared")
 
+    def test_a_status_pick_says_when_the_cell_will_still_read_something_else(self):
+        """B-13: the cell shows the live look, so the toast says why a pick leaves it reading Overdue, Due soon or a risk's colour."""
+        late = {**self.ACTION, "due_date": "2026-10-20"}
+        self.assertEqual(self.change(late, "status", "Delayed")["words"],
+                         "Status of ABC-A-001 changed to Delayed. It still shows Overdue because the due date has passed.")
+        soon = {**self.ACTION, "status": "Delayed"}
+        self.assertEqual(self.change(soon, "status", "Open")["words"],
+                         "Status of ABC-A-001 changed to Open. It shows Due soon because the due date is within 7 days.")
+        far = {**self.ACTION, "due_date": "2026-12-20"}
+        self.assertEqual(self.change(far, "status", "Delayed")["words"], "Status of ABC-A-001 changed to Delayed.", "Delayed reads Delayed: nothing to add")
+        self.assertEqual(self.change(late, "status", "Closed")["words"], "Status of ABC-A-001 changed to Closed.", "a closed action is never overdue")
+        closed_risk = {**self.RISK, "status": "Closed"}
+        self.assertRegex(self.change(closed_risk, "status", "Open")["words"],
+                         r"^Status of ABC-007 changed to Open\. It shows \w+, which comes from its impact and likelihood\.$")
+
     def test_what_undo_says_is_the_value_the_cell_goes_back_to(self):
         self.assertEqual(self.change(self.RISK, "due", "2026-12-01")["back"], "Due date of ABC-007 is blank again.")
         self.assertEqual(self.change(self.PENDING, "owner", "Ada Quillfeather")["back"], "Decider of ABC-D-001 is blank again.")
@@ -138,14 +153,6 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.js(f"E.statusNote({json.dumps(self.ACTION)}, 'Closed')"), "")
         self.assertEqual(self.change(self.MADE, "status", "Withdrawn")["changes"], {"status": "Withdrawn"}, "a made decision keeps its date")
         self.assertEqual(self.change({**self.MADE, "status": "Withdrawn"}, "status", "Pending")["changes"], {"status": "Pending", "date": None})
-
-    def test_the_status_cell_in_edit_says_the_status_its_picker_offers(self):
-        late = {**self.ACTION, "status": "Delayed", "due_date": "2026-10-01"}       # View reads Overdue
-        soon = {**self.ACTION, "due_date": "2026-10-30"}                             # View reads Due soon
-        got = self.js(f"[{json.dumps(late)}, {json.dumps(soon)}, {json.dumps(self.RISK)}, {json.dumps({**self.RISK, 'status': 'Cancelled'})}, "
-                      f"{json.dumps(self.PENDING)}, {json.dumps(self.MADE)}, {json.dumps({**self.MADE, 'status': 'Withdrawn'})}, {json.dumps({**self.ACTION, 'status': 'Closed'})}].map(E.statusPill)")
-        self.assertEqual(got, [{"text": "Delayed", "class": "a"}, {"text": "Open", "class": "b"}, {"text": "Open", "class": "b"}, {"text": "Cancelled", "class": "n"},
-                               {"text": "Pending", "class": "b"}, {"text": "Made", "class": "g"}, {"text": "Withdrawn", "class": "n"}, {"text": "Closed", "class": "n"}])
 
     def test_a_raid_items_priority_says_why_it_is_not_a_picker(self):
         got = self.js(f"[{json.dumps(self.RISK)}, {json.dumps({**self.RISK, 'kind': 'issue'})}, {json.dumps(self.ACTION)}, {json.dumps(self.PENDING)}].map(r => E.whyFixed(r, 'priority'))")
@@ -431,7 +438,7 @@ class Live(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width)
                 cell = "[data-cell='TUL-007:status']"
-                self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Open", "Edit shows the status itself, the picker's word, not the risk's colour")
+                self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Red", "Edit shows the live look, as View does: the risk's colour, while the picker sets the raw status")
                 before = self.steps()
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
@@ -446,7 +453,7 @@ class Live(unittest.TestCase):
                 self.undo(cdp, sid, "status", "Status of TUL-007 is back to Open.")
                 r = self.row("raid", "TUL-007")
                 self.assertEqual((r["status"], r["closed"]), ("Open", None))
-                self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Open'", "Undo draws it open")
+                self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Red'", "Undo draws the live look again")
                 # keyboard: Space opens, End jumps, Enter picks
                 cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
                 key(cdp, sid, " ")
@@ -458,15 +465,18 @@ class Live(unittest.TestCase):
                 self.assertEqual(self.row("raid", "TUL-007")["status"], "Cancelled")
                 self.undo(cdp, sid, "status by keyboard")
                 self.assertEqual(self.row("raid", "TUL-007")["status"], "Open")
-                # an action given Delayed reads Delayed in the cell, the same word as the toast, whatever its due date
+                # an action given Delayed reads Delayed in the cell (live look: Delayed unless it is overdue)
                 acell = "[data-cell='TUL-A-001:status']"
+                live = self.cell_text(cdp, sid, "TUL-A-001", "status")
+                self.assertEqual(live, "Due soon", "an action due on 2026-11-02, read on 2026-10-28, reads its live look (Due soon, not the raw status Open)")
+                self.assertEqual(cdp.js(f"document.querySelector(\"{acell}\").getAttribute('aria-label')", sid), "Status of TUL-A-001: Due soon. Change", "the name says what is seen")
                 click(cdp, sid, acell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the action's status menu opened")
                 click(cdp, sid, "[data-pop] [data-value=Delayed]")
                 self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Delayed'", "the cell says Delayed")
                 self.assertEqual(self.toast(cdp, sid), "Status of TUL-A-001 changed to Delayed.")
                 self.undo(cdp, sid, "action status")
-                self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Open'", "Undo draws it Open")
+                self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === {json.dumps(live)}", "Undo draws the live look again")
 
     def test_a_pending_decision_made_gets_todays_date_and_no_undo(self):
         with chrome() as cdp:

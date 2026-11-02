@@ -8,7 +8,9 @@ import { TILE_TITLES, OUTLINE_CHOICES, stepTile } from "../glanceTiles.js";
 export const dropTile = signal(null);        // while a tile is dragged: { key, side: "left" | "right" } of the tile it would go before or after
 export const pendingHealth = signal("");     // a health picked while the reason is empty: it is saved with the reason, when the reason box is left
 
-const focusLater = (key, part) => setTimeout(() => { const el = document.querySelector(`[data-tile="${key}"] ${part}`); if (el) el.focus(); }, 0);
+// `part` is a selector inside the tile; the first control it finds takes focus (the tile's figure, or Project health's pill: the tile has no grip now)
+const focusLater = (key, part) => setTimeout(() => { const t = document.querySelector(`[data-tile="${key}"]`), el = t && t.querySelector(part); if (el) el.focus(); }, 0);
+const TILE_FOCUS = "button.fig, button.hpill";
 const keepFocus = (done, key, part) => done.then((r) => { focusLater(key, part); return r; });
 
 export function hideTile(key, hidden, place = "menu") {
@@ -19,14 +21,14 @@ export function hideTile(key, hidden, place = "menu") {
 export function outlineTile(key, outline) {
   const name = (OUTLINE_CHOICES.find((c) => c[0] === outline) || [0, ""])[1].toLowerCase();
   return keepFocus(change({ kind: "glance_tiles", op: "update", id: key, changes: { outline }, place: "menu" },
-    outline ? `${TILE_TITLES[key]} outline: ${name}.` : `${TILE_TITLES[key]} outline: automatic.`), key, "[data-tile-grip]");
+    outline ? `${TILE_TITLES[key]} outline: ${name}.` : `${TILE_TITLES[key]} outline: automatic.`), key, TILE_FOCUS);
 }
 
 /** Move tile `key` before tile `before` (null: to the end). Moved to where it already is, it does nothing. */
 export function moveTile(key, before, order, place = "report") {
   const at = order.indexOf(key);
   if (before === key || (before === null ? at === order.length - 1 : order[at + 1] === before)) return Promise.resolve(null);
-  return keepFocus(change({ kind: "glance_tiles", op: "move", id: key, before, place }, `${TILE_TITLES[key]} moved.`), key, "[data-tile-grip]");
+  return keepFocus(change({ kind: "glance_tiles", op: "move", id: key, before, place }, `${TILE_TITLES[key]} moved.`), key, TILE_FOCUS);
 }
 export function stepOne(key, dir, order) {
   const s = stepTile(order, key, dir);

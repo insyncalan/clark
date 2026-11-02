@@ -445,6 +445,15 @@ textarea.tpl-field { resize: vertical; }
 .tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-small); }
 .tpl-empty { margin: 0; }
 
+/* Settings › Projects (A-S6) */
+.projects .proj-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.projects .proj-head h2 { margin: 0; }
+.projects .proj-head .btn[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); }
+.projects table.proj-table { table-layout: auto; }
+.projects table.proj-table td.acts { text-align: right; white-space: nowrap; }
+.projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }
+.projects table.proj-table tr.arch td { color: var(--text-muted); }
+.projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
 .ms-eye.is-left { color: var(--status-blue-text); }
