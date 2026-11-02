@@ -216,6 +216,16 @@ class Check(unittest.TestCase):
         self.assertIn("the gh command was not found", said)
         self.assertNotIn("Traceback", said)
 
+    def test_gh_not_answering_exits_2_with_a_plain_line_and_the_call_has_a_timeout(self):
+        with mock.patch.object(mod.subprocess, "run", side_effect=mod.subprocess.TimeoutExpired("gh", mod.GH_TIMEOUT)) as run:
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+                code = mod.main([])
+        self.assertEqual(code, 2)
+        self.assertIn("did not answer within", err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+        self.assertEqual(run.call_args.kwargs.get("timeout"), mod.GH_TIMEOUT)
+
     def test_an_answer_that_is_not_json_exits_2(self):
         code, said = self._exit(return_value=mock.Mock(returncode=0, stdout="<html>"))
         self.assertEqual(code, 2)

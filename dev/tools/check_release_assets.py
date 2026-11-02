@@ -12,7 +12,8 @@ From 0.5.0 on it must also carry the zip's own SHA-256 in its text (the 64-chara
 when GitHub gives no digest for the asset, as on an older release, any 64-character SHA-256 in the text passes and the check says
 so), and its zip must have been attached before the release was published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
-Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, or an unreadable answer).
+Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
+60 seconds, or an unreadable answer).
 The pure check is `problems(releases, tags, notes)`, tested with made-up data.
 """
 import json
@@ -22,6 +23,7 @@ import sys
 
 REPO = "insyncalan/clark"
 REPO_FORM = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+GH_TIMEOUT = 60              # seconds one `gh api` call may take before the check gives up (exit 2)
 FIRST_CHECKED = (0, 1, 0)
 FIRST_ORDERED = (0, 5, 0)    # the first release cut with the build-attach-launch-then-publish steps
 DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])")
@@ -142,7 +144,11 @@ def main(argv=None):
     for page in range(1, 50):
         try:
             run = subprocess.run(["gh", "api", f"repos/{repo}/releases?per_page=100&page={page}"], capture_output=True,
-                                 text=True, encoding="utf-8")
+                                 text=True, encoding="utf-8", timeout=GH_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            print(f"The releases can't be read: GitHub did not answer within {GH_TIMEOUT} seconds. Check the network "
+                  f"connection, then try again.", file=sys.stderr)
+            return 2
         except OSError:
             print("The releases can't be read: the gh command was not found. Install the GitHub command line tool (gh), "
                   "run `gh auth login`, then try again.", file=sys.stderr)
