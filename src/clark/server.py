@@ -81,7 +81,7 @@ MESSAGES = {
     "send_json": f"That could not be read. {RELOAD}",
     "length_required": f"That could not be read. {RELOAD}",
     "too_large": "That is too big for clark to take. Try again with less in it.",
-    "change_too_large": "That is too big to save. Shorten a line or remove some lines, then try again.",
+    "change_too_large": "That is too big to save. Make the text shorter, or take some of the list out, then try again.",
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
@@ -101,8 +101,20 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
-CHANGE_BODY_LIMIT = 2 * 64 * 1024 + 4 * 1024   # #96: twice the largest section content (64 KB; the body is a string inside the request, so each quote and backslash is escaped twice) plus 4 KB; a test ties it to the registry
-ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+# #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
+# tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
+# gets the general words. No request kind is given a larger door. tests/test_tracker_route.py pins this over the real route.
+SECTION_BODY_MAX = 256 * 1024          # #405: the largest section content the change route carries: the stored limit of "Needs from you" and the tracker (a template's body is 64 KB at most); a test keeps it equal to the checker's largest
+ESCAPE_FACTOR = 2                      # the body is a string inside the request, so each quote and backslash is escaped once more: at worst twice the bytes. A client that writes non-ASCII as \\u escapes can take three times a plain letter's bytes; the page sends plain UTF-8, and "Needs from you" and the tracker are measured over the route in tests
+REQUEST_ENVELOPE = 4 * 1024            # the request around the body: its kind, op, id and the rest of its changes
+
+
+def change_body_limit(body_max=SECTION_BODY_MAX):
+    return ESCAPE_FACTOR * body_max + REQUEST_ENVELOPE
+
+
+CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378, #405: 516 KB today; moves with the three above, never with a bare number
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
@@ -308,23 +320,53 @@ def csp_take(n):
 
 class Refused:
     """Requests turned away before authorised() let them in (#234): counted, never a line of their own, so a page on another
-    site looping requests at this port cannot fill the day's log. Once `interval` seconds are up, the next one writes the
-    count in one line: a number only, nothing of any request (no path, query, header or Origin). `clock` is monotonic, so a
-    clock stepping back never holds the line back; tests pass their own."""
+    site looping requests at this port cannot fill the day's log. A burst in one window of `interval` seconds writes exactly
+    one line, when the window ends: how many were turned away and how long the window was. A timer writes it, so a lone
+    refusal or a last burst before quiet is still written; a later request writes it too if the timer has not yet. Nothing is
+    written when the first request arrives. Only two whole numbers are written: nothing of any request (no path, query, header
+    or Origin). `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
+    `timer=None`."""
 
-    def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic):
-        self.interval, self.clock, self.lock = interval, clock, threading.Lock()
-        self.since, self.n = None, 0
+    def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic, timer=threading.Timer):
+        self.interval, self.clock, self.timer, self.lock = interval, clock, timer, threading.Lock()
+        self.since, self.n, self.gen = None, 0, 0
+
+    def _close(self):
+        """End the window (the lock is held): the count of the requests in it, or 0."""
+        n, self.since, self.n = self.n, None, 0
+        return n
+
+    def flush(self, gen=None):
+        """Write what the window counted and end it (the timer calls this, for the window it was started for)."""
+        with self.lock:
+            if gen is not None and gen != self.gen:
+                return                                   # that window already ended; a newer one has its own timer
+            n = self._close()
+        self._say(n)
+
+    def _say(self, n):
+        """The one line for a window that has ended: fixed words (one message for 1, one for more), with only whole numbers
+        (how many, and how many seconds the window was) as values."""
+        secs = int(round(self.interval))
+        if n == 1:
+            LOG.warning("1 request was turned away in the last %d seconds.", secs)
+        elif n:
+            LOG.warning("%d requests were turned away in the last %d seconds.", n, secs)
 
     def count(self):
+        done = 0
         with self.lock:
             now = self.clock()
-            n = 0
-            if self.since is None or now - self.since >= self.interval:
-                n, self.since, self.n = self.n, now, 0
+            if self.since is not None and now - self.since >= self.interval:
+                done = self._close()                     # the window ended before the timer wrote it
+            if self.since is None:
+                self.since, self.gen = now, self.gen + 1
+                if self.timer:
+                    t = self.timer(self.interval, self.flush, (self.gen,))
+                    t.daemon = True
+                    t.start()
             self.n += 1
-        if n:
-            LOG.warning("%d requests were turned away and not logged one by one", n)
+        self._say(done)
 
 
 REFUSED = Refused()
@@ -790,8 +832,10 @@ def ask_route(method):
         if service is None:
             return handler.send(404, error_body("not_found"))
         status, body = getattr(service, method)(*req)
-        if method == "ask" and isinstance(body, dict) and body.get("held") is True:
-            LOG.warning("question answer dropped, it held the private marker")     # #277: a fixed line; no reply, no marker
+        if method == "ask" and isinstance(body, dict) and "held" in body:
+            if body["held"] is True:
+                LOG.warning("question answer dropped, it held the private marker")     # #277: a fixed line; no reply, no marker
+            body = {k: v for k, v in body.items() if k != "held"}                 # #300: the log needs the flag; the page does not
         return handler.send(status, body)
     return route
 
@@ -1132,6 +1176,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
     finally:
         wait_for_jobs()                   # a POST that began just before the stop finishes first (its write is not cut off)
         httpd.server_close()
+        REFUSED.flush()                   # the refused-request window still open is written now (#260): a last burst before exit is not lost
     return 0
 
 

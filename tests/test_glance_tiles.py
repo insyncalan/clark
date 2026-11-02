@@ -106,7 +106,7 @@ class Tiles(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "the file drew its tiles")
             self.assertEqual(cdp.js("document.querySelectorAll('.fig.go, .glance button').length", sid), 0)
 
-    def test_project_health_is_two_tile_widths_and_the_tiles_follow_it_from_the_left(self):
+    def test_project_health_is_two_tile_widths_and_the_tiles_fill_the_row(self):
         s = self.serve()
         code = next(iter(self.data))
         with chrome() as cdp:
@@ -118,7 +118,9 @@ class Tiles(unittest.TestCase):
             self.assertAlmostEqual(health[0], row[0], delta=1)
             self.assertAlmostEqual(health[2], 2 * first[2] + gap, delta=1.5, msg="health spans two tile widths")
             tiles = [box(f"[data-tile={k}]") for k in ("overdue", "risks", "decisions")]
-            self.assertTrue(all(abs(t[2] - 190) < 2 for t in tiles), "the other tiles keep their own width")
+            self.assertTrue(all(abs(t[2] - first[2]) < 2 and t[2] >= 148 for t in tiles), "the other tiles share the rest equally (A-D14)")
+            last = box("[data-tile=%s]" % cdp.js("document.querySelector('.glance').lastElementChild.dataset.tile", sid))
+            self.assertAlmostEqual(last[1], row[1], delta=1.5, msg="the tiles fill the row to its right edge")
 
 
 KINDS = ("health", "overdue", "risks", "decisions")

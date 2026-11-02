@@ -110,6 +110,19 @@ class Store(Base):
         self.assertEqual(out["skipped"], [], "the change's own time stamp does not block it")
         self.assertIsNone(self.action(a))
 
+    def test_a_moved_time_stamp_does_not_stop_the_undo(self):
+        """#279: the stamp follows every change and every undo. The store's own checks are pinned in
+        test_holds_ignore_updated_at; this goes through the whole undo, with the stamp moved by an unrelated step."""
+        a = self.demo.action()
+        b = self.edit(a, owner="Sam Example")
+        self.s.con.execute("UPDATE actions SET updated_at = ? WHERE id = ?", ("2031-01-01T00:00:00", a))     # the stamp moves
+        self.s.con.commit()
+        with self.s.step("dashboard", USER) as st:                      # a later step whose only row is a stamp
+            store_module.log(st.con, st, "actions", a, "updated_at", "2031-01-01T00:00:00", "2031-01-02T00:00:00", "update")
+        out = self.s.undo(b, USER)
+        self.assertEqual(out["skipped"], [], "the undo goes ahead")
+        self.assertNotEqual(self.action(a)["owner"], "Sam Example")
+
     def test_a_later_change_not_chosen_leaves_its_item_as_it_is(self):
         a = self.demo.action()
         b = self.edit(a, owner="Sam Example")

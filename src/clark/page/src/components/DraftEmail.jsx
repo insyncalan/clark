@@ -7,6 +7,8 @@ import { MODES, LABELS, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mai
 
 export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip }) {
   const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);       // #258: I sent it is in flight; a second press does nothing until the reply
+  const inFlight = useRef(false);
   const preview = useRef(null);
   const edited = useRef(false);
   const shown = useRef("");
@@ -37,12 +39,16 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
   // onSent(entry) may answer {ok: true} (saved in the history), {ok: false, message} (not saved: the note says why and nothing is
   // marked) or nothing (a caller that does not save yet: the note says so).
   const sent = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaving(true);
     try {
       const entry = sentEntry(draft ? draft.ids : [], state.mode, today);
       const r = onSent ? await onSent(entry) : null;
       if (r && typeof r === "object" && r.ok === false) setNote(typeof r.message === "string" && r.message ? r.message : sentWords(entry, false, true));
       else setNote(sentWords(entry, !!(r && typeof r === "object" && r.ok === true)));
     } catch (e) { setNote(e.message); }
+    finally { inFlight.current = false; setSaving(false); }
   };
   const keys = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (onClose) onClose(); } };
   if (!draft) {
@@ -98,7 +104,7 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
         <button type="button" class="pk-btn pri" disabled={!!problem} onClick={() => copy("outlook")}>{LABELS.copyOutlook}</button>
         <button type="button" class="pk-btn" disabled={!!problem} onClick={() => copy("text")}>{LABELS.copyText}</button>
         {link.href ? <a class="pk-btn" href={link.href}>{LABELS.mail}</a> : null}
-        <button type="button" class="pk-btn" disabled={!!problem} onClick={sent}>{LABELS.sent}</button>
+        <button type="button" class="pk-btn" disabled={!!problem || saving} onClick={sent}>{LABELS.sent}</button>
         <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button>
       </div>
     </div>

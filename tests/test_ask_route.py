@@ -194,7 +194,7 @@ class WhatIsSent(Base):
         self.assertEqual(self.question("How is the plan?")[0], 200)
         self.assertEqual(framed.sent[0], framed.envelope(text))
         self.assertNotIn(str(self.d), text, "no path of this computer")
-        self.assertTrue(text.startswith(ask.RULES))
+        self.assertNotIn(ask.RULES, text, "the rules are the system prompt, not part of the request text (#278)")
 
     def test_writes_nothing(self):
         before = self.counts()

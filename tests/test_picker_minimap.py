@@ -660,7 +660,7 @@ class Fit(InBrowser):
             self.assertTrue(wait(lambda: self.js("!!document.querySelector('.toc')")))
             self.settle()
             self.assertIs(self.js("document.documentElement.scrollWidth <= window.innerWidth"), True, f"shut, no sideways scroll at {width}")
-            self.js("document.querySelector('.toc-lines').focus()")
+            self.js("document.querySelector('.toc-lines').click()" if width <= 900 else "document.querySelector('.toc-lines').focus()")   # at 900 it is the "On this page" button
             self.settle()
             self.assertIs(self.js("document.querySelector('.toc').classList.contains('open')"), True)
             box = self.val("(function(){ const r = document.querySelector('.toc-card').getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom]; })()")
