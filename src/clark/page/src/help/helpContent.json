@@ -492,7 +492,7 @@
      "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. Back returns to the list."
+     "Click a name to open the use case on its own page. Click **Use cases** in the path at the top of the page to return to the list."
     ]
    },
    {
