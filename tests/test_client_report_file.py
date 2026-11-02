@@ -20,7 +20,7 @@ from test_server import chrome, wait
 from test_client_report import MODULE
 from test_work_items import bundled
 
-NOTHING_FOR_THE_AUTHOR = r"on the Dashboard|Nothing written|Nothing here yet|not built|counts the same|Click to write|Not set|No milestones yet|[Nn]o open risks"
+NOTHING_FOR_THE_AUTHOR = r"on the Dashboard|Nothing written|Nothing here yet|not built|counts the same|Click to write|Not set|No milestones yet|[Nn]o open risks|Escalate"
 
 
 def hide_risks(plant):
@@ -96,6 +96,26 @@ class Nothing(unittest.TestCase):
         self.assertNotIn("nextweek", got)
         self.assertEqual(shown(pub, editing=True), ["progress", "plans", "highlights", "nextweek", "raid"], "Edit keeps its boxes and prompts")
 
+    def test_the_built_file_holds_no_code_that_draws_an_id_an_escalate_line_or_an_author_sentence(self):
+        # The 0.5.0 hand-check, step 14: what the client's page drew that is for the team or the author. The built file is searched
+        # for each (the words only the client report drew; "Not set" and "Nothing written yet" are also words of Edit and of other
+        # pages, so those two are pinned by the rendered-text tests below and by the sectionsShown tests).
+        _, _, text = made()
+        for gone in ("Escalate", "cr-esc", 'class: "wl-id"', 'class: "idl"', "The delivery progress template", "cr-placeholder",
+                     "Write it in the"):
+            self.assertNotIn(gone, text, gone)
+
+    def test_a_highlights_box_with_no_words_is_left_out_not_filled_with_a_prompt(self):
+        _, pub, _ = made(words)
+        self.assertEqual(shown(pub), ["progress", "plans", "highlights", "nextweek", "raid"], "with words the pair is drawn")
+        def blank(d):
+            for sec in d["report_sections"]:
+                if sec["title"] in ("This week", "Next week"):
+                    sec["body"] = "<p>&nbsp;</p>"
+        got = shown(pub, mutate=blank)
+        self.assertNotIn("highlights", got)
+        self.assertNotIn("nextweek", got)
+
     def test_no_milestones_and_no_health_leave_the_progress_parts_out(self):
         _, pub, _ = made()
         def bare(d):
@@ -145,7 +165,10 @@ class RealBrowser(unittest.TestCase):
             shown = js("document.querySelector('#clientreport').innerText")
             for out in ("ZQ-HIDDEN-MILESTONE", "ZQ-FLAG-OFF-MILESTONE", "ZQ-FLAG-OFF-RISK"):
                 self.assertNotIn(out, shown)
-            self.assertNotRegex(shown, NOTHING_FOR_THE_AUTHOR, "no placeholder text: not 'Not set', not an empty-state sentence")
+            self.assertNotRegex(shown, NOTHING_FOR_THE_AUTHOR, "no placeholder text: not 'Not set', not an empty-state sentence, no Escalate line")
+            for row_id in [r["id"] for r in self.pub["data"]["raid"]] + [m["id"] for m in self.pub["data"]["milestones"]]:
+                self.assertNotIn(row_id, shown, "no row id is drawn on the client's page")
+            self.assertEqual(js("document.querySelectorAll('#cr-raid .cr-esc, #cr-raid .wl-id, #cr-raid .idl').length"), 0)
             self.assertEqual(js("[...document.querySelectorAll('[data-line]')].every(l => l.querySelector('.c-ac').innerText.trim() !== '')"), True, "an Achieved with no percent is a dash, not blank")
             self.assertEqual(js("document.querySelectorAll('#clientreport input, #clientreport textarea, #clientreport select, #clientreport [contenteditable], #clientreport [data-placeholder]').length"), 0)
             self.assertEqual(js("window.violations"), [], "the policy blocked nothing")

@@ -1308,7 +1308,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .client-report .slot-left > .sec-body, .client-report .slot-right > .sec-body { margin-top: 8px; }
 /* Risks, delays and items to watch: one slim row for each item. */
 .cr-wl { list-style: none; margin: 8px 0; padding: 0; }
-.cr-wl .wl-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 4px 16px; align-items: start; padding: 10px 0; border-top: 1px solid var(--grey-200); }
+.cr-wl .wl-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 4px 16px; align-items: start; padding: 10px 0; border-top: 1px solid var(--grey-200); }
 .cr-wl .wl-row:first-child { border-top: 0; }
 .cr-wl .wl-state { padding-top: 1px; }
 .cr-wl .wl-main { display: grid; gap: 4px; min-width: 0; }
@@ -1316,11 +1316,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .cr-wl .wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--size-small); color: var(--text-muted); }
 .cr-wl .wl-meta .who { align-items: center; gap: 6px; color: var(--text); }
 .cr-wl .wl-meta .dot { color: var(--text-muted); }
-.cr-wl .wl-meta b { font-weight: var(--weight-medium); color: var(--status-red-text); }
 .cr-wl .wl-resp { font-size: var(--size-small); color: var(--text); overflow-wrap: anywhere; }
-.cr-wl .wl-id { padding-top: 2px; }
-.cr-wl .idl { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
-@media (max-width: 900px) { .cr-wl .wl-row { grid-template-columns: 88px minmax(0, 1fr); } .cr-wl .wl-id { grid-column: 2; padding-top: 0; } }
+@media (max-width: 900px) { .cr-wl .wl-row { grid-template-columns: 88px minmax(0, 1fr); } }
 
 /* The Use Cases tab of a published file (view only): each use case is a closed row that opens in place. */
 .ucp { border-top: 1px solid var(--grey-100); }

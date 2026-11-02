@@ -83,8 +83,19 @@ class Source(unittest.TestCase):
         for rel in ("ClientReport.jsx", "clientreport/Overall.jsx", "clientreport/Plans.jsx", "clientreport/Pair.jsx", "clientreport/Risks.jsx"):
             code = re.sub(r"//[^\n]*", "", text("components", *rel.split("/")))
             for bad in (r"on the Dashboard", r"Add a ", r"Write it", r"Nothing written", r"Nothing here yet", r"not built", r"counts the same",
-                        r"fills in once", r"worked out", r"cr-how", r"placeholder", r"is the project's milestones"):
+                        r"fills in once", r"worked out", r"cr-how", r"placeholder", r"is the project's milestones", r"Escalate"):
                 self.assertNotRegex(code, bad, rel)
+
+    def test_a_risk_row_draws_no_item_number_and_no_escalate_line(self):
+        # ruling on the 0.5.0 hand-check (step 14): the client view, in View and in the published file, leaves out the row's id
+        # ("TUL-010" at the right of each row) and the "Escalate: Yes" line. Neither is drawn in any mode.
+        code = re.sub(r"//[^\n]*", "", text("components", "clientreport", "Risks.jsx"))
+        for bad in (r">\s*\{r\.id\}\s*<", r"Escalate", r"escalate", r"cr-esc", r"wl-id", r"idl", r"data-id"):
+            self.assertNotRegex(code, bad, "Risks.jsx draws " + bad)
+        css = (PAGE / "shell.css").read_text(encoding="utf-8")
+        block = css[css.index(".cr-wl {"):css.index("/* The Use Cases tab of a published file")]
+        for bad in ("cr-esc", "wl-id", ".idl"):
+            self.assertNotIn(bad, block, "the look of a part that is no longer drawn is gone")
 
     def test_the_cover_is_a_dark_band_with_the_title_the_week_line_a_picture_and_a_logo(self):
         body = text("components", "ClientReport.jsx")
@@ -278,6 +289,12 @@ class Drawn(unittest.TestCase):
                     time.sleep(0.3)
                     # the demo has no Highlights or Next week text: the View leaves those two boxes out, Edit keeps them for the author to fill
                     self.check(cdp, sid, f"{'Edit' if edit else 'View'} {width}px {theme}", SECTION_ORDER if edit else ["progress", "plans", "raid"])
+                    shown = cdp.js("document.querySelector('#clientreport').innerText", sid)
+                    self.assertNotRegex(shown, r"Escalate", f"{width}px {theme}: no Escalate line, in either mode")
+                    self.assertEqual(cdp.js("document.querySelectorAll('#cr-raid .cr-esc, #cr-raid .wl-id, #cr-raid .idl, #cr-raid [data-id]').length", sid), 0)
+                    self.assertNotRegex(cdp.js("document.querySelector('#cr-raid').innerText", sid), r"\b[A-Z]{2,6}-\d{3}\b", f"{width}px {theme}: no row id on a risk row")
+                    if not edit:
+                        self.assertNotRegex(shown, r"Not set|Nothing written|Write it in|not built yet|No milestones yet", f"View {width}px {theme}: no prompt for the author")
 
     def test_view_at_1400_and_900_in_light_and_dark(self):
         self.run_view(False)
