@@ -267,6 +267,85 @@ class Duplicate(unittest.TestCase):
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x", "client_visible": None}, "place": "menu"})
         self.assertNotEqual(status, 200, body)
 
+    # ---- #442 row 42: a copy keeps the item's status, description, latest update and use case; its source says where it came from ----
+
+    def fill(self, kind, ref, **values):
+        with self.s.step("dashboard", USER) as st:
+            st.update(kind, ref, values)
+
+    def test_a_copy_keeps_status_description_latest_update_and_use_case_and_says_where_it_came_from(self):
+        cases = {"actions": {"status": "Delayed", "latest_update": "ZQUPD waiting on stock"},
+                 "raid": {"status": "Closed", "response_action": "ZQDESC order a second supplier"},
+                 "decisions": {"status": "Pending", "reasoning": "ZQWHY cheaper", "options": "ZQOPT two", "revisit": "2030-02-01"}}
+        for kind, more in cases.items():
+            with self.subTest(kind=kind):
+                src = self.make(kind, f"ZQ442{kind}")
+                self.fill(kind, src, **more)
+                status, body = self.dup(kind, src)
+                self.assertEqual(status, 200, body)
+                was, copy = self.s.read(kind, ref=src), self.s.read(kind, ref=body["ref"])
+                for k in more:
+                    self.assertEqual(copy[k], was[k], k)
+                self.assertEqual(copy["source"], "Duplicated from " + src)
+                self.assertEqual(self.s.read(kind, ref=src)["source"], "demo", "the original is untouched")
+                if more["status"] in ("Closed", "Cancelled"):
+                    self.assertEqual(copy["closed"], copy["raised"], "a closed copy is closed on the day it was raised")
+                status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+                self.assertEqual((status, undone["ok"], self.s.read(kind, ref=body["ref"])), (200, True, None))
+
+    def test_a_made_decision_keeps_its_date_and_every_kind_keeps_its_use_case(self):
+        src = self.make("decisions", "ZQMADE")
+        self.fill("decisions", src, status="Made", date="2026-10-20")
+        status, body = self.dup("decisions", src)
+        self.assertEqual(status, 200, body)
+        self.assertEqual([self.s.read("decisions", ref=body["ref"])[k] for k in ("status", "date")], ["Made", "2026-10-20"])
+        for kind in self.KINDS:
+            link = self.make(kind, f"ZQUC{kind}")
+            self.fill(kind, link, use_case=self.demo.use_case)
+            status, body = self.dup(kind, link)
+            self.assertEqual(status, 200, body)
+            self.assertEqual(self.s.read(kind, ref=body["ref"])["use_case"], self.demo.use_case, kind)
+
+    def test_the_request_cannot_name_what_the_server_copies(self):
+        src = self.make("actions", "ZQNAMED")
+        self.fill("actions", src, status="Delayed", latest_update="ZQKEPT")
+        for key, value in (("status", "Closed"), ("latest_update", "ZQFORGED"), ("source", "Elsewhere"), ("use_case", "UC-1"), ("labels", ["Sensitive"])):
+            with self.subTest(key=key):
+                status, body = self.change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x (copy)", key: value},
+                                            "copy_of": src, "place": "menu"})
+                self.assertNotEqual(status, 200, body)
+        status, body = self.dup("actions", src)
+        self.assertEqual((self.s.read("actions", ref=body["ref"])["latest_update"], self.s.read("actions", ref=body["ref"])["status"]), ("ZQKEPT", "Delayed"))
+
+    def test_a_plain_add_still_says_added_by_hand_and_starts_open(self):
+        status, body = self.change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "ZQFRESH"}, "place": "menu"})
+        self.assertEqual(status, 200, body)
+        row = self.s.read("actions", ref=body["ref"])
+        self.assertEqual((row["source"], row["status"], row["latest_update"]), ("Added by hand in clark", "Open", None))
+
+    def test_what_a_copy_keeps_never_publishes_what_the_originals_hiding_keeps_out(self):
+        """The copied latest update, description and decision reasoning reach the client only when the original's would."""
+        cases = {"actions": ("latest_update", "ZQLATEST"), "raid": ("response_action", "ZQRESP"), "decisions": ("reasoning", "ZQREASON")}
+        for kind, (col, token) in cases.items():
+            for how in ("sensitive", "hidden", "plain"):
+                with self.subTest(kind=kind, how=how):
+                    word = token + how.upper()
+                    src = self.make(kind, f"ZQT{kind}{how}")
+                    self.fill(kind, src, **{col: word})
+                    if how == "sensitive":
+                        self.label(src, "Sensitive")
+                    if how == "hidden":
+                        self.hide(src)
+                    status, body = self.dup(kind, src)
+                    self.assertEqual(status, 200, body)
+                    self.assertEqual(self.s.read(kind, ref=body["ref"])[col], word)
+                    if how == "plain":
+                        self.assertEqual((self.labels(body["ref"]), self.hidden(body["ref"])), ([], False))
+                    else:
+                        self.assertNotIn(word, self.published(), "neither the item nor its copy reaches the client")
+                        self.assertEqual(self.labels(body["ref"]), self.labels(src))
+                        self.assertEqual(self.hidden(body["ref"]), how == "hidden")
+
 
 if __name__ == "__main__":
     unittest.main()

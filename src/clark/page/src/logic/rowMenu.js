@@ -78,15 +78,23 @@ export function ownerList(names, row) {
   return names.filter((n) => n !== now);
 }
 
-/** What Duplicate asks for: the item's own fields and a title that says it is a copy. No id, status, dates it was given or history. */
+/** What Duplicate asks for: the item's own fields and a title that says it is a copy. No id, dates it was given or history; the server
+ *  adds the status, latest update, description, use case, source, labels and hiding from the item itself (never from this request). */
 export function duplicateRequest(raw, table) {
   const keep = { actions: ["owner", "priority", "due_date", "workstream", "milestone", "client_visible"],
     raid: ["type", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible"], decisions: ["made_by", "needed_by", "client_visible"] }[table];
   const title = TITLE_OF[table];
   const values = {};
   for (const k of keep) if (raw[k] != null && raw[k] !== "") values[k] = raw[k];
-  values[title] = ("Copy of " + String(raw[title])).slice(0, TITLE_LIMIT);
+  const suffix = " (copy)";                       // #442 row 42: the prototype's wording; cut the title, never the suffix
+  values[title] = String(raw[title]).slice(0, TITLE_LIMIT - suffix.length) + suffix;
   return { kind: table, op: "new", values, copy_of: raw.id, place: "menu" };   // copy_of: the server copies the labels and the hiding in the same step
+}
+
+/** What the toast says after Duplicate (`reply` is the server's: the copy's id in `ref`) and what it says after Undo. */
+export function duplicateWords(id, reply) {
+  const copy = reply && typeof reply.ref === "string" ? reply.ref : "";
+  return { text: copy ? `${copy} added as a copy of ${id}.` : `Copy of ${id} added.`, back: copy ? `${copy} removed. ${id} is as it was.` : `Copy of ${id} removed.` };
 }
 
 /** The raw record of a row in the project's data (the page keeps a flat row; Duplicate needs every field). */

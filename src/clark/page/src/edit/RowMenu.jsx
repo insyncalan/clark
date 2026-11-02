@@ -18,7 +18,7 @@ import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
-import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
+import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
 import { workSelection } from "../stores/selection.js";
 
@@ -163,7 +163,8 @@ function Panel({ s }) {
     if (id === "dup") {
       const raw = rawOf(d, row);
       if (!raw) return undefined;
-      return record(duplicateRequest(raw, tableOf(row)), { text: `Copy of ${row.id} added.`, back: "" });
+      return record(duplicateRequest(raw, tableOf(row)), (reply) => duplicateWords(row.id, reply))
+        .then((r) => { if (r && typeof r.ref === "string") openCard(r.ref); });      // #442 row 42: the copy opens, as the prototype opens it
     }
     return undefined;
   };

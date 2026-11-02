@@ -128,8 +128,8 @@ export function changeItem(req, done) {
   });
 }
 
-// Archive an item or add a copy of it (#97), from the right-click menu: one step with Undo (`req` is the change, `done.text` what the
-// toast says and `done.back` what it says after the Undo, "" for "Undone."). The work items are read again, as after a board move.
+// Archive an item or add a copy of it (#97), from the right-click menu: one step with Undo (`req` is the change, `done` is {text: what the
+// toast says, back: what it says after the Undo, "" for "Undone."}, or a function of the server's reply that gives it). The work items are read again, as after a board move.
 // A refusal is a note: nothing was changed.
 export function changeRecord(req, done) {
   const code = project.value;
@@ -137,8 +137,9 @@ export function changeRecord(req, done) {
     const r = await sendRecordChange(code, req);
     if (!r.ok) { say("note", r.message); return null; }
     await reread(code);
-    itemSteps.set(r.reply.apply_id, done.back || "");
-    say("done", done.text, r.reply.apply_id, code);
+    const words = typeof done === "function" ? done(r.reply) : done;      // Duplicate's words need the copy's id, which only the reply has
+    itemSteps.set(r.reply.apply_id, words.back || "");
+    say("done", words.text, r.reply.apply_id, code);
     return r.reply;
   });
 }

@@ -187,6 +187,9 @@ NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
+DUPLICATE_SOURCE = "Duplicated from "       # #442 row 42: a copy's source, with the item's id; the id is the one read in the step
+DUPLICATE_KEEPS = {"actions": ("status", "latest_update", "use_case"), "raid": ("status", "response_action", "use_case"),
+                   "decisions": ("status", "date", "reasoning", "options", "revisit", "use_case")}   # #442 row 42: what a copy takes from its original, read in the step, never from the request; the label, the eye and the hiding are the lines below
 NOT_A_STATUS = "That status isn't available for this item."
 NO_WORKSTREAM = "That workstream isn't available."
 ARCHIVED_MILESTONE = "That milestone is archived. Restore it first."
@@ -747,6 +750,12 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
                 raise Refused(ITEM_NOT_MINE)
             values["labels"] = clark_store.labels_of(st.con, source)
             values["client_visible"] = 1 if was["client_visible"] else 0   # #424: the eye is the item's own, whatever the request carried
+            for k in DUPLICATE_KEEPS[table]:                       # #442 row 42: status, description, latest update and use case are the item's own, read here (a request cannot name them)
+                if was[k] is not None and was[k] != "":
+                    values[k] = was[k]
+            if values.get("status") in ("Closed", "Cancelled"):    # a closed copy is closed today: a close date may not come before the day it was raised
+                values["closed"] = values["raised"]
+            values["source"] = DUPLICATE_SOURCE + source
             hide = store.read("report_hidden", ref=f"{project}|{source}") is not None
         try:
             ref = st.create(table, values)
