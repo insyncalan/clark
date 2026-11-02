@@ -68,6 +68,46 @@ class Refusals(unittest.TestCase):
         for step in steps.values():
             self.assertEqual(said[step], self.reason(step))
 
+    def two_row_step(self):
+        """One step that changes two fields of the item; its step."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("actions", self.item, {"priority": "High", "status": "Delayed"})
+        return self.demo.last_step()
+
+    def test_a_two_row_step_undone_on_one_row_only_has_no_reason_until_both_are_back(self):
+        first = self.two_row_step()
+        self.demo.update("actions", self.item, {"status": "Open"})        # a later change to one of its two fields
+        later = self.demo.last_step()
+        partly = self.store.undo(first, USER)
+        self.assertEqual([d["field"] for d in partly["reversed"]], ["priority"], "only one row went back")
+        self.assertEqual(self.reason(first), "", "one row is still in force, so the step can be chosen")
+        self.store.undo(later, USER)
+        self.store.undo(first, USER)
+        self.assertEqual(self.reason(first), changes.UNDONE_ALREADY)
+
+    def test_a_step_handed_to_another_project_is_not_named_as_an_undo(self):
+        """A step looked at from a project that does not own it is left out whole, in the words for a change not made here."""
+        step = self.write("dashboard")
+        self.assertEqual(changes.undo_refusals(self.store, "ZZZ", {step}), {step: changes.NOT_FROM_HERE})
+        self.assertEqual(changes.undo_refusals(self.store, "ABC", {step}), {})
+
+    def test_the_page_says_an_undo_in_the_servers_words(self):
+        """One check over both: the page withholds an undo row with the server's sentence, whatever the page's own words are."""
+        import json
+        import subprocess
+        import shutil
+        from pathlib import Path
+        node = shutil.which("node")
+        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/activityUndo.js").read_text()
+        self.assertIn("r.undo_refused", src)
+        self.assertLess(src.index("r.undo_refused"), src.index('r.kind === "Comment"'), "the server's reason is asked first")
+        if node:
+            row = {"kind": "Priority undone", "step": 3, "undo_refused": changes.IS_AN_UNDO}
+            js = "import('" + (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/activityUndo.js").as_uri() + "')" \
+                 ".then(m => console.log(JSON.stringify(m.whyNot(" + json.dumps(row) + "))))"
+            out = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+            self.assertEqual(json.loads(out.stdout), changes.IS_AN_UNDO, out.stderr)
+
     def test_a_step_with_no_rows_is_not_named(self):
         self.assertEqual(changes.undo_refusals(self.store, "ABC", {99999}), {})
 

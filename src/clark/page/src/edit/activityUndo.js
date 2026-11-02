@@ -11,9 +11,9 @@ export const WHY_NO_STEP = "This change can't be undone from here.";
 /** "" when the row can be chosen, else the words that say why not. */
 export function whyNot(r) {
   if (!r) return WHY_NO_STEP;
+  if (typeof r.undo_refused === "string" && r.undo_refused) return r.undo_refused;   // the server's own reason, said first so the page and the server never give two different sentences
   if (r.kind === "Comment") return WHY_COMMENT;
   if (/undone$/i.test(String(r.kind || ""))) return WHY_UNDO;
-  if (typeof r.undo_refused === "string" && r.undo_refused) return r.undo_refused;   // the server's own reason, for any route it would refuse
   if (!Number.isInteger(r.step) || r.step < 1) return WHY_NO_STEP;
   return "";
 }
