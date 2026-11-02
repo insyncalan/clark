@@ -115,7 +115,7 @@ def port_number(text, where):
     except (TypeError, ValueError):
         port = 0
     if not 1 <= port <= 65535:
-        raise Usage(f"The port setting ({where}) must be a whole number from 1 to 65535.")
+        raise Usage(f"The start-up number (set with {where}) must be a whole number from 1 to 65535. Change it, then start clark again.")
     return port
 
 

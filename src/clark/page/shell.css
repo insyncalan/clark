@@ -409,7 +409,7 @@ table.needs .n-over { margin-left: 2px; }
    room for it inside its own padding (32 px: the 24 px control and a 4 px gap each side); the box itself, its left edge and width, do not change. */
 @media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: var(--space-6); } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: var(--sh-rest-narrow, .85); } }      /* in the padding it is clearer at rest (issue 130, point 2): .85 in light, .75 in dark; --sh-rest-narrow is in brand/tokens.css */
 @media (prefers-reduced-motion: reduce) { .sec-ctl { transition: none; } }      /* after the rule above, so it wins */
-.sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 var(--space-1); margin: 0 -4px; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
+.sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 var(--space-1); margin: 0 -4px 0 0; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }
 input.sec-title { width: 100%; }
 .menu { position: absolute; left: 30px; top: 0; z-index: 20; display: flex; flex-direction: column; min-width: 260px; max-width: calc(100vw - 40px); padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
@@ -829,6 +829,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .node.fill.c-green { background: var(--status-green); }
 .msl-date b { display: block; font-weight: var(--weight-medium); } .msl-date small { display: block; font-size: var(--size-caption); color: var(--text-muted); } .msl-date small.late { color: var(--status-red-text); }
 .msl-name { font-weight: var(--weight-medium); }
+/* C-M10: at laptop widths the date's second line ("Expected a date · N days later") reads on one line, so the date cell is wide enough for it;
+   a long name wraps inside its own cell, and below this width the line may wrap as before. */
+.msl-name { min-width: 0; overflow-wrap: anywhere; }
+@media (min-width: 1201px) { .msl-cells { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; } .msl-date small { white-space: nowrap; } }
 .mst { display: inline-flex; align-items: center; gap: 6px; font-size: var(--size-caption); font-weight: var(--weight-medium); } .mst .ms-i { width: 16px; height: 16px; flex: none; }
 .mst.c-green { color: var(--status-green-text); } .mst.c-amber { color: var(--status-amber-text); } .mst.c-red { color: var(--status-red-text); } .mst.c-blue { color: var(--status-blue-text); } .mst.c-grey { color: var(--text-muted); }
 .msl-prog { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); }
