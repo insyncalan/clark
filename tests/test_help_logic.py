@@ -112,7 +112,7 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
         self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 30)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 31)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -156,7 +156,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 30 + 33)
+        self.assertEqual(len(p), 7 + 31 + 33)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -288,11 +288,11 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        SEC = ["howto-set-the-health", "howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
+        SEC = ["howto-set-the-health", "howto-save-as-a-pdf", "howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
                "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-milestones-page", "ref-diagnostics", "ref-keys"]
         self.assertEqual(s["places"], SEC)
         self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:6])
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:7])
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
                          ["ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-milestones-page", "ref-freshness", "ref-archive-restore", "ref-diagnostics", "ref-keys"])      # by group: Screens, Working with items, Settings and data, Keys and icons
         self.assertEqual(s["index"], SEC)

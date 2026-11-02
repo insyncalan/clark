@@ -288,6 +288,20 @@
     "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on), shown at the foot of the page with its date. A Word copy takes the next number as well. Each publish adds a line to History."
    },
    {
+    "id": "save-as-a-pdf",
+    "g": "Every week",
+    "t": "Save the report as a PDF",
+    "w": "Profile circle › Publish…",
+    "go": "publish",
+    "s": [
+     "Open the Publish box and tick **PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
+     "Press **Publish locally** (or **Publish and send to the client**). The web page is saved as usual, and clark makes the PDF from it with Chrome.",
+     "The PDF is saved beside the report file, with the same name and **.pdf** at the end. With **To client** ticked it is copied to the client folder too, and the box says the client will see the page and the PDF.",
+     "The PDF has the four tabs one after another, no buttons or menus, and the publication number, the date and the page number at the foot of each page."
+    ],
+    "n": "The PDF is read back and its words are checked before clark keeps it. If it would hold anything that is not in the published page, nothing is published and the box says so. A PDF name already taken in the client folder is asked about first, as the report's is."
+   },
+   {
     "id": "add-a-work-item",
     "g": "Work items",
     "t": "Add a work item",
