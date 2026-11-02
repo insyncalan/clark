@@ -5,6 +5,7 @@ Part 1 reads the sources (no J or K key, only arrows and Enter, the cursor is dr
 page in headless Chrome at 1400 and 900 px with real key events over a real demo store. The browser parts are required: they fail,
 never skip, without Chrome.
 """
+import time
 import unittest
 
 from _paths import ROOT
@@ -123,6 +124,75 @@ class Keys(ie.Live):
                 for name in ("ArrowRight", "ArrowDown", "End"):
                     key(cdp, sid, name)
                 self.assertEqual(cdp.js("document.activeElement.id", sid), "probe", "an arrow on something inside a card does not move the cursor")
+
+    def test_a_key_on_a_child_of_a_row_or_card_never_moves_the_cursor(self):
+        # the child is a real button inside the row (or card), the thing a person can focus there; an arrow on it belongs to it
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                add = "(() => { const b = document.createElement('button'); b.id = 'kid'; b.type = 'button'; %s.appendChild(b); b.focus(); })()"
+                cdp.js(add % "document.querySelector('#work tbody tr[data-id]')", sid)
+                for name in ("ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End", "Enter"):
+                    key(cdp, sid, name)
+                self.assertEqual(cdp.js("document.activeElement.id", sid), "kid", "a key on a child of a row stays on the child")
+                self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "and opens nothing")
+                self.board(cdp, sid)
+                cdp.js(add % "document.querySelector('#work-board .bc-main')", sid)
+                for name in ("ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End", "Enter"):
+                    key(cdp, sid, name)
+                self.assertEqual(cdp.js("document.activeElement.id", sid), "kid", "a key on a child of a card stays on the child")
+                self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "and opens nothing")
+
+    def test_the_arrows_on_an_empty_a_one_row_and_a_filtered_list(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                rows = cdp.js(ROWS, sid)
+                filt = lambda f: (cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/?n={abs(hash(f))}#work&p=TUL&f={f}"}, sid), time.sleep(2.5))   # a fresh load: the filter is read from the address
+                filt("mode:open;type:decision;priority:low")
+                self.until(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length === 0", "an empty list")
+                cdp.js("window.__errs = []; window.addEventListener('error', (e) => window.__errs.push(String(e.message)))", sid)
+                for name in ("ArrowDown", "ArrowUp", "Home", "End", "Enter"):
+                    key(cdp, sid, name)
+                self.assertEqual(cdp.js("window.__errs.length", sid), 0, "keys on an empty list do nothing and raise nothing")
+                self.assertFalse(cdp.js("location.hash.includes('item=')", sid))
+                filt("mode:open;type:decision")
+                self.until(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length === 1", "one row")
+                one = cdp.js(ROWS, sid)[0]
+                cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
+                for name in ("ArrowDown", "ArrowUp", "Home", "End"):
+                    key(cdp, sid, name)
+                    self.assertEqual(cdp.js(FOCUS, sid), one, f"{name} on the only row stays on it")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work tr[data-id][tabindex=\"0\"]').length", sid), 1, "one tab stop")
+                filt("mode:closed;type:risk")
+                self.until(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length > 1", "a filtered list")
+                shown = cdp.js(ROWS, sid)
+                self.assertLess(len(shown), len(rows))
+                cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
+                key(cdp, sid, "End")
+                self.assertEqual(cdp.js(FOCUS, sid), shown[-1], "End goes to the last row that is drawn, not the last of the unfiltered list")
+                key(cdp, sid, "ArrowDown")
+                self.assertEqual(cdp.js(FOCUS, sid), shown[-1])
+
+    def test_a_collapsed_board_column_is_skipped_by_the_arrows(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=False)
+                self.board(cdp, sid)
+                cards = "[...document.querySelectorAll('#work-board .bc-main')].map(c => c.closest('[data-id]').dataset.id)"
+                before = cdp.js(cards, sid)
+                cdp.js("[...document.querySelectorAll('#work-board [data-toggle]')].find(b => b.closest('.col').querySelector('.bc-main')).click()", sid)
+                self.until(cdp, sid, "!!document.querySelector('#work-board .col.shut')", "a column collapsed")
+                after = cdp.js(cards, sid)
+                self.assertLess(len(after), len(before), "the collapsed column's cards are not drawn")
+                cdp.js("document.querySelector('#work-board .bc-main').focus()", sid)
+                seen = [cdp.js("document.activeElement.closest('[data-id]').dataset.id", sid)]
+                for _ in range(len(after) + 2):
+                    key(cdp, sid, "ArrowRight")
+                    seen.append(cdp.js("document.activeElement.closest('[data-id]').dataset.id", sid))
+                self.assertTrue(set(seen) <= set(after), "the cursor only visits drawn cards")
+                self.assertEqual(seen[-1], after[-1], "and stops on the last drawn card")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work-board .bc-main[tabindex=\"0\"]').length", sid), 1, "one tab stop")
 
     def test_the_first_and_last_row_stop_the_peek_steps_and_the_cursor(self):
         for width in (1400, 900):
