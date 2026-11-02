@@ -175,7 +175,25 @@ class Present(unittest.TestCase):
         self.assertEqual(block(text)["tabs"], pub["tabs"])
         router = (ROOT / "src/clark/page/src/router.js").read_text(encoding="utf-8")
         self.assertIn('VIEWS = ["dashboard", "work", "milestones", "usecases", "clientreport", "settings"]', router)
-        self.assertIn('get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }', (ROOT / "src/clark/page/src/stores/report.js").read_text(encoding="utf-8"))
+        self.assertIn('usecases: "Use cases"', (ROOT / "src/clark/page/src/stores/report.js").read_text(encoding="utf-8"))
+
+    def test_no_user_facing_use_cases_in_title_case(self):
+        """#383: 'Use cases' is sentence case wherever a person sees it. Scope: every .js and .jsx under src/clark/page/src and
+        help/helpContent.json, whole words only; comments are not user-facing, so block comments and line comments (// at the
+        start or after whitespace) are stripped first. The .py files, Excel and Word code carry no such string (checked by grep
+        at the time of the change); this test does not read them."""
+        src = ROOT / "src/clark/page/src"
+        files = sorted(list(src.rglob("*.js")) + list(src.rglob("*.jsx"))) + [src / "help/helpContent.json"]
+        self.assertTrue(any(f.name == "UseCasesTab.jsx" for f in files) and files[-1].exists())
+        found = []
+        for f in files:
+            text = f.read_text(encoding="utf-8")
+            if f.suffix != ".json":
+                text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+                text = re.sub(r"(^|\s)//[^\n]*", r"\1", text)
+            if re.search(r"\bUse Cases\b", text):
+                found.append(str(f.relative_to(ROOT)))
+        self.assertEqual(found, [], "a user-facing 'Use Cases' (write 'Use cases')")
 
     def test_the_page_has_no_route(self):
         source = (ROOT / "src/clark/page/src/components/UseCasesTab.jsx").read_text(encoding="utf-8")
@@ -224,9 +242,9 @@ class RealBrowser(unittest.TestCase):
                 sid = opened(cdp, path.as_uri())
                 self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
                 self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.textContent).join()", sid),
-                                 "Dashboard,Work items,Milestones,Use Cases")
+                                 "Dashboard,Work items,Milestones,Use cases")
                 cdp.js("document.querySelector('[data-view=usecases]').click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == "Use Cases"))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == "Use cases"))
                 cdp.js("document.querySelector('.ucp summary').click()", sid)
                 body = cdp.js("document.querySelector('.ucp-body').innerText", sid)
                 for word in ("ZQ-KEEP-STANDING", "Next steps", "ZQ-KEEP-MESSAGE-1", "Milestones", "ZQ-KEEP-MILESTONE-1"):
