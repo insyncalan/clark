@@ -67,8 +67,8 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('.hp-job, .hp-steps li, .hp-first li').length"), 0, "no held entry on Start here")
             self.assertTrue(p.js("!!document.querySelector('#hp-later')"))
             p.js("document.querySelector('#hpTab-howto').click()")
-            p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the five tasks the page can do")
-            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), 5)
+            p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the tasks the page can do")
+            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), len(shown_content()["howto"]["tasks"]))
             self.assertEqual(p.js("!!document.querySelector('#hp-later')"), False)
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelectorAll('.hp-ref').length > 0", "Reference drew")
@@ -87,11 +87,27 @@ class Panel(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('#hpRes .hp-resg h3')].map(h => h.textContent)"), ["Reference"])
             p.js("document.querySelector('#hpRes a.hp-r').click()")
             p.until("!document.querySelector('#hpRes') && !!document.querySelector('.hp-found')", "the result opened in place and flashed")
-            for word in ("movement", "diagnostics"):                                   # "publish" is in the Needs from you task (a row left out is not on the published page); test_help_logic pins that result exactly
+            for word in ("sneak",):                              # "publish" and "peek" are in entries that say so (a row left out is not on the published page); test_help_logic pins those results exactly
                 p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
                 p.type(word)
                 p.until("!!document.querySelector('.hp-none')", f"a held word ({word}) finds nothing")
             self.assertIn("Nothing in Help for", p.js("document.querySelector('.hp-none b').textContent"))
+
+    def test_a_search_for_movement_or_diagnostics_finds_its_entry_and_opens_it(self):
+        """Row 65: these two words found nothing; each now finds the entries about it, and a result opens in place."""
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            for word, first, where in (("movement", "Milestones and Movement", "ref-milestones-page"), ("diagnostics", "Diagnostics and logs", "ref-diagnostics")):
+                p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
+                p.type(word)
+                p.until("document.querySelectorAll('#hpRes a.hp-r').length > 0", f"results for {word}")
+                self.assertIn(first, p.js("[...document.querySelectorAll('#hpRes a.hp-r')].map(a => a.textContent).join(' | ')"))
+                self.assertEqual(p.js("!!document.querySelector('.hp-none')"), False)
+                p.js("[...document.querySelectorAll('#hpRes a.hp-r')].find(a => a.textContent.indexOf(" + json.dumps(first) + ") >= 0).click()")
+                p.until("!document.querySelector('#hpRes') && !!document.querySelector('#hp-%s.hp-found')" % where, f"{word}: the result opened in place and flashed")
+                p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
+            self.assertEqual(p.js("document.querySelector('#hp-ref-diagnostics').textContent.indexOf('Copy diagnostics') >= 0"), True)
 
     def test_a_contents_link_opens_its_place_and_a_held_place_is_not_one(self):
         from test_server import chrome
@@ -101,7 +117,7 @@ class Panel(Base):
             p.until("!!document.querySelector('.hp-idx a')", "the contents list")
             p.js("document.querySelector('.hp-idx a[data-hlink=ref-keys]').click()")
             p.until("!!document.querySelector('#hp-ref-keys.hp-found')", "a contents link opens its place and flashes it")
-            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-peek], [data-hlink=ref-publishing], [data-hlink=howto-set-the-health]')"), None)
+            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-peek], [data-hlink=ref-publishing], [data-hlink=howto-publish-the-report]')"), None)
             self.assertTrue(p.js("location.hash.indexOf('#dashboard') === 0"), "the page left is the Dashboard")
 
     def test_focus_goes_back_to_what_had_it_when_help_closes(self):                     # MEDIUM

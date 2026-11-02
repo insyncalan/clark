@@ -11,7 +11,6 @@
  },
  "howto": {
   "write-the-weekly-report": "text sections and Draft with AI",
-  "set-the-health": "the health control",
   "check-the-report": "ask clark",
   "publish-the-report": "Publish",
   "add-a-work-item": "adding work items",
@@ -25,8 +24,8 @@
   "add-supporting-documents": "supporting documents",
   "change-the-layout-and-look": "Settings",
   "update-a-milestone": "the milestone peek",
+  "act-on-a-slipped-milestone": "the Movement actions and the Internal note (#458)",
   "read-the-milestones": "timeline and calendar",
-  "handle-a-slipped-milestone": "Movement",
   "format-text": "the editor",
   "improve-wording-with-ai": "the AI menu",
   "set-up-a-project": "project settings",
@@ -38,10 +37,10 @@
  "reference": {
   "top-bar": "the project menu and profile circle",
   "dashboard": "the peek, Week ending and On this page",
-  "milestones-page": "Plan and Movement",
   "ask-clark": "ask clark",
   "peek": "the peek",
   "sneak-peek": "Sneak peek",
+  "picker": "the picker (nothing opens it yet)",
   "milestone-peek": "the milestone peek",
   "timeline-calendar": "timeline and calendar",
   "editor": "the editor",
@@ -50,11 +49,8 @@
   "client-page": "the published page",
   "settings": "Settings",
   "updating-clark": "updates",
-  "diagnostics": "diagnostics",
-  "saving": "history and ask clark",
-  "sections": "the report sections' bodies (most show “Not shown on this page yet.”)",
-  "picker": "the picker (nothing opens it yet)",
   "excel": "Excel import (the page only exports today)",
+  "saving": "history and ask clark",
   "icons": "the icons it names (many are not on the page yet)"
  },
  "keys": [
