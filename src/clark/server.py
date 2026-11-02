@@ -81,7 +81,7 @@ MESSAGES = {
     "send_json": f"That could not be read. {RELOAD}",
     "length_required": f"That could not be read. {RELOAD}",
     "too_large": "That is too big for clark to take. Try again with less in it.",
-    "change_too_large": "That is too big to save. Shorten a line or remove some lines, then try again.",
+    "change_too_large": "That is too big to save. Make the text shorter, or take some of the list out, then try again.",
     "unsupported_type": f"That could not be read. {RELOAD}",
     "not_found": f"That could not be found. {RELOAD}",
     "not_supported": "That is not something clark can do. Go back to the page you were on.",
@@ -104,8 +104,8 @@ WORD_FILE_MB = 25                      # the largest Word file clark reads (docx
 # #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
 # tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
 # gets the general words. No request kind is given a larger door. tests/test_tracker_route.py pins this over the real route.
-SECTION_BODY_MAX = 64 * 1024           # #378: the largest section content the change route carries (the registry's biggest; a test keeps the two equal)
-ESCAPE_FACTOR = 2                      # the body is a string inside the request, so each quote and backslash is escaped twice: at worst twice the bytes
+SECTION_BODY_MAX = 256 * 1024          # #405: the largest section content the change route carries: the stored limit of "Needs from you" and the tracker (a template's body is 64 KB at most); a test keeps it equal to the checker's largest
+ESCAPE_FACTOR = 2                      # the body is a string inside the request, so each quote and backslash is escaped once more: at worst twice the bytes. A client that writes non-ASCII as \\u escapes can take three times a plain letter's bytes; the page sends plain UTF-8, and "Needs from you" and the tracker are measured over the route in tests
 REQUEST_ENVELOPE = 4 * 1024            # the request around the body: its kind, op, id and the rest of its changes
 
 
@@ -113,7 +113,7 @@ def change_body_limit(body_max=SECTION_BODY_MAX):
     return ESCAPE_FACTOR * body_max + REQUEST_ENVELOPE
 
 
-CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378: 132 KB today; moves with the three above, never with a bare number
+CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378, #405: 516 KB today; moves with the three above, never with a bare number
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
@@ -832,8 +832,10 @@ def ask_route(method):
         if service is None:
             return handler.send(404, error_body("not_found"))
         status, body = getattr(service, method)(*req)
-        if method == "ask" and isinstance(body, dict) and body.get("held") is True:
-            LOG.warning("question answer dropped, it held the private marker")     # #277: a fixed line; no reply, no marker
+        if method == "ask" and isinstance(body, dict) and "held" in body:
+            if body["held"] is True:
+                LOG.warning("question answer dropped, it held the private marker")     # #277: a fixed line; no reply, no marker
+            body = {k: v for k, v in body.items() if k != "held"}                 # #300: the log needs the flag; the page does not
         return handler.send(status, body)
     return route
 

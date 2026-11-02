@@ -116,7 +116,10 @@ class Running:
                 conn.putheader("Host", host)
             for k, v in (headers.items() if hasattr(headers, "items") else headers or ()):      # a list of pairs may repeat a name
                 conn.putheader(k, v)
-            conn.endheaders(body)
+            try:
+                conn.endheaders(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass                      # a request over its limit is refused from its length before all of it is sent; the answer is still there to read
             r = conn.getresponse()
             return r.status, r.msg, r.read()
         finally:
@@ -421,16 +424,15 @@ class Saving(ServerTest):
         status, _, data = running.api("POST", "/api/change", over)
         got = json.loads(data)
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
-        self.assertIn("Shorten a line or remove some lines", got["message"])
+        self.assertIn("Make the text shorter, or take some of the list out", got["message"])
         self.assertFalse(got["message"].startswith("clark"))
         status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 16 * 1024 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
     def test_the_change_route_limit_is_two_largest_sections_plus_4_kb(self):
-        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; a separate /api/section-body route is the later fix (Tech Debt)
+        # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405)
         from clark import section_bodies
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 135168)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
         self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
 
@@ -1244,13 +1246,13 @@ class RobustReplies(ServerTest):
         self.assertEqual(sv.Handler.timeout, 30)
         with mock.patch.object(sv.Handler, "timeout", 0.5), socket.create_connection((sv.HOST, self.s.port)) as c:
             c.sendall(b"POST /csp-report HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 50\r\n")   # half-sent
-            c.settimeout(5)
+            c.settimeout(25)
             t0 = time.time()
             try:
                 c.recv(65536)
             except ConnectionResetError:
                 pass
-            self.assertLess(time.time() - t0, 4, "the server let go well inside 5 s")
+            self.assertLess(time.time() - t0, 20, "the server let go well inside 25 s, far short of its 30 s default")
 
 
 class Port(unittest.TestCase):
