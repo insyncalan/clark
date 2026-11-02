@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
+import { announce, leave, noteTyped } from "./aboutYouToast.js";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
@@ -34,6 +35,8 @@ function AboutYou() {
     setTyped((t) => ({ name: typedIn.current.name ? t.name : profile.value.name, email: typedIn.current.email ? t.email : profile.value.email }));
   }, [profile.value.name, profile.value.email]);
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
+  useEffect(() => { noteTyped(typed); }, [typed.name, typed.email]);      // the toast's Undo goes once the boxes hold something else (aboutYouToast.js, #429)
+  useEffect(() => leave, []);                                             // leaving Settings takes the toast (and its Undo) with it, in View as in Edit
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
@@ -47,6 +50,7 @@ function AboutYou() {
       // a box changed since is left as it is
       setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
       setSaid({ name: "", email: "" });
+      announce(r, setTyped);                // "Name saved." or "Email saved." with Undo, when the save changed something (#429)
       return;
     }
     const mine = field === "name" ? name : email;
