@@ -315,7 +315,7 @@ class More(tre.Base):
                 p.view()
                 p.edit()
                 self.assertFalse(p.js("!!document.querySelector('.sec-hint')"), "only once")
-                self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0, "the hint stores nothing")
+                self.assertEqual(p.js("JSON.stringify(Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.dragHintSeen'))"), "[]", "the handle hint stores nothing (the report bar's own drag hint keeps its clark.dragHintSeen)")
 
     def test_the_add_a_section_preview_fades_as_the_selection_moves_and_cards_lift_on_hover(self):
         for mode in MODES:
