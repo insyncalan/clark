@@ -15,13 +15,14 @@ from _demo import USER, DemoStore
 from _paths import TOOLS
 
 sys.path.insert(0, str(TOOLS))
-from clark import page, publish  # noqa: E402
+from clark import changes, page, publish  # noqa: E402
 from test_report_editor import EMPTY_BRANDING, Pg  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
 AS_AT = "2026-10-28"
 HIDDEN = "Internal-only wording ZQ-HIDDEN"
 NO_WORDING = "Team-only description ZQ-NOWORDING"      # shown to the client, but with no client wording: it is left out
+RESPONSE = "Team-only response ZQ-RESPONSE"            # a risk's working note (response_action): never in a report
 
 
 def fill(store):
@@ -42,7 +43,7 @@ def fill(store):
                               "raised": "2026-10-01", "source": "demo"})
         st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier may deliver late", "owner": "Mia Hale",
                            "due_date": "2026-11-01", "impact": "High", "likelihood": "High", "raised": "2026-10-01",
-                           "client_message": "Supplier delivery may slip", "source": "demo"})
+                           "response_action": RESPONSE, "client_message": "Supplier delivery may slip", "source": "demo"})
         st.create("raid", {"project": "ABC", "type": "Issue", "description": "Test data is incomplete", "owner": "Mia Hale",
                            "due_date": "2026-11-02", "impact": "Low", "likelihood": "Low", "raised": "2026-10-01",
                            "client_message": "Some test data is missing", "source": "demo"})
@@ -70,16 +71,20 @@ class ItemRows(unittest.TestCase):
         self.assertIn("Training room booked for November", actions[1], "the client's own wording is shown when there is one")
         raid = js(ROWS % "raid")
         self.assertEqual(len(raid), 2, where)
-        self.assertTrue(raid[0].split("|")[1] == "Red" and "Risk" in raid[0] and "Priority" in raid[0] and "Supplier delivery may slip" in raid[0], raid[0])
+        self.assertTrue(raid[0].split("|")[1] == "Red" and "Risk" in raid[0] and "Supplier delivery may slip" in raid[0], raid[0])
+        self.assertIn("Urgent", raid[0].split("|")[3], "the pill is the status colour; the priority word is in the line (prototype views.js:378)")
         self.assertIn("Review by 01-11-2026", raid[0])
-        self.assertIn("Issue", raid[1])
+        self.assertTrue(raid[1].split("|")[1] == "Green" and "Issue" in raid[1] and "Low" in raid[1].split("|")[3], raid[1])
         decisions = js(ROWS % "decisions")
         self.assertEqual(len(decisions), 1, where)
         self.assertIn("Needed by 03-11-2026", decisions[0], where)
         self.assertIn("Hosting region to be chosen", decisions[0], where)
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
+        self.assertNotIn("ZQ-RESPONSE", js("document.body.innerText"), f"{where}: a risk's working note (response action) is never drawn")
         self.assertNotIn("ZQ-NOWORDING", js("document.body.innerText"), f"{where}: an item with no client wording is not in the rows")
-        self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue")
+        self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue (prototype core.js:202-212)")
+        self.assertIn(actions[1].split("|")[1], ("Due soon", "Open"), f"{where}: the other action reads Due soon or Open, by the date it is read on")
+        self.assertEqual(decisions[0].split("|")[1], "Pending", f"{where}: a pending decision reads Pending")
 
     def test_the_served_page_draws_the_rows_in_view_and_in_edit_and_the_file_draws_them_alone(self):
         s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
@@ -110,15 +115,22 @@ class ItemRows(unittest.TestCase):
             self.assertNotRegex(first, r"days? late|Today|Tomorrow|Yesterday|In \d+ days?", "a file shows the date only: it is read later, not on the publish date")
             self.assertEqual(cdp.js("document.querySelectorAll('[contenteditable],input,button.eye').length", sid), 0)
 
-    def test_a_section_with_nothing_to_show_says_so_on_the_page_and_is_left_out_of_the_file(self):
+    def test_a_section_with_nothing_to_show_keeps_its_heading_and_says_so_in_view_and_the_file(self):
         empty = DemoStore()
         self.addCleanup(empty.close)
         s = Running(data_for=empty.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(s.close)
+        secs = "[...document.querySelectorAll('[data-type=raid],[data-type=actions],[data-type=decisions]')].map(e => e.querySelector('.sec-h').textContent + '|' + (e.querySelector('[data-nothing]') || {}).textContent)"
+        want = ["Risks and issues|Nothing to show this week.", "Open actions|Nothing to show this week.", "Decisions|Nothing to show this week."]
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
             p.ready()
-            self.assertEqual(p.js("document.querySelector('[data-type=raid] .quiet').textContent"), "Nothing to show this week.")
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                self.assertEqual(p.js(secs), want, f"View at {w} keeps each heading and says there is nothing (prototype views.js:382)")
+            p.edit()
+            self.assertEqual(p.js("document.querySelectorAll('[data-nothing]').length"), 0, "Edit says it with the add line and the count instead")
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-showing]')].map(e => e.textContent.slice(0, 15))"), ["Showing 0 of 0."] * 3)
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(empty.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)
@@ -127,7 +139,151 @@ class ItemRows(unittest.TestCase):
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid)))
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-type=raid],[data-type=actions],[data-type=decisions]').length", sid), 0)
+            self.assertEqual(cdp.js(secs, sid), want, "the published file keeps them too")
+
+
+def edit_server(test, store):
+    """The page clark serves over a real store, with the real change and undo routes."""
+    s = Running(data_for=store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING),
+                change=changes.make_change(store.path, [], USER), undo=changes.make_undo(store.path, [], USER))
+    test.addCleanup(s.close)
+    return s
+
+
+def id_of(store, text):
+    return next(r["id"] for t in ("actions", "raid", "decisions") for r in store.read(t, "ABC") if r["client_message"] == text)
+
+
+class EditRows(unittest.TestCase):
+    """Edit: every part of a row changes in place; + Add; Add from your project record; the eye; Showing N of M."""
+
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.store = self.demo.store
+        fill(self.store)
+        self.s = edit_server(self, self.store)
+
+    def page(self, cdp):
+        p = Pg.at(self, cdp, self.s.port)
+        p.ready()
+        p.edit()
+        return p
+
+    def type_into(self, p, selector, text, ending="Enter"):
+        p.js(f"(function(){{var el=document.querySelector({selector!r}); el.focus(); if (el.select) {{ el.select(); }} else {{ var r=document.createRange(); r.selectNodeContents(el); var s=getSelection(); s.removeAllRanges(); s.addRange(r); }}}})()")
+        if text:
+            p.type(text)
+        else:
+            p.key("Backspace", code="Backspace", vk=8)
+        p.key(ending, code=ending, vk=13 if ending == "Enter" else 27)
+
+    def click(self, p, click, done, what):
+        """Click, and wait for `done`; a click made in the first moments of a busy page may be lost to the page still starting, so
+        it is made again (up to six times). A handler that is not there at all still fails."""
+        for _ in range(6):
+            p.js(click)
+            if wait(lambda: p.js(done), 3):
+                return
+        self.fail(what)
+
+    def stored(self, table, field, value):
+        """Wait until the store has a row of `table` whose `field` is `value` (a toast from an earlier change must not be taken for this one)."""
+        found = []
+        wait(lambda: found.append(1) or any(r[field] == value for r in self.store.read(table, "ABC")), 15)
+        return next(r for r in self.store.read(table, "ABC") if r[field] == value)
+
+    def test_every_part_of_a_row_edits_in_place_and_the_pill_is_the_prototypes(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            row = "[data-type=raid] .wl-row[data-id=%r]" % id_of(self.store, "Supplier delivery may slip")
+            self.assertEqual(p.js(f"[...document.querySelectorAll({row!r} + ' [data-cell]')].map(e => e.dataset.cell.split(':')[1])"), ["status", "owner", "due"],
+                             "status, owner and date change in place")
+            self.assertEqual(p.js(f"document.querySelectorAll({row!r} + ' [data-fixed$=\":priority\"]').length"), 1,
+                             "a risk's priority is worked out from its impact and likelihood: shown, with the reason, not changed")
+            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-cell$=\":status\"]').textContent"), "Red", "the pill is Red, Amber or Green on a risk")
+            act = "[data-type=actions] .wl-row[data-id=%r]" % id_of(self.store, "Cut-over plan to be agreed")
+            self.assertEqual(p.js(f"document.querySelector({act!r} + ' [data-cell$=\":status\"]').textContent"), "Overdue")
+            # the client's wording, in place
+            self.type_into(p, row + " [data-f=title]", "Supplier delivery may slip by a week")
+            mine = self.stored("raid", "client_message", "Supplier delivery may slip by a week")
+            self.assertEqual(mine["description"], "Supplier may deliver late", "the team's own text is untouched")
+            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-f=title]').textContent"), "Supplier delivery may slip by a week")
+            self.type_into(p, row + " [data-f=title]", "", ending="Enter")
+            self.assertIn("can't be blank", p.toast())
+            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-f=title]').textContent"), "Supplier delivery may slip by a week")
+            # the owner, through its own picker
+            p.js(f"document.querySelector({act!r} + ' [data-cell$=\":owner\"]').click()")
+            p.until("!!document.querySelector('.menu, .cp, [role=dialog]')", "the owner picker opened")
+            p.key("Escape", code="Escape", vk=27)
+
+    def test_the_add_line_adds_a_row_with_its_wording_and_the_count_follows(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.assertEqual(p.js("document.querySelector('[data-add-line=actions]').placeholder"), "+ Add an action: type \u201cOwner: what it is\u201d, then Enter")
+            self.assertEqual(p.js("document.querySelector('[data-add-line=raid]').placeholder"), "+ Add a risk: type \u201cOwner: what it is\u201d, then Enter")
+            before = p.js("document.querySelector('[data-item-rows=actions] [data-showing]').textContent")
+            self.assertTrue(before.startswith("Showing 2 of 2."), before)
+            self.type_into(p, "[data-add-line=actions]", "Mia Hale: Send the plan")
+            row = self.stored("actions", "description", "Send the plan")
+            self.assertEqual((row["owner"], row["client_message"], row["client_visible"]), ("Mia Hale", "Send the plan", 1))
+            p.until("document.querySelectorAll('[data-item-rows=actions] .wl-row').length === 3", "the new row is drawn")
+            self.assertTrue(p.js("document.querySelector('[data-item-rows=actions] [data-showing]').textContent").startswith("Showing 3 of 3."))
+            self.assertEqual(p.js("document.querySelector('[data-add-line=actions]').value"), "", "the line is empty again")
+            self.type_into(p, "[data-add-line=raid]", "Omar Reid: Licence may lapse")
+            risk = self.stored("raid", "description", "Licence may lapse")
+            self.assertEqual((risk["type"], risk["owner"], risk["priority"], risk["client_message"]), ("Risk", "Omar Reid", "Medium", "Licence may lapse"))
+            self.type_into(p, "[data-add-line=decisions]", "Steering group: Pick the vendor")
+            made = self.stored("decisions", "decision", "Pick the vendor")
+            self.assertEqual(made["made_by"], "Steering group")
+            p.until("document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 2", "the new decision is drawn")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            p.until("document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 1", "Undo took the decision back off the page")
+
+    def test_the_eye_takes_a_row_off_and_add_from_your_project_record_puts_it_back(self):
+        gone = id_of(self.store, "Supplier delivery may slip")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.assertFalse(p.js("!!document.querySelector('[data-addfrom=raid]')"), "nothing is off the page yet: no link")
+            self.click(p, f"document.querySelector('[data-id={gone}] [data-eye]').click()", f"!document.querySelector('[data-item-rows=raid] [data-id={gone}]')", "the row left the page")
+            self.assertEqual([r["item_id"] for r in self.store.read("report_hidden", "ABC")], [gone])
+            self.assertTrue(p.js("document.querySelector('[data-item-rows=raid] [data-showing]').textContent").startswith("Showing 1 of 2."))
+            self.assertEqual(p.js("document.querySelector('[data-addfrom=raid]').textContent"), "+ Add from your project record (1)")
+            p.js("document.querySelector('[data-addfrom=raid]').click()")
+            p.until("!!document.querySelector('.picker')", "the picker opened")
+            self.assertEqual(p.js("[...document.querySelectorAll('.picker .pick label')].map(e => e.textContent).length"), 1, "only this section's kind, only what is off")
+            self.assertIn("Supplier delivery may slip", p.js("document.querySelector('.picker .pick label').textContent"), "the client's wording, not the team's text")
+            self.assertNotIn("Supplier may deliver late", p.js("document.querySelector('.picker').textContent"))
+            p.js("document.querySelector('.picker .pick input').click()")
+            p.js("document.querySelector('.picker .pk-btn.pri').click()")
+            p.until(f"!!document.querySelector('[data-item-rows=raid] [data-id={gone}]')", "the row is back on the page")
+            self.assertEqual(self.store.read("report_hidden", "ABC"), [])
+            self.assertFalse(p.js("!!document.querySelector('[data-addfrom=raid]')"))
+            # View: the eye is gone from the page it leaves; a row taken off is not drawn
+            p.js(f"document.querySelector('[data-id={gone}] [data-eye]').click()")
+            p.until(f"!document.querySelector('[data-item-rows=raid] [data-id={gone}]')", "off again")
+            p.view()
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id={gone}]')"), "View does not draw a row taken off the page")
+            self.assertEqual(p.js("document.querySelectorAll('[data-eye],.add-in,[data-add-line],[data-addfrom],[data-showing],[contenteditable],[data-cell]').length"), 0, "View has no Edit control")
+
+    def test_the_id_opens_the_item_and_the_row_is_clickable_in_view_only_in_the_page_clark_serves(self):
+        first = id_of(self.store, "Supplier delivery may slip")
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port)
+            p.ready()
+            self.click(p, f"document.querySelector('[data-type=raid] [data-id={first}] .idl').click()", f"location.hash.includes('item={first}')", "the item opened beside the page")
+            p.js("history.back()")
+            p.until("!location.hash.includes('item=')", "Back closed it")
+            self.click(p, f"document.querySelector('[data-type=raid] [data-id={first}] .wl-title').click()", f"location.hash.includes('item={first}')", "a click on the row opens the item too")
+        folder = tempfile.mkdtemp(prefix="clark-pub-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        done = publish.publish(self.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)
+        with chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)))
+            self.assertEqual(cdp.js("document.querySelectorAll('.idl,.wl-open,[data-eye],.add-in,[data-showing]').length", sid), 0, "the file has no button, no click and no Edit control")
 
 
 if __name__ == "__main__":
