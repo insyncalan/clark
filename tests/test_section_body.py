@@ -257,8 +257,9 @@ class Caps(unittest.TestCase):
         got = json.loads(data)
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
 
-    def test_section_body_is_two_times_64_kb_plus_4_kb_and_one_byte_more_is_refused_in_the_same_words(self):
-        limit = 2 * 64 * 1024 + 4 * 1024
+    def test_section_body_is_two_times_256_kb_plus_4_kb_and_one_byte_more_is_refused_in_the_same_words(self):
+        limit = sv.ESCAPE_FACTOR * 256 * 1024 + 4 * 1024      # #405: the largest section content is 256 KB ("Needs from you" and the tracker)
+        self.assertEqual(sv.SECTION_BODY_LIMIT, limit)
         self.assertEqual(self.running.api("POST", "/api/section-body", self.padded(limit))[0], 200)
         status, _, data = self.running.api("POST", "/api/section-body", self.padded(limit + 1))
         got = json.loads(data)
@@ -279,8 +280,9 @@ class Caps(unittest.TestCase):
                 self.assertEqual((status, json.loads(data)["code"]), (403, "not_allowed"))
         self.assertEqual(self.calls, [])
 
-    def test_the_largest_standing_the_route_lets_in_is_saved_and_one_byte_over_is_refused_on_both_routes(self):
+    def test_the_largest_standing_the_cleaner_allows_is_saved_and_over_the_route_limit_is_refused_on_both_routes(self):
         from _demo import DemoStore
+        from clark import sanitise
         demo = DemoStore()
         self.addCleanup(demo.close)
         running = Running(change=changes.make_change(demo.store.path, [], "Fictional Person"))
@@ -288,13 +290,20 @@ class Caps(unittest.TestCase):
         running.httpd.section_body = changes.make_section_body(demo.store.path, [], "Fictional Person")
         head = b'{"project":"ABC","kind":"use_cases","id":"' + demo.use_case.encode() + b'","body":"<p>'
         tail = b'</p>"}'
-        limit = sv.SECTION_BODY_LIMIT
-        fits = head + b"a" * (limit - len(head) - len(tail)) + tail
-        self.assertEqual(len(fits), limit)
+        text = b"a" * (sanitise.MAX_CHARS - len("<p></p>"))      # the longest standing text the cleaner takes, 200,000 characters
+        fits = head + text + tail
+        self.assertGreater(len(fits), 16 * 1024)
+        self.assertLessEqual(len(fits), sv.SECTION_BODY_LIMIT)
         status, _, data = running.api("POST", "/api/section-body", fits)
         self.assertEqual((status, json.loads(data)["ok"]), (200, True), data[:200])
-        self.assertEqual(len(demo.store.read("use_cases", ref=demo.use_case)["standing"]), limit - len(head) - len(tail) + len("<p></p>"))
-        status, _, data = running.api("POST", "/api/section-body", fits + b" ")
+        self.assertEqual(len(demo.store.read("use_cases", ref=demo.use_case)["standing"]), sanitise.MAX_CHARS)
+        # one letter over the cleaner's cap is refused by the cleaner, and nothing is saved
+        status, _, data = running.api("POST", "/api/section-body", head + text + b"a" + tail)
+        self.assertEqual(status, 400, data[:200])
+        self.assertEqual(len(demo.store.read("use_cases", ref=demo.use_case)["standing"]), sanitise.MAX_CHARS)
+        # one byte over the route's limit is refused as too big
+        pad = sv.SECTION_BODY_LIMIT + 1 - len(head) - len(tail)
+        status, _, data = running.api("POST", "/api/section-body", head + b"a" * pad + tail)
         self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"))
         # the same text through /api/change is over its 16 KB, and says so
         status, _, data = running.api("POST", "/api/change", fits)

@@ -24,7 +24,7 @@ from _paths import SRC, TOOLS
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 
-from clark import __main__ as launcher, page, server as sv, use_cases_read  # noqa: E402
+from clark import __main__ as launcher, changes, page, server as sv, use_cases_read  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_inline_edits import EMPTY_BRANDING, KEYS, click, key, need_chrome  # noqa: E402,F401
 from test_server import chrome, wait, wait_toast  # noqa: E402

@@ -154,7 +154,7 @@ class PythonSide(unittest.TestCase):
             self.assertLessEqual(len(body), sv.SECTION_BODY_LIMIT, letter)
 
     # #356 (a): the tracker's and the needs section's own maximums (section_bodies.LIMITS, 262,144 stored bytes each) are not the
-    # route's: what keeps their widest body inside CHANGE_BODY_LIMIT is the checkers' structural caps (rows, lines, characters).
+    # route's: what keeps their widest body inside SECTION_BODY_LIMIT is the checkers' structural caps (rows, lines, characters).
     # These build the widest body each checker accepts, send it the way the page does (one JSON string inside the request, so each
     # quote and backslash is written twice), and pin the sizes exactly, so a cap that moves by one byte fails here.
     ENVELOPE_IDS = ("ABCDEFG", "ABCDEFG-S-9999")                   # the longest project code and a section id: the request around the body
@@ -185,8 +185,8 @@ class PythonSide(unittest.TestCase):
         widest = max(r for _, r in got.values())
         self.assertLess(stored, section_bodies.LIMITS["tracker"], "the checker's caps keep the widest tracker under its stored-byte limit")
         self.assertEqual((stored, widest), (81288, 95122), "a tracker cap moved: work out the new widest request, then set these two numbers")
-        self.assertLessEqual(widest, sv.CHANGE_BODY_LIMIT)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT - widest, 433262, "the room left under the change limit")
+        self.assertLessEqual(widest, sv.SECTION_BODY_LIMIT)
+        self.assertEqual(sv.SECTION_BODY_LIMIT - widest, 433262, "the room left under the change limit")
 
     def test_the_widest_needs_body_with_nothing_but_plain_letters_fits_the_change_limit_to_the_byte(self):
         got = {letter: self.widest_request("needs", self.widest_needs(letter), False) for letter in ("a", "\u00e9", "\u4e2d")}
@@ -194,8 +194,8 @@ class PythonSide(unittest.TestCase):
                          "a needs cap moved: work out the new sizes, then set these")
         for letter, (stored, request) in got.items():
             self.assertLessEqual(stored, section_bodies.LIMITS["needs"], letter)
-            self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT - max(r for _, r in got.values()), 399560, "the room left under the change limit")
+            self.assertLessEqual(request, sv.SECTION_BODY_LIMIT, letter)
+        self.assertEqual(sv.SECTION_BODY_LIMIT - max(r for _, r in got.values()), 399560, "the room left under the change limit")
 
     def test_the_widest_quote_heavy_needs_body_fits_the_change_limit_by_these_bytes(self):
         """#356 (a), closed by #405: 100 rows of `what` and `from` at their longest, all quotes (or all backslashes), are 86,916
@@ -206,8 +206,8 @@ class PythonSide(unittest.TestCase):
             stored, request = self.widest_request("needs", self.widest_needs(letter), False)
             self.assertEqual((stored, request), (86916, 168824), letter)
             self.assertLess(stored, section_bodies.LIMITS["needs"], letter)
-            self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
-            self.assertEqual(sv.CHANGE_BODY_LIMIT - request, 359560, letter)
+            self.assertLessEqual(request, sv.SECTION_BODY_LIMIT, letter)
+            self.assertEqual(sv.SECTION_BODY_LIMIT - request, 359560, letter)
 
     def test_the_widest_needs_body_with_every_non_ascii_letter_written_as_an_escape_fits_the_change_limit(self):
         """The page sends plain UTF-8, but a client may write each non-ASCII letter as a \\u escape (seven bytes once the body is a string in the request): the
@@ -215,7 +215,7 @@ class PythonSide(unittest.TestCase):
         for letter in ("\u00e9", "\u4e2d"):
             stored, request = self.widest_request("needs", self.widest_needs(letter), True)
             self.assertLessEqual(stored, section_bodies.LIMITS["needs"], letter)
-            self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
+            self.assertLessEqual(request, sv.SECTION_BODY_LIMIT, letter)
 
     def test_a_stub_publishes_nothing_whatever_its_body_holds(self):
         ctx = base.Context({"actions": [{"id": "ABC-A-001", "description": "Fictional"}]}, "2030-01-15")

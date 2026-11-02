@@ -2,7 +2,7 @@
 
 A test that built its server with only `change` and `undo` left every other route off (503 or 404), so a body edit, a picture
 or a newer route was never exercised by it. `real_server(path)` starts test_server.Running with the same handlers the launcher
-(clark/__main__.py main) builds over the data file: change, undo, section_image, sneak, people (write, undo, list), word_import,
+(clark/__main__.py main) builds over the data file: change, undo, section_body, section_image, sneak, people (write, undo, list), word_import,
 word_export, activity, milestones, draft_email_sent, app_settings, ask_folders and safety. A test that needs to watch or break
 a seam passes `seam(real, which)` (the tests' usual shape), which returns the function to put in place of the real "change" or
 "undo" handler (`which` is that word); one that needs a route which is not made from the file alone (publisher, use_cases, movement, ask,
@@ -19,6 +19,7 @@ def real_handlers(path, data_for, who=USER, roots=None):
     roots = [] if roots is None else roots
     return {"change": changes.make_change(path, roots, who),
             "undo": changes.make_undo(path, roots, who),
+            "section_body": changes.make_section_body(path, roots, who),
             "section_image": changes.make_section_image(path, roots, who),
             "sneak": sneak.make_read(data_for),
             "people": changes.make_people(path, roots, who),
