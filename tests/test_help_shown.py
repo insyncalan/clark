@@ -151,7 +151,8 @@ class AgainstThePage(unittest.TestCase):
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
-        self.assertGreaterEqual(len(names), 59)
+        # 54 on Train 01's merged tree (measured, main was 59): the milestone form (#458, PR 309) puts five bold Help names on the page: Add milestone, Add a recovery action, Escalate to steering, Internal note and Rebaseline; the other members drop none
+        self.assertGreaterEqual(len(names), 54)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
