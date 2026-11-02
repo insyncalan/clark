@@ -31,7 +31,6 @@ ACCEPTED = [
     ("https://example.com#top", "https://example.com#top"),
     ("https://example.com./x", "https://example.com./x"),
     ("https://192.0.2.10/report", "https://192.0.2.10/report"),
-    ("https://intranet/plan", "https://intranet/plan"),
     ("https://xn--e1afmkfd.example.com/", "https://xn--e1afmkfd.example.com/"),
     ("https://example.com/caf\u00e9", "https://example.com/caf\u00e9"),
     ("https://example.com:443/", "https://example.com:443/"),
@@ -117,6 +116,44 @@ BAD_HOSTS = [
     "https://example.com:8080:/", "https://[example.com]/",
 ]
 
+# The owner's decision on #74: a link to an address only reachable inside a network or on this computer is refused (the reader outside can't open it).
+INTERNAL_HOSTS = [
+    "http://localhost/x", "https://localhost:3000/", "https://LOCALHOST/", "https://LocalHost./x", "https://app.localhost/",
+    "https://127.0.0.1/", "http://127.0.0.1:8080/x", "https://127.255.255.254/", "https://10.0.0.1/", "https://10.255.255.255/",
+    "https://172.16.0.1/", "https://172.20.5.5/", "https://172.31.255.255/", "https://192.168.0.1/", "https://192.168.1.10:8443/x",
+    "https://169.254.169.254/latest/", "https://169.254.0.1/", "https://10.0.0.1./x", "HTTPS://10.0.0.1/", "Http://192.168.1.1/",
+    "https://intranet/x", "http://intranet/x", "https://Intranet/x", "https://wiki/", "https://wiki./x", "https://printer:631/",
+    "https://files.local/x", "https://FILES.LOCAL/x", "https://nas.internal/", "https://build.corp.internal/", "https://router.lan/",
+    "https://host.Lan./x", "https://site.corp/x", "https://nas.home/", "https://wiki.intranet/", "https://box.private/x", "https://app.test/",
+    "https://HOST.CORP./x",
+    "https://0.0.0.0/", "https://0.1.2.3/", "https://100.64.0.1/", "https://100.100.5.5/", "https://100.127.255.255/", "https://192.0.0.1/",
+    "https://192.0.0.255/", "https://198.18.0.1/", "https://198.19.255.255/", "https://224.0.0.1/", "https://239.255.255.250/",
+    "https://240.0.0.1/", "https://255.255.255.255/",
+]
+INTERNAL_MAILTO = ["mailto:someone@intranet", "mailto:someone@host.corp", "mailto:a@nas.home", "mailto:a@10.0.0.1", "mailto:a@x.test"]
+# Still refused, by the older site-name rule: IPv6 (loopback, link-local, unique-local), and numbers written in another system.
+INTERNAL_OTHER_FORMS = [
+    "https://[::1]/", "https://[fe80::1]/", "https://[fd00::1]/", "https://[fc00::1]:8080/", "https://[::ffff:127.0.0.1]/",
+    "https://2130706433/", "https://0x7f000001/", "https://0x7f.0.0.1/", "https://0177.0.0.1/", "https://127.1/",
+    "https://167772161/", "https://0xc0a80001/",
+]
+# A user name in front of the real host is refused as a user name, so the internal host behind it is never reached.
+INTERNAL_BEHIND_USERINFO = [
+    "https://example.com@10.0.0.1/", "https://example.com@localhost/", "https://example.com:" "80@192.168.0.1/",
+    "https://example.com@intranet/x", "https://example.com%40127.0.0.1/",
+]
+# Addresses next to the blocked ranges that are public and stay allowed.
+NOT_INTERNAL = [
+    "https://172.15.255.255/", "https://172.32.0.1/", "https://192.167.1.1/", "https://192.169.0.1/", "https://169.253.1.1/",
+    "https://169.255.1.1/", "https://11.0.0.1/", "https://128.0.0.1/", "https://192.0.2.10/report", "https://example.com/",
+    "https://localhost.example.com/", "https://local.example.com/", "https://lan.example.com/x", "https://internal.example.com/",
+    "https://example.com/localhost", "https://example.com/?next=http://127.0.0.1/", "https://example.com/#192.168.0.1",
+    "mailto:alice@example.com",
+    "https://100.63.255.255/", "https://100.128.0.1/", "https://192.0.1.1/", "https://192.0.2.1/", "https://198.17.255.255/",
+    "https://198.20.0.1/", "https://223.255.255.254/", "https://1.0.0.1/", "https://example.com.au/", "https://testing.example.com/",
+    "mailto:a@example.org", "mailto:a@corporate.example.com",
+]
+
 TOO_LONG = ["https://example.com/" + "a" * 1981, "https://example.com/" + "a" * 5000, "mailto:" + "a" * 2000 + "@example.com"]
 
 MAILTO = [
@@ -136,6 +173,8 @@ NOT_TEXT = [None, 5, b"https://example.com", ["https://example.com"], {"url": "h
 REFUSED = {
     "scheme": SCHEME_TRICKS, "lookalike scheme": LOOKALIKE_SCHEMES, "not absolute": NOT_ABSOLUTE,
     "credentials": CREDENTIALS, "hidden character": HIDDEN_CHARACTERS, "host": BAD_HOSTS, "length": TOO_LONG, "mailto": MAILTO,
+    "internal address": INTERNAL_HOSTS, "internal address in another form": INTERNAL_OTHER_FORMS,
+    "internal host behind a user name": INTERNAL_BEHIND_USERINFO,
 }
 
 
@@ -232,6 +271,59 @@ class Refused(unittest.TestCase):
                     self.assertLess(len(str(caught.exception)), 120)
                     if len(text) > 12:
                         self.assertNotIn(text, str(caught.exception))
+
+
+class InternalAddresses(unittest.TestCase):
+    """The owner's decision on #74: no link to an address that works only inside a network or on this computer."""
+
+    def test_each_internal_address_is_refused_with_the_internal_message(self):
+        for text in INTERNAL_HOSTS:
+            with self.subTest(text=text):
+                with self.assertRaises(LinkError) as caught:
+                    check_link(text)
+                self.assertEqual(str(caught.exception), doclinks.INTERNAL)
+
+    def test_internal_addresses_are_refused_with_spaces_round_them_too(self):
+        with self.assertRaises(LinkError) as caught:
+            check_link("  https://192.168.0.1/x  ")
+        self.assertEqual(str(caught.exception), doclinks.INTERNAL)
+
+    def test_other_ways_of_writing_an_internal_address_are_still_refused(self):
+        for text in INTERNAL_OTHER_FORMS + INTERNAL_BEHIND_USERINFO:
+            with self.subTest(text=text):
+                with self.assertRaises(LinkError):
+                    check_link(text)
+
+    def test_a_user_name_trick_is_refused_as_a_user_name(self):
+        for text in ("https://example.com@10.0.0.1/", "https://example.com@localhost/"):
+            with self.subTest(text=text):
+                with self.assertRaises(LinkError) as caught:
+                    check_link(text)
+                self.assertEqual(str(caught.exception), doclinks.CREDENTIALS)
+
+    def test_public_links_beside_the_blocked_ranges_are_kept(self):
+        for text in NOT_INTERNAL:
+            with self.subTest(text=text):
+                self.assertEqual(check_link(text), check_link(check_link(text)))
+
+    def test_a_public_https_link_is_kept_exactly(self):
+        self.assertEqual(check_link("HTTPS://Docs.Example.COM/Plan?Q=1"), "https://docs.example.com/Plan?Q=1")
+
+    def test_the_message_is_plain_words_and_names_no_address(self):
+        text = doclinks.INTERNAL
+        self.assertTrue(text.endswith("."))
+        for word in ("URL", "URI", "IP", "localhost", "127", "192.168", "private range", "RFC", "DNS"):
+            self.assertNotIn(word, text)
+
+    def test_a_mailto_to_an_internal_domain_is_refused_with_the_internal_message(self):
+        for text in INTERNAL_MAILTO:
+            with self.subTest(text=text):
+                with self.assertRaises(LinkError) as caught:
+                    check_link(text)
+                self.assertEqual(str(caught.exception), doclinks.INTERNAL)
+
+    def test_a_mailto_link_is_not_affected(self):
+        self.assertEqual(check_link("mailto:a@example.com"), "mailto:a@example.com")
 
 
 class Evasion(unittest.TestCase):

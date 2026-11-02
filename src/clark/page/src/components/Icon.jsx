@@ -27,6 +27,8 @@ const ICONS = {
   bars: '<path d="M6 19v-5M12 19v-9M18 19V5"/>',
   flash: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  doc: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>',
+  ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
 };
 const SHAPES = new Set(["path", "circle", "rect", "line", "polyline", "polygon", "ellipse"]);
 const PARSED = {};
