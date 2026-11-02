@@ -33,7 +33,8 @@ SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 10          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
+SCHEMA_VERSION = 11          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -94,7 +95,7 @@ ALLOWED = {
     ("raid", "impact"): ("High", "Medium", "Low"),
     ("raid", "likelihood"): ("High", "Medium", "Low"),
     ("decisions", "status"): ("Pending", "Made", "Withdrawn"),
-    ("use_cases", "status"): ("On track", "Flag", "High risk"),                                    # clark
+    ("use_cases", "status"): ("On track", "Flag", "High risk", "Done"),                            # clark
     ("links", "kind"): ("blocks",),
     ("labels", "behaviour"): ("warn", "exclude"),
     ("labels", "default_choice"): ("include", "exclude"),
@@ -172,7 +173,7 @@ PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions":
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal
 # note's history and every other field are not in it. `id` is only there so a milestone's creation can be told from a change.
 # What "note" is here: a step's note (Step.update(note=...)) is a change_log row with field "note", history only; it is not the
-# milestones.internal_note column, and no request can change that column (changes.py _do_milestone_change refuses it). A Hold's
+# milestones.internal_note column, which only a milestone update can change (changes.py, #458: owner only, never in a reply). A Hold's
 # dated line (dates only) and a rebaseline's reason line are stored this way, so a "note" row can sit in `shown` in
 # milestone_moves, kept because its step also has a dated or Movement row. What keeps its text off the page is not this tuple but
 # the Movement view's entries_for, which drops every entry of kind "note" or "internal_note"; the internal_note field itself is not in
@@ -2073,10 +2074,38 @@ def migrate_publication_numbers(con):
         con.execute(statement)
 
 
+def _use_cases_allow_done(con):
+    """use_cases.status gains 'Done' (#412). SQLite cannot widen a CHECK in place, so the table is made again from its frozen
+    text (SCHEMA_USE_CASES_DONE, never schema.sql), every row is copied by column name with its id and its rowid, the old table
+    is dropped and the new one takes its name. Nothing else changes: no table points at use_cases by a key (a work item names
+    its use case in a plain text column), and use_cases has no index or trigger of its own. Only when the table's own definition
+    does not name 'Done' yet, so a second run (or a new database) does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'use_cases'").fetchone()
+    if have is not None and "'Done'" in have[0]:
+        return
+    (made,) = [st for st in _statements(SCHEMA_USE_CASES_DONE.read_text(encoding="utf-8")) if "CREATE TABLE IF NOT EXISTS use_cases (" in st]
+    if have is None:
+        con.execute(made)
+        return
+    con.execute(made.replace("CREATE TABLE IF NOT EXISTS use_cases (", "CREATE TABLE use_cases_done (", 1))
+    con.execute("INSERT INTO use_cases_done (rowid, id, project, ref, title, status, headline, standing, sort_order, client_visible, "
+                "source, archived, updated_at) SELECT rowid, id, project, ref, title, status, headline, standing, sort_order, "
+                "client_visible, source, archived, updated_at FROM use_cases ORDER BY rowid")
+    con.execute("DROP TABLE use_cases")
+    con.execute("ALTER TABLE use_cases_done RENAME TO use_cases")
+
+
+def migrate_use_case_done(con):
+    """A use case can be Done (#412): use_cases is made again with 'Done' in its status CHECK. Its own step, number 11 (see SCHEMA_VERSION and
+    MIGRATIONS); it touches no other table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _use_cases_allow_done(con)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
-              (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers))
+              (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
+              (11, migrate_use_case_done))
 
 
 def migration_plan(version, table=None):
@@ -2658,16 +2687,16 @@ class Store:
         one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
         transaction. Returns the record's number."""
         if not str(by_user or "").strip():
-            raise Invalid("A sent record needs who pressed it.")
+            raise Invalid("Add your name in Settings, then try again. Nothing was saved.")
         if mode not in self.EMAIL_MODES:
-            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
+            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision. Nothing was saved.")
         if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
-            raise Invalid("Tick at least one item before you press I sent it.")
+            raise Invalid("Tick at least one item before you press I sent it. Nothing was saved.")
         ids = list(dict.fromkeys(i.strip() for i in ids if i.strip()))
         if not ids:
-            raise Invalid("Tick at least one item before you press I sent it.")
+            raise Invalid("Tick at least one item before you press I sent it. Nothing was saved.")
         if len(ids) > self.EMAIL_MAX_IDS:
-            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts.")
+            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts. Nothing was saved.")
         try:
             if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(day)):
                 raise ValueError
@@ -2680,7 +2709,7 @@ class Store:
         if sent > now + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
-            raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
+            raise Invalid("Another change is still being saved. Wait a moment, then try again. Nothing was saved.")
         try:
             self.con.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as e:
@@ -2688,9 +2717,9 @@ class Store:
         try:
             row = self.con.execute("SELECT archived FROM projects WHERE code = ?", (code,)).fetchone()
             if row is None:
-                raise Invalid("There is no project with that code.")
+                raise Invalid("There is no project with that code. Nothing was saved.")
             if row["archived"]:
-                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first.")
+                raise Invalid("That project is archived, so no email can be drafted for it. Restore it first. Nothing was saved.")
             def ours(item):
                 return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
                            for table in ("actions", "raid", "decisions"))
@@ -2834,6 +2863,15 @@ class Store:
         undo. It changes nothing. #45: each row also says its `field`, so an Undo can check the field and not only the table."""
         return [{"table": r["tbl"], "key": r["item_id"], "field": r["field"], "via": r["via"], "op": r["op"]} for r in self.con.execute(
             "SELECT tbl, item_id, field, via, op FROM change_log WHERE apply_id = ? ORDER BY rowid", (apply_id,))]
+
+    def step_undone(self, apply_id, reverted=None):
+        """Whether step `apply_id` has been undone already: every row it really wrote (not a note, an updated_at stamp or a starting
+        section) has been put back by an undo still in force, the rule undo_many skips a step by. Read only. #377: a caller that asks about
+        many steps passes `reverted` (reverted_rowids, computed once) so it is not rescanned for every step."""
+        real = [r[0] for r in self.con.execute("SELECT rowid FROM change_log WHERE apply_id = ? AND field NOT IN ('note', 'updated_at') "
+                                               "AND via != ?", (apply_id, SEED_VIA))]
+        back = (reverted if reverted is not None else reverted_rowids(self.con)) if real else set()
+        return bool(real) and all(r in back for r in real)
 
     def step_actors(self, apply_id):
         """Who made step `apply_id`, read only (#47e): the set of item_events actors for it ('you', 'clark'); empty when it wrote no
@@ -2991,6 +3029,10 @@ class Step:
     def peek_apply_id(self):
         """This step's applies row, or None if nothing is written yet."""
         return self._apply_id
+
+    def is_hidden(self, project, item_id):
+        """#487: read only. Whether a report_hidden row already hides this item (its key is project + item, so a second would fail)."""
+        return self.con.execute("SELECT 1 FROM report_hidden WHERE project = ? AND item_id = ?", (project, item_id)).fetchone() is not None
 
     def create(self, kind, values):
         """A new row; returns its ref (the ID clark gives it, or its key)."""

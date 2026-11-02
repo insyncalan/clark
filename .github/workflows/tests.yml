@@ -60,6 +60,9 @@ jobs:
     name: Plan
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read      # the list of changed files, over the API (no checkout of the pull request); this job only
     outputs:
       full: ${{ steps.plan.outputs.full }}
       macos: ${{ steps.plan.outputs.macos }}
@@ -70,6 +73,9 @@ jobs:
           BRANCH: ${{ github.head_ref || github.ref_name }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           MACOS_INPUT: ${{ github.event.inputs.macos }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           FULL=""; MACOS=""
           case "$EVENT" in
@@ -82,6 +88,25 @@ jobs:
           case ",$LABELS," in
             *,full-ci,*) FULL=1; MACOS=1 ;;
           esac
+          # A pull request that changes a guarded file is the full matrix without the label. The changed files come from the API
+          # (nothing from the pull request is checked out); if the call fails the answer is full (fail safe). Exact names or
+          # anchored prefixes in `case`, never eval. The list is dev/run_tests.py GUARDED plus the publishing, secret-screen,
+          # update and platform modules and the workflows.
+          if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then
+            if CHANGED="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')"; then
+              while IFS= read -r F; do
+                case "$F" in
+                  src/clark/store.py|src/clark/schema.sql|src/clark/history.py|src/clark/server.py) FULL=1; MACOS=1 ;;
+                  src/clark/publish.py|src/clark/publish_flow.py|src/clark/secret_screen.py) FULL=1; MACOS=1 ;;
+                  src/clark/updates.py|src/clark/platform.py) FULL=1; MACOS=1 ;;
+                  .github/*) FULL=1; MACOS=1 ;;
+                esac
+              done <<< "$CHANGED"
+            else
+              echo "could not list the changed files: full (fail safe)"
+              FULL=1; MACOS=1
+            fi
+          fi
           echo "full=$FULL" >> "$GITHUB_OUTPUT"
           echo "macos=$MACOS" >> "$GITHUB_OUTPUT"
           echo "event: $EVENT; branch: $BRANCH; full: ${FULL:-no}; macOS: ${MACOS:-no}"

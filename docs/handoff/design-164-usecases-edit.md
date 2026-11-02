@@ -28,7 +28,8 @@ The hazard: the other branch's `ITEM_LIKE` includes `use_cases`, and its test of
 ## Not done, on purpose
 
 - No create path and no delete or move path: `new`, `move`, `delete` are refused for use cases (`BAD_OP`), and a test lists the server's routes. Use cases still come from the project record and the Excel import.
-- Status "Done": the schema allows On track, Flag, High risk only. Done is refused in plain words until a schema change (migration of a CHECK) is approved as its own item.
+- Status "Done": was refused here while the schema allowed On track, Flag and High risk only. It is a status since #412, which
+  widened the CHECK with its own migration step; the status menu offers it and the refusal names the four.
 - The eye is `use_cases.client_visible`. The `report_hidden` route (#67) is not built, so the eye cannot yet hide a use case by that route.
 - Linking a work item and adding a next step use the work item's own change path (#68 and the work item `use_case` field is not in its list yet): not changed here.
 

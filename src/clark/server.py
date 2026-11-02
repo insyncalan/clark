@@ -324,7 +324,7 @@ class Refused:
     one line, when the window ends: how many were turned away and how long the window was. A timer writes it, so a lone
     refusal or a last burst before quiet is still written; a later request writes it too if the timer has not yet. Nothing is
     written when the first request arrives. Only two whole numbers are written: nothing of any request (no path, query, header
-    or Origin). `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
+    or Origin). A timer that cannot start is skipped without a word. `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
     `timer=None`."""
 
     def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic, timer=threading.Timer):
@@ -362,9 +362,12 @@ class Refused:
             if self.since is None:
                 self.since, self.gen = now, self.gen + 1
                 if self.timer:
-                    t = self.timer(self.interval, self.flush, (self.gen,))
-                    t.daemon = True
-                    t.start()
+                    try:
+                        t = self.timer(self.interval, self.flush, (self.gen,))
+                        t.daemon = True
+                        t.start()
+                    except (RuntimeError, OSError):      # no thread could be started: the next request or the stop writes the window
+                        pass
             self.n += 1
         self._say(done)
 
