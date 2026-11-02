@@ -1,8 +1,10 @@
 // The milestone list in the design system's rail form (#44a; FR-52): 5 rows, then "Show all N milestones" / "Show the first 5",
-// remembered for each place. Each row: a point on the rail, the date and how it compares, the name, the state and progress.
+// remembered for each place, under a "Hide milestone details" / "Show milestone details" toggle (also remembered for each place;
+// not in a published file, which shows the list as it is). Each row: a point on the rail, the date and how it compares, the name, the state and progress.
 // In Edit each row also has the eye (`Eye`, edit/MsEye.jsx), a button beside the row that leaves it out of the published page; a row
 // that is left out says so in words (`left`: the set of ids). View and a published file pass neither.
 import { useState } from "preact/hooks";
+import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { showDate, railRows, railWord, RAIL } from "../logic/milestones.js";
@@ -33,9 +35,18 @@ function Progress({ value }) {
 export function MsList({ rows, place, open, internalTag, Eye, left }) {
   const [all, setAll] = useState(() => !!recall(`msAll.${place}`, false));
   const shown = railRows(rows, all);
+  const canFold = !!open;                    // a published file has nothing to open and remembers nothing: no toggle, the list as it is
+  const [det, setDet] = useState(() => !canFold || recall(`msDet.${place}`, true) !== false);
+  const fold = () => { remember(`msDet.${place}`, !det); setDet(!det); };
   const toggle = () => { remember(`msAll.${place}`, !all); setAll(!all); };
   return (
     <div class="msl-box" data-place={place}>
+      {canFold ? (
+        <button type="button" class="msl-det" data-msdet={place} aria-expanded={String(det)} aria-controls={`msl-${place}`} onClick={fold}>
+          <Icon name="chevdown" /><span>{det ? "Hide milestone details" : "Show milestone details"}</span>
+        </button>
+      ) : null}
+      <div id={`msl-${place}`} hidden={!det}>
       <ul class="msl">
         {shown.map((r) => {
           const out = !!(Eye && left && left.has(r.id));          // left out of the published page: said in words, never by colour alone
@@ -55,6 +66,7 @@ export function MsList({ rows, place, open, internalTag, Eye, left }) {
         })}
       </ul>
       {rows.length > RAIL ? <button type="button" class="link msl-all" data-msall={place} onClick={toggle}>{railWord(rows.length, all)}</button> : null}
+      </div>
     </div>
   );
 }
