@@ -296,7 +296,7 @@ class RealChrome(unittest.TestCase):
 
 # ===== The Publish option (publish_pdf.py) =====
 import _publish_fixture as fx                                     # noqa: E402
-from test_publish_route import Rig, WANTED, DAY                   # noqa: E402
+from test_publish_route import Rig, WANTED, DAY, EMPTY_BRANDING                   # noqa: E402
 from clark import pdf_text as pdftext, publish_pdf, to_client                # noqa: E402
 from clark.store import Store                                       # noqa: E402
 
@@ -432,7 +432,7 @@ class PublishRealChrome(unittest.TestCase):
         self.assertNotIn(squash(str(rig.client)), squashed)
         for word in ("Dashboard", "Work items", "Milestones", "28-10-2026", "Page 1 of"):
             self.assertIn(word, text)
-        self.assertIn("Published 28-10-2026", text, "the footer carries the date")
+        self.assertRegex(text, r"Publication \d+ · 28-10-2026", "the footer carries the number and the date")
         self.assertNotIn("Filter by", text, "no controls")
         self.assertEqual(text.count("Programme notes"), 1, "the live page is not printed as well as the stack")
         # a taken name in the client folder is asked about first, and nothing is written for the question
@@ -1096,7 +1096,40 @@ class TheReviewFindings(unittest.TestCase):
         self.assertEqual((status, got["ok"], got["pdf_saved"], got["pdf_name"]), (200, True, False, "second.pdf"), got)
         self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_failed"]), got["message"])
 
+    def footers_of_publishes(self, count):
+        """The footer_left Chrome is handed at each of `count` Local publishes (Chrome faked), one Save name each."""
+        seen = []
+
+        def make_pdf(page, out, orientation="portrait", footer_left="", **k):
+            seen.append(footer_left)
+            out.write_bytes(self.GOOD)
+            return out
+        with mock.patch.object(pdf, "find_chrome", return_value="/c"), mock.patch.object(pdf, "make_pdf", make_pdf), \
+                mock.patch.object(pdftext, "text_of", return_value="Programme"):
+            for n in range(count):
+                self.rig.save_to = self.rig.local / f"again-{n}.html"
+                status, got = self.rig.publish(pdf=True)
+                self.assertEqual((status, got["ok"]), (200, True), got)
+        return seen
+
+    def test_two_publishes_put_two_different_numbers_in_the_footers(self):
+        first, second = self.footers_of_publishes(2)
+        self.assertEqual((first, second), ("Publication 2 \u00b7 28-10-2026", "Publication 3 \u00b7 28-10-2026"))
+
+    def test_a_publication_with_no_number_makes_no_pdf(self):
+        real = publish.build
+
+        def numberless(*a, **k):
+            return {k2: v for k2, v in real(*a, **k).items() if k2 != "number"}
+        with mock.patch.object(publish, "build", numberless):
+            status, got = self.go(pdf=True)
+        self.assertEqual((status, got["ok"], got["code"]), (409, False, "pdf_failed"), got)
+        self.assertIn(publish_pdf.MESSAGES["pdf_no_number"], got["message"])
+        self.assertEqual(self.rig.everything_written(), self.before, "nothing was written")
+
     def test_the_same_report_already_in_the_client_folder_says_no_pdf_was_copied(self):
+        # #120: every publish says its own number, so "the same report" is the one the next publish will make (Publication 2)
+        self.report.write_bytes(publish.build(self.rig.store, "PUB", DAY, EMPTY_BRANDING)["body"])
         status, got = self.go(to_client=True, pdf=True)
         self.assertEqual((status, got["ok"], got["action"], got["pdf_saved"]), (200, True, "nothing_to_do", False), got)
         self.assertIn(publish_pdf.MESSAGES["pdf_client_same"], got["message"])
