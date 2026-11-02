@@ -402,6 +402,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
         LOG.info("started on port %d", port)
+        try:
+            page.ensure_built()          # #495: a source checkout builds its pages now, before the first request
+        except page.PageError as e:
+            print(str(e), file=err or sys.stderr)
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
                      err=err,

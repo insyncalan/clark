@@ -66,6 +66,7 @@ class Source(unittest.TestCase):
         self.assertEqual(importers, ["core/editor.js"])
 
     def test_the_published_page_has_no_editor(self):
+        page.ensure_built()          # #495: the pages are generated, so a fresh checkout builds them here
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
         scripts = "".join(re.findall(r"<script>(.*?)</script>", view, re.S))          # the stylesheet names the editor's classes; the script must not hold it
         self.assertGreater(len(scripts), 1000)
