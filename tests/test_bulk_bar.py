@@ -88,8 +88,9 @@ class Rules(unittest.TestCase):
         self.assertEqual((got["workstream"][1:], got["milestone"][1:]), ([False, "These items are in different projects"],) * 2)
         self.assertTrue(got["owner"][1] and got["close"][1])
 
-    def test_view_says_to_switch_to_edit(self):
-        self.assertEqual({c[2] for c in self.controls("a('ABC-A-001'), a('ABC-A-002')", editing=False)}, {"Switch to Edit to change these"})
+    def test_the_work_items_page_is_always_editable_so_the_controls_are_on_even_if_told_it_is_not(self):
+        got = self.controls("a('ABC-A-001'), a('ABC-A-002')", editing=False)
+        self.assertTrue(got and all(on and why == "" for _, on, why in got), got)
 
     def test_what_is_sent(self):
         got = self.run_("return [B.changesFor('actions', 'close'), B.changesFor('raid', 'reopen'), B.changesFor('decisions', 'made_by', '  Zelda   Quince '),"
@@ -123,7 +124,7 @@ class Rules(unittest.TestCase):
         self.assertEqual(got[0], ["owner", "status", "priority", "due", "close", None, None])
         self.assertEqual(got[1], "made_by")
         self.assertEqual(got[2:], ["A risk's or issue's priority comes from its impact and likelihood. Change its impact or likelihood instead.",
-                                   "A decision takes only who makes it.", "These items are of different kinds.", "Switch to Edit to change these.", ""])
+                                   "A decision takes only who makes it.", "These items are of different kinds.", "", ""])
 
     def test_words(self):
         self.assertEqual(self.run_("return [B.itemsWords(1), B.itemsWords(3), B.pickerLabel('status', 3), B.backWords(1), B.backWords(4), B.copyText(['ABC-A-001', 'ABC-002'])];"),
@@ -413,10 +414,10 @@ class Page(Base):
             click(cdp, sid, "[data-mode=view]")
             self.until(cdp, sid, "document.querySelector('[data-mode=view]').getAttribute('aria-pressed') === 'true'", "View")
             self.focus(cdp, sid, risk)
-            for k in "ospct":
-                letter(cdp, sid, k)
-            self.assertFalse(cdp.js("!!document.querySelector('.cpop, .bask')", sid), "no key acts in View")
-            self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('#work-live').textContent", sid), "in View a letter is not even answered")
+            letter(cdp, sid, "o")
+            self.until(cdp, sid, "!!document.querySelector('.cpop')", "the Work items page is always editable: O opens the owner menu in View")
+            press(cdp, sid, "Escape")
+            self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('#work-live').textContent", sid), "View never tells you to switch")
             click(cdp, sid, "[data-mode=edit]")
             cdp.js("document.activeElement.blur()", sid)
             letter(cdp, sid, "c")
