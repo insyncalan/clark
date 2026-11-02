@@ -26,6 +26,10 @@ class Button(unittest.TestCase):
         self.assertIn('<span class="toc-lbl" aria-hidden="true">On this page</span>', JSX)
         self.assertIn('class="toc-ico"', JSX)
 
+    def test_the_nav_and_the_button_have_different_names_and_escape_works_from_the_page(self):
+        self.assertIn('<nav class={`toc${open ? " open" : ""}`} aria-label="Contents"', JSX)
+        self.assertIn('e.key === "Escape" && narrow()', JSX)
+
     def test_only_a_click_or_a_key_opens_it_at_900_not_hover_or_plain_focus(self):
         self.assertIn('const NARROW = "(max-width: 900px)"', JSX)
         self.assertIn("onMouseEnter={() => { if (!narrow()) setOpen(true); }}", JSX)
