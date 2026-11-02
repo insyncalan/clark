@@ -115,7 +115,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 30, 33))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (29, 30, 33))
 
 
 class AgainstThePage(unittest.TestCase):

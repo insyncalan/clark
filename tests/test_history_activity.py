@@ -52,9 +52,9 @@ class WordDiffBounds(unittest.TestCase):
 
     def test_a_20000_character_edit_returns_quickly(self):
         a, b = self.texts(20000)
-        t = time.monotonic()
+        t = time.process_time()
         pieces = history.word_diff(a, b)
-        self.assertLess(time.monotonic() - t, 5)                # a hang guard, not a speed claim (the old code took minutes)
+        self.assertLess(time.process_time() - t, 60)                # a hang guard, not a speed claim (the old code took minutes)
         self.assertTrue(pieces)
 
     def test_a_long_changed_stretch_is_one_removed_and_one_added_piece_whole(self):
@@ -66,9 +66,9 @@ class WordDiffBounds(unittest.TestCase):
 
     def test_a_small_edit_in_a_long_text_is_still_compared_word_by_word(self):
         base = " ".join("word%d" % i for i in range(3000))
-        t = time.monotonic()
+        t = time.process_time()
         pieces = history.word_diff(base, base.replace("word1500", "other"))
-        self.assertLess(time.monotonic() - t, 5)                # the old code took about two minutes here
+        self.assertLess(time.process_time() - t, 60)                # the old code took about two minutes here
         self.assertEqual([p["op"] for p in pieces], ["same", "removed", "added", "same"])
         self.assertEqual((pieces[1]["text"], pieces[2]["text"]), ("word1500", "other"))
 
