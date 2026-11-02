@@ -49,7 +49,7 @@ export function MsList({ rows, place, open, internalTag, Eye, left }) {
               <span class={`mst c-${r.colour}`}><MsMark name={r.mark} />{r.word}</span>
               <span class="msl-prog" title="Progress"><Progress value={r.percent} /></span>
             </div>
-            {Eye ? <Eye id={r.id} name={r.name} left={out} /> : null}
+            {Eye ? <Eye id={r.id} name={r.name} left={out} internal={!r.clientVisible} /> : null}
           </li>
           );
         })}
