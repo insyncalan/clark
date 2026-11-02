@@ -16,6 +16,7 @@ import { ExportBtn } from "./ExportBtn.jsx";
 import { Personal } from "./Personal.jsx";
 import { GLANCE } from "./GlanceEdit.jsx";
 import { ClientFolder } from "./ClientFolder.jsx";
+import { Movement } from "./Movement.jsx";
 import { MilestonesPage } from "./MilestonesPage.jsx";
 import { RichField } from "./RichField.jsx";
 import { NeedsEdit } from "./NeedsEdit.jsx";
