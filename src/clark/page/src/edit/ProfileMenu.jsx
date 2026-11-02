@@ -4,13 +4,13 @@
 // word (`tip`), so it follows the entries; Help has none, as its "?" key is its own way in. The accessible name is just "Your menu".
 // Appearance (Light, Dark, System) is in the menu (#179); the top line is the name and email from Settings › Personal (#180).
 import { useEffect } from "preact/hooks";
-import { signal } from "@preact/signals";
 import { Menu } from "../components/Menu.jsx";
 import { data, tabs, show, project, mode } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
 import { latest } from "./publishState.js";
+import { note, say, closeNote } from "./menuNote.js";
 import { previewRequest, exportRequest, words } from "./publishApi.js";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
@@ -18,17 +18,6 @@ import { profile, loadProfile, wantName } from "../stores/profile.js";
 export const MENU_NAME = "Your menu";
 const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };
 export const menuTip = (items) => `${MENU_NAME}: ${items.filter((i) => i.tip).map((i) => i.tip).join(", ")}`;
-
-// What Preview or Export did, in words, until it is closed (or 20 seconds). The change toast is for Edit only, and this menu is in View too.
-export const note = signal(null);
-let noteTimer = 0, noteId = 0;
-function say(kind, text) {
-  clearTimeout(noteTimer);
-  const id = ++noteId;
-  note.value = { id, kind, text };
-  if (kind !== "problem") noteTimer = setTimeout(() => { if (note.value && note.value.id === id) note.value = null; }, 20000);
-}
-const closeNote = () => { clearTimeout(noteTimer); note.value = null; };
 
 // The note itself. There is one live region on the page: in Edit it is the change toast's (Toast.jsx shows this note in it, so
 // the two never sit on top of each other), and in View, where there is no change toast, the menu has its own.

@@ -897,7 +897,7 @@ class TheDialog(unittest.TestCase):
         self.assertEqual((m["to_client"]["ticked"], m["to_client"]["disabled"], m["to_client"]["hint"]), (False, False, "Harbour Bridge"))
         m = tc.to_client_dialog(tc.dialog_step(s, "tick", True))
         self.assertEqual((m["button"]["label"], m["line"], m["to_client"]["ticked"]),
-                         ("Publish and send to the client", "The client will see this page.", True))
+                         ("Publish and send to the client", "The client will see this page. Only what is shown in View mode is included.", True))
         self.assertEqual(s["ticked"], False, "the old state is not changed")
 
     def test_to_client_is_never_remembered(self):

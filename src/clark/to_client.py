@@ -98,7 +98,7 @@ MESSAGES.update({
     "dialog_to_client": "To client",
     "button_local": "Publish locally",
     "button_client": "Publish and send to the client",
-    "client_sees": "The client will see this page.",
+    "client_sees": "The client will see this page. Only what is shown in View mode is included.",
     "numbered_preview": "saves as “{numbered}”",
     "working": "Publishing…",
     "rename_label": "New file name",

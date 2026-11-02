@@ -6,7 +6,8 @@
 import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
-import { dialog, latest, NO_FOLDER, folderName, open, tick, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialogLine, doneWords } from "./publishLine.js";
+import { dialog, latest, next, NO_FOLDER, folderName, open, tick, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 export const lastLine = (l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
@@ -32,13 +33,12 @@ function Dialog() {
     if (target) target.focus();
   }, [s.phase, s.phase === "clash" ? s.choice : ""]);
   const working = s.phase === "working", clash = s.clash;
-  const stateWords = lastLine(latest.value);
   return (
     <dialog id="publish-dialog" class="dlg" aria-labelledby="pub-title" ref={el} onCancel={(e) => { e.preventDefault(); cancel(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); go(); }}>
         <h2 id="pub-title">{s.phase === "clash" ? clash.title : "Publish the report"}</h2>
         {s.phase === "clash" ? null : (
-          <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${shownDate(p.week_ending)}` : ""}{stateWords ? ` · ${stateWords}` : ""}</p>
+          <p class="muted dlg-sub" id="pub-line">{dialogLine(p ? p.name : project.value, p && p.week_ending, next.value, latest.value)}</p>
         )}
         {s.phase === "clash" ? (
           <fieldset class="pub-clash">
@@ -72,15 +72,15 @@ function Dialog() {
               <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
           </div>
         )}
-        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}
+        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page. Only what is shown in View mode is included.</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {working ? <p class="working"><span class="spin" data-spin aria-hidden="true" />Publishing…</p>
-            : s.message ? <p class={s.message.kind}>{s.message.kind === "success" ? <span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span> : null}{s.message.text}</p> : null}
+            : s.message ? <p class={s.message.kind}>{s.message.text}</p> : null}
         </div>
         <div class="dlg-f">
           {s.phase === "done" ? null : <button type="button" class="btn quiet" data-cancel onClick={cancel} disabled={working}>Cancel</button>}
-          <button type="submit" class="btn pri" data-go disabled={working || !ready(s)}>
-            {s.phase === "done" ? "Close" : s.phase === "clash" ? "OK" : s.ticked ? "Publish and send to the client" : "Publish locally"}
+          <button type="submit" class={`btn pri${s.phase === "done" ? " ok" : ""}`} data-go data-done={s.phase === "done" ? "" : undefined} disabled={working || !ready(s)}>
+            {s.phase === "done" ? <><span class="pub-tick" data-tick aria-hidden="true"><Icon name="check" /></span>{doneWords(s.number)}</> : s.phase === "clash" ? "OK" : s.ticked ? "Publish and send to the client" : "Publish locally"}
           </button>
         </div>
       </form>
