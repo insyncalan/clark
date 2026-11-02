@@ -230,7 +230,7 @@ let reading = 0;                                       // the newest read wins w
 // program's error name or a technical phrase: it looks the server's message up here by the HTTP status, and a message it does not
 // know (or none at all) gets the plain fallback for that status. Every line says what to do next. A status of 0 is "no answer".
 const READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark.";
-const STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again.";
+const STALE = "This page is out of date. It was opened before clark was restarted. Reload the page and try again.";
 const BAD_CODE = "Use a project code of 3 to 7 capital letters or digits.";
 const NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list.";
 const NOT_ACCEPTED = "That request was not accepted. Reload the page.";
@@ -244,7 +244,7 @@ const ALLOWED = {
          known: { [NO_PROJECT]: NO_PROJECT,
                   "There is no project with that code.": NO_PROJECT } },
   500: { fallback: "A problem came up reading this project. Reload the page. If it happens again, restart clark.", known: {} },
-  0: { fallback: "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command.", known: {} },
+  0: { fallback: "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.", known: {} },
 };
 export function plain(code, body) {
   const row = ALLOWED[code];

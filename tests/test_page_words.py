@@ -24,8 +24,8 @@ from test_server import Running, chrome, wait  # noqa: E402
 READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark."
 HIT_PROBLEM = "A problem came up reading this project. Reload the page. If it happens again, restart clark."
 NOT_ACCEPTED = "That request was not accepted. Reload the page."
-STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again."
-NOT_ANSWERING = "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command."
+STALE = "This page is out of date. It was opened before clark was restarted. Reload the page and try again."
+NOT_ANSWERING = "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command."
 WENT_WRONG = "Something went wrong"
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
@@ -258,9 +258,10 @@ class Words(unittest.TestCase):
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
 
     def test_no_sentence_on_the_page_starts_with_the_product_name(self):
-        """A screen sentence does not start with the product name (the rule set in #170): every string in the page's code, and the
-        words of Help (the page's and the prototype's), at the start of a string and after a full stop inside one."""
-        starts = re.compile(r"""(?:[`"'>]|[.!?]\s)\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
+        """A screen sentence does not start with the product name (the rule set in #170, and #225 for the part after a colon or
+        semicolon): every string in the page's code, and the words of Help (the page's and the prototype's), at the start of a
+        string and after a full stop, colon or semicolon inside one."""
+        starts = re.compile(r"""(?:[`"'>]|[.!?:;]\s)\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
         headings = ("clark version and updates",)                                   # a heading in Help's list of Settings entries, not a sentence
         files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
                  PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
@@ -273,6 +274,13 @@ class Words(unittest.TestCase):
                     if line[m.start():].lstrip("`\"'>.!? ").startswith(headings):
                         continue
                     self.fail(f"{f.name}:{n}: a sentence starts with the product name")
+
+    def test_help_shows_no_real_looking_version_as_an_example(self):
+        """#209: the held Updating clark entry and the prototype's say clark X.Y.Z, not a version that may not exist."""
+        for path in (PAGE_SRC / "help" / "helpHeld.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("clark X.Y.Z", text, path.name)                   # the placeholder is there; the wording around it is free
+            self.assertNotRegex(text, r"clark \d+\.\d+\.\d+", path.name)
 
     def test_help_names_no_version_that_may_not_exist(self):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
