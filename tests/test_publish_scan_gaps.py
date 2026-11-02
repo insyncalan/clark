@@ -7,8 +7,10 @@ check_brand refuse. The controls: the real file, the three pinned icon links, an
 """
 import base64
 import sys
+import tempfile
 import time
 import unittest
+from pathlib import Path
 
 from _paths import ROOT, SRC, TOOLS  # noqa: F401
 
@@ -306,6 +308,137 @@ class StyleJoin(unittest.TestCase):
 
     def test_two_clean_styles_stay_clean(self):
         self.assertEqual(publish.outside_addresses('<style>"</style><style>a{color:red}</style>'), [])
+
+
+class BrandPictures(unittest.TestCase):
+    """#321: check_brand refuses a picture in style text whether it is named by address (url(x.png)) or embedded as data
+    (url(data:image/...)), except clark's own logo rule and an embedded font. outside_addresses is unchanged: an embedded image is no
+    address, so only the brand check, and the page build that runs it, refuse."""
+
+    def style(self, css):
+        return "<style>" + css + "</style>"
+
+    def test_a_picture_by_address_is_refused(self):
+        for css in ("a{background:url(x.png)}", "a{background:URL( 'x.png' )}", 'a{background:image-set("x.png" 1x)}'):
+            with self.assertRaises(PublishError, msg=css):
+                publish.check_brand(self.style(css))
+
+    def test_a_picture_as_data_is_refused_in_every_spelling(self):
+        for css in ("a{background:url(data:image/png;base64,AAAA)}", 'a{background:url("data:image/gif;base64,AAAA")}',
+                    "a{background:URL( 'DATA:image/jpeg;base64,AAAA' )}", 'a{background:image-set("data:image/png;base64,AAAA" 1x)}',
+                    "a{list-style-image:url(data:image/webp;base64,AAAA)}", "a::before{content:url(data:image/svg+xml;base64,AAAA)}",
+                    "a{background:\\75rl(d\\61ta:image/png;base64,AAAA)}", "a{background:u/**/rl(data:image/png;base64,AAAA)}",
+                    "a{background:url(data:text/html;base64,AAAA)}",
+                    ".logo-icon{background-image:url(data:image/png;base64,AAAA)}", ".logo-icon{background-image:url(data:image/svg+xml;base64,AAAA);color:red}",
+                    ".card{background-image:url(data:image/svg+xml;base64,AAAA)}"):
+            with self.assertRaises(PublishError, msg=css):
+                publish.check_brand(self.style(css))
+
+    def test_a_picture_as_data_in_a_second_style_or_a_spliced_page_is_refused(self):
+        with self.assertRaises(PublishError):
+            publish.check_brand(self.style("a{color:red}") + self.style("b{background:url(data:image/png;base64,AAAA)}"))
+        with self.assertRaises(PublishError):
+            publish.check_brand(spliced(self.style("a{background:url(data:image/png;base64,AAAA)}")))
+
+    def test_the_logo_rule_and_an_embedded_font_pass(self):
+        publish.check_brand(real())
+        publish.check_brand(self.style('.logo-icon { background-image: url("data:image/svg+xml;base64,PHN2Zz4="); }'))
+        publish.check_brand(self.style("@font-face{font-family:X;src:url(data:font/woff2;base64,AAAA) format('woff2')}"))
+        publish.check_brand(self.style('a{color:red}a[href^="x"]{background:none}'))
+
+    LOOK_PICTURE = "data:image/png;base64,AAAA"
+
+    def test_each_picture_variable_the_design_docs_name_may_hold_a_data_picture(self):
+        for name in ("--art-home", "--image-cover", "--image-fade"):
+            for value in ("url(%s)", 'url("%s")', "URL( '%s' )"):
+                publish.check_brand(self.style(":root{%s:%s}" % (name, value % self.LOOK_PICTURE)))
+        publish.check_brand(self.style(":root { --brand-navy: #123; --art-home: url(data:image/svg+xml;base64,PHN2Zz4=); --art-home-height: 80px; }"))
+        publish.check_brand(self.style(":root{--image-cover:url(data:image/jpeg;base64,AAAA)}") + self.style("a{color:red}"))
+
+    def test_the_same_picture_on_another_property_or_selector_is_refused(self):
+        pic = self.LOOK_PICTURE
+        for css in (":root{--other:url(%s)}" % pic, ":root{--art-home-height:url(%s)}" % pic, ":root{--Art-Home:url(%s)}" % pic,
+                    ":root{--logo-icon:url(%s)}" % pic, ".card{--art-home-x:url(%s)}" % pic,
+                    ".card{background:url(%s)}" % pic, ".card{background-image:var(--x),url(%s)}" % pic,
+                    ":root{--art-home:url(%s),url(%s)}" % (pic, pic), ":root{--art-home:none,url(%s)}" % pic,
+                    ":root{--art-home:image-set(url(%s) 1x)}" % pic, ':root{--art-home:image-set("%s" 1x)}' % pic,
+                    ":root{--art-home:url(data:text/html;base64,AAAA)}", ":root{--art-home:url(data:image/bmp;base64,AAAA)}",
+                    ":root{--art-home:url(data:application/octet-stream;base64,AAAA)}",
+                    ":root{--art-home:url(%s);--other:url(%s)}" % (pic, pic), "a{--art-home:foo(data:x;--art-home:url(%s)}" % pic,
+                    ":root{--art-home:u\\72l(%s)}" % pic, ":root{--art-home:url(%s)}" % pic.replace("data", "d\\61ta")):
+            with self.assertRaises(PublishError, msg=css):
+                publish.check_brand(self.style(css))
+
+    def test_the_older_font_types_pass_as_fonts(self):
+        for mime in ("application/font-woff", "application/font-woff2", "application/x-font-ttf", "application/x-font-otf",
+                     "application/vnd.ms-fontobject", "APPLICATION/X-FONT-TTF", "font/ttf", "font/otf"):
+            publish.check_brand(self.style("@font-face{font-family:X;src:url(data:%s;base64,AAAA) format('woff')}" % mime))
+            publish.check_brand(self.style('@font-face{font-family:X;src:url("data:%s;base64,AAAA")}' % mime))
+
+    def test_octet_stream_passes_only_as_a_font_face_src(self):
+        publish.check_brand(self.style("@font-face{font-family:X;src:url(data:application/octet-stream;base64,AAAA) format('woff2')}"))
+        publish.check_brand(self.style("a{color:red}@font-face { font-family: X; font-weight: 400; src: local(X), url('data:application/octet-stream;base64,AAAA'); }"))
+        for css in ("a{background:url(data:application/octet-stream;base64,AAAA)}",
+                    "@font-face{font-family:X;font-feature-settings:url(data:application/octet-stream;base64,AAAA)}",
+                    "@media print{a{src:url(data:application/octet-stream;base64,AAAA)}}",
+                    ":root{--art-home:url(data:application/octet-stream;base64,AAAA)}",
+                    "@font-face{src:url(data:application/octet-stream;base64,AAAA)}a{background:url(data:application/octet-stream;base64,AAAA)}"):
+            with self.assertRaises(PublishError, msg=css):
+                publish.check_brand(self.style(css))
+
+    def test_data_that_is_no_url_passes(self):
+        for css in (".metadata:hover{color:red}", 'a::before{content:"Data: "}', 'a::before{content:"data:image/png"}',
+                    ".data:hover{color:red}", "a{font-family:data}", "a[data-x]{color:red}", 'a[href^="data:"]{color:red}',
+                    "/* data:image/png;base64,AAAA */ a{color:red}", "a{--note:data:image/png}",
+                    'a{background:foo("data:image/png;base64,AAAA")}'):
+            publish.check_brand(self.style(css))
+
+    def test_every_earlier_refused_variant_is_still_refused(self):
+        pic = "data:image/png;base64,AAAA"
+        for css in ("a{background:url(%s)}" % pic, 'a{background:url("%s")}' % pic, "a{background:url('%s')}" % pic,
+                    "a{background:URL( %s )}" % pic, "a{background:UrL(\n %s)}" % pic, "a{background:url(DATA:image/png;base64,AAAA)}",
+                    "a{background:/* x */url(%s)}" % pic, "a{background:u/**/rl(%s)}" % pic, "a{background:url(/**/%s)}" % pic,
+                    "a{background:\\75rl(%s)}" % pic, "a{background:url(d\\61ta:image/png;base64,AAAA)}",
+                    "a{background:u\\72l(%s)}" % pic, "a{background:url(%s)}" % pic.replace("data", "d\\\nata"),
+                    'a{background:image-set("%s" 1x)}' % pic, "a{background:image-set('%s' 1x)}" % pic,
+                    'a{background:image-set(url(%s) 1x)}' % pic, 'a{background:-webkit-image-set("%s" 1x)}' % pic,
+                    'a{background:image-set("x.png" 1x, "%s" 2x)}' % pic, 'a{background:image-set(  "%s" 1x)}' % pic,
+                    'a{background:cross-fade(url(%s), url(%s))}' % (pic, pic), 'a{background:image("%s")}' % pic,
+                    "a{list-style-image:url(%s)}" % pic, "a::before{content:url(%s)}" % pic, "a{cursor:url(%s),auto}" % pic,
+                    "a{border-image-source:url(%s)}" % pic, "a{mask:url(%s)}" % pic, "a{filter:url(data:image/svg+xml;base64,AAAA#f)}",
+                    ".card .logo-icon{background-image:url(data:image/svg+xml;base64,PHN2Zz4=)}",
+                    ".logo-icon{background-image:url(%s)}" % pic, "a{color:red}.logo-icon{background-image:url(%s)}" % pic):
+            with self.assertRaises(PublishError, msg=css):
+                publish.check_brand(self.style(css))
+        with self.assertRaises(PublishError):
+            publish.check_brand(self.style("a{color:red}") + self.style("b{background:url(%s)}" % pic))
+        with self.assertRaises(PublishError):
+            publish.check_brand("<style>a{color:red}</style><style>b{background:url(%s)}" % pic)    # no end tag: read to the end
+        with self.assertRaises(PublishError):
+            publish.check_brand(spliced(self.style("a{background:url(%s)}" % pic)))
+        with self.assertRaises(PublishError):
+            publish.check_brand(self.style(":root{--art-home:url(%s)}" % pic) + self.style("a{background:url(%s)}" % pic))
+
+    def test_the_logo_rule_must_stand_alone_at_the_top_level(self):
+        logo = ".logo-icon{background-image:url(data:image/svg+xml;base64,PHN2Zz4=)}"
+        publish.check_brand(self.style(logo))
+        publish.check_brand(self.style("a{color:red}\n" + logo + "\nb{color:blue}"))
+        publish.check_brand(self.style("a{color:red;}" + logo))
+        for css in (".card .logo-icon{background-image:url(data:image/svg+xml;base64,PHN2Zz4=)}",
+                    ".card>.logo-icon{background-image:url(data:image/svg+xml;base64,PHN2Zz4=)}",
+                    "x.logo-icon{background-image:url(data:image/svg+xml;base64,PHN2Zz4=)}",
+                    ".logo-icon,.card{background-image:url(data:image/svg+xml;base64,PHN2Zz4=)}",
+                    ".card{" + logo + "}", "@media print{" + logo + "}", "a{b:c;.card " + logo + "}",
+                    ".logo-icon{background-image:url(data:image/svg+xml;base64,PHN2Zz4=);width:9px}"):
+            with self.assertRaises(PublishError, msg=css):
+                publish.check_brand(self.style(css))
+
+    def test_a_brand_with_a_picture_as_data_stops_the_build(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        (Path(tmp.name) / "tokens.css").write_text("a { background: url(data:image/png;base64,AAAA); }", encoding="utf-8")
+        with self.assertRaisesRegex(PublishError, "embeds a picture"):
+            made(branding=tmp.name)
 
 
 if __name__ == "__main__":
