@@ -134,6 +134,10 @@ class AskService:
             return 400, self.fail("bad_project_code")
         if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
+        try:
+            ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
+        except ask.AskRefused as e:
+            return 400, self.fail("refused", str(e))
         with self.lock:
             try:
                 store = self.reader()
