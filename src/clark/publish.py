@@ -429,94 +429,9 @@ FOREIGN = re.compile(r"<svg(?=[\t\n\f\r />])|<math(?=[\t\n\f\r />])|<!\[CDATA\["
 FOREIGN_FOUND = "an svg, math or CDATA section"
 
 
-# #321: a picture embedded as data in the page's style is refused, so the page's cards stay plain CSS and text. What is spared:
-# an embedded font (font/* and the older font types below; application/octet-stream only as an @font-face src), clark's named
-# logo (build_page.py writes it as exactly this rule, alone, at the top level of a style), and the three pictures an own look may
-# set (docs/DESIGN-SYSTEM.md: a home banner and a cover), each as `--name: url(data:image/...)` and nothing else in the value.
-# Only a data: that is a URL counts: after url( or inside an image function's string argument. `.metadata:hover` and
-# content:"Data: " are no URL. A data:font/ is trusted on its label, not on its bytes (a catch-the-accident check, not a sniffer).
-LOGO_RULE = re.compile(r"\s*\.logo-icon\s*\{\s*background-image:\s*url\(\s*[\"']?data:image/svg\+xml;base64,[A-Za-z0-9+/=]+[\"']?\s*\)\s*;?\s*\}", re.I)
-OLD_FONT_TYPES = frozenset(("application/font-woff", "application/font-woff2", "application/x-font-ttf", "application/x-font-otf",
-                            "application/vnd.ms-fontobject"))
-LOOK_PICTURES = re.compile(r"\s*--(?:art-home|image-cover|image-fade)\s*:\s*\Z")
-LOOK_PICTURE_TYPE = re.compile(r"image/(?:png|jpeg|gif|webp|svg\+xml)\Z")
-_DATA_URL = re.compile(r"[\"'\s]*data:([^;,\"')]*)", re.I)
-_PROPERTY = re.compile(r"\s*([\w-]+)\s*:")
-# The pieces of _CSS_PIECE, except that a run of words and punctuation with no string or bracket in it is one piece, not one per
-# word (a function name before its ( is still its own piece). The walk below reads only brackets, strings, { } ; and the end of a
-# piece, so it costs a step per bracket or string, not per word: an embedded font is a handful of steps, not thousands.
-_PICTURE_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
-
-
-def _picture_as_data(css, work=None):
-    """True if style text has a data: URL that is not a font, the logo rule or one of the look's named pictures. Read as a browser
-    reads it (css_plain), with the same pieces css_findings reads: url( and the string arguments of image functions. A running
-    note of the block it is in (@font-face, a top-level rule) and of where its declaration began says which is spared."""
-    if "\\" not in css and "data:" not in css.lower():
-        return False                                    # no escape and no data: in it: nothing to find
-    work = work or Work()
-    plain = css_plain(css)
-    escaped = "\\" in css                              # an escape could make the text read differently from a browser: spare nothing
-    stack, blocks, images, argument_start, decl = [], [], 0, False, 0
-
-    def refused(mime, start, via_url):
-        mime = mime.strip().lower()
-        if mime.startswith("font/") or mime in OLD_FONT_TYPES:
-            return False
-        head = plain[decl:start]
-        if mime == "application/octet-stream":
-            prop = _PROPERTY.match(head)
-            return not (blocks and blocks[-1][0] == "@font-face" and prop and prop.group(1).lower() == "src")
-        if escaped or not via_url:
-            return True
-        if LOOK_PICTURES.match(head) and LOOK_PICTURE_TYPE.match(mime):
-            return False
-        logo = LOGO_RULE.match(plain, blocks[0][1]) if len(blocks) == 1 else None      # the rule's own block, nothing around it
-        return not (logo and start < logo.end())
-
-    for m in _PICTURE_PIECE.finditer(plain):
-        work.spend()
-        piece = m.group(0)
-        if m.group(1) is not None:
-            is_image = bool(_IMAGE_FUNCTION.match(m.group(1)))
-            stack.append(is_image)
-            images += is_image
-            argument_start = True
-            if m.group(1).lower() == "url":
-                argument_start = False                  # its string, if any, is its address, read here
-                d = _DATA_URL.match(plain, m.end())
-                if d and refused(d.group(1), m.start(), True):
-                    return True
-        elif piece == "(":
-            stack.append(False)
-            argument_start = True
-        elif piece == ")":
-            images -= stack.pop() if stack else 0
-            argument_start = False
-        elif piece[0] in "\"'":
-            if images and argument_start:
-                d = _DATA_URL.match(piece)
-                if d and refused(d.group(1), m.start(), False):
-                    return True
-            argument_start = False
-        else:
-            if not stack:
-                for i, ch in enumerate(piece, m.start()):
-                    if ch == "{":
-                        blocks.append((plain[decl:i].strip().lower(), decl))     # what it is, and where it began
-                    elif ch == "}" and blocks:
-                        blocks.pop()
-                    if ch in ";{}":
-                        decl = i + 1
-            argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
-    return False
-
-
 def check_brand(page_text):
     """Refuse a brand that reaches outside the file: an @import, or a url() that isn't data:. A font has to be embedded in
-    tokens.css as data. (The policy would block it too, but a report with a missing font is refused, not published.) Also
-    (#321) refuse a picture embedded as data in a style, other than the logo: a data: image is no address, but it would put a
-    picture on a card, and only a test of the published cards would have caught it."""
+    tokens.css as data. (The policy would block it too, but a report with a missing font is refused, not published.)"""
     if FOREIGN.search(page_text):
         raise PublishError("The brand's tokens.css, or the page, has a drawing or formula section, which the check for "
                            "addresses outside the file cannot read: take it out.")
@@ -524,7 +439,6 @@ def check_brand(page_text):
     try:
         styles = style_texts(page_text, work)
         finds = [css_findings(css, work) for css in styles]
-        pictures = any(_picture_as_data(css, work) for css in styles)
     except ScanTooBig:
         raise PublishError("The brand's tokens.css, or the page, is too long or too tangled to check for addresses outside the "
                            "file: shorten it.")
@@ -535,9 +449,6 @@ def check_brand(page_text):
         if ADDRESS_FOUND in found:
             raise PublishError("The brand's tokens.css names a font or image by address, which would reach outside the "
                                "file: embed the font in tokens.css instead.")
-    if pictures:
-        raise PublishError("The brand's tokens.css, or the page, embeds a picture in its style, which the page's cards do not "
-                           "use: embed only the font in tokens.css.")
 
 
 # The block data_block() writes, and only where render() puts it: straight before the last </body>, on a line of its own. Its
