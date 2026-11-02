@@ -125,8 +125,9 @@ def check_data_not_in_onedrive(seen):
     # The OneDrive folder's own name is not said: on a work computer it holds the organisation's name (PR #80 review).
     return Line(FIX, f"Your clark data is set to go in {seen.tilde(folder)}, which is inside OneDrive. OneDrive copies files "
                      "while they are being written, which damages the data. Choose a folder on this computer that OneDrive "
-                     "doesn't sync. Then, in the Terminal window that START-HERE.txt describes, type python3 -m clark --data and "
-                     "that folder's name, and press Return. Backups can still go to OneDrive.")
+                     "doesn't sync. Then open Terminal, type cd and a space, drag clark's folder into the Terminal window and press Return. "
+                     "Type python3 -m clark --data and a space, drag the folder you chose into the window, and press Return. "
+                     "Backups can still go to OneDrive.")
 
 
 def check_app_folder(seen):
