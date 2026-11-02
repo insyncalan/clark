@@ -22,7 +22,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 META, CTRL, SHIFT = 4, 2, 8
-NOTHING = "Nothing to undo."
+NOTHING = "Nothing to undo since this page was opened. Older changes are in Activity."
 CELL = "[data-cell='TUL-A-001:priority']"
 
 
