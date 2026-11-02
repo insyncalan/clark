@@ -121,6 +121,15 @@ class AgainstThePage(unittest.TestCase):
         missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
+    def test_the_held_use_case_entry_names_only_what_the_page_has(self):
+        """#421: the held keep-the-use-cases entry is checked now, while it is held, so releasing it cannot show a button the page lacks."""
+        norm = lambda t: re.sub(r"[‘’]", "'", t)
+        code = norm(self.HELPCODE)
+        entry = next(x for x in RAW["howto"]["tasks"] if x["id"] == "keep-the-use-cases")
+        self.assertIn("keep-the-use-cases", LATER["howto"])
+        names = sorted({b for t in strings(entry["s"]) for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
+        self.assertEqual(names, [])
+
     def test_every_screen_shown_is_a_tab_of_the_page(self):
         screens = set(re.findall(r'(\w+): "[A-Z]\w+"', re.search(r"export const TITLES = \{(.*?)\}", (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8")).group(1)))
         text = " ".join(shown_texts())
@@ -151,7 +160,8 @@ class AgainstThePage(unittest.TestCase):
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
         # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
-        self.assertGreaterEqual(len(names), 59)
+        # 56 with #421: the held use-case entry no longer bolds '+ Add use case', 'Draft from the project', '+ Link an existing work item', 'Archive use case', 'Show archived' (use cases) or 'See all work items' (measured)
+        self.assertGreaterEqual(len(names), 56)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
@@ -182,7 +192,7 @@ class NeverDelete(unittest.TestCase):
         for part in ("Archive hides the project and everything in it from the usual lists, the counts and the published page",
                      "**Show archived** finds it", "**Restore** and **Undo** bring it back"):
             self.assertIn(part, text)
-        self.assertIn("Archive use case", text)
+        self.assertIn("Archive this use case", text)       # the button as the page labels it (#421: the held entry once said "Archive use case")
         self.assertIn("Archive milestone", text)
 
 
