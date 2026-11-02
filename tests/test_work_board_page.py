@@ -13,11 +13,12 @@ import unittest
 from unittest import mock
 
 from _demo import USER
+from _real_server import real_server
 from _paths import ROOT, SRC
 
-from clark import changes, page, server as sv  # noqa: E402
+from clark import page, server as sv  # noqa: E402
 from test_board import make_data  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click, dblclick, hover, key, need_chrome, where  # noqa: E402
 from test_work_items import page_target  # noqa: E402
 
@@ -37,15 +38,14 @@ class Base(unittest.TestCase):
             st.update("actions", self.id_of("Send the invitations"), {"client_visible": 1})
             st.update("actions", self.id_of("Book the training room"), {"client_visible": 0})     # on by default (#24)
         self.sent = []
-        change, undo = changes.make_change(self.store.path, [], USER), changes.make_undo(self.store.path, [], USER)
 
         def seam(real, which):
             def call(req):
                 self.sent.append((which, req))
                 return real(req)
             return call
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(__import__("tempfile").mkdtemp()),
-                         change=seam(change, "change"), undo=seam(undo, "undo"))
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(__import__("tempfile").mkdtemp()),
+                             seam=seam)
         self.addCleanup(self.s.close)
         self.addCleanup(self.demo.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
