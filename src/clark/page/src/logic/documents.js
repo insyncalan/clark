@@ -63,7 +63,7 @@ export function hiddenDocs(d) {
 
 // A date as a person types it (DD-MM-YYYY, or nothing) as clark keeps it: "YYYY-MM-DD", "" for no date, or null when it is not a
 // real day. The form is a text box, never the browser's own calendar (one Esc closes one thing, #91).
-export const DATE_WORDS = "Write the date as DD-MM-YYYY, for example 05-01-2030, or leave it empty.";
+export const DATE_WORDS = "Write the date as DD-MM-YYYY (day, month, year), or leave it empty.";
 export function isoDay(text) {
   const t = String(text || "").trim();
   if (!t) return "";

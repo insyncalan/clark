@@ -188,7 +188,7 @@ ITEM_VALUE_WORDS = "That value isn't one clark can use."
 ITEM_TEXT_WORDS = "Use plain text, with no line breaks or hidden characters."
 ITEM_BAD_KINDS = frozenset({"Cc", "Cf", "Cs", "Co", "Zl", "Zp"})   # as the store's section titles: control, format, surrogate, private use, separators
 NOT_A_DATE = "That isn't a date. Pick a day from the calendar."
-DOC_NOT_A_DATE = "That isn't a date. Write it as DD-MM-YYYY, for example 05-01-2030, or leave it empty."      # #74: a document's date is typed, there is no calendar
+DOC_NOT_A_DATE = "That isn't a date. Write it as DD-MM-YYYY (day, month, year), or leave it empty."      # #74: a document's date is typed, there is no calendar
 NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}

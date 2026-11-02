@@ -73,7 +73,7 @@ class InEdit(Page):
             self.set_value(p, "#doc-new-url", "https://example.com/minutes")
             self.set_value(p, "#doc-new-date", "31-02-2030")
             p.js(f"document.querySelector('{sec} .docs-form button[type=submit]').click()")
-            p.until(f"(document.querySelector('{sec} .tpl-problem') || {{}}).textContent === 'Write the date as DD-MM-YYYY, for example 05-01-2030, or leave it empty.'",
+            p.until(f"(document.querySelector('{sec} .tpl-problem') || {{}}).textContent === 'Write the date as DD-MM-YYYY (day, month, year), or leave it empty.'",
                     "a day that is not real is said in words, before anything is sent")
             self.set_value(p, "#doc-new-date", "10-01-2030")
             p.js(f"document.querySelector('{sec} .docs-form button[type=submit]').click()")
