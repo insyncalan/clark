@@ -209,5 +209,28 @@ class WholeFile(unittest.TestCase):
             self.assertEqual(json.loads(block)["v"], 1)
 
 
+class Done(unittest.TestCase):
+    """#412: a Done use case is published with its word, counted under Done in the strip, after the other three."""
+
+    def test_done_is_counted_and_carried_in_the_strip(self):
+        d = probe()
+        d["use_cases"].append(use_case(6, "Done"))
+        pub = published(d, left_off=["ABC-A-004"])
+        strip = pub["glance"]["strip"]
+        self.assertEqual(strip["words"], {"On track": 1, "Flag": 1, "High risk": 1, "Done": 1})
+        self.assertEqual(list(strip["words"])[-1], "Done", "Done is counted last")
+        self.assertEqual([u["status"] for u in pub["use_cases"] if u["id"] == "ABC-U-006"], ["Done"])
+
+    def test_a_real_publish_carries_a_done_use_case_with_its_word(self):
+        with DemoStore() as store, tempfile.TemporaryDirectory() as out:
+            with store.step("dashboard", USER) as st:
+                st.update("use_cases", store.read("use_cases", "ABC")[0]["id"], {"status": "Done"})
+            got = publish.publish(store, "ABC", Path(out), by_user=USER, now=ON)
+            text = Path(got["path"]).read_text(encoding="utf-8")
+            block = json.loads(re.search(r'id="clark-data">(.*?)</script>', text, re.S).group(1))
+            self.assertEqual([u["status"] for u in block["data"]["use_cases"]], ["Done"])
+            self.assertEqual(block["data"]["glance"]["strip"]["words"], {"Done": 1})
+
+
 if __name__ == "__main__":
     unittest.main()

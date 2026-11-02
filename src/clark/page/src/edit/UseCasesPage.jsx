@@ -17,7 +17,7 @@ import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 
-const RAG = { "On track": "g", Flag: "a", "High risk": "r" };
+const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };
 const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
 const tick = signal(0);
 const state = computed(() => { void tick.value; const code = project.value; return kept[code] || recalled(code); });

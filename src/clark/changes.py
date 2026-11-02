@@ -214,7 +214,7 @@ STORE_WORDS = (("must be a date stored as", NOT_A_DATE), ("is not a real date", 
                ("isn't an item of this project", ITEM_NOT_MINE))
 UC_NAME_WORDS = f"A use case needs a name of 1 to {UC_NAME_LIMIT} characters, with no line breaks or hidden characters."
 UC_HEADLINE_WORDS = f"A headline can be at most {UC_HEADLINE_LIMIT} characters, with no line breaks or hidden characters."
-UC_STATUS_WORDS = "A use case's status can be On track, Flag or High risk."
+UC_STATUS_WORDS = "A use case's status can be On track, Flag, High risk or Done."
 UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
 NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new section may be: an allow-list, never the request's own spelling

@@ -11,7 +11,7 @@ import { isOpen } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { Icon } from "./Icon.jsx";
 
-export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
+export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 
 // A saved standing as plain text: the page clark serves never draws a saved body as markup (#66 brings the editor).

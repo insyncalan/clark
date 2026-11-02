@@ -149,8 +149,8 @@ class TheNumber(Base):
         self.assertNotRegex(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES.split("(")[0], r"\d")
 
     def test_the_steps_before_this_one_are_the_settings_step_and_the_sent_record(self):
-        self.assertEqual(store_module.MIGRATIONS[-4:-1], ((6, store_module.migrate_settings), (7, store_module.migrate_email_sent),
-                                                        (STEP, store_module.migrate_section_templates)))
+        self.assertEqual(store_module.MIGRATIONS[4:7], ((6, store_module.migrate_settings), (7, store_module.migrate_email_sent),
+                                                       (STEP, store_module.migrate_section_templates)))
 
     def test_no_migration_step_is_empty(self):
         """Release gate: an entry that only holds a number would stamp a file past a real step that never ran."""
