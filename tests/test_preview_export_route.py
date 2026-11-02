@@ -95,6 +95,24 @@ class Preview(Case):
         self.assertEqual(status, 404)
         self.assertEqual(body["message"], "There is no project with that code.")
 
+    def test_a_junk_section_style_is_refused_in_the_words_publish_uses(self):
+        """#297: preview and publish ask the same check, so both name the style and list the four, and neither makes anything."""
+        for junk in ("fancy", "", "Slim", 3, ["slim"]):
+            with self.subTest(repr(junk)):
+                p_status, p_body = self.rig.call("POST", "/api/preview", {"project": "PUB", "section_style": junk})
+                q_status, q_body = self.rig.publish(section_style=junk)
+                self.assertEqual((p_status, p_body["ok"]), (400, False))
+                self.assertEqual((q_status, q_body["ok"]), (400, False))
+                self.assertEqual(p_body["message"], q_body["message"])
+                self.assertEqual(p_body["code"], q_body["code"])
+                self.assertNotIn("url", p_body)
+                for style in publish.STYLES:
+                    self.assertIn(style, p_body["message"])
+        self.assertEqual(self.rig.rows(), [])
+        self.assertEqual(self.rig.saves, [])
+        for good in publish.STYLES:
+            self.assertEqual(self.rig.call("POST", "/api/preview", {"project": "PUB", "section_style": good})[0], 200, good)
+
     def test_a_page_that_cannot_be_built_says_what_to_do(self):
         with mock.patch.object(publish, "build", side_effect=publish.PublishError("An archived project can't be published. Restore it first.")):
             status, body = self.preview()
