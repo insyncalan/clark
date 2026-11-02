@@ -264,7 +264,7 @@ def folder_notes(found):
     if found.safety:
         out.append(f"{found.safety} {'file was' if found.safety == 1 else 'files were'} left out for safety.")
     for label in getattr(found, "secret_labels", ()):         # #215: the file's label only, never what matched
-        out.append(f"{label} was left out because it {secret_screen.REASON}. {secret_screen.NEXT_STEP}")
+        out.append(f"{label} {secret_screen.REASON}, so it was left out and the answer may be missing something. {secret_screen.NEXT_STEP}")
     if found.pdf:
         out.append(f"{found.pdf} PDF {'file was' if found.pdf == 1 else 'files were'} not read: PDF is not supported yet.")
     if found.other:
