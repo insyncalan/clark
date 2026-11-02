@@ -133,7 +133,7 @@ class Dialog(Base):
             self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), "The client will see this page.")
             p.js("document.querySelector('#pub-pdf').click()")
             p.until("!!document.querySelector('#pub-pdf-note')", "the print-box line")
-            self.assertEqual(p.js("document.querySelector('#pub-pdf-note').innerText"), "Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.")
+            self.assertEqual(p.js("document.querySelector('#pub-pdf-note').innerText"), "Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers so the PDF has no web address on it.")
             self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), "The client will see this page.")
 
     FAKE_TAB = """window.__tabs = []; window.open = function () {
@@ -151,7 +151,7 @@ class Dialog(Base):
             self.assertEqual(p.js("window.__tabs.length"), 1, "one tab, opened by the click")
             self.assertRegex(p.js("window.__tabs[0].where"), r"^/preview\?id=[\w-]+&print=1$")
             self.assertEqual(p.js("window.__tabs[0].closed"), False)
-            self.assertIn("Your browser’s print box opens in a new tab; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.", p.message())
+            self.assertIn("Your browser’s print box opens in a new tab; choose Save as PDF. In the print box, untick Headers and footers so the PDF has no web address on it.", p.message())
             self.assertEqual([n for n in self.rig.listing(self.rig.local) if n.endswith(".pdf")], [], "no PDF is made by clark")
 
     def test_C_a_refused_publish_closes_the_tab_it_opened(self):

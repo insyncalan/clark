@@ -3,7 +3,7 @@
 // saved. A taken name in the client folder is asked about before anything is written. Nothing here names a folder or a file.
 import { signal } from "@preact/signals";
 import { data, project } from "../stores/report.js";
-import { publishRequest, previewRequest, latestRequest, words } from "./publishApi.js";
+import { publishRequest, latestRequest, words } from "./publishApi.js";
 import { openInNewTab } from "../router.js";
 import { printUrl } from "../logic/printView.js";
 
@@ -12,7 +12,7 @@ export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
 
 // What the PDF tick adds to the answer (#438): the browser's own print box opens on the published page in a new tab, and the person chooses Save as PDF there.
-export const PRINT_OPENED = "Your browser’s print box opens in a new tab; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.";
+export const PRINT_OPENED = "Your browser’s print box opens in a new tab; choose Save as PDF. In the print box, untick Headers and footers so the PDF has no web address on it.";
 export const PRINT_NOT_OPENED = "The PDF did not open. Allow pop-ups for this page, then choose Preview the page in a new tab in the profile menu and print it.";
 
 export const savedFolder = () => {
@@ -77,14 +77,14 @@ export async function go() {
   if (!s || s.phase === "working" || !ready(s)) return;
   if (s.phase === "done") return close();
   const body = request(s, project.value);
+  if (s.pdf) body.print = true;
   set({ phase: "working", message: null });
   let r = null, printed = false;
   if (s.pdf) {      // the new tab is opened now, while the click still counts, and pointed at the page when it is published
     printed = await openInNewTab(async () => {
       r = await publishRequest(body);
       if (!(r.status === 200 && r.body && r.body.ok === true)) return null;
-      const p = await previewRequest(project.value);
-      return p.status === 200 && p.body && typeof p.body.url === "string" ? printUrl(p.body.url) : null;
+      return typeof r.body.print_url === "string" ? printUrl(r.body.print_url) : null;      // the bytes just published, not a second build (#465)
     });
   } else r = await publishRequest(body);
   const b = r.body;

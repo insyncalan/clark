@@ -729,6 +729,10 @@ def publisher_route(method):
 
 
 PREVIEW_ROUTE = "/preview"
+PREVIEW_GONE_WORDS = ("This page can be opened only once, so it cannot be opened again. Go back to clark and publish again with Also a PDF ticked, "
+                      "or choose Preview the page in a new tab in the profile menu.")
+PREVIEW_GONE_HTML = ('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>This page cannot be reopened</title></head>'
+                     f'<body style="font-family:sans-serif;max-width:36em;margin:3em auto;padding:0 1em"><p>{PREVIEW_GONE_WORDS}</p></body></html>')
 DOWNLOAD_CHUNK = 64 * 1024
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -741,7 +745,7 @@ def preview_page_route(handler):
         return handler.send(404 if publisher is None else 403, error_body("not_found" if publisher is None else "not_allowed"))
     body = publisher.take_preview((parse_qs(urlsplit(handler.path).query).get("id") or [""])[0])
     if body is None:
-        return handler.send(404, error_body("not_found"))
+        return handler.send(404, PREVIEW_GONE_HTML, "text/html")
     return handler.send(200, body, "text/html")
 
 

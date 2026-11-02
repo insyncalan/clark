@@ -111,6 +111,42 @@ class Preview(Case):
         self.assertEqual(get(self.rig, urls[0], token=False)[0], 404)
         self.assertEqual(get(self.rig, urls[-1], token=False)[0], 200)
 
+    # ----- #465: the print tab is the published file's bytes; a reload says why in words -----
+    def test_the_print_tab_shows_the_bytes_that_were_published_even_if_the_project_changes_after(self):
+        real = publish.build
+        calls = []
+
+        def build(*a, **kw):
+            made = real(*a, **kw)
+            calls.append(1)
+            if len(calls) > 1:                 # an edit (or midnight) between the first build and any later one
+                made = dict(made, body=made["body"] + b"<!-- changed after -->")
+            return made
+        with mock.patch.object(publish, "build", build):
+            status, got = self.rig.publish(print=True)
+        self.assertEqual((status, got["ok"]), (200, True))
+        self.assertEqual(len(calls), 1, "the print tab is not a second build")
+        _, _, page = get(self.rig, got["print_url"], token=False)
+        self.assertEqual(page, (self.rig.local / "chosen.html").read_bytes())
+        self.assertNotIn(b"changed after", page)
+
+    def test_a_publish_without_print_makes_no_address_and_a_non_boolean_is_refused(self):
+        self.assertNotIn("print_url", self.rig.publish()[1])
+        before = len(self.rig.rows())
+        status, got = self.rig.publish(print="yes")
+        self.assertEqual((status, got["code"]), (400, "bad_pdf_request"))
+        self.assertEqual(len(self.rig.rows()), before)
+
+    def test_a_reloaded_print_tab_says_why_it_cannot_reopen_in_words(self):
+        url = self.rig.publish(print=True)[1]["print_url"]
+        self.assertEqual(get(self.rig, url, token=False)[0], 200)
+        status, r, raw = get(self.rig, url, token=False)         # the reload
+        self.assertEqual(status, 404)
+        self.assertTrue(r.getheader("Content-Type").startswith("text/html"))
+        self.assertIn(b"can be opened only once", raw)
+        self.assertIn(b"publish again", raw)
+        self.assertNotIn(b"not_found", raw)
+
 
 class Export(Case):
     def test_it_downloads_the_workbook_named_with_the_code_and_the_day(self):

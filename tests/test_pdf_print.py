@@ -31,7 +31,7 @@ TODAY = "2026-10-28"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 VARIANTS = [(w, s) for w in (1400, 900) for s in ("light", "dark")]
 TICK_WORDS = "The page as it prints: its tabs one after another, no controls."
-NOTE_WORDS = "Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address."
+NOTE_WORDS = "Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers so the PDF has no web address on it."
 
 
 def tearDownModule():
@@ -156,6 +156,13 @@ class Words(unittest.TestCase):
         self.assertIn(TICK_WORDS, jsx)
         self.assertIn(NOTE_WORDS, jsx)
         self.assertNotIn("The client will see this page and the PDF.", jsx)
+
+    def test_the_dialog_note_repeats_helps_headers_and_footers_advice_word_for_word(self):
+        advice = "In the print box, untick Headers and footers so the PDF has no web address on it."
+        help_text = json.dumps(json.loads((PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8")), ensure_ascii=False)
+        self.assertIn(advice, help_text)
+        self.assertIn(advice, (PAGE_SRC / "edit" / "Publish.jsx").read_text(encoding="utf-8"))
+        self.assertIn(advice, (PAGE_SRC / "edit" / "publishState.js").read_text(encoding="utf-8"))
 
     def test_help_says_the_prototypes_words_in_both_places(self):
         text = (PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8")
