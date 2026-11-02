@@ -39,6 +39,35 @@ REFUSED = ("javascript:alert('ZQ-JS')", "JaVaScRiPt:alert(1)", "java\tscript:ale
            "http://10.0.0.1/x", "http://0.0.0.0/x")
 
 
+class SearchHelper(unittest.TestCase):
+    """check_in_file itself: a failing search says what was looked for and shows a short excerpt, never the whole file."""
+
+    def failure(self, text, marker, present, **kw):
+        with self.assertRaises(AssertionError) as caught:
+            check_in_file(self, text, marker, present, "the reason", **kw)
+        return str(caught.exception)
+
+    def test_it_stays_quiet_when_the_search_comes_out_as_expected(self):
+        check_in_file(self, "abc ZQ-X def", "ZQ-X", True, "x is there")
+        check_in_file(self, "abc def", "ZQ-X", False, "x is not there")
+        check_in_file(self, "abc zq-x def", "ZQ-X", True, "x is there in any letter case", ignore_case=True)
+
+    def test_a_marker_that_was_found_is_reported_with_a_short_excerpt_not_the_file(self):
+        text = "A" * 5000 + "ZQ-MARKER" + "B" * 5000
+        said = self.failure(text, "ZQ-MARKER", False)
+        self.assertIn("ZQ-MARKER", said, msg="the report names the marker")
+        self.assertIn("the reason", said, msg="the report carries the reason it was given")
+        self.assertIn("character 5000", said, msg="the report says where the marker was found")
+        self.assertIn("A" * AROUND + "ZQ-MARKER" + "B" * AROUND, said, msg="the report shows the text around the marker")
+        self.assertLess(len(said), 600, msg="the report is short; it does not carry the whole file")
+
+    def test_a_marker_that_was_missing_is_reported_without_the_file(self):
+        said = self.failure("C" * 5000, "ZQ-MARKER", True)
+        self.assertIn("ZQ-MARKER", said, msg="the report names the marker")
+        self.assertIn("not found", said, msg="the report says the marker was not found")
+        self.assertLess(len(said), 300, msg="the report is short; it does not carry the whole file")
+
+
 class Published(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
