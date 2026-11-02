@@ -18,8 +18,12 @@ NOT SCREENED, on purpose (#257, #374): a password word followed by plain words (
 the file name "secret_santa2025.xlsx" (only that whole name, with any 4-digit year); text escaped three times; a token cut by a space ("token: ab12cd34 ef56gh78"), since joining words across a space would
 leave out every file that says "token: 2026 plan"; a secret of fewer than 8 characters after secret or a key name; a key-word line
 whose base64 form is shorter than 24 characters.
+Base64 text is read by the same rules as plain text (#340), down to MAX_DEPTH layers. Kept on the safe side: a long run that does not
+decode to text with a space in it (a bare key, or prose encoded twice) is still guessed at as a random key, and a run that decodes
+to text and still holds base64 past MAX_DEPTH layers is left out.
 """
 import base64
+import bisect
 import re
 import urllib.parse
 
@@ -29,6 +33,7 @@ REASON = f"holds text that {ask.LOOKS_LIKE}"
 NEXT_STEP = "Take it out of the file, or remove the file from the saved folder, then ask again."
 MAX_RUNS = 20000                     # different base64-looking runs looked at in one file; more than this counts as a hit
 MAX_ROWS = 400                       # rows under a table header looked at for a secret column
+MAX_DEPTH = 3                        # base64 inside base64 is read this many levels down
 MAX_HEADER = 2000                    # characters: a longer line is not read as a table header
 
 SECRET_PATTERNS = (
@@ -54,10 +59,14 @@ UNQUOTED_SECRET = r"""(?i)(?:api[_-]?key|secret|token|(passw(?:or)?d|pwd))\w*["'
 _PW_OTHER = (r"passwort|kennwort|mot[ \t]?de[ \t]?passe|motdepasse|contrase(?:ñ|nn?)a|senha|wachtwoord|l(?:ö|o)senord|has(?:ł|l)o|"
              r"parola[ \t]?d'ordine|пароль|كلمة[ \t]?(?:المرور|السر)")
 _PW = r"(?:passw(?:or)?d|pwd|passcode|" + _PW_OTHER + r"|(?<![A-Za-z])(?:pass|pw|pin|creds|credentials)(?![A-Za-z]))"
-_KEY = r"(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|" + _PW + r")"
+_KEY = r"(?:api[ _-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|" + _PW + r")"
 QUOTED_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?\s{0,20}[:=]\s{0,20}["']([^"'\s]{8,})["']"""
-UNQUOTED_LOCAL = (r"""(?i)(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|token|(secret|""" + _PW + r"""))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
+UNQUOTED_LOCAL = (r"""(?i)(?:api[ _-]?key|access[_-]?key|ssh[_-]?private[_-]?key|token|(secret|""" + _PW + r"""))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
                   r"""([^\s"'`$<>{}()\[\],;]{8,})""")
+# #242: a short sk- key (12 or more letters and digits with a digit, below the publish scan's 32) and a short api or access key value
+# (6 or more, letters and digits mixed) after = or :.
+SHORT_SK = r"\bsk-(?=[A-Za-z0-9]{0,40}\d)[A-Za-z0-9]{12,}"
+SHORT_APIKEY = r"""(?i)\b(?:api|access)[ _-]?key\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}["']?([A-Za-z0-9_-]{6,})"""
 CELL_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?[ \t]{0,20}:?[ \t]{0,20}[|\t,][ \t]{0,20}["']?([^\s|,;"'`$<>{}()\[\]]{8,})"""
 SHORT_PASSWORD = r"""(?i)(?<!\w)(?:passw(?:or)?d|pwd|passcode|""" + _PW_OTHER + r""")(?!\w)["']?[ \t]{0,20}[:=][ \t]{0,20}["']?(\S{4,})"""
 HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?private[ _-]?key|secret|token|passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|"
@@ -77,13 +86,19 @@ PROSE_SECRET = r"""(?i)(?:\b(?:passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|cred
 _QS = r"""["'`\u201c\u201d\u2018\u2019]"""
 _LETTERS_ONLY = r"""[^\W\d_]{6,}"""
 _PAIR = (r"""(?:"LETTERS"|'LETTERS'|`LETTERS`|\u201cLETTERS\u201d|\u2018LETTERS\u2019)""").replace("LETTERS", _LETTERS_ONLY)
-_PLACEHOLDER = r"""(?!["'`\u201c\u2018](?:string|text|password|secret|hidden|required|optional|none|null|true|false|inherit)["'`\u201d\u2019])"""
+_PLACEHOLDER = r"""(?!["'`\u201c\u2018](?:string|text|placeholder|redacted|example|hidden|required|optional|none|null|true|false|inherit)["'`\u201d\u2019])"""
 _LEFT = r"""(?:(?<![A-Za-z0-9])|(?-i:(?<=[a-z0-9])(?=[PS])))"""
 _PWORD = r"""(?:passw(?:or)?d|pwd|passcode|passphrase|pw(?![A-Za-z]))"""
 _SUFFIX = r"""(?:[_-]?(?:key|value|text|string|phrase|word|plain|prod|production|dev|test|staging|new|old|current|confirm|[0-9])){0,6}"""
-LETTER_QUOTED = (r"""(?i)""" + _LEFT + r"""(?:(?:""" + _PWORD + r"""|secret)""" + _SUFFIX + r"""(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{1,20}\b(?:is|was)\b)[ \t]{0,20}"""
-                 r"""|(?<!:)(?<!:[ \t])(?<!:[ \t]{2})""" + _PWORD + r"""(?![A-Za-z0-9_])[ \t]{1,20})""" + _PLACEHOLDER + _PAIR)
-# Known gaps, kept as Tech Debt: an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
+_CONNECTED = (r"""(?:""" + _PWORD + r"""|secret)""" + _SUFFIX + r"""(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{1,20}\b(?:is|was)\b)[ \t]{0,20}""")
+_BARE = r"""(?<!:)(?<!:[ \t])(?<!:[ \t]{2})""" + r"""(?P<kw>""" + _PWORD + r""")(?![A-Za-z0-9_])[ \t]{1,20}"""
+LETTER_QUOTED = r"""(?i)""" + _LEFT + r"""(?:""" + _CONNECTED + r"""|""" + _BARE + r""")""" + _PLACEHOLDER + _PAIR
+# The same rule without the bare form, for the text read with line breaks taken out (#340): there a bare password word and a quoted
+# word that starts the next line ("Forgot password " at the end of one line, a quoted "Continue" at the start of the next) would join
+# into a hit that the text as written does not have. A key word that a line break cut in two, and a connector (`:`, `=`, is, was)
+# before a quoted word on the next line, are still caught.
+LETTER_QUOTED_JOINED = r"""(?i)""" + _LEFT + _CONNECTED + _PLACEHOLDER + _PAIR
+# Known gaps, kept as Tech Debt: a short bare mixed token with no key word ("Hunter2xyz9") and a bare lower-case hex string (accepted in writing by the Head, 02-11-2026; pinned by a test), a key word in another language before a quoted letters-only word (`Passwort: "Sommerzeit"`), an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
 # a bare 40-character hex string with no key word, a key word with some other suffix (`password_backup: "..."`) and a bare password
 # word after a colon (`Note: password "..."`) are not caught; guessing them would drop too many ordinary files.
 # A file's name: a key word, then - _ . or a space and a mixed value of 8 or more characters ("notes-password-Hunter2xyz9.txt").
@@ -101,9 +116,12 @@ _SHAPES = tuple(re.compile(ADDRESS_LINEAR if k == ADDRESS_KIND else p) for k, p 
 _QUOTED = re.compile(QUOTED_LOCAL)
 _UNQUOTED = re.compile(UNQUOTED_LOCAL)
 _CELL = re.compile(CELL_LOCAL)
+_SHORT_SK = re.compile(SHORT_SK)
+_SHORT_APIKEY = re.compile(SHORT_APIKEY)
 _PHRASE = re.compile(QUOTED_PHRASE)
 _PROSE = re.compile(PROSE_SECRET)
 _LETTERS = re.compile(LETTER_QUOTED)
+_LETTERS_JOINED = re.compile(LETTER_QUOTED_JOINED)
 _SHORT = re.compile(SHORT_PASSWORD)
 _NAME = re.compile(NAME_SECRET)
 _RUN = re.compile(BASE64_RUN)
@@ -122,7 +140,52 @@ def _plain(raw):
     return text if sum(c.isprintable() or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
 
 
-def _in_base64(text):
+def _decoded(run):
+    """Every way a base64-looking run can be read as bytes: from each of the four starting places, cut to whole groups of four, and
+    (when the run ends mid-group, as a run does once its "=" is left off) with the padding put back."""
+    run = run.replace("-", "+").replace("_", "/")
+    for offset in range(4):
+        chunk = run[offset:]
+        part = chunk[:len(chunk) - 1] if len(chunk) % 4 == 1 else chunk + "=" * (-len(chunk) % 4)
+        if len(part) < 24:
+            continue
+        try:
+            yield offset, base64.b64decode(part)
+        except ValueError:
+            continue
+
+
+def _clean(plain):
+    """Decoded bytes as text when they are valid UTF-8 made only of printable characters and white space, else None (random bytes
+    almost never are)."""
+    try:
+        text = plain.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    return text if all(c.isprintable() or c in "\r\n\t" for c in text) else None
+
+
+def _random_look(run, often=True):
+    """Whether a run has the look of a random key: an upper case letter, a lower case letter and a digit, not a word-joined name, and the
+    class of character changing often (the long-run guess's own test)."""
+    if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run):
+        return False
+    kind = [("l" if c.islower() else "u" if c.isupper() else "d" if c.isdigit() else "o") for c in run]
+    return not often or sum(1 for x, y in zip(kind, kind[1:]) if x != y) >= len(run) // 2
+
+
+def _prose(run):
+    """Whether a run is base64 of printable text (valid UTF-8, nothing else) with a space in it, read from the start of the run: such a run is read
+    in full by `_in_base64` (the same rules as plain text), so the guess that it looks like a random key is not needed."""
+    for offset, plain in _decoded(run.split("=")[0]):         # a run joined to the next line's word in the joined text ends at its "="
+        if offset == 0:
+            words = _clean(plain)
+            if words is not None and re.search(r"\S\s+\S", words):
+                return not any(_random_look(m.group(), False) for m in re.finditer(r"[A-Za-z0-9+/_=-]{24,}", words))   # a bare key in the text keeps the guess
+    return False
+
+
+def _in_base64(text, depth=0):
     seen = set()
     for m in _RUN.finditer(text):
         if m.group() in seen:
@@ -130,21 +193,15 @@ def _in_base64(text):
         seen.add(m.group())
         if len(seen) > MAX_RUNS:
             return True                                   # too many different ones to look at: leave the file out
-        run = m.group().replace("-", "+").replace("_", "/")
-        for offset in range(4):
-            chunk = run[offset:]
-            chunk = chunk[:len(chunk) - len(chunk) % 4]
-            if len(chunk) < 24:
-                continue
-            try:
-                plain = base64.b64decode(chunk)
-            except ValueError:
-                continue
+        for _, plain in _decoded(m.group()):
             if any(rx.search(plain) for rx in _BYTE_SHAPES):
                 return True
-            words = _plain(plain)
-            if words is not None and _key_words(words):
-                return True
+            words = _clean(plain)
+            if words is not None:
+                if _screen(words, depth + 1):
+                    return True                           # decoded text gets every check that plain text gets (#340)
+            elif _plain(plain) is not None and _key_words(_plain(plain)):
+                return True                               # mostly text with some stray bytes: the key-word lines only
     return False
 
 
@@ -176,15 +233,13 @@ def _loose(text):
     address's path, not inside a picture's data address (the base64 look is decoded and read separately)."""
     for m in re.finditer(r"[A-Za-z0-9+/_=-]{32,}", text):
         run = m.group()
-        if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run):
+        if not _random_look(run):
             continue
         before = text[max(0, m.start() - 200):m.start()].rsplit(None, 1)
         word = before[-1] if before else ""
-        if "://" in word or word.startswith("data:") or "base64," in word:
+        if "://" in word or word.startswith("data:") or "base64," in word or _prose(run):
             continue
-        kind = [("l" if c.islower() else "u" if c.isupper() else "d" if c.isdigit() else "o") for c in run]
-        if sum(1 for x, y in zip(kind, kind[1:]) if x != y) >= len(run) // 2:
-            return True
+        return True
     for m in _SHORT.finditer(text):
         value = m.group(1).strip(".,;)'\"")
         if any(not c.isalpha() for c in value):
@@ -192,7 +247,10 @@ def _loose(text):
     return False
 
 
-def _key_words(text):
+def _key_words(text, joined=False):
+    for m in _SHORT_APIKEY.finditer(text):
+        if _mixed(m.group(1)):
+            return True
     for m in _QUOTED.finditer(text):
         if _mixed(m.group(1)):
             return True
@@ -208,13 +266,56 @@ def _key_words(text):
     for m in _PROSE.finditer(text):
         if _mixed(m.group(1).rstrip(".!?:")):
             return True
-    return _LETTERS.search(text) is not None
+    return (_LETTERS_JOINED if joined else _LETTERS).search(text) is not None
 
 
-def _one(text):
+def _one(text, depth=0, joined=False):
     if any(rx.search(text) for rx in _SHAPES):
         return True
-    return _key_words(text) or _in_base64(text) or _loose(text) or _columns(text)
+    if _SHORT_SK.search(text):
+        return True
+    return _key_words(text, joined) or _in_base64_at(text, depth) or _loose(text) or _columns(text)
+
+
+def _in_base64_at(text, depth):
+    """Base64 inside base64 is read down to MAX_DEPTH levels; past that, a run that still decodes to text counts as a hit."""
+    if depth >= MAX_DEPTH:
+        return any(_clean(plain) is not None for m in _RUN.finditer(text) for _, plain in _decoded(m.group()))
+    return _in_base64(text, depth)
+
+
+def _cut_bare(text):
+    """The bare form (`password "<letters>"`) in text whose line breaks are taken out, counted when a break sits anywhere inside the hit:
+    in the key word ("pass", a break, then `word "orangebicycle"`) or between the key word and the quoted word (`my password`, a
+    line break (CRLF, blank lines, trailing spaces), `"orangebicycle"`). A break that only ends the line before the key word or
+    follows the quote is not inside the hit. Refused on purpose, as the text as written was refused before #340: `Forgot password`
+    at the end of a line with a quoted word starting the next cannot be told apart from a password written over two lines."""
+    parts = _BREAKS.split(text)
+    if len(parts) < 2:
+        return False
+    cuts, at = [], 0
+    for part in parts[:-1]:
+        at += len(part)
+        cuts.append(at)
+    for m in _LETTERS.finditer("".join(parts)):
+        if m.start("kw") >= 0 and bisect.bisect_right(cuts, m.start("kw")) < bisect.bisect_left(cuts, m.end()):
+            return True
+    return False
+
+
+def _screen(text, depth=0):
+    """The whole check on one text: as it is, as the client check sees it (hidden characters and look-alike letters undone), with
+    %-escapes undone, and each of those with line breaks taken out. Text found by decoding base64 goes through this same check."""
+    seen = [text, edit_ai.normal(text)]
+    for _ in range(2):                                # %-escapes undone up to twice ("%253D"), each result read as it is and normalised
+        if any("%" in t for t in seen):
+            seen += [x for t in list(seen) if "%" in t for x in (urllib.parse.unquote_plus(t), edit_ai.normal(urllib.parse.unquote_plus(t)))]
+    for t in dict.fromkeys(seen):
+        if _one(t, depth):
+            return True
+        if _BREAKS.search(t) and (_one(_BREAKS.sub("", t), depth, joined=True) or _cut_bare(t)):
+            return True                                   # (no break: the joined text is the same text, and read already)
+    return False
 
 
 def looks_like_secret(text):
@@ -224,14 +325,7 @@ def looks_like_secret(text):
     if not isinstance(text, str):
         return True
     try:
-        seen = [text, edit_ai.normal(text)]
-        for _ in range(2):                                # %-escapes undone up to twice ("%253D"), each result read as it is and normalised
-            if any("%" in t for t in seen):
-                seen += [x for t in list(seen) if "%" in t for x in (urllib.parse.unquote_plus(t), edit_ai.normal(urllib.parse.unquote_plus(t)))]
-        for t in dict.fromkeys(seen):
-            if _one(t) or _one(_BREAKS.sub("", t)):
-                return True
-        return False
+        return _screen(text)
     except (RecursionError, MemoryError, ValueError):
         return True                                       # fail closed
 

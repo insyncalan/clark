@@ -336,7 +336,7 @@ APPEARED_CLIENT = ("The report was saved, but it was not copied to the client fo
                    "while clark was working. Nothing was added to the client folder. Export again to choose what to do.")
 FOLDER_GONE = "The folder “{name}” isn't there, or clark can't write to it. Check it, or choose another folder. Nothing was saved."
 FOLDER_DATA = "That folder is inside clark's own data folder. Nothing was saved. Press Save again and choose a different folder."
-NOT_SAVED = "{name} could not be saved ({reason}). If it is open in Word, close it and try again. Nothing was saved."
+NOT_SAVED = "{name} could not be saved ({reason}). If it is open in Word, close it and try again. Nothing was written."
 NOT_AS_MADE = "{name} did not save correctly (the folder may be syncing), so clark removed it. Nothing was kept. Try again."
 NOT_AS_MADE_REPLACED = "{name} was replaced, but what was saved did not match what clark made (the folder may be syncing). Save it again."
 SAVED = "Saved “{name}” in {folder}."
@@ -534,15 +534,16 @@ def _do_export(store, who, req, today, chosen, roots):
             else:
                 copy = target
         except (OSError, platform.PlatformError) as e:
-            why = str(getattr(e, "strerror", None) or e).strip().rstrip(".")
-            failed = CLIENT_FAILED.format(reason=f"{why[:1].upper()}{why[1:]}.")
-        words += SAVED_CLIENT.format(name=names["client"]) if copy else " " + failed
-    seq = None
+            failed = f"{getattr(e, 'strerror', None) or e}."
+        words += SAVED_CLIENT.format(name=names["client"]) if copy else CLIENT_FAILED.format(reason=failed)
+    seq, number = None, None
     try:
         seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)
-    except Invalid:
-        words += NOT_RECORDED_FILE
-    return 200, {"ok": True, "path": str(dest), "name": dest.name, "sha256": digest, "bytes": len(data), "seq": seq,
+        number = store.number_of(seq)               # #120: the Word copy takes the next number of the project's one counter
+        words += f" It is Publication {number}."
+    except Invalid as e:
+        words += NOT_RECORDED_FILE.format(reason=str(e))
+    return 200, {"ok": True, "path": str(dest), "name": dest.name, "sha256": digest, "bytes": len(data), "seq": seq, "number": number,
                  "client_name": copy.name if copy else None, "client_failed": bool(failed), "message": words}
 
 
