@@ -25,3 +25,8 @@ export function around(ids, id) {
   const i = ids.indexOf(id);
   return i < 0 ? { prev: "", next: "" } : { prev: ids[i - 1] || "", next: ids[i + 1] || "" };
 }
+
+/** {at, count}: where `id` is in `ids` (0-based; -1 when it is not there) and how many there are. */
+export function placeIn(ids, id) {
+  return { at: ids.indexOf(id), count: ids.length };
+}
