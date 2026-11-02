@@ -108,7 +108,7 @@ class Shape(unittest.TestCase):
             self.assertEqual(json.loads(check(body))["groups"][0]["lines"][1][field], 400, "a total of exactly 100% stands")
             body["groups"][1]["lines"] = [line(text="Three", **{field: 1})]
             self.refuses(body, sb.TRACKER_TOTAL)
-            self.assertEqual(sb.TRACKER_TOTAL, "The lines' weight, planned and achieved figures can each add up to 100% at most.")
+            self.assertEqual(sb.TRACKER_TOTAL, "Weight, Planned or Achieved adds up to more than 100% across all the lines. Lower one of the figures and try again.")
 
     def test_a_percentage_is_a_whole_number_of_tenths_from_0_to_1000(self):
         for field in ("weight", "planned", "achieved"):
