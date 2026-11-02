@@ -238,6 +238,7 @@ class Step:
         self.plan_key = None         # (folder, name, replaces, confirmed) the client PDF was last planned for
         self.kept_local = False      # the Local PDF was saved and read back, set by write
         self.kept_all = False        # every PDF copy that was asked for was saved, set by write
+        self.store, self.seq = None, None    # the store and the `publications` row this publish was recorded in, set by record (#269)
 
     @property
     def on(self):
@@ -320,6 +321,10 @@ class Step:
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_held_back"].format(what=to_client.held_words(bad)))
         self.data, self.local, self.markers, self.saved, self.body = data, local, markers, saved, body_bytes
         return None
+
+    def record(self, store, seq):
+        """Remember the row the publish was recorded in, so the PDF's name can be put on it once the PDF is saved (#269)."""
+        self.store, self.seq = store, seq
 
     def write(self, pub, with_client=True):
         """Save the PDF (Local, then the client folder unless `with_client` is False) and read each back. Returns the sentences to add to the reply."""
@@ -411,3 +416,8 @@ def finish(step, out, status):
     out["pdf_saved"] = step.kept_all
     if step.kept_local:
         out["pdf_name"] = step.local.name
+        if step.store is not None and step.seq is not None:         # #269: the row names the file; a fault here never undoes a saved report or PDF
+            try:
+                step.store.record_pdf_name(step.seq, step.local.name)
+            except Exception:  # noqa: BLE001
+                LOG.exception("pdf name not recorded")

@@ -294,7 +294,7 @@ class Publisher:
         client_path = client.path if client is not None and client.ok else None
         number = built["number"]
         try:
-            store.log_publication(code, dest, week, digest, self.by_user(), client_path=client_path, number=number)
+            seq = store.log_publication(code, dest, week, digest, self.by_user(), client_path=client_path, number=number)
         except NumberTaken:               # #120: the files say a number they do not have: take back what this call wrote, and only that
             self.take_back(dest, digest, earlier_local)
             if client_path is not None:
@@ -303,6 +303,7 @@ class Publisher:
         except (Invalid, OSError) as e:
             return 409, self.fail("not_recorded", MESSAGES["not_recorded"],
                                   local_saved=True, local_name=dest.name)
+        self.pdf_step.record(store, seq)           # #269: the PDF is saved after this, and its name goes on this row then
         if client is None:
             return 200, {"ok": True, "code": "done", "action": "done",
                          "message": MESSAGES["done_local"].format(number=number, name=dest.name),
