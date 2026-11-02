@@ -93,9 +93,10 @@ class Status(Base):
             st.archive("use_cases", self.uc)
         self.refused(self.req(status="Flag"), changes.ARCHIVED_USE_CASE)
 
-    def test_no_new_move_or_delete_for_use_cases(self):
-        for op in ("new", "move", "delete"):
+    def test_no_move_or_delete_for_use_cases_and_a_new_one_takes_no_id(self):
+        for op in ("move", "delete"):
             self.refused({"project": "ABC", "kind": "use_cases", "op": op, "id": self.uc}, changes.BAD_OP)
+        self.refused({"project": "ABC", "kind": "use_cases", "op": "new", "id": self.uc}, "That change doesn't take 'id'.")      # #455: new is allowed, with values only
 
     def test_undo_is_refused_when_the_status_was_changed_since(self):
         _, body = self.change(self.req(status="Flag"))

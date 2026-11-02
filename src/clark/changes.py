@@ -71,7 +71,7 @@ CHANGE_KINDS = {
                             "client_message", "movement")},
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
-    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible")},
+    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible"), NEW: ("ref", "title", "status", "headline")},   # #455: and a NEW one (below)
     # #67: the eye on a report row. `new` hides the row from the report and `delete` shows it again; both take only the item's id
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
@@ -80,6 +80,7 @@ CHANGE_KINDS = {
 KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
+KIND_OP_KEYS["use_cases"] = {NEW: ("values",)}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
 TILE_WORDS = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
@@ -111,6 +112,7 @@ for _kind in ARCHIVABLE:                              # #126: every record can b
     CHANGE_KINDS.setdefault(_kind, {}).update({ARCHIVE: (), RESTORE: ()})
 ITEM_KINDS = ("actions", "raid", "decisions")        # the work items; every other kind is a report section
 UC_FIELDS = CHANGE_KINDS["use_cases"][UPDATE]        # #164: what a request may change on a use case
+UC_REF_LIMIT = 20                                    # #455: a new use case's reference as the project writes it ("3.1"), in characters
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
 ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision")
@@ -216,6 +218,8 @@ UC_NAME_WORDS = f"A use case needs a name of 1 to {UC_NAME_LIMIT} characters, wi
 UC_HEADLINE_WORDS = f"A headline can be at most {UC_HEADLINE_LIMIT} characters, with no line breaks or hidden characters."
 UC_STATUS_WORDS = "A use case's status can be On track, Flag or High risk."
 UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
+UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with no line breaks or hidden characters."
+UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
 NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new section may be: an allow-list, never the request's own spelling
 NEW_TYPE_WORDS = "That kind of section can't be added."
@@ -603,7 +607,7 @@ def _do_change(store, by_user, req):
         return _do_archive(store, by_user, project, table, op, place, req.get("id"))
     columns = clark_store.columns(store.con, table)
     if kind == "use_cases":                                         # #164: first, and before any work item line, so that a use case
-        return _do_use_case_change(store, by_user, req, project, table, columns, place)       # is never taken by the work item path
+        return _do_use_case_change(store, by_user, req, project, table, columns, place, op)       # is never taken by the work item path
     if op == NEW and kind in NEWABLE:
         return _do_new_row(store, by_user, req, project, table, columns, place)
     if op == BULK:
@@ -962,11 +966,50 @@ def _use_case_shown(row):
             "standing": row["standing"], "client_visible": row["client_visible"]}
 
 
-def _do_use_case_change(store, by_user, req, project, table, columns, place):
+def _do_new_use_case(store, by_user, req, project, table, columns, place):
+    """#455: add one use case to THIS project, in one step (it is in the change log under its own apply id and shows in History). The
+    request gives its reference (as the project writes it, "3.1"), name, status and headline; clark gives the id (the next -U-
+    number), the project, the place at the end of the list, the source, and puts it on the dashboard (client_visible is set here to 1,
+    the store's own default, not left to the table). The name and headline are held to the same plain-text rule as an edit.
+    A reference that any use case of the project already has, archived or not, is refused: an archived use case's reference is still
+    taken, and a Restore must never bring back a second live one with it. The reply has no Undo (see below). Nothing is written when
+    anything is refused."""
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    given = _fields(req.get("values"), table, NEW, columns, "the new use case's values")
+    ref_text = unicodedata.normalize("NFC", given["ref"]).strip() if isinstance(given.get("ref"), str) else ""
+    if not ref_text or len(ref_text) > UC_REF_LIMIT or not _plain_text(ref_text):
+        raise Refused(UC_REF_WORDS)
+    values = _checked_use_case_changes({k: v for k, v in given.items() if k != "ref"})
+    if "title" not in values:
+        raise Refused(UC_NAME_WORDS)
+    values.setdefault("status", "On track")
+    values.setdefault("headline", "")
+    values.update(ref=ref_text, project=project, source=NEW_SOURCE, client_visible=1)
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
+        mine = store.read(table, project=project)                   # live AND archived: an archived use case's reference is still taken
+        if any(str(r["ref"]).strip().casefold() == ref_text.casefold() for r in mine):
+            raise Refused(UC_REF_USED)
+        values["sort_order"] = max([r["sort_order"] for r in mine] + [0]) + 1
+        try:
+            new_ref = st.create(table, values)
+        except Invalid as e:                                        # a rule of the store, in fixed words
+            words_ = _store_words(e)
+            if words_ is None:
+                raise
+            raise Refused(words_) from None
+    # The step is logged under its own apply id (st.create opens it), but the reply gives none: no Undo. Taking back a creation would
+    # DELETE the row, and use cases are archived, never deleted, so _eligible refuses an undo of this step (NO_UNDO); Archive is the way back.
+    return 200, {"ok": True, "apply_id": None, "undoable": False, "ref": new_ref,
+                 "use_case": {**_use_case_shown(store.read(table, ref=new_ref)), "ref": ref_text}}
+
+
+def _do_use_case_change(store, by_user, req, project, table, columns, place, op):
     """#164: change fields of one EXISTING use case of THIS project, in one step (several fields, one Undo, one history line
-    each). Only `update` gets here for a change of fields: there is no new, move or delete for use cases, and none is made
-    from here. Another project's use case and a missing one get the same words; an archived one is not edited; nothing is
+    each). `update` changes fields; `new` (#455) adds one, see _do_new_use_case. There is no move or delete for use cases. Another project's use case and a missing one get the same words; an archived one is not edited; nothing is
     written when anything is refused."""
+    if op == NEW:
+        return _do_new_use_case(store, by_user, req, project, table, columns, place)
     ref = req.get("id")
     changes = _checked_use_case_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
     if not changes:
