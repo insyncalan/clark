@@ -199,7 +199,7 @@ class ASecretAcrossAChunk(Folders):
 
     def test_a_password_across_the_chunk_edge_leaves_the_whole_file_out(self):
         size = ask_data.PASSAGE_SIZE
-        for before in range(0, 19):                      # the edge falls at every point inside "password: hunter22"
+        for before in range(0, 19):                      # the edge falls at every point inside the sample password (19 characters)
             pw = "password: " + "hunter22"
             filler = ("Delivery notes for the cutover. " * 60)[:size - before]
             self.put(self.box, "across.txt", filler + pw + " and then more plain words.")
