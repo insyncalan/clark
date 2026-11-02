@@ -37,7 +37,10 @@ class Running:
             for k, v in ((("Host", f"127.0.0.1:{self.port}"), (sv.TOKEN_HEADER, sv.TOKEN), ("Content-Type", "application/json"),
                           ("Content-Length", str(len(body))))):
                 conn.putheader(k, v)
-            conn.endheaders(body)
+            try:
+                conn.endheaders(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass                      # a request over the limit is refused from its length, before all of it is sent; the answer is still there to read
             r = conn.getresponse()
             return r.status, r.msg, r.read()
         finally:
