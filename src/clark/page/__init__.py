@@ -33,8 +33,6 @@ import sys
 import threading
 from pathlib import Path
 
-from clark import platform
-
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 PAGE = HERE / "page.html"
@@ -221,6 +219,7 @@ def ensure_built():
             return
         want = source_stamp()
         if not all(p.is_file() for p in pages) or not _stamp_is(want):
+            from clark import platform      # here, not at the top: dev/tools/merge_page.py runs this file's build code with the standard library alone
             done = platform.run_program([sys.executable, BUILDER], cwd=ROOT)
             if done.returncode != 0 or not all(p.is_file() for p in pages):
                 raise PageError("The page could not be built (python3 dev/tools/build_page.py): "
