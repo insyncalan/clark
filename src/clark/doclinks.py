@@ -98,19 +98,20 @@ def _host(host):
 
 # Names that only mean something inside one network (the owner's decision on #74): a host with no dot (localhost, intranet), or ending
 # in one of these. The dotted-number addresses are tested by _private_address.
-_INTERNAL_ENDINGS = ("local", "internal", "lan", "localhost", "corp", "home", "intranet", "private", "test")
+_INTERNAL_ENDINGS = ("local", "internal", "lan", "localhost", "corp", "home", "intranet", "private", "test", "localdomain", "arpa", "router")
 
 
 def _private_address(labels):
     """True for a plain four-part number that is not a public address: this-network (0.x), loopback (127.x), private (10.x,
     172.16-31.x, 192.168.x), link-local (169.254.x), carrier-grade NAT (100.64-127.x), 192.0.0.x, benchmarking (198.18-19.x),
-    or multicast and broadcast (224 and above). _host has already refused every other way of writing a number (decimal, hex, octal, short forms, IPv6)."""
+    documentation (192.0.2.x, 198.51.100.x, 203.0.113.x), or multicast and broadcast (224 and above). _host has already refused every other way of writing a number (decimal, hex, octal, short forms, IPv6)."""
     if len(labels) != 4 or not all(label.isdigit() for label in labels):
         return False
     a, b = int(labels[0]), int(labels[1])
     c = int(labels[2])
     return (a in (0, 10, 127) or a >= 224 or (a == 172 and 16 <= b <= 31) or (a == 192 and b == 168) or (a == 169 and b == 254)
-            or (a == 100 and 64 <= b <= 127) or (a == 192 and b == 0 and c == 0) or (a == 198 and b in (18, 19)))
+            or (a == 100 and 64 <= b <= 127) or (a == 192 and b == 0 and c == 0) or (a == 198 and b in (18, 19))
+            or (a == 192 and b == 0 and c == 2) or (a == 198 and b == 51 and c == 100) or (a == 203 and b == 0 and c == 113))
 
 
 def _internal(host):

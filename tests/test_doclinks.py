@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_doclinks
 The tables are the one case list the page's JavaScript test and the store's test will also run (spec 74, point 3).
-Every address is fictional (example.com, example.net, example.org, 192.0.2.x); the hostile strings are test inputs only.
+Every address is fictional (example.com, example.net, example.org, 93.184.216.x); the hostile strings are test inputs only.
 """
 import ast
 import json
@@ -30,7 +30,7 @@ ACCEPTED = [
     ("https://example.com?x=y", "https://example.com?x=y"),
     ("https://example.com#top", "https://example.com#top"),
     ("https://example.com./x", "https://example.com./x"),
-    ("https://192.0.2.10/report", "https://192.0.2.10/report"),
+    ("https://93.184.216.34/report", "https://93.184.216.34/report"),
     ("https://xn--e1afmkfd.example.com/", "https://xn--e1afmkfd.example.com/"),
     ("https://example.com/caf\u00e9", "https://example.com/caf\u00e9"),
     ("https://example.com:443/", "https://example.com:443/"),
@@ -129,6 +129,9 @@ INTERNAL_HOSTS = [
     "https://0.0.0.0/", "https://0.1.2.3/", "https://100.64.0.1/", "https://100.100.5.5/", "https://100.127.255.255/", "https://192.0.0.1/",
     "https://192.0.0.255/", "https://198.18.0.1/", "https://198.19.255.255/", "https://224.0.0.1/", "https://239.255.255.250/",
     "https://240.0.0.1/", "https://255.255.255.255/",
+    "https://pc.localdomain/", "https://1.0.0.127.in-addr.arpa/", "https://x.arpa/", "https://home.router/", "https://HOST.ROUTER./x",
+    "https://192.0.2.1/", "https://192.0.2.255/", "https://198.51.100.1/", "https://198.51.100.255/", "https://203.0.113.1/",
+    "https://203.0.113.255/",
 ]
 INTERNAL_MAILTO = ["mailto:someone@intranet", "mailto:someone@host.corp", "mailto:a@nas.home", "mailto:a@10.0.0.1", "mailto:a@x.test"]
 # Still refused, by the older site-name rule: IPv6 (loopback, link-local, unique-local), and numbers written in another system.
@@ -145,11 +148,11 @@ INTERNAL_BEHIND_USERINFO = [
 # Addresses next to the blocked ranges that are public and stay allowed.
 NOT_INTERNAL = [
     "https://172.15.255.255/", "https://172.32.0.1/", "https://192.167.1.1/", "https://192.169.0.1/", "https://169.253.1.1/",
-    "https://169.255.1.1/", "https://11.0.0.1/", "https://128.0.0.1/", "https://192.0.2.10/report", "https://example.com/",
+    "https://169.255.1.1/", "https://11.0.0.1/", "https://128.0.0.1/", "https://93.184.216.34/report", "https://example.com/",
     "https://localhost.example.com/", "https://local.example.com/", "https://lan.example.com/x", "https://internal.example.com/",
     "https://example.com/localhost", "https://example.com/?next=http://127.0.0.1/", "https://example.com/#192.168.0.1",
     "mailto:alice@example.com",
-    "https://100.63.255.255/", "https://100.128.0.1/", "https://192.0.1.1/", "https://192.0.2.1/", "https://198.17.255.255/",
+    "https://100.63.255.255/", "https://100.128.0.1/", "https://192.0.1.1/", "https://198.17.255.255/",
     "https://198.20.0.1/", "https://223.255.255.254/", "https://1.0.0.1/", "https://example.com.au/", "https://testing.example.com/",
     "mailto:a@example.org", "mailto:a@corporate.example.com",
 ]
@@ -282,6 +285,12 @@ class InternalAddresses(unittest.TestCase):
                 with self.assertRaises(LinkError) as caught:
                     check_link(text)
                 self.assertEqual(str(caught.exception), doclinks.INTERNAL)
+
+    def test_neighbours_of_the_documentation_ranges_and_public_names_still_pass(self):
+        for text in ("https://192.0.1.1/", "https://192.0.3.1/", "https://198.51.99.1/", "https://198.51.101.1/", "https://203.0.112.1/",
+                     "https://203.0.114.1/", "https://8.8.8.8/", "https://example.com/", "https://arpa.example.com/", "https://router.example.com/"):
+            with self.subTest(text=text):
+                check_link(text)
 
     def test_internal_addresses_are_refused_with_spaces_round_them_too(self):
         with self.assertRaises(LinkError) as caught:
@@ -437,7 +446,7 @@ class Host(unittest.TestCase):
     def test_the_site_name_of_each_kind_of_link(self):
         cases = [
             ("https://example.com/x", "example.com"), ("HTTPS://Portal.Example.COM:8080/x?y=1#z", "portal.example.com"),
-            ("http://example.net", "example.net"), ("https://example.com./x", "example.com"), ("https://192.0.2.10/x", "192.0.2.10"),
+            ("http://example.net", "example.net"), ("https://example.com./x", "example.com"), ("https://93.184.216.34/x", "93.184.216.34"),
             ("mailto:alice@example.org", "example.org"), ("MAILTO:Alice@EXAMPLE.ORG", "example.org"),
             ("  https://example.com/x  ", "example.com"), ("https://www.example.com", "www.example.com"),
         ]
@@ -553,9 +562,9 @@ class OtherPlace(unittest.TestCase):
         ("portal.ex\u0430mple.com", "https://portal.example.com/", True),
         ("portal.example.com\u202e", "https://portal.example.com/", False),
         ("portal.exa\u200bmple.com", "https://portal.example.com/", False),
-        ("192.0.2.10", "https://198.51.100.7/", True),
-        ("192.0.2.10", "https://192.0.2.10/x", False),
-        ("Go to 192.0.2.10", "https://example.com/", True),
+        ("93.184.216.34", "https://93.184.216.35/", True),
+        ("93.184.216.34", "https://93.184.216.34/x", False),
+        ("Go to 93.184.216.34", "https://example.com/", True),
         ("alice@example.com", "mailto:alice@example.com", False),
         ("Alice@Example.com", "mailto:alice@example.com", False),
         ("alice@example.com", "mailto:mallory@example.com", True),
