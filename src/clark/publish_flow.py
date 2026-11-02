@@ -122,6 +122,7 @@ def markers_for(store, code, published, template=""):
                  for r in ([data["project"]] if kind == "projects" else data.get(kind, ())) if isinstance(r, dict)
                  for v in r.values() if isinstance(v, str)]
     kept_text += [s.get("body") or "" for s in published.get("sections", ()) if isinstance(s, dict)]
+    kept_text += [v for r in data.get("documents", ()) if isinstance(r, dict) for v in r.values() if isinstance(v, str)]     # #74: the links the client may see
     found, where = [], {}
     bare = to_client._key(template)
 
@@ -140,6 +141,12 @@ def markers_for(store, code, published, template=""):
                 value = (_text(row.get(field)) or "").strip()
                 if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
                     add(value, row["id"])
+    for row in store.read("documents", project=code):              # #74: a document's id, title and link are absent unless a kept document carries the same words (publish carries no id)
+        add(row["id"], row["id"])
+        for field in ("title", "url"):
+            value = (_text(row.get(field)) or "").strip()
+            if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+                add(value, row["id"])
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
@@ -447,6 +454,9 @@ class Publisher:
         code = body.get("project") if isinstance(body, dict) else None
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
+        refused = to_client.section_style_refusal(body)
+        if refused:
+            return 400, self.fail(code_of(refused), refused)
         store = self.store()
         try:
             if store.read("projects", ref=code) is None:

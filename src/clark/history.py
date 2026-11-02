@@ -65,6 +65,9 @@ def history(con, item_id):
     return build_events(rows, reverted_rowids(con))
 
 
+BARE_CHUNK = 100                       # project codes and IDs with no hyphen per query: 300 parameters and OR terms at most, well under SQLite's limits
+
+
 def history_many(con, ids):
     """{id: history(con, id)} for every ID in `ids`, read in ONE pass: the undone steps are found once and the log is read once
     (the single-item query's leading wildcard cannot use the index, so asking per item scans the whole log each time). Each
@@ -73,11 +76,24 @@ def history_many(con, ids):
     if not ids:
         return {}
     wanted = set(ids)
-    codes = sorted({i.split("-", 1)[0] for i in ids})
-    where = " AND (" + " OR ".join(["c.item_id LIKE ? OR c.item_id LIKE ?"] * len(codes)) + ")"
-    args = [x for c in codes for x in (c + "-%", "%|" + c + "-%")]
+    codes = sorted({i.split("-", 1)[0] for i in ids if "-" in i})
+    bare = [i for i in ids if "-" not in i]               # an ID with no hyphen has no code to cut: ask for it as history() does
     mine = {i: [] for i in ids}
-    for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", args):
+    # SQLite caps an expression's depth (1000) and its parameters: a code adds two OR terms and a bare ID three, so both go in chunks
+    # of BARE_CHUNK. A row two chunks both match is read once; the rows are put back in event order.
+    terms = [("c.item_id LIKE ? OR c.item_id LIKE ?", [c + "-%", "%|" + c + "-%"]) for c in codes] \
+        + [("c.item_id = ? OR c.item_id LIKE ? OR c.item_id LIKE ?", [i, i + "|%", "%|" + i + "|%"]) for i in bare]
+    chunks = [terms[n:n + BARE_CHUNK] for n in range(0, len(terms), BARE_CHUNK)]
+    seen, rows = set(), []
+    for chunk in chunks:
+        where = " AND (" + " OR ".join(t[0] for t in chunk) + ")"
+        for r in con.execute(ROW_SQL + where + " ORDER BY e.event_id", [x for t in chunk for x in t[1]]):
+            if len(chunks) == 1 or r["rowid"] not in seen:
+                seen.add(r["rowid"])
+                rows.append(r)
+    if len(chunks) > 1:
+        rows.sort(key=lambda r: r["event_id"])
+    for r in rows:
         key = str(r["item_id"])
         if "|" not in key:                                  # the usual row: keyed by its own item alone
             if key in wanted:
@@ -95,6 +111,9 @@ def history_many(con, ids):
 # item (ReviewCache) and, on each call, reads only the log rows added since the last one. A change_log row is never changed once its
 # step is committed (an undo writes new rows), so what was kept stays true; a log that has shrunk or lost a row starts again.
 # The first read of an item is made by the database in one grouped pass over the project's own keys (other projects' rows are not read).
+# The first read of a run of the program holds the lock for the whole read (about 0.3 s on a 50,000-row log, measured; the
+# page's own first load is that read too). That is acceptable: a second page load at the same moment would need the very same rows,
+# so waiting for the first one's answer costs it less than reading them again, and every later call takes well under a millisecond.
 # `at` and the event number are joined into one text that sorts the way (at, event_id) does: char(31) is below every character of a stamp.
 SORT_KEY = "e.at || char(31) || printf('%012d', e.event_id)"
 FIRST_SQL = ("SELECT c.tbl, c.item_id, min(" + SORT_KEY + ") AS found FROM change_log c JOIN item_events e ON e.change = c.rowid "
@@ -111,10 +130,14 @@ NEW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.via, e.at, e.event_id, 
 
 class ReviewCache:
     """What review_events keeps between calls (a Store holds one): {id: [first event, latest person's event]} and the log's
-    newest rowid and row count when they were read."""
+    newest rowid and row count when they were read. It holds at most `limit` items: when a call would take it past that, the items
+    kept longest ago are let go first (never one the call asked for), and they are read again if they are asked for later."""
 
-    def __init__(self):
+    LIMIT = 20000                                          # items kept; each is two small events, so a few megabytes at most
+
+    def __init__(self, limit=None):
         self.lock = threading.Lock()
+        self.limit = limit or self.LIMIT
         self.reset()
 
     def reset(self):
@@ -198,14 +221,25 @@ def review_events(con, ids, cache=None):
             new = [i for i in ids if i not in cache.events]
             if new:
                 mine = {i: [] for i in new}
-                odd = set()
-                _first_reads(con, set(new), sorted({i.split("-", 1)[0] for i in new}), mine, odd)
+                odd = {i for i in new if "-" not in i}                # no code to cut at: read whole, like history()
+                codes = sorted({i.split("-", 1)[0] for i in new if "-" in i})
+                if codes:
+                    _first_reads(con, set(new) - odd, codes, mine, odd)
                 if odd:
                     mine.update(history_many(con, sorted(odd)))
                 for i in new:
                     cache.events[i] = _reduce(mine[i])
             cache.mark, cache.count = top, count
-            return {i: cache.events[i] for i in ids}
+            out = {i: cache.events[i] for i in ids}
+            if len(cache.events) > cache.limit:
+                asked = set(ids)
+                for i in [i for i in cache.events if i not in asked]:      # oldest kept first: dicts keep the order they were added in
+                    if len(cache.events) <= cache.limit:
+                        break
+                    del cache.events[i]
+                if len(cache.events) > cache.limit:
+                    cache.events.clear()                   # this one call asked for more than the bound: answer it, keep nothing
+            return out
     finally:
         if begun:
             con.execute("COMMIT")

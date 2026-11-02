@@ -18,6 +18,7 @@ from _paths import ROOT
 import _testpage as testpage
 
 from clark import changes, page, server as sv, sneak  # noqa: E402
+from _real_server import real_server
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 from test_work_filters import click, dblclick, key as basic_key  # noqa: E402
@@ -173,7 +174,10 @@ class Reader(unittest.TestCase):
         self.assertIn("Read as 30-10-2026", self.read("A-1", "Friday")["note"])
         self.assertIn("in the past", self.read("A-1", "due 2026-10-01")["note"])
         for words in ("due 0001-01-01", "due 9999-12-31"):
-            self.assertIn("year looks wrong", self.read("A-1", words)["message"])
+            said = self.read("A-1", words)["message"]
+            self.assertIn("year looks wrong", said)
+            self.assertIn("Type a year between 2000 and 2100.", said, "it says what to change")
+            self.assertNotIn("Check the date", said)
 
     def test_two_different_days_are_refused_and_a_decision_is_not_made_in_the_future(self):
         for words in ("friday 2026-11-05", "due 2026-11-03 or 2026-11-05", "monday not friday", "due today not tomorrow"):
@@ -264,8 +268,9 @@ class Browser(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def load_page(self, cdp, width, hash_=None, change=None):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.store.read("projects"), page_html=lambda: testpage.html(), sneak=sneak.make_read(self.store.data_for),
-                    change=change or changes.make_change(self.store.path, [], "Demo User"), undo=changes.make_undo(self.store.path, [], "Demo User"))
+        extra = {"change": change} if change else {}
+        s = real_server(self.store.path, self.store.data_for, who="Demo User", projects=lambda: self.store.read("projects"),
+                        page_html=lambda: testpage.html(), **extra)
         self.addCleanup(s.close)
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)

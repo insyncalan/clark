@@ -7,18 +7,14 @@ file from file:// and check what is in its bytes. The clock needs no fixing: eve
 """
 import json
 import re
-import shutil
-import tempfile
 import time
 import unittest
-from pathlib import Path
 
 from _demo import USER
 from _paths import ROOT, SRC
-from test_report_editor import ALT, EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
+from _publish import PublishedFile
+from test_report_editor import ALT, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
-
-from clark import page, publish
 
 LONG = "2020-01-01"
 
@@ -388,6 +384,27 @@ class UseCases(Setup):
             p.js("history.back()")
             p.until("!!document.querySelector('.ucrow')", "back on the Dashboard")
 
+    def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
+        """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
+        uc = self.demo.use_case
+        with self.store.step("dashboard", USER) as st:
+            st.update("actions", self.a_open, {"client_message": "We will chase the supplier file this week"})
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "ZQ-risk own title", "raised": "2026-10-01", "source": "demo", "owner": "Sam Demo", "use_case": uc})
+            st.create("decisions", {"project": "ABC", "decision": "ZQ-decision own title", "source": "demo", "status": "Pending", "use_case": uc,
+                                    "made_by": "Lee Demo", "client_message": "A choice of shared drive is due"})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertIn("5 next steps", p.js("document.querySelector('.ucrow .ucbar').innerText"))
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail')", "the row opened")
+            text = p.js("document.querySelector('.ucdetail').innerText")
+            self.assertIn("Pat Demo: We will chase the supplier file this week", text)
+            self.assertNotIn("Chase the supplier file", text, "the item's own title is not shown beside its client wording")
+            self.assertIn("ZQ-risk own title", text, "an open risk is a next step; with no client wording its own title shows")
+            self.assertIn("Lee Demo: A choice of shared drive is due", text)
+            self.assertNotIn("ZQ-decision own title", text)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-step-av]')].map(e => e.textContent).sort()"), ["LD", "LD", "PD", "SD", "SD"])
+
 
 class Styles(Setup):
     def test_each_section_style_applies_at_once_and_is_remembered(self):
@@ -411,24 +428,7 @@ class Styles(Setup):
             self.assertGreater(gap[1], gap[0], "Roomy gaps are roomier than Slim gaps")
 
 
-class Published(Setup):
-    def publish(self):
-        self.out = tempfile.mkdtemp(prefix="clark-45-")
-        self.addCleanup(shutil.rmtree, self.out, ignore_errors=True)
-        done = publish.publish(self.store, "ABC", self.out, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
-        return Path(done["path"])
-
-    def draw(self, cdp, path, width=1400, dark=False):
-        tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
-        sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
-        p = Pg(self, cdp, sid)
-        p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
-        if dark:
-            p.js("document.documentElement.dataset.theme = 'dark'")
-        return p
-
+class Published(PublishedFile, Setup):
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):

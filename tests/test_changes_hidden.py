@@ -649,7 +649,7 @@ class Inserts(Base):
         self.refused(add("actions", description="X") | {"values": "text"}, "Send the new row's values as an object.")
         self.refused(add("actions", description="X") | {"values": ["x"]}, "Send the new row's values as an object.")
         self.refused(add("use_cases", title="X", headline="Y"), changes.BAD_OP)
-        self.refused(add("documents", title="X"), changes.BAD_OP)
+        self.refused(add("documents", title="X"), "Add a link.")       # #74: a document is added with its link
         self.refused(add("workstreams", name="X"), changes.BAD_KIND)
         self.refused(add("report_hidden"), "That change doesn't take 'values'.")
         self.assertEqual(self.s.read("use_cases", "ABC")[0]["title"], "Invoice matching")

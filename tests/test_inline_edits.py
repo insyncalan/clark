@@ -18,13 +18,13 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _demo import USER
+from _real_server import real_server
 from _paths import SRC
 import _testpage as testpage
 
 from clark import changes, server as sv  # noqa: E402
 from clark.store import open_store  # noqa: E402
-from test_server import CHROME, Running, chrome, wait  # noqa: E402
+from test_server import CHROME, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, TODAY, bundled, load_demo, page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -221,15 +221,14 @@ class Live(unittest.TestCase):
         self.path = self.folder / "clark.db"
         self.sent = []
         self.failure = None                  # a function (req) -> (status, body), to make clark refuse on purpose
-        real_change, real_undo = changes.make_change(self.path, [], USER), changes.make_undo(self.path, [], USER)
 
         def seam(real, which):
             def call(req):
                 self.sent.append((which, req))
                 return self.failure(req) if self.failure else real(req)
             return call
-        self.s = Running(data_for=self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
-                         page_html=lambda: testpage.html(), change=seam(real_change, "change"), undo=seam(real_undo, "undo"))
+        self.s = real_server(self.path, self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
+                             page_html=lambda: testpage.html(), seam=seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
@@ -313,8 +312,11 @@ class Live(unittest.TestCase):
                 self.until(cdp, sid, "location.hash.includes('item=TUL-A-001')", "a double click on a row opens the item's peek (its address)")
                 self.assertEqual(cdp.js("clarkPage.peek()", sid), {"kind": "item", "id": "TUL-A-001"})
                 cdp.js("clarkPage.closePeek()", sid)
-                self.until(cdp, sid, "!location.hash.includes('item=')", "the peek closed")
+                self.until(cdp, sid, "!location.hash.includes('item=') && clarkPage.peek() === null", "the peek closed, in the address and in the page")
+                # the peek hands focus back to the row that opened it, after the next draw; wait for that before moving focus
+                self.until(cdp, sid, "document.activeElement && document.activeElement.dataset.id === 'TUL-A-001'", "focus went back to the opening row")
                 cdp.js("document.querySelector(\"tr[data-id='TUL-007']\").focus()", sid)
+                self.until(cdp, sid, "document.activeElement === document.querySelector(\"tr[data-id='TUL-007']\")", "the row has the focus")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-007')", "Enter on a row opens its peek")
 
@@ -360,6 +362,7 @@ class Live(unittest.TestCase):
                 self.assertEqual(self.focused(cdp, sid), f"{rows[1]}:owner", "an arrow in the picker's box stays in the box")
                 self.assertEqual(cdp.js(stops, sid), [rows[1]], "still one tab stop")
                 cdp.js(f"document.querySelector(\"tr[data-id='{rows[1]}']\").focus()", sid)
+                self.until(cdp, sid, f"document.activeElement === document.querySelector(\"tr[data-id='{rows[1]}']\")", "the row has the focus")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Enter on a row opens its peek")
 

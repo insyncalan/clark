@@ -381,6 +381,38 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(target.read_bytes(), b"the file the link points at")
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
 
+    def _lost_race_over_a_link(self, patched):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = getattr(os, patched)
+
+        def fail(*a, **k):
+            raise OSError(13, "refused")
+        setattr(os, patched, fail)
+        try:
+            with self.assertRaises(publish.PublishError) as ctx:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            setattr(os, patched, real)
+        self.assertTrue(dest.exists() and not os.path.islink(dest), "the folder still holds a report: the new file")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "no temporary name is left")
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
+        self.assertIn("could not be put back", str(ctx.exception), "the caller is told")
+
+    def test_a_link_that_cannot_be_made_leaves_the_new_file_and_says_so(self):
+        self._lost_race_over_a_link("symlink")
+
+    def test_a_link_that_cannot_be_moved_into_place_leaves_the_new_file_and_says_so(self):
+        self._lost_race_over_a_link("replace")
+
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
         store, folder = self._overwrite_rig()
         store.log_publication("PUB", Path("/tmp/clark-fictional/other.html"), None, SHA, "Someone Else")
