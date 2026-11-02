@@ -701,7 +701,7 @@
      ],
      [
       "p",
-      "Publish, Preview and Export appear only when a project is open."
+      "Publish, Preview and Export appear once the report has loaded."
      ]
     ]
    },
