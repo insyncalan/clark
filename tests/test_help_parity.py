@@ -33,7 +33,6 @@ WAITS = {
     "ref-published-reports": ("the Published reports list (numbered publications)", r"Published reports"),
     "howto-start-from-last-report": ("Start from last week's report", r"Start from last"),
     "ref-since-last-report": ("the Since the last report panel", r"Since the last report"),
-    "howto-save-as-a-pdf": ("the PDF option in the Publish box", r"PDF", ("page", "src", "edit", "Publish.jsx")),
     "howto-add-people-details": ("the People card in Settings", r"[\"'>]People[\"'<]"),
     "ref-people": ("the People card in Settings", r"[\"'>]People[\"'<]"),
     "howto-word-in-and-out": ("Export to Word and Import from Word on the page", r"Import from Word"),
