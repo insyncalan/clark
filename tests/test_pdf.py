@@ -199,6 +199,13 @@ class Pure(unittest.TestCase):
         self.assertNotIn("location", js)
         self.assertNotIn("href", js)
 
+    def test_a_tab_is_named_by_its_full_name_not_its_short_one_run_together(self):
+        # The page's tab button holds a full name and a short one side by side (the short one shows on a narrow window): the
+        # heading must be the full name alone, or the PDF holds a word that is in no page ("Weekly snapshotSnapshot").
+        js = pdf.stack_script()
+        self.assertIn(".tl-full", js)
+        self.assertIn("(full||b).textContent", js)
+
     def test_no_port_is_opened_on_posix(self):
         piped, ported = pdf._devtools_args("/c", "/p", True), pdf._devtools_args("/c", "/p", False)
         self.assertTrue(any(a.endswith("debugging-pipe") for a in piped))
