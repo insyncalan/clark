@@ -931,7 +931,16 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .update-files { margin: 6px 0; }
 .update-files ul { margin: 0 0 6px; overflow-wrap: anywhere; }
 .update-sum { overflow-wrap: anywhere; }
-#update-last p { margin: 0; align-self: center; }
+/* clark version and updates: labelled rows, a label column and the controls with a hint line under them (the prototype's .form.wide) */
+.upd-form { display: grid; grid-template-columns: 170px 1fr; gap: 10px 14px; align-items: start; margin-top: 12px; }
+.upd-form .fl { font-size: 14px; padding-top: 6px; margin-right: 0; }
+.upd-form .fc { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 34px; min-width: 0; }
+.upd-form .fc small { flex-basis: 100%; color: var(--text-muted); font-size: 13px; }
+.upd-form .fc span, .upd-form .fc b, .upd-form .fc small { overflow-wrap: anywhere; }
+.upd-form .fc b { font-weight: var(--weight-medium); }
+.upd-form .upd-blocked { grid-column: 1 / -1; }
+.upd-form .upd-blocked p { margin: 0; }
+@media (max-width: 700px) { .upd-form { grid-template-columns: 1fr; gap: 2px 0; } .upd-form .fl { padding-top: 10px; } }
 @media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: 16px; } }
 /* #43: on a phone the Publish button must not push the top bar wider than the window; only top-bar rules, after the phone card rules. */
 @media (max-width: 640px) { .pubbar { gap: 4px; } .pubbtn { padding: 0 8px; font-size: 13px; } .top:has(.pubbar) .logo .wm { display: none; } }   /* the Edit top bar only: the logo keeps its icon (its aria-label names it) */

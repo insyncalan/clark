@@ -153,8 +153,8 @@ class InstallTest(Rig):
         st = after.status()[1]
         self.assertEqual("Version 0.3.1 is installed.", st["notice"])
         self.assertIsNone(after.status()[1]["notice"], "said once")
-        self.assertEqual("Last update: 0.3.0 → 0.3.1 on " + ui.stamp_now()[6:8] + "-" + ui.stamp_now()[4:6] + "-"
-                         + ui.stamp_now()[0:4] + ".", st["last"]["line"])
+        self.assertEqual("0.3.0 → 0.3.1, " + ui.stamp_now()[6:8] + "-" + ui.stamp_now()[4:6] + "-"
+                         + ui.stamp_now()[0:4], st["last"]["line"])
         self.assertFalse(any(n.startswith(h.OLD_PREFIX) for n in os.listdir(self.app)), "tidied once settled")
 
     def test_only_the_held_review_once_and_not_too_old(self):

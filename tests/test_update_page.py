@@ -1,4 +1,4 @@
-"""Settings › Version and updates, the page's side: the logic (src/clark/page/src/logic/update.js) and the card (edit/Update.jsx),
+"""Settings › clark version and updates, the page's side: the logic (src/clark/page/src/logic/update.js) and the card (edit/Update.jsx),
 over a fake server, at 1400 and 900 pixels wide in light and dark. The routes themselves are tests/test_updater.py.
 
 Run: python3 dev/run_tests.py test_update_page
@@ -144,11 +144,25 @@ class Logic(InBrowser):
 
     def test_every_word_is_plain_and_none_starts_with_the_product_name(self):
         every = self.val("[...Object.values(T.logic.WORDS), T.logic.GENERIC, T.logic.NOT_ANSWERING, T.logic.STALE, T.logic.LOADING, "
-                         "T.logic.TITLE, T.logic.INTRO, T.logic.CANCELLED, T.logic.COPIED, T.logic.NOT_COPIED, T.logic.SLOW, "
+                         "T.logic.INTRO, T.logic.CANCELLED, T.logic.COPIED, T.logic.NOT_COPIED, T.logic.SLOW, "
                          "T.logic.DISARMED, ...Object.values(T.logic.LABELS)]")
         for text in every:
             self.assertIsNone(re.search(r"(?i)\b(zip|manifest|sha|path|token|json|database|stale)\b", text.replace("Choose zip…", "")), text)
             self.assertFalse(text.startswith(("clark", "Clark")), text)
+        self.assertEqual(self.val("T.logic.TITLE"), "clark version and updates", "a title, not a sentence: the card's name in Help and in the prototype")
+
+    def test_up_to_date_is_the_servers_line_without_its_full_stop(self):
+        self.assertEqual(self.val("T.logic.UP_TO_DATE") + ".", up.UP_TO_DATE)
+
+    def test_the_hints_are_plain_and_name_the_release_file_never_the_source_code_zip(self):
+        hints = self.val("[T.logic.HINT_NONE, T.logic.HINT_FILE, T.logic.hintReady('0.3.1'), ...Object.values(T.logic.ROWS)]")
+        for text in hints:
+            self.assertIsNone(re.search(r"(?i)\b(manifest|sha|path|token|json|database|stale|prototype|demo|simulate)\b", text), text)
+        file_hint = self.val("T.logic.HINT_FILE")
+        self.assertIn("not the source code zip", file_hint)
+        self.assertIn("clark-X.Y.Z-mac.zip", file_hint, "the real release file ends in the system's name; a bare clark-X.Y.Z.zip is GitHub's source download, which is refused")
+        self.assertNotRegex(file_hint, r"clark-X\.Y\.Z\.zip")
+        self.assertNotRegex(file_hint, r"(?i)^clark")
 
     def test_answers_known_server_said_and_generic(self):
         self.assertEqual(self.val("T.logic.answerWords(409, {code: 'busy', message: 'ignore me'})"), up.MESSAGES["busy"])
@@ -185,12 +199,67 @@ class Card(InBrowser):
         self.replies(status=OK({**STATUS, "available": None, "line": "Up to date."}))
         self.mount()
         self.assertFalse(self.present("[data-review]"))
-        self.assertEqual(self.text("#update-line"), "Up to date.")
+        self.assertEqual(self.text("#update-line"), "Up to date", "the row has no full stop, as the prototype draws it")
+
+    def labels(self):
+        return self.val("[...document.querySelectorAll('#update .upd-form > .fl')].map(e => e.textContent)")
+
+    def test_labelled_rows_each_with_the_hint_under_its_action(self):
+        """The prototype's card: Installed / Update / Install from a file / Last update; a hint line under each action."""
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "0.3.0 → 0.3.1, 01-11-2026"}}
+        self.replies(status=OK(last))
+        self.mount()
+        self.assertEqual(self.text("#update h2"), "clark version and updates")
+        self.assertEqual(self.labels(), ["Installed", "Update", "Install from a file", "Last update"])
+        self.assertEqual(self.text("#update-installed"), "Version 0.3.0, released 20-10-2026.")
+        self.assertEqual(self.text("#update-hint"), "clark 0.3.1 is ready to install")
+        self.assertEqual(self.text("#update-file-hint"),
+                         "The zip attached to the release, named like clark-X.Y.Z-mac.zip (or -windows or -linux), not the source code zip")
+        self.assertEqual(self.text("#update-last-line"), "0.3.0 → 0.3.1, 01-11-2026")
+        self.assertTrue(self.val("!!(document.querySelector('#update-row [data-review]') && document.querySelector('#update-file-row [data-choose]') "
+                                 "&& document.querySelector('#update-last [data-undo]'))"), "each action sits in its own row")
+        self.assertFalse(self.present("#update-last small"), "the Last update row has no hint, as in the prototype")
+
+    def test_up_to_date_has_its_hint_about_downloading_the_new_clark(self):
+        self.replies(status=OK({**STATUS, "available": None, "line": "Up to date."}))
+        self.mount()
+        self.assertEqual(self.labels(), ["Installed", "Update", "Install from a file"], "no Last update row before anything was updated")
+        self.assertEqual(self.text("#update-line"), "Up to date")
+        self.assertEqual(self.text("#update-hint"), "Download the new clark from the release page, then choose the zip below")
+        self.assertFalse(self.present("[data-review]"))
+
+    def test_the_choose_zip_hint_is_there_before_and_after_a_file_was_refused(self):
+        hint = "The zip attached to the release, named like clark-X.Y.Z-mac.zip (or -windows or -linux), not the source code zip"
+        said = updates.MESSAGES["source"].format(ending="mac.zip")
+        self.replies(review=OK({"ok": False, "code": "source", "message": said}, 409))
+        self.mount()
+        self.assertEqual(self.text("#update-file-hint"), hint)
+        self.click("[data-choose]")
+        self.assertEqual(self.text(".pub-msg"), said)
+        self.assertEqual(self.text("#update-file-hint"), hint)
+
+    def test_the_label_column_is_to_the_left_of_the_actions_and_each_hint_is_under_its_action(self):
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "0.3.0 → 0.3.1, 01-11-2026"}}
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    self.load(width=width, theme=theme)
+                    self.replies(status=OK(last))
+                    self.mount()
+                    box = self.val("""(() => { const r = e => e.getBoundingClientRect();
+                      const labels = [...document.querySelectorAll('#update .upd-form > .fl')], values = [...document.querySelectorAll('#update .upd-form > .fc')];
+                      const hint = (id, btn) => { const h = r(document.querySelector(id)), b = r(document.querySelector(btn)); return h.top >= b.bottom - 1 && h.left <= b.left + 1; };
+                      return { n: [labels.length, values.length], lefts: new Set(labels.map(l => Math.round(r(l).left))).size,
+                               beside: labels.every((l, i) => r(l).right <= r(values[i]).left && Math.abs(r(l).top - r(values[i]).top) < 20),
+                               hints: [hint('#update-hint', '[data-review]'), hint('#update-file-hint', '[data-choose]')],
+                               inside: [...document.querySelectorAll('#update .upd-form *')].every(e => r(e).right <= innerWidth) }; })()""")
+                    self.assertEqual(box, {"n": [4, 4], "lefts": 1, "beside": True, "hints": [True, True], "inside": True})
 
     def test_a_copy_that_cannot_update_itself_says_why_and_offers_nothing(self):
         self.replies(status=OK({**STATUS, "available": None, "blocked": updates.MESSAGES["git"]}))
         self.mount()
         self.assertEqual(self.text("#update-blocked"), updates.MESSAGES["git"])
+        self.assertEqual(self.labels(), ["Installed"], "no Update or Install from a file row when nothing can be installed")
         self.assertFalse(self.present("[data-review]") or self.present("[data-choose]"))
 
     def test_review_then_install_is_a_second_click_and_the_page_reloads_when_the_new_run_answers(self):
@@ -253,11 +322,11 @@ class Card(InBrowser):
         self.assertEqual(0, self.val("T.reloads"))
 
     def test_undo_is_arm_then_confirm_and_changed_data_offers_the_app_and_settings_only(self):
-        last = {**STATUS, "available": None, "line": "Up to date.", "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}}
+        last = {**STATUS, "available": None, "line": "Up to date.", "last": {"from": "0.3.0", "to": "0.3.1", "line": "0.3.0 → 0.3.1, 01-11-2026"}}
         self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": up.ARMED_FULL.format(to="0.3.0")}),
                      undo=OK({"ok": True, "restart": True, "message": up.UNDOING.format(to="0.3.0")}))
         self.mount()
-        self.assertIn("Last update: 0.3.0", self.text("#update-last"))
+        self.assertEqual(self.text("#update-last-line"), "0.3.0 → 0.3.1, 01-11-2026")
         self.click("[data-undo]")
         self.assertEqual(self.calls(), ["status", "arm"], "the first click only arms")
         self.assertEqual(self.text("#update-armed"), up.ARMED_FULL.format(to="0.3.0"))
@@ -307,7 +376,7 @@ class Card(InBrowser):
         self.assertTrue(self.present("#update-panel"))
 
     def test_nothing_runs_sideways_and_the_text_reads_at_1400_and_900_in_light_and_dark(self):
-        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}}
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "0.3.0 → 0.3.1, 01-11-2026"}}
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme):
@@ -321,6 +390,41 @@ class Card(InBrowser):
                     worst = self.val(f"Math.min(...[...document.querySelectorAll('#update p, #update li, #update pre, #update summary, #update h2')]"
                                      f".filter(e => e.textContent.trim()).map({CONTRAST}))")
                     self.assertGreaterEqual(worst, 4.5)
+                    labels = self.val(f"Math.min(...[...document.querySelectorAll('#update small, #update .fl, #update #update-line, #update #update-last-line, #update b')]"
+                                      f".filter(e => e.textContent.trim()).map({CONTRAST}))")
+                    self.assertGreaterEqual(labels, 4.5, "the row labels, the hints and the values read in this theme")
+
+
+class HelpForTheCard(unittest.TestCase):
+    """Help's "Update clark" and "Updating clark" (released from helpLater.json) say what the card now shows."""
+    HELP = PAGE_SRC / "help"
+
+    def entries(self):
+        raw = json.loads((self.HELP / "helpContent.json").read_text(encoding="utf-8"))
+        task = next(t for t in raw["howto"]["tasks"] if t["id"] == "update-clark")
+        ref = next(t for t in raw["reference"]["sections"] if t["id"] == "updating-clark")
+        return task, ref
+
+    def test_the_two_entries_are_released_and_so_in_the_shown_help(self):
+        later = json.loads((self.HELP / "helpLater.json").read_text(encoding="utf-8"))
+        self.assertNotIn("update-clark", later["howto"])
+        self.assertNotIn("updating-clark", later["reference"])
+        from _help_shown import shown_content
+        shown = shown_content()
+        self.assertIn("update-clark", [t["id"] for t in shown["howto"]["tasks"]])
+        self.assertIn("updating-clark", [t["id"] for t in shown["reference"]["sections"]])
+
+    def test_they_name_the_rows_and_buttons_the_card_has_and_not_the_ones_it_lacks(self):
+        task, ref = self.entries()
+        words = json.dumps([task, ref], ensure_ascii=False)
+        for name in ("clark version and updates", "Installed", "Update", "Choose zip…", "Install from a file", "Last update", "Undo update"):
+            self.assertIn(f"**{name}**", words)
+        for gone in ("Confirm undo", "Install clark X.Y.Z", "Review X.Y.Z", "Copy the notes", "restart clark to finish", "Simulate", "prototype"):
+            self.assertNotIn(gone, words)
+        self.assertNotIn("clark-X.Y.Z.zip", words, "that name is GitHub's source download, which the card refuses")
+        self.assertIn("clark-X.Y.Z-mac.zip", words)
+        self.assertIn("not the source code zip", words)
+        self.assertEqual(task["go"], "settings#update")
 
 
 class WhereItIsNamed(unittest.TestCase):
@@ -330,6 +434,8 @@ class WhereItIsNamed(unittest.TestCase):
         view = (PAGE_PY / "page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("/api/update", view)
         self.assertNotIn("Version and updates", view)
+        self.assertNotIn("clark version and updates", view)
+        self.assertNotIn("Install from a file", view)
         self.assertIn("/api/update", (PAGE_PY / "page.html").read_text(encoding="utf-8"))
 
     def test_the_card_is_mounted_in_settings_through_the_edit_tools(self):

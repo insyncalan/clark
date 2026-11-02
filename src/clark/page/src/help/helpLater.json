@@ -32,8 +32,7 @@
   "improve-wording-with-ai": "the AI menu",
   "set-up-a-project": "project settings",
   "set-your-profile": "the profile",
-  "undo-a-mistake": "history",
-  "update-clark": "updates"
+  "undo-a-mistake": "history"
  },
  "reference": {
   "top-bar": "the project menu and profile circle",
@@ -57,7 +56,6 @@
   "publishing": "Publish",
   "client-page": "the published page",
   "settings": "Settings",
-  "updating-clark": "updates",
   "diagnostics": "diagnostics",
   "excel": "Import and Export",
   "saving": "history and ask clark",

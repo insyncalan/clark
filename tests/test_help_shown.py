@@ -97,12 +97,12 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "update-clark"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "updating-clark", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
-        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
+        self.assertEqual(s["howto"]["groups"], ["Work items", "The report", "Settings and safety"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
@@ -151,7 +151,8 @@ class AgainstThePage(unittest.TestCase):
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
         # 58 measured after merging the Version and updates card into that tree: Updates, Choose zip… and Undo update name things the page now draws
-        self.assertGreaterEqual(len(names), 58)
+        # 52 measured with the Update clark card's labelled rows on the page (#445) and its two Help entries released: Installed, Last update, Up to date and clark version and updates now name things the page draws, and Help no longer names Review X.Y.Z, Install clark X.Y.Z, Confirm undo or Copy the notes
+        self.assertGreaterEqual(len(names), 52)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

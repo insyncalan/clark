@@ -187,9 +187,8 @@ class Words(unittest.TestCase):
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
-                                  "Version and updates",      # Settings › Version and updates: with no updater the server says so
-                                  "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
-                                  "settings and published reports are kept.",
+                                  "clark version and updates",      # Settings › clark version and updates: with no updater the server says so
+                                  "Your projects, settings and published reports are kept when clark is updated.",
                                   "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
                                   "Asking",             # #47: the switch and its folders, below the client folder
                                   "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
@@ -282,7 +281,9 @@ class Words(unittest.TestCase):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
         for path in (PAGE_SRC / "help" / "helpContent.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
             text = path.read_text(encoding="utf-8")
-            self.assertIn("**Review X.Y.Z**", text, path.name)
+            # the prototype shows the button as Review X.Y.Z; the build draws the version into the button, so its Help names the button
+            # **Review** (a bold name must be on the page as written) and never a real-looking version
+            self.assertIn("**Review X.Y.Z**" if path.name == "help.js" else "a **Review** button", text, path.name)
             self.assertNotRegex(text, r"Review \d+\.\d+\.\d+", path.name)
 
     def test_every_publish_message_a_person_can_see_is_plain_words(self):

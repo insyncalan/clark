@@ -173,7 +173,7 @@ class Updater:
             folder, rec = last
             day = updates.date_text("-".join((folder.name[0:4], folder.name[4:6], folder.name[6:8])))
             body["last"] = {"from": rec.get("from"), "to": rec.get("to"),
-                            "line": f"Last update: {rec.get('from')} → {rec.get('to')} on {day}."}
+                            "line": f"{rec.get('from')} → {rec.get('to')}, {day}"}
         return 200, body
 
     # --- POST /api/update/review ---

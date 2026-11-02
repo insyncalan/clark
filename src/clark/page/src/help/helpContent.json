@@ -629,10 +629,10 @@
     "go": "settings#update",
     "s": [
      "Open [Settings](go:settings#update) and find **clark version and updates**. **Installed** is the version you have now.",
-     "Download the new release, clark-X.Y.Z.zip, from the release page. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** and pick the file. Not the source code zip.",
-     "Read the review: the version change, the release notes, the files replaced and added. Your projects, settings and published reports are kept, and everything is backed up first.",
-     "Press **Install clark X.Y.Z**. When it is done, restart clark to finish.",
-     "To go back, press **Undo update** in the **Last update** row, then **Confirm undo** within five seconds. More in [Updating clark](#ref-updating-clark)."
+     "Download the new release from the release page: the zip named like clark-X.Y.Z-mac.zip (or -windows or -linux), not the source code zip. If it is in Downloads, **Update** shows a **Review** button with the new version; otherwise press **Choose zip…** under **Install from a file** and pick the file.",
+     "Read the review: the version change, the release notes, and the files replaced, added and removed, in a list you open. Your projects, settings and published reports are kept, and a copy of your data is made first.",
+     "Press **Install**. Then the page waits while clark restarts by itself, and reloads on the new version. If that takes a while, close every clark window and open clark again.",
+     "To go back, press **Undo update** in the **Last update** row, then press **Undo update** again within five seconds. More in [Updating clark](#ref-updating-clark)."
     ]
    }
   ]
@@ -1465,11 +1465,11 @@
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says **Up to date**, or **Review X.Y.Z** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check.",
-       "**Choose zip…** takes a release file you saved. It must be named clark-X.Y.Z.zip, from the release page: not the source code zip.",
-       "**Review** shows the version change, the release notes (**Copy the notes**), how many files are replaced and added, and that your projects, settings and published reports are kept.",
+       "**Installed** is the version you have. **Update** says **Up to date**, or shows a **Review** button when a newer release zip is in Downloads. There is no online check.",
+       "**Choose zip…**, under **Install from a file**, takes a release file you saved. It must be the one named like clark-X.Y.Z-mac.zip (or -windows or -linux) from the release page: not the source code zip.",
+       "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed, and that your projects, settings and published reports are kept.",
        "Everything is backed up first, and if a step fails clark puts the old version back. A release is checked file by file against its list of checksums before anything changes.",
-       "**Undo update** goes back to the version before: press it, then **Confirm undo** within five seconds."
+       "**Undo update**, in the **Last update** row, goes back to the version before: press it, then press **Undo update** again within five seconds."
       ]
      ]
     ]
