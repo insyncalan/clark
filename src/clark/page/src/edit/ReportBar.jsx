@@ -9,17 +9,19 @@ import { change, say } from "../stores/changes.js";
 import { parseDay, problem } from "../templates/keydates.js";
 import { latest, refreshLatest } from "./publishState.js";
 import { lastLine } from "./Publish.jsx";
+import { todayIso } from "../workItems.js";
 
 // The drag hint shows the first time this browser enters Edit and stays until Edit is left; after that it is not shown again.
 const hintOpen = signal(!recall("dragHintSeen", false));
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 
 // The Friday of the current week (Monday to Sunday), as YYYY-MM-DD in the person's own day: only offered, never saved on its own.
-export function fridayOfThisWeek(now = new Date()) {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  d.setDate(d.getDate() + 5 - (d.getDay() || 7));
+// Today comes from the one place that reads the clock (workItems.js), as a plain day.
+export function fridayOfThisWeek(today = todayIso()) {
+  const d = new Date(Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10)));
+  d.setUTCDate(d.getUTCDate() + 5 - (d.getUTCDay() || 7));
   const two = (n) => String(n).padStart(2, "0");
-  return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
+  return d.getUTCFullYear() + "-" + two(d.getUTCMonth() + 1) + "-" + two(d.getUTCDate());
 }
 
 export function ReportBar() {
