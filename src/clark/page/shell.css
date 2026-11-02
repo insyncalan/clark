@@ -1322,6 +1322,23 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: 15px; font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-headline { margin: 0 0 8px; }
+/* Printing: a published file printed from the browser (Save as PDF) shows every tab one after another, with no controls, in the light colours, and the page number in the foot. stores/print.js sets html.print-all and draws the stack while the browser prints; the screen never changes. */
+@page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font: 13px Arial, sans-serif; } }
+@media print {
+  html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.print-all .top, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
+  html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
+  html.print-all main { max-width: none; margin: 0; padding: 0; }
+  html.print-all .frame { box-shadow: none; border: 0; padding: 0; background: var(--white); }
+  html.print-all .print-head { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--grey-200); font-size: 13px; }
+  html.print-all .print-tab + .print-tab { break-before: page; }
+  html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: 15px; font-weight: 400; color: var(--text-muted); }
+  html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
+  html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all thead { display: table-header-group; }
+  html.print-all a { color: inherit; text-decoration: none; }
+}
+
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pk-val .i { width: 16px; height: 16px; }
