@@ -24,7 +24,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
-import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
+import { GROUPS, LANE_GROUPS, LANE_WORDS, groupLabel, boardGroup,columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
 // Adding an item is not built yet (#65 to #67): the Add button says so, in words, and records what was asked for.
 const asked = signal("");
@@ -146,6 +146,23 @@ function GroupBy({ board }) {
   );
 }
 
+// The app's one View menu (#153): Group by and, on the board, Swimlanes, as choices in one menu. It is apart from the saved views' own
+// menu beside the tabs. The chosen words are ticked; "Nothing" is not offered on the board, and a lane that is the group is not offered.
+function ViewMenu({ board }) {
+  const g = work.value.group, shown = board ? boardGroup(g) : g, lane = work.value.lane;
+  const items = [{ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !board || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, checked: x.id === shown }))];
+  if (board) {
+    items.push({ id: "sep", sep: true }, { id: "lab-lane", lab: "Swimlanes" }, { id: "lane:none", name: "None", checked: !lane });
+    for (const x of LANE_GROUPS.filter((x) => x !== shown)) items.push({ id: `lane:${x}`, name: LANE_WORDS[x], checked: lane === x });
+  }
+  const pick = (id) => {
+    const [kind, v] = id.split(":");
+    if (kind === "group") { setWork({ group: v, lane: lane === v ? null : lane }); announce.value = `Grouped by ${groupLabel(v)}.`; }
+    else { setWork({ lane: v === "none" ? null : v }); announce.value = v === "none" ? "No swimlanes." : `Swimlanes by ${LANE_WORDS[v]}.`; }
+  };
+  return <Menu label="View" ariaLabel="View" id="work-view" btnCls="btn gb" menuId="work-view-list" menuLabel="View" left items={items} onPick={pick} />;
+}
+
 // The published file's search box (#69): it filters as the client types and is never re-created by a click, so nothing moves.
 function SearchBox() {
   return (
@@ -208,7 +225,7 @@ function List({ Board, Cell, Bulk, L }) {
       </div>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">No items match these filters.</p>{can ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} lanesInView /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} />}
     </div>
   );
 }
@@ -242,7 +259,7 @@ export function WorkItems({ tools }) {
                   <PublishedList Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
                 </>
               : <>
-                  <Switches L={L}><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <Switches L={L}><ViewMenu board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
                   <FilterLine />
                   <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} L={L} />
                 </>}

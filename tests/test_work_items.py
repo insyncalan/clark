@@ -294,8 +294,8 @@ class RealBrowser(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL&f=mode:all")
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-            cdp.js("document.querySelector('#group-by').click()", sid)                 # the one flat list, whose order this checks (#68's default is grouped)
-            cdp.js("document.querySelector('.ddmenu [data-kind=nothing]').click()", sid)
+            cdp.js("document.querySelector('#work-view').click()", sid)                 # the one flat list, whose order this checks (#68's default is grouped)
+            cdp.js('document.querySelector(".ddmenu [data-kind=\\"group:nothing\\"]").click()', sid)
             self.assertTrue(wait(lambda: cdp.js("!document.querySelector('tr.grp')", sid)))
             rows = {r["id"]: r for r in self.rows(cdp, sid)}
             data = self.store.data_for("TUL")

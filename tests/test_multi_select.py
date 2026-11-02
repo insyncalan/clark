@@ -388,7 +388,7 @@ class Page(Base):
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[1]), MOD)
-            click(cdp, sid, "#group-by")
+            click(cdp, sid, "#work-view")
             self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
             press(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('.ddmenu')", "Esc closed the menu")

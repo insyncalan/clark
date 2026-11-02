@@ -132,7 +132,7 @@ function SavedViews() {
         })}
       </div>
       <FreshnessMenu />
-      {fromFile.value ? null : <Menu label="View" ariaLabel="View" id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={items} onPick={act} />}
+      {fromFile.value ? null : <Menu label="Saved views" ariaLabel="Saved views menu" id="savedMenu" btnCls="btn sm" menuId="savedMenuList" menuLabel="Saved views" items={items} onPick={act} />}
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
           {form.mode === "note" ? null : (

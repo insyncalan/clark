@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { mode, item, openPeek } from "../stores/report.js";
 import { work, setWork, full, announce, contextFor } from "../stores/work.js";
 import { changeItem, say } from "../stores/changes.js";
-import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel, LANE_GROUPS } from "../logic/board.js";
+import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel, LANE_GROUPS, LANE_WORDS } from "../logic/board.js";
 import { createDrag } from "../logic/dragCore.js";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
@@ -16,7 +16,6 @@ import { workSelection as pickSel } from "../stores/selection.js";
 import { ownClick, noTextRange, pickClick, pickOpen, pickKeys } from "../components/pick.js";
 
 const TONED = ["status", "due", "priority"];             // the groups whose columns carry their state's colour
-const LANE_WORDS = { workstream: "Workstream", type: "Type" };
 
 // The peek is #42's. Until it claims this, a click on a card puts the item in the address (the router's `item`) and tells the page.
 export function openCard(id) {
@@ -126,7 +125,7 @@ const noMove = (row) => row && row.kind === "decision" && (row.status === "Made"
   ? "This card can't move on this board. Record a new decision to change it."
   : "This card can't move on this board. Open it to change its details.";
 
-export function Board({ rows, today, type }) {
+export function Board({ rows, today, type, lanesInView }) {
   const st = work.value, g = boardGroup(st.group), editing = mode.value === "edit";
   const ctx = contextFor(today, type);
   const b = build(rows, { group: g, lane: st.lane, ctx });
@@ -313,8 +312,10 @@ export function Board({ rows, today, type }) {
   return (
     <div class="board" id="work-board" data-full={isFull ? "1" : "0"} data-editing={editing ? "1" : "0"}>
       <div class="lanebar" role="group" aria-label="Board view">
-        <Menu label={`Swimlanes: ${laneNow}`} ariaLabel={`Swimlanes: ${laneNow}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left items={laneItems}
-          onPick={(id) => setWork({ lane: id === "none" ? null : id })} />
+        {lanesInView ? null : (   // the app's Swimlanes are in the View menu above the list; the old button stays where nothing else has the choice
+          <Menu label={`Swimlanes: ${laneNow}`} ariaLabel={`Swimlanes: ${laneNow}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left items={laneItems}
+            onPick={(id) => setWork({ lane: id === "none" ? null : id })} />
+        )}
         {!editing ? <span class="muted lb-hint">Switch to Edit to move cards.</span> : null}
         <button type="button" class="bib fs" id="board-full" ref={fsBtn} aria-pressed={isFull ? "true" : "false"} aria-label={isFull ? "Leave full screen" : "View full screen"}
           data-tip={isFull ? "Leave full screen (Esc)" : "View full screen"} onClick={toggleFull}>

@@ -16,6 +16,7 @@ export const GROUPS = [
   { id: "type", label: "Type" }, { id: "nothing", label: "Nothing" },
 ];
 export const LANE_GROUPS = ["workstream", "type"];
+export const LANE_WORDS = { workstream: "Workstream", type: "Type" };
 const GROUP_IDS = GROUPS.map((g) => g.id);
 const MISSING = { workstream: "No workstream", owner: "No owner", priority: "Not rated", milestone: "No milestone", due: "No date" };
 const STATUSES = { action: ["Open", "Delayed", "Closed", "Cancelled"], decision: ["Pending", "Made", "Withdrawn"] };
