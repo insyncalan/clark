@@ -327,8 +327,13 @@ class HandOverFailsAfterTheRestoreTest(Rolled):
 class ParityTest(unittest.TestCase):
     """The helper's put-back and backup.restore_before_update leave the same files on the same input."""
 
-    def build(self, root):
+    def build(self, root, like=None):
+        """The v1 database, its copy and the newer live file. `like` is an earlier build's root: this one is a byte copy of it,
+        because the projects table stamps its rows with the current second, so two separate builds differ across a second."""
         data = Path(root) / "data"
+        if like is not None:
+            shutil.copytree(Path(like) / "data", data)
+            return data / "clark.db", sorted((data / "backups").glob("clark-*-migrate*.db"))[0]
         data.mkdir()
         db = make_v1(data)
         # the copy is the v1 file as the migration would have taken it
@@ -351,7 +356,7 @@ class ParityTest(unittest.TestCase):
     def test_same_live_file_same_aside_same_leftovers(self):
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
             db_a, copy_a = self.build(a)
-            db_b, copy_b = self.build(b)
+            db_b, copy_b = self.build(b, like=a)
             con = sqlite3.connect(str(db_b))
             before = {t: v for t, v in h.table_stats(con).items()}
             con.close()
@@ -381,7 +386,7 @@ class ParityTest(unittest.TestCase):
     def test_a_put_back_that_stopped_between_the_moves_is_finished_like_finish_restore(self):
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
             db_a, copy_a = self.build(a)
-            db_b, copy_b = self.build(b)
+            db_b, copy_b = self.build(b, like=a)
             for db, copy in ((db_a, copy_a), (db_b, copy_b)):                    # stop after the old file was moved, before the new went in
                 restoring = db.with_name("clark.db.restoring")
                 shutil.copyfile(copy, restoring)
