@@ -47,6 +47,8 @@ MESSAGES = {
     "pdf_saved_client": "PDF copied to the client folder as “{name}”.",
     "pdf_not_saved": "The PDF was not saved: {why} The report itself is published.",
     "pdf_not_made_here": "No PDF was saved, because the publish did not finish.",
+    "pdf_client_report_failed": "No PDF was copied to the client folder, because the copy of the report to the client failed.",
+    "why_fault": "something went wrong while saving it, so check the folder to see whether it is there.",
     "pdf_client_same": "The PDF was not copied to the client folder, because the client folder already holds this report.",
     "why_failed": "the client folder could not be written to. Check you can edit it.",
     "why_local_taken": "a file with that name appeared in the folder while the PDF was being made, so nothing was saved. Choose another name and publish again.",
@@ -297,6 +299,9 @@ class Step:
             if (saved and pub.inside_folder(local.parent, saved)) or any(
                     pub.inside_folder(local, own) for own in (pub.data_dir, pub.backups_dir) if own):
                 return 409, pub.fail("pdf_failed", MESSAGES["pdf_local_place"])
+        # Taken BEFORE Chrome runs (it can take a minute): only a name that was already there, and so already asked about in the
+        # Save window, may be replaced. A file that appears while the PDF is being made is never written over (see write).
+        self.local_replaces = local.exists() or local.is_symlink()
         try:
             data = make(body_bytes, as_at, number=built.get("number"))
         except pdf.PdfError as e:
@@ -314,11 +319,10 @@ class Step:
                 return 409, pub.fail("pdf_failed", MESSAGES["pdf_too_big"])
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_held_back"].format(what=to_client.held_words(bad)))
         self.data, self.local, self.markers, self.saved, self.body = data, local, markers, saved, body_bytes
-        self.local_replaces = local.exists() or local.is_symlink()          # if so, the Save window already asked about replacing it
         return None
 
-    def write(self, pub):
-        """Save the PDF (Local, then the client folder) and read each back. Returns the sentences to add to the reply."""
+    def write(self, pub, with_client=True):
+        """Save the PDF (Local, then the client folder unless `with_client` is False) and read each back. Returns the sentences to add to the reply."""
         digest = hashlib.sha256(self.data).hexdigest()
         said, kept = [], 0
         tmp = None
@@ -345,7 +349,9 @@ class Step:
                     pass
         if self.client is None and self.client_skipped:
             said.append(MESSAGES["pdf_client_same"])
-        if self.client is not None:
+        if self.client is not None and not with_client:         # the report's own copy to the client failed: no PDF goes there either
+            said.append(MESSAGES["pdf_client_report_failed"])
+        elif self.client is not None:
             folder, name, replaces = self.client
             try:             # the one writer into a client folder: the folder is checked again, the copy read back and checked, a bad one taken back
                 res = to_client.copy_to_client(
@@ -367,7 +373,7 @@ class Step:
                 else:
                     why = MESSAGES["why_failed"]
                 said.append(MESSAGES["pdf_not_saved"].format(why=why))
-        self.kept_all = self.kept_local and (kept == 2 if self.client is not None else not self.client_skipped)
+        self.kept_all = with_client and self.kept_local and (kept == 2 if self.client is not None else not self.client_skipped)
         LOG.info("pdf saved: %d of %d copies, %d bytes", kept, 2 if self.client is not None else 1, len(self.data))
         return said
 
@@ -386,11 +392,21 @@ def finish(step, out, status):
     report itself was published. Nothing is added for a publish with no PDF."""
     if step is None or not step.on or step.data is None or not isinstance(out, dict):
         return
-    if not (status == 200 and out.get("ok") is True):
+    ok = status == 200 and out.get("ok") is True
+    # Local saved but the report's copy to the client failed (the publish is logged): the Local PDF is still saved, and the reply
+    # says what was and was not. Any other failure to finish (for example the publish was not recorded) saves no PDF.
+    local_only = not ok and out.get("local_saved") is True and out.get("to_client") is True
+    if not ok and not local_only:
         if out.get("local_saved") is True:
             out["message"] = (out.get("message") or "") + " " + MESSAGES["pdf_not_made_here"]
         return
-    said = step.write(step.pub)
+    try:
+        said = step.write(step.pub, with_client=ok)
+    except Exception:  # noqa: BLE001  (the report is already published: a fault here is told in words, never a failed publish)
+        LOG.exception("pdf save failed")
+        out["message"] = (out.get("message") or "") + " " + MESSAGES["pdf_not_saved"].format(why=MESSAGES["why_fault"])
+        out["pdf_saved"] = False
+        return
     out["message"] = (out.get("message") or "") + " " + " ".join(said)
     out["pdf_saved"] = step.kept_all
     if step.kept_local:

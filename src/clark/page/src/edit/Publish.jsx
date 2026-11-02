@@ -72,7 +72,7 @@ function Dialog() {
               <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
             <label class="pubopt"><input type="checkbox" id="pub-pdf" checked={s.pdf} disabled={working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
               <span><b>Also a PDF</b><small>The page as it prints: its tabs one after another, no controls.</small>
-                {s.pdf ? <small id="pub-pdf-note">Your browser’s print box opens; choose Save as PDF.</small> : null}</span></label>
+                {s.pdf ? <small id="pub-pdf-note">Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.</small> : null}</span></label>
           </div>
         )}
         {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}

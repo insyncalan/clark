@@ -31,7 +31,7 @@ TODAY = "2026-10-28"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 VARIANTS = [(w, s) for w in (1400, 900) for s in ("light", "dark")]
 TICK_WORDS = "The page as it prints: its tabs one after another, no controls."
-NOTE_WORDS = "Your browser’s print box opens; choose Save as PDF."
+NOTE_WORDS = "Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address."
 
 
 def tearDownModule():

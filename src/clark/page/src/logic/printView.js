@@ -6,6 +6,8 @@ export const PRINT_ORDER = ["dashboard", "work", "milestones", "usecases"];     
 export const printTabs = (tabs) => PRINT_ORDER.filter((v) => (tabs || []).includes(v));
 
 // The line at the head of the first printed page: the day it was published, day first (DD-MM-YYYY). Nothing for a date that is not one.
+// Row 31 ("Publication N · date" in the foot) waits for the publication numbers (PR 165): this is the one place it goes. Once a file carries its
+// number, take it here and say "Publication N · date"; the foot rule in shell.css (@page, @bottom-left) then repeats the same words on every page.
 export const publishedLine = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso || "") ? `Published ${iso.slice(8)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}` : "");
 
 // ?print=1 on the address asks the page to open the print box once it has drawn (the Publish box opens the page that way).

@@ -1,6 +1,6 @@
 """PDF export: a published page file turned into a PDF by Chrome's DevTools print (Page.printToPDF).
 
-No library is added: headless Chrome prints the finished, self-contained page (nothing is fetched; any address is refused).
+No library is added: headless Chrome prints the finished, self-contained page (nothing is meant to be fetched: host names cannot be resolved and every request goes to a dead proxy, so any address fails).
 Pure parts: print_css(), stack_script(), print_params() and chrome_args(). The one part that runs a program: make_pdf(), which
 starts one Chrome child, always stops it, and removes its throwaway profile folder (retrying, as Chrome can still be writing
 into it as it exits). On Mac and Linux Chrome is driven over a pipe (--remote-debugging-pipe: two inherited file descriptors,
@@ -29,6 +29,7 @@ from clark import platform
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 TIMEOUT = 60                       # seconds Chrome is given for one page
 KEYCHAIN_FLAGS = ("--use-mock-keychain", "--password-store=basic")
+PROXY_FLAG = "--proxy-server=http://127.0.0.1:1"      # a dead proxy: any request, even to an IP address, fails (host names are unresolvable besides)
 MAC_CHROME_PATHS = ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
                     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge")
 NO_CHROME = "A PDF needs Google Chrome, and clark could not find it on this computer. Install Chrome, or leave the PDF box unticked."
@@ -38,9 +39,12 @@ ORIENTATIONS = ("portrait", "landscape")
 
 
 def stop_child(proc):
-    """Make sure `proc` (a platform.Child) and anything it started in its process group are gone."""
+    """Make sure `proc` (a platform.Child) and anything it started in its process group are gone.
+    Windows: there is no process group to signal, so only the child itself is stopped; Chrome's helper processes there are not
+    reached (the PDF is not offered on Windows yet: find_chrome knows no Windows place)."""
     group = getattr(os, "killpg", None)
-    if proc.poll() is None:
+    alive = proc.poll() is None
+    if alive:
         try:
             group(proc.pid, 15)
         except (OSError, TypeError):
@@ -56,10 +60,11 @@ def stop_child(proc):
         proc.wait(5)
     except Exception:  # noqa: BLE001
         pass
-    try:
-        group(proc.pid, 9)             # any helper process the program left in the group
-    except (OSError, TypeError):
-        pass
+    if alive:                          # never signal a group of a child that was gone before: its number could have been reused
+        try:
+            group(proc.pid, 9)         # any helper process the program left in the group
+        except (OSError, TypeError):
+            pass
 
 
 class PdfError(Exception):
@@ -149,10 +154,10 @@ def stack_script():
 
 def chrome_args(chrome, profile, page, out):
     """The command line that prints `page` (a file) to `out`: headless, both keychain flags, A4 and backgrounds from the
-    print rules, no header or footer from Chrome, no network (every host name is refused), a profile folder of its own."""
+    print rules, no header or footer from Chrome, no network (host names are unresolvable and every request goes to a dead proxy), a profile folder of its own."""
     return [str(chrome), "--headless=new", "--disable-gpu", "--no-first-run",
             "--no-default-browser-check", f"--user-data-dir={profile}", *KEYCHAIN_FLAGS,
-            "--host-resolver-rules=MAP * ~NOTFOUND", "--disable-extensions", "--no-pdf-header-footer",
+            "--host-resolver-rules=MAP * ~NOTFOUND", PROXY_FLAG, "--disable-extensions", "--no-pdf-header-footer",
             "--run-all-compositor-stages-before-draw", "--virtual-time-budget=5000",
             f"--print-to-pdf={out}", Path(page).resolve().as_uri()]
 
@@ -408,7 +413,7 @@ def _devtools_args(chrome, profile, pipe=True):
     """Headless Chrome for DevTools: over a pipe (no port), or, where that cannot be, a port of its own choosing (written to the
     profile's DevToolsActivePort file)."""
     return [str(chrome), "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
-            f"--user-data-dir={profile}", *KEYCHAIN_FLAGS, "--host-resolver-rules=MAP * ~NOTFOUND",
+            f"--user-data-dir={profile}", *KEYCHAIN_FLAGS, "--host-resolver-rules=MAP * ~NOTFOUND", PROXY_FLAG,
             "--disable-extensions", "--remote-debugging-pipe" if pipe else "--remote-debugging-port=0", "about:blank"]
 
 

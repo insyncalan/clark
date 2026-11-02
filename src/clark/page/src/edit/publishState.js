@@ -12,7 +12,7 @@ export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
 
 // What the PDF tick adds to the answer (#438): the browser's own print box opens on the published page in a new tab, and the person chooses Save as PDF there.
-export const PRINT_OPENED = "Your browser’s print box opens in a new tab; choose Save as PDF.";
+export const PRINT_OPENED = "Your browser’s print box opens in a new tab; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.";
 export const PRINT_NOT_OPENED = "The PDF did not open. Allow pop-ups for this page, then choose Preview the page in a new tab in the profile menu and print it.";
 
 export const savedFolder = () => {

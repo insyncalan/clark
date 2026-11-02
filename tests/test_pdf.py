@@ -67,9 +67,27 @@ class Pure(unittest.TestCase):
     def test_args(self):
         a = pdf.chrome_args("/c/chrome", "/p", "/x/page.html", "/x/o.pdf")
         for flag in ("--use-mock-keychain", "--password-store=basic", "--no-pdf-header-footer",
-                     "--host-resolver-rules=MAP * ~NOTFOUND", "--user-data-dir=/p", "--print-to-pdf=/x/o.pdf"):
+                     "--host-resolver-rules=MAP * ~NOTFOUND", "--proxy-server=http://127.0.0.1:1", "--user-data-dir=/p",
+                     "--print-to-pdf=/x/o.pdf"):
             self.assertIn(flag, a)
+        self.assertIn("--proxy-server=http://127.0.0.1:1", pdf._devtools_args("/c", "/p", True), "the pipe start has the dead proxy too")
+        self.assertIn("--proxy-server=http://127.0.0.1:1", pdf._devtools_args("/c", "/p", False), "and so has the port start")
         self.assertTrue(a[-1].startswith("file:///"))
+
+    def test_a_child_that_was_already_gone_has_no_group_signalled(self):
+        signals = []
+
+        class Gone:
+            pid = 2 ** 22 + 7
+
+            def poll(self):
+                return 0
+
+            def wait(self, t=None):
+                return 0
+        with mock.patch.object(pdf.os, "killpg", lambda *a: signals.append(a)):
+            pdf.stop_child(Gone())
+        self.assertEqual(signals, [], "a group number that may belong to someone else now is never signalled")
 
     def test_find_chrome(self):
         self.assertEqual(pdf.find_chrome({"CLARK_CHROME": "/a"}, which=lambda n: None, exists=lambda p: p == "/a"), "/a")
@@ -273,6 +291,7 @@ class RealChrome(unittest.TestCase):
 import _publish_fixture as fx                                     # noqa: E402
 from test_publish_route import Rig, WANTED, DAY                   # noqa: E402
 from clark import pdf_text as pdftext, publish_pdf, to_client                # noqa: E402
+from clark.store import Store                                       # noqa: E402
 
 PDF_WANTED = WANTED[:-5] + ".pdf"
 
@@ -1010,6 +1029,47 @@ class TheReviewFindings(unittest.TestCase):
         self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_local_failed"]), got["message"])
         self.assertEqual(sorted(p.name for p in self.rig.local.iterdir()), ["chosen.html", "second.html"])
 
+    def test_a_fault_while_saving_the_pdf_never_turns_a_published_report_into_a_failure(self):
+        def boom(step, pub, with_client=True):
+            raise RuntimeError("secret detail /private/path")
+        with mock.patch.object(publish_pdf.Step, "write", boom):
+            status, got = self.go(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, False), got)
+        self.assertNotIn("pdf_name", got)
+        self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_fault"]), got["message"])
+        self.assertNotIn("secret detail", got["message"])
+        self.assertNotIn("RuntimeError", got["message"])
+        self.assertEqual(len(self.rig.rows()), 2, "the report is published and recorded")
+        self.assertTrue((self.rig.local / "second.html").exists())
+
+    def test_local_saved_and_the_client_report_copy_fails_the_local_pdf_is_still_saved_and_the_reply_says_what_was_not(self):
+        write = to_client.RealFs.write_file
+
+        def failing(fs, dest, data, replaces=False):
+            if str(dest).endswith(".html"):
+                raise OSError("disk")
+            return write(fs, dest, data, replaces=replaces)
+        self.report.unlink()
+        with mock.patch.object(to_client.RealFs, "write_file", failing):
+            status, got = self.go(to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"], got["local_saved"]), (409, False, True), got)
+        self.assertEqual((got["pdf_saved"], got["pdf_name"]), (False, "second.pdf"), got)
+        self.assertEqual(self.rig.listing(self.rig.local), ["chosen.html", "second.html", "second.pdf"])
+        self.assertEqual((self.rig.local / "second.pdf").read_bytes(), self.GOOD)
+        self.assertEqual(self.rig.listing(self.rig.client), [], "nothing, not even the PDF, went to the client folder")
+        self.assertIn("PDF saved as “second.pdf”.", got["message"])
+        self.assertIn(publish_pdf.MESSAGES["pdf_client_report_failed"], got["message"])
+        self.assertNotIn(publish_pdf.MESSAGES["pdf_not_made_here"], got["message"])
+        self.assertNotIn("did not finish", got["message"].split("PDF saved as")[1])
+        self.assertEqual(len(self.rig.rows()), 2, "the Local publish is recorded")
+
+    def test_a_publish_that_was_not_recorded_saves_no_pdf(self):
+        with mock.patch.object(Store, "log_publication", side_effect=OSError("db")):
+            status, got = self.go(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["code"]), (409, False, "not_recorded"), got)
+        self.assertIn(publish_pdf.MESSAGES["pdf_not_made_here"], got["message"])
+        self.assertFalse((self.rig.local / "second.pdf").exists())
+
     def test_a_saved_pdf_says_so_and_is_named(self):
         status, got = self.go(to_client=False, pdf=True)
         self.assertEqual((status, got["ok"], got["pdf_saved"], got["pdf_name"]), (200, True, True, "second.pdf"), got)
@@ -1049,9 +1109,15 @@ class TheReviewFindings(unittest.TestCase):
     def test_a_local_name_that_was_taken_and_confirmed_in_the_save_window_is_replaced(self):
         mine = self.rig.local / "second.pdf"
         mine.write_bytes(b"%PDF-earlier")
+
+        def dialog(prompt, default_name, start=None):           # the Save window for the PDF is answered with the PDF's own name
+            self.rig.saves.append((prompt, default_name, start))
+            return mine if prompt == publish_pdf.SAVE_PROMPT else self.rig.save_to
+        self.rig.publisher.choose_save_file = dialog
         status, got = self.go(to_client=False, pdf=True)
         self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, True), got)
         self.assertEqual(mine.read_bytes(), self.GOOD)
+        self.assertIn(publish_pdf.SAVE_PROMPT, [p for p, *_ in self.rig.saves], "the Save window asked about the taken PDF name")
 
     def test_a_client_name_that_appears_after_the_check_is_never_written_over(self):
         self.report.unlink()
