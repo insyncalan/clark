@@ -464,6 +464,73 @@ class GeneratedPages495(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------------------------------------------------
+# #570: Friday is the week end everywhere (non-browser rows; each skips until its marker is in the source)
+# --------------------------------------------------------------------------------------------------------------------
+class Friday570(unittest.TestCase):
+    CHANGES = SRC / "clark" / "changes.py"
+    BOARD = PAGE / "src" / "logic" / "board.js"
+    HELP = PAGE / "src" / "help" / "helpContent.json"
+    DEMO = ROOT / "dev" / "demo_data.py"
+
+    def test_570_1_changes_refuses_a_week_ending_that_is_not_a_friday_and_takes_a_friday(self):
+        pending(self, 570, self.CHANGES, "NOT_FRIDAY")
+        import sys
+        sys.path.insert(0, str(TESTS))
+        from _demo import USER, DemoStore
+        from clark import changes
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        change = changes.make_change(demo.store.path, [], USER)
+        req = lambda day: {"project": "ABC", "kind": "projects", "op": "update", "changes": {"week_ending": day}}      # noqa: E731
+        for day, friday in (("2026-11-02", "06-11-2026"), ("2026-11-07", "06-11-2026"), ("2026-11-08", "06-11-2026")):
+            status, body = change(req(day))
+            self.assertEqual((status, body["ok"], body["message"]), (400, False, f"Week ending is a Friday. Pick Friday {friday}."), day)
+        status, body = change(req("2026-11-06"))
+        self.assertEqual((status, body.get("message")), (200, None), body)
+        self.assertEqual(demo.store.read("projects", ref="ABC")["week_ending"], "2026-11-06")
+
+    def test_570_2_board_js_ends_the_week_on_a_friday_and_no_longer_uses_sundayOf(self):
+        pending(self, 570, self.BOARD, "fridayOnOrAfter")
+        src = read(self.BOARD)
+        self.assertRegex(src, r"export const weekEndOf\b")
+        self.assertRegex(src, r"export const fridayOnOrAfter\b")
+        for name in ("function bucketOf(", "function dueHalf("):
+            at = src.index(name)
+            body = src[at:at + 1000]
+            self.assertIn("fridayOnOrAfter", body, name)
+            self.assertNotIn("sundayOf", body, name)
+        self.assertNotIn("sundayOf", src)
+
+    def test_570_3_the_demo_projects_week_ending_is_a_friday_on_any_clock(self):
+        pending(self, 570, self.DEMO, "friday_on_or_before")
+        import importlib.util, tempfile
+        from datetime import datetime, timedelta
+        spec = importlib.util.spec_from_file_location("demo_data_570", str(self.DEMO))
+        demo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(demo)
+        for days in range(7):
+            now = datetime(2026, 10, 28, 9, 0) + timedelta(days=days)
+            with tempfile.TemporaryDirectory(prefix="clark-570-") as tmp:
+                out = Path(tmp) / "clark.db"
+                demo.build(out, now, onedrive_roots=[])
+                con = sqlite3.connect(str(out))
+                try:
+                    weeks = [r[0] for r in con.execute("SELECT week_ending FROM projects")]
+                finally:
+                    con.close()
+            self.assertTrue(weeks)
+            for w in weeks:
+                self.assertEqual(datetime.strptime(w, "%Y-%m-%d").weekday(), 4, f"{w} on {now.date()}")
+
+    def test_570_4_help_says_the_week_ends_on_a_friday(self):
+        pending(self, 570, self.HELP, "must be a Friday")
+        text = read(self.HELP)
+        self.assertIn("The week ends on a Friday, everywhere.", text)
+        self.assertIn("**Week ending** must be a Friday", text)
+        self.assertIn("on a Saturday or Sunday it runs to the coming Friday", text)
+
+
+# --------------------------------------------------------------------------------------------------------------------
 # What needs a person. Skipped, with the reason and what to do.
 # --------------------------------------------------------------------------------------------------------------------
 WANDA_WALK_THROUGH = [
@@ -479,6 +546,8 @@ WANDA_WALK_THROUGH = [
      "Publish twice, open both files: the footer reads Publication 1 and Publication 2 with the date, and View only."),
     ("495.4", "live only", "a fresh checkout and a downloaded zip are the only places the build can truly be proved",
      "Clone fresh and start clark from source: the first start builds the pages. Unzip a release and start it: no bundler runs."),
+    ("570.5", "judgement", "whether a Saturday or Sunday 'This week' running to the coming Friday is what a person expects (Alan's open question)",
+     "On a Saturday or Sunday (set CLARK_NOW) open Work items: This week runs from today to the coming Friday. Say whether you would rather it ran to the Friday just gone, or to Sunday."),
 ]
 
 
