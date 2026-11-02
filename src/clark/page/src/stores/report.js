@@ -304,7 +304,9 @@ const CHANGE_KNOWN = {
   "The lines' weight, planned and achieved figures can each add up to 100% at most.": "Weight, Planned or Achieved adds up to more than 100% across all the lines. Nothing was changed. Lower one of the figures and try again.",
   "A count must be a whole number from 0 to 99999, or empty.": "A count must be a whole number from 0 to 99999, or empty. Nothing was changed.",
   "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
-  "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
+  "That content is too long to save.": "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.",
+  // the whole change was over the size clark takes (server.py's words; any kind of section can be that big)
+  "That is too big to save. Make the text shorter, or take some of the list out, then try again.": "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";
