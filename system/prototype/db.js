@@ -219,11 +219,11 @@
     if (kind === 'item' && !('updatedAt' in changes)) rec.updatedAt = stamp();
     write([[store, 'put', rec], ...addHistory(rows)]);
     return () => {
+      const pubs = kind === 'project' ? rec.published : undefined;   /* no Undo ever rewrites a project's publications, whatever change it undoes: it could remove or renumber a newer one (#111) */
       const was = label || rows[0].text || 'change to ' + rows.map(r => fieldName(r.field, kind).toLowerCase()).join(', '), back = [];
-      rows.forEach(r => { if (JSON.stringify(rec[r.field]) !== JSON.stringify(before[r.field])) back.push({ kind, id: r.id, code: rec.code, field: r.field, from: keep(rec[r.field]), to: keep(before[r.field]), how: who('undo'), text: 'Undone: ' + was }); });
+      rows.forEach(r => { if (!(kind === 'project' && r.field === 'published') && JSON.stringify(rec[r.field]) !== JSON.stringify(before[r.field])) back.push({ kind, id: r.id, code: rec.code, field: r.field, from: keep(rec[r.field]), to: keep(before[r.field]), how: who('undo'), text: 'Undone: ' + was }); });
       rows.forEach(r => { if (!(r.field in before)) delete rec[r.field]; });   /* a field that was not there before goes again */
-      const pubs = kind === 'project' && !rows.some(r => r.field === 'published') ? rec.published : undefined;   /* an Undo of an earlier project change never takes a publication back (#111) */
-      Object.assign(rec, before); if (pubs !== undefined) rec.published = pubs;
+      Object.assign(rec, before); if (kind === 'project') { if (pubs !== undefined) rec.published = pubs; else delete rec.published; }
       { const st = ++stepSeq; back.forEach(r => { r.step = st; }); }
       write([[store, 'put', rec], ...addHistory(back.length ? back : [{ kind, id: rows[0].id, code: rec.code, field: '*', how: who('undo'), text: 'Undone: ' + was }])]);
     };
