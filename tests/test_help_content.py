@@ -68,7 +68,7 @@ class Shape(unittest.TestCase):
         """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (28, 32))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (29, 32))
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):

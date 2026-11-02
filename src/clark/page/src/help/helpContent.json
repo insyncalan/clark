@@ -553,6 +553,19 @@
     ]
    },
    {
+    "id": "act-on-a-slipped-milestone",
+    "g": "Milestones",
+    "t": "Add a recovery action, escalate or write a note on a slipped milestone",
+    "w": "Milestones › Movement",
+    "go": "milestones",
+    "s": [
+     "On **Milestones**, press **Movement**. It is for you and the team: it is never published.",
+     "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
+     "Then decide: **Hold** (notes that the agreed date stays), **Rebaseline** (the agreed date moves to the expected date; the original is kept), **Add a recovery action** or **Escalate to steering**. The last two add a linked action or decision and open it.",
+     "Write an **Internal note**. It saves when you leave the box and is never published."
+    ]
+   },
+   {
     "id": "format-text",
     "g": "Writing",
     "t": "Write and format text",

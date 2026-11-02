@@ -107,7 +107,7 @@ class Held(unittest.TestCase):
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 32, 33))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (29, 32, 33))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -150,8 +150,7 @@ class AgainstThePage(unittest.TestCase):
         # 66 again on the merge with ask clark's panel (#47a) and the palette's command for it (measured on the merged tree)
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
-        # 56 once the Movement, health and Report sections entries were written in the page's own words (their bold names are now on the page): 60 before
-        self.assertGreaterEqual(len(names), 56)
+        self.assertGreaterEqual(len(names), 60)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
