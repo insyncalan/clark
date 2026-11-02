@@ -935,7 +935,8 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
         note = None
         if changes.get("movement") == "hold" and rebase is None:
             note = _hold_line(today, changes.get("forecast_date", row.get("forecast_date")))
-            if "internal_note" not in changes:                      # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo
+            last = (row.get("internal_note") or "").strip().split("\n")[-1]
+            if "internal_note" not in changes and last != note:     # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo; not twice when the last line is this same Hold today
                 changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
         try:
             st.update(table, ref, changes, rebaseline=rebase, note=note)

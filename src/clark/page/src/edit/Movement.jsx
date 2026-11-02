@@ -136,7 +136,7 @@ async function recover(r) {
   try {
     const ws = openWorkstream(milestoneRow(r.id));
     if (!ws) { say("problem", W.NO_WORKSTREAM); return; }
-    const values = { description: W.fill(W.RECOVER_TITLE, lower(r.name)), priority: "High", due_date: addDays(todayIso(), 7), milestone: r.id, workstream: ws };
+    const values = { description: W.fitTitle(W.RECOVER_TITLE, lower(r.name)), priority: "High", due_date: addDays(todayIso(), 7), milestone: r.id, workstream: ws };
     const line = explain(r).slice(0, 200);
     if (line) values.latest_update = line;
     const reply = await addRow("actions", values, (id) => W.fill(W.TOAST_ACTION, id, r.name));
@@ -149,7 +149,7 @@ async function escalate(r) {
   if (adding.value) return;
   adding.value = true;
   try {
-    const values = { decision: W.fill(W.ESCALATE_TITLE, lower(r.name)), needed_by: addDays(todayIso(), 7) };
+    const values = { decision: W.fitTitle(W.ESCALATE_TITLE, lower(r.name)), needed_by: addDays(todayIso(), 7) };
     const line = explain(r).slice(0, 200);
     if (line) values.reasoning = line;
     const reply = await addRow("decisions", values, (id) => W.fill(W.TOAST_DECISION, id, r.name));

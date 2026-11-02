@@ -284,9 +284,14 @@ class TheHold(Base):
         again = self.ok({"movement": None})
         self.ok({"movement": "hold"})
         lines = self.row()["internal_note"].split("\n")
-        self.assertEqual(len(lines), 2, "a second Hold adds a second line")
-        self.assertEqual(lines[0], notes[0][0])
+        self.assertEqual(lines, [notes[0][0]], "a second identical Hold today adds no second line")
         self.assertTrue(again["apply_id"])
+        self.ok({"movement": None})
+        self.ok({"movement": "hold", "forecast_date": "2030-04-01"})
+        lines = self.row()["internal_note"].split("\n")
+        self.assertEqual(len(lines), 2, "a Hold with a different forecast adds its own line")
+        self.assertEqual(lines[0], notes[0][0])
+        self.assertIn("forecast 01-04-2030", lines[1])
 
     def test_a_hold_keeps_what_the_owner_wrote_and_one_undo_takes_the_line_back(self):      # #458
         self.slip()

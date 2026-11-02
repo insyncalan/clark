@@ -52,6 +52,15 @@ export const PAST_DATE = "The new agreed date can't be before today (%s).";
 export const ARCHIVED = "That milestone is archived. Restore it first.";
 export const NOT_HERE = "That milestone isn't in this project.";
 
+// A title built from a template and a milestone's name, held to the 200 characters a title may have: the name is cut with an
+// ellipsis when the whole would run over (counted in characters, as the server counts).
+export const TITLE_MAX = 200;
+export function fitTitle(template, name) {
+  const room = TITLE_MAX - (template.length - 2);
+  const chars = Array.from(String(name));
+  return fill(template, chars.length <= room ? name : chars.slice(0, Math.max(room - 1, 0)).join("").trimEnd() + "\u2026");
+}
+
 // Fill each %s in order.
 export function fill(text, ...parts) {
   let i = 0;

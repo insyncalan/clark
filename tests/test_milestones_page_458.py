@@ -356,6 +356,26 @@ class Page(Base):
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             self.assertIsNone(self.store.read("decisions", ref=decision["id"]))
 
+    def test_movement_titles_fit_the_200_character_limit_when_the_milestone_name_is_very_long(self):      # Stark's LOW: a name over about 190 characters
+        long_name = "Go live " + "z" * 188
+        with self.store.step("dashboard", USER) as st:
+            st.update("milestones", GO_LIVE, {"name": long_name})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.open_movement(p)
+            p.js("document.querySelector('#mv-recover').click()")
+            p.until("/added and linked to /.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the action's toast")
+            action = self.store.read("actions", ref=self.toast(p).split(" ")[0])
+            self.assertLessEqual(len(action["description"]), 200)
+            self.assertTrue(action["description"].startswith("Recover go live zzz") and action["description"].endswith("\u2026"), action["description"])
+            p.js("document.querySelector('[data-pk-close]').click()")
+            p.until("!document.querySelector('#peek')", "the peek closed")
+            p.js("document.querySelector('#mv-escalate').click()")
+            p.until("/added for /.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the decision's toast")
+            decision = self.store.read("decisions", ref=self.toast(p).split(" ")[0])
+            self.assertLessEqual(len(decision["decision"]), 200)
+            self.assertTrue(decision["decision"].startswith("Steering decision on go live zzz") and decision["decision"].endswith("\u2026"), decision["decision"])
+
     def test_487_a_recovery_action_added_in_edit_starts_hidden_from_the_client_at_both_widths_and_undo_takes_both_back(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
