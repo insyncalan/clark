@@ -288,6 +288,18 @@
     "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on), shown at the foot of the page with its date. A Word copy takes the next number as well. Each publish adds a line to History."
    },
    {
+    "id": "find-a-past-publication",
+    "g": "Every week",
+    "t": "Find or open a past publication",
+    "w": "Profile circle › Published reports",
+    "go": "settings#pubs",
+    "s": [
+     "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
+     "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
+     "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open."
+    ]
+   },
+   {
     "id": "add-a-work-item",
     "g": "Work items",
     "t": "Add a work item",
@@ -1447,6 +1459,47 @@
      [
       "p",
       "Each publish is noted on the project, and the Dashboard says when it was last published. **Preview the page in a new tab** shows the page without saving it."
+     ]
+    ]
+   },
+   {
+    "id": "published-reports",
+    "g": "Publishing",
+    "t": "Published reports",
+    "w": "Profile circle › Published reports",
+    "b": [
+     [
+      "tbl",
+      [
+       "Column",
+       "Shows"
+      ],
+      [
+       [
+        "#",
+        "The publication's number for this project, counting up from 1"
+       ],
+       [
+        "Date and time",
+        "When it was published, in UTC"
+       ],
+       [
+        "Where",
+        "Where it went"
+       ],
+       [
+        "Who",
+        "Who published it"
+       ],
+       [
+        "Open",
+        "The kept copy of the page, in a new tab; or **Not kept** for one with no copy"
+       ]
+      ]
+     ],
+     [
+      "p",
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the card lists the latest ten."
      ]
     ]
    },
