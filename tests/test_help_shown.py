@@ -154,7 +154,8 @@ class AgainstThePage(unittest.TestCase):
         # still 59 with Show archived on Milestones (C-M4) as well: the same bold Help name as the Projects table's button, so no further name leaves the absent list
         # 55 with Add project, Edit, Import workbook and Reset the demo data on Settings (#444): four more of Help's bold names are on the page, measured on the integrated tree
         # 54 measured on the tree with the base branch merged in (main has 59): five of Help's bold names are now on the page through this stack's features: Add project and Choose a file and Import (the Settings Data card and Projects table), Check the import (the import box), Internal note (the milestones Movement note)
-        self.assertGreaterEqual(len(names), 54)
+        # 53 with Get the template (#454): Help's bold "Get the template" is a button in the import box now (measured on this tree)
+        self.assertGreaterEqual(len(names), 53)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

@@ -22,6 +22,9 @@ export const IMPORT = {
   pickTitle: "Import from Excel",
   pickBody: "Sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases are read. A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved.",
   choose: "Choose a file",
+  template: "Get the template",
+  templateSaved: "Your browser has saved the template",     // then its name: a workbook with the right sheets and columns and no rows
+  templateFailed: "The template could not be made. Reload the page. If it happens again, restart clark.",
   checkTitle: "Check the import",
   checking: "Reading the workbook.",
   cancel: "Cancel",

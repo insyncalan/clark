@@ -22,7 +22,8 @@ Routes:
 - GET  /api/publication  ?project=<CODE>: when the project was last published and whether to the client (#43)
 - POST /api/preview      Preview (#147): builds the page as publish would, in memory; answers a one-visit address (publish_flow.py)
 - GET  /preview          ?id=<from /api/preview>: that page, once, local only (a new tab cannot send the token header)
-- GET  /api/export       ?project=<CODE>: the project's workbook as a download named <CODE>-<date>.xlsx (publish_flow.py)
+- GET  /api/export       ?project=<CODE>: the project's workbook as a download named <CODE>-<date>.xlsx (publish_flow.py);
+                         ?template=1: the empty import template, "clark import template.xlsx" (#454)
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
@@ -752,11 +753,17 @@ def preview_page_route(handler):
 
 
 def export_route(handler):
-    """GET /api/export?project=<CODE>: the workbook as a download, or the publisher's plain refusal as JSON."""
+    """GET /api/export?project=<CODE>: the workbook as a download, or the publisher's plain refusal as JSON. GET /api/export?template=1
+    (#454): the import template instead, an export's workbook with no rows, which names no project and reads nothing from the store;
+    no other value of `template` and nothing else in the query is read for it, and a request value never reaches a path."""
     publisher = getattr(handler.server, "publisher", None)
     if publisher is None:
         return handler.send(404, error_body("not_found"))
-    status, body = publisher.export((parse_qs(urlsplit(handler.path).query).get("project") or [""])[0])
+    query = parse_qs(urlsplit(handler.path).query)
+    if query.get("template") == ["1"]:
+        status, body = publisher.template()
+    else:
+        status, body = publisher.export((query.get("project") or [""])[0])
     if status != 200:
         return handler.send(status, body)
     data = body["data"]

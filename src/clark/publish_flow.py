@@ -479,6 +479,13 @@ class Publisher:
             if folder is not None:
                 shutil.rmtree(folder, ignore_errors=True)
 
+    def template(self):
+        """GET /api/export?template=1 (#454): the import template, an export's workbook with no rows (excel.template_bytes). It
+        reads nothing from the store and takes nothing from the request, so no project, person or item is in it.
+        (200, {"name", "data", "warnings"})."""
+        from clark import excel         # here, not at the top: as export()
+        return 200, {"name": excel.TEMPLATE_NAME, "data": excel.template_bytes(self.today()), "warnings": []}
+
     # ----- the report bar -----
     def latest(self, code):
         """The latest publication of the project, for the report bar: {"at", "to_client"} or {} (no paths, no hash)."""

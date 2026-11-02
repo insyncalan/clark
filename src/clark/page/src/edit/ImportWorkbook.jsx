@@ -1,10 +1,11 @@
 // Import workbook (#444), the prototype's two steps (system/prototype/io.js importExcel): say what is read and choose a file, then Check
 // the import: the counts, every difference in words with a tick, and Import. Nothing is saved until Import; the server (POST
 // /api/excel-import) reads the workbook, compares it with this project by ID and applies the ticked changes as ONE step, which Undo
-// this import takes back. The workbook is sent once to be checked and not again. `api` and `read` are seams for the tests.
+// this import takes back. The workbook is sent once to be checked and not again. `api`, `read` and `tpl` (Get the template: GET /api/export?template=1) are seams for the tests.
 import { useRef, useState } from "preact/hooks";
 import { Dialog } from "./Dialog.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { templateRequest, saveBlob } from "./publishApi.js";
 import { checkWorkbook, applyWorkbook, undoWorkbook } from "./dataApi.js";
 import * as L from "../logic/dataCard.js";
 
@@ -15,9 +16,10 @@ const SHOWN = 300;                                       // the changes listed w
 const REAL = { check: checkWorkbook, apply: applyWorkbook, undo: undoWorkbook };
 const readBytes = async (file) => new Uint8Array(await file.arrayBuffer());
 
-export function ImportWorkbook({ project, projectName, onClose, onDone, opener, api = REAL, read = readBytes }) {
+export function ImportWorkbook({ project, projectName, onClose, onDone, opener, api = REAL, read = readBytes, tpl = templateRequest }) {
   const [step, setStep] = useState({ at: "pick" });           // pick | checking | plan | applying | done
   const [problem, setProblem] = useState("");
+  const [saved, setSaved] = useState("");                    // the template, once the browser has been asked to save it
   const [ticks, setTicks] = useState({});
   const input = useRef(null);
 
@@ -34,6 +36,14 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
     setTicks(L.startTicks(r.body.items));
     setStep({ at: "plan", plan: r.body });
+  }
+
+  // Get the template: an export's workbook with no rows (the server makes it; the page asks about no project). The browser saves it.
+  async function getTemplate() {
+    setProblem(""); setSaved("");
+    const r = await tpl();
+    if (r.status !== 200 || !r.blob) { setProblem(r.status === 0 ? T.notAnswering : r.status === 403 ? T.stale : T.templateFailed); return; }
+    setSaved(`${T.templateSaved}, “${saveBlob(r.blob, r.name || "import template.xlsx")}”.`);
   }
 
   async function doImport() {
@@ -63,11 +73,12 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   if (step.at === "pick" || step.at === "checking") {
     return (
       <Dialog key="pick" id="import-box" opener={opener} title={T.pickTitle} onClose={onClose} first="#import-choose"
-        foot={<>{cancel}<button type="button" class="btn pri gb" id="import-choose" disabled={step.at === "checking"} onClick={() => input.current && input.current.click()}><Icon name="ul" />{T.choose}</button></>}>
+        foot={<><button type="button" class="btn quiet gb tpl-get" id="import-template" onClick={getTemplate}><Icon name="dl" />{T.template}</button>{cancel}<button type="button" class="btn pri gb" id="import-choose" disabled={step.at === "checking"} onClick={() => input.current && input.current.click()}><Icon name="ul" />{T.choose}</button></>}>
         <p>{T.pickBody}</p>
         <p class="muted">{L.COLUMNS_INTRO}</p>
         <p class="imp-cols" id="import-columns">{L.IMPORT_COLUMNS.map(([sheet, cols]) => <span key={sheet}><b>{sheet}</b> {cols.join(", ")}<br /></span>)}</p>
         {step.at === "checking" ? <p class="muted" role="status" id="import-reading">{T.checking}</p> : null}
+        {saved ? <p class="muted" role="status" id="import-template-saved">{saved}</p> : null}
         <p class="error" role="alert" id="import-problem">{problem}</p>
         {fileInput}
       </Dialog>

@@ -501,6 +501,7 @@ textarea.tpl-field { resize: vertical; }
 .ad.dlg .dlg-code { text-transform: uppercase; }
 .ad.dlg p.error { min-height: 0; margin: var(--space-2) 0 0; color: var(--status-red-text); font-size: var(--size-small); }
 .ad.dlg p.error:empty { display: none; }
+.ad.dlg .tpl-get { margin-right: auto; }
 .ad.dlg .imp-warn { padding: 8px 10px; border-left: 4px solid var(--status-amber); background: var(--status-amber-tint); color: var(--status-amber-text); border-radius: var(--radius-sm); }
 .ad.dlg .imp-note { font-size: 13px; }
 .ad.dlg .imp-cols { margin: var(--space-1) 0 0; font-size: 13px; max-height: 30vh; overflow: auto; }
