@@ -1130,6 +1130,10 @@
        "**+** starts a new chat; **×**, [[Esc]] or a click outside closes it.",
        "Drag its left edge to make it wider; a double-click puts it back."
       ]
+     ],
+     [
+      "p",
+      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. Take any real password out of a question before you send it."
      ]
     ]
    },
