@@ -148,13 +148,14 @@ class ReportSectionsHasNeedsFromYou(unittest.TestCase):
         self.assertNotRegex(row, r"(?i)pending decision|Needed from the client|straight after|Word file")     # what the page does not do (yet)
 
     def test_the_table_has_no_row_for_a_section_the_page_does_not_draw(self):
-        """Risks and issues, Open actions, Decisions and Supporting documents show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
+        """Risks and issues, Open actions and Decisions show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
         names = [r[0] for r in self.TABLE[2]]
         self.assertEqual(names, ["At a glance", "Use case summary", "Milestones", "Summary, This week, Next week", "Needs from you"])
         section = read("page", "src", "components", "Section.jsx")
         self.assertIn("Not shown on this page yet.", section)
-        for t in ("raid", "actions", "decisions", "docs"):
+        for t in ("raid", "actions", "decisions"):
             self.assertNotRegex(section, rf'section\.type === "{t}"')
+        self.assertIn('section.type === "docs"', section)       # Supporting documents are drawn now
 
     def test_the_needs_entry_links_to_the_task_and_the_task_is_shown(self):
         self.assertIn("(#howto-ask-for-what-you-need)", json.dumps(entry("ref", "needs-from-you"), ensure_ascii=False))

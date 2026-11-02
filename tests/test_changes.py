@@ -89,8 +89,8 @@ class Allowed(Api):
         self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", *changes.ARCHIVABLE})
         for kind in changes.ARCHIVABLE:
             ops = set(changes.CHANGE_KINDS[kind])
-            want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases") else set())
-            self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE else set())      # #67: a row can be added to four kinds, never a use case
+            want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
+            self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("documents",) else set())      # #67: a row can be added to four kinds, never a use case; #74: + a document link
                              | ({"bulk"} if kind in changes.ITEM_KINDS else set()))           # #196: only the work items take a bulk change
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
