@@ -3,10 +3,12 @@
 // This sits inside the profile menu's live region (ProfileMenu.jsx), which View always has, so a screen reader hears it.
 import { signal } from "@preact/signals";
 import { toast, dismiss, undo } from "../stores/changes.js";
+import { mode } from "../stores/report.js";
 
 const mine = signal(0);                     // the id of the toast that came from the bar; the toast itself is the changes store's
 
-export function ownToast() { mine.value = toast.value ? toast.value.id : 0; }
+// In Edit the message is Edit's own (Toast.jsx); only one made while the page is in View is this one's.
+export function ownToast() { mine.value = mode.value !== "edit" && toast.value ? toast.value.id : 0; }
 
 export function BarToast() {
   const t = toast.value;

@@ -209,8 +209,8 @@ class Bar(Base):
         with chrome() as cdp:
             p = self.show(cdp)
             self.type_week(p, "09-05-2031")
-            p.until("/so the old week ending date was kept/.test(document.body.textContent)", "the plain words")
-            self.assertNotIn("Pick a date and try again", p.js("document.body.textContent"), "the server's own words are never shown")
+            p.until("/so the old week ending date was kept/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the plain words")
+            self.assertNotIn("Pick a date and try again", p.js("document.querySelector('.toast-text').textContent"), "the server's own words are never shown")
             self.assertEqual(p.js("document.querySelector('#week-ending').value"), "02-05-2031")
             self.assertEqual(self.week(), "2031-05-02")
 
