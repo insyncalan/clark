@@ -98,16 +98,19 @@ def _host(host):
 
 # Names that only mean something inside one network (the owner's decision on #74): a host with no dot (localhost, intranet), or ending
 # in one of these. The dotted-number addresses are tested by _private_address.
-_INTERNAL_ENDINGS = ("local", "internal", "lan", "localhost")
+_INTERNAL_ENDINGS = ("local", "internal", "lan", "localhost", "corp", "home", "intranet", "private", "test")
 
 
 def _private_address(labels):
-    """True for a plain four-part number that is loopback (127.x), private (10.x, 172.16-31.x, 192.168.x) or link-local
-    (169.254.x). _host has already refused every other way of writing a number (decimal, hex, octal, short forms, IPv6)."""
+    """True for a plain four-part number that is not a public address: this-network (0.x), loopback (127.x), private (10.x,
+    172.16-31.x, 192.168.x), link-local (169.254.x), carrier-grade NAT (100.64-127.x), 192.0.0.x, benchmarking (198.18-19.x),
+    or multicast and broadcast (224 and above). _host has already refused every other way of writing a number (decimal, hex, octal, short forms, IPv6)."""
     if len(labels) != 4 or not all(label.isdigit() for label in labels):
         return False
     a, b = int(labels[0]), int(labels[1])
-    return a in (10, 127) or (a == 172 and 16 <= b <= 31) or (a == 192 and b == 168) or (a == 169 and b == 254)
+    c = int(labels[2])
+    return (a in (0, 10, 127) or a >= 224 or (a == 172 and 16 <= b <= 31) or (a == 192 and b == 168) or (a == 169 and b == 254)
+            or (a == 100 and 64 <= b <= 127) or (a == 192 and b == 0 and c == 0) or (a == 198 and b in (18, 19)))
 
 
 def _internal(host):
@@ -140,6 +143,8 @@ def _parse(text):
         if not at or "@" in domain or not _LOCAL.fullmatch(local) or ".." in local:
             raise LinkError(BAD_EMAIL)
         domain = _host(domain)
+        if _internal(domain):
+            raise LinkError(INTERNAL)
         return f"mailto:{local}@{domain}", domain, f"{local}@{domain}".lower()
 
     if not rest.startswith("//"):                                       # "https:example.com" is read as a site by browsers

@@ -35,7 +35,8 @@ def check_in_file(test, text, marker, present, what, ignore_case=False):
 
 REFUSED = ("javascript:alert('ZQ-JS')", "JaVaScRiPt:alert(1)", "java\tscript:alert(1)", "data:text/html,ZQ-DATA",
            "vbscript:ZQ-VB", "file:///ZQ-FILE", "blob:https://zq-blob.example.com/x", "ftp://zq-ftp.example.com/x",
-           "//zq-relative.example.com/x", "zq-bare.example.com", "https://zq:" + "pw@zq-cred.example.com/")
+           "//zq-relative.example.com/x", "zq-bare.example.com", "https://zq:" + "pw@zq-cred.example.com/",
+           "http://10.0.0.1/x", "http://0.0.0.0/x")
 
 
 class Published(unittest.TestCase):

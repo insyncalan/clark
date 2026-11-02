@@ -124,8 +124,13 @@ INTERNAL_HOSTS = [
     "https://169.254.169.254/latest/", "https://169.254.0.1/", "https://10.0.0.1./x", "HTTPS://10.0.0.1/", "Http://192.168.1.1/",
     "https://intranet/x", "http://intranet/x", "https://Intranet/x", "https://wiki/", "https://wiki./x", "https://printer:631/",
     "https://files.local/x", "https://FILES.LOCAL/x", "https://nas.internal/", "https://build.corp.internal/", "https://router.lan/",
-    "https://host.Lan./x",
+    "https://host.Lan./x", "https://site.corp/x", "https://nas.home/", "https://wiki.intranet/", "https://box.private/x", "https://app.test/",
+    "https://HOST.CORP./x",
+    "https://0.0.0.0/", "https://0.1.2.3/", "https://100.64.0.1/", "https://100.100.5.5/", "https://100.127.255.255/", "https://192.0.0.1/",
+    "https://192.0.0.255/", "https://198.18.0.1/", "https://198.19.255.255/", "https://224.0.0.1/", "https://239.255.255.250/",
+    "https://240.0.0.1/", "https://255.255.255.255/",
 ]
+INTERNAL_MAILTO = ["mailto:someone@intranet", "mailto:someone@host.corp", "mailto:a@nas.home", "mailto:a@10.0.0.1", "mailto:a@x.test"]
 # Still refused, by the older site-name rule: IPv6 (loopback, link-local, unique-local), and numbers written in another system.
 INTERNAL_OTHER_FORMS = [
     "https://[::1]/", "https://[fe80::1]/", "https://[fd00::1]/", "https://[fc00::1]:8080/", "https://[::ffff:127.0.0.1]/",
@@ -144,6 +149,9 @@ NOT_INTERNAL = [
     "https://localhost.example.com/", "https://local.example.com/", "https://lan.example.com/x", "https://internal.example.com/",
     "https://example.com/localhost", "https://example.com/?next=http://127.0.0.1/", "https://example.com/#192.168.0.1",
     "mailto:alice@example.com",
+    "https://100.63.255.255/", "https://100.128.0.1/", "https://192.0.1.1/", "https://192.0.2.1/", "https://198.17.255.255/",
+    "https://198.20.0.1/", "https://223.255.255.254/", "https://1.0.0.1/", "https://example.com.au/", "https://testing.example.com/",
+    "mailto:a@example.org", "mailto:a@corporate.example.com",
 ]
 
 TOO_LONG = ["https://example.com/" + "a" * 1981, "https://example.com/" + "a" * 5000, "mailto:" + "a" * 2000 + "@example.com"]
@@ -306,6 +314,13 @@ class InternalAddresses(unittest.TestCase):
         self.assertTrue(text.endswith("."))
         for word in ("URL", "URI", "IP", "localhost", "127", "192.168", "private range", "RFC", "DNS"):
             self.assertNotIn(word, text)
+
+    def test_a_mailto_to_an_internal_domain_is_refused_with_the_internal_message(self):
+        for text in INTERNAL_MAILTO:
+            with self.subTest(text=text):
+                with self.assertRaises(LinkError) as caught:
+                    check_link(text)
+                self.assertEqual(str(caught.exception), doclinks.INTERNAL)
 
     def test_a_mailto_link_is_not_affected(self):
         self.assertEqual(check_link("mailto:a@example.com"), "mailto:a@example.com")
