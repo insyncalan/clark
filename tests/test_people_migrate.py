@@ -120,7 +120,7 @@ class InTheOrderedTable(Base):
 
     def test_the_step_is_registered_as_9_and_the_version_matches(self):
         self.assertIn((9, store_module.migrate_people), store_module.MIGRATIONS)
-        self.assertEqual(store_module.SCHEMA_VERSION, 9)
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 9)    # #120 is step 10
         self.assertEqual(max(n for n, _ in store_module.MIGRATIONS), store_module.SCHEMA_VERSION)
 
     def test_a_version_1_file_with_data_moves_up_to_the_current_version(self):
@@ -149,7 +149,7 @@ class InTheOrderedTable(Base):
         self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "8")
         self.assertNotIn("people", [r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type = 'table'")])
         open_store(path, onedrive_roots=[]).close()
-        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "9")
+        self.assertEqual(c.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
         after = c.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall()
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(c.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall(), after)
