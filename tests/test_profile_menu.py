@@ -17,10 +17,10 @@ from clark import excel, server as sv
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
 TIP = "Your menu: Publish, Preview, Export, Settings"
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Settings", "Help"]       # the commands
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
-ORDER = [WHO] + ITEMS[:3] + LOOK + ITEMS[3:]
+ORDER = [WHO] + ITEMS[:4] + LOOK + ITEMS[4:]
 
 
 class ProfileMenu(Base):
@@ -55,7 +55,7 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem,menuitem")
+                             "menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem,menuitem")
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                              "presentation,menuitemradio,menuitemradio,menuitemradio", "the group holds its label and the three radios")
             self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
@@ -187,6 +187,18 @@ class ProfileMenu(Base):
             self.open_menu(p)
             p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
             p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+
+    def test_C_the_published_reports_entry_opens_settings_at_its_card(self):
+        """#443: after Export; it opens Settings and brings the Published reports card to the top. Nothing is published or written."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            before = self.rig.everything_written()
+            self.open_menu(p)
+            p.js("document.querySelector('#profile-menu [data-kind=published]').click()")
+            p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+            p.until("!!document.querySelector('#pubs')", "the Published reports card is there")
+            self.assertEqual(p.js("document.querySelector('#pubs h2').textContent.indexOf('Published reports') === 0"), True)
+            self.assertEqual(self.rig.everything_written(), before, "opening it writes nothing")
 
     def test_C_the_keys(self):
         with chrome() as cdp:

@@ -29,8 +29,6 @@ def read(*parts):
 # prototype entry id (howto- or ref-) -> (the feature it needs, a pattern that must NOT yet match the page's code, and the one file to look in when it is not all of it)
 WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
-    "howto-find-a-past-publication": ("the Published reports list (numbered publications)", r"Published reports"),
-    "ref-published-reports": ("the Published reports list (numbered publications)", r"Published reports"),
     "howto-start-from-last-report": ("Start from last week's report", r"Start from last"),
     "ref-since-last-report": ("the Since the last report panel", r"Since the last report"),
     "howto-add-people-details": ("the People card in Settings", r"[\"'>]People[\"'<]"),

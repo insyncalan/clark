@@ -1025,7 +1025,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .backup-panel { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .backup-panel p { margin: 0 0 6px; }
 .setting p.error { color: var(--status-red-text); }
-@media (max-width: 900px) { .dlg-form { padding: var(--space-4); } }
+/* item 443: Settings > Published reports: a plain table, the same look as the work items table; it wraps instead of scrolling sideways. */
+.pubs { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+.pubs th { text-align: left; font-weight: 400; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-top: 1px solid var(--grey-200); }
+.pubs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
+.pubs th:first-child, .pubs td:first-child { padding-left: 4px; width: 48px; }
+.pubs td.acts { text-align: right; white-space: nowrap; }
+#pubs-note { margin: 8px 0 0; font-size: var(--size-small); }
+@media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: var(--space-4); } }
 /* #43: on a phone the Publish button must not push the top bar wider than the window; only top-bar rules, after the phone card rules. */
 @media (max-width: 640px) { .pubbar { gap: var(--space-1); } .pubbtn { padding: 0 var(--space-2); font-size: var(--size-small); } .top:has(.pubbar) .logo .wm { display: none; } }   /* the Edit top bar only: the logo keeps its icon (its aria-label names it) */
 
