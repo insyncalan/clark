@@ -173,7 +173,7 @@ PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions":
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal
 # note's history and every other field are not in it. `id` is only there so a milestone's creation can be told from a change.
 # What "note" is here: a step's note (Step.update(note=...)) is a change_log row with field "note", history only; it is not the
-# milestones.internal_note column, and no request can change that column (changes.py _do_milestone_change refuses it). A Hold's
+# milestones.internal_note column, which only a milestone update can change (changes.py, #458: owner only, never in a reply). A Hold's
 # dated line (dates only) and a rebaseline's reason line are stored this way, so a "note" row can sit in `shown` in
 # milestone_moves, kept because its step also has a dated or Movement row. What keeps its text off the page is not this tuple but
 # the Movement view's entries_for, which drops every entry of kind "note" or "internal_note"; the internal_note field itself is not in
@@ -3029,6 +3029,10 @@ class Step:
     def peek_apply_id(self):
         """This step's applies row, or None if nothing is written yet."""
         return self._apply_id
+
+    def is_hidden(self, project, item_id):
+        """#487: read only. Whether a report_hidden row already hides this item (its key is project + item, so a second would fail)."""
+        return self.con.execute("SELECT 1 FROM report_hidden WHERE project = ? AND item_id = ?", (project, item_id)).fetchone() is not None
 
     def create(self, kind, values):
         """A new row; returns its ref (the ID clark gives it, or its key)."""
