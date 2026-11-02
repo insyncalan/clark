@@ -359,6 +359,7 @@ class Detail(unittest.TestCase):
             click(cdp, sid, "[data-restore]")
             self.until(cdp, sid, "!!document.querySelector('[data-archive]')", "Restore made it editable again")
             self.assertEqual((self.row()["archived"], self.steps()), (0, before + 1))
+            self.until(cdp, sid, "((document.querySelector('.toast-text') || {}).textContent || '') === 'Use case restored.'", "the toast says it was restored")
             self.assertEqual(self.toast(cdp, sid), "Use case restored.")
             self.undo(cdp, sid)
             self.assertEqual(self.row()["archived"], 1)
