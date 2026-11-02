@@ -247,6 +247,17 @@ class Scan(unittest.TestCase):
         r.commit("thanks to %s" % LISTED)
         self.refused(r, "listed word in a name, an address or a message", absent=(LISTED,))
 
+    def test_a_team_branch_name_in_a_commit_message_is_accepted_but_a_bare_name_is_not(self):
+        r = self.repo()
+        r.write("a.md", "x\n")
+        r.commit("Merge main into team-%s-392" % LISTED.lower())
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+        r = self.repo()
+        r.write("a.md", "x\n")
+        r.commit("Merge main into team-%s-392, thanks %s" % (LISTED.lower(), LISTED))
+        self.refused(r, "listed word in a name, an address or a message", absent=(LISTED,))
+
     def test_workflow_rules_for_a_changed_workflow(self):
         bad = {"pull_request_target": "on:\n  pull_request_target:\n", "secret": "env:\n  K: ${{ secrets.K }}\n",
                "unpinned": "steps:\n  - uses: actions/checkout@v5\n", "write": "permissions:\n  contents: write\n",
