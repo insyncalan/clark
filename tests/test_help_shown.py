@@ -153,7 +153,8 @@ class AgainstThePage(unittest.TestCase):
         # 59 with the Projects table (A-S6): its "Show archived" button is on the page now, so Help's bold name for it is no longer absent
         # still 59 with Show archived on Milestones (C-M4) as well: the same bold Help name as the Projects table's button, so no further name leaves the absent list
         # 55 with Add project, Edit, Import workbook and Reset the demo data on Settings (#444): four more of Help's bold names are on the page, measured on the integrated tree
-        self.assertGreaterEqual(len(names), 55)
+        # 54 measured on the tree with the base branch merged in: one more of Help's bold names is on the page than the 55 counted before
+        self.assertGreaterEqual(len(names), 54)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

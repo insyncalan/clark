@@ -101,9 +101,12 @@ class Card(Base):
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_import_checks_then_imports_in_one_step_and_undo_puts_it_back(self):
-        b64, action, old = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
+                # a fresh workbook for each width: the first width's import and Undo touched the row, so the old workbook would be a clash
+                folder = Path(self.tmp.name) / str(w)
+                folder.mkdir()
+                b64, action, old = workbook(self.rig, folder, "Agree the cut-over plan, version two")
                 p = self.page(cdp)
                 p.width(w)
                 self.open_settings(p)
@@ -136,8 +139,10 @@ class Card(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
+            self.settle(p, "!!document.querySelector('#import-workbook')", "the Import workbook button")
             p.js("document.querySelector('#import-workbook').click()")
-            self.settle(p, "document.querySelector('#import-columns')", "the column lists")
+            p.until("!!document.querySelector('#import-box')", "the box opened")
+            self.settle(p, "!!document.querySelector('#import-columns')", "the column lists")
             self.assertEqual(p.js("document.querySelector('#import-columns').previousElementSibling.textContent"),
                              "Columns, in any order (only the name or title is needed):")
             shown = p.js("[...document.querySelectorAll('#import-columns > span')].map(s => [s.querySelector('b').textContent, s.textContent.slice(s.querySelector('b').textContent.length).trim().split(', ')])")

@@ -194,8 +194,8 @@ class Browser(unittest.TestCase):
             self.until(cdp, sid, "!document.querySelector('tr[data-project=TUL]')", "the archived project to leave the list")
             self.until(cdp, sid, "document.querySelector('.toast-text')", "the message")
             text = cdp.js("document.querySelector('.toast-text').textContent", sid)
-            self.assertIn("archived. clark has opened", text)
-            self.assertIn(self.names["MOSS"], text)
+            self.assertIn("archived. ", text)
+            self.assertIn(self.names["MOSS"] + " is open now.", text)
             self.assertIn("Show archived brings it back.", text)
 
     def test_the_only_live_project_is_not_archived_and_the_page_says_so(self):       # #444, row 46
@@ -228,7 +228,7 @@ class Browser(unittest.TestCase):
                     self.saved.clear()
                     self.open_form(cdp, sid, "#npBtn")
                     self.assertEqual(cdp.js("document.querySelector('#project-form-t').textContent", sid), "New project")
-                    self.assertEqual(cdp.js("document.activeElement.id", sid), "pN", "focus starts in the name")
+                    self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'pN'", "focus to start in the name")
                     self.assertEqual(cdp.js("[...document.querySelectorAll('#project-form label')].map(l => l.textContent)", sid), ["Name", "Short code", "Client", "Workstreams"])
                     self.assertEqual(cdp.js("document.querySelector('#pW').value", sid), "Delivery")
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways page scroll")

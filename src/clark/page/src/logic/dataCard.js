@@ -28,13 +28,13 @@ export const IMPORT = {
   close: "Close",
   none: "Nothing in this workbook differs from what clark has, so there is nothing to import.",
   already: "That workbook was already imported as it is, so there is nothing to import. Save it again after editing it, or export a fresh one.",
-  unrecorded: "clark has no record of exporting this workbook, so it cannot say what you changed in it. Check it is the right file; every difference is listed and nothing is ticked that archives a row.",
+  unrecorded: "There is no record of exporting this workbook from clark, so clark cannot say what you changed in it. Check it is the right file; every difference is listed and nothing is ticked that archives a row.",
   anyway: "Import anyway",
   undo: "Undo this import",
   undone: "Put back as it was before the import.",
   readFailed: "That file could not be read as a spreadsheet.",
   tooBig: "That file is more than 25 MB, more than clark will open. A clark export is far smaller. Check it is the right file.",
-  notAnswering: "clark did not answer. Check that the window clark runs in is still open, then try again.",
+  notAnswering: "There was no answer. Check that the window clark runs in is still open, then try again.",
   stale: "This page is out of date: clark was restarted after you opened it. Reload the page and try again.",
   fallback: "That could not be done. Reload the page. If it happens again, restart clark.",
 };
@@ -72,7 +72,7 @@ export const PROJECT = {
 };
 
 export const ONLY_ONE = "This is your only project, so it can't be archived. Add another project first.";
-export const archivedOpenWords = (name, next) => `${name} archived. clark has opened ${next}. Show archived brings it back.`;
+export const archivedOpenWords = (name, next) => `${name} archived. ${next} is open now. Show archived brings it back.`;
 
 // "Finance System Upgrade" -> "FSU": the first letters of the words, capitals, at most 4 (the prototype's suggestion).
 export function suggestCode(name) {
