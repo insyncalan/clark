@@ -402,6 +402,29 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#work-view-list [data-kind='group:status']")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('tbody[data-group=\"Open\"]')", sid)), "the table is grouped by status")
 
+    def test_a_saved_view_that_cannot_be_used_stays_visible_says_why_and_can_be_archived(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            tab = ".vtab[data-view-id=client]"
+            self.assertEqual(cdp.js(f"document.querySelector('{tab}').dataset.bad", sid), "1")
+            before = self.chips(cdp, sid)
+            click(cdp, sid, tab)
+            self.assertTrue(wait(lambda: "cannot be used now" in (cdp.js("(document.querySelector('[data-bad-note]') || {}).textContent", sid) or "")))
+            note = cdp.js("document.querySelector('[data-bad-note]').textContent", sid)
+            self.assertIn("Rename it or archive it", note)
+            self.assertNotIn("is:needed is:", note)
+            self.assertEqual(self.chips(cdp, sid), before, "choosing it leaves the line as it was")
+            click(cdp, sid, "#savedMenu")
+            items = cdp.js("[...document.querySelectorAll('#savedMenuList [role=menuitem]')].map(b => b.textContent)", sid)
+            self.assertIn("Rename Waiting on the client\u2026", items)
+            self.assertNotIn("Save changes to Waiting on the client", items)
+            click(cdp, sid, "#savedMenuList [data-kind=archive]")
+            self.assertTrue(wait(lambda: "Waiting on the client" not in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
+            click(cdp, sid, "#savedMenu")
+            self.assertTrue(wait(lambda: "Bring back Waiting on the client" in cdp.js("[...document.querySelectorAll('#savedMenuList [role=menuitem]')].map(b => b.textContent)", sid)))
+            cdp.js("localStorage.clear()", sid)
+
     def test_a_tile_counts_what_the_table_shows_when_it_opens(self):
         # One implementation: the tile's number is the number of rows in the list it opens (the line's rules, not the older filter's).
         s = self.serve()
@@ -563,7 +586,7 @@ class Line(unittest.TestCase):
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
                     names = cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)
-                    self.assertEqual(names, ["Open items", "Overdue", "My actions"], "four default views, one hidden until the page can answer it")
+                    self.assertEqual(names, ["Open items", "Overdue", "Waiting on the client", "My actions"], "all four default views stay on the tabs, even the one the page cannot answer yet")
                     self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Open items")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-dot]').length", sid), 0)
                     click(cdp, sid, ".vtab[data-view-id=overdue]")
@@ -694,7 +717,7 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
             self.put(cdp, sid, "priority:High")
             self.assertTrue(wait(lambda: "priority:High" in self.chips(cdp, sid)))
-            self.assertEqual(cdp.js("document.querySelectorAll('.vtab').length", sid), 3)
+            self.assertEqual(cdp.js("document.querySelectorAll('.vtab').length", sid), 4)
 
     def test_the_chosen_filter_and_the_view_edit_toggle_look_different_from_the_others(self):
         # Replaces the older bar's check (#153): the highlight rules in shell.css must match the aria-pressed the buttons set

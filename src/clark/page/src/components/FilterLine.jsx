@@ -10,8 +10,13 @@ import { lineText, setLine, local } from "../stores/line.js";
 import * as FL from "../logic/filterLine.js";
 import { Menu } from "./Menu.jsx";
 
-// A saved view whose line the parser refuses (for example is:needed, while the page cannot answer it yet) is not shown.
+// A saved view whose line the parser refuses (for example is:needed, while the page cannot answer it yet) stays on its tab with a plain
+// message, and can be renamed or archived. Choosing it does not change the line. The message carries the line's own first sentence.
 const usable = (view, rows, ctx) => FL.parse(view.line, rows, ctx).errors.length === 0;
+const whyNot = (view, rows, ctx) => {
+  const e = FL.parse(view.line, rows, ctx).errors[0];
+  return e ? `The view ${view.name} cannot be used now. ${e.msg} Rename it or archive it from the Saved views menu.` : "";
+};
 
 // Which saved view is chosen, per project, for this visit. A page change keeps it; a reload goes back to the view the line matches.
 const chosen = signal({});
@@ -80,13 +85,14 @@ function FreshnessMenu() {
 
 function SavedViews() {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
-  const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => usable(v, rows, ctx));
+  const all = viewsOf(code), shown = FL.visibleViews(all);
   const nameBox = useRef(null);
   const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename", name, error}
   const mine = chosen.value[code];
-  const active = shown.find((v) => v.id === mine) || shown.find((v) => !FL.differs(v, line, rows, ctx)) || null;
-  const dirty = !!active && FL.differs(active, line, rows, ctx);
-  const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; setLine(FL.normalise(v.line, rows, ctx)); };
+  const active = shown.find((v) => v.id === mine) || shown.find((v) => usable(v, rows, ctx) && !FL.differs(v, line, rows, ctx)) || null;
+  const badNote = active && !usable(active, rows, ctx) ? whyNot(active, rows, ctx) : "";
+  const dirty = !!active && !badNote && FL.differs(active, line, rows, ctx);
+  const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (usable(v, rows, ctx)) setLine(FL.normalise(v.line, rows, ctx)); };
   const act = (id) => {
     if (id === "save" && active) { const r = FL.saveView(all, active.id, FL.normalise(line, rows, ctx)); if (r.ok) saveViews(code, r.views); }
     else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
@@ -117,22 +123,24 @@ function SavedViews() {
   if (active && dirty) items.push({ id: "save", name: `Save changes to ${active.name}` });
   items.push({ id: "saveas", name: "Save this line as a new view…" });
   if (active) { items.push({ id: "rename", name: `Rename ${active.name}…` }); items.push({ id: "archive", name: `Archive ${active.name}` }); }
-  for (const v of FL.archivedViews(all).filter((v) => usable(v, rows, ctx))) items.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}` });
+  for (const v of FL.archivedViews(all)) items.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}` });
   return (
     <div class="fviews">
       <div class="vtabs" role="group" aria-label="Saved views">
         {shown.map((v) => {
-          const on = !!active && active.id === v.id, dot = on && dirty;
+          const on = !!active && active.id === v.id, dot = on && dirty, ok = usable(v, rows, ctx);
           return (
             <button type="button" key={v.id} class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} onClick={() => pick(v)}
-              aria-label={`${v.name}, ${FL.viewCount(v, rows, ctx)} items${dot ? ", the line has changes you have not saved" : ""}`}>
-              <span>{v.name}</span><em class="num">{FL.viewCount(v, rows, ctx)}</em>{dot ? <i class="fdot" data-dot aria-hidden="true"></i> : null}
+              data-bad={ok ? undefined : "1"} title={ok ? undefined : whyNot(v, rows, ctx)}
+              aria-label={ok ? `${v.name}, ${FL.viewCount(v, rows, ctx)} items${dot ? ", the line has changes you have not saved" : ""}` : `${v.name}, cannot be used now`}>
+              <span>{v.name}</span>{ok ? <em class="num">{FL.viewCount(v, rows, ctx)}</em> : <em class="num" aria-hidden="true">?</em>}{dot ? <i class="fdot" data-dot aria-hidden="true"></i> : null}
             </button>
           );
         })}
       </div>
       <FreshnessMenu />
       {fromFile.value ? null : <Menu label="Saved views" ariaLabel="Saved views menu" id="savedMenu" btnCls="btn sm" menuId="savedMenuList" menuLabel="Saved views" items={items} onPick={act} />}
+      {!form && badNote ? <span class="vmsg" role="status" data-bad-note>{badNote}</span> : null}
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
           {form.mode === "note" ? null : (
