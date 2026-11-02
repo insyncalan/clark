@@ -488,7 +488,8 @@ class StoppedBetweenTwoMoves(unittest.TestCase):
             "sha256": h.sha256_of(staging / "src" / "clark" / "__init__.py"), "size": 8, "mode": "644"}}}
         (staging / h.MANIFEST).write_text(json.dumps(new), encoding="utf-8")
         data.mkdir()
-        h.begin(data, app, staging, self.STAMP, "0.0.1", "0.0.2", 1, 1, 1, "X-Clark-Mark", "m", check=False)
+        from test_update_helper import age_marker
+        age_marker(h.begin(data, app, staging, self.STAMP, "0.0.1", "0.0.2", 1, 1, 1, "X-Clark-Mark", "m", check=False))
         old = app / (h.OLD_PREFIX + self.STAMP)
         old.mkdir()
         os.rename(app / missing, old / missing)                  # the stop: the old one is away, the new one is not in yet
