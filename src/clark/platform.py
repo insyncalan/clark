@@ -267,6 +267,13 @@ def data_lock_held(folder):
 
 # Opening files and the system's own dialogs
 
+def run_program(args, cwd=None, run=None):
+    """Run a program from an argument list (never through a shell), wait, and return the finished process with its output
+    as text. The page build uses it to run dev/tools/build_page.py in a source checkout."""
+    return (run or subprocess.run)([str(a) for a in args], cwd=None if cwd is None else str(cwd), capture_output=True,
+                                   text=True, check=False)
+
+
 def _run(args, run=None):
     """Start a program from an argument list (never through a shell) and return the finished process."""
     return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False)
@@ -560,7 +567,7 @@ def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
             return (popen or subprocess.Popen)(list(argv), cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                                start_new_session=True)
     except OSError as e:
-        raise PlatformError(f"The app could not start. Try again; if it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
+        raise PlatformError(f"Nothing was started, because this Mac would not run clark. Close this window and try again. If it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
 
 
 def open_app_window(url, chrome, popen=None, on=None):
@@ -573,7 +580,7 @@ def open_app_window(url, chrome, popen=None, on=None):
         (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
-        raise PlatformError("The window could not be opened.") from e
+        raise PlatformError("Chrome could not be started, so clark's window did not open.") from e
 
 
 # The Claude command (ask clark). Found on the PATH and started from an argument list. A .cmd or .bat is refused on every
