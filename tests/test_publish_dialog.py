@@ -140,7 +140,7 @@ class Dialog(Base):
             self.assertEqual(p.focused(), "publish")
             self.assertRegex(p.toast(), r"^Published \(Publication 1\)\. Saved locally as ")
             self.assertEqual(p.js("document.querySelectorAll('.toasts .toast [data-undo]').length"), 0, "no Undo: nothing to take back")
-            p.until("!!document.querySelector('#pub-note')", "the bar says when")
+            p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
 
     def test_C_keyboard(self):
         with chrome() as cdp:
@@ -225,8 +225,7 @@ class Dialog(Base):
             p = self.page(cdp)
             p.open_publish()
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
-            p.go()
+            p.until("!!document.querySelector('[data-go][data-done]')", "published")
             p.until("!document.querySelector('#publish-dialog[open]')", "the dialog closed")
             p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the chip says when")
             self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
