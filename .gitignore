@@ -15,3 +15,7 @@ src/clark/page/src/help/shown/
 
 # The downloads dev/tools/package.py builds (#57)
 dist/
+
+# The generated pages (#495): built by dev/tools/build_page.py in CI, by run_tests.py, at first source run and by package.py
+src/clark/page/page.html
+src/clark/page/page-view.html
