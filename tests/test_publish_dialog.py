@@ -122,7 +122,7 @@ class Dialog(Base):
             p.open_publish()
             self.assertFalse(p.js("document.querySelector('#pub-client').checked"), "reopened: unticked, never remembered")
             p.key("Enter", code="Enter", vk=13)         # Enter on the tick submits: Local only
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "Enter published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "Enter published")
             self.assertEqual(len(self.rig.rows()), 1)
 
     def test_C_reopen_is_unticked_after_a_client_publish(self):
@@ -131,7 +131,7 @@ class Dialog(Base):
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             p.js("document.querySelector('[data-go]').click()")
             p.until("!document.querySelector('#publish-dialog')", "closed")
             self.assertEqual(p.focused(), "publish")
@@ -146,30 +146,30 @@ class Dialog(Base):
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             self.assertEqual(p.message(), DONE_NEW)
             self.assertEqual((self.rig.client / WANTED).read_bytes(), (self.rig.local / "chosen.html").read_bytes())
             p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
             self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} to the client$")
 
     def test_C_publish_shows_a_spinner_while_it_works_then_a_tick_with_the_same_words(self):
-        """#130 point 4: a spinner beside "Publishing…" (still when the person asked for less motion), then a tick beside the success line."""
+        """#130 point 4: a spinner on the Publish button beside "Publishing…" (still when the person asked for less motion), then a tick beside the success line."""
         with chrome() as cdp:
             p = self.page(cdp)
             p.open_publish()
             p.js("window.__real = window.fetch; window.fetch = (u, o) => /publish/.test(String(u)) && o && o.method === 'POST' ? new Promise((ok) => { window.__release = () => ok(window.__real(u, o)); }) : window.__real(u, o);")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
             p.go()
-            p.until("!!document.querySelector('#pub-msg [data-spin]')", "a spinner while it works")
+            p.until("!!document.querySelector('[data-go] [data-spin]')", "a spinner while it works")
             self.assertEqual(p.message().strip(), "Publishing…")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-spin]')).animationName"), "pub-spin")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.until("getComputedStyle(document.querySelector('[data-spin]')).animationName === 'none'", "the ring stays still for reduced motion")
-            self.assertEqual(p.js("document.querySelector('#pub-msg [data-tick]')"), None, "no tick yet")
+            self.assertEqual(p.js("document.querySelector('[data-go] [data-tick]')"), None, "no tick yet")
             p.js("window.__release()")
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
-            self.assertEqual(p.js("document.querySelector('#pub-msg [data-spin]')"), None, "the spinner is gone")
-            self.assertTrue(p.js("!!document.querySelector('#pub-msg .success [data-tick] svg')"), "a tick beside the line")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
+            self.assertEqual(p.js("document.querySelector('[data-go] [data-spin]')"), None, "the spinner is gone")
+            self.assertTrue(p.js("!!document.querySelector('[data-go] [data-tick] svg')"), "a tick on the button")
             self.assertRegex(p.message(), r"^Published \(Publication \d+\)\. Saved locally as ")
 
     def test_C_a_local_publish_says_locally_and_the_client_folder_is_left_alone(self):
@@ -177,7 +177,7 @@ class Dialog(Base):
             p = self.page(cdp)
             p.open_publish()
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             self.assertEqual(self.rig.listing(self.rig.client), [])
             p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
             self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
@@ -187,7 +187,7 @@ class Dialog(Base):
             p = self.page(cdp)
             p.open_publish()
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             p.go()
             p.until("!document.querySelector('#publish-dialog[open]')", "the dialog closed")
             p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the chip says when")
@@ -242,7 +242,7 @@ class Dialog(Base):
             p.go()
             p.until("!!document.querySelector('input[name=clash]')", "asked again")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             self.assertIn("PUB-report-2026-10-23 (2).html", p.message())
             self.assertEqual(self.rig.listing(self.rig.client), sorted([WANTED, "PUB-report-2026-10-23 (2).html"]))
 
