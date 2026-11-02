@@ -474,6 +474,10 @@ input.sec-title { width: 100%; }
 /* The peek (#42): a panel on the right edge; its width is dragged from the left edge and kept in this browser. */
 .peek { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: 12px 24px 24px; }
 .peek.wide { width: 100%; }
+/* The exit (#450): a copy of the closed peek slides out to the right (prototype app.css:416-18); none under reduced motion. */
+.peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
+@keyframes pk-out { to { transform: translateX(104%); } }
+@media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } }
 .pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
 .pk-edge:hover, .pk-edge:focus-visible { background: var(--brand-cyan); opacity: .5; }
 .pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--grey-100); }
