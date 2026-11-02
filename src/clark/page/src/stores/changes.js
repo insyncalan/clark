@@ -106,17 +106,15 @@ export function restoreItem(table, id) {
   return enqueue(async () => {
     const r = await sendRestore(code, table, id);
     if (!r.ok) { say("note", r.message); return null; }
-    await reread(code);
     const step = r.reply.apply_id || null;
     if (step) itemSteps.set(step, "");
+    if (!(await reread(code)) && project.value === code) { say("problem", `${id} was restored, but the page could not be refreshed. Reload the page to see it.`, step, code); return r.reply; }
     say("done", `${id} restored.`, step, code);
     return r.reply;
   });
 }
 
-// Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). A step
-// made together with an earlier one (changeThen) takes the earlier one back after it; if the first Undo fails nothing more is
-// undone and the toast offers Undo again, and if the second fails the toast says so and offers Undo for what is left. If some rows were left as they are, the toast
+// Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). If some rows were left as they are, the toast
 // says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
 // or that it is undone.
 export function undo(applyId, code = project.value) {
