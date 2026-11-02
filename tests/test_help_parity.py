@@ -36,7 +36,6 @@ WAITS = {
     "howto-save-as-a-pdf": ("the PDF option in the Publish box", r"PDF", ("page", "src", "edit", "Publish.jsx")),
     "howto-add-people-details": ("the People card in Settings", r"[\"'>]People[\"'<]"),
     "ref-people": ("the People card in Settings", r"[\"'>]People[\"'<]"),
-    "ref-archive-restore": ("Archive and Restore for work items, milestones and documents, with Show archived", r"Show archived"),
 }
 # prototype entries the build has under another id, written for what the page does
 REPLACED = {

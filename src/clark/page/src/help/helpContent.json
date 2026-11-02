@@ -896,6 +896,26 @@
     ]
    },
    {
+    "id": "archive-restore",
+    "g": "Working with items",
+    "t": "Archive and Restore",
+    "b": [
+     [
+      "p",
+      "An archived milestone is kept, and can be put back."
+     ],
+     [
+      "ul",
+      [
+       "An archived milestone leaves the Milestones list, the counts, the Dashboard and the published page.",
+       "**Show archived** on Milestones, with the number of them in brackets, lists the archived ones in muted text, each marked **Archived**, with its agreed date and how many work items are still linked to it. A published file has no such list.",
+       "An archived milestone is read-only, with one **Restore** button. Restore is in Edit only, and is one step with **Undo**; in View the list says “To put one back, switch to Edit.”",
+       "A work item keeps its link to an archived milestone."
+      ]
+     ]
+    ]
+   },
+   {
     "id": "at-a-glance",
     "g": "Screens",
     "t": "At a glance",

@@ -98,7 +98,7 @@ class Held(unittest.TestCase):
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "section-templates", "needs-from-you", "freshness", "milestones-page", "diagnostics", "keys"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "milestones-page", "diagnostics", "keys"])
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
@@ -107,7 +107,7 @@ class Held(unittest.TestCase):
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (29, 32, 33))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (29, 33, 33))
 
 
 class AgainstThePage(unittest.TestCase):
