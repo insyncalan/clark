@@ -12,8 +12,8 @@ Same shape as test_v050.
 
 NOT YET MERGED to origin/main on 02-11-2026 (so WAITING, no test): #124 the PDF option on publishing (with its Tech Debt
 #269 and #270), #153 the one filter line for Work items (its Tech Debt #286, #287 and #305), the #130 and #132 UX sweep fixes
-beyond the Publish spinner, the tick and Publication N (phone layouts, timeline labels, the 12 px minimum), and #131 the motion
-enrichments. Merged and checked here: #120 numbered publications. The calendar (test_calendar_scales, #76) and the filter
+beyond the Publish spinner, the tick and Publication N (phone layouts, timeline labels, the 12 px minimum), #131 the motion
+enrichments and #87 the design-system sizes (PR 240, with #428 after it). Merged and checked here: #120 numbered publications. The calendar (test_calendar_scales, #76) and the filter
 line in test_filter_line are 0.4 features and are covered by test_v040, not here.
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.6.0, then fail if they are wrong.
 """
@@ -57,6 +57,16 @@ COVERED = [
     ("#120", "A Preview has no footer", "test_publication_footer::TheFooter::test_a_preview_has_no_footer"),
     ("#130", "Publishing shows a spinner and then a tick with the same words, Publication N",
      "test_publish_dialog::Dialog::test_C_publish_shows_a_spinner_while_it_works_then_a_tick_with_the_same_words"),
+    ("#243", "A quoted password or secret is no longer taken for a placeholder, so it is refused",
+     "test_secret_screen::Screen::test_the_words_password_and_secret_are_not_placeholders"),
+    ("#243", "Placeholder, redacted and example still pass as placeholders",
+     "test_secret_screen::Screen::test_placeholder_redacted_and_example_are_placeholders"),
+    ("#320", "After a failed first Undo the toast offers Undo again, and the retry takes both steps back",
+     "test_templates::Box::test_after_a_failed_first_undo_the_toast_offers_undo_again_and_the_retry_takes_both_steps_back"),
+    ("#320", "If the page cannot be read again after an Undo, the toast says to reload",
+     "test_templates::Box::test_if_the_page_cannot_be_read_again_after_an_undo_the_toast_says_to_reload"),
+    ("#320", "If the second Undo fails and the page cannot be read, the toast says to reload",
+     "test_templates::Box::test_if_the_second_undo_fails_and_the_page_cannot_be_read_the_toast_says_to_reload"),
 ]
 
 # Live: the real page. Not repeated from COVERED; these are the checks a person would make in the app itself.
@@ -72,6 +82,7 @@ WAITING = [
     ("#153", "Work items has one filter line (the '/' key focuses it in View)", "open; Tech Debt #286, #287 and #305"),
     ("#130", "Settings tables stack at phone width, the timeline labels never overlap, text is 12 px or more", "open; phone checks go through the 390 px window but the rule is desktop only, so ask before writing them"),
     ("#131", "The ten mild motion improvements keep a static change marker with reduced motion", "open"),
+    ("#87", "Text sizes follow the design-system scale", "open; PR 240 (#428 follows it)"),
 ]
 
 # (item, check, kind, why, what the person does)
