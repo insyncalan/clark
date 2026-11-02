@@ -53,7 +53,7 @@ class InEdit(Page):
             self.assertIn("No documents yet", p.js(f"document.querySelector('{sec} .tpl-empty').textContent"))
             p.js(f"[...document.querySelectorAll('{sec} button')].find(b => b.textContent === 'Add a document link').click()")
             p.until(f"!!document.querySelector('{sec} .docs-form')", "the form opened")
-            self.assertEqual(p.js("document.activeElement.id"), "doc-new-title", "the title box takes the focus")
+            p.until("document.activeElement && document.activeElement.id === 'doc-new-title'", "the title box takes the focus")
             self.set_value(p, "#doc-new-title", "Steering minutes")
             self.set_value(p, "#doc-new-kind", "Minutes")
             self.set_value(p, "#doc-new-url", "javascript:alert(1)")
@@ -116,11 +116,13 @@ class InEdit(Page):
                     p.js(f"document.documentElement.dataset.theme = '{'dark' if dark else 'light'}'")
                     p.until(f"!!document.querySelector('{sec} .docs-edit')", "the documents part drew")
                     p.js(f"document.querySelector('{sec} button[aria-label=\"Edit Plan of record\"]').focus()")
-                    p.key("Enter", vk=13)
+                    for kind in ("keyDown", "keyUp"):          # Enter on the focused button, as a person presses it
+                        cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
+                                                            **({"text": "\r"} if kind == "keyDown" else {})}, p.sid)
                     p.until("document.activeElement && document.activeElement.id.endsWith('-title')", "the form opened with the focus in it")
                     p.key("Escape", vk=27)
                     p.until(f"!document.querySelector('{sec} .docs-form')", "Esc closed it")
-                    self.assertEqual(p.js("document.activeElement.getAttribute('aria-label')"), "Edit Plan of record", "the focus went back")
+                    p.until("document.activeElement && document.activeElement.getAttribute('aria-label') === 'Edit Plan of record'", "the focus went back")
                     self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, "no sideways scroll")
                     small = p.js(f"[...document.querySelectorAll('{sec} .docs-edit button, {sec} .docs-edit summary')]"
                                  ".map(b => b.getBoundingClientRect()).filter(r => r.height && (r.height < 24 || r.width < 24)).length")
