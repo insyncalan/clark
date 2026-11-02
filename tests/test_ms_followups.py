@@ -104,7 +104,10 @@ class LegendEscape(Browser):
                     self.assertTrue(wait(lambda: cdp.js(shown, sid) == "hidden"), "Escape shuts the card")
                     self.assertTrue(cdp.js("document.activeElement.classList.contains('mlg-b')", sid), "focus is back on the Legend button")
                     self.assertTrue(cdp.js("document.querySelector('.mlg').classList.contains('mlg-shut')", sid))
-                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.mlg-p')).opacity", sid), "0", "shut card is clear")
+                    # visibility flips at once but opacity fades over a short transition (a slow machine can read it mid-fade): wait for the fade to end, then check it
+                    opacity = "getComputedStyle(document.querySelector('.mlg-p')).opacity"
+                    wait(lambda: cdp.js(opacity, sid) == "0")
+                    self.assertEqual(cdp.js(opacity, sid), "0", "shut card is clear")
                     # focus leaves the Legend, so it clears; focus back opens it again
                     cdp.js("document.querySelector('.mlg-b').blur()", sid)
                     self.assertTrue(wait(lambda: not cdp.js("document.querySelector('.mlg').classList.contains('mlg-shut')", sid)), "leaving clears the shut state")
