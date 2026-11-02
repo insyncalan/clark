@@ -236,6 +236,7 @@ class Page(Base):
             p.type("All good")
             p.key("Enter", code="Enter", vk=13)
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["note"] == "All good"))
+            p.until("!" + self.one(ref, "[data-col=tasks]") + ".disabled", "the columns are free again after the note saved")      # a click on a disabled box does nothing
             p.js(self.one(ref, "[data-col=tasks]") + ".click()")
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["columns"]["tasks"] is True))
             p.until(self.present(ref, "th.t-count"), "the Tasks column is drawn")
