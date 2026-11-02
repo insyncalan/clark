@@ -22,8 +22,8 @@ const said = signal({ text: "", n: 0 });
 const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
 
 // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
-// a menu, a dialog and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
-const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],dialog";
+// a menu, a dialog, the words box, the activity list and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
+const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],dialog,.wordsbox,.pk-activity";
 function peekOwnsArrow(e) {
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
   if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;

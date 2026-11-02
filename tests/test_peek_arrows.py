@@ -177,5 +177,24 @@ class Arrows(unittest.TestCase):
             self.assertTrue(wait(lambda: self.shown(cdp, sid) == ids[2]), "and it steps again once the menu is gone")
 
 
+    def test_a_key_in_the_words_box_or_the_activity_list_is_left_alone(self):
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            ids = self.ids_on_page(cdp, sid)
+            self.open_by_double_click(cdp, sid, ids, 1)
+            # the activity list (#289 follow-up): an arrow on one of its buttons does not step the item
+            cdp.js("(() => { const a = document.createElement('div'); a.className = 'pk-activity'; a.innerHTML = '<button id=\"pk-act-probe\">probe</button>'; document.querySelector('#peek').appendChild(a); })()", sid)
+            cdp.js("document.getElementById('pk-act-probe').focus()", sid)
+            key(cdp, sid, "ArrowDown")
+            cdp.js("new Promise(r => setTimeout(r, 100))", sid)
+            self.assertEqual(self.shown(cdp, sid), ids[1], "Down in the activity list does not step the item")
+            # the words box: a button inside it keeps its arrows too
+            cdp.js("(() => { const w = document.createElement('div'); w.className = 'wordsbox'; w.innerHTML = '<button id=\"pk-words-probe\">probe</button>'; document.querySelector('#peek').appendChild(w); })()", sid)
+            cdp.js("document.getElementById('pk-words-probe').focus()", sid)
+            key(cdp, sid, "ArrowUp")
+            cdp.js("new Promise(r => setTimeout(r, 100))", sid)
+            self.assertEqual(self.shown(cdp, sid), ids[1], "Up in the words box does not step the item")
+
+
 if __name__ == "__main__":
     unittest.main()
