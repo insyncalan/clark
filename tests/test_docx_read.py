@@ -589,7 +589,7 @@ class HostileXml(Refused):
     def test_xml_nested_too_deep(self):
         deep = "<w:r>" * 200 + "<w:t>x</w:t>" + "</w:r>" * 200
         started = time.process_time()
-        self.refused(docx(f"<w:p>{deep}</w:p>"), "can't read safely")
+        self.refused(docx(f"<w:p>{deep}</w:p>"), "could not be read safely")
         self.assertLess(time.process_time() - started, 30)  # CPU time, so a loaded machine does not count against it; a generous ceiling that a real blow-up still fails
 
     def test_xml_of_the_greatest_depth_allowed_reads(self):

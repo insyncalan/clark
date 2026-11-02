@@ -424,6 +424,8 @@ class Export(unittest.TestCase):
     def test_a_first_export_asks_for_a_folder_writes_the_file_reads_it_back_and_records_it(self):
         status, got = self.post()
         self.assertEqual((status, got["ok"], got["name"], self.asked), (200, True, self.name, [word_route.CHOOSE_FOLDER]), got)
+        self.assertEqual(got["number"], 1, got)
+        self.assertIn("It is Publication 1.", got["message"])
         data = (self.local / self.name).read_bytes()
         self.assertEqual(hashlib.sha256(data).hexdigest(), got["sha256"])
         self.assertEqual(self.files(self.local), [self.name], "no temporary file is left")

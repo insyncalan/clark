@@ -205,7 +205,7 @@ class Export(Screens):
                     p.js("document.querySelector('[data-go]').click()")
                     p.until("document.querySelector('[data-go]').innerText === 'Close'", "it was saved")
                     name = f"PUB-report-{WANTED[len('PUB-report-'):-len('.html')]}.docx"
-                    self.assertEqual(self.msg(p), f"Saved “{name}” in “Reports”.", "it says what and where")
+                    self.assertEqual(self.msg(p), f"Saved “{name}” in “Reports”. It is Publication 1.", "it says what and where")
                     self.assertEqual(self.word_files(self.reports), [name])
                     data = (self.reports / name).read_bytes()
                     self.assertTrue(data.startswith(b"PK"))
