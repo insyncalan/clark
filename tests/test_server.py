@@ -116,7 +116,10 @@ class Running:
                 conn.putheader("Host", host)
             for k, v in (headers.items() if hasattr(headers, "items") else headers or ()):      # a list of pairs may repeat a name
                 conn.putheader(k, v)
-            conn.endheaders(body)
+            try:
+                conn.endheaders(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass                      # a request over its limit is refused from its length before all of it is sent; the answer is still there to read
             r = conn.getresponse()
             return r.status, r.msg, r.read()
         finally:
@@ -427,10 +430,9 @@ class Saving(ServerTest):
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
     def test_the_change_route_limit_is_two_largest_sections_plus_4_kb(self):
-        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; a separate /api/section-body route is the later fix (Tech Debt)
+        # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405)
         from clark import section_bodies
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 135168)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
         self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
 
