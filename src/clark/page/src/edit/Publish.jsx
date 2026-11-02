@@ -1,5 +1,4 @@
-// Publish: its dialog (#43) and the last-published note in the top bar of a page clark serves (Edit parts only: a published file
-// has none). The command itself is in the profile menu (#77), which calls `open`. The dialog
+// Publish: its dialog (#43) (the last-published line is the report bar's chip, ReportBar.jsx). The command itself is in the profile menu (#77), which calls `open`. The dialog
 // is a native <dialog> opened as a modal, so Tab stays inside it and Esc cancels; it is in the page only while it is open, so
 // View has no form field in it. Local is ticked and disabled. To client is unticked every time, and disabled until the project
 // has a client folder (Settings). The words are the spec's (docs/handoff/design-43-to-client.md).
@@ -92,12 +91,9 @@ export { open as openPublish };
 export function Publish() {
   useEffect(() => { refreshLatest(); }, [project.value]);
   if (!data.value) return null;
-  const note = lastLine(latest.value);
   return (
     <>
-      <span class="pubbar">
-        {note ? <span class="pubnote num" id="pub-note">{note}</span> : null}
-      </span>
+      <span class="pubbar"></span>
       {dialog.value ? <Dialog /> : null}
     </>
   );

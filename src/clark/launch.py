@@ -89,7 +89,7 @@ def report(kind, port, folder, free=port_free):
                 f"Close that copy, then start clark again.{try_another(port, free)}")
     launcher = launcher_file() or "the clark launcher"          # the launcher file is the Mac's: general words elsewhere
     return ("Nothing was started: clark is already open in another Terminal window, or another program is using the connection it needs. "
-            f"Close that Terminal window or program, then double-click {launcher} again. If that does not help, restart your Mac.{try_another(port, free)}")
+            f"Close that Terminal window or program, then double-click {launcher} again.{try_another(port, free)}")
 
 
 def wait_for_clark(port, mark, process, seconds=START_WAIT, health=ask_health, sleep=time.sleep, clock=time.monotonic):
@@ -143,8 +143,9 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
             if seen in (OTHER_DATA, NOT_CLARK):
                 say(report(seen, port, folder, free))
             else:
-                say("It didn't start. Close this window and try again. If it still doesn't start, send the file "
-                    f"{platform.with_tilde(log)} to the clark team.")
+                say("Nothing opened, because clark did not finish starting. Close this window, then double-click "
+                    f"{launcher_file() or 'the clark launcher'} again. If it still does not start, send the file "
+                    f"{platform.with_tilde(log)} to the clark team. It records what went wrong.")
             return 1
         say("A minute after the last window closes, clark stops by itself.")
     return open_clark(address(port), say, environ, find_chrome, open_window, open_browser)
@@ -161,7 +162,7 @@ def open_clark(url, say, environ, find_chrome, open_window, open_browser):
             open_browser(url)
             say("Chrome wasn't found, so clark opened in your default browser. Install Chrome to give clark its own window.")
     except platform.PlatformError as e:
-        say(f"{e} Open this address in your browser: {url}")
+        say(f"{e} The clark server is still running. To use it, open this address in your browser: {url}")
         return 1
     return 0
 

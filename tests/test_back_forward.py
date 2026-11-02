@@ -23,11 +23,12 @@ from unittest import mock
 from _demo import USER, DemoStore
 import _testpage as testpage
 import _publish_fixture as fx
+from _real_server import real_server
 
-from clark import changes, order, publish, server as sv
+from clark import order, publish, server as sv
 from clark.store import open_store
 from test_page import navigate
-from test_server import Running, _Pipe, chrome, wait
+from test_server import _Pipe, chrome, wait
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 WATCH = ("window.errs = []; window.violations = [];"
@@ -51,16 +52,13 @@ class Editor(unittest.TestCase):
             st.create("projects", {"code": "XYZ", "name": "Second Programme", "health": "On track"})
         self.demo.action(description="Agree the cut-over plan", owner="Sam Rivers")
         self.sent = []
-        real_change = changes.make_change(self.store.path, [], USER)
-        real_undo = changes.make_undo(self.store.path, [], USER)
 
         def seam(real, which):
             def call(req):
                 self.sent.append(which)
                 return real(req)
             return call
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
-                         change=seam(real_change, "change"), undo=seam(real_undo, "undo"))
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()

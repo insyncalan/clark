@@ -7,18 +7,14 @@ file from file:// and check what is in its bytes. The clock needs no fixing: eve
 """
 import json
 import re
-import shutil
-import tempfile
 import time
 import unittest
-from pathlib import Path
 
 from _demo import USER
 from _paths import ROOT, SRC
-from test_report_editor import ALT, EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
+from _publish import PublishedFile
+from test_report_editor import ALT, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
-
-from clark import page, publish
 
 LONG = "2020-01-01"
 
@@ -411,24 +407,7 @@ class Styles(Setup):
             self.assertGreater(gap[1], gap[0], "Roomy gaps are roomier than Slim gaps")
 
 
-class Published(Setup):
-    def publish(self):
-        self.out = tempfile.mkdtemp(prefix="clark-45-")
-        self.addCleanup(shutil.rmtree, self.out, ignore_errors=True)
-        done = publish.publish(self.store, "ABC", self.out, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
-        return Path(done["path"])
-
-    def draw(self, cdp, path, width=1400, dark=False):
-        tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
-        sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
-        p = Pg(self, cdp, sid)
-        p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
-        if dark:
-            p.js("document.documentElement.dataset.theme = 'dark'")
-        return p
-
+class Published(PublishedFile, Setup):
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
