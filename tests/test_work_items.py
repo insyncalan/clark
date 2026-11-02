@@ -251,7 +251,7 @@ class RealBrowser(unittest.TestCase):
                 self.assertGreaterEqual(cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid), 16)
 
     def test_a_group_header_and_the_labels_at_390_px(self):
-        """#130 point 5: a group header row is a block as wide as the cards, and only the five td cells carry a label, in order, at 13 px."""
+        """#130 point 5: a group header row is a block as wide as the cards, and only the five td cells carry a label, in order, at the small size (14 px)."""
         s = self.serve()
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 390, "#work&p=TUL&f=mode:all")
@@ -277,7 +277,7 @@ class RealBrowser(unittest.TestCase):
             texts = cdp.js("(() => { const tr = document.querySelector('#work tbody tr[data-id]'); return [...tr.children].map(td => { const r = td.getBoundingClientRect(); return [td.className.split(' ')[0], getComputedStyle(td, '::before').content, getComputedStyle(td, '::before').fontSize, Math.round(r.top), r.left]; })"
                            ".filter(x => x[1] !== 'none' && x[1] !== 'normal').sort((p, q) => p[3] - q[3] || p[4] - q[4]).map(x => x.slice(0, 3)); })()", sid)
             self.assertEqual([(a, b) for a, b, _ in texts], [("c-type", '"Type"'), ("c-owner", '"Owner"'), ("c-status", '"Status"'), ("c-due", '"Due"'), ("c-prio", '"Priority"')])
-            self.assertTrue(all(c == "13px" for _, _, c in texts), "labels are 13 px")
+            self.assertTrue(all(c == "14px" for _, _, c in texts), "labels are 14 px (the small size)")
 
     def test_the_phone_rules_leave_900_and_1400_px_as_a_table(self):
         s = self.serve()
