@@ -442,6 +442,7 @@ class InProcess(TempFolder):
         (fx.data / "clark.db").unlink()                      # clark makes a real one on start
         marker = fx.begin()
         doc = json.loads(marker.read_text(encoding="utf-8"))
+        doc["started_at"] -= 120       # an old marker: a stopped update, not a hand-over just begun
         doc.update(marker_changes)
         marker.write_text(json.dumps(doc), encoding="utf-8")
         return fx, marker
@@ -463,11 +464,33 @@ class InProcess(TempFolder):
         self.assertEqual(serve.calls, [])
 
     def test_the_server_the_helper_starts_goes_on_while_the_marker_is_there(self):
-        fx, marker = self.stopped_update(phase="started", helper_pid=os.getpid())
+        fx, marker = self.stopped_update(phase="started", helper_pid=os.getpid(),
+                                         helper_ident=__import__("clark.update_helper", fromlist=["x"]).Seams().identity(os.getpid()))
         code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
         self.assertEqual((code, err), (0, ""))
         self.assertTrue(marker.exists())                     # the helper's to remove, not the server's
         self.assertEqual(len(serve.calls), 1)
+
+    def test_a_recycled_process_id_is_not_the_helper(self):
+        # LOW 2 of #473: the helper crashed in the started phase and its id now belongs to another program (alive, but not the
+        # helper): a start by hand must finish the update, not skip it
+        fx, marker = self.stopped_update(phase="started", helper_pid=os.getpid(), helper_ident="proc:not-this-process")
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual(code, 0, err)
+        self.assertFalse(marker.exists())
+        self.assertIn("The last update stopped part way, so the old version was put back.", err)
+
+    def test_a_just_begun_hand_over_is_not_rolled_back_by_a_second_start(self):
+        # LOW 3 of #473, through the launcher path: phase "staged", no helper yet, written a moment ago
+        fx, marker = self.stopped_update()
+        doc = json.loads(marker.read_text(encoding="utf-8"))
+        doc["started_at"] += 120
+        marker.write_text(json.dumps(doc), encoding="utf-8")
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual(code, 1)
+        self.assertTrue(marker.exists())
+        self.assertIn("An update is still being installed.", err)
+        self.assertEqual(serve.calls, [])
 
     def test_the_launchers_own_store_is_closed_before_serving_so_a_restore_can_take_the_file(self):
         """#111: an open connection would make Restore say another program has the data open; data_for opens its own each time."""

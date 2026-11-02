@@ -21,6 +21,7 @@ import sys
 import tempfile
 import textwrap
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -97,6 +98,13 @@ class Fixture:
     def begin(self, check=True, **kw):
         return h.begin(self.data, self.app, self.staging, STAMP, "0.3.0", "0.3.1", 2, 4321, 8765, "X-Clark-Mark", "mark-1",
                        backup_dir=str(self.data / "updates" / "backup"), check=check, **kw)
+
+
+def age_marker(path, seconds=120):
+    """Make the marker look `seconds` old, so --finish treats it as a stopped update and not a hand-over only just begun (#473)."""
+    m = json.loads(Path(path).read_text(encoding="utf-8"))
+    m["started_at"] = time.time() - seconds
+    Path(path).write_text(json.dumps(m), encoding="utf-8")
 
 
 def snapshot(base):
@@ -574,7 +582,7 @@ class KillTest(unittest.TestCase):
             fx = Fixture(t)
             script = Path(t) / "kill_helper.py"
             script.write_text(KILL_SCRIPT, encoding="utf-8")
-            fx.begin()
+            age_marker(fx.begin())
             done = subprocess.run([sys.executable, "-I", str(script), str(SRC), str(h.marker_path(fx.data)), point, boom],
                                   capture_output=True, timeout=60)
             self.assertEqual(done.returncode, -signal.SIGKILL, (point, done.stderr[-300:]))
@@ -611,7 +619,7 @@ class FinishTest(unittest.TestCase, PlainWordsMixin):
             fx = Fixture(t)
             run_with(fx, Once("health"), None)           # a clean rollback leaves no marker: build a stopped update instead
             fx2 = Fixture(tempfile.mkdtemp(dir=t))
-            fx2.begin()
+            age_marker(fx2.begin())
             seams = FakeSeams()
             code, result = h.finish(fx2.data, seams)
             self.assertEqual((code, result["status"]), (h.ROLLED_BACK, "rolled_back"))
@@ -640,6 +648,51 @@ class FinishTest(unittest.TestCase, PlainWordsMixin):
             self.assertEqual((code, result["message"]), (h.BUSY, h.MESSAGES["busy"]))
             self.assertTrue(path.exists())
             self.assertPlain(result["message"])
+
+    def test_finish_ignores_a_live_process_that_is_not_the_helper(self):
+        # LOW 2 of #473: the helper crashed and its id was given to another program, alive but not the helper
+        class Other(FakeSeams):
+            def identity(self, pid):
+                return "proc:another"
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            path = fx.begin()
+            m = json.loads(path.read_text(encoding="utf-8"))
+            m.update(helper_pid=99999, helper_ident="proc:the-helper", started_at=time.time() - 300)
+            path.write_text(json.dumps(m), encoding="utf-8")
+            self.assertEqual(Other(gone=False).helper_running(99999, "proc:the-helper"), False)
+            code, result = h.finish(fx.data, Other(gone=False))
+            self.assertEqual((code, result["status"]), (h.ROLLED_BACK, "rolled_back"))
+            self.assertFalse(path.exists())
+
+    def test_the_helper_records_who_it_is_so_a_recycled_id_can_be_told(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            path = fx.begin()
+            seen = {}
+
+            class Spy(FakeSeams):
+                def identity(self, pid):
+                    return "proc:me" if pid == os.getpid() else None
+            run = h.Run(path, Spy(), None, None, None)
+            run.s_ready()
+            seen = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual((seen["helper_pid"], seen["helper_ident"]), (os.getpid(), "proc:me"))
+
+    def test_a_marker_only_just_staged_is_a_hand_over_in_progress_not_a_stopped_update(self):
+        # LOW 3 of #473: a second launch in the staged window must not roll the hand-over back
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            path = fx.begin()
+            seams = FakeSeams()
+            code, result = h.finish(fx.data, seams)
+            self.assertEqual((code, result["message"]), (h.BUSY, h.MESSAGES["busy"]))
+            self.assertTrue(path.exists())
+            self.assertEqual(snapshot(fx.app), fx.before)
+            age_marker(path, h.STAGED_GRACE + 5)               # a minute on, still staged: it did stop, so it is put back
+            code, result = h.finish(fx.data, seams)
+            self.assertEqual((code, result["status"]), (h.ROLLED_BACK, "rolled_back"))
+            self.assertFalse(path.exists())
 
     def test_the_command_line(self):
         with tempfile.TemporaryDirectory() as t:
@@ -798,7 +851,7 @@ class HelperCopyTest(unittest.TestCase):
     def test_finish_works_from_the_copied_folder_alone(self):
         with tempfile.TemporaryDirectory() as t:
             fx = Fixture(t)
-            fx.begin()
+            age_marker(fx.begin())
             folder = h.updates_dir(fx.data) / ("helper-" + STAMP)
             alone = Path(t) / "elsewhere"
             alone.mkdir()

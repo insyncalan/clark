@@ -34,7 +34,7 @@ removed by cleanup_old() once the new version has answered; `update.log` in the 
 home folder written ~, and is started again past 1 MB.
 
 The things that differ between computers are in one small class, Seams (here the Mac and Linux way): is_link, make_executable,
-free_space, helper_python, rename, process_gone, port_free, stop_process, start_server, server_answers, check_install. The
+free_space, helper_python, rename, process_gone, helper_running, port_free, stop_process, start_server, server_answers, check_install. The
 platform module will fill the same names for Windows; tests pass their own. A sentence a person reads never starts with the
 product name, and holds no file path except the log's, and none of the words zip, manifest or SHA.
 """
@@ -61,6 +61,7 @@ except ImportError:
     fcntl = None
 
 MARKER_NAME = ".installing.json"
+STAGED_GRACE = 60          # seconds: a marker still "staged" this soon after it was written is a hand-over in progress, not a stopped update
 PLATFORM_COPY = "clark_platform.py"
 HELPER_PREFIX = "helper-"
 LOG_NAME = "update.log"
@@ -203,6 +204,14 @@ class Seams:
         except PermissionError:
             return False
         return False
+
+    def helper_running(self, pid, ident):
+        """Whether the helper that wrote `pid` is still running: the id is alive AND, when an identity was recorded, it is still
+        the same process (a recycled id belongs to another program and is not the helper). A marker with no recorded identity
+        counts by the id alone, the careful way: a live helper is never rolled back from under itself."""
+        if self.process_gone(pid):
+            return False
+        return not ident or self.identity(pid) == ident
 
     def port_free(self, port):
         if not port:
@@ -778,7 +787,7 @@ class Run:
         return self.app / name
 
     def s_ready(self):
-        self.save(phase="ready", helper_pid=os.getpid())
+        self.save(phase="ready", helper_pid=os.getpid(), helper_ident=self.seams.identity(os.getpid()))
 
     def s_wait_server(self):
         end = self.seams.clock() + WAIT_CLOSE_SECONDS
@@ -1084,8 +1093,11 @@ def finish(data_dir, seams=None, fault=None, trace=None, home=None):
     except (OSError, ValueError):
         return NOT_RESTORED, {"status": "not_restored", "message": MESSAGES["not_restored"].format(log=tilde(updates_dir(data_dir) / LOG_NAME, home))}
     pid = run.m.get("helper_pid")
-    if pid and pid != os.getpid() and not run.seams.process_gone(pid):
+    if pid and pid != os.getpid() and run.seams.helper_running(pid, run.m.get("helper_ident")):
         return BUSY, {"status": "busy", "message": MESSAGES["busy"]}
+    started = run.m.get("started_at")
+    if run.m.get("phase") == "staged" and not pid and isinstance(started, (int, float)) and 0 <= time.time() - started < STAGED_GRACE:
+        return BUSY, {"status": "busy", "message": MESSAGES["busy"]}      # the hand-over is only just starting: not a stopped update
     return rollback_and_report(run, "finished", "finished after a stop", restart=False, finished=True)
 
 
