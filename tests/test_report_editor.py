@@ -18,6 +18,7 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from _editor_checks import edit_elements
+from _real_server import real_server
 from _paths import SRC, TOOLS
 import _testpage as testpage
 
@@ -110,6 +111,11 @@ class Pg:
     def toast(self):
         return wait_toast(lambda: self.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
 
+    def toast_is(self, text):
+        """Wait until the toast on screen says `text`. Use it where the toast read next is the second in a test: an earlier toast is
+        still showing, and toast() would return that one at once."""
+        self.until(f"((document.querySelector('.toast-text') || {{}}).textContent || '') === {json.dumps(text)}", f"the toast says: {text}")
+
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
@@ -176,8 +182,7 @@ class Base(unittest.TestCase):
         self.real_undo = changes.make_undo(self.store.path, [], USER)
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
-                         change=self.seam(self.real_change, "change"), undo=self.seam(self.real_undo, "undo"))
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)               # a fault on purpose is logged by the server
         quiet.start()
@@ -419,6 +424,7 @@ class Sections(Base):
             self.assertTrue(p.js(hidden), "only the step that was undone")
             p.menu("ABC-S-002", "show")
             p.until("!" + hidden, "Show brings it back")
+            p.toast_is("Section included in the published page.")
             self.assertEqual(p.toast(), "Section included in the published page.")
 
     def test_rename_in_place_as_plain_text(self):
@@ -730,6 +736,7 @@ class Sections(Base):
             p.key("ArrowUp", ALT, code="ArrowUp", vk=38)               # the second half goes just above the pair; the first is alone
             p.until("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", "stepped out")
             self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-006": 0})
+            p.toast_is("Moved Next week up.")
             self.assertEqual(p.toast(), "Moved Next week up.")
             self.assertTrue(wait(lambda: on("ABC-S-007"), 5))
             p.js("document.querySelector('[data-id=\"ABC-S-011\"] [data-drag]').focus()")
