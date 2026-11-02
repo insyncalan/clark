@@ -184,6 +184,73 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_a_bare_password_word_and_a_quoted_word_on_the_next_line_are_not_joined_into_a_hit(self):
+        """The text is also read with its line breaks taken out. A password word at the end of a line and a quoted word that
+        starts the next one are two lines of ordinary text; a key word cut in two by a break, and a connector, are still caught."""
+        word = "orange" + "bicycle"
+        for text in ('Forgot password \n"Continue"', 'Enter your password \r\n"Continue" to go on', 'Reset the password \n\n`Confirm`'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+        for text in ('pass\nword "%s"' % word, 'pass\nword \n"%s"' % word, 'pass\r\nword: "%s"' % word,
+                     'password:\n"%s"' % word, 'the password is\n"%s"' % word, "the secret =\n'%s'" % word):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+
+    ORDINARY = ("Secretary 'Clinton' arrived", 'the secret "ingredient"', 'password: "string"', 'click "Forgot password" "Submit"',
+                'Forgot password \n"Continue"', "the password policy is reviewed each year")
+    REFUSED = ('password: "Sunshine"', 'password is "orangebicycle"', 'DB_PASSWORD="orangebicycle"', 'client_secret: "abcdefgh"',
+               'pass\nword "orangebicycle"', "pass" + "word=" + PW, 'password is "contrase\u00f1a"')
+
+    def test_base64_text_gets_the_same_checks_as_plain_text_both_ways(self):
+        """Ordinary text passes in base64 as it does plain, and each text that is refused plain is refused in base64: on its own, with
+        text around it, with its padding left off, inside two layers of base64, and with its characters %-escaped."""
+        import base64
+        import urllib.parse
+
+        def b64(text):
+            return base64.b64encode(text.encode()).decode()
+        for text in self.ORDINARY:
+            with self.subTest("ordinary " + text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+                self.assertFalse(secret_screen.looks_like_secret(b64(text)))
+                self.assertFalse(secret_screen.looks_like_secret("Notes.\n" + b64("so we know " + text + " in full") + "\n(more notes)"))
+        for text in self.REFUSED:
+            with self.subTest("refused " + text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+                self.assertTrue(secret_screen.looks_like_secret(b64(text)))
+                self.assertTrue(secret_screen.looks_like_secret("Notes.\n" + b64("so we know " + text + " in full") + "\n(more notes)"))
+                self.assertTrue(secret_screen.looks_like_secret(b64(b64(text))))
+                self.assertTrue(secret_screen.looks_like_secret(b64("so we know " + urllib.parse.quote(text, safe="") + " in full")))
+        self.assertTrue(secret_screen.looks_like_secret(b64('password: "Sunshine"').rstrip("=")))
+
+    def test_a_base64_run_that_ends_mid_group_is_still_read_to_its_end(self):
+        """A run stops at "=", so its last group may be short; the last characters hold the quoted word's closing quote."""
+        import base64
+        for tail in ("", " ", "  "):                             # one, none and two characters of padding
+            encoded = base64.b64encode(('password: "Sunshine"' + tail).encode()).decode()
+            with self.subTest(tail=len(tail)):
+                self.assertTrue(secret_screen.looks_like_secret(encoded.rstrip("=")))
+                self.assertTrue(secret_screen.looks_like_secret(encoded))
+
+    def test_base64_of_a_key_word_cut_by_a_break_and_of_a_heading_line_follow_the_plain_rules(self):
+        import base64
+        self.assertTrue(secret_screen.looks_like_secret(base64.b64encode(b'a note.\npass\nword "orangebicycle"').decode()))
+        self.assertFalse(secret_screen.looks_like_secret(base64.b64encode(b'Forgot password \n"Continue" to go on').decode()))
+
+    def test_base64_inside_base64_is_read_a_few_levels_down_and_refused_past_that(self):
+        import base64
+        text = 'password: "Sunshine"'
+        for levels in range(1, secret_screen.MAX_DEPTH + 1):
+            text_n = text
+            for _ in range(levels):
+                text_n = base64.b64encode(text_n.encode()).decode()
+            with self.subTest(levels=levels):
+                self.assertTrue(secret_screen.looks_like_secret(text_n))
+        deep = "so we know the weather is fine today"
+        for _ in range(secret_screen.MAX_DEPTH + 2):
+            deep = base64.b64encode(deep.encode()).decode()
+        self.assertTrue(secret_screen.looks_like_secret(deep))                              # too deep to read: left out
+
     def test_a_letters_only_value_in_another_alphabet_of_letters_is_refused(self):
         self.assertTrue(secret_screen.looks_like_secret('password is "contrase\u00f1a"'))
 
@@ -208,7 +275,7 @@ class Screen(unittest.TestCase):
                            ("Russian", "пар" + "оль: " + PW), ("Arabic", "كلمة " + "المرور: " + PW),
                            ("short secret key", "SECRET" + "_KEY=" + "ab12cd34ef56gh7")):
             with self.subTest(name):
-                self.assertTrue(secret_screen.looks_like_secret("Notes.\n" + text + "\nMore notes."))
+                self.assertTrue(secret_screen.looks_like_secret("Notes.\n" + text + "\n(more notes)"))
 
     def test_a_secret_in_a_file_name_is_caught(self):
         for name in ("notes-pass" + "word-" + PW.replace("-", "") + ".txt", "pass" + "word=" + PW + ".md"):
