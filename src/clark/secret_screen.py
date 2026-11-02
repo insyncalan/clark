@@ -285,8 +285,11 @@ def _in_base64_at(text, depth):
 
 
 def _cut_bare(text):
-    """The bare form (`password "<letters>"`) in text whose line breaks are taken out, counted only when a break cut the key word
-    itself ("pass", a break, then `word "orangebicycle"`); a break next to the space or the quote is just the end of a line."""
+    """The bare form (`password "<letters>"`) in text whose line breaks are taken out, counted when a break sits anywhere inside the hit:
+    in the key word ("pass", a break, then `word "orangebicycle"`) or between the key word and the quoted word (`my password`, a
+    line break (CRLF, blank lines, trailing spaces), `"orangebicycle"`). A break that only ends the line before the key word or
+    follows the quote is not inside the hit. Refused on purpose, as the text as written was refused before #340: `Forgot password`
+    at the end of a line with a quoted word starting the next cannot be told apart from a password written over two lines."""
     parts = _BREAKS.split(text)
     if len(parts) < 2:
         return False
@@ -295,7 +298,7 @@ def _cut_bare(text):
         at += len(part)
         cuts.append(at)
     for m in _LETTERS.finditer("".join(parts)):
-        if m.start("kw") >= 0 and bisect.bisect_right(cuts, m.start("kw")) < bisect.bisect_left(cuts, m.end("kw")):
+        if m.start("kw") >= 0 and bisect.bisect_right(cuts, m.start("kw")) < bisect.bisect_left(cuts, m.end()):
             return True
     return False
 

@@ -215,22 +215,27 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
-    def test_a_bare_password_word_and_a_quoted_word_on_the_next_line_are_not_joined_into_a_hit(self):
-        """The text is also read with its line breaks taken out. A password word at the end of a line and a quoted word that
-        starts the next one are two lines of ordinary text; a key word cut in two by a break, and a connector, are still caught."""
+    def test_a_bare_password_word_and_a_quoted_word_on_the_next_line_stay_refused(self):
+        """A key word and a quoted word split by a line break (CRLF, blank lines, trailing spaces) are refused, as they were before #340.
+        The Head decided (02-11-2026) that this refusal wins over the false refusal of `Forgot password` ending a line with a quoted word
+        starting the next, which cannot be told apart from `my password` and `"orangebicycle"` on two lines; those three strings were
+        accepted by #340's first version and are refused on purpose. A key word cut in two by a break and a connector are caught too."""
         word = "orange" + "bicycle"
-        for text in ('Forgot password \n"Continue"', 'Enter your password \r\n"Continue" to go on', 'Reset the password \n\n`Confirm`'):
-            with self.subTest(text):
-                self.assertFalse(secret_screen.looks_like_secret(text))
-        for text in ('pass\nword "%s"' % word, 'pass\nword \n"%s"' % word, 'pass\r\nword: "%s"' % word,
-                     'password:\n"%s"' % word, 'the password is\n"%s"' % word, "the secret =\n'%s'" % word):
+        for text in ('my password \n"%s"' % word, 'The password \r\n"%s"' % word, 'pwd \n"%s"' % word, 'password \n\n"%s"' % word,
+                     'password   \r\n\r\n"%s"' % word,
+                     'Forgot password \n"Continue"', 'Enter your password \r\n"Continue" to go on', 'Reset the password \n\n`Confirm`',
+                     'pass\nword "%s"' % word, 'pass\nword \n"%s"' % word, 'pass\r\nword: "%s"' % word,
+                     'password:\n"%s"' % word, 'the password is\n"%s"' % word, "the secret =\n'%s'" % word, "secret =\n'%s'" % word):
             with self.subTest(text):
                 self.assertTrue(secret_screen.looks_like_secret(text))
+        for text in ('click "Forgot password" "Submit"', 'a password\nis kept elsewhere\n"Continue"'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
 
     ORDINARY = ("Secretary 'Clinton' arrived", 'the secret "ingredient"', 'password: "string"', 'click "Forgot password" "Submit"',
-                'Forgot password \n"Continue"', "the password policy is reviewed each year")
+                "the password policy is reviewed each year")
     REFUSED = ('password: "Sunshine"', 'password is "orangebicycle"', 'DB_PASSWORD="orangebicycle"', 'client_secret: "abcdefgh"',
-               'pass\nword "orangebicycle"', "pass" + "word=" + PW, 'password is "contrase\u00f1a"')
+               'pass\nword "orangebicycle"', 'my password \n"orangebicycle"', "pass" + "word=" + PW, 'password is "contrase\u00f1a"')
 
     def test_base64_text_gets_the_same_checks_as_plain_text_both_ways(self):
         """Ordinary text passes in base64 as it does plain, and each text that is refused plain is refused in base64: on its own, with
@@ -314,7 +319,7 @@ class Screen(unittest.TestCase):
     def test_base64_of_a_key_word_cut_by_a_break_and_of_a_heading_line_follow_the_plain_rules(self):
         import base64
         self.assertTrue(secret_screen.looks_like_secret(base64.b64encode(b'a note.\npass\nword "orangebicycle"').decode()))
-        self.assertFalse(secret_screen.looks_like_secret(base64.b64encode(b'Forgot password \n"Continue" to go on').decode()))
+        self.assertTrue(secret_screen.looks_like_secret(base64.b64encode(b'Forgot password \n"Continue" to go on').decode()))   # refused on purpose
 
     def test_base64_inside_base64_is_read_a_few_levels_down_and_refused_past_that(self):
         import base64
