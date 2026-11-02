@@ -304,12 +304,23 @@ class Changed(unittest.TestCase):
         self.assertEqual(set(run_tests.GUARDED), {"src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py",
                                                    "src/clark/server.py", ".github/workflows/tests.yml",
                                                    "src/clark/updates.py", "vendor/ed25519_verify/", "src/clark/update_helper.py",
-                                                   "src/clark/update_install.py", "dev/tools/sign_release.py"})
+                                                   "src/clark/update_install.py", "dev/tools/sign_release.py",
+                                                   "dev/tools/ed25519_sign.py", "tests/test_update_signature.py"})
         for p in run_tests.GUARDED:
             with self.subTest(p):
                 self.assertEqual(self.chosen([p]), every)
         _, why = run_tests.choose(self.files, ["src/clark/server.py"], repo=self.repo)
         self.assertIn("can reach any test", why)
+
+    def test_every_guarded_update_file_has_an_owner_in_codeowners(self):
+        # #473 LOW 4: the trust chain, its signing tool and the pin test cannot change without the owner's review
+        owners = {ln.split()[0] for ln in (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8").splitlines()
+                  if ln.strip() and not ln.startswith("#")}
+        for path in run_tests.GUARDED:
+            if path.startswith(("src/clark/update", "vendor/ed25519", "dev/tools/sign_release", "dev/tools/ed25519",
+                                "tests/test_update")):
+                with self.subTest(path):
+                    self.assertIn("/" + path, owners)
 
     def test_the_real_repo(self):
         files, why = run_tests.choose(everything(), ["src/clark/milestones.py"])

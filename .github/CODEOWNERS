@@ -15,3 +15,5 @@
 /src/clark/update_helper.py @insyncalan
 /src/clark/update_install.py @insyncalan
 /dev/tools/sign_release.py @insyncalan
+/tests/test_update_signature.py @insyncalan
+/dev/tools/ed25519_sign.py @insyncalan
