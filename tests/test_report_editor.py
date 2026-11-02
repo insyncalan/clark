@@ -250,7 +250,7 @@ class Modes(Base):
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
-            quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
+            quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
             self.assertEqual(p.js(quiet), want, "View: one plain line, the same for every type that draws no rows")
@@ -259,9 +259,10 @@ class Modes(Base):
             p.edit()
             found = edit_elements(cdp, p.sid)
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
-                want_n = 11 + (3 if "plaintext-only" in what else 0)        # a title for each section; and the client wording of each of the three seeded rows (A-D5)
-                self.assertEqual(len([f for f in found if what in f]), want_n, what)
-            self.assertEqual(p.js(quiet), want, "Edit: the same line")
+                self.assertEqual(len([f for f in found if what in f]), 11, what)        # a title for each section; the three seeded rows have no client wording to edit
+            sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
+            self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
+            self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
             self.assertEqual(p.js(texts), [QUIET] * 4, "Edit: the four text sections keep the old line (their editor is a later item)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
