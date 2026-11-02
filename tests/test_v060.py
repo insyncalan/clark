@@ -20,7 +20,10 @@ The cut checks (version, release notes, hand-check sheet) skip until the cut com
 import ast
 import pathlib
 import re
+import sqlite3
+import subprocess
 import unittest
+from pathlib import Path
 
 from _paths import ROOT, SRC
 
@@ -234,6 +237,275 @@ class Walk(unittest.TestCase):
 
 
 _skips()
+
+
+# ===== ROWS FROM OTHER TEAMS: extra rows (#131, #87, #559, #120, #495) =====
+
+PAGE = SRC / "clark" / "page"
+SHELL = PAGE / "shell.css"
+TOKENS = SRC / "clark" / "brand" / "tokens.css"
+
+
+def read(path):
+    return Path(path).read_text(encoding="utf-8")
+
+
+def pending(case, pr, path, marker):
+    """Skip `case` while PR `pr` is not merged: its marker string is not yet in the file `path`."""
+    path = Path(path)
+    if not path.is_file() or marker not in read(path):
+        case.skipTest(f"PENDING = 'PR {pr}': not merged yet (looking for {marker!r} in {path.name}); this row runs once it lands")
+
+
+def block(css, opener):
+    """The text of the first {...} block that starts at `opener` in `css`, braces balanced."""
+    start = css.index(opener)
+    depth, i = 0, css.index("{", start)
+    for j in range(i, len(css)):
+        depth += css[j] == "{"
+        depth -= css[j] == "}"
+        if depth == 0:
+            return css[start:j + 1]
+    raise AssertionError("unbalanced braces after " + opener)
+
+
+def motion_block(css):
+    """The Motion block: the @media (prefers-reduced-motion: no-preference) block that holds the m-glow animation."""
+    opener, at = "@media (prefers-reduced-motion: no-preference)", 0
+    while True:
+        at = css.index(opener, at)
+        found = block(css[at:], opener)
+        if "m-glow" in found:
+            return found
+        at += len(opener)
+
+
+def rule(css, selector):
+    """The declarations of the first rule whose selector list is exactly `selector`, or None."""
+    m = re.search(r"(?m)^\s*" + re.escape(selector) + r"\s*\{([^}]*)\}", css)
+    return m.group(1) if m else None
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# #131 (PR 178): ten mild motions
+# --------------------------------------------------------------------------------------------------------------------
+class Motion131(unittest.TestCase):
+    PENDING = "PR 178"
+    MOTION = PAGE / "src" / "stores" / "motion.js"
+
+    def need(self):
+        pending(self, 178, self.MOTION, "export function reduced")
+
+    def test_131_1_every_motion_sits_inside_the_reduced_motion_gate(self):
+        self.need()
+        css = read(SHELL)
+        gate = motion_block(css)
+        outside = css.replace(gate, "")
+        self.assertIn(':root:not([data-motion="reduce"])', gate, "the gate also honours clark's own Reduce motion setting")
+        self.assertEqual(re.findall(r"animation:\s*m-[a-z-]+", outside), [], "a motion animation outside the gate")
+        self.assertEqual(re.findall(r"@keyframes\s+m-[a-z-]+", outside), [], "a motion keyframe outside the gate")
+        self.assertIn("m-glow", gate)
+
+    def test_131_2_the_handle_hint_is_per_page_load_and_stores_nothing(self):
+        self.need()
+        js = read(self.MOTION)
+        for banned in ("localStorage", "sessionStorage", "indexedDB", "document.cookie", "fetch(", "XMLHttpRequest"):
+            self.assertNotIn(banned, js, "the hint must not store or send anything")
+        self.assertRegex(js, r"let [^;]*\barmed\b", "an in-memory flag, so the hint shows once per page load")
+        self.assertIn("if (armed) return;", js)
+        self.assertIn("nothing is stored", js)
+
+    def test_131_3_the_changed_row_mark_is_a_static_tint_and_moves_in_no_way(self):
+        self.need()
+        css = read(SHELL)
+        outside = css.replace(motion_block(css), "")
+        for sel in (".sec.is-changed", "table.items tr.changed td", ".msl-row.changed"):
+            body = rule(outside, sel)
+            self.assertIsNotNone(body, sel + " has a plain rule outside the motion block")
+            self.assertIn("var(--status-amber-tint)", body, sel)
+            self.assertNotRegex(body, r"animation|transition|transform", sel + " is still")
+        self.assertIn('"Changed"', read(PAGE / "src" / "stores" / "changed.js"), "the word, so colour and motion are not the only signal")
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# #87 (PR 240, merged): the size scale
+# --------------------------------------------------------------------------------------------------------------------
+class Sizes87(unittest.TestCase):
+    # px font sizes that are allowed in shell.css: the display figures and the older panels, each by the start of its selector.
+    ALLOWED = (".tile .n", ".fig .v", ".tr-", "table.tracker", ".hp-", ".cp-m", ".ucp-body")
+
+    def need(self):
+        pending(self, 240, TOKENS, "--size-body: 16px")        # merged on main; runs once this branch has main merged in
+
+    def test_87_1_the_size_scale_is_in_tokens_css(self):
+        self.need()
+        css = read(TOKENS)
+        want = {"body": 16, "caption": 13, "small": 14, "h3": 20, "h2": 24, "h1": 30, "display": 40}
+        for name, px in want.items():
+            self.assertRegex(css, rf"--size-{name}:\s*{px}px", f"--size-{name} is {px}px")
+        self.assertRegex(css, r"--leading:\s*1\.5")
+
+    def test_87_2_no_px_font_size_is_left_in_shell_css_outside_the_allowed_list(self):
+        self.need()
+        left = []
+        for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", read(SHELL), flags=re.S)):
+            selector, body = m.group(1).strip(), m.group(2)
+            if re.search(r"font-size:\s*[0-9.]+px", body) and not any(s.lstrip(" @{}").startswith(self.ALLOWED) or
+                                                                        any(part.strip().startswith(self.ALLOWED) for part in selector.split(",")) for s in [selector]):
+                left.append(selector[-60:])
+        self.assertEqual(left, [], "use var(--size-*) for these, or add the display figure to ALLOWED with a reason")
+
+    def test_87_3_the_dialog_padding_is_on_the_space_token(self):
+        self.need()
+        css = read(SHELL)
+        form = rule(css, ".dlg-form")
+        self.assertIsNotNone(form)
+        self.assertRegex(form, r"padding:\s*[^;]*var\(--space-5\)")
+        self.assertRegex(rule(css, ".dlg-f"), r"gap:\s*var\(--space-2\)")
+        self.assertIn("var(--size-caption)", rule(css, ".dlg-sub"))
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# #559 (PR 378): no client report tab on the served page
+# --------------------------------------------------------------------------------------------------------------------
+class ServedTabs559(unittest.TestCase):
+    REPORT = PAGE / "src" / "stores" / "report.js"
+
+    def test_559_1_the_served_page_offers_no_clientreport_tab(self):
+        pending(self, 378, self.REPORT, "SERVED_TABS")
+        js = read(self.REPORT)
+        self.assertRegex(js, r'SERVED_TABS\s*=\s*VIEWS\.filter\(\(v\) => v !== "clientreport"\)')
+        self.assertRegex(js, r"export const tabs = signal\(SERVED_TABS\)")
+        self.assertIn('start.view === "clientreport" ? "dashboard"', js, "its address opens the first tab")
+
+    def test_559_2_a_published_file_lists_it_as_weekly_snapshot(self):
+        js = read(self.REPORT)
+        self.assertIn('fromFile.value ? "Weekly snapshot"', js, "the file's own name for the tab")
+        self.assertIn("tabs.value = VIEWS.filter((v) => p.tabs.includes(v))", js, "a file lists the tabs it was given")
+        self.assertIn('tabs.append("clientreport")', read(SRC / "clark" / "publish.py"), "a published file is given the tab")
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# #120 (PR 165, merged): publication numbers
+# --------------------------------------------------------------------------------------------------------------------
+class Numbers120(unittest.TestCase):
+    SHA = "a" * 64
+
+    def test_120_1_the_three_triggers_exist_in_the_schema(self):
+        schema = read(SRC / "clark" / "schema.sql")
+        for name in ("publications_no_delete", "publications_number_fixed", "publications_never_replaced"):
+            self.assertRegex(schema, rf"CREATE TRIGGER IF NOT EXISTS {name}\b", name)
+        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 10\b")
+
+    def test_120_2_a_number_is_fixed_and_never_reused(self):
+        schema = read(SRC / "clark" / "schema.sql")
+        con = sqlite3.connect(":memory:")
+        self.addCleanup(con.close)
+        con.executescript(schema)
+        con.execute("PRAGMA foreign_keys = OFF")        # the project row is not the point here; the triggers are
+        add = ("INSERT INTO publications (project, local_path, file_sha256, checks, by_user, number) "
+               "VALUES ('ABC', '/x/y.html', ?, 'not needed', 'u', ?)")
+        con.execute(add, (self.SHA, 1))
+        for sql in ("UPDATE publications SET number = 9", "DELETE FROM publications"):
+            with self.assertRaises(sqlite3.DatabaseError, msg=sql):
+                con.execute(sql)
+        with self.assertRaises(sqlite3.DatabaseError, msg="the same number again"):
+            con.execute(add, (self.SHA, 1))
+        with self.assertRaises(sqlite3.DatabaseError, msg="REPLACE"):
+            con.execute(add.replace("INSERT", "INSERT OR REPLACE"), (self.SHA, 1))
+        con.execute(add, (self.SHA, 2))
+        self.assertEqual([r[0] for r in con.execute("SELECT number FROM publications ORDER BY seq")], [1, 2])
+
+    def test_120_3_the_footer_text_is_in_the_page_and_the_published_file_carries_the_number(self):
+        app = read(PAGE / "src" / "components" / "App.jsx")
+        self.assertIn('id="publication-footer"', app)
+        self.assertIn("Publication {publication.value}", app)
+        self.assertIn("View only.", app)
+        self.assertIn("Published ${plainDate(asAt.value)}. ", app)
+        self.assertIn('block["publication"] = {"n": number}', read(SRC / "clark" / "publish.py"))
+        self.assertIn(".pubfoot", read(SHELL))
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# #495 (PR 363): the generated pages are built, not committed
+# --------------------------------------------------------------------------------------------------------------------
+class GeneratedPages495(unittest.TestCase):
+    PAGES = ("src/clark/page/page.html", "src/clark/page/page-view.html")
+    INIT = PAGE / "__init__.py"
+
+    def need(self):
+        pending(self, 363, self.INIT, "def ensure_built")
+
+    def test_495_1_the_pages_are_not_tracked_and_gitignore_lists_them(self):
+        self.need()
+        ignore = read(ROOT / ".gitignore").splitlines()
+        for p in self.PAGES:
+            self.assertIn(p, ignore, p + " is in .gitignore")
+        try:
+            tracked = subprocess.run(["git", "-C", str(ROOT), "ls-files", *self.PAGES], capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.SubprocessError):
+            self.skipTest("git is not available here; the .gitignore lines above were checked")
+        if tracked.returncode != 0:
+            self.skipTest("this is not a git checkout; the .gitignore lines above were checked")
+        self.assertEqual(tracked.stdout.strip(), "", "git must not track a generated page")
+
+    def test_495_2_package_py_refuses_a_missing_page(self):
+        self.need()
+        pkg = read(ROOT / "dev" / "tools" / "package.py")
+        self.assertIn("GENERATED_PAGES", pkg)
+        for p in self.PAGES:
+            self.assertIn(p, pkg)
+        self.assertIn("has not been built", pkg)
+        self.assertGreaterEqual(pkg.count("raise Refused(f\"A page the download needs has not been built"), 1)
+        self.assertRegex(pkg, r"make_pages\(root, twice=release\)", "a release builds twice and compares the bytes")
+
+    def test_495_3_ensure_built_builds_under_a_lock_and_checks_again_inside_it(self):
+        self.need()
+        src = read(self.INIT)
+        self.assertIn("class _file_lock", src)
+        self.assertIn("fcntl.flock(self.f, fcntl.LOCK_EX)", src)
+        self.assertIn("_build_lock = threading.Lock()", src)
+        body = src[src.index("def ensure_built"):]
+        body = body[:body.index("DEMO_OPEN")]
+        lock_at = body.index("with _build_lock, _file_lock():")
+        self.assertIn("_checked", body[lock_at:], "the check is made again inside the locks")
+        self.assertIn("source_stamp()", body[lock_at:])
+        self.assertIn("os.replace(tmp, STAMP)", body, "the stamp is swapped in whole")
+        self.assertIn("ensure_built()", src[src.index("def page_html"):], "the server's page goes through it")
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# What needs a person. Skipped, with the reason and what to do.
+# --------------------------------------------------------------------------------------------------------------------
+EXTRA_WALK_THROUGH = [
+    ("131.4", "judgement", "only an eye can tell the motions are mild and help rather than distract",
+     "In Edit make a change and Undo it; open the Add dialog; load a view. Then turn on Reduce motion (the Mac's or clark's) and repeat: nothing moves."),
+    ("131.5", "judgement", "whether the handle hint reads well and goes at the next press",
+     "Reload in Edit: the first section's handle pulses once with the hint words; press a key and it goes; reload and it comes back once."),
+    ("87.4", "judgement", "whether the sizes look like one scale at both widths",
+     "Read the dashboard, Work items and a dialog at 1400 and 900 px, light and dark: body 16, small labels 14 or 13, headings clearly stepped."),
+    ("559.3", "judgement", "only a person can judge the published Weekly snapshot reads as a report for a client",
+     "Publish a demo project, open the file and read the Weekly snapshot tab; then open the served page and see it has no such tab."),
+    ("120.4", "live only", "the footer must be seen in a real file opened from disk",
+     "Publish twice, open both files: the footer reads Publication 1 and Publication 2 with the date, and View only."),
+    ("495.4", "live only", "a fresh checkout and a downloaded zip are the only places the build can truly be proved",
+     "Clone fresh and start clark from source: the first start builds the pages. Unzip a release and start it: no bundler runs."),
+]
+
+
+class WalkExtra(unittest.TestCase):
+    """One skipped test per walk-through row, so the run lists them by name with the reason."""
+
+
+def _walk():
+    for row, kind, why, does in EXTRA_WALK_THROUGH:
+        def t(self, _m=f"needs a person ({kind}): {why}. Do this: {does}"):
+            self.skipTest(_m)
+        t.__name__ = "test_%s_needs_a_person" % row.replace(".", "_")
+        setattr(WalkExtra, t.__name__, t)
+
+
+_walk()
 
 if __name__ == "__main__":
     unittest.main()
