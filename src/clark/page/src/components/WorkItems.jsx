@@ -12,7 +12,8 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
+import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, closePeek, peek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -38,7 +39,7 @@ function Owner({ name }) {
     : <span class="muted">{o.text}</span>;
 }
 
-const active = signal("");                      // the id of the row that is the table's one tab stop
+const active = cursor;                          // the id of the row that is the table's one tab stop (listKeys.js)
 
 // The arrow keys inside the table. Only a key on a row or on a cell's own button: never one meant for an open picker.
 function keys(e, row) {
@@ -47,7 +48,8 @@ function keys(e, row) {
   if (t !== tr && !cell) return;
   if (selecting() && pickKeys(e, row.id, (id) => focusRow(tr, id, cell), { space: !cell })) return;
   if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || (selecting() && e.shiftKey)) return;
-  if (!cell && e.key === "Enter") { openPeek(row.id, "item"); return; }
+  if (!cell && (e.key === "Enter" || (e.key === "ArrowRight" && mode.value !== "edit"))) { e.preventDefault(); openPeek(row.id, "item"); return; }   // Right opens the peek in View; in Edit it walks the cells
+  if (!cell && e.key === "ArrowLeft" && mode.value !== "edit" && peek.value) { e.preventDefault(); closePeek(); return; }   // Left from a row closes an open peek; only a key on the row itself (never one inside the peek)
   const rows = Array.from(tr.closest("table").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups, never a group heading
   const cells = Array.from(tr.querySelectorAll("[data-cell]")), c = cells.indexOf(cell);
   const field = cell ? cell.dataset.cell.slice(cell.dataset.cell.lastIndexOf(":") + 1) : "";
@@ -56,10 +58,8 @@ function keys(e, row) {
     const same = field ? r.querySelector(`[data-cell$=":${field}"]`) : null;
     (same || r).focus();
   };
-  if (e.key === "ArrowDown") toRow(at + 1);
-  else if (e.key === "ArrowUp") toRow(at - 1);
-  else if (e.key === "Home" && !cell) toRow(0);
-  else if (e.key === "End" && !cell) toRow(rows.length - 1);
+  const vert = e.key === "ArrowDown" || e.key === "ArrowUp" || (!cell && (e.key === "Home" || e.key === "End"));
+  if (vert) toRow(moveTo(e.key, at, rows.length, ["ArrowUp", "ArrowDown", "Home", "End"]));
   else if (e.key === "ArrowRight") { if (cells[c + 1]) cells[c + 1].focus(); }
   else if (e.key === "ArrowLeft" && cell) (c > 0 ? cells[c - 1] : tr).focus();
   else return;
@@ -75,7 +75,7 @@ function focusRow(tr, id, cell) {
   (same || r).focus();
 }
 
-function Row({ row, today, Cell, stop }) {
+function Row({ row, today, Cell, stop, pos, size }) {
   const due = dueCell(row, today), pill = pillOf(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
   const on = selecting(), picked = on && sel.ids.value.includes(row.id);
@@ -86,7 +86,7 @@ function Row({ row, today, Cell, stop }) {
   };
   const dbl = (e) => { if (on && ownClick(e.target, e.currentTarget)) pickOpen(row.id); };
   return (
-    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${isOpen(row) ? "" : "done"}${picked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-label={on ? `Select or open ${row.id}` : `Open ${row.id}`}
+    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${isOpen(row) ? "" : "done"}${picked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-posinset={pos} aria-setsize={size} aria-label={on ? `Select or open ${row.id}` : `Open ${row.id}`}
       aria-selected={on ? (picked ? "true" : "false") : undefined}
       onFocusIn={() => { active.value = row.id; if (on) sel.moveCursor(row.id); }} onKeyDown={(e) => keys(e, row)} onMouseDown={on ? noTextRange : undefined} onClick={click} onDblClick={dbl}>
       <td class="c-type"><span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span></td>
@@ -109,13 +109,15 @@ function Row({ row, today, Cell, stop }) {
 function Table({ rows, today, type, Cell }) {
   const st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": "Work items" } : {};
   const head = <thead><tr><th class="c-type">Type</th><th class="c-item">Item</th><th class="c-owner">Owner</th><th class="c-due">Due</th><th class="c-prio">Priority</th><th class="c-status">Status</th></tr></thead>;
-  const stopOf = (drawn) => (drawn.some((r) => r.id === active.value) ? active.value : drawn.length ? drawn[0].id : "");
-  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} stop={r.id === stop} />;
-  if (g === "nothing") { const flat = sortRows(rows, today), stop = stopOf(flat); return <table class="items" {...grid}>{head}<tbody>{flat.map((r) => row(r, stop))}</tbody></table>; }
+  const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
+  let order = [];                                  // the rows drawn, in order: each one's place for a screen reader ("3 of 12")
+  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} />;
+  if (g === "nothing") { const flat = sortRows(rows, today), stop = stopOf(flat); order = flat.map((r) => r.id); return <table class="items" {...grid}>{head}<tbody>{flat.map((r) => row(r, stop))}</tbody></table>; }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
     .map((c) => ({ ...c, shut: isCollapsed(st, g, c.key) }));
-  const stop = stopOf(groups.flatMap((c) => (c.shut ? [] : c.rows)));
+  const shown = groups.flatMap((c) => (c.shut ? [] : c.rows)), stop = stopOf(shown);
+  order = shown.map((r) => r.id);
   return (
     <table class="items grouped" {...grid}>
       {head}

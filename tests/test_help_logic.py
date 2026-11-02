@@ -237,8 +237,8 @@ class Logic(unittest.TestCase):
     # ---- the keys and the icons ----
     def test_keys_list(self):
         keys, mac = self.r["keys"], self.r["keysMac"]
-        self.assertEqual(len(keys), 33)
-        self.assertEqual(len(mac), 33)
+        self.assertEqual(len(keys), 36)
+        self.assertEqual(len(mac), 36)
         row = next(k for k in keys if "J" in k["keys"] and "ask clark" in k["does"])
         self.assertEqual(row["keys"], "Ctrl+J")
         self.assertEqual(next(k for k in mac if k["does"] == row["does"])["keys"], "⌘+J")
