@@ -14,7 +14,8 @@ still caught. The cost is fixed by the size: every pattern is a single pass with
 looked at up to a cap, past which the file counts as a hit (fail closed). A base64 run is decoded and read for the key shapes and,
 when it decodes to plain text, for the key-word lines too; text with %-escapes is also read with them undone.
 
-NOT SCREENED, on purpose (#257): a token cut by a space ("token: ab12cd34 ef56gh78"), since joining words across a space would
+NOT SCREENED, on purpose (#257, #374): a password word followed by plain words ("password: see below"; the other languages act the same);
+the file name "secret_santa2025.xlsx" (only that whole name, with any 4-digit year); text escaped three times; a token cut by a space ("token: ab12cd34 ef56gh78"), since joining words across a space would
 leave out every file that says "token: 2026 plan"; a secret of fewer than 8 characters after secret or a key name; a key-word line
 whose base64 form is shorter than 24 characters.
 """
@@ -24,8 +25,8 @@ import urllib.parse
 
 from clark import ask, edit_ai
 
-REASON = "looks like it holds a secret"
-NEXT_STEP = "Remove the secret from the file or move it out of the saved folder."
+REASON = f"holds text that {ask.LOOKS_LIKE}"
+NEXT_STEP = "Take it out of the file, or remove the file from the saved folder, then ask again."
 MAX_RUNS = 20000                     # different base64-looking runs looked at in one file; more than this counts as a hit
 MAX_ROWS = 400                       # rows under a table header looked at for a secret column
 MAX_HEADER = 2000                    # characters: a longer line is not read as a table header
@@ -50,7 +51,7 @@ UNQUOTED_SECRET = r"""(?i)(?:api[_-]?key|secret|token|(passw(?:or)?d|pwd))\w*["'
 # are allowed, a quoted value needs only 8 characters, a table cell or a comma, tab or bar between the word and its value counts,
 # and every gap is bounded so a long run of key words takes a time that grows with the size, not with its square.
 # Password in other languages (#257): German, French, Spanish, Portuguese, Dutch, Swedish, Polish, Italian, Russian and Arabic.
-_PW_OTHER = (r"passwort|kennwort|mot[ \t]?de[ \t]?passe|motdepasse|contrase(?:ñ|n)a|senha|wachtwoord|l(?:ö|o)senord|has(?:ł|l)o|"
+_PW_OTHER = (r"passwort|kennwort|mot[ \t]?de[ \t]?passe|motdepasse|contrase(?:ñ|nn?)a|senha|wachtwoord|l(?:ö|o)senord|has(?:ł|l)o|"
              r"parola[ \t]?d'ordine|пароль|كلمة[ \t]?(?:المرور|السر)")
 _PW = r"(?:passw(?:or)?d|pwd|passcode|" + _PW_OTHER + r"|(?<![A-Za-z])(?:pass|pw|pin|creds|credentials)(?![A-Za-z]))"
 _KEY = r"(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|" + _PW + r")"
@@ -85,8 +86,11 @@ LETTER_QUOTED = (r"""(?i)""" + _LEFT + r"""(?:(?:""" + _PWORD + r"""|secret)""" 
 # Known gaps, kept as Tech Debt: an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
 # a bare 40-character hex string with no key word, a key word with some other suffix (`password_backup: "..."`) and a bare password
 # word after a colon (`Note: password "..."`) are not caught; guessing them would drop too many ordinary files.
-# A file's name: a key word, then - or _ and a mixed value of 8 or more characters ("notes-password-Hunter2xyz9.txt").
-NAME_SECRET = r"""(?i)""" + _KEY + r"""[-_ ]([A-Za-z0-9]{8,})"""
+# A file's name: a key word, then - _ . or a space and a mixed value of 8 or more characters ("notes-password-Hunter2xyz9.txt").
+NAME_SECRET = r"""(?i)""" + _KEY + r"""[-_. ]([A-Za-z0-9]{8,})"""
+# The one ordinary name taken out before a file name is screened (#374): "secret_santa" (with an optional 4-digit year) as the whole
+# name or the whole name before its extension, so "secret_santa2025.xlsx" is a file name; "secret_santa_key=..." is still read.
+_SANTA = re.compile(r"(?<![^/])secret_santa(?:\d{4})?(?=\.[A-Za-z0-9]{1,5}$|$)")
 BASE64_RUN = r"[A-Za-z0-9+/_-]{24,}"
 
 # The publish scan's address shape starts at every letter and can take a long time on a long run of letters, so here it starts at
@@ -112,7 +116,8 @@ def _mixed(value):
 
 
 def _plain(raw):
-    """Decoded base64 as text, or None when it is not mostly printable (a picture, a compressed file)."""
+    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file); the replacement
+    character counts as printable, so mostly-text data with a few bad bytes is still read."""
     text = raw.decode("utf-8", "replace")
     return text if sum(c.isprintable() or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
 
@@ -213,15 +218,16 @@ def _one(text):
 
 
 def looks_like_secret(text):
-    """Whether `text` looks like it holds a secret. Never raises, never keeps or returns what matched; text that cannot be
+    """Whether `text` looks like a password or a key. Never raises, never keeps or returns what matched; text that cannot be
     read as a string counts as a hit. Read as it is, as the client check sees it (hidden characters and look-alike letters
     undone) and with line breaks taken out of each."""
     if not isinstance(text, str):
         return True
     try:
         seen = [text, edit_ai.normal(text)]
-        if "%" in text:
-            seen += [urllib.parse.unquote_plus(t) for t in seen]
+        for _ in range(2):                                # %-escapes undone up to twice ("%253D"), each result read as it is and normalised
+            if any("%" in t for t in seen):
+                seen += [x for t in list(seen) if "%" in t for x in (urllib.parse.unquote_plus(t), edit_ai.normal(urllib.parse.unquote_plus(t)))]
         for t in dict.fromkeys(seen):
             if _one(t) or _one(_BREAKS.sub("", t)):
                 return True
@@ -234,4 +240,5 @@ def name_looks_like_secret(name):
     """Whether a file's name looks like it holds a secret: the text screen, plus a key word joined to its value by - or _."""
     if not isinstance(name, str):
         return True
+    name = _SANTA.sub("santa", name)
     return looks_like_secret(name) or any(_mixed(m.group(1)) for m in _NAME.finditer(name))
