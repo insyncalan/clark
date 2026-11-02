@@ -132,7 +132,7 @@ class TheRulesAreOnlyTheSystemPrompt(tcl.Fake):
         self.assertNotIn(canary, stdin)
         for line in ask.RULES.splitlines():
             self.assertNotIn(line, stdin.splitlines(), line)
-        for phrase in ("Use only the passages below", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "Never suggest archiving",
+        for phrase in ("Use only the passages in the request", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "Never suggest archiving",
                        "Do not repeat any password"):
             self.assertNotIn(phrase, stdin, "no part of the rules is in the request text")
             self.assertIn(phrase, system)
