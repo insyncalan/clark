@@ -54,10 +54,14 @@ UNQUOTED_SECRET = r"""(?i)(?:api[_-]?key|secret|token|(passw(?:or)?d|pwd))\w*["'
 _PW_OTHER = (r"passwort|kennwort|mot[ \t]?de[ \t]?passe|motdepasse|contrase(?:ñ|nn?)a|senha|wachtwoord|l(?:ö|o)senord|has(?:ł|l)o|"
              r"parola[ \t]?d'ordine|пароль|كلمة[ \t]?(?:المرور|السر)")
 _PW = r"(?:passw(?:or)?d|pwd|passcode|" + _PW_OTHER + r"|(?<![A-Za-z])(?:pass|pw|pin|creds|credentials)(?![A-Za-z]))"
-_KEY = r"(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|" + _PW + r")"
+_KEY = r"(?:api[ _-]?key|access[_-]?key|ssh[_-]?private[_-]?key|secret|token|" + _PW + r")"
 QUOTED_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?\s{0,20}[:=]\s{0,20}["']([^"'\s]{8,})["']"""
-UNQUOTED_LOCAL = (r"""(?i)(?:api[_-]?key|access[_-]?key|ssh[_-]?private[_-]?key|token|(secret|""" + _PW + r"""))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
+UNQUOTED_LOCAL = (r"""(?i)(?:api[ _-]?key|access[_-]?key|ssh[_-]?private[_-]?key|token|(secret|""" + _PW + r"""))\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}"""
                   r"""([^\s"'`$<>{}()\[\],;]{8,})""")
+# #242: a short sk- key (12 or more letters and digits with a digit, below the publish scan's 32) and a short api or access key value
+# (6 or more, letters and digits mixed) after = or :.
+SHORT_SK = r"\bsk-(?=[A-Za-z0-9]{0,40}\d)[A-Za-z0-9]{12,}"
+SHORT_APIKEY = r"""(?i)\b(?:api|access)[ _-]?key\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}["']?([A-Za-z0-9_-]{6,})"""
 CELL_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?[ \t]{0,20}:?[ \t]{0,20}[|\t,][ \t]{0,20}["']?([^\s|,;"'`$<>{}()\[\]]{8,})"""
 SHORT_PASSWORD = r"""(?i)(?<!\w)(?:passw(?:or)?d|pwd|passcode|""" + _PW_OTHER + r""")(?!\w)["']?[ \t]{0,20}[:=][ \t]{0,20}["']?(\S{4,})"""
 HEADER_WORDS = re.compile(r"(?i)^(?:api[ _-]?key|access[ _-]?key|ssh[ _-]?private[ _-]?key|secret|token|passw(?:or)?d|pwd|passcode|pass|pw|pin|creds|credentials|"
@@ -101,6 +105,8 @@ _SHAPES = tuple(re.compile(ADDRESS_LINEAR if k == ADDRESS_KIND else p) for k, p 
 _QUOTED = re.compile(QUOTED_LOCAL)
 _UNQUOTED = re.compile(UNQUOTED_LOCAL)
 _CELL = re.compile(CELL_LOCAL)
+_SHORT_SK = re.compile(SHORT_SK)
+_SHORT_APIKEY = re.compile(SHORT_APIKEY)
 _PHRASE = re.compile(QUOTED_PHRASE)
 _PROSE = re.compile(PROSE_SECRET)
 _LETTERS = re.compile(LETTER_QUOTED)
@@ -193,6 +199,9 @@ def _loose(text):
 
 
 def _key_words(text):
+    for m in _SHORT_APIKEY.finditer(text):
+        if _mixed(m.group(1)):
+            return True
     for m in _QUOTED.finditer(text):
         if _mixed(m.group(1)):
             return True
@@ -213,6 +222,8 @@ def _key_words(text):
 
 def _one(text):
     if any(rx.search(text) for rx in _SHAPES):
+        return True
+    if _SHORT_SK.search(text):
         return True
     return _key_words(text) or _in_base64(text) or _loose(text) or _columns(text)
 
