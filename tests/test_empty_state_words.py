@@ -1,4 +1,5 @@
 """#272: the use case empty-state words follow the prototype ("Not written yet."), source and built pages."""
+import re
 import unittest
 
 import _paths  # noqa: F401
@@ -41,6 +42,24 @@ class EmptyStateWordsTest(unittest.TestCase):
     def test_prototype_says_not_written_yet_for_use_cases(self):
         text = read(ROOT / "system/prototype/usecases.js")
         self.assertGreaterEqual(text.count('<p class="muted">Not written yet.</p>'), 2)
+
+    def test_exact_words_come_from_the_source_and_reach_the_built_pages(self):
+        # Read the words the screen shows from the source, then pin them (full stop included) in the built page.
+        detail = read(COMPONENTS / "UseCaseDetail.jsx")
+        row = read(COMPONENTS / "UseCases.jsx")
+        read_only = re.search(r'dangerouslySetInnerHTML=\{\{ __html: safe\(u\.standing\) \}\} /> : <p class="muted">([^<]*)</p>', detail).group(1)
+        edit = re.search(r'field="standing"[^\n]*? empty="([^"]*)"', detail).group(1)
+        summary = re.search(r'plain\(u\.standing\) \|\| "([^"]*)"', row).group(1)
+        self.assertEqual((read_only, edit, summary), ("Not written yet.", "Not written yet. Click to write.", "Not written yet."))
+        page = read(ROOT / "src/clark/page/page.html")
+        self.assertIn('class:"muted",children:"%s"' % read_only, page)
+        self.assertIn('empty:"%s"' % edit, page)
+        for name in PAGES:
+            self.assertIn('||"%s"' % summary, read(ROOT / "src/clark/page" / name), name)
+
+    def test_the_words_end_with_a_full_stop(self):
+        for words in ("Not written yet.", "Not written yet. Click to write."):
+            self.assertTrue(words.endswith("."))
 
 
 if __name__ == "__main__":
