@@ -151,7 +151,8 @@ class AgainstThePage(unittest.TestCase):
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
         # 58 measured on this batch's merge with main: the section card's coloured square and the Archived items list put two bold Help names the other way (measured on the merged tree)
-        self.assertGreaterEqual(len(names), 58)
+        # 57 measured on this tree's merge with its base (58 there): the project switcher's menu puts one bold Help name on the page, Project settings, so it is no longer absent (measured on the merged tree)
+        self.assertGreaterEqual(len(names), 57)
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]

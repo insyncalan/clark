@@ -87,7 +87,7 @@ function entry(it, close, onPick) {
 
 // items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab} for a line of words that is not a command, or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
 // is `onClick()` (so a button that sometimes has a menu keeps the same element when it has none).
-export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, btnCls, labelCls, menuId, menuLabel, left, chevron = true }) {
+export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, btnCls, labelCls, menuId, menuLabel, left, chevron = true, onOpen }) {
   const [open, setOpen] = useMenuState();
   const btn = useRef(null);
   const back = useRef(false);
@@ -95,11 +95,12 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, 
   const close = (how) => { back.current = how === "esc" || how === "pick"; setOpen(false); };
   // Focus goes back to the button only if nothing took it: an item that opens a dialog has put focus there, and the menu must not steal it.
   useEffect(() => { if (!open && back.current) { back.current = false; const at = document.activeElement; if (btn.current && (!at || at === document.body || at === btn.current)) btn.current.focus(); } }, [open]);
-  const onBtnKey = (e) => { if (menu && e.key === "ArrowDown" && !open) { e.preventDefault(); setOpen(true); } };
+  const opens = () => { setOpen(true); if (onOpen) onOpen(); };   // `onOpen` runs each time the menu is opened, by a click or by Down
+  const onBtnKey = (e) => { if (menu && e.key === "ArrowDown" && !open) { e.preventDefault(); opens(); } };
   return (
     <span class="dd">
       <button type="button" class={btnCls || "btn"} id={id} ref={btn} aria-haspopup={menu ? "menu" : undefined} aria-expanded={menu ? (open ? "true" : "false") : undefined}
-        aria-label={ariaLabel} title={tip} data-tip={tip} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) setOpen(!open); else if (onClick) onClick(); }}>
+        aria-label={ariaLabel} title={tip} data-tip={tip} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) { if (open) setOpen(false); else opens(); } else if (onClick) onClick(); }}>
         {icon ? <Icon name={icon} /> : null}<span class={labelCls}>{label}</span>{chevron ? <Icon name="chevdown" cls="nch" /> : null}
       </button>
       {open && menu ? (
