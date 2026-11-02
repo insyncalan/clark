@@ -1,8 +1,9 @@
 """#201: the words a person reads when clark cannot start because its address is taken. Each message names the cause and one next
 step in plain words; the server's line, the launcher's line and START-HERE agree on the cause; none starts with the product name
-and none sends a person to restart the Mac. Run: python3 dev/run_tests.py test_launcher_words"""
+and none sends a person to restart the Mac (the way out is the other connection the launcher offers, then the check). Run: python3 dev/run_tests.py test_launcher_words"""
 import re
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -42,7 +43,7 @@ class TheLaunchersLine(unittest.TestCase):
     def test_the_cause_and_the_one_next_step(self):
         text = self.say(lambda p: False)
         self.assertEqual(text, "Nothing was started: clark is already open in another Terminal window, or another program is using the "
-                               f"connection it needs. Close that Terminal window or program, then double-click {platform.launcher_name()} again. If that does not help, restart your Mac.")
+                               f"connection it needs. Close that Terminal window or program, then double-click {platform.launcher_name()} again.")
 
     def test_off_a_mac_the_line_still_reads_and_names_the_launcher_in_general_words(self):
         with mock.patch.object(platform, "launcher_name", side_effect=platform.NotBuiltYet("not built")):
@@ -69,7 +70,14 @@ class TheLaunchersLine(unittest.TestCase):
 class StartHere(unittest.TestCase):
     def test_the_paragraph(self):
         self.assertIn("If it says nothing was started because clark is already open in another\nTerminal window, or another program is using the "
-                      "connection it needs, close\nthat Terminal window or program, then double-click clark.command again. If that\ndoes not help, restart your Mac.\n", package.START_HERE_MAC)
+                      "connection it needs, close\nthat Terminal window or program, then double-click clark.command again.\n", package.START_HERE_MAC)
+
+    def test_it_ends_the_matter_with_a_real_next_step_not_a_restart(self):
+        flat = " ".join(package.START_HERE_MAC.split())
+        self.assertIn("If you can't close it, the message also gives a line to type in Terminal that starts clark on a different connection. "
+                      "Type it as shown and press Return. If that does not work either, run the check described below: it says what to fix.", flat)
+        self.assertIn("python3 -m clark.doctor", package.START_HERE_MAC)
+        self.assertNotIn("restart", flat.lower())
 
 
 class TheyAgree(unittest.TestCase):
@@ -84,23 +92,67 @@ class TheyAgree(unittest.TestCase):
             self.assertIn(CAUSE, flat)
             self.assertIn(CAUSE_TAIL, flat)
 
-    def test_none_starts_with_the_product_name_and_restart_your_mac_is_only_the_last_resort_of_the_two_double_click_lines(self):
+    def test_none_starts_with_the_product_name_and_none_says_to_restart_the_mac(self):
         for text in self.LINES[:2]:
             self.assertFalse(text.lower().startswith("clark"), text)
-        launcher_line = self.LINES[1]
-        self.assertTrue(launcher_line.endswith("If that does not help, restart your Mac."), launcher_line)
-        self.assertEqual(launcher_line.count("restart your Mac"), 1)
-        self.assertNotIn("restart your Mac", server.PORT_TAKEN, "a person who runs clark from Terminal does not need it")
-        start = " ".join(package.START_HERE_MAC.split())
-        self.assertTrue(start.count("restart your Mac") == 1 and "If that does not help, restart your Mac." in start)
+        for text in self.LINES:
+            self.assertNotIn("restart", text.lower())
         for path in list((ROOT / "src").rglob("*.py")) + [TOOLS / "package.py"]:
-            n = path.read_text(encoding="utf-8").count("restart your Mac")
-            self.assertEqual(n, {"launch.py": 1, "package.py": 1}.get(path.name, 0), f"{path.name}: the last-resort line is in the launcher's line and START-HERE only")
+            self.assertNotIn("restart your Mac", path.read_text(encoding="utf-8"), path.name)
 
     def test_the_old_vague_wording_is_gone(self):
         for path in list((ROOT / "src" / "clark").glob("*.py")) + [TOOLS / "package.py"]:
             text = path.read_text(encoding="utf-8")
             self.assertFalse(re.search(r"using what clark needs to start", text), path.name)
+
+
+class TheOtherLaunchMessages(unittest.TestCase):
+    """Each other message the launcher says: what happened, and one next step, in plain words."""
+
+    def folder(self):
+        return Path("/tmp/clark-data")
+
+    def test_a_clark_that_did_not_finish_starting_says_what_to_do_and_where_the_record_is(self):
+        said = []
+        process = mock.Mock(poll=lambda: 1)
+        code = launch.launch(8800, self.folder(), said.append, {}, start=lambda *a, **k: process, find_chrome=lambda e: None,
+                             health=lambda p, m: launch.NOTHING, wait=lambda *a, **k: launch.NOTHING, free=lambda p: False)
+        self.assertEqual(code, 1)
+        self.assertEqual(said[-1], "Nothing opened, because clark did not finish starting. Close this window, then double-click clark.command "
+                                   "again. If it still does not start, send the file /tmp/clark-data/server.log to the clark team. It records what went wrong.")
+
+    def test_a_program_the_mac_will_not_run_names_the_cause_and_the_step(self):
+        def popen(argv, **kw):
+            raise OSError(13, "Permission denied")
+        with self.assertRaises(platform.PlatformError) as e:
+            platform.start_detached(["a"], {}, Path(tempfile.mkdtemp()) / "server.log", popen=popen, on=platform.MAC)
+        text = str(e.exception)
+        self.assertTrue(text.startswith("Nothing was started, because this Mac would not run clark. Close this window and try again."), text)
+
+    def test_a_window_chrome_would_not_open_says_clark_is_still_running_and_gives_the_address(self):
+        def popen(argv, **kw):
+            raise PermissionError(13, "Permission denied")
+        said = []
+
+        def open_window(url, chrome):
+            platform.open_app_window(url, chrome, popen=popen, on=platform.MAC)
+        code = launch.open_clark("http://127.0.0.1:8800/", said.append, {}, lambda e: "/stub", open_window, lambda u: None)
+        self.assertEqual(code, 1)
+        self.assertEqual(said, ["Chrome could not be started, so clark's window did not open. The clark server is still running. "
+                                "To use it, open this address in your browser: http://127.0.0.1:8800/"])
+
+    def test_a_start_up_number_that_is_not_a_number_says_what_to_change(self):
+        from clark.__main__ import Usage, port_number
+        with self.assertRaises(Usage) as e:
+            port_number("abc", "--port")
+        self.assertEqual(str(e.exception), "The start-up number (set with --port) must be a whole number from 1 to 65535. Change it, then start clark again.")
+
+    def test_the_doctors_onedrive_line_says_every_step_without_pointing_at_another_file(self):
+        from clark import doctor
+        seen = doctor.Seen(data="/x/OneDrive-Co/clark", on=platform.MAC, home="/x", onedrive_roots=lambda: [Path("/x/OneDrive-Co")])
+        words = doctor.check_data_not_in_onedrive(seen).words
+        self.assertNotIn("START-HERE", words)
+        self.assertIn("drag the folder you chose into the window, and press Return.", words)
 
 
 if __name__ == "__main__":

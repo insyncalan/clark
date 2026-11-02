@@ -207,7 +207,7 @@ def _hidden_set(text):
             or unicodedata.category(c) == "Cf"}
 
 
-SECRET_MESSAGE = ask.SECRET     # one sentence for both, said in ask.py
+SECRET_MESSAGE = ask.SECRET        # one note for the typed question and the selected text
 
 
 def _secret(text):
