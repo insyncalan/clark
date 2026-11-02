@@ -218,7 +218,7 @@ class DiagnosticsEntry(unittest.TestCase):
         self.assertNotIn("Open the folder", self.TEXT)
         self.assertNotIn("**Log level**", self.TEXT)
         self.assertEqual(entry("ref", "diagnostics")["w"], "Settings › Logs and diagnostics")
-        self.assertIn("<h2>Logs and diagnostics</h2>", self.PAGE)
+        self.assertIn('<h2 id="diagnostics-h" tabIndex={-1}>Logs and diagnostics</h2>', self.PAGE)
 
     def test_the_numbers_are_the_log_s(self):
         log, diag = read("log.py"), read("diagnostics.py")
