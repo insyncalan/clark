@@ -169,6 +169,19 @@ class Panel(Base):
             self.assertEqual(sent[0], {"project": "ABC", "question": "When is go-live?", "earlier": []})
             self.assertEqual(sent[1]["earlier"], [{"role": "user", "text": "When is go-live?"}, {"role": "assistant", "text": "The pilot goes live in March."}])
 
+    def test_new_chat_drops_the_earlier_turns_so_a_refused_chat_can_start_again(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertEqual(p.js("document.querySelector('#ask-new').textContent"), "New chat")
+            self.ask(p, "When is go-live?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the question and the answer")
+            p.js("document.querySelector('#ask-new').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 0", "the chat was cleared")
+            self.ask(p, "And after that?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the new chat's answer")
+            sent = [c[1] for c in self.stub.calls if c[0] == "ask"]
+            self.assertEqual(sent[1]["earlier"], [], "nothing from the old chat is sent again")
+
     def test_a_reply_that_looks_like_markup_is_inert_text(self):
         self.stub.answer = '<img src=x onerror="window.__pwn=1"><b>bold</b> & <script>window.__pwn=2</script>'
         with chrome() as cdp:
