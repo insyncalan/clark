@@ -5,6 +5,7 @@ import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
+import { diffIds, markChanged } from "./changed.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
 export const toast = signal(null);
@@ -17,6 +18,8 @@ const itemSteps = new Map();             // the steps that changed a work item (
 // #197: the steps the toast offered Undo for, newest last, so Cmd or Ctrl+Z (undoKey.js) undoes the last one even after the toast
 // has gone. Kept in memory only; a step leaves it once it is undone (by the key or the toast's button).
 const undoable = [];
+// The list is not saved: after a reload it is empty, so the key says so plainly and points to Activity, which keeps every change.
+export const NOTHING_TO_UNDO = "Nothing to undo since this page was opened. Older changes are in Activity.";
 const MAX_KEPT = 50;
 
 export function say(kind, text, undo = null, code = project.value) {
@@ -63,9 +66,24 @@ async function readAgain(code, what) {
   return false;
 }
 
+// What the page holds now that a step can change: the sections, the work items and the milestones, each with its id.
+function held() {
+  const d = data.value;
+  return d ? [...(d.report_sections || []), ...(d.actions || []), ...(d.raid || []), ...(d.decisions || []), ...(d.milestones || [])] : [];
+}
+
+// Runs a step and marks what it changed (the rows whose data differs afterwards), so a person sees what the step, or its Undo, did.
+// Only when the page is still on the project the step began in.
+async function marking(task) {
+  const code = project.value, before = held();
+  const out = await task();
+  if (project.value === code && data.value) markChanged(diffIds(before, held()));
+  return out;
+}
+
 // Runs `task` after every earlier one has finished, whether it worked or not.
 export function enqueue(task) {
-  const run = tail.then(task);
+  const run = tail.then(() => marking(task));
   tail = run.catch(() => {});
   return run;
 }
@@ -191,7 +209,7 @@ export function changeBulk(req, back) {
 }
 
 // #197: Cmd or Ctrl+Z. Undoes the newest step of the open project that the toast offered Undo for (the same as its button); with none,
-// it says "Nothing to undo." Resolves to the undo's reply, or null.
+// it says NOTHING_TO_UNDO. Resolves to the undo's reply, or null.
 export function undoLast(code = project.value) {
   for (let i = undoable.length - 1; i >= 0; i--) {
     if (undoable[i].code === code) {
@@ -200,7 +218,7 @@ export function undoLast(code = project.value) {
       return undo(step, code);
     }
   }
-  say("note", "Nothing to undo.");
+  say("note", NOTHING_TO_UNDO);
   return Promise.resolve(null);
 }
 

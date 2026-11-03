@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 from _paths import ROOT
+from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
 from clark import changes, page, server as sv, sneak  # noqa: E402
@@ -305,6 +306,7 @@ class Browser(unittest.TestCase):
                 self.assertIn("Owner", labels)
                 self.assertIn("Status", labels)
                 self.assertNotIn("Shown to client", labels, "an internal field is not in View or a published file")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
                 self.assertEqual(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid), cdp.js("document.documentElement.clientWidth", sid))
                 self.assertEqual(cdp.js("!!document.querySelector('[data-sneak-open],[data-sneak]')", sid), False, "no words box in View")
                 # Previous and Next replace the entry (they add none) and follow the list that opened it
@@ -346,6 +348,7 @@ class Browser(unittest.TestCase):
                 s, sid = self.load_page(cdp, width)
                 cdp.js("clarkPage.openPeek(document.querySelector('#work tbody tr[data-id]').dataset.id)", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the peek's slide-in (#131) has ended, so its edge is where it rests")
                 w = lambda: cdp.js("document.querySelector('#peek').getBoundingClientRect().width", sid)
                 default = w()
                 client = cdp.js("document.documentElement.clientWidth", sid)
@@ -354,7 +357,7 @@ class Browser(unittest.TestCase):
                 for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 700), ("mouseReleased", client - 700)):
                     cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": edge[1], "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1}, sid)
                 self.assertTrue(wait(lambda: abs(w() - min(700, client)) <= 2), f"dragged to {w()}")
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
                 self.assertLessEqual(abs(w() - min(700, client)), 2, "kept after a reload")
                 cdp.js("document.querySelector('.pk-edge').focus()", sid)
@@ -661,7 +664,7 @@ class PublishedList(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.documentElement.dataset.ready", sid) == "1"))
                 cdp.js("document.querySelector('[data-view=work]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-                self.assertEqual(cdp.js("document.querySelector('#work').textContent.includes('Shown to client')", sid), False)
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .tag.cl').length", sid), 0)       # the tag, not the Work items intro line, which names the mark
 
 
 def pub_block(data):

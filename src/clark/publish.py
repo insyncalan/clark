@@ -489,7 +489,7 @@ def _escape_places(css, plain):
     """Where, in plain (= css_plain(css)), each escape of the style as typed put its character: two sorted lists, the starts and
     the ends. One pass. None if the places cannot be told (an escape built a comment: plain is then shorter than the decoded
     text). Used to ask whether a piece of the read text is spelled out as typed, with no escape in it."""
-    typed = _without_comments(css.replace("\x00", ""))
+    typed = _without_comments(css.replace("\x00", "\ufffd"))
     starts, ends, shift = [], [], 0
     for m in _CSS_ESCAPE.finditer(typed):
         put = len(_css_escape(m))
@@ -846,9 +846,9 @@ def _without_comments(css):
 
 
 def css_plain(css):
-    """Style text as a browser's reader sees it: no null bytes, no comments, each \\75 or \\u escape turned into the character it
-    stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
-    css = _without_comments(css.replace("\x00", ""))
+    """Style text as a browser's reader sees it: each null byte read as U+FFFD (not dropped), no comments, each \\75 or \\u escape
+    turned into the character it stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
+    css = _without_comments(css.replace("\x00", "\ufffd"))
     return _without_comments(_CSS_ESCAPE.sub(_css_escape, css))
 
 
@@ -883,33 +883,35 @@ def css_findings(css, work=None):
     found = set()
     if "(" not in css and "@" not in css and "\\" not in css:
         return found             # no bracket, @ or escape: no url(, no @import (u/**/rl( keeps its bracket, \40 import its backslash)
-    for text in (css, css_plain(css)):
+    # a browser reads a null byte as U+FFFD; the guard also reads the text with it dropped (the stricter reading kept from before)
+    plains = [css_plain(css)] + ([css_plain(css.replace("\x00", ""))] if "\x00" in css else [])
+    for text in [css] + plains:
         if re.search(r"@\s*import", text, re.I):
             found.add(IMPORT_FOUND)
         if _url_outside(text, work):
             found.add(ADDRESS_FOUND)
-    plain = css_plain(css)
-    images, argument_start = 0, False
-    stack = []
-    for m in _CSS_PIECE.finditer(plain):
-        work.spend()
-        piece = m.group(0)
-        if m.group(1) is not None:
-            stack.append(bool(_IMAGE_FUNCTION.match(m.group(1))))
-            images += stack[-1]
-            argument_start = True
-        elif piece == "(":
-            stack.append(False)
-            argument_start = True
-        elif piece == ")":
-            images -= stack.pop() if stack else 0
-            argument_start = False
-        elif piece[0] in "\"'":
-            if images and argument_start and _not_data(piece):
-                found.add(ADDRESS_FOUND)
-            argument_start = False
-        else:
-            argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
+    for plain in plains:
+        images, argument_start = 0, False
+        stack = []
+        for m in _CSS_PIECE.finditer(plain):
+            work.spend()
+            piece = m.group(0)
+            if m.group(1) is not None:
+                stack.append(bool(_IMAGE_FUNCTION.match(m.group(1))))
+                images += stack[-1]
+                argument_start = True
+            elif piece == "(":
+                stack.append(False)
+                argument_start = True
+            elif piece == ")":
+                images -= stack.pop() if stack else 0
+                argument_start = False
+            elif piece[0] in "\"'":
+                if images and argument_start and _not_data(piece):
+                    found.add(ADDRESS_FOUND)
+                argument_start = False
+            else:
+                argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
     return found
 
 
@@ -1184,11 +1186,16 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
             raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}). Nothing was written.") from e
     digest = built["sha256"]
     earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
+    earlier_link = None                    # #388: so is a link it replaces (the link itself, not the file it points at)
     if overwrite:
         try:
             earlier = read_earlier(dest)
         except OSError:
             earlier = None
+            try:
+                earlier_link = os.readlink(dest)
+            except OSError:
+                earlier_link = None
     try:
         try:
             platform.write_file(dest, body)
@@ -1214,6 +1221,13 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 try:
                     platform.write_file(dest, earlier)
                 except (OSError, platform.PlatformError):
+                    pass
+        elif earlier_link is not None:
+            if still_ours(dest, digest):
+                try:
+                    os.unlink(dest)
+                    os.symlink(earlier_link, dest)
+                except OSError:
                     pass
         else:
             take_back(dest, digest)
