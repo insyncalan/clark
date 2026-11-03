@@ -10,7 +10,7 @@ Each check prints one line: Ready, To fix, Worth knowing (advice, never a fault)
 - the data folder can be made and saved in (required)
 - the data folder isn't inside OneDrive, where the system can say (required)
 - clark's own folder is in OneDrive (advice: set it to always keep its files on this device)
-- the browser: Chrome found, or the default browser is used (advice)
+- the browser: Chrome or Edge found, and which, or the default browser is used (advice)
 - nothing else is using the connection clark needs, asked as the launcher asks (required)
 - Claude Code, for ask clark (advice: clark runs without it)
 
@@ -139,10 +139,13 @@ def check_app_folder(seen):
 
 
 def check_browser(seen):
-    if seen.find_chrome():
-        return Line(READY, "Chrome is there, so clark opens in its own window.")
-    return Line(ADVICE, "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to give clark its own "
-                        "window.")
+    from clark import launch
+    found = seen.find_chrome()
+    if found:
+        name = launch.browser_name(found)
+        return Line(READY, f"{name[0].upper()}{name[1:]} is there, so clark opens in its own window.")
+    return Line(ADVICE, "Chrome or Edge wasn't found, so clark will open in your usual browser. Install Google Chrome or "
+                        "Microsoft Edge to give clark its own window.")
 
 
 def check_port(seen):

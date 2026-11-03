@@ -29,7 +29,7 @@ class DoctorCase(unittest.TestCase):
     def seams(self, **over):
         """A Mac where everything is ready, unless `over` says otherwise."""
         seams = dict(on=pl.MAC, home=self.home, environ={}, app=self.app, version=(3, 9, 6), sqlite_version="3.37.0",
-                     find_chrome=lambda: "/fictional/chrome", find_claude=lambda: "/fictional/bin/claude",
+                     find_chrome=lambda: "/fictional/Google Chrome", find_claude=lambda: "/fictional/bin/claude",
                      health=lambda port, mark: launch.NOTHING, free=lambda port: False)
         seams.update(over)
         return seams
@@ -62,7 +62,7 @@ class AllReady(DoctorCase):
         self.assertIn("Ready: Your clark data can be saved in ~/Library/Application Support/clark.", lines)
         self.assertIn("Ready: Your clark data isn't inside OneDrive.", lines)
         self.assertIn("Ready: Your clark folder isn't in OneDrive.", lines)
-        self.assertIn("Ready: Chrome is there, so clark opens in its own window.", lines)
+        self.assertIn("Ready: Google Chrome is there, so clark opens in its own window.", lines)
         self.assertIn("Ready: Nothing else on this computer is in the way of clark starting.", lines)
         self.assertIn("Ready: Claude Code is installed, so you can ask clark for help.", lines)
 
@@ -170,14 +170,14 @@ class Browser(DoctorCase):
         code, lines = self.run_doctor(find_chrome=lambda: None)
         self.assertEqual(code, 0, lines)
         self.assertEqual(self.line(lines, "Worth knowing: Chrome"),
-                         "Worth knowing: Chrome wasn't found, so clark will open in your usual browser. Install Chrome to "
-                         "give clark its own window.")
+                         "Worth knowing: Chrome or Edge wasn't found, so clark will open in your usual browser. Install "
+                         "Google Chrome or Microsoft Edge to give clark its own window.")
 
     def test_the_named_browser_is_used_on_the_mac(self):
         stub = self.home / "browser"
         stub.write_bytes(b"")
         code, lines = self.run_doctor(find_chrome=None, environ={"CLARK_BROWSER": str(stub)})
-        self.line(lines, "Ready: Chrome is there")
+        self.line(lines, "Ready: The browser set in CLARK_BROWSER is there, so clark opens in its own window.")
 
 
 class Port(DoctorCase):
@@ -252,9 +252,9 @@ class NotBuiltYet(DoctorCase):
     def test_windows_says_each_check_isnt_available_yet(self):
         code, lines = self.run_doctor(on=pl.WINDOWS, find_chrome=None)
         self.assertEqual(code, 1)
-        for start in ("The data folder check", "The OneDrive check for your data", "The OneDrive check for the clark folder",
-                      "The browser check"):
+        for start in ("The data folder check", "The OneDrive check for your data", "The OneDrive check for the clark folder"):
             self.line(lines, f"Not checked: {start} can't run on this computer yet.")
+        self.line(lines, "Worth knowing: Chrome or Edge wasn't found")        # #636: the browser is looked for on Windows
         self.assertEqual(lines[-1], "Some checks can't run on this computer yet, so we can't say whether clark will start. "
                                     "Try starting it; if it won't, tell the clark team.")
 

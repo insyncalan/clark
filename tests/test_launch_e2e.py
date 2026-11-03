@@ -137,7 +137,7 @@ class LaunchEndToEnd(unittest.TestCase):
         code, said = self.run_launcher(self.folder("data"))
         self.assertEqual(code, 0, said)
         self.assertEqual(said[0], "Starting clark...")
-        self.assertEqual(said[-1], "Opened clark in its own window.")
+        self.assertEqual(said[-1], "Opened clark in its own window, in the browser set in CLARK_BROWSER.")
         self.assertEqual(len(self.processes), 1)
         self.assertEqual(self.windows(), [f"--app=http://127.0.0.1:{self.port}/"])
 
@@ -146,7 +146,7 @@ class LaunchEndToEnd(unittest.TestCase):
         self.assertEqual(self.run_launcher(data)[0], 0)
         code, said = self.run_launcher(data)
         self.assertEqual(code, 0, said)
-        self.assertEqual(said, ["It is already running. Opening its window.", "Opened clark in its own window."])
+        self.assertEqual(said, ["It is already running. Opening its window.", "Opened clark in its own window, in the browser set in CLARK_BROWSER."])
         self.assertEqual(len(self.processes), 1)
         self.assertTrue(wait_until(lambda: len(self.windows()) == 2))
         self.assertEqual(len(self.windows()), 2)

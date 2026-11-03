@@ -1,4 +1,4 @@
-"""python3 -m clark.launch: start clark if it isn't running, then open it in a Chrome app window (#71).
+"""python3 -m clark.launch: start clark if it isn't running, then open it in an app window of Chrome or Edge (#71, #636).
 
     python3 -m clark.launch [--data FOLDER] [--port N]      (clark.command in clark's folder runs this)
 
@@ -9,7 +9,8 @@ It asks what is on the port first, and never takes over what isn't its own:
 - clark with another data folder, or any other program (creaite also answers /health, without the mark): said in plain words,
   nothing started, nothing opened
 
-The window is Chrome's app window (--app=<address>); if Chrome isn't found, the default browser, and it says so. The logic is
+The window is Chrome's or Edge's app window (--app=<address>), and it says which; if neither is found, the default browser,
+and it says so. The logic is
 here and every system call is in platform.py, so a test runs it with fakes and a fake server. Copied from creaite v2.6.9
 system/scripts/launch.py (BL-86, BL-212), cut down: no make-launcher, login agent, restart or starting-file. Standard library
 only, Python 3.9.
@@ -18,6 +19,7 @@ import argparse
 import http.client
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -151,16 +153,27 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
     return open_clark(address(port), say, environ, find_chrome, open_window, open_browser)
 
 
+def browser_name(path):
+    """The browser at `path` as a person reads it: Google Chrome, Microsoft Edge, or the one CLARK_BROWSER names."""
+    name = re.split(r"[\\/]", str(path))[-1].lower()
+    if name in ("msedge.exe", "microsoft edge"):
+        return "Microsoft Edge"
+    if name in ("chrome.exe", "google chrome"):
+        return "Google Chrome"
+    return "the browser set in CLARK_BROWSER"
+
+
 def open_clark(url, say, environ, find_chrome, open_window, open_browser):
-    """Open `url` in a Chrome app window; the default browser, with a line saying so, if Chrome isn't found."""
+    """Open `url` in an app window of Chrome or Edge, saying which; the default browser, with a line saying so, if neither is found."""
     chrome = find_chrome(environ)
     try:
         if chrome:
             open_window(url, chrome)
-            say("Opened clark in its own window.")
+            say(f"Opened clark in its own window, in {browser_name(chrome)}.")
         else:
             open_browser(url)
-            say("Chrome wasn't found, so clark opened in your default browser. Install Chrome to give clark its own window.")
+            say("Chrome or Edge wasn't found, so clark opened in your default browser. Install Google Chrome or Microsoft Edge "
+                "to give clark its own window.")
     except platform.PlatformError as e:
         say(f"{e} The clark server is still running. To use it, open this address in your browser: {url}")
         return 1

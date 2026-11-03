@@ -11,6 +11,7 @@ Standard library only, Python 3.9.
 """
 import errno
 import getpass
+import ntpath
 import os
 import re
 import secrets
@@ -507,6 +508,9 @@ def write_file_unless_exists(dest, data, **kw):
 # Starting clark and opening its window (#71). The launcher (launch.py) holds the logic; the system calls are here.
 
 CHROME_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"     # also looked for in ~/Applications
+EDGE_MAC = "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+CHROME_WINDOWS = ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA")      # where Chrome is installed, in the order looked
+EDGE_WINDOWS = ("ProgramFiles(x86)", "ProgramFiles")                        # Edge, on every Windows 10 and 11
 LAUNCHER_MAC = "clark.command"          # the double-clickable file in clark's folder; Windows will have clark.cmd (#57)
 LOG_LIMIT = 1024 * 1024                 # the server's log is started again when it is bigger than this
 
@@ -517,19 +521,30 @@ def launcher_name(on=None):
     return LAUNCHER_MAC
 
 
-def find_chrome(environ=None, home=None, exists=os.path.exists, on=None):
-    """The Chrome program to open clark's window with, or None. CLARK_BROWSER names another program to use instead (the
-    tests use a stub); if it isn't there, None, so the default browser is used."""
-    _only_mac("Finding Chrome", on)
+def _browser_places(environ, home, on):
+    """Where Chrome, then Edge, is looked for on `on` (#636)."""
+    if on == WINDOWS:
+        chrome = [ntpath.join(environ[v], "Google", "Chrome", "Application", "chrome.exe") for v in CHROME_WINDOWS if environ.get(v)]
+        edge = [ntpath.join(environ[v], "Microsoft", "Edge", "Application", "msedge.exe") for v in EDGE_WINDOWS if environ.get(v)]
+        return chrome + edge
+    _only_mac("Finding a browser", on)
+    return [CHROME_MAC, str(Path(home or Path.home()) / "Applications" / "Google Chrome.app" / "Contents" / "MacOS"
+                            / "Google Chrome"), EDGE_MAC]
+
+
+def find_browser(environ=None, home=None, exists=os.path.exists, on=None):
+    """The browser to open clark's window with (Google Chrome, else Microsoft Edge), or None. CLARK_BROWSER names another
+    program to use instead (the tests use a stub); if it isn't there, None, so the default browser is used."""
+    on = on or system()
     environ = os.environ if environ is None else environ
+    places = _browser_places(environ, home, on)
     named = environ.get("CLARK_BROWSER")
     if named:
         return named if exists(named) else None
-    for found in (CHROME_MAC, str(Path(home or Path.home()) / "Applications" / "Google Chrome.app" / "Contents" / "MacOS"
-                                  / "Google Chrome")):
-        if exists(found):
-            return found
-    return None
+    return next((found for found in places if exists(found)), None)
+
+
+find_chrome = find_browser          # the name the launcher and the doctor first used
 
 
 ROOT_NAME = "the top of the drive"
@@ -571,8 +586,9 @@ def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
 
 
 def open_app_window(url, chrome, popen=None, on=None):
-    """Open `url` in a Chrome app window (no address bar or tabs). It is left running."""
-    _only_mac("Opening an app window", on)
+    """Open `url` in an app window of `chrome` (Chrome or Edge: no address bar or tabs). It is left running."""
+    if (on or system()) != WINDOWS:
+        _only_mac("Opening an app window", on)
     url = str(url)
     if not re.match(r"https?://[^\s]+\Z", url):
         raise PlatformError(f"Only web addresses starting http:// or https:// can be opened. You gave {url}.")
@@ -580,7 +596,7 @@ def open_app_window(url, chrome, popen=None, on=None):
         (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
-        raise PlatformError("Chrome could not be started, so clark's window did not open.") from e
+        raise PlatformError("The browser could not be started, so clark's window did not open.") from e
 
 
 # The Claude command (ask clark). Found on the PATH and started from an argument list. A .cmd or .bat is refused on every

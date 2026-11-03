@@ -18,7 +18,7 @@ clark is a report editor for programme managers. It keeps a project's actions, r
 ## Install (Mac)
 
 1. Open this repository's **Releases** page and download the latest `clark-…-mac.zip`. Unzip it.
-2. clark needs **Google Chrome** and Python 3.9 or newer. To check your Mac is ready, open Terminal in the unzipped folder and type `python3 -m clark.doctor`. It tells you what to fix, if anything, and where to get it.
+2. clark works best in **Google Chrome** or **Microsoft Edge**, and needs Python 3.9 or newer. To check your Mac is ready, open Terminal in the unzipped folder and type `python3 -m clark.doctor`. It tells you what to fix, if anything, and where to get it.
 3. Double-click `clark.command`. The file `START-HERE.txt` in the folder explains the prompts your Mac may show the first time.
 
 To look around with made-up projects first, open Terminal in the folder and type `python3 -m clark --demo --open`.

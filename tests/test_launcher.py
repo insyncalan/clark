@@ -182,7 +182,7 @@ class Launch(unittest.TestCase):
         self.assertEqual(f.windows, [("http://127.0.0.1:8800/", "/stub/browser")])
         self.assertEqual(f.browser, [])
         self.assertEqual(f.said, ["Starting clark...", "A minute after the last window closes, clark stops by itself.",
-                                  "Opened clark in its own window."])
+                                  "Opened clark in its own window, in the browser set in CLARK_BROWSER."])
 
     def test_it_asks_with_this_data_folders_mark(self):
         f = Fakes([launch.OURS])
@@ -250,8 +250,8 @@ class Launch(unittest.TestCase):
         f = Fakes([launch.OURS], chrome=None)
         self.assertEqual(self.run_launch(f), 0)
         self.assertEqual((f.windows, f.browser), ([], ["http://127.0.0.1:8800/"]))
-        self.assertEqual(f.said[-1], "Chrome wasn't found, so clark opened in your default browser. "
-                                     "Install Chrome to give clark its own window.")
+        self.assertEqual(f.said[-1], "Chrome or Edge wasn't found, so clark opened in your default browser. "
+                                     "Install Google Chrome or Microsoft Edge to give clark its own window.")
 
     def test_a_window_the_system_cannot_open_says_the_address(self):
         f = Fakes([launch.OURS])
@@ -553,13 +553,12 @@ class PlatformCalls(unittest.TestCase):
 
         def popen(argv, **kw):
             raise PermissionError(13, "Permission denied")
-        with self.assertRaisesRegex(pl.PlatformError, r"^Chrome could not be started, so clark's window did not open\.$"):
+        with self.assertRaisesRegex(pl.PlatformError, r"^The browser could not be started, so clark's window did not open\.$"):
             pl.open_app_window("http://127.0.0.1:1/", "/stub", popen=popen, on=pl.MAC)
 
     def test_every_windows_branch_is_not_built_yet(self):
-        calls = (lambda: pl.launcher_name(on=pl.WINDOWS), lambda: pl.find_chrome({}, on=pl.WINDOWS),
-                 lambda: pl.start_detached(["a"], {}, "x.log", popen=lambda *a, **k: None, on=pl.WINDOWS),
-                 lambda: pl.open_app_window("http://127.0.0.1:1/", "c", popen=lambda *a, **k: None, on=pl.WINDOWS))
+        calls = (lambda: pl.launcher_name(on=pl.WINDOWS),
+                 lambda: pl.start_detached(["a"], {}, "x.log", popen=lambda *a, **k: None, on=pl.WINDOWS))
         for call in calls:
             with self.assertRaisesRegex(pl.NotBuiltYet, "on Windows is not built yet"):
                 call()
