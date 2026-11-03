@@ -333,7 +333,7 @@ FOLDER_SCRIPT = """on run argv
   end if
   return POSIX path of (choose folder with prompt (item 1 of argv))
 end run"""
-OPEN_SCRIPT = """on run argv
+ZIP_OPEN_SCRIPT = """on run argv
   if (count of argv) > 1 then
     return POSIX path of (choose file with prompt (item 1 of argv) of type {"zip", "public.zip-archive"} default location (POSIX file (item 2 of argv)))
   end if
@@ -363,7 +363,7 @@ def choose_folder(prompt, start=None, run=None, on=None):
 def choose_file(prompt, start=None, run=None, on=None):
     """The system's own Open dialog, for one .zip file. The chosen file, or None if the person cancelled."""
     _only_mac("The Open dialog", on)
-    return _dialog(OPEN_SCRIPT, [prompt] + ([str(start)] if start else []), run, "Open")
+    return _dialog(ZIP_OPEN_SCRIPT, [prompt] + ([str(start)] if start else []), run, "Open")
 
 
 def choose_save_file(prompt, default_name, start=None, run=None, on=None):

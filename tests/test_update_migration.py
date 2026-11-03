@@ -29,6 +29,9 @@ class Migrated(Rig):
 
     def setUp(self):
         super().setUp()
+        patch = mock.patch.object(store_module.platform, "onedrive_roots", return_value=[])       # looking for OneDrive is Mac-only; the restore checks the backups folder against it
+        patch.start()
+        self.addCleanup(patch.stop)
         self.db.unlink()
         make_v1(self.data)
         self.before = {t: rows(self.db, t) for t in ("projects", "documents")}

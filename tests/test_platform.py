@@ -132,9 +132,10 @@ class Dialogs(unittest.TestCase):
         self.assertEqual(pl.choose_file(prompt, start="/Users/demo/Downloads", run=run, on=pl.MAC),
                          Path("/Users/demo/Downloads/clark-0.3.1-mac.zip"))
         args = run.calls[0][0]
-        self.assertEqual(args[:3], ["osascript", "-e", pl.OPEN_SCRIPT])
+        self.assertEqual(args[:3], ["osascript", "-e", pl.ZIP_OPEN_SCRIPT])
         self.assertEqual(args[3:], [prompt, "/Users/demo/Downloads"])
-        self.assertIn('of type {"zip"', pl.OPEN_SCRIPT)
+        self.assertIn('of type {"zip"', pl.ZIP_OPEN_SCRIPT)
+        self.assertNotIn("of type", pl.OPEN_SCRIPT)      # the template picker keeps taking any file
         self.assertIsNone(pl.choose_file("Choose", run=FakeRun(1, stderr="execution error: User canceled. (-128)"), on=pl.MAC))
         with self.assertRaisesRegex(pl.PlatformError, "The Open window could not be opened"):
             pl.choose_file("Choose", run=FakeRun(1, stderr="syntax error"), on=pl.MAC)
@@ -153,7 +154,7 @@ class Dialogs(unittest.TestCase):
     def test_the_scripts_compile(self):
         """Both scripts are valid AppleScript (compiled by osacompile; no dialog is shown)."""
         with tempfile.TemporaryDirectory() as tmp:
-            for i, script in enumerate((pl.FOLDER_SCRIPT, pl.SAVE_SCRIPT, pl.OPEN_SCRIPT)):
+            for i, script in enumerate((pl.FOLDER_SCRIPT, pl.SAVE_SCRIPT, pl.OPEN_SCRIPT, pl.ZIP_OPEN_SCRIPT)):
                 done = subprocess.run(["osacompile", "-o", os.path.join(tmp, f"{i}.scpt"), "-e", script],
                                       capture_output=True, text=True)
                 self.assertEqual(done.returncode, 0, done.stderr)
