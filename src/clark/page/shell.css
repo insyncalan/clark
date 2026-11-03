@@ -293,6 +293,9 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .vform input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vmsg { color: var(--status-red-text); }
 .vmsg:empty { display: none; }
+.vtab[data-broken="true"] { border-style: dashed; }
+.vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
+.vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 160px; min-width: 120px; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: var(--text); }
