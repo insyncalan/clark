@@ -12,13 +12,15 @@ Request (JSON; every key but `project` is optional; a key not listed is refused)
     reply_by        YYYY-MM-DD
     unblocks        what a decision or a chase holds up (one line, 200 characters)
     include_update  true to put each item's latest update under it
+    tone            0 First chase, 1 Second chase, 2 Firmer chase: the user's choice (#452); without it clark steps the tone up
+                    from the history; anything else is refused
     item            one item's ID (the peek's); or
     owner           a person's name (their open items); not both
     email, name     who the email is for (an address decides which items start ticked: internal ones start unticked for any
                     address that is not on one of your own domains, and for no address)
 Answer: {"ok": true, "project", "mode", "items": [{id, text, kind, due, owner, internal}], "picked": [ids], "draft": build()}.
 
-Settings that do not exist yet (your own domains, your name from Settings > Profile) come from `profile`, a callable returning
+Settings that do not exist yet (your own domains, your name from Settings › Personal › About you) come from `profile`, a callable returning
 {"name": "", "own_domains": []}; the safe defaults are no name (the email says to add one) and no own domains (every address
 counts as outside, so internal items start unticked). `chased(code)` (how often each item has been asked about) is built from the "I sent it"
 records (chase_counts_of); it is empty with none. Standard library only, Python 3.9.
@@ -37,7 +39,7 @@ ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[AD]-)?[0-9]{3}")        # the shape of 
 DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 ADDRESS = re.compile(r"[^@\s<>?,;:\"()\[\]\\]+@[^@\s<>?,;:\"()\[\]\\]+\.[^@\s<>?,;:\"()\[\]\\]+")      # no brackets, query, quotes or separators
 HIDDEN_IN_TEXT = frozenset({"Cf", "Co", "Cs"})            # a bidi override or a zero-width mark: one_line leaves these, an address may not have them
-KEYS = ("project", "mode", "picked", "reply_by", "unblocks", "include_update", "item", "owner", "email", "name")
+KEYS = ("project", "mode", "picked", "reply_by", "unblocks", "include_update", "item", "owner", "email", "name", "tone")
 MAX_PICKED, MAX_UNBLOCKS, MAX_NAME, MAX_EMAIL = 200, 200, 100, 254
 
 SAFE_PROFILE = {"name": "", "own_domains": []}
@@ -124,6 +126,10 @@ def make(data_for, profile=None, clock=None, chased=None, rules_for=None):
         mode = req.get("mode")
         if mode is not None and (not isinstance(mode, str) or mode not in de.MODES):
             return refuse(400, "bad_mode", de.NO_SUCH_KIND)
+        try:
+            tone = de.chosen_tone(req.get("tone"))
+        except ValueError:
+            return refuse(400, "bad_tone", de.NO_SUCH_TONE)
         reply_by = req.get("reply_by") or ""
         if not isinstance(reply_by, str) or reply_by and not _day(reply_by):
             return refuse(400, "bad_date", BAD_DATE)
@@ -172,7 +178,7 @@ def make(data_for, profile=None, clock=None, chased=None, rules_for=None):
         outside = de.is_outside(email, domains)
         draft = de.build({"mode": mode, "items": offer, "picked": ticks, "name": name, "email": email, "own_domains": domains,
                           "from": who.get("name") or "", "now": now, "include_update": include_update, "reply_by": reply_by,
-                          "unblocks": unblocks, "chased": chased(code), "project_names": {code: (data.get("project") or {}).get("name") or code}})
+                          "unblocks": unblocks, "chased": chased(code), "tone": tone, "project_names": {code: (data.get("project") or {}).get("name") or code}})
         shown = [{"id": i["id"], "text": i["text"], "kind": i["kind"], "due": i.get("due"), "owner": i.get("owner"),
                   "internal": bool(outside and de.is_internal(i))} for i in offer]
         return 200, {"ok": True, "project": code, "mode": mode, "items": shown, "picked": ticks, "draft": draft, "outside": bool(outside)}
