@@ -13,7 +13,7 @@ import { itemRows } from "../../stores/work.js";
 import { cellPlan } from "../bulkLogic.js";
 import { ask, runBulk } from "../Bulk.jsx";
 import { todayIso } from "../../workItems.js";
-import { canPick, changeFor, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
+import { canPick, changeFor, pickField, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
 import { OwnerPick } from "./OwnerPick.jsx";
 import { DuePick } from "./DuePick.jsx";
 import { PriorityPick } from "./PriorityPick.jsx";
@@ -54,7 +54,7 @@ export function Cell({ row, field, said, children }) {
       return "";
     }
     const today = todayIso();
-    const c = changeFor(row, field, value, today);
+    const c = changeFor(row, pickField(field, value), value, today);
     if (c && c.error) return c.error;
     close(true);
     if (c) changeCell(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made" }).then(() => refocus(k));
