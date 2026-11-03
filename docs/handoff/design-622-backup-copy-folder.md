@@ -75,6 +75,6 @@ copy into a fresh, empty data folder) also reads from any folder.
   `-v "$HOME/Library/CloudStorage/OneDrive-<name>/clark backups:/backups"`, then typed into Settings as `/backups`.
 - **The Mac-side starter check.** It is not built here. The typed command, for the owner to run on his own laptop and for the
   starter check to copy, which refuses a data folder under OneDrive or CloudStorage:
-  `case "$(cd "$DATA" && pwd -P)" in "$HOME"/Library/CloudStorage/*|"$HOME"/OneDrive*) echo "Keep clark's data off OneDrive: choose a backup folder in OneDrive instead."; exit 1;; esac`
+  `case "$(cd "$DATA" && pwd -P)" in "$HOME"/Library/CloudStorage|"$HOME"/Library/CloudStorage/*|"$HOME"/OneDrive*) echo "Keep clark's data off OneDrive: choose a backup folder in OneDrive instead."; exit 1;; esac`
 - A folder chooser button, and a list in Settings of the copies in the copy folder (the command line reads it; the page lists the
   live backups folder as before).
