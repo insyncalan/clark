@@ -573,6 +573,7 @@
      "A slipped milestone keeps its mark on the agreed date, with a dashed ring where it is now expected and a dashed line between them.",
      "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. Your choice is kept.",
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
+     "With the keyboard, [[Tab]] reaches the calendar once, on today (or the first day when today is not shown). [[Left]] and [[Right]] move a day at a time, and [[Up]] and [[Down]] a week. [[Enter]] on a day with milestones goes to the first of them, and [[Shift+Tab]] or [[Esc]] comes back to the day.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
      "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],

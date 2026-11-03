@@ -8,6 +8,7 @@ or names creaite is in helpHeld.json, which the page never loads, and none of it
 """
 import json
 import re
+import pathlib
 import unittest
 
 from _paths import ROOT
@@ -354,6 +355,20 @@ class LowWordsRound(unittest.TestCase):
         """Assumptions and dependencies are stored with risks and issues (one CODE-001 series)."""
         self.assertIn("Actions, decisions, and everything numbered CODE-001 share one numbering", self.ALL)
         self.assertNotIn("Actions, risks, issues and decisions share one numbering", self.ALL)
+
+
+class CalendarKeysHelp(unittest.TestCase):
+    """#481: the Milestones entry names the calendar's keys, and each one is a key the calendar handles (so Help says only what the page does)."""
+
+    def test_the_calendar_line_names_the_keys_the_page_handles(self):
+        ROOT = pathlib.Path(__file__).resolve().parent.parent
+        code = (ROOT / "src" / "clark" / "page" / "src" / "components" / "MsCalendar.jsx").read_text(encoding="utf-8")
+        task = next(t for t in STEPS if t["t"] == "Read the timeline and calendar")
+        line = next(x for x in task["s"] if x.startswith("With the keyboard, [[Tab]] reaches the calendar"))
+        for key, handled in (("[[Left]]", "ArrowLeft"), ("[[Right]]", "ArrowRight"), ("[[Up]]", "ArrowUp"), ("[[Down]]", "ArrowDown"),
+                             ("[[Enter]]", "Enter"), ("[[Esc]]", "Escape"), ("[[Shift+Tab]]", "shiftKey")):
+            self.assertIn(key, line)
+            self.assertIn(handled, code, f"Help names {key} but the calendar does not handle {handled}")
 
 
 if __name__ == "__main__":
