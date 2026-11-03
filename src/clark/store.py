@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 11          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 12          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#368): a web page and its Word copy can share one publication number. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -2049,7 +2049,7 @@ BEGIN SELECT RAISE(ABORT, 'a publication is never deleted'); END;""",
     """CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, checks, number, project, word, file_sha256, by_user ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file, date, week, checks and publisher never change'); END;""",
     """CREATE TRIGGER IF NOT EXISTS publications_never_replaced BEFORE INSERT ON publications
-WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number) OR seq = NEW.seq)
+WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number AND word = NEW.word) OR seq = NEW.seq)
 BEGIN SELECT RAISE(ABORT, 'a publication is never replaced'); END;""",
 )
 
@@ -2101,11 +2101,37 @@ def migrate_use_case_done(con):
     _use_cases_allow_done(con)
 
 
+# `publications` as schema.sql makes it once a web page and its Word copy may share one number (#368, step 12), frozen here.
+PUBLICATIONS_SHARED_NUMBER = PUBLICATIONS_NUMBERED.replace("publications_v10", "publications_v12").replace(
+    "UNIQUE (project, number)", "UNIQUE (project, number, word)")
+
+
+def migrate_publication_shared_number(con):
+    """Schema version 11 to 12 (#368): `UNIQUE (project, number)` becomes `UNIQUE (project, number, word)`, so one number can hold one web
+    page and one Word file. `publications` is made again from the frozen text, every row copied with its seq and its number unchanged
+    (so no number moves and the sequence goes on), and the three triggers made again, the never-replaced one now naming the kind.
+    Skipped when the table's own definition already has the wider key, so a second run (or a new database) changes nothing but makes any
+    missing trigger. Inside the caller's transaction; does not touch the version (the runner does)."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'publications'").fetchone()
+    if have is not None and not re.search(r"UNIQUE\s*\(\s*project\s*,\s*number\s*,\s*word\s*\)", have[0]):
+        con.execute("DROP TRIGGER IF EXISTS publications_no_delete")
+        con.execute("DROP TRIGGER IF EXISTS publications_number_fixed")
+        con.execute("DROP TRIGGER IF EXISTS publications_never_replaced")
+        con.execute(PUBLICATIONS_SHARED_NUMBER)
+        con.execute("INSERT INTO publications_v12 (seq, project, at, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number) "
+                    "SELECT seq, project, at, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number "
+                    "FROM publications ORDER BY seq")
+        con.execute("DROP TABLE publications")
+        con.execute("ALTER TABLE publications_v12 RENAME TO publications")
+    for statement in PUBLICATION_TRIGGERS:
+        con.execute(statement)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
-              (11, migrate_use_case_done))
+              (11, migrate_use_case_done), (12, migrate_publication_shared_number))
 
 
 def migration_plan(version, table=None):
@@ -2594,7 +2620,7 @@ class Store:
         finally:
             con.close()
 
-    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0, number=None):
+    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0, number=None, same_as=None):
         """Record one published file: a `publications` row with the file's SHA-256, and nothing else. No change_log,
         no step and no write to any other table: a publication is a record of a file, not an edit (#39; Head ruling,
         28-10-2026), so Undo never meets it. The folder to offer next time is read back from the latest publication
@@ -2606,7 +2632,11 @@ class Store:
         cannot take one number), never reused (a publication is never deleted) and shared by every kind, Local only included. When the
         caller put a `number` in the file it wrote (from `next_publication`), that number must still be the next one or nothing is
         written and NumberTaken is raised, so the caller takes its files back. Returns the publication's seq; `number_of(seq)` reads
-        its number."""
+        its number.
+
+        #368: `same_as` (a Word row only) is the seq of the web page this Word file is the copy of: the row then takes that page's number
+        instead of the next one. It is refused (Invalid, nothing written) unless that row is a web publication of the same project that
+        has no Word file yet; it cannot be combined with `number`. Without it a Word file takes the next number, as before."""
         if not str(by_user or "").strip():
             raise Invalid("a publication needs who made it (by_user)")
         if not re.fullmatch(r"[0-9a-f]{64}", str(sha256 or "")):
@@ -2617,6 +2647,8 @@ class Store:
             raise Invalid("a publication's word must be 0 or 1")
         if client_path is not None and not Path(str(client_path)).is_absolute():
             raise Invalid("a publication needs the client copy's full path")
+        if same_as is not None and (type(same_as) is not int or word != 1 or number is not None):
+            raise Invalid("only a Word file can share a web page's number, by the page's seq alone")
         if week_ending is not None:
             try:
                 if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(week_ending)):
@@ -2641,6 +2673,15 @@ class Store:
             nxt = self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
             if number is not None and (type(number) is not int or number != nxt):
                 raise NumberTaken(NUMBER_TAKEN)
+            if same_as is not None:
+                page = self.con.execute("SELECT number FROM publications WHERE seq = ? AND project = ? AND word = 0",
+                                        (same_as, code)).fetchone()
+                if page is None:
+                    raise Invalid("That web page isn't one of this project's publications, so the Word file can't share its number.")
+                if self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ? AND word = 1",
+                                    (code, page["number"])).fetchone():
+                    raise Invalid(f"Publication {page['number']} already has its Word file.")
+                nxt = page["number"]
             cur = self.con.execute(
                 "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number) "
                 "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?, ?)",
@@ -2671,6 +2712,15 @@ class Store:
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
         log_publication refuses if it is no longer the next one. Every row counts, whatever its kind. Read-only."""
         return self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
+
+    def web_publication_seq(self, code, number):
+        """The seq of project `code`'s web publication numbered `number` (#368), or None. Read-only."""
+        r = self.con.execute("SELECT seq FROM publications WHERE project = ? AND number = ? AND word = 0", (code, number)).fetchone()
+        return r["seq"] if r else None
+
+    def word_copy_exists(self, code, number):
+        """Whether project `code`'s publication `number` already has its Word file (#368). Read-only."""
+        return self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ? AND word = 1", (code, number)).fetchone() is not None
 
     def number_of(self, seq):
         """The publication number of the `publications` row `seq` (#120), or None. Read-only."""

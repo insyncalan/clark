@@ -307,7 +307,7 @@ def make_word_import(path, onedrive_roots=None, by_user=None, today=None, clock=
 
 # ── The export ────────────────────────────────────────────────────────────────
 
-EXPORT_KEYS = ("project", "to_client", "on_clash", "confirmed")
+EXPORT_KEYS = ("project", "to_client", "on_clash", "confirmed", "publication")
 CLASHES = ("number", "overwrite", "cancel")
 ALREADY_ASKING = "A window asking where to save is already open. Choose a folder there, or close it, then try again."
 CHOOSE_FOLDER = "Choose the folder for the Word report"
@@ -369,6 +369,9 @@ def _export_shape(req):
         raise Refused(BAD_CLASH)
     if clash == "overwrite" and req.get("confirmed") is not True:
         raise Refused(OVERWRITE_UNCONFIRMED)
+    page = req.get("publication")
+    if page is not None and (type(page) is not int or page < 1):
+        raise Refused("The publication number must be a whole number, 1 or more.", code="bad_publication")
     return project, req.get("to_client", False), clash
 
 
@@ -414,6 +417,14 @@ def _do_export(store, who, req, today, chosen, roots):
     if row is None:
         raise Refused("There is no project with that code. Check the code in the address, or choose a project from the list.",
                       404, "project_not_found")
+    same_as = None
+    if req.get("publication") is not None:         # #368: this is the Word copy of web publication N, so it takes N and no new number
+        same_as = store.web_publication_seq(code, req["publication"])
+        if same_as is None:
+            raise Refused(f"Publication {req['publication']} is not a web page of this project, so a Word copy can't share its number.",
+                          409, "no_such_publication")
+        if store.word_copy_exists(code, req["publication"]):
+            raise Refused(f"Publication {req['publication']} already has its Word file. Nothing was saved.", 409, "word_copy_exists")
     as_at = today()
     try:
         published = publish.select(publish.read_inputs(store, code, as_at))
@@ -491,8 +502,8 @@ def _do_export(store, who, req, today, chosen, roots):
         words += SAVED_CLIENT.format(name=names["client"]) if copy else CLIENT_FAILED.format(reason=failed)
     seq, number = None, None
     try:
-        seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)
-        number = store.number_of(seq)               # #120: the Word copy takes the next number of the project's one counter
+        seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy, same_as=same_as)
+        number = store.number_of(seq)               # #120: the Word copy takes the next number of the project's one counter, or (#368) its web page's
         words += f" It is Publication {number}."
     except Invalid as e:
         words += NOT_RECORDED_FILE.format(reason=str(e))

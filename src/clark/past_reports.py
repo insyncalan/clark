@@ -63,7 +63,7 @@ class PastReports:
                     return 404, self.fail("project_not_found")
                 total = con.execute("SELECT count(*) FROM publications WHERE project = ?", (code,)).fetchone()[0]
                 rows = con.execute("SELECT at, number, word, client_path IS NOT NULL AS to_client, by_user FROM publications "
-                                   "WHERE project = ? ORDER BY number DESC LIMIT ?", (code, SHOWN)).fetchall()
+                                   "WHERE project = ? ORDER BY number DESC, word LIMIT ?", (code, SHOWN)).fetchall()
             finally:
                 con.close()
         except Exception:
@@ -87,7 +87,7 @@ class PastReports:
             try:
                 if con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone() is None:
                     return 404, self.fail("project_not_found")
-                row = con.execute("SELECT file_sha256, word FROM publications WHERE project = ? AND number = ?",
+                row = con.execute("SELECT file_sha256, word FROM publications WHERE project = ? AND number = ? ORDER BY word LIMIT 1",
                                   (code, number)).fetchone()
             finally:
                 con.close()
