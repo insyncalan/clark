@@ -54,7 +54,7 @@ export function useHeld(later) { CONTENT = content = shownContent(RAW, later); }
 export const TABS = CONTENT.tabs.map(([key, name]) => ({ key, name }));
 const TAB_KEYS = TABS.map((t) => t.key);
 
-// The screens a "go:" link may take you to. A settings anchor ("settings#profile") is a place on the Settings screen.
+// The screens a "go:" link may take you to. A settings anchor ("settings#personal") is a place on the Settings screen.
 export const SCREENS = ["dashboard", "dashboard+edit", "work", "milestones", "settings", "publish", "preview", "ask"];
 export const GO_LABEL = {
   dashboard: "Open the Dashboard", "dashboard+edit": "Open the Dashboard in Edit", work: "Open Work items", milestones: "Open Milestones",
@@ -136,7 +136,7 @@ export function allText() {
   return strings({ start: CONTENT.start, howto: CONTENT.howto, reference: CONTENT.reference }, []);
 }
 
-/** The links in the text: `inside` (places in Help, "howto-x") and `screens` ("work", "settings#profile"), each once. */
+/** The links in the text: `inside` (places in Help, "howto-x") and `screens` ("work", "settings#personal"), each once. */
 export function linksIn() {
   const inside = new Set(), screens = new Set(), re = /\]\((#|go:)([^)]+)\)/g;
   for (const s of allText()) for (const m of s.matchAll(re)) (m[1] === "#" ? inside : screens).add(m[2]);
@@ -214,6 +214,29 @@ export function search(index, q) {
     out.push({ n, tab: e.tab, id: e.id, title: e.title, line: li, score: s + best * 3 + (e.tab === "howto" ? 1 : 0) });
   });
   return out.sort((a, b) => b.score - a.score || a.n - b.n);
+}
+
+/**
+ * A line of a result as parts, the words the search matched marked: [{ t: "text", hit: true | false }]. A long line that
+ * matches late starts a little before the match, with an ellipsis (the prototype's `mark`, help.js). Never HTML: the page draws
+ * each part as text, a marked one inside <mark>.
+ */
+export function markParts(line, q) {
+  const qw = wordsOf(q).filter((w) => w.length >= 2), s = String(line == null ? "" : line), out = [];
+  let last = 0, first = -1;
+  for (const m of s.matchAll(/[\p{L}\p{N}]+/gu)) {
+    if (!qw.some((w) => hit(w, norm(m[0])))) continue;
+    if (first < 0) first = m.index;
+    if (m.index > last) out.push({ t: s.slice(last, m.index), hit: false });
+    out.push({ t: m[0], hit: true });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) out.push({ t: s.slice(last), hit: false });
+  if (first > 60 && s.length > 170) {
+    const cut = s.lastIndexOf(" ", first - 40);
+    if (cut > 0) return [{ t: "…", hit: false }, ...markParts(s.slice(cut + 1), q)];
+  }
+  return out;
 }
 
 const TAB_NAME = Object.fromEntries(CONTENT.tabs);

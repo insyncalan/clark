@@ -147,7 +147,7 @@ CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378, #405: 516 KB today; moves
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
-                     "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,
+                     "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/people": 4 * 1024, "/api/people/undo": 1024,     # #115: a person's few short fields; a step number
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
                      "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
@@ -822,6 +822,26 @@ DOWNLOAD_CHUNK = 64 * 1024
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
+# What the address of a preview shows once it has been opened, or when it ran out of time or was never made: a plain page in the
+# browser tab, in plain words, not a bare line (the prototype's Preview is a page in a tab). It names nothing internal.
+PREVIEW_GONE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview not available</title>
+<style>
+:root { color-scheme: light dark; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f9; color: #1d2733; }
+main { box-sizing: border-box; max-width: 34rem; margin: 24px; padding: 28px 32px; background: #fff; border: 1px solid #d9dee5; border-radius: 12px; }
+h1 { margin: 0 0 8px; font-size: 1.4rem; font-weight: 500; }
+p { margin: 0 0 8px; color: #55606e; }
+@media (prefers-color-scheme: dark) { body { background: #12171d; color: #e8ecf1; } main { background: #1b222b; border-color: #2e3844; } p { color: #a9b4c1; } }
+</style></head><body><main>
+<h1>This preview is no longer available</h1>
+<p>A preview opens once, and only for a couple of minutes after you ask for it.</p>
+<p>Go back to clark, open your menu (the circle at the top right) and choose Preview the page in a new tab for a new one.</p>
+</main></body></html>
+"""
+
+
 def preview_page_route(handler):
     """GET /preview?id=: the page a preview made, once. A new tab can't send the token, so the address itself is the one-visit
     secret (made by POST /api/preview); the Host and Origin checks are as everywhere. Nothing is written."""
@@ -830,7 +850,7 @@ def preview_page_route(handler):
         return handler.send(404 if publisher is None else 403, error_body("not_found" if publisher is None else "not_allowed"))
     body = publisher.take_preview((parse_qs(urlsplit(handler.path).query).get("id") or [""])[0])
     if body is None:
-        return handler.send(404, error_body("not_found"))
+        return handler.send(404, PREVIEW_GONE, "text/html")      # a second visit, a late one or a guess: a plain page, still a 404
     return handler.send(200, body, "text/html")
 
 
@@ -910,14 +930,15 @@ def app_settings_route(method):
     return route
 
 
-def ask_route(method):
+def ask_route(method, attr="ask"):
     """POST /api/ask, GET /api/ask/status and POST /api/ask/stop (#47): a question about the open project, whether asking can
     answer, and Stop. The server's `ask` (ask_service.AskService) answers (status, body): it reads the switch from the store before
     anything is sent, so nothing leaves while asking is off; without one there is nothing to ask: not found. The token, the Host,
     the Origin, JSON only and the length are checked before this runs; no model code is in this module. #47e: POST
-    /api/ask/change/dry and /apply hand the dry run and Apply of a suggested change to the same service, which never asks a model."""
+    /api/ask/change/dry and /apply hand the dry run and Apply of a suggested change to the same service, which never asks a model.
+    #72: the AI routes (/api/ai/suggest, /status, /stop) go the same way to the server's `ai` (ai_service.AiService)."""
     def route(handler, *req):
-        service = getattr(handler.server, "ask", None)
+        service = getattr(handler.server, attr, None)
         if service is None:
             return handler.send(404, error_body("not_found"))
         status, body = getattr(service, method)(*req)
@@ -967,7 +988,7 @@ def profile_route(method):
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
@@ -975,6 +996,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/secti
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
+                "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
                 "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
@@ -1185,7 +1207,7 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
-                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
+                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
                  people=None, people_undo=None, people_list=None, section_image=None, past=None):
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
@@ -1210,6 +1232,7 @@ class LocalServer(ThreadingHTTPServer):
         self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
         self.people, self.people_undo, self.people_list = people, people_undo, people_list      # #115: the person writers, their Undo and the list; None: saving off (503) or not found (404)
         self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
+        self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
         super().__init__(server_address, handler)
 
@@ -1243,7 +1266,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
-          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None,
+          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
           people=None, people_undo=None, people_list=None, section_image=None, past=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
@@ -1252,7 +1275,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
         httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
-                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask,
+                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai,
                             people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
