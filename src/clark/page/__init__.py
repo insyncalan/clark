@@ -31,6 +31,7 @@ import os
 import re
 import sys
 import threading
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -137,6 +138,9 @@ CACHE = ROOT / "dev" / ".cache"                          # git-ignored: the buil
 STAMP = CACHE / "pages.stamp"
 LOCK = CACHE / "pages.lock"
 _checked = False
+LOCK_WAIT = 300          # seconds a process waits for another's build before giving up (PageError)
+_failed = None          # (source stamp, message) of the last failed build in this process
+_noted = set()          # one-time stderr notes already given
 
 try:
     import fcntl
@@ -182,16 +186,39 @@ def _stamp_is(want):
 _build_lock = threading.Lock()
 
 
+def _note(key, text):
+    """One line on stderr, once per process for each `key`."""
+    if key not in _noted:
+        _noted.add(key)
+        print("clark: " + text, file=sys.stderr)
+
+
 class _file_lock:
-    """An exclusive flock on LOCK, so two processes never build at once; a no-op where fcntl does not exist."""
+    """An exclusive flock on LOCK, so two processes never build at once; a no-op where fcntl does not exist. The wait is
+    bounded: it polls with LOCK_NB for up to LOCK_WAIT seconds, then raises PageError. If the lock file cannot be made (a
+    read-only checkout: OSError), it falls back to the in-process lock alone, with a one-time note on stderr."""
 
     def __enter__(self):
         self.f = None
-        if fcntl is not None:
+        if fcntl is None:
+            return self
+        try:
             CACHE.mkdir(parents=True, exist_ok=True)
             self.f = open(LOCK, "a+b")
-            fcntl.flock(self.f, fcntl.LOCK_EX)
-        return self
+        except OSError:
+            _note("lock", "dev/.cache cannot be written, so the build is guarded within this process only.")
+            return self
+        end = time.monotonic() + LOCK_WAIT
+        while True:
+            try:
+                fcntl.flock(self.f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return self
+            except OSError:
+                if time.monotonic() >= end:
+                    self.f.close()
+                    self.f = None
+                    raise PageError("Another clark is building the page; try again in a minute.") from None
+                time.sleep(0.1)
 
     def __exit__(self, *exc):
         if self.f is not None:
@@ -204,8 +231,12 @@ def ensure_built():
     Anywhere else (the download) nothing is built: a missing page is a PageError. Never installs anything; the bundler is fetched
     by dev/tools/esbuild.py only in development. The check and the build run under an in-process lock and a cross-process file
     lock (dev/.cache/pages.lock), and the check is made again inside them, so two threads or two servers build once and the
-    second waits for the first; the builder writes each page to a temporary file and swaps it in, so a reader never sees half a
-    page. The server builds at start (clark.__main__). A source edited while a server runs is not rebuilt: restart the server."""
+    second waits for the first (at most LOCK_WAIT seconds, then PageError; an unwritable dev/.cache falls back to the in-process
+    lock with a note); the builder writes each page to a temporary file and swaps it in, so a reader never sees half a
+    page. The server builds at start (clark.__main__).
+    A failed build is remembered for this process by its source stamp (_failed): the bundler is not run again until the sources
+    change. If old pages exist, they are served after one warning on stderr (stale, but a broken edit does not take the server
+    down); if a page is missing, PageError is raised, every time, with the first failure's reason. A source edited while a server runs is not rebuilt: restart the server."""
     global _checked
     pages = (PAGE, VIEW_PAGE)
     if not BUILDER.is_file():
@@ -218,16 +249,31 @@ def ensure_built():
         if _checked and all(p.is_file() for p in pages):
             return
         want = source_stamp()
-        if not all(p.is_file() for p in pages) or not _stamp_is(want):
+        have = all(p.is_file() for p in pages)
+        if not have or not _stamp_is(want):
+            global _failed
+            if _failed is not None and _failed[0] == want:
+                if not have:
+                    raise PageError(_failed[1])
+                return
             from clark import platform      # here, not at the top: dev/tools/merge_page.py runs this file's build code with the standard library alone
             done = platform.run_program([sys.executable, BUILDER], cwd=ROOT)
             if done.returncode != 0 or not all(p.is_file() for p in pages):
-                raise PageError("The page could not be built (python3 dev/tools/build_page.py): "
-                                + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
-            CACHE.mkdir(parents=True, exist_ok=True)
-            tmp = STAMP.with_name(STAMP.name + ".tmp")
-            tmp.write_text(want, encoding="utf-8")
-            os.replace(tmp, STAMP)
+                msg = ("The page could not be built (python3 dev/tools/build_page.py): "
+                       + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+                _failed = (want, msg)
+                if not have:
+                    raise PageError(msg)
+                _note("stale", msg + ". Serving the earlier pages until the sources change.")
+                return
+            _failed = None
+            try:
+                CACHE.mkdir(parents=True, exist_ok=True)
+                tmp = STAMP.with_name(STAMP.name + ".tmp")
+                tmp.write_text(want, encoding="utf-8")
+                os.replace(tmp, STAMP)
+            except OSError:         # a read-only checkout: built, but the stamp is not kept (it is checked again next start)
+                _note("lock", "dev/.cache cannot be written, so the build is guarded within this process only.")
         _checked = True
 
 
