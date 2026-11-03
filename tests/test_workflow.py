@@ -104,7 +104,8 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("eval ", plan)
         self.assertIn("GH_TOKEN: ${{ github.token }}", plan)
         self.assertIn("PR_NUMBER: ${{ github.event.pull_request.number }}", plan)
-        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq \'.[].filename\'', plan)
+        # #593: a file renamed away from a guarded path is seen too: both the new name and the old one (previous_filename) are listed
+        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq \'.[] | .filename, (.previous_filename // empty)\'', plan)
         for guarded in ("src/clark/store.py", "src/clark/server.py", "src/clark/publish.py", "src/clark/secret_screen.py",
                         "src/clark/updates.py", "src/clark/platform.py", "src/clark/schema.sql", "src/clark/history.py",
                         ".github/*"):
@@ -143,11 +144,12 @@ class Workflow(unittest.TestCase):
         self.assertIn('python-version: "3.9"', py39)
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.x \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count }}", tests)
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard 1/1", py39)
-        # three shards on the full path, one on the cheap path: the plan decides, the job reads it
+        # three shards on both paths (the cheap path can reach every file, and as one shard it hit the 30-minute cap): the plan decides, the job reads it
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
         self.assertIn("SHARD: ${{ matrix.shard }}", tests)
         self.assertIn("SHARDS: ${{ needs.plan.outputs.count }}", tests)
-        self.assertIn("if [ -n \"$FULL\" ]; then SHARDS='[1,2,3]'; COUNT=3; fi", self.jobs["plan"])
+        self.assertIn("SHARDS='[1,2,3]'; COUNT=3", self.jobs["plan"])
+        self.assertNotIn("SHARDS='[1]'", self.jobs["plan"])
         self.assertIn("fail-fast: false", tests)
         self.assertIn('--quick --shard "1/1" --max-fail 8 $FILES', py39)
 
