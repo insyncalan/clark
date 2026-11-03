@@ -20,6 +20,7 @@ from _demo import USER, DemoStore
 from _editor_checks import edit_elements
 from _real_server import real_server
 from _paths import SRC, TOOLS
+from _new_page import reload_to_new_page
 import _testpage as testpage
 
 sys.path.insert(0, str(TOOLS))
@@ -65,11 +66,9 @@ class Pg:
         self.until("document.querySelectorAll('.sec').length > 0 || !!document.querySelector('#no-sections')", "the report drew")
 
     def reload(self):
-        """Reload and wait for the NEW document: location.reload() returns while the old one is still up, so a bare ready()
+        """Reload and wait for the NEW document (_new_page.py): a reload returns while the old one is still up, so a bare ready()
         sees the old sections (or none, mid-teardown). A token set on the old window is gone in the new one."""
-        self.js("window.__old_document = true")
-        self.js("location.reload()")
-        self.until("window.__old_document === undefined && document.readyState === 'complete'", "the page reloaded")
+        reload_to_new_page(self.js)
         self.ready()
 
     def edit(self):
@@ -810,7 +809,7 @@ class Sections(Base):
 
 class Failures(Base):
     """Every failure says plain words and nothing the server said; nothing is drawn that was not saved."""
-    STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again."
+    STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again."
 
     def shown_problem(self, p, words):
         p.until(f"!!document.querySelector('.toast.problem') && document.querySelector('.toast-text').textContent === {json.dumps(words)}",
@@ -880,7 +879,7 @@ class Failures(Base):
             self.s.close()                                                        # clark's window was closed
             self.addCleanup(lambda: None)
             p.menu("ABC-S-002", "up")
-            self.shown_problem(p, "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command.")
+            self.shown_problem(p, "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.")
             self.assertEqual(p.ids(), IDS)
 
     def test_changes_go_out_one_at_a_time(self):

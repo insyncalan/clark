@@ -12,6 +12,7 @@ import unittest
 
 from _demo import USER
 from _paths import ROOT, SRC
+from _new_page import reload_to_new_page
 from _publish import PublishedFile
 from test_report_editor import ALT, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
@@ -452,7 +453,7 @@ class Styles(Setup):
                 p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
                 p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
             p.js("document.querySelector('input[name=secstyle][value=grey]').click()")
-            p.js("location.reload()")
+            reload_to_new_page(p.js)
             p.until("document.documentElement.dataset.secstyle === 'grey'", "remembered after a reload")
             gap = []
             for value in ("slim", "roomy"):

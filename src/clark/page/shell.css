@@ -301,6 +301,9 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .vform input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vmsg { color: var(--status-red-text); }
 .vmsg:empty { display: none; }
+.vtab[data-broken="true"] { border-style: dashed; }
+.vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
+.vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 160px; min-width: 120px; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: var(--text); }
@@ -547,6 +550,10 @@ input.sec-title { width: 100%; }
 /* The peek (#42): a panel on the right edge; its width is dragged from the left edge and kept in this browser. */
 .peek { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
+/* The exit: a copy of the closed peek slides out to the right (prototype app.css:416-18); none under reduced motion. */
+.peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
+@keyframes pk-out { to { transform: translateX(104%); } }
+@media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } }
 .pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
 .pk-edge:hover, .pk-edge:focus-visible { background: var(--brand-cyan); opacity: .5; }
 .pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--grey-100); }
@@ -1330,7 +1337,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
     .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
-    .peek { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
+    .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
