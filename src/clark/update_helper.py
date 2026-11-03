@@ -512,14 +512,20 @@ def meta_state(con):
     return {"schema": int(version), "db_id": meta.get("db_id")} if version.isdigit() else None
 
 
+def _ident(name):
+    """A table name from the file's own catalogue, double-quoted: the one place a name is put into a statement here, so no
+    statement is assembled by formatting (the rule that only the store builds SQL from names; the names are read from the file
+    being checked, never from a request)."""
+    return '"' + name.replace('"', '""') + '"'
+
+
 def table_stats(con):
     """{table: (rows, highest rowid)} for every table of the file: what is compared to tell whether anything was added or changed."""
     stats = {}
     for (name,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").fetchall():
-        quoted = '"' + name.replace('"', '""') + '"'
-        count = con.execute(f"SELECT count(*) FROM {quoted}").fetchone()[0]
+        count = con.execute("SELECT count(*) FROM " + _ident(name)).fetchone()[0]
         try:
-            top = con.execute(f"SELECT max(rowid) FROM {quoted}").fetchone()[0]
+            top = con.execute("SELECT max(rowid) FROM " + _ident(name)).fetchone()[0]
         except sqlite3.OperationalError:            # a table without a rowid
             top = None
         stats[name] = (count, top)

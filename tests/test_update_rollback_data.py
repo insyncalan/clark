@@ -400,5 +400,15 @@ class ParityTest(unittest.TestCase):
             self.assertFalse(db_b.with_name("clark.db.restoring.json").exists())
 
 
+class TableStatsNames(unittest.TestCase):
+    def test_a_table_name_with_a_quote_or_a_space_is_counted(self):
+        con = sqlite3.connect(":memory:")
+        con.execute('CREATE TABLE "odd ""name" (a)')
+        con.execute('INSERT INTO "odd ""name" VALUES (1)')
+        con.execute("CREATE TABLE plain (a)")
+        self.assertEqual({'odd "name': (1, 1), "plain": (0, None)}, h.table_stats(con))
+        con.close()
+
+
 if __name__ == "__main__":
     unittest.main()
