@@ -81,7 +81,7 @@ function Dialog() {
                 {s.pdf ? <small id="pub-pdf-note">Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.</small> : null}</span></label>
           </div>
         )}
-        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page.</p> : null}
+        {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">The client will see this page. Only what is shown in View mode is included.</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {working ? <p class="working">Publishing…</p>
             : s.message ? <p class={s.message.kind}><span>{doneWords(s.message)}</span></p> : null}
