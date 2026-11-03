@@ -208,7 +208,7 @@ class Bar(Base):
             p = self.show(cdp)
             p.edit()
             before = self.week()
-            shown = "-".join(reversed(before.split("-"))) if before else ""
+            shown = "-".join(reversed(before.split("-"))) if before else self.coming_friday()       # with no week kept the box shows the coming Friday
             self.type_week(p, "05-05-2031")
             p.until("/Pick Friday 09-05-2031/.test(document.body.textContent)", "the plain words")
             self.assertIn("The old week ending date was kept.", p.js("document.body.textContent"))
