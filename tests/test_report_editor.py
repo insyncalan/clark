@@ -18,6 +18,7 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from _editor_checks import edit_elements
+from _real_server import real_server
 from _paths import SRC, TOOLS
 import _testpage as testpage
 
@@ -27,7 +28,7 @@ import esbuild  # noqa: E402
 
 from clark import changes, order, page, publish, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -35,6 +36,7 @@ TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "Sum
           "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
 IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]
 SECRET = "Server text that a person must never read"
+NOTHING = "Nothing to show."                  # a work item section with no row to draw (A-D5)
 QUIET = "Not shown on this page yet."                    # the page clark serves, for every type (#74)
 ALT = 1                                                            # Input.dispatchKeyEvent modifiers: Alt
 
@@ -59,18 +61,6 @@ class Pg:
     def until(self, expr, what, seconds=10):
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
 
-    def until_new_page(self, expr, what, seconds=10):
-        """until(), but a call made while the page is navigating is waited out: Chrome answers it with 'Inspected target navigated
-        or closed' (seen on the hosted macOS runner), and the next poll sees the new page. Any other error still fails."""
-        def ask():
-            try:
-                return self.js(expr)
-            except RuntimeError as e:
-                if "navigated or closed" in str(e):
-                    return False
-                raise
-        self.t.assertTrue(wait(ask, seconds), what)
-
     def ready(self):
         self.until("document.querySelectorAll('.sec').length > 0 || !!document.querySelector('#no-sections')", "the report drew")
 
@@ -79,7 +69,7 @@ class Pg:
         sees the old sections (or none, mid-teardown). A token set on the old window is gone in the new one."""
         self.js("window.__old_document = true")
         self.js("location.reload()")
-        self.until_new_page("window.__old_document === undefined && document.readyState === 'complete'", "the page reloaded")
+        self.until("window.__old_document === undefined && document.readyState === 'complete'", "the page reloaded")
         self.ready()
 
     def edit(self):
@@ -108,7 +98,12 @@ class Pg:
         self.until("!!document.querySelector('[data-undo]')", "the change was saved")
 
     def toast(self):
-        return self.js("(document.querySelector('.toast-text') || {}).textContent || ''")
+        return wait_toast(lambda: self.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
+
+    def toast_is(self, text):
+        """Wait until the toast on screen says `text`. Use it where the toast read next is the second in a test: an earlier toast is
+        still showing, and toast() would return that one at once."""
+        self.until(f"((document.querySelector('.toast-text') || {{}}).textContent || '') === {json.dumps(text)}", f"the toast says: {text}")
 
     def key(self, key, modifiers=0, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
@@ -176,8 +171,7 @@ class Base(unittest.TestCase):
         self.real_undo = changes.make_undo(self.store.path, [], USER)
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
-                         change=self.seam(self.real_change, "change"), undo=self.seam(self.real_undo, "undo"))
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)               # a fault on purpose is logged by the server
         quiet.start()
@@ -253,19 +247,21 @@ class Modes(Base):
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
             # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
             # drawn says the one plain line
-            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current'].includes(s.dataset.type))"
+            # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
+            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
-            self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "View: one plain line, the same for every type")
+            want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
+            self.assertEqual(p.js(quiet), want, "View: one plain line, the same for every type that draws no rows")
             self.assertTrue(p.js("!!document.querySelector('.secs > .sec[data-type=milestones] .msv, .secs > .sec[data-type=milestones] [data-no-milestones]')"),
                             "View: the milestones section is drawn, not the plain line")
             p.edit()
             found = edit_elements(cdp, p.sid)
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
                 self.assertEqual(len([f for f in found if what in f]), 11, what)
-            self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "Edit: the same line")
+            self.assertEqual(p.js(quiet), want, "Edit: the same line")
             self.assertEqual(p.js(texts), [QUIET] * 4, "Edit: the four text sections keep the old line (their editor is a later item)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
@@ -288,8 +284,9 @@ class Modes(Base):
             # (The fallback for a page with no box is tested at the "not claimed" toast below.)
             p.until("!!document.querySelector('[role=dialog]')", "the button opens the Add a section box")
             self.assertEqual(p.js("window.posts.length"), 0, "opening sends nothing")
+            p.until("!!document.querySelector('button[data-place]:not([disabled])')", "the box offers its Add section button, enabled (a click on a disabled one does nothing)")
             p.js("document.querySelector('button[data-place]').click()")
-            self.assertTrue(wait(lambda: len(p.js("window.posts")) == 1, 5), "Add section asks for a plain text section")
+            p.until("window.posts.length === 1", "Add section asks for a plain text section")
             sent = json.loads(p.js("window.posts[0]"))
             self.assertEqual(sent.get("values"), {"type": "text", "title": "New section"})
             self.assertIsNone(sent.get("after"), "at the end")
@@ -406,7 +403,7 @@ class Sections(Base):
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
             p.view()
-            self.assertEqual(p.ids(), [i for i in IDS if i != "ABC-S-002"], "gone in View")
+            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-011")], "gone in View (#74: so is Supporting documents, with no document)")
             self.assertNotIn("At a glance", p.js("document.querySelector('main').innerText"))
             p.edit()
             p.clear_toast()
@@ -419,6 +416,7 @@ class Sections(Base):
             self.assertTrue(p.js(hidden), "only the step that was undone")
             p.menu("ABC-S-002", "show")
             p.until("!" + hidden, "Show brings it back")
+            p.toast_is("Section included in the published page.")
             self.assertEqual(p.toast(), "Section included in the published page.")
 
     def test_rename_in_place_as_plain_text(self):
@@ -519,6 +517,7 @@ class Sections(Base):
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(want, "Undo of that move")
             p.reload()
+            p.edit()                                    # #74: View leaves out Supporting documents while it has no document
             p.order_is(want, "a reload keeps the order")
             self.assertEqual(self.ids_in_store(), want)
 
@@ -730,6 +729,7 @@ class Sections(Base):
             p.key("ArrowUp", ALT, code="ArrowUp", vk=38)               # the second half goes just above the pair; the first is alone
             p.until("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", "stepped out")
             self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-006": 0})
+            p.toast_is("Moved Next week up.")
             self.assertEqual(p.toast(), "Moved Next week up.")
             self.assertTrue(wait(lambda: on("ABC-S-007"), 5))
             p.js("document.querySelector('[data-id=\"ABC-S-011\"] [data-drag]').focus()")
@@ -982,17 +982,17 @@ class Gutter(Base):
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
             p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.01" % (self.CTL % "ABC-S-004"), "following a light computer: .3")
 
-    def test_below_the_gutter_width_the_control_rests_at_three_quarters_in_both_themes(self):
-        """#130 point 2: in the card's left padding (900 px and below) the control is at about .75 at rest, light and dark; in the
-        margin at 1400 px it keeps the theme's rest strength (.3 light)."""
+    def test_below_the_gutter_width_the_control_rests_clearer_in_both_themes(self):
+        """#130 point 2, #285: in the card's left padding (900 px and below) the control is at about .85 at rest in light and .75 in dark;
+        in the margin at 1400 px it keeps the theme's rest strength (.3 light)."""
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             p.js("document.activeElement.blur()")
             p.mouse("mouseMoved", 5, 5)
-            for scheme, wide in (("light", 0.3), ("dark", 0.75)):
+            for scheme, wide, narrow in (("light", 0.3, 0.85), ("dark", 0.75, 0.75)):
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
-                for w, want in ((1400, wide), (900, 0.75)):
+                for w, want in ((1400, wide), (900, narrow)):
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                     p.until(f"window.innerWidth === {w}", "resized")
                     p.until("Math.abs(getComputedStyle(%s).opacity - %s) < 0.01" % (self.CTL % "ABC-S-004", want), f"{scheme} at {w}: {want}")
@@ -1079,7 +1079,7 @@ class Gutter(Base):
                 p.view()
                 in_view = rects()
                 p.edit()
-                self.assertEqual(rects(), in_view, f"the same left edge and width in View and Edit at {w}")
+                self.assertEqual({k: v for k, v in rects().items() if k in in_view}, in_view, f"the same left edge and width in View and Edit at {w}")   # #74: an empty Supporting documents is in Edit only
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
             # the right half: its control sits in the gap between the two columns and covers no content
             gap = p.js("(function(){var l=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"

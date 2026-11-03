@@ -30,7 +30,7 @@ import secrets
 import sqlite3
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from clark import ask, ask_apply, ask_data, ask_passages, platform, publish, secret_screen
@@ -69,6 +69,7 @@ class AskService:
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
         self.provider = provider
+        self.owner = object()                        # #284: this service's token; its Stop ends only a run it asked for
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.lock = threading.Lock()                 # the store is opened by one question at a time
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
@@ -107,7 +108,7 @@ class AskService:
         if body not in (None, {}):
             return 400, self.fail("bad_request")
         stop = getattr(self.provider, "stop", None)
-        running = bool(stop()) if callable(stop) else False
+        running = bool(stop(owner=self.owner)) if callable(stop) else False
         return 200, {"ok": True, "stopped": running, "message": MESSAGES["stopping" if running else "not_running"]}
 
     # ----- POST /api/ask -----
@@ -134,6 +135,10 @@ class AskService:
             return 400, self.fail("bad_project_code")
         if not self.enabled():                       # the gate: nothing is read for the question, nothing is sent
             return 409, self.fail("asking_off")
+        try:
+            ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
+        except ask.AskRefused as e:
+            return 400, self.fail("refused", str(e))
         with self.lock:
             try:
                 store = self.reader()
@@ -165,14 +170,15 @@ class AskService:
         facts = data.facts
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        reply = ask.ask_provider(self.provider, request, codes=(code,), exists=lambda ref: ref in facts,
+        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner), codes=(code,), exists=lambda ref: ref in facts,
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
-        notes = [n for n in (ask.dropped_note(request.dropped_turns),
+        notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(data.left_out + found.left_out), *folder_notes(found)) if n]
-        folder_ids = {pid for pid, _label in request.passages[len(data.passages):]}
-        texts = {pid: p.text for (pid, _label), p in zip(request.passages, tuple(data.passages) + tuple(found.passages))}
+        sent = tuple(data.passages) + tuple(found.passages)      # request.kept maps each passage sent to its place here (some may be left out)
+        folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
+        texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
         held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
         return 200, {"ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label} for pid, label in request.passages if pid in reply.cites],
@@ -263,7 +269,7 @@ def folder_notes(found):
     if found.safety:
         out.append(f"{found.safety} {'file was' if found.safety == 1 else 'files were'} left out for safety.")
     for label in getattr(found, "secret_labels", ()):         # #215: the file's label only, never what matched
-        out.append(f"{label} was left out because it {secret_screen.REASON}. {secret_screen.NEXT_STEP}")
+        out.append(f"{label} {secret_screen.REASON}, so it was left out and the answer may be missing something. {secret_screen.NEXT_STEP}")
     if found.pdf:
         out.append(f"{found.pdf} PDF {'file was' if found.pdf == 1 else 'files were'} not read: PDF is not supported yet.")
     if found.other:

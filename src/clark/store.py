@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import freshness as fresh, people as people_rules, platform, section_bodies
+from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -33,7 +33,8 @@ SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
-SCHEMA_VERSION = 10          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
+SCHEMA_VERSION = 11          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -67,10 +68,9 @@ REQUIRED_NEW = {
     "report_hidden": ("project", "item_id"),
     "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
     "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
-    "documents": ("project", "title", "url"),                           # clark (#126): registered so it can be archived; see DOCUMENTS_LATER
+    "documents": ("project", "title", "url"),                           # clark (#126); #74: added and edited too (_document_rules)
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents", "people")   # what Step.archive takes (#126)
-DOCUMENTS_LATER = "Documents can only be archived or restored here."
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
                  "needs", "tracker",
@@ -95,7 +95,7 @@ ALLOWED = {
     ("raid", "impact"): ("High", "Medium", "Low"),
     ("raid", "likelihood"): ("High", "Medium", "Low"),
     ("decisions", "status"): ("Pending", "Made", "Withdrawn"),
-    ("use_cases", "status"): ("On track", "Flag", "High risk"),                                    # clark
+    ("use_cases", "status"): ("On track", "Flag", "High risk", "Done"),                            # clark
     ("links", "kind"): ("blocks",),
     ("labels", "behaviour"): ("warn", "exclude"),
     ("labels", "default_choice"): ("include", "exclude"),
@@ -108,9 +108,11 @@ DATE_FIELDS = {"due_date", "raised", "closed", "date", "week_ending", "baseline_
                "needed_by", "actual_date"}
 NO_EDIT = {"id", "updated_at"}
 ID_PREFIX = {"actions": "-A-", "decisions": "-D-", "raid": "-", "milestones": "-M-", "workstreams": "-W-",
-             "use_cases": "-U-", "report_sections": "-S-"}              # clark: - promises, + use cases, + sections (#65)
+             "use_cases": "-U-", "report_sections": "-S-", "documents": "-L-"}      # clark: - promises, + use cases, + sections (#65), + documents (#74)
 # ITEM_ID and ITEM_TABLE below stay as they are: a section is not linkable and carries no label
 ITEM_ID = re.compile(r"([A-Z][A-Z0-9]{2,6})-(?:([ADMWU])-)?\d{3}")
+DOC_ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-L-\d{3}")                    # #74: a document's id (CODE-L-001); never matches ITEM_ID
+MAX_DOCUMENTS = 200                                                      # #74: a project's documents, archived ones included
 ITEM_TABLE = {"A": "actions", "D": "decisions", "M": "milestones", "W": "workstreams", "U": "use_cases", None: "raid"}
 LINKABLE = ("actions", "raid", "milestones", "decisions")               # either end of a link
 LABELLED = ("actions", "raid", "decisions")                             # items that carry labels
@@ -121,7 +123,8 @@ CLOSED_STATUSES = ("Closed", "Cancelled")
 SHARED_NUMBERS = ("actions", "raid", "decisions")    # one number sequence per project: ABC-A-002 and ABC-002 never both exist
 BLANKABLE = {"decisions": ("date", "needed_by", "replaces", "reasoning", "options", "revisit"),
              "milestones": ("state", "state_reason", "owner", "actual_date", "client_message", "description", "internal_note",
-                            "movement", "workstream")}
+                            "movement", "workstream"),
+             "documents": ("date",)}                                     # #74
 CLOSING = {"actions": CLOSED_STATUSES, "raid": CLOSED_STATUSES}          # statuses that set `closed`
 DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders")
 # the only rows a step deletes (Head ruling on #31; #65: + the report's own tables; delete_row refuses a section that isn't text)
@@ -170,7 +173,7 @@ PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions":
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal
 # note's history and every other field are not in it. `id` is only there so a milestone's creation can be told from a change.
 # What "note" is here: a step's note (Step.update(note=...)) is a change_log row with field "note", history only; it is not the
-# milestones.internal_note column, and no request can change that column (changes.py _do_milestone_change refuses it). A Hold's
+# milestones.internal_note column, which only a milestone update can change (changes.py, #458: owner only, never in a reply). A Hold's
 # dated line (dates only) and a rebaseline's reason line are stored this way, so a "note" row can sit in `shown` in
 # milestone_moves, kept because its step also has a dated or Movement row. What keeps its text off the page is not this tuple but
 # the Movement view's entries_for, which drops every entry of kind "note" or "internal_note"; the internal_note field itself is not in
@@ -197,7 +200,7 @@ REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "li
                   "report_sections", "source_folders", "people")      # #115: a person is never deleted; only the Undo of the step that made them takes the row away
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
-REVERT_CREATED += ("report_hidden",)    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
+REVERT_CREATED += ("report_hidden", "documents")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
 REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "replaces"), ("links", "from_item"),
                ("links", "to_item"), ("item_labels", "item_id"),
                ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"),   # clark: + use_case
@@ -339,6 +342,15 @@ def canonical_labels(con, value):
             known = ", ".join(x[0] for x in con.execute("SELECT name FROM labels ORDER BY name")) or "none"
             raise Invalid(f"unknown label {n!r} (labels: {known}); add it in Settings first")
         out.append(r[0])
+    return out
+
+
+def excluded_label_names(rules):
+    """The label names (case-folded) that keep a row off every client file and out of every email: Sensitive, and any label whose
+    behaviour or default choice is 'exclude'. The one place this rule is written; publish, changes and the sent record all call it."""
+    out = {"sensitive"}
+    out.update(str(r.get("name", "")).casefold() for r in rules or ()
+               if r.get("behaviour") == "exclude" or r.get("default_choice") == "exclude")
     return out
 
 
@@ -622,8 +634,39 @@ def _hidden_item(con, table, row, changed):
     """clark (#65, registered now, written by #67): what the report hides is an item of this same project."""
     t = item_table(row.get("item_id"))
     found = fetch(con, t, row["item_id"]) if t in LINKABLE + ("use_cases",) else None
+    if DOC_ID.fullmatch(str(row.get("item_id") or "")):                 # #74: a document of this project, by its key
+        found = fetch(con, "documents", f"{row.get('project')}|{row['item_id']}")
     if not found or found["project"] != row.get("project"):
         raise Invalid("That isn't an item of this project.")
+
+
+DOC_KIND_WORDS = "Choose what kind of document it is: Minutes, Actions list, Report, Slides, Plan or Other."
+
+
+def _document_rules(con, table, row, changed):
+    """#74: a document link's own rules, in plain words, on a new row and on each field a step writes (a restore or a write that
+    leaves a field alone does not check it again, so an older row never locks). The title is a section title's (plain text, not
+    blank, at most TITLE_LIMIT characters); the kind is one of doclinks.KINDS; the link passes doclinks.check_link and is stored as
+    that rule gives it; a title may not read as the address of another site; and a project holds at most MAX_DOCUMENTS."""
+    fresh_row = not row.get("id") or "id" in changed
+    if fresh_row or "title" in changed:
+        row["title"] = section_title(row.get("title"))
+    if (fresh_row or "kind" in changed) and row.get("kind") not in doclinks.KINDS:
+        raise Invalid(DOC_KIND_WORDS)
+    if fresh_row or {"title", "url"} & set(changed):
+        try:
+            row["url"] = doclinks.check_link(row.get("url"))
+            elsewhere = doclinks.looks_like_other_place(row["title"], row["url"])
+        except doclinks.LinkError as e:
+            raise Invalid(str(e)) from None
+        if elsewhere:
+            raise Invalid(doclinks.TITLE_ELSEWHERE)
+    if type(row.get("sort_order")) is not int:
+        raise Invalid("A document needs its place in the list.")
+    if fresh_row:
+        n = con.execute("SELECT count(*) FROM documents WHERE project = ? AND id IS NOT ?", (row.get("project"), row.get("id"))).fetchone()[0]
+        if n >= MAX_DOCUMENTS:
+            raise Invalid(f"A project can have at most {MAX_DOCUMENTS} documents.")
 
 
 def _source_folder(con, table, row, changed):
@@ -665,7 +708,7 @@ ROW_RULES = {
     "decisions": (_decision_source, _decision_rules, _project_exists, _use_case_link),
     "milestones": (_milestone_rules, _item_workstream, _project_exists),     # clark: + workstream, as on actions (#60)
     "use_cases": (_project_exists,),                                         # clark
-    "documents": (_project_exists,),                                         # #126: a document is not restored inside an archived project
+    "documents": (_project_exists, _document_rules),                         # #126: a document is not restored inside an archived project; #74
     "links": (_link_rules,),
     "item_labels": (_item_label,),
     "labels": (_label_name,),
@@ -824,10 +867,11 @@ def next_id(con, table, project):
     n = 0
     for t in tables:
         prefix = f"{project}{ID_PREFIX[t]}"
+        logged = f"{project}|{prefix}" if t == "documents" else prefix     # #74: a document is logged by its key, CODE|CODE-L-001
         for (i,) in con.execute(f"SELECT id FROM {_table(t)} WHERE project = ? AND length(id) = ? AND id LIKE ? "
                                 "UNION SELECT item_id FROM change_log WHERE tbl = ? AND length(item_id) = ? AND item_id LIKE ?",
-                                (project, len(prefix) + 3, prefix + "%", t, len(prefix) + 3, prefix + "%")):
-            tail = i[len(prefix):]
+                                (project, len(prefix) + 3, prefix + "%", t, len(logged) + 3, logged + "%")):
+            tail = i[-3:]
             if tail.isdigit():
                 n = max(n, int(tail))
     if n + 1 > 999:
@@ -873,8 +917,6 @@ def write_item(con, item, step):
         refuse_archived_field(item)
     if op not in ("new", "update", "cancel", "archive", "restore"):
         raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
-    if table == "documents" and op in ("new", "update") and not reverting:    # clark (#126): no ID scheme, no url rule (doclinks) yet; only an Undo of an archive or restore writes it
-        raise Invalid(DOCUMENTS_LATER)
     if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
         raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
@@ -2032,10 +2074,38 @@ def migrate_publication_numbers(con):
         con.execute(statement)
 
 
+def _use_cases_allow_done(con):
+    """use_cases.status gains 'Done' (#412). SQLite cannot widen a CHECK in place, so the table is made again from its frozen
+    text (SCHEMA_USE_CASES_DONE, never schema.sql), every row is copied by column name with its id and its rowid, the old table
+    is dropped and the new one takes its name. Nothing else changes: no table points at use_cases by a key (a work item names
+    its use case in a plain text column), and use_cases has no index or trigger of its own. Only when the table's own definition
+    does not name 'Done' yet, so a second run (or a new database) does nothing. Inside the caller's transaction."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'use_cases'").fetchone()
+    if have is not None and "'Done'" in have[0]:
+        return
+    (made,) = [st for st in _statements(SCHEMA_USE_CASES_DONE.read_text(encoding="utf-8")) if "CREATE TABLE IF NOT EXISTS use_cases (" in st]
+    if have is None:
+        con.execute(made)
+        return
+    con.execute(made.replace("CREATE TABLE IF NOT EXISTS use_cases (", "CREATE TABLE use_cases_done (", 1))
+    con.execute("INSERT INTO use_cases_done (rowid, id, project, ref, title, status, headline, standing, sort_order, client_visible, "
+                "source, archived, updated_at) SELECT rowid, id, project, ref, title, status, headline, standing, sort_order, "
+                "client_visible, source, archived, updated_at FROM use_cases ORDER BY rowid")
+    con.execute("DROP TABLE use_cases")
+    con.execute("ALTER TABLE use_cases_done RENAME TO use_cases")
+
+
+def migrate_use_case_done(con):
+    """A use case can be Done (#412): use_cases is made again with 'Done' in its status CHECK. Its own step, number 11 (see SCHEMA_VERSION and
+    MIGRATIONS); it touches no other table. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    _use_cases_allow_done(con)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
-              (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers))
+              (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
+              (11, migrate_use_case_done))
 
 
 def migration_plan(version, table=None):
@@ -2447,6 +2517,9 @@ class Store:
                 "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
             out["label_rules"] = [dict(r) for r in con.execute(
                 "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
+            out["documents"] = [dict(r) for r in con.execute(                 # #74: the Supporting documents section's links
+                "SELECT id, title, kind, url, date, sort_order, archived FROM documents WHERE project = ? AND archived IN (?, ?) "
+                "ORDER BY sort_order, id", (code, *flags))]
             if self.review_cache is None:
                 from clark import history                  # history imports this module, so it is read here
                 self.review_cache = history.ReviewCache()
@@ -2512,6 +2585,9 @@ class Store:
                         "SELECT apply_id, tbl, item_id, field, op, new_value FROM change_log WHERE tbl = 'milestones' "
                         "AND field = 'baseline_date' AND item_id LIKE ? ORDER BY rowid", (mine_like,)) if r["item_id"] in mine],
                     "undone": [r["apply_id"] for r in con.execute("SELECT apply_id FROM applies WHERE undone_at IS NOT NULL")],
+                    "documents": [dict(r) for r in con.execute(              # #74: every one, archived too: publish.select keeps only what may go
+                        "SELECT id, title, kind, url, date, sort_order, archived FROM documents WHERE project = ? "
+                        "ORDER BY sort_order, id", (code,))],
                 }
             finally:
                 con.execute("COMMIT")
@@ -2570,10 +2646,26 @@ class Store:
                 "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?, ?)",
                 (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip(), nxt))
             self.con.execute("COMMIT")
-            return cur.lastrowid
+            seq = cur.lastrowid
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
+        if not word:
+            self.keep_copy(code, nxt, path, sha256)
+        return seq
+
+    def keep_copy(self, code, number, source, sha256):
+        """#443 (from #342): keep a copy of a web page's file in clark's own `published-copies` folder, beside this database, once the
+        publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
+        holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
+        best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
+        True when a copy was written. A Word file is not kept (its row has no page to open)."""
+        if str(self.path) == ":memory:":
+            return False
+        try:
+            return published_copies.keep(self.path.parent, code, number, source, sha256)
+        except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
+            return False
 
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
@@ -2600,6 +2692,7 @@ class Store:
 
     EMAIL_MODES = ("update_request", "chase", "decision")
     EMAIL_MAX_IDS = 50
+    EMAIL_REPEAT_SECONDS = 10               # the same press from a second tab inside this long is the same record
 
     def log_email_sent(self, code, ids, mode, day, by_user, today=None):
         """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
@@ -2610,16 +2703,16 @@ class Store:
         one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
         transaction. Returns the record's number."""
         if not str(by_user or "").strip():
-            raise Invalid("A sent record needs who pressed it.")
+            raise Invalid("Add your name in Settings, then try again. Nothing was saved.")
         if mode not in self.EMAIL_MODES:
-            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision.")
+            raise Invalid("That kind of email isn't one clark records. Choose Update request, Chase or Decision. Nothing was saved.")
         if not isinstance(ids, (list, tuple)) or not all(isinstance(i, str) for i in ids):
-            raise Invalid("Tick at least one item before you press I sent it.")
+            raise Invalid("Tick at least one item before you press I sent it. Nothing was saved.")
         ids = list(dict.fromkeys(i.strip() for i in ids if i.strip()))
         if not ids:
-            raise Invalid("Tick at least one item before you press I sent it.")
+            raise Invalid("Tick at least one item before you press I sent it. Nothing was saved.")
         if len(ids) > self.EMAIL_MAX_IDS:
-            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts.")
+            raise Invalid(f"At most {self.EMAIL_MAX_IDS} items can be recorded in one email. Send it in parts. Nothing was saved.")
         try:
             if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(day)):
                 raise ValueError
@@ -2632,7 +2725,7 @@ class Store:
         if sent > now + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
-            raise Invalid("A sent record can't be made in the middle of a step: finish the step first.")
+            raise Invalid("Another change is still being saved. Wait a moment, then try again. Nothing was saved.")
         try:
             self.con.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as e:
@@ -2640,9 +2733,9 @@ class Store:
         try:
             row = self.con.execute("SELECT archived FROM projects WHERE code = ?", (code,)).fetchone()
             if row is None:
-                raise Invalid("There is no project with that code.")
+                raise Invalid("There is no project with that code. Nothing was saved.")
             if row["archived"]:
-                raise Invalid("That project is archived, so nothing can be recorded for it. Restore it first.")
+                raise Invalid("That project is archived, so no email can be drafted for it. Restore it first. Nothing was saved.")
             def ours(item):
                 return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
                            for table in ("actions", "raid", "decisions"))
@@ -2657,7 +2750,14 @@ class Store:
                                             "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
                            for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
                                              ("decisions", ("Withdrawn", "Withdrawn"))))):
-                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Reload the page and tick again.")
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Nothing was saved. Reload the page and tick again.")
+            # The same person pressing the same record again within seconds (a second tab) is the same record, not a second chase.
+            for r in self.con.execute("SELECT seq FROM email_sent WHERE project = ? AND day = ? AND mode = ? AND by_user = ? "
+                                      "AND at >= datetime('now', ?)",
+                                      (code, str(day), mode, str(by_user).strip(), f"-{self.EMAIL_REPEAT_SECONDS} seconds")).fetchall():
+                if {x["item_id"] for x in self.con.execute("SELECT item_id FROM email_sent_items WHERE seq = ?", (r["seq"],))} == set(ids):
+                    self.con.execute("COMMIT")
+                    return r["seq"]
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
@@ -2668,13 +2768,14 @@ class Store:
             raise
 
     def sensitive_among(self, ids):
-        """True when any of the item ids is labelled Sensitive or carries a label whose behaviour is 'exclude': the one test for
-        what may never go in an email (the sent record refuses it here)."""
+        """True when any of the item ids carries a label kept off every client file (excluded_label_names: the one rule publish.py and
+        changes.py use too), so the sent record refuses it here."""
         values = list(ids)
         if not values:
             return False
-        return bool(self.con.execute(f"SELECT 1 FROM item_labels l JOIN labels b ON b.name = l.label WHERE l.item_id IN ({', '.join('?' * len(values))}) "
-                                     "AND (b.name = 'Sensitive' OR b.behaviour = 'exclude')", values).fetchone())
+        blocked = excluded_label_names(dict(r) for r in self.con.execute("SELECT name, behaviour, default_choice FROM labels"))
+        return any(str(r["label"]).casefold() in blocked for r in self.con.execute(
+            f"SELECT label FROM item_labels WHERE item_id IN ({', '.join('?' * len(values))})", values))
 
     def email_sent_for(self, code, limit=200):
         """The project's sent records, newest first (at most `limit`, never more than 200): [{seq, at, day, mode, by_user, ids}],
@@ -2778,6 +2879,15 @@ class Store:
         undo. It changes nothing. #45: each row also says its `field`, so an Undo can check the field and not only the table."""
         return [{"table": r["tbl"], "key": r["item_id"], "field": r["field"], "via": r["via"], "op": r["op"]} for r in self.con.execute(
             "SELECT tbl, item_id, field, via, op FROM change_log WHERE apply_id = ? ORDER BY rowid", (apply_id,))]
+
+    def step_undone(self, apply_id, reverted=None):
+        """Whether step `apply_id` has been undone already: every row it really wrote (not a note, an updated_at stamp or a starting
+        section) has been put back by an undo still in force, the rule undo_many skips a step by. Read only. #377: a caller that asks about
+        many steps passes `reverted` (reverted_rowids, computed once) so it is not rescanned for every step."""
+        real = [r[0] for r in self.con.execute("SELECT rowid FROM change_log WHERE apply_id = ? AND field NOT IN ('note', 'updated_at') "
+                                               "AND via != ?", (apply_id, SEED_VIA))]
+        back = (reverted if reverted is not None else reverted_rowids(self.con)) if real else set()
+        return bool(real) and all(r in back for r in real)
 
     def step_actors(self, apply_id):
         """Who made step `apply_id`, read only (#47e): the set of item_events actors for it ('you', 'clark'); empty when it wrote no
@@ -2935,6 +3045,10 @@ class Step:
     def peek_apply_id(self):
         """This step's applies row, or None if nothing is written yet."""
         return self._apply_id
+
+    def is_hidden(self, project, item_id):
+        """#487: read only. Whether a report_hidden row already hides this item (its key is project + item, so a second would fail)."""
+        return self.con.execute("SELECT 1 FROM report_hidden WHERE project = ? AND item_id = ?", (project, item_id)).fetchone() is not None
 
     def create(self, kind, values):
         """A new row; returns its ref (the ID clark gives it, or its key)."""

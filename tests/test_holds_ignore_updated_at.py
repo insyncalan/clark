@@ -21,6 +21,9 @@ class HoldsIgnoreUpdatedAt(unittest.TestCase):
         self.changes = [dict(r) for r in self.con.execute(
             "SELECT rowid, field, new_value FROM change_log WHERE apply_id = ? AND field IN ('status', 'updated_at')", (self.step,))]
         self.rowid = max(r["rowid"] for r in self.changes)
+        # #355: if the stamp row were not kept here, the hold tests below could never fail on it
+        self.assertIn("updated_at", {r["field"] for r in self.changes},
+                      "the step's own rows include its stamp, so holds has a stamp to compare")
 
     def test_baseline_holds_and_nothing_later(self):
         self.assertTrue(sm.holds(self.con, "actions", self.ref, self.changes))
@@ -42,6 +45,36 @@ class HoldsIgnoreUpdatedAt(unittest.TestCase):
         later = self.demo.update("actions", self.ref, {"description": "Rewrite the cut-over plan"})
         self.assertTrue(sm.holds(self.con, "actions", self.ref, self.changes))
         self.assertEqual(sm.changed_after(self.con, self.rowid, "actions", self.ref), later)
+
+    def stamp_only_step(self, ref):
+        """A later step whose only row is the stamp of `ref`, with the stamp itself moved on."""
+        self.con.execute("UPDATE actions SET updated_at = ? WHERE id = ?", ("2031-01-01T00:00:00", ref))
+        self.con.commit()
+        with self.demo.store.step("dashboard", "Demo User") as st:
+            sm.log(st.con, st, "actions", ref, "updated_at", "2031-01-01T00:00:00", "2031-01-02T00:00:00", "update")
+        return self.demo.last_step()
+
+    def test_undoing_an_add_goes_ahead_when_only_the_stamp_has_moved(self):
+        """#355: the created-row path is the one that calls holds. Its rows include the stamp, so if holds stopped
+        skipping it, or changed_after counted a stamp-only step, the add could not be undone."""
+        ref = self.demo.action(description="Book the review room")
+        add = self.demo.last_step()
+        self.assertIn("updated_at", {r["field"] for r in self.con.execute(
+            "SELECT field FROM change_log WHERE apply_id = ?", (add,))}, "the add's own rows include the stamp")
+        self.stamp_only_step(ref)
+        done = self.demo.store.undo(add, "Demo User")
+        self.assertEqual(done["skipped"], [], "nothing is left as it is")
+        self.assertIsNone(sm.fetch(self.con, "actions", ref), "the added row is removed")
+
+    def test_a_skipped_undo_names_the_real_later_step_not_a_newer_stamp_only_one(self):
+        """#355: changed_after names the newest later step that changed a field; a stamp-only step after it is not one."""
+        real = self.demo.update("actions", self.ref, {"status": "Closed"})
+        self.stamp_only_step(self.ref)                                  # newer than the real change
+        done = self.demo.store.undo(self.step, "Demo User")
+        self.assertEqual(done["reversed"], [], "a real later change to the same field is not undone over")
+        self.assertEqual([e["by_step"] for e in done["skipped"]], [real],
+                         "the real step is named, not the stamp-only one")
+        self.assertEqual(sm.fetch(self.con, "actions", self.ref)["status"], "Closed")
 
 
 if __name__ == "__main__":

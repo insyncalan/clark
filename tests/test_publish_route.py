@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 import _publish_fixture as fx
+import _routes as routes_expected
 from _paths import SRC  # noqa: F401  (puts src/ on the path)
 from clark import changes, page, platform, profile_settings, publish, publish_flow, server as sv, to_client
 from clark.store import Invalid, Store, open_store
@@ -387,7 +388,9 @@ class TheClientFolderChangedWhileTheSaveWindowIsOpen(Base):
         self.rig.publisher.choose_save_file = dialog
 
     def data_files(self):
-        return sorted(p.name for p in self.rig.data_dir.iterdir() if not p.name.startswith("clark.db") and p.name != "backups")
+        # published-copies is clark's own folder of kept pages (#443), written by the store after the record; what these tests guard
+        # against is a client-folder file landing next to the database, which would be in this folder's parent, not in it
+        return sorted(p.name for p in self.rig.data_dir.iterdir() if not p.name.startswith("clark.db") and p.name not in ("backups", "published-copies"))
 
     def test_a_link_to_clarks_data_folder_swapped_in_copies_nothing(self):
         def swap():
@@ -803,7 +806,8 @@ class TheClientFolderSetting(Base):
 
 class TheReportBar(Base):
     def test_the_latest_publication_says_when_and_whether_to_the_client(self):
-        self.assertEqual(self.rig.call("GET", "/api/publication?project=PUB"), (200, {"ok": True, "latest": None}))
+        status, got = self.rig.call("GET", "/api/publication?project=PUB")
+        self.assertEqual((status, got.pop("pdf")["ok"] in (True, False), got), (200, True, {"ok": True, "latest": None}))        # pdf: whether Chrome is here
         self.rig.publish()
         status, got = self.rig.call("GET", "/api/publication?project=PUB")
         self.assertEqual((status, sorted(got["latest"]), got["latest"]["to_client"]), (200, ["at", "to_client"], False))
@@ -857,12 +861,7 @@ class OnlyOneRouteWritesIntoTheClientFolder(Base):
         self.assertEqual(self.rig.listing(self.rig.client), [])
 
     def test_every_route_is_listed_and_the_set_is_what_the_issue_expects(self):
-        self.assertEqual(sorted(sv.POST_ROUTES), ["/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry", "/api/ask/stop",
-                                                  "/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder",
-                                                  "/api/draft-email", "/api/draft-email/sent", "/api/logging", "/api/logging/open-folder", "/api/page-error", "/api/people", "/api/people/undo", "/api/preview", "/api/profile", "/api/publish", "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo", "/api/word-export",
-                                                  "/api/word-import"])     # #111: the two backup routes; #147: preview; #180: profile; #48: the two Word routes (word-export is the second route that can write into the client folder, through to_client, with its own tests in test_word_route); #47: asking, its switch and its folders (none writes a file); #50: the Draft email two; #47e: the dry run and Apply of a suggested change (the change goes through the store's one undoable step); #42: the sneak peek's read; #96 R1: section-image (a picture, into the store only); #96: section-file is the third (a section template's file, into the client folder's "Report files" folder, through to_client.RealFs, with its own tests in test_section_file_route)
-        self.assertEqual(sorted(sv.GET_ROUTES), ["/api/activity", "/api/ask-enabled", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/data", "/api/diagnostics", "/api/export", "/api/milestones", "/api/movement", "/api/people", "/api/profile",
-                                                 "/api/projects", "/api/publication", "/api/use-cases"])     # #147: export; #136: movement; #180: profile; #47: asking; #42: activity
+        self.assertEqual(routes_expected.unplanned(sv), {}, "a route the tests were not told of, or one that has gone")     # tests/_routes.py
 
     def test_no_route_takes_the_client_folder_from_the_request(self):
         status, got = self.rig.publish(to_client=True, client_folder=str(self.rig.root / "Elsewhere"))

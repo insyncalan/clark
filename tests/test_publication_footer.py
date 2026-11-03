@@ -36,7 +36,7 @@ class TheFooter(unittest.TestCase):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         done = publish.publish(self.store, "PUB", folder.name, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
-        self.assertEqual(self.footer(done["path"]), f"Publication {done['number']} · 28-10-2026")
+        self.assertEqual(self.footer(done["path"]), f"Published 28-10-2026. Publication {done['number']} · 28-10-2026. View only.")
 
     def test_a_file_with_no_date_reads_publication_n_alone(self):
         folder = tempfile.TemporaryDirectory()
@@ -44,7 +44,7 @@ class TheFooter(unittest.TestCase):
         done = publish.publish(self.store, "PUB", folder.name, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
         path = Path(done["path"])
         path.write_text(path.read_text(encoding="utf-8").replace('"as_at":"2026-10-28"', '"as_at":""'), encoding="utf-8")
-        self.assertEqual(self.footer(path), f"Publication {done['number']}")
+        self.assertEqual(self.footer(path), f"Publication {done['number']}. View only.")
 
     def test_a_preview_has_no_footer(self):
         folder = tempfile.TemporaryDirectory()

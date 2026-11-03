@@ -163,13 +163,18 @@ class Words(unittest.TestCase):
             sid = self.visit(cdp)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
-            self.shown(cdp, sid, ["Settings", "Settings are not ready yet.",
+            self.shown(cdp, sid, ["Settings",
+                                  "Where reports are published, how clark looks for you, the log, your backups and asking Claude.",
+                                  "Publishing", "Personal", "Logs and diagnostics", "Backups", "Asking",      # the chips: one for each card below, in the order they are on the page
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder",
+                                  "Published reports · Example Programme",      # #443: the card; the page has no server here, so its list says it could not be read
+                                  "Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.",
+                                  "The published reports could not be read. Reload the page and try again. Try again",
                                   "Personal",    # #45: Settings › Personal, the section styles
                                   "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.",
                                   "Dashboard sections", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture.",
@@ -193,7 +198,10 @@ class Words(unittest.TestCase):
                                   "Turn on asking", "Folders asking may read",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                                   "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
-                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is."])
+                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
+                                  "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
+                                  "Suggestions for the text you select in the report. Nothing changes until you accept one.",
+                                  "AI suggestions come in a later version."])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)

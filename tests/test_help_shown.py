@@ -97,17 +97,25 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["use-the-board", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["section-templates", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "find-a-past-publication", "save-as-a-pdf", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "status-words",
+                          "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], [])
-        self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Work items", "The report"])
-        self.assertEqual(s["reference"]["groups"], ["Screens", "Keys and icons"])
+        self.assertEqual(len(s["reference"]["keys"]), 36 - len(LATER["keys"]))
+        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
+        self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
 
+    def test_every_link_inside_the_shown_help_goes_to_a_shown_place(self):
+        """A link in a shown entry never points at an entry that is still held (it would go nowhere)."""
+        places = {"ref-" + x["id"] for x in SHOWN["reference"]["sections"]} | {"howto-" + x["id"] for x in SHOWN["howto"]["tasks"]}
+        places |= {"start-" + p for p in SHOWN["start"]["parts"]}
+        links = set(re.findall(r"\]\(#([a-z0-9-]+)\)", json.dumps(SHOWN)))
+        self.assertEqual(sorted(links - places), [])
+
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (28, 30, 33))
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (32, 34, 36))
 
 
 class AgainstThePage(unittest.TestCase):
@@ -120,6 +128,15 @@ class AgainstThePage(unittest.TestCase):
         code = norm(self.HELPCODE)
         missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
+
+    def test_the_held_use_case_entry_names_only_what_the_page_has(self):
+        """#421: the held keep-the-use-cases entry is checked now, while it is held, so releasing it cannot show a button the page lacks."""
+        norm = lambda t: re.sub(r"[‘’]", "'", t)
+        code = norm(self.HELPCODE)
+        entry = next(x for x in RAW["howto"]["tasks"] if x["id"] == "keep-the-use-cases")
+        self.assertIn("keep-the-use-cases", LATER["howto"])
+        names = sorted({b for t in strings(entry["s"]) for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
+        self.assertEqual(names, [])
 
     def test_every_screen_shown_is_a_tab_of_the_page(self):
         screens = set(re.findall(r'(\w+): "[A-Z]\w+"', re.search(r"export const TITLES = \{(.*?)\}", (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8")).group(1)))
@@ -150,13 +167,80 @@ class AgainstThePage(unittest.TestCase):
         # 66 again on the merge with ask clark's panel (#47a) and the palette's command for it (measured on the merged tree)
         # 63 on main with the ask panel's suggestion pills (Check this report, Summarise this week, Which risks are red?); the section templates (#96) add no further bold Help name beyond ones main already counts. Measured at this merge: 60 (the merged tree counts three fewer than main)
         # 60 measured after merging main (floor 63 there): the section templates (#96) put three bold Help names on the page, so they are no longer absent: Client wording and Latest update (the RAID cards) and Description (the pictures' caption box)
-        self.assertGreaterEqual(len(names), 60)
+        # 59 measured on this branch's merge with main: the bar above the page names one bold Help entry that was not on the page before (measured on the merged tree)
+        # 59 with Show archived on Milestones (C-M4): its button, now on the page, is one more Help bold name no longer absent (measured: 59, was 60)
+        # 58 on the merge with Show archived on Milestones (59 on main): the Supporting documents section (#74) is one more of Help's bold names on the page (measured on the merged tree)
+        # 58 measured on the merged tree (main is 59), names printed: one name left the absent list, Week ending, which this branch's report bar (A-D2) puts on the page
+        # 57 measured on the merge of main into the supporting documents branch (#74)
+        # 49 measured on the merge of #421, #443 and #124 onto Train 03 (the PDF entry adds no bold name absent from the page)
+        # 49 measured on the merge of #421 onto Train 03 (held use-case entry no longer bolds '+ Add use case', '+ Link an existing work item', 'Archive use case', 'Show archived', 'Draft from the project'; 50 fails)
+        # 48 measured on the merged tree with the parity batch (#214) and main: one more name left the absent list than on Train 03 (49 fails)
+        self.assertGreaterEqual(len(names), 48)
+        # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
+        # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
+        # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
+        # 51 measured on the merge with train-03 (names printed): its Milestones page (#458) and this branch's parity batch 1 each take Help names off the absent list
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
         self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
                                 "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
-                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]"])
+                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]",
+                                "[[Up]] [[Down]] [[Home]] [[End]]", "[[Up]] [[Down]] [[Left]] [[Right]]", "[[Enter]]"])
+
+
+GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
+SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles of the sections a new report starts with
+# Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
+COMPUTED = {
+    "3 days late": "Due, built from the date (workItems.js dueCell)",
+    "In 5 days": "Due, built from the date (workItems.js dueCell)",
+    "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
+    "this week\u2019s actions": "an example of what a card might be called, not a label",
+    "decisions needed": "an example of what a card might be called, not a label",
+}
+
+
+def labels_of(entry):
+    """Every control or label a shown entry names: its bold names, its quoted words, and the first cell of each table row."""
+    out = set()
+    for t in strings(entry):
+        out |= set(re.findall(r"\*\*(.+?)\*\*", t)) | set(re.findall(r"\u201c(.+?)\u201d", t))
+    for b in entry["b"] if "b" in entry else []:
+        if b[0] == "tbl":
+            for row in b[2]:
+                out |= set(row[0].split(", "))
+    return {re.sub(r"\s*\(.*?\)\s*$", "", x).strip(" .,:;\u2026") for x in out}
+
+
+class ReleasedLabels(unittest.TestCase):
+    """The check on #82: every label a RELEASED Help entry (How do I, Reference) names must be a word the page itself holds in its source (whole words,
+    in the code of the page and of Help, and the tile titles in glance.py). Held entries are exempt: they are not shown."""
+    PAGE = page_code(include_help=True) + "\n" + strip_comments(GLANCE_PY.read_text(encoding="utf-8")) + "\n" + strip_comments(SECTIONS_PY.read_text(encoding="utf-8"))
+
+    @classmethod
+    def on_page(cls, label):
+        norm = lambda t: re.sub(r"[\u2018\u2019]", "'", t)
+        pat = r"(?<![\w])" + re.escape(norm(label)) + r"(?![\w])"
+        return bool(re.search(pat, norm(cls.PAGE))) or label in COMPUTED
+
+    def missing(self, entries):
+        return sorted({f"{e['id']}: {x}" for e in entries for x in labels_of(e) if not self.on_page(x)})
+
+    def test_every_label_in_a_released_entry_is_on_the_page(self):
+        entries = SHOWN["howto"]["tasks"] + SHOWN["reference"]["sections"]
+        self.assertEqual(self.missing(entries), [], "a released Help entry names something the page does not have: reword it or hold the entry")
+
+    def test_the_check_fails_on_a_made_up_label(self):
+        """Mutation check: a label the page does not have, as a bold name, a quoted word and a table row, is each reported."""
+        bad = {"id": "x", "b": [["p", "Press **Frobnicate** or see \u201cWidget zone\u201d."], ["tbl", ["A", "B"], [["Gizmo row", "c"]]]]}
+        self.assertEqual(self.missing([bad]), ["x: Frobnicate", "x: Gizmo row", "x: Widget zone"])
+
+    def test_the_computed_words_are_still_in_shown_entries(self):
+        """A word excused as computed must still be quoted by a released entry, or it is stale."""
+        every = " ".join(shown_texts())
+        for w in COMPUTED:
+            self.assertIn(w, every)
 
 
 class NeverDelete(unittest.TestCase):
@@ -181,7 +265,7 @@ class NeverDelete(unittest.TestCase):
         for part in ("Archive hides the project and everything in it from the usual lists, the counts and the published page",
                      "**Show archived** finds it", "**Restore** and **Undo** bring it back"):
             self.assertIn(part, text)
-        self.assertIn("Archive use case", text)
+        self.assertIn("Archive this use case", text)       # the button as the page labels it (#421: the held entry once said "Archive use case")
         self.assertIn("Archive milestone", text)
 
 

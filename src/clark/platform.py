@@ -5,6 +5,8 @@ ensure when we build for mac we make allowances for the future"). Only the Mac b
 raises NotBuiltYet. No other module may start a program, call osascript or ctypes, or name a system folder: a source test
 (tests/test_platform_source.py) fails if one does. See docs/handoff/portability-and-sharing.md.
 
+Known gap: Windows has no data-folder lock yet (hold_data_lock checks nothing there), so two clarks can open one folder.
+
 Standard library only, Python 3.9.
 """
 import errno
@@ -22,6 +24,11 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+
+try:
+    import fcntl               # the Mac's and Linux's file lock; there is none on Windows
+except ImportError:
+    fcntl = None
 
 MAC = "darwin"
 WINDOWS = "win32"
@@ -182,7 +189,90 @@ def private_file(path):
     return Path(path)
 
 
+# One clark to a data folder
+
+LOCK_NAME = ".clark-lock"       # in the data folder; empty, and never written to
+_HELD_LOCKS = {}                # data folder -> the open lock file; kept open for as long as this clark runs
+
+
+def already_open(folder, restoring=False):
+    """What a person reads when another clark has `folder` open. `restoring`: the words for `clark restore NAME`."""
+    if restoring:
+        return "Nothing was restored: clark is open with this data. Close its window, wait a minute for clark to stop, then run the restore again."
+    return (f"Nothing was started: clark is already open with the data in {with_tilde(folder)}. Switch to its window. If you can't "
+            "find it, wait a minute and try again: clark stops by itself a minute after its last window closes.")
+
+
+def cant_check(folder, restoring=False):
+    """What a person reads when the lock on `folder` can't be looked at (not when another clark holds it)."""
+    nothing = "Nothing was restored" if restoring else "Nothing was started"
+    return (f"{nothing}: clark can't check whether it is already open with the data in {with_tilde(folder)}. "
+            "Check that you can save files there, then try again.")
+
+
+def _busy(error):
+    """True when `error` from the lock call means another clark holds it (and not that the lock can't be looked at)."""
+    return isinstance(error, BlockingIOError) or error.errno in (errno.EAGAIN, errno.EWOULDBLOCK)
+
+
+
+def _lock_file(folder):
+    fd = os.open(str(Path(folder) / LOCK_NAME), os.O_RDONLY | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(fd)
+        raise
+    return fd
+
+
+def hold_data_lock(folder, restoring=False):
+    """Take the lock on `folder` for as long as this process lives. Raises PlatformError(already_open) if another clark has it,
+    and PlatformError(cant_check) if the lock can't be looked at (no permission, or any other error): only a busy lock means
+    "already open". The system drops the lock when the process ends, however it ends, so a crash leaves nothing stale. Where
+    there is no file lock (Windows, not built yet) nothing is checked."""
+    key = str(Path(folder).resolve())
+    if fcntl is None:
+        return
+    if key in _HELD_LOCKS:
+        raise PlatformError(already_open(folder, restoring))
+    try:
+        _HELD_LOCKS[key] = _lock_file(folder)
+    except OSError as e:
+        raise PlatformError(already_open(folder, restoring) if _busy(e) else cant_check(folder, restoring)) from None
+
+
+def release_data_lock(folder):
+    """Let go of the lock this process holds on `folder` (a clean stop; the system does it anyway at exit)."""
+    fd = _HELD_LOCKS.pop(str(Path(folder).resolve()), None)
+    if fd is not None:
+        os.close(fd)
+
+
+def data_lock_held(folder):
+    """True when another clark holds the lock on `folder`; nothing is kept. False when there is no lock to check. Raises
+    PlatformError(cant_check) when the lock can't be looked at, which is not the same as held."""
+    if fcntl is None:
+        return False
+    try:
+        if not (Path(folder) / LOCK_NAME).exists():
+            return False
+        os.close(_lock_file(folder))
+    except OSError as e:
+        if _busy(e):
+            return True
+        raise PlatformError(cant_check(folder)) from None
+    return False
+
+
 # Opening files and the system's own dialogs
+
+def run_program(args, cwd=None, run=None):
+    """Run a program from an argument list (never through a shell), wait, and return the finished process with its output
+    as text. The page build uses it to run dev/tools/build_page.py in a source checkout."""
+    return (run or subprocess.run)([str(a) for a in args], cwd=None if cwd is None else str(cwd), capture_output=True,
+                                   text=True, check=False)
+
 
 def _run(args, run=None):
     """Start a program from an argument list (never through a shell) and return the finished process."""
@@ -477,7 +567,7 @@ def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
             return (popen or subprocess.Popen)(list(argv), cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                                start_new_session=True)
     except OSError as e:
-        raise PlatformError(f"The app could not start. Try again; if it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
+        raise PlatformError(f"Nothing was started, because this Mac would not run clark. Close this window and try again. If it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
 
 
 def open_app_window(url, chrome, popen=None, on=None):
@@ -490,7 +580,7 @@ def open_app_window(url, chrome, popen=None, on=None):
         (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
-        raise PlatformError("The window could not be opened.") from e
+        raise PlatformError("Chrome could not be started, so clark's window did not open.") from e
 
 
 # The Claude command (ask clark). Found on the PATH and started from an argument list. A .cmd or .bat is refused on every
@@ -507,6 +597,69 @@ def find_claude(which=shutil.which):
         raise PlatformError("The copy of Claude Code on this computer can't be used safely by ask clark. Install Claude "
                             "Code's own app (claude.exe), then start clark again.")
     return found or None
+
+
+# A program started for a job that is waited for (the PDF export drives Chrome this way).
+
+class Child:
+    """A program this module started, with the few calls its users need: pid, poll, wait(timeout) (TimeoutError when it runs
+    on), terminate and kill. Made by start_child, either by os.posix_spawn or, where that is not there, by subprocess."""
+
+    def __init__(self, pid=None, popen=None):
+        self.pid, self._popen, self.returncode = (popen.pid if popen else pid), popen, None
+
+    def poll(self):
+        if self._popen is not None:
+            self.returncode = self._popen.poll()
+        elif self.returncode is None:
+            try:
+                done, status = os.waitpid(self.pid, os.WNOHANG)
+            except ChildProcessError:
+                self.returncode = 0
+                return 0
+            if done:
+                self.returncode = os.waitstatus_to_exitcode(status) if hasattr(os, "waitstatus_to_exitcode") else status
+        return self.returncode
+
+    def wait(self, timeout=None):
+        end = None if timeout is None else time.monotonic() + timeout
+        while self.poll() is None:
+            if end is not None and time.monotonic() > end:
+                raise TimeoutError("the program is still running")
+            time.sleep(0.02)
+        return self.returncode
+
+    def terminate(self):
+        self._send(15)
+
+    def kill(self):
+        self._send(9)
+
+    def _send(self, sig):
+        try:
+            os.kill(self.pid, sig)
+        except OSError:
+            pass
+
+
+def start_child(argv, pipe=None, **_unused):
+    """Start `argv` (an argument list, never a shell) in a process group of its own, with nothing on its standard streams.
+    With `pipe` = (read_fd, write_fd) (two descriptors of this program's), the child gets them as its descriptors 3 and 4 (what
+    Chrome's --remote-debugging-pipe reads and writes) and they are closed in the child's other places. Uses os.posix_spawn,
+    which is safe in a program with threads (no code runs in the child before the program starts). Returns a Child; raises
+    OSError if the program cannot be started."""
+    if hasattr(os, "posix_spawn"):
+        actions = [(os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0), (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
+                   (os.POSIX_SPAWN_OPEN, 2, os.devnull, os.O_WRONLY, 0)]
+        if pipe:
+            actions += [(os.POSIX_SPAWN_DUP2, pipe[0], 3), (os.POSIX_SPAWN_DUP2, pipe[1], 4),
+                        (os.POSIX_SPAWN_CLOSE, pipe[0]), (os.POSIX_SPAWN_CLOSE, pipe[1])]
+        args = [str(a) for a in argv]
+        return Child(pid=os.posix_spawn(args[0], args, os.environ, file_actions=actions, setpgroup=0))
+    if pipe:
+        raise OSError("this system cannot pass descriptors to a program this way")
+    return Child(popen=subprocess.Popen([str(a) for a in argv], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL))
 
 
 STOP_WAIT = 2.0          # seconds between the polite stop and the kill of a run_stoppable group

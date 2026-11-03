@@ -7,6 +7,7 @@ system's Save and folder windows are replaced through the publisher's two seams;
 temporary folders. Nothing is sent anywhere. Chrome is required: these tests fail, never skip, without it. Widths: 1400 and 900.
 The non-browser checks (the published page names no publish route and holds no dialog) need no browser.
 """
+import re
 import unittest
 from pathlib import Path
 
@@ -15,7 +16,9 @@ from test_page import navigate
 from test_publish_route import Rig, WANTED
 from test_server import chrome, wait
 
-from clark import page, to_client
+from unittest import mock
+
+from clark import page, pdf, publish_pdf, to_client
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 NO_FOLDER = "No client folder yet. Set it in Settings."
@@ -92,6 +95,46 @@ class Dialog(Base):
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "the dialog closed")
 
+    def test_C_pdf_tick_is_there_unticked_and_never_remembered(self):
+        with mock.patch.object(pdf, "find_chrome", return_value="/chrome"), chrome() as cdp:
+            p = self.page(cdp)
+            for w in WIDTHS:
+                p.width(w)
+                p.open_publish()
+                self.assertEqual(p.js("[document.querySelector('#pub-pdf').checked, document.querySelector('#pub-pdf').disabled]"),
+                                 [False, False], "PDF is unticked and can be ticked: Chrome is here")
+                self.assertIn("PDF", p.dialog_text())
+                p.js("document.querySelector('#pub-pdf').click()")
+                p.until("document.querySelector('#pub-pdf').checked", "ticked")
+                p.js("document.querySelector('[data-cancel]').click()")
+                p.until("!document.querySelector('#publish-dialog')", "closed")
+            p.open_publish()
+            self.assertFalse(p.js("document.querySelector('#pub-pdf').checked"), "reopened: unticked")
+            self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0)
+
+    def test_C_pdf_tick_is_greyed_with_one_line_without_chrome(self):
+        with mock.patch.object(pdf, "find_chrome", return_value=None), chrome() as cdp:
+            p = self.page(cdp)
+            for w in WIDTHS:
+                p.width(w)
+                p.open_publish()
+                self.assertEqual(p.js("document.querySelector('#pub-pdf').disabled"), True)
+                self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').innerText.replace(/\\s+/g, ' ')"),
+                                 "PDF " + publish_pdf.NO_CHROME_LINE)
+                p.js("document.querySelector('[data-cancel]').click()")
+                p.until("!document.querySelector('#publish-dialog')", "closed")
+
+    def test_C_pdf_words_follow_the_ticks(self):
+        with mock.patch.object(pdf, "find_chrome", return_value="/chrome"), chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            self.assertIn("A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too.", p.dialog_text())
+            p.js("document.querySelector('#pub-client').click()")
+            p.until("!!document.querySelector('#pub-warn')", "the line about the client")
+            self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), "The client will see this page.")
+            p.js("document.querySelector('#pub-pdf').click()")
+            p.until("document.querySelector('#pub-warn').innerText === 'The client will see this page and the PDF.'", "the line names the PDF")
+
     def test_C_tick_changes_button_and_line(self):
         with chrome() as cdp:
             p = self.page(cdp)
@@ -111,7 +154,9 @@ class Dialog(Base):
             p.key(" ", code="Space", vk=32)
             p.until("document.querySelector('#pub-client').checked", "Space ticks it")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.hasAttribute('data-cancel')"), True, "Tab goes to Cancel, then to the button")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick (Chrome is here), then Cancel")
+            p.key("Tab", code="Tab", vk=9)
+            self.assertEqual(p.js("document.activeElement.hasAttribute('data-cancel')"), True, "then to the button")
             p.key("Tab", code="Tab", vk=9)
             self.assertEqual(p.js("document.activeElement.hasAttribute('data-go')"), True)
             p.key("Escape", code="Escape", vk=27)
@@ -121,7 +166,7 @@ class Dialog(Base):
             p.open_publish()
             self.assertFalse(p.js("document.querySelector('#pub-client').checked"), "reopened: unticked, never remembered")
             p.key("Enter", code="Enter", vk=13)         # Enter on the tick submits: Local only
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "Enter published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "Enter published")
             self.assertEqual(len(self.rig.rows()), 1)
 
     def test_C_reopen_is_unticked_after_a_client_publish(self):
@@ -130,7 +175,7 @@ class Dialog(Base):
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             p.js("document.querySelector('[data-go]').click()")
             p.until("!document.querySelector('#publish-dialog')", "closed")
             self.assertEqual(p.focused(), "publish")
@@ -141,34 +186,34 @@ class Dialog(Base):
     def test_C_result_message_and_report_bar(self):
         with chrome() as cdp:
             p = self.page(cdp)
-            self.assertEqual(p.js("document.querySelector('#pub-note')"), None, "nothing published yet")
+            self.assertEqual(p.js("document.querySelector('#report-state').textContent"), "Draft · not published yet", "nothing published yet")
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             self.assertEqual(p.message(), DONE_NEW)
             self.assertEqual((self.rig.client / WANTED).read_bytes(), (self.rig.local / "chosen.html").read_bytes())
-            p.until("!!document.querySelector('#pub-note')", "the bar says when")
-            self.assertRegex(p.js("document.querySelector('#pub-note').textContent"), r"^Published \d\d-\d\d-\d{4} to the client$")
+            p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
+            self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} to the client$")
 
     def test_C_publish_shows_a_spinner_while_it_works_then_a_tick_with_the_same_words(self):
-        """#130 point 4: a spinner beside "Publishing…" (still when the person asked for less motion), then a tick beside the success line."""
+        """#130 point 4: a spinner on the Publish button beside "Publishing…" (still when the person asked for less motion), then a tick beside the success line."""
         with chrome() as cdp:
             p = self.page(cdp)
             p.open_publish()
             p.js("window.__real = window.fetch; window.fetch = (u, o) => /publish/.test(String(u)) && o && o.method === 'POST' ? new Promise((ok) => { window.__release = () => ok(window.__real(u, o)); }) : window.__real(u, o);")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
             p.go()
-            p.until("!!document.querySelector('#pub-msg [data-spin]')", "a spinner while it works")
+            p.until("!!document.querySelector('[data-go] [data-spin]')", "a spinner while it works")
             self.assertEqual(p.message().strip(), "Publishing…")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-spin]')).animationName"), "pub-spin")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.until("getComputedStyle(document.querySelector('[data-spin]')).animationName === 'none'", "the ring stays still for reduced motion")
-            self.assertEqual(p.js("document.querySelector('#pub-msg [data-tick]')"), None, "no tick yet")
+            self.assertEqual(p.js("document.querySelector('[data-go] [data-tick]')"), None, "no tick yet")
             p.js("window.__release()")
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
-            self.assertEqual(p.js("document.querySelector('#pub-msg [data-spin]')"), None, "the spinner is gone")
-            self.assertTrue(p.js("!!document.querySelector('#pub-msg .success [data-tick] svg')"), "a tick beside the line")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
+            self.assertEqual(p.js("document.querySelector('[data-go] [data-spin]')"), None, "the spinner is gone")
+            self.assertTrue(p.js("!!document.querySelector('[data-go] [data-tick] svg')"), "a tick on the button")
             self.assertRegex(p.message(), r"^Published \(Publication \d+\)\. Saved locally as ")
 
     def test_C_a_local_publish_says_locally_and_the_client_folder_is_left_alone(self):
@@ -176,10 +221,23 @@ class Dialog(Base):
             p = self.page(cdp)
             p.open_publish()
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             self.assertEqual(self.rig.listing(self.rig.client), [])
-            p.until("!!document.querySelector('#pub-note')", "the bar says when")
-            self.assertRegex(p.js("document.querySelector('#pub-note').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
+            p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
+            self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
+
+    def test_C_view_shows_the_published_chip_and_no_field_after_a_publish(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            p.go()
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
+            p.go()
+            p.until("!document.querySelector('#publish-dialog[open]')", "the dialog closed")
+            p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the chip says when")
+            self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
+            self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
+            self.assertEqual(p.js("document.querySelectorAll('.rbar input').length"), 0, "View has no field")
 
     def test_C_cancelling_the_save_window_says_so_and_writes_nothing(self):
         self.rig.save_to = None
@@ -228,7 +286,7 @@ class Dialog(Base):
             p.go()
             p.until("!!document.querySelector('input[name=clash]')", "asked again")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             self.assertIn("PUB-report-2026-10-23 (2).html", p.message())
             self.assertEqual(self.rig.listing(self.rig.client), sorted([WANTED, "PUB-report-2026-10-23 (2).html"]))
 
@@ -344,8 +402,13 @@ class Published(unittest.TestCase):
         for f in PAGE_SRC.rglob("*"):
             if f.is_file() and f.name != "publishApi.js":
                 body = f.read_text(encoding="utf-8")
+                # "/api/publication" alone: /api/publications is the Published reports list (#443), which only pastReportsApi.js names
                 for route in ("/api/publish", "/api/client-folder", "/api/publication"):
-                    self.assertNotIn(route, body, f"{f.name} names {route}")
+                    found = re.search(re.escape(route) + ("(?!s)" if route == "/api/publication" else ""), body)
+                    self.assertIsNone(found, f"{f.name} names {route}")
+                if f.name != "pastReportsApi.js":
+                    for route in ("/api/publications", "/api/past-report"):
+                        self.assertNotIn(route, body, f"{f.name} names {route}")
 
     def test_the_words_in_the_page_are_the_specs(self):
         src = "".join(f.read_text(encoding="utf-8") for f in PAGE_SRC.rglob("edit/*") if f.is_file())
