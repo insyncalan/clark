@@ -570,6 +570,22 @@ export function restoreView(views, id) {
   const bad = nameProblem(views, v.name, id);
   return bad ? { ok: false, message: bad } : { ok: true, views: views.map((x) => (x.id === id ? { ...x, archived: false } : x)) };
 }
+/** Why a saved view cannot be used, in plain words, or "" when it can (#589). A view whose line the filter line no longer reads (a word it
+ *  does not know, or one this page cannot answer yet) is still listed, with this said beside it, so it can be renamed or archived. */
+export function viewTrouble(view, rows, ctx) {
+  if (!view) return "";
+  const errors = parse(view.line, rows, ctx).errors;
+  if (!errors.length) return "";
+  const first = /^(.+?[.?!])(\s|$)/.exec(String(errors[0].msg || ""));
+  const why = first ? first[1] : "Its words are not ones the filter line knows.";
+  return `This view cannot be used any more. ${why} Rename it or archive it.`;
+}
+
+/** True for one of the views every project starts with, still as it was given (same id, same line). Such a view that the page cannot
+ *  answer yet (Waiting on the client) stays out of the tabs until the page can; any other view that cannot be read stays in (#589). */
+export const isStartingView = (view) => !!view && DEFAULT_VIEWS.some((d) => d.id === view.id && d.line === view.line);
+export const heldBack = (view, rows, ctx) => isStartingView(view) && viewTrouble(view, rows, ctx) !== "";
+
 /** How many rows a view shows, for its tab. */
 export const viewCount = (view, rows, ctx) => apply(rows, view.line, ctx).length;
 

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from _demo import USER
 from _paths import SRC
+from _new_page import reload_to_new_page_cdp
 
 from clark import page, publish  # noqa: E402
 from test_work_board_page import Base  # noqa: E402
@@ -141,7 +142,7 @@ class Archived(Base):
             self.assertFalse(cdp.js(f"!!document.querySelector('{PILL}')", sid), "no button, so no false count, when the first read fails")
             self.assertNotIn("(0)", cdp.js("document.querySelector('#milestones').textContent", sid))
             down["on"] = False
-            cdp.call("Page.reload", {}, sid)
+            reload_to_new_page_cdp(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('.msv') && !!document.querySelector('[data-mode=edit]')", "the Plan after a reload")
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the button once the read works")
