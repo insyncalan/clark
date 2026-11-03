@@ -10,8 +10,21 @@ import { lineText, setLine, local } from "../stores/line.js";
 import * as FL from "../logic/filterLine.js";
 import { Menu } from "./Menu.jsx";
 
-// A saved view whose line the parser refuses (for example is:needed, while the page cannot answer it yet) is not shown.
+// A saved view whose line the parser refuses (for example is:needed, while the page cannot answer it yet) is not shown as a tab, but it is
+// never dropped without a word (#591, from #153): it is listed under the tabs in plain words and stays in the stored views.
 const usable = (view, rows, ctx) => FL.parse(view.line, rows, ctx).errors.length === 0;
+
+/** The shown views the line cannot be read for: [{id, name, why, text}]. `text` is the plain sentence (#591). Nothing is changed or removed. */
+export function unreadableViews(views, rows, ctx) {
+  const out = [];
+  for (const v of FL.visibleViews(views)) {
+    const errs = FL.parse(v.line, rows, ctx).errors;
+    if (!errs.length) continue;
+    const why = String(errs[0].msg || "").trim().replace(/([^.!?])$/, "$1.");
+    out.push({ id: v.id, name: v.name, why, text: `The saved view \u201c${v.name}\u201d is left out of the tabs because its line cannot be read. ${why} Your view is kept. To put it away, choose Archive \u201c${v.name}\u201d in the View menu.` });
+  }
+  return out;
+}
 
 // Which saved view is chosen, per project, for this visit. A page change keeps it; a reload goes back to the view the line matches.
 const chosen = signal({});
@@ -80,7 +93,7 @@ function FreshnessMenu() {
 
 function SavedViews() {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
-  const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => usable(v, rows, ctx));
+  const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => usable(v, rows, ctx)), skipped = unreadableViews(all, rows, ctx);
   const nameBox = useRef(null);
   const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename", name, error}
   const mine = chosen.value[code];
@@ -117,6 +130,7 @@ function SavedViews() {
   if (active && dirty) items.push({ id: "save", name: `Save changes to ${active.name}` });
   items.push({ id: "saveas", name: "Save this line as a new view…" });
   if (active) { items.push({ id: "rename", name: `Rename ${active.name}…` }); items.push({ id: "archive", name: `Archive ${active.name}` }); }
+  for (const u of skipped) items.push({ id: `archive:${u.id}`, name: `Archive \u201c${u.name}\u201d (its line cannot be read)` });
   for (const v of FL.archivedViews(all).filter((v) => usable(v, rows, ctx))) items.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}` });
   return (
     <div class="fviews">
@@ -133,6 +147,11 @@ function SavedViews() {
       </div>
       <FreshnessMenu />
       {fromFile.value ? null : <Menu label="View" ariaLabel="View" id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={items} onPick={act} />}
+      {skipped.length ? (
+        <div class="vskip" data-vskip role="status" aria-live="polite">
+          {skipped.map((u) => <p key={u.id} data-vskip-id={u.id}>{u.text}</p>)}
+        </div>
+      ) : null}
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
           {form.mode === "note" ? null : (

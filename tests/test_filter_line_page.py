@@ -587,6 +587,50 @@ class Line(unittest.TestCase):
                     self.assertTrue(rows)
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
+    def test_a_saved_view_the_line_cannot_read_is_named_in_plain_words_and_kept(self):
+        """#591 (from #153): an unreadable view was left out of the tabs with no word. Now the list says which view and why, the stored text
+        stays, and the View menu can put it away (archive, never delete). is:needed and is:archived are two of the lines the page cannot
+        answer yet, so they are named here too."""
+        views = [{"id": "ok", "name": "Plain", "line": "is:open"},
+                 {"id": "bad", "name": "Broken one", "line": "is:old"},
+                 {"id": "need", "name": "Needs list", "line": "is:open is:needed"},
+                 {"id": "arch", "name": "Old things", "line": "is:archived"}]
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+                cdp.call("Page.reload", {}, sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.vtabs')", sid)))
+                self.assertEqual(cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid), ["Plain"])
+                said = {}
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-vskip] p').length", sid) == 3), "one plain line for each view left out")
+                for vid in ("bad", "need", "arch"):
+                    said[vid] = cdp.js("document.querySelector('[data-vskip-id=%s]').textContent" % vid, sid)
+                self.assertEqual(cdp.js("document.querySelector('[data-vskip]').getAttribute('role')", sid), "status")
+                for vid, name in (("bad", "Broken one"), ("need", "Needs list"), ("arch", "Old things")):
+                    self.assertIn("The saved view \u201c%s\u201d is left out of the tabs because its line cannot be read." % name, said[vid])
+                    self.assertIn("Your view is kept.", said[vid])
+                    self.assertIn("Archive \u201c%s\u201d in the View menu" % name, said[vid])
+                self.assertIn("Work needed from the client is not available on this page yet.", said["need"])
+                self.assertIn("Archived work is not available on this page yet.", said["arch"])
+                self.assertIn("not a value for Is", said["bad"])
+                # nothing is lost: all four views are still in the stored data
+                kept = json.loads(cdp.js("localStorage.getItem('clark.fviews')", sid))["TUL"]
+                self.assertEqual([(v["id"], v["line"]) for v in kept], [(v["id"], v["line"]) for v in views])
+                # the menu can put one away: archived, not deleted, and its line is not touched
+                click(cdp, sid, "#viewMenu")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewMenuList')", sid)))
+                items = cdp.js("[...document.querySelectorAll('#viewMenuList [role=menuitem]')].map(b => b.textContent)", sid)
+                self.assertIn("Archive \u201cBroken one\u201d (its line cannot be read)", items)
+                click(cdp, sid, "#viewMenuList [data-kind='archive:bad']")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-vskip] p').length", sid) == 2), "the put-away view is no longer listed")
+                kept = {v["id"]: v for v in json.loads(cdp.js("localStorage.getItem('clark.fviews')", sid))["TUL"]}
+                self.assertEqual(sorted(kept), ["arch", "bad", "need", "ok"])
+                self.assertTrue(kept["bad"]["archived"])
+                self.assertEqual(kept["bad"]["line"], "is:old")
+                cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
     # ---- keys that are also Object.prototype properties (#153 review) ----
     WATCH = ("(function () { window.__errs = []; addEventListener('error', function (e) { window.__errs.push(String(e.message)); });"
              " addEventListener('unhandledrejection', function (e) { window.__errs.push(String(e.reason)); });"
