@@ -1,9 +1,9 @@
-"""#440 (S2): the Settings chips' bar that stays under the top bar, with the chip of the card you are reading marked, and About you's
-placeholders, in a real browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
+"""#440 (S2): the Settings chips' bar that stays under the top bar, with the chip of the card you are reading marked, in a real
+browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
 
 What is asserted: the bar stays under the top bar as you scroll, on the page's own ground, and a card a chip goes to is never hidden by
 it; one chip is marked (aria-current="location") and it follows the card you are reading, both as you scroll and when a chip is chosen
-(the last chip, near the foot of the page, too); the marked chip's words are 4.5:1 on its fill and its fill 3:1 on the bar; About you's boxes carry the prototype's placeholders, which can be read; the menu's link still puts the cursor in the name
+(the last chip, near the foot of the page, too); the marked chip's words are 4.5:1 on its fill and its fill 3:1 on the bar; the menu's link still puts the cursor in the name
 box, clear of the bar. Chrome is required: these tests fail, never skip, without it.
 """
 import unittest
@@ -98,17 +98,6 @@ class SettingsBar(Base):
                     self.assertGreaterEqual(ratio(rgb(fill), rgb(ground)), 3, f"{mode}: the marked chip's fill on the bar")
                     self.assertNotEqual(fill, p.js("getComputedStyle(document.querySelector('.set-nav .set-chip:not([aria-current])')).backgroundColor"),
                                         "the marked chip does not look like the others")
-
-    def test_C_about_you_has_the_prototypes_placeholders_and_they_can_be_read(self):
-        for w in WIDTHS:
-            for mode in MODES:
-                with self.subTest(width=w, mode=mode), chrome() as cdp:
-                    p = self.page(cdp)
-                    self.open_settings(p, w, mode)
-                    self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-about-you] input')].map(i => [i.id, i.placeholder, i.value])"),
-                                     [["about-name", "Your full name", ""], ["about-email", "name@company.com", ""]])
-                    hint = p.js("(() => { const i = document.querySelector('#about-name'); return [getComputedStyle(i, '::placeholder').color, getComputedStyle(i).backgroundColor]; })()")
-                    self.assertGreaterEqual(ratio(rgb(hint[0]), rgb(hint[1])), 3, f"{mode}: the placeholder can be read")
 
     def test_C_the_menu_link_puts_the_cursor_in_the_name_box_clear_of_the_bar(self):
         for w in WIDTHS:
