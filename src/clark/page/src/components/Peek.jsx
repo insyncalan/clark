@@ -114,6 +114,7 @@ export function Peek({ tools }) {
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && forItem && tools.Words, WordsBtn = editing && forItem && tools.WordsButton;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
+  const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
   // Focus goes in when the peek opens and back to where it was when it closes: to the row (or card) of the item the peek shows then,
@@ -221,6 +222,7 @@ export function Peek({ tools }) {
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
+      {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
       <h2 class="pk-title">{title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
@@ -229,6 +231,7 @@ export function Peek({ tools }) {
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
           {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} /> : <MilestoneFields m={m} />}
+          {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}
       {Words && wordsOpen.value && row ? <Words key={row.id} row={row} /> : null}
       </div>
