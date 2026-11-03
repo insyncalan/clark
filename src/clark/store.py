@@ -2659,13 +2659,31 @@ class Store:
         publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
         holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
         best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
-        True when a copy was written. A Word file is not kept (its row has no page to open)."""
+        True when a copy was written. A Word file is not kept (its row has no page to open). #342: a copy of the page's data is kept
+        beside it, cut from the same bytes (published_copies.keep)."""
         if str(self.path) == ":memory:":
             return False
         try:
             return published_copies.keep(self.path.parent, code, number, source, sha256)
         except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
             return False
+
+    def archive_publication(self, code, number):
+        """#342: archive Publication `number` of `code`: the list leaves it out, and nothing is removed or changed (its row, its kept
+        page and its data copy stay as they are; FR-43c, archive never delete). The mark is written once beside the kept copies
+        (published_copies.archive); like a publication it is a record, not an edit, so there is no step and no Undo. Refused in plain
+        words when there is no such publication or it is archived already. True when archived."""
+        if published_copies.file_name(code, number) is None:
+            raise Invalid("Give the project's code and the publication's number.")
+        if str(self.path) == ":memory:":
+            raise Invalid("A publication can't be archived in a database that is not saved to a file.")
+        if not self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ?", (code, number)).fetchone():
+            raise Invalid(f"There is no Publication {number} for {code}. Nothing was changed.")
+        if published_copies.is_archived(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} is already archived. Nothing was changed.")
+        if not published_copies.archive(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again.")
+        return True
 
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
