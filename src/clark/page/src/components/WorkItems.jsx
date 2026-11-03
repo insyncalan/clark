@@ -11,6 +11,8 @@
 // Selecting several (#195, on the page clark serves): a click selects the row, Cmd or Ctrl+click adds or removes it, Shift+click
 // selects a range in the order drawn, a double click opens the peek; Shift+Up and Shift+Down extend from the cursor row, Space
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
+// Hand over (#199, edit/HandOver.jsx): while pick mode is on the table is drawn with a tick box on each open item, a click or Space on a
+// row only ticks it, and none of the keys above, the cells' pickers or the peek is on. The ticks are stores/handover.js `ticks`.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
 import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
@@ -19,6 +21,7 @@ import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
 import { itemRows } from "../stores/work.js";
+import { handing, ticks } from "../stores/handover.js";
 import { KIND_WORDS, kindLetter, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
@@ -53,10 +56,15 @@ function keys(e, row) {
   const tr = e.currentTarget, t = e.target;
   const cell = t !== tr && t.matches && t.matches(CELLS) ? t : null;
   if (t !== tr && !cell) return;
-  if (selecting() && pickKeys(e, row.id, (id) => focusRow(tr, id, cell), { space: !cell })) return;
-  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || (selecting() && e.shiftKey)) return;
-  if (!cell && (e.key === "Enter" || (e.key === "ArrowRight" && mode.value !== "edit"))) { e.preventDefault(); openPeek(row.id, "item"); return; }   // Right opens the peek in View; in Edit it walks the cells
-  if (!cell && e.key === "ArrowLeft" && mode.value !== "edit" && peek.value) { e.preventDefault(); closePeek(); return; }   // Left from a row closes an open peek; only a key on the row itself (never one inside the peek)
+  if (handing()) {                                                                 // #199: Space only ticks; Enter opens nothing; the arrows still move
+    if (e.key === " " && !cell && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (isOpen(row)) ticks.toggle(row.id); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.key === "Enter") return;
+  } else {
+    if (selecting() && pickKeys(e, row.id, (id) => focusRow(tr, id, cell), { space: !cell })) return;
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || (selecting() && e.shiftKey)) return;
+    if (!cell && (e.key === "Enter" || (e.key === "ArrowRight" && mode.value !== "edit"))) { e.preventDefault(); openPeek(row.id, "item"); return; }   // Right opens the peek in View; in Edit it walks the cells
+    if (!cell && e.key === "ArrowLeft" && mode.value !== "edit" && peek.value) { e.preventDefault(); closePeek(); return; }   // Left from a row closes an open peek; only a key on the row itself (never one inside the peek)
+  }
   const rows = Array.from(tr.closest("#work-list").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups (each its own card and table), never a group heading
   const cells = Array.from(tr.querySelectorAll(CELLS)), c = cells.indexOf(cell);
   const field = fieldOf(cell);
@@ -82,17 +90,27 @@ function focusRow(tr, id, cell) {
 function Row({ row, today, Cell, Eye, stop, pos, size }) {
   const due = dueCell(row, today), pill = pillOf(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
-  const on = selecting(), picked = on && sel.ids.value.includes(row.id);
+  const hand = handing(), can = isOpen(row), ticked = hand && ticks.ids.value.includes(row.id);
+  const on = selecting() && !hand, picked = on && sel.ids.value.includes(row.id);
   const click = (e) => {
     if (!ownClick(e.target, e.currentTarget)) return;
-    if (on) pickClick(e, row.id);
+    if (hand) { if (can) ticks.toggle(row.id); }
+    else if (on) pickClick(e, row.id);
     else if (!String(window.getSelection()).length) openPeek(row.id, "item");
   };
   const dbl = (e) => { if (on && ownClick(e.target, e.currentTarget)) pickOpen(row.id); };
   return (
-    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${isOpen(row) ? "" : "done"}${picked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}${Eye ? " has-eye" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-posinset={pos} aria-setsize={size} aria-label={on ? `Select or open ${row.id}` : `Open ${row.id}`}
-      aria-selected={on ? (picked ? "true" : "false") : undefined}
+    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${can ? "" : "done"}${picked || ticked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}${Eye ? " has-eye" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-posinset={pos} aria-setsize={size}
+      aria-label={hand ? (can ? `Tick ${row.id}` : `${row.id}, closed, not offered`) : on ? `Select or open ${row.id}` : `Open ${row.id}`}
+      aria-selected={on ? (picked ? "true" : "false") : hand && can ? (ticked ? "true" : "false") : undefined}
       onFocusIn={() => { active.value = row.id; if (on) sel.moveCursor(row.id); }} onKeyDown={(e) => keys(e, row)} onMouseDown={on ? noTextRange : undefined} onClick={click} onDblClick={dbl}>
+      {hand ? (
+        <td class="c-pick">
+          {can ? <label class="rtick-hit" onClick={(e) => e.stopPropagation()}>
+            <input type="checkbox" class="rtick" data-tick={row.id} checked={ticked} aria-label={`Hand over ${row.id}`} onChange={() => ticks.toggle(row.id)} />
+          </label> : null}
+        </td>
+      ) : null}
       <td class="c-item">
         <div class="tcell">
           <span class={`kb k-${row.kind}`} role="img" aria-label={KIND_WORDS[row.kind] || row.kind} title={KIND_WORDS[row.kind] || row.kind}>{kindLetter(row.kind)}</span>
@@ -119,26 +137,27 @@ function Row({ row, today, Cell, Eye, stop, pos, size }) {
 // A group with no rows is not drawn here (the board draws every column). The table's one tab stop (#80) is the row last focused
 // while it is drawn, else the first row drawn.
 const COLS = ["c-item", "c-owner", "c-due", "c-prio", "c-status"];
-function Heads({ eye }) {
+function Heads({ eye, hand }) {
   return (
     <>
+      {hand ? <th class="c-pick"><span class="sr">Hand over</span></th> : null}
       <th class="c-item">Item</th><th class="c-owner">Owner</th><th class="c-due">Due</th><th class="c-prio">Priority</th><th class="c-status">Status</th>
       {eye ? <th class="c-eye"><span class="sr">{eye.heading}</span></th> : null}
     </>
   );
 }
-function Cols({ eye }) { return <colgroup>{COLS.concat(eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} />)}</colgroup>; }
+function Cols({ eye, hand }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} />)}</colgroup>; }
 
 function Table({ rows, today, type, Cell, Eye }) {
-  const st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": "Work items" } : {};
-  const n = COLS.length + (Eye ? 1 : 0);
+  const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
+  const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
   const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
   let order = [];                                  // the rows drawn, in order: each one's place for a screen reader ("3 of 12")
   const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} />;
   if (g === "nothing") {
     const flat = sortRows(rows, today), stop = stopOf(flat);
     order = flat.map((r) => r.id);
-    return <div class="wgroup"><table class="items" {...grid}><Cols eye={Eye} /><thead><tr><Heads eye={Eye} /></tr></thead><tbody>{flat.map((r) => row(r, stop))}</tbody></table></div>;
+    return <div class="wgroup"><table class="items" {...grid}><Cols eye={Eye} hand={hand} /><thead><tr><Heads eye={Eye} hand={hand} /></tr></thead><tbody>{flat.map((r) => row(r, stop))}</tbody></table></div>;
   }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
@@ -152,15 +171,16 @@ function Table({ rows, today, type, Cell, Eye }) {
         return (
           <div class="wgroup" key={c.key}>
             <table class="items grouped" {...grid}>
-              <Cols eye={Eye} />
+              <Cols eye={Eye} hand={hand} />
               <tbody data-group={c.key}>
                 <tr class="grp"><th colspan={n} scope="colgroup">
-                  {on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
+                  {hand ? <GroupTick sel={ticks} ids={c.rows.filter((r) => isOpen(r)).map((r) => r.id)} label={c.label} shut={shut} />
+                    : on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
                   <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
                     <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
-                {shut ? null : <tr class="colh"><Heads eye={Eye} /></tr>}
+                {shut ? null : <tr class="colh"><Heads eye={Eye} hand={hand} /></tr>}
                 {shut ? null : c.rows.map((r) => row(r, stop))}
               </tbody>
             </table>
@@ -226,16 +246,17 @@ function PublishedList({ Board, Cell, Eye, Bulk }) {
 }
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell, Eye, Bulk, L }) {
+function List({ Board, Cell, Eye, Bulk, HandOver, L }) {
   const today = todayIso(), v = L.view(itemRows.value, filterCtx());
   const st = v.state, filtered = v.rows, clear = v.clear, can = v.can;
-  const board = !!Board && work.value.view === "board";
+  const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
   const matching = filtered.map((r) => r.id);
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
-  useLayoutEffect(() => { if (selecting()) sel.sync(drawnOrder(), matching); });
+  useLayoutEffect(() => { if (selecting() && !hand) sel.sync(drawnOrder(), matching); });
   return (
     <div id="work-list">
-      {selecting() ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
+      {hand ? <HandOver.Bar rows={filtered} /> : null}
+      {selecting() && !hand ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
       {Bulk ? <Bulk.Layer /> : null}
       <div class="factive">
         <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
@@ -243,13 +264,13 @@ function List({ Board, Cell, Eye, Bulk, L }) {
       </div>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">No items match these filters.</p>{can ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} Eye={Eye} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} />}
     </div>
   );
 }
 
 export function WorkItems({ tools }) {
-  useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); if (tools && tools.HandOver) tools.HandOver.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const L = fromFile.value ? null : lineApi.current, FilterLine = L && L.FilterLine;
   const d = data.value, plan = addPlan(L ? L.toState(allRows.value, filterCtx()).type : filterState.value.type), Board = tools && tools.Board;
   const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
@@ -268,6 +289,7 @@ export function WorkItems({ tools }) {
         {tools ? (
           <div class="hacts">
             {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
+            {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: in Edit, with the Owner filter on */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} />   {/* a published file is read only: no Add (#204) */}
           </div>
         ) : null}
@@ -287,7 +309,7 @@ export function WorkItems({ tools }) {
               : <>
                   <Switches L={L}><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
                   <FilterLine />
-                  <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} L={L} />
+                  <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
                 </>}
           </>}
     </section>

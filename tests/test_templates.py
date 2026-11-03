@@ -290,6 +290,28 @@ class Box(Base):
                              ["All templates13", "Text and pictures2", "Figures2", "Work items3", "Files and links3", "People and dates2", "Notes1"])
             self.assertEqual(self.sent, [], "opening sends nothing")
 
+    def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
+        """#425: the ask panel and a toast with Undo are behind the box too; every layer in the page root is inert but the message area."""
+        every = ("[...document.querySelector('#app').children].filter(c => !c.querySelector('[role=dialog]') && !c.matches('.toasts') && c.tagName !== 'SCRIPT')"
+                 ".map(c => c.hasAttribute('inert'))")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "the ask panel opened")
+            p.replace_title("ABC-S-003", "Renamed")
+            p.saved()
+            self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-004"] [data-drag]')
+            self.assertTrue(p.js("document.querySelector('#ask-panel').hasAttribute('inert')"), "the ask panel is inert")
+            self.assertTrue(p.js("document.querySelector('.toast [data-undo]').closest('[inert]') !== null"), "the toast's Undo is inert")
+            self.assertFalse(p.js("document.querySelector('.toasts').hasAttribute('inert')"), "the message area stays live")
+            states = p.js(every)
+            self.assertTrue(states and all(states), f"every layer outside the box is inert: {states}")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('[role=dialog]')", "Esc closed it")
+            self.assertFalse(any(p.js(every)), "nothing is inert after it closes")
+            self.assertFalse(p.js("document.querySelector('#ask-panel').hasAttribute('inert')"))
+
     def test_it_takes_the_event_exactly_as_the_gutter_sends_it(self):
         """The contract with #101: a cancelable event on the document, detail {after, opener}; the box claims it and opens."""
         with chrome() as cdp:
@@ -702,6 +724,7 @@ class Box(Base):
             for width in (900, 1400):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 self.open_box(p, "ABC-S-003")
+                p.until("document.querySelector('[data-ad-say]').textContent !== ''", "the live line has its words (set after the box is on the page, #380)")
                 order = p.js("""(function(){var q=function(s){return document.querySelector(s);}, ks=[q('.ad-kinds'), q('.ad-where'), q('.ad-list'), q('.ad-prev')], ok=true;
                     for (var i=0;i<3;i++) ok = ok && !!(ks[i].compareDocumentPosition(ks[i+1]) & Node.DOCUMENT_POSITION_FOLLOWING);
                     return {ok: ok, prevDisplay: getComputedStyle(q('.ad-prev')).display, prevBox: q('.ad-prev').getBoundingClientRect().width > 0,
@@ -726,6 +749,28 @@ class Box(Base):
                     self.assertTrue(first["list"] < seq.index("preview"), f"{width}: then the preview: {seq}")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('[role=dialog]')", "closed")
+
+    def test_the_live_line_is_on_the_page_empty_before_its_words_are_set(self):
+        """#380: a live region that arrives already filled is usually not read out. The line is put on the page with no text, and its
+        words are set afterwards; the words then change in place when the chosen template moves."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("""(function(){ window.__sayLog = [];
+                var note = function(n){ try { if (n && n.nodeType === 1 && !window.__sayLog.length) {
+                    var e = n.matches('[data-ad-say]') ? n : n.querySelector('[data-ad-say]');
+                    if (e) window.__sayLog.push(e.textContent); } } catch (x) {} };
+                ['appendChild', 'insertBefore'].forEach(function(k){ var o = Node.prototype[k];
+                    Node.prototype[k] = function(n){ note(n); return o.apply(this, arguments); }; }); })()""")
+            self.open_box(p, "ABC-S-003")
+            p.until("document.querySelector('[data-ad-say]').textContent !== ''", "the words are set once the box is on the page")
+            self.assertEqual(p.js("window.__sayLog"), [""], "the line first reached the page with no text in it")
+            self.assertEqual(p.js("document.querySelector('[data-ad-say]').getAttribute('aria-live')"), "polite")
+            before = p.js("document.querySelector('[data-ad-say]').textContent")
+            p.js("document.querySelectorAll('input[name=template]')[1].click()")
+            p.until(f"document.querySelector('[data-ad-say]').textContent !== {json.dumps(before)}", "the same line changes in place when the choice moves")
+            self.assertEqual(p.js("window.__sayLog"), [""], "and it was not put on the page again")
+            p.js("document.querySelector('[data-cancel]').click()")
 
     def test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token(self):
         """Every focus ring in the box is --brand-blue (the cyan --focus is 1.8:1 on white); the scrim names no raw colour."""
