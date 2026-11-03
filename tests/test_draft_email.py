@@ -381,7 +381,7 @@ class Dates(unittest.TestCase):
         self.assertEqual(de.shown("2026-10-29"), "29-10-2026")
         self.assertEqual(de.weekday_date("2026-10-29"), "Thursday 29-10-2026")
         self.assertEqual(de.shown("0999-01-02"), "02-01-0999")
-        for text in ("20261029", "2026-W44-3", "2026-10-29T10:00", "2026-10-29 ", "2026-10-29\n", "2026-13-01", "2026-02-30",
+        for text in ("20261029", "2026-W44-3", "2026-10-29T10:00", "2026-10-29 ", "2026-10-29\n", "2026-13-01", "2026-02-30", "2026/10/29",
                      "\u0662\u0660\u0662\u0666-\u0661\u0660-\u0662\u0669", "", "12345"):
             with self.subTest(text=text):
                 self.assertEqual(de.shown(text), text)

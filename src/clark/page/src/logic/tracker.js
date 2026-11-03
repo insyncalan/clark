@@ -84,17 +84,17 @@ export const WORDS = {
     // The words below that the store also says (text, textLong, noLong, percent, order, status, count, name, nameLong) are the store's own
     // (clark/section_bodies.py, guarded) and tests/test_tracker_logic.py holds the page to them; the page's fuller wording for the same
     // refusals is in stores/report.js (CHANGE_KNOWN).
-    textLong: `A line description can be ${TEXT_MAX} characters at most.`,
-    noLong: `A line number can be ${NO_MAX} characters at most.`,
-    percent: "A percentage must be a number from 0 to 100.",
+    textLong: `A line description can be ${TEXT_MAX} characters at most. Shorten it and try again.`,
+    noLong: `A line number can be ${NO_MAX} characters at most. Shorten it and try again.`,
+    percent: "Type a percentage from 0 to 100, with one decimal at most.",
     date: "That date isn't right. Type it as DD-MM-YYYY, or leave it empty.",
     order: "A line can't end before it starts.",
     status: "Choose Planned, In progress, Completed or Late.",
     count: `A count must be a whole number from 0 to ${COUNT_MAX}, or empty.`,
     name: "Give each group a name.",
-    nameLong: `A group name can be ${NAME_MAX} characters at most.`,
-    total: "The lines' weight, planned and achieved figures can each add up to 100% at most.",
-    noteLong: `That line is too long (${NOTE_MAX} characters at most). Shorten it and try again.`,
+    nameLong: `A group name can be ${NAME_MAX} characters at most. Shorten it and try again.`,
+    total: "Weight, Planned or Achieved adds up to more than 100% across all the lines. Lower one of the figures and try again.",
+    noteLong: `A line about it can be ${NOTE_MAX} characters at most. Shorten it and try again.`,
   },
 };
 export const ALL_WORDS = () => {
