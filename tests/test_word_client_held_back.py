@@ -1,10 +1,17 @@
-"""#607 (PR 475 MEDIUM): a client-visible action whose own text names the ID of an action that is hidden from the client. The ID
+"""#607 (PR 475 MEDIUM). Case a: a client-visible action whose own text names the ID of an action that is hidden from the client. The ID
 is on the web publish's held-back list (publish_flow.markers_for lists the ID of every row that select() left out), so a web
 publish with To client ticked refuses it ("Nothing was published. The report has something in it that must not go to the
 client ..."). The Word export (word_route._do_export) builds from the same select() but checks only the client folder
 (to_client.preflight) before it writes the client copy: it never calls markers_for or to_client.check_copy.
 
-Fictional data only: the demo store's project ABC, two actions, a client folder and Local folders in a temporary folder.
+Case b: a risk whose working note (response_action, one of publish_flow.NOTE_FIELDS) is also pasted into its client-visible
+description; markers_for lists every row's note, so the web publish refuses and the Word export does not.
+Not here, because the web publish does not refuse them either (no assertion it would fail): case c, the main text of a left-out
+row pasted into a client-visible row (it is then part of kept text, so it is not a marker), and case d, a hidden report section's
+body quoted in a visible row or section (markers_for reads no hidden section). In both the Word copy carries the text as the web
+file does.
+
+Fictional data only: the demo store's project ABC, a few rows, a client folder and Local folders in a temporary folder.
 Run: python3 dev/run_tests.py test_word_client_held_back
 """
 import re
@@ -23,8 +30,15 @@ TODAY = "2026-10-29"
 HIDDEN_TEXT = "Hidden supplier review"
 NOTHING_WRITTEN = "Nothing was written to the client folder."
 
+NOTE_TEXT = "Supplier may walk away in March"
 
-class HeldBack(unittest.TestCase):
+
+class Cases:
+    """The three checks for one planted case. A case sets: plant() (the rows), leak (text that must not reach a client file),
+    look_at (the ID the web refusal names), visible (the client-visible sentence the Word copy holds) and absent (texts that
+    select() already drops, so the Word copy does not hold them)."""
+    absent = ()
+
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
@@ -34,10 +48,7 @@ class HeldBack(unittest.TestCase):
         self.local, self.word_local, self.client = self.tmp / "Local", self.tmp / "WordLocal", self.tmp / "Client"
         for folder in (self.local, self.word_local, self.client):
             folder.mkdir()
-        self.demo.action(description=HIDDEN_TEXT, client_visible=0)            # left out of every client file
-        (hidden,) = [r for r in self.store.read("actions", "ABC") if r["description"] == HIDDEN_TEXT]
-        self.hidden_id = hidden["id"]
-        self.demo.action(description=f"Book the review room after {self.hidden_id} is settled", client_visible=1)
+        self.plant()
         self.demo.update("projects", "ABC", {"publish_client": str(self.client)})
 
     def web_publish(self):
@@ -57,16 +68,16 @@ class HeldBack(unittest.TestCase):
         with zipfile.ZipFile(path) as z:
             return z.read("word/document.xml").decode("utf-8")
 
-    def word_files_holding_the_id(self):
+    def word_files_holding_the_leak(self):
         return [p for folder in (self.word_local, self.client) for p in folder.glob("*.docx")
-                if self.hidden_id in self.word_text(p)]
+                if self.leak in self.word_text(p)]
 
     def test_a_web_publish_to_the_client_refuses_it(self):
         status, got = self.web_publish()
         self.assertEqual((status, got["ok"], got["action"]), (409, False, "refused"), got)
         held = to_client.MESSAGES["held_back"].format(what="text that was meant to be left out")
         self.assertTrue(got["message"].startswith(held), got["message"])
-        self.assertIn(self.hidden_id, got["message"], "it names the item to look at")
+        self.assertIn(self.look_at, got["message"], "it names the item to look at")
         self.assertEqual(self.names(self.client), [], NOTHING_WRITTEN)
         self.assertEqual(self.names(self.local), [], "and no Local file either")
 
@@ -76,20 +87,46 @@ class HeldBack(unittest.TestCase):
         self.assertNotEqual(status, 200, got)
         self.assertFalse(got.get("ok"), got)
         self.assertEqual(self.names(self.client), [], NOTHING_WRITTEN)
-        self.assertEqual(self.word_files_holding_the_id(), [], "no Word file holds the held-back ID")
+        self.assertEqual(self.word_files_holding_the_leak(), [], "no Word file holds the held-back text")
 
     def test_what_the_word_client_copy_does_today_is_pinned(self):
-        """#607: records what the Word export does today (it saves the copy, ID and all). Delete this test with the fix, when
-        test_the_word_client_copy_refuses_it passes and loses its expectedFailure mark."""
+        """#607: records what the Word export does today (it saves the copy, held-back text and all). Delete this test with the
+        fix, when test_the_word_client_copy_refuses_it passes and loses its expectedFailure mark."""
         status, got = self.word_export()
         self.assertEqual((status, got["ok"]), (200, True), got)
         self.assertFalse(got["client_failed"])
         (copy,) = self.client.glob("*.docx")
         self.assertEqual(copy.name, got["client_name"])
         text = self.word_text(copy)
-        self.assertIn(self.hidden_id, text, "the hidden item's ID is in the client copy")
-        self.assertRegex(text, re.escape("Book the review room after " + self.hidden_id))
-        self.assertNotIn(HIDDEN_TEXT, text, "the hidden item's own words are not (select() dropped them)")
+        self.assertIn(self.leak, text, "the held-back text is in the client copy")
+        self.assertIn(self.visible, text)
+        for gone in self.absent:
+            self.assertNotIn(gone, text, "select() dropped this, so the Word copy does not hold it")
+
+
+class HiddenId(Cases, unittest.TestCase):
+    """Case a: a visible action names the ID of an action hidden from the client; markers_for always lists a left-out row's ID."""
+    leak, absent = None, (HIDDEN_TEXT,)
+
+    def plant(self):
+        self.demo.action(description=HIDDEN_TEXT, client_visible=0)            # left out of every client file
+        (hidden,) = [r for r in self.store.read("actions", "ABC") if r["description"] == HIDDEN_TEXT]
+        self.leak = self.look_at = hidden["id"]
+        self.visible = f"Book the review room after {self.leak} is settled"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
+class NotePastedIntoText(Cases, unittest.TestCase):
+    """Case b: a visible risk whose working note is also pasted into its own client-visible description."""
+    leak, absent = NOTE_TEXT, ()
+
+    def plant(self):
+        self.visible = f"Watch this: {NOTE_TEXT}"
+        with self.store.step("dashboard", USER) as st:
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": self.visible, "response_action": NOTE_TEXT,
+                                     "client_visible": 1, "raised": "2026-10-01", "source": "demo"})
+        (risk,) = self.store.read("raid", "ABC")
+        self.look_at = risk["id"]
 
 
 if __name__ == "__main__":
