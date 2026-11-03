@@ -573,3 +573,11 @@ textarea.tpl-field { resize: vertical; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
 
+
+/* The first-run welcome (issue 174). A card at the bottom right, over the page but never blocking it (the toasts are at the bottom left). */
+.welcome { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 39; width: min(24rem, calc(100vw - var(--space-6))); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.welcome h2 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.welcome p { margin: 0 0 var(--space-3); font-size: var(--size-body); }
+.welcome .fld { margin: 0; max-width: none; }
+.welcome .fld-bad { margin: 0; }
+.welcome-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }

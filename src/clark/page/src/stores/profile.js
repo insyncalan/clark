@@ -5,6 +5,8 @@ import { getProfile, saveProfile } from "../api.js";
 
 export const profile = signal({ name: "", email: "" });
 export const wantName = signal(false);                  // "Add your name in Settings": the name box takes the focus when Settings has drawn
+export const profileRead = signal(false);               // clark has answered a read: only then is an empty name known to be empty (the welcome, #174)
+export const welcomeHeld = signal(false);               // the browser tests' copy holds the welcome back unless a test asks for it (testhook.js)
 let asked = false;
 let loaded = false;                                     // clark has said what it holds (a read or a save was answered): only then is a save compared with "before"
 { let first = true; profile.subscribe(() => { if (first) first = false; else loaded = true; }); }
@@ -14,7 +16,7 @@ export async function loadProfile() {
   if (asked) return;
   asked = true;
   const got = await getProfile();
-  if (got) profile.value = got; else asked = false;       // a failed read is tried again the next time something asks
+  if (got) { profile.value = got; profileRead.value = true; } else asked = false;       // a failed read is tried again the next time something asks
 }
 
 let sent = 0, applied = 0;                              // saves sent so far; the newest save whose answer the menu has been given
