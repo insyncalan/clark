@@ -257,6 +257,7 @@ class PeopleList(Base):
         status, body = self.send(self.all, "Someone New")
         self.assertEqual((status, body["changed"]), (200, self.all), body)
         self.assertEqual({self.who(r) for r in self.all}, {"Someone New"})
+        self.assertEqual({self.s.read(clark_store.item_table(r), ref=r)["owner_id"] for r in self.all}, {None}, "free text has no person id")
 
     def test_a_name_on_the_list_is_written_as_the_list_has_it(self):
         self.person(NEW)
@@ -268,6 +269,69 @@ class PeopleList(Base):
         self.person(NEW, aliases="ZQ")
         status, body = self.send(self.all, "ZQ")
         self.assertEqual((status, {self.who(r) for r in self.all}), (200, {NEW}), body)
+
+    def linked(self, ref):
+        """The stored people-table link beside an item's owner text (#115)."""
+        return self.s.read(clark_store.item_table(ref), ref=ref)["owner_id"]
+
+    def test_a_hand_over_sets_the_owners_id_on_every_kind_in_the_same_step(self):
+        pid = self.person(NEW)
+        old = self.person(OWNER)
+        with self.s.step("dashboard", USER) as st:                  # the items start linked to the person who has them now
+            for ref in self.all:
+                st.update(clark_store.item_table(ref), ref, {"owner_id": old})
+        status, body = self.send(self.all, "zelda quince")
+        self.assertEqual((status, body["changed"]), (200, self.all), body)
+        self.assertEqual({self.linked(r) for r in self.all}, {pid}, "the id of the person it names, on an action, a risk and a decision")
+        self.assertEqual({self.who(r) for r in self.all}, {NEW})
+        con = sqlite3.connect(str(self.s.path))
+        try:
+            steps = con.execute("SELECT count(DISTINCT apply_id) FROM change_log WHERE field = 'owner_id' AND apply_id = ?",
+                                (body["apply_id"],)).fetchone()[0]
+        finally:
+            con.close()
+        self.assertEqual(steps, 1, "the id is written in the hand over's own step")
+
+    def test_one_undo_puts_back_the_owner_and_its_id_together(self):
+        old = self.person(OWNER)
+        pid = self.person(NEW)
+        with self.s.step("dashboard", USER) as st:
+            for ref in self.all:
+                st.update(clark_store.item_table(ref), ref, {"owner_id": old})
+        _, body = self.send(self.all)
+        self.assertEqual({self.linked(r) for r in self.all}, {pid})
+        status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual((status, undone["ok"]), (200, True), undone)
+        self.assertEqual(len(undone["reversed"]), len(self.all), "one line for each item: the link goes back with its owner")
+        self.assertNotIn("owner_id", {e["field"] for e in undone["reversed"]})
+        self.assertEqual({self.who(r) for r in self.all}, {OWNER})
+        self.assertEqual({self.linked(r) for r in self.all}, {old}, "the old link is back with the old name")
+
+    def test_a_link_changed_alone_is_not_undone_from_here(self):
+        """The Undo takes the id only beside its owner text, in the same step of the same item (#199): a step that changes the link
+        alone is not the page's to undo."""
+        pid = self.person(NEW)
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", self.actions[0], {"owner_id": pid})
+        con = sqlite3.connect(str(self.s.path))
+        try:
+            apply_id = con.execute("SELECT max(apply_id) FROM applies").fetchone()[0]
+        finally:
+            con.close()
+        status, body = self.undo({"project": "ABC", "apply_id": apply_id})
+        self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.NO_UNDO), body)
+
+    def test_free_text_writes_no_id_and_clears_an_old_one(self):
+        old = self.person(OWNER)
+        with self.s.step("dashboard", USER) as st:
+            for ref in self.all:
+                st.update(clark_store.item_table(ref), ref, {"owner_id": old})
+        with self.s.step("dashboard", USER) as st:                  # no live person left on the list: a free name is taken, as with an empty list
+            st.archive_person(old)
+        status, body = self.send(self.all, "Someone New")
+        self.assertEqual((status, body["changed"]), (200, self.all), body)
+        self.assertEqual({self.who(r) for r in self.all}, {"Someone New"})
+        self.assertEqual({self.linked(r) for r in self.all}, {None}, "the old person's id does not stay on an item handed to free text")
 
     def test_a_name_not_on_the_list_is_refused_in_plain_words(self):
         self.person(NEW)
