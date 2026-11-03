@@ -194,6 +194,7 @@ SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles o
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
     "3 days late": "Due, built from the date (workItems.js dueCell)",
+    "Not reviewed in 14 days": "the Freshness words, built from the project's own number of days, 14 by default (filters.js staleWords, #171)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
     "this week\u2019s actions": "an example of what a card might be called, not a label",

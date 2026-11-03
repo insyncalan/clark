@@ -2106,6 +2106,9 @@ def migrate_use_case_done(con):
     _use_cases_allow_done(con)
 
 
+REVIEW_DAYS_STEP = 12        # #171's step number, written once here and used by MIGRATIONS. It is 12 only because the runner refuses a gap and main has no 13 yet: if #325 takes 12 first, this becomes 13 together with SCHEMA_VERSION (and the test's STEP)
+
+
 def migrate_review_after_days(con):
     """A project's own "not reviewed after N days" (#171): projects gains review_after_days, 14 on every project that is there
     (the number clark used for all of them before). A column added at the end of the table, with the CHECK of schema.sql, so no
@@ -2120,7 +2123,7 @@ def migrate_review_after_days(con):
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
-              (11, migrate_use_case_done), (12, migrate_review_after_days))
+              (11, migrate_use_case_done), (REVIEW_DAYS_STEP, migrate_review_after_days))
 
 
 def migration_plan(version, table=None):

@@ -39,6 +39,11 @@ the safety copy is on disk before the step and holds version 11 without the colu
 changes nothing and takes no second copy; running the step twice keeps a changed value; the CHECK refuses 0, 366, 14.5, text, empty,
 null and a blob in a brought-up file and in a new one.
 
+**The number is provisional.** Main is at version 11, and the runner refuses a table with a gap (`migration_plan`), so this step is
+numbered 12 for now. #325 (a trigger repair) is to take 12 when it lands; this step then becomes 13. The number is written in
+`store.REVIEW_DAYS_STEP` (used by `MIGRATIONS`), in `SCHEMA_VERSION`'s line and in the migration test's `STEP`; those three change
+together, nothing else (the frozen-file and pin tests read them). Whichever lands second renumbers.
+
 ## The one writer (changes.py, guarded)
 
 `review_after_days` is added everywhere `week_ending` is listed, because a project field change is one "page family" step:

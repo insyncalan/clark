@@ -2,8 +2,7 @@
 
 The step is ALTER TABLE ... ADD COLUMN with a default of 14 and the CHECK of schema.sql, so no table is made again and no frozen schema
 file is needed. A file from before the step gets 14 on every project that is in it; a new file has the column from schema.sql. The step
-is step 12 of MIGRATIONS (STEP below); if another step lands first, renumbering is: STEP here, SCHEMA_VERSION's line and the literal beside
-migrate_review_after_days in store.py. Fictional data only.
+is step 12 of MIGRATIONS (STEP below); if another step lands first, renumbering is: STEP here, SCHEMA_VERSION's line and REVIEW_DAYS_STEP in store.py. Fictional data only.
 
 Run: python3 dev/run_tests.py test_store_review_days_migration
 """
@@ -76,7 +75,9 @@ class TheNumber(Base):
 
     def test_the_number_is_written_once_beside_its_step(self):
         src = (ROOT / "src" / "clark" / "store.py").read_text(encoding="utf-8")
-        self.assertEqual(re.findall(r"\((\d+), migrate_review_after_days\)", src), [str(STEP)])
+        self.assertEqual(re.findall(r"^REVIEW_DAYS_STEP = (\d+)", src, re.M), [str(STEP)])
+        self.assertEqual(re.findall(r"\(REVIEW_DAYS_STEP, migrate_review_after_days\)", src), ["(REVIEW_DAYS_STEP, migrate_review_after_days)"])
+        self.assertEqual(store_module.REVIEW_DAYS_STEP, STEP)
         self.assertEqual(len(re.findall(r"^SCHEMA_VERSION = ", src, re.M)), 1)
 
     def test_the_step_changes_no_other_table_index_or_trigger(self):
