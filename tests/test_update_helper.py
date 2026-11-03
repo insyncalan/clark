@@ -841,7 +841,7 @@ class SourceTest(unittest.TestCase):
         self.assertIn("/src/clark/update_helper.py @insyncalan", owners)      # it is guarded now: owner review, and every test runs
         sys.path.insert(0, str(ROOT / "dev"))
         import run_tests
-        self.assertIn("src/clark/update_helper.py", run_tests.GUARDED)
+        self.assertTrue(any("src/clark/update_helper.py".startswith(g) for g in run_tests.GUARDED))   # by the "src/clark/update" prefix
         for guarded in ("server", "store", "changes", "publish", "version"):
             self.assertNotRegex(source, rf"(?m)^\s*(from|import) clark\.?{guarded}\b")
         self.assertNotRegex(source, r"ctypes|os\.system|os\.popen|startfile|shell\s*=")
