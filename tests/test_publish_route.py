@@ -807,7 +807,7 @@ class TheClientFolderSetting(Base):
 class TheReportBar(Base):
     def test_the_latest_publication_says_when_and_whether_to_the_client(self):
         status, got = self.rig.call("GET", "/api/publication?project=PUB")
-        self.assertEqual((status, got.pop("pdf")["ok"] in (True, False), got), (200, True, {"ok": True, "latest": None}))        # pdf: whether Chrome is here
+        self.assertEqual((status, got.pop("pdf")["ok"] in (True, False), got), (200, True, {"ok": True, "latest": None, "next": 1}))        # pdf: whether Chrome is here
         self.rig.publish()
         status, got = self.rig.call("GET", "/api/publication?project=PUB")
         self.assertEqual((status, sorted(got["latest"]), got["latest"]["to_client"]), (200, ["at", "to_client"], False))

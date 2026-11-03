@@ -210,7 +210,7 @@ class Duplicate(unittest.TestCase):
                 status, body = self.dup(kind, src)
                 self.assertEqual(status, 200, body)
                 self.assertEqual((self.labels(body["ref"]), self.hidden(body["ref"])), ([], False))
-                self.assertIn("Copy of " + token, self.published())
+                self.assertIn(token + " (copy)", self.published())
 
     def test_the_labels_and_the_hiding_go_in_one_step_and_one_undo_takes_all_back(self):
         src = self.make("actions", "ZQONESTEP")
@@ -262,6 +262,69 @@ class Duplicate(unittest.TestCase):
         self.assertEqual(len(self.s.read("actions")), before, "a refusal writes nothing")
         status, body = self.change({"project": "ABC", "kind": "milestones", "op": "new", "values": {"name": "m"}, "copy_of": src, "place": "menu"})
         self.assertNotEqual(status, 200, body)
+
+    def test_a_copy_takes_every_field_from_the_stored_item_and_none_from_the_request(self):
+        """#442: as the prototype (system/prototype/peek.js, Duplicate): the item again, with " (copy)" on its title and its source
+        "Duplicated from" the item. Status, latest update, use case and the rest are the stored item's; what the request sends is not used."""
+        with self.s.step("dashboard", USER) as st:
+            st.create("use_cases", {"project": "ABC", "ref": "UC9", "title": "Payroll", "status": "On track", "source": "demo"})
+        uc = [u["id"] for u in self.s.read("use_cases") if u["ref"] == "UC9"][0]
+        own = {"actions": {"status": "Delayed", "latest_update": "ZQ waiting on the supplier", "priority": "High", "owner": "Ada Quill",
+                           "due_date": "2026-11-20", "client_message": "ZQ for the client"},
+               "raid": {"status": "Open", "impact": "High", "likelihood": "High", "owner": "Ada Quill", "response_action": "ZQ ring them",
+                        "due_date": "2026-11-21", "type": "Issue"},
+               "decisions": {"status": "Made", "date": "2026-10-02", "made_by": "Ada Quill", "needed_by": "2026-10-01", "reasoning": "ZQ cheaper",
+                             "options": "ZQ a or b", "revisit": "ZQ in spring"}}
+        sent = {"actions": {"description": "ZQ sent", "owner": "Someone Else", "priority": "Low", "latest_update": "ZQ sent update"},
+                "raid": {"type": "Risk", "description": "ZQ sent", "owner": "Someone Else", "impact": "Low"},
+                "decisions": {"decision": "ZQ sent", "made_by": "Someone Else", "status": "Pending"}}
+        for kind, fields in own.items():
+            with self.subTest(kind=kind):
+                title = self.KINDS[kind][0]
+                src = self.make(kind, f"ZQFULL{kind}")
+                with self.s.step("dashboard", USER) as st:
+                    st.update(kind, src, {**fields, "use_case": uc})
+                was = self.s.read(kind, ref=src)
+                status, body = self.change({"project": "ABC", "kind": kind, "op": "new", "values": sent[kind], "copy_of": src, "place": "menu"})
+                self.assertEqual(status, 200, body)
+                copy = self.s.read(kind, ref=body["ref"])
+                self.assertEqual(copy[title], f"ZQFULL{kind} (copy)")
+                self.assertEqual(copy["source"], "Duplicated from " + src)
+                self.assertEqual(copy["use_case"], uc)
+                for f in (*fields, *changes.COPIED[kind]):
+                    self.assertEqual(copy[f], was[f], (kind, f))
+                if kind == "raid":
+                    self.assertEqual(copy["priority"], was["priority"], "worked out again from the copied impact and likelihood")
+                self.assertNotEqual(copy["id"], src)
+                self.assertFalse(self.hidden(body["ref"]), "a shown item's copy with a latest update or reasoning stays shown, as the item is")
+
+    def test_a_long_title_still_ends_with_copy_and_fits(self):
+        src = self.make("actions", "x" * 200)
+        status, body = self.change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x (copy)"}, "copy_of": src, "place": "menu"})
+        self.assertEqual(status, 200, body)
+        got = self.s.read("actions", ref=body["ref"])["description"]
+        self.assertEqual((len(got), got.endswith(" (copy)")), (200, True))
+
+    def test_an_eye_off_or_sensitive_items_copy_with_an_update_stays_out_of_the_published_file(self):
+        """#442: the copy now carries the item's latest update and reasoning too: neither reaches the client file through a copy."""
+        for kind, extra in (("actions", {"latest_update": "ZQUPDSECRET"}), ("decisions", {"reasoning": "ZQUPDSECRET"})):
+            for how in ("eye", "Sensitive", "hidden"):
+                with self.subTest(kind=kind, how=how):
+                    token = f"ZQ{kind}{how}COPYSRC"
+                    src = self.make(kind, token)
+                    with self.s.step("dashboard", USER) as st:
+                        st.update(kind, src, extra)
+                    if how == "eye":
+                        self.set_eye(kind, src, 0)
+                    elif how == "hidden":
+                        self.hide(src)
+                    else:
+                        self.label(src, "Sensitive")
+                    status, body = self.dup(kind, src)
+                    self.assertEqual(status, 200, body)
+                    page = self.published()
+                    self.assertNotIn(token, page, "neither the item nor its copy reaches the client")
+                    self.assertNotIn("ZQUPDSECRET", page)
 
     def test_a_new_row_may_not_send_the_eye_as_null(self):
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x", "client_visible": None}, "place": "menu"})
