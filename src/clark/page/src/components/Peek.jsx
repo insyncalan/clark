@@ -217,7 +217,7 @@ export function Peek({ tools }) {
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
-      <h2 class="pk-title">{title}</h2>
+      <h2 class="pk-title" tabIndex={-1}>{title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
