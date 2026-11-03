@@ -17,6 +17,7 @@ import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
 import { toast } from "../stores/changes.js";
 import { ToastCard } from "./ToastCard.jsx";
+import { Welcome } from "./Welcome.jsx";
 
 export const MENU_NAME = "Your menu";
 const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };
@@ -103,6 +104,7 @@ export function ProfileMenu() {
   return (
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
+      <Welcome />{/* #174: the first-run name prompt, asked once (Welcome.jsx) */}
       {mode.value !== "edit" && view.value === "dashboard" ? <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.own ? <ToastCard t={toast.value} /> : null}<MenuNote /></div> : null}      {/* the Dashboard in View: About you's own toast, with Undo, too (#429) */}
     </>
   );
