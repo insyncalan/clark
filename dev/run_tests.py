@@ -93,7 +93,7 @@ EVERYTHING = ("VERSION", "docs/RULES.md", ".claude/", ".github/", "vendor/", ".g
 # (the store, its schema and history, the server); listing a path that is not on main yet is fine. The workflow is already
 # covered by EVERYTHING (.github/).
 GUARDED = ("src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py", "src/clark/server.py",
-           ".github/workflows/tests.yml",
+           ".github/workflows/tests.yml", ".github/workflows/",   # the board rule names the workflows (all of them)
            # #592: the guarded files our rules name (a path is matched as a prefix, so "ask" covers every ask*.py, "publish" every
            # publish*.py and "update" every update*.py)
            "src/clark/publish", "src/clark/secret_screen.py", "src/clark/update",
