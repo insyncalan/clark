@@ -60,7 +60,7 @@ function Row({ s, shown, toggle }) {
       {shown ? (
         <div class="ucdetail" id={id}>
           <h3>Where it stands</h3>
-          {fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Nothing written yet."}</p>}
+          {fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Not written yet."}</p>}
           <h3>Next steps</h3>
           {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => <li key={r.id}><StepLine r={r} /></li>)}</ul> : <p class="muted">No open next steps.</p>}
           {n && label ? <span class="link" role="button" tabIndex={0} data-seeall onClick={go} onKeyDown={(e) => press(e, go)}>{`See all ${n} open work ${n === 1 ? "item" : "items"}`}</span> : n ? <p class="muted">{`${n} open work ${n === 1 ? "item" : "items"}.`}</p> : <p class="muted">No open work items.</p>}
