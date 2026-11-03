@@ -587,6 +587,55 @@ class Line(unittest.TestCase):
                     self.assertTrue(rows)
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
+    def test_a_saved_view_the_line_cannot_read_stays_listed_says_why_and_can_be_renamed_or_archived(self):
+        """#589: it is no longer hidden. The starting view that needs a client answer is still left out (the test above)."""
+        s = self.serve()
+        views = [{"id": "open", "name": "Open items", "line": "is:open"},
+                 {"id": "client", "name": "Waiting on the client", "line": "is:open is:needed"},
+                 {"id": "old", "name": "Old view", "line": "is:open colour:red"}]
+        tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                self.watch(cdp, sid)
+                cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+                cdp.call("Page.reload", {}, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab').length", sid) == 2))
+                self.assertEqual(cdp.js(tabs, sid), ["Open items", "Old view"], "the broken view is listed; the starting client view is still left out")
+                self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "", "nothing said until it is chosen")
+                before = self.shown(cdp, sid)
+                click(cdp, sid, ".vtab[data-view-id=old]")
+                self.assertTrue(wait(lambda: "cannot be used any more" in cdp.js("document.querySelector('[data-vbad]').textContent", sid)))
+                said = cdp.js("document.querySelector('[data-vbad]').textContent", sid)
+                self.assertIn("colour", said, "it says why")
+                self.assertIn("Rename it or archive it.", said)
+                self.assertEqual(cdp.js("document.querySelector('.vtab[data-view-id=old]').getAttribute('aria-pressed')", sid), "true")
+                self.assertEqual(cdp.js("document.querySelectorAll('.vtab[data-view-id=old] .num').length", sid), 0, "no count for a line that is not applied")
+                self.assertIn("cannot be used", cdp.js("document.querySelector('.vtab[data-view-id=old]').getAttribute('aria-label')", sid))
+                self.assertEqual(self.chips(cdp, sid), ["is:open"], "choosing it does not apply the broken line")
+                self.assertEqual(self.shown(cdp, sid), before)
+                self.assertEqual(self.errors(cdp, sid), [])
+                # Rename it
+                click(cdp, sid, "#viewMenu")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewMenuList [data-kind=rename]')", sid)))
+                self.assertFalse(cdp.js("!!document.querySelector('#viewMenuList [data-kind=save]')", sid), "nothing to save for a view that is not applied")
+                click(cdp, sid, "#viewMenuList [data-kind=rename]")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"))
+                cdp.js("document.querySelector('#vname').select()", sid)
+                self.type(cdp, sid, "Older view")
+                key(cdp, sid, "Enter")
+                self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["Open items", "Older view"]))
+                self.assertIn("cannot be used any more", cdp.js("document.querySelector('[data-vbad]').textContent", sid), "renamed, still said")
+                # Archive it, then it can be brought back
+                click(cdp, sid, "#viewMenu")
+                click(cdp, sid, "#viewMenuList [data-kind=archive]")
+                self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["Open items"]))
+                self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "")
+                click(cdp, sid, "#viewMenu")
+                self.assertTrue(wait(lambda: "Bring back Older view (cannot be used now)" in cdp.js("[...document.querySelectorAll('#viewMenuList [role=menuitem]')].map(b => b.textContent)", sid)))
+                self.assertEqual(self.errors(cdp, sid), [])
+                cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
     # ---- keys that are also Object.prototype properties (#153 review) ----
     WATCH = ("(function () { window.__errs = []; addEventListener('error', function (e) { window.__errs.push(String(e.message)); });"
              " addEventListener('unhandledrejection', function (e) { window.__errs.push(String(e.reason)); });"
