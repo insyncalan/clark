@@ -209,6 +209,14 @@ NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
+COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the item's id (system/prototype/peek.js, Duplicate)
+COPY_MARK = " (copy)"                        # #442: the end of a copy's title
+ITEM_TITLE_MAX = 200                         # a work item's title, at most (_checked_item_changes)
+COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
+    "actions": ("workstream", "owner", "owner_id", "priority", "due_date", "status", "latest_update", "client_message", "milestone", "use_case"),
+    "raid": ("type", "workstream", "owner", "owner_id", "response_action", "due_date", "impact", "likelihood", "status", "client_message", "milestone", "use_case"),
+    "decisions": ("made_by", "owner_id", "date", "status", "needed_by", "reasoning", "options", "revisit", "use_case", "client_message"),
+}                                            # id, raised, closed, archived, history or a decision's `replaces`; a RAID priority is worked out again
 NOT_A_STATUS = "That status isn't available for this item."
 NO_WORKSTREAM = "That workstream isn't available."
 ARCHIVED_MILESTONE = "That milestone is archived. Restore it first."
@@ -775,6 +783,9 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
             was = store.read(table, ref=source) if _belongs(table, source, project) else None
             if was is None or was["project"] != project or was["archived"]:
                 raise Refused(ITEM_NOT_MINE)
+            values = {k: was[k] for k in COPIED[table] if was[k] is not None}     # #442: the copy's fields are the STORED item's, never the request's
+            values[first] = was[first][:ITEM_TITLE_MAX - len(COPY_MARK)] + COPY_MARK
+            values.update(project=project, source=COPY_SOURCE + source, **({"raised": clark_store.today()} if table in ("actions", "raid") else {}))
             values["labels"] = clark_store.labels_of(st.con, source)
             values["client_visible"] = 1 if was["client_visible"] else 0   # #424: the eye is the item's own, whatever the request carried
             hide = store.read("report_hidden", ref=f"{project}|{source}") is not None
@@ -787,7 +798,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
             if words_ is None:
                 raise
             raise Refused(words_) from None
-        if any(values.get(f) for f in EXPLAIN_FIELDS):              # #487: a row that starts with Movement's explanation line starts hidden from the client (the eye off), in this same step so one Undo takes both back; the owner shows it when he chooses
+        if source is None and any(values.get(f) for f in EXPLAIN_FIELDS):   # #487 (not a copy: its hiding is the item's own, above): a row that starts with Movement's explanation line starts hidden from the client (the eye off), in this same step so one Undo takes both back; the owner shows it when he chooses
             if not st.is_hidden(project, ref):
                 st.create("report_hidden", {"project": project, "item_id": ref})     # only if no hiding row is there yet (a Duplicate of a hidden item makes one too; the key is project + item, so a second would fail)
         apply_id = st.peek_apply_id()
