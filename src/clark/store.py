@@ -1577,11 +1577,14 @@ def revert_group(con, apply_id, table, key, rows_, step):
     by_field = {}                                     # a field changed twice in one step: judged by its last value, put back
     for r in rows_:                                   # to its first old value (creaite's whole-step cmd_undo)
         by_field.setdefault(r["field"], []).append(r)
-    for f, rs in by_field.items():
+    for f, rs in sorted(by_field.items(), key=lambda kv: kv[0] == "owner_id"):     # #620: the link is judged after its owner text
         if text(row[f]) != rs[-1]["new_value"]:
             skipped.append(entry(rs[-1], why="has changed since: left as it is",
                                  by_step=changed_after(con, rs[-1]["rowid"], table, key, skip=(step.peek_apply_id(),))))
-        else:
+        elif f == "owner_id" and any(x["field"] == OWNER_TEXT.get(table) and x["why"].startswith("has changed since") for x in skipped):
+            gone = next(x for x in skipped if x["field"] == OWNER_TEXT[table])     # #620: an owner_id rides with its owner text. When the
+            skipped.append(entry(rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
+        else:                                                                       # never put back alone (the old link beside a new name)
             changes[f] = rs[0]["old_value"]
             undoes[f] = rs[-1]["rowid"]
     if table == "projects" and "health" in changes and "health_reason" not in changes:    # a health change takes its reason back too
