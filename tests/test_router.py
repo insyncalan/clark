@@ -20,6 +20,7 @@ import unittest
 from pathlib import Path
 
 from _paths import ROOT, SRC, TOOLS
+from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
 sys.path.insert(0, str(TOOLS))
@@ -792,8 +793,7 @@ class BuiltPage(Browser):
                 self.ev("clarkPage.show('dashboard')")
                 self.cdp.call("Page.navigate", {"url": self.base + want}, self.sid)              # a bookmark
                 self.until("document.documentElement.dataset.ready", "1", "reopened")
-                self.cdp.call("Page.reload", {}, self.sid)
-                self.until("document.documentElement.dataset.ready", "1", "reloaded")
+                reload_to_new_page_cdp(self.cdp, self.sid, "document.documentElement.dataset.ready === '1'")
                 name = DATA[re.search(r"p=([A-Z]+)", want).group(1)]["project"]["name"]
                 self.until("document.getElementById('project-name').textContent", name, f"the project after reload of {want}")
                 self.assertEqual(self.ev("location.hash"), want)
@@ -848,8 +848,7 @@ class BuiltPage(Browser):
             self.draw(cdp, "#work&p=PDF&item=A-12&f=a%26b%3Dc")
             self.assertEqual(self.ev("clarkPage.filters()"), "a%26b%3Dc")
             self.assertEqual(self.peek(), {"kind": "item", "id": "A-12"}, "the peek is untouched by f")
-            self.cdp.call("Page.reload", {}, self.sid)
-            self.until("document.documentElement.dataset.ready", "1", "reloaded")
+            reload_to_new_page_cdp(self.cdp, self.sid, "document.documentElement.dataset.ready === '1'")
             self.until("document.getElementById('project-name').textContent", "Example Programme", "the data")
             self.assertEqual(self.ev("location.hash"), "#work&p=PDF&item=A-12&f=a%26b%3Dc")
             self.assertEqual(self.ev("clarkPage.filters()"), "a%26b%3Dc")

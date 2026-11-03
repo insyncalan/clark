@@ -1,9 +1,10 @@
 // The Help panel (#82; BRD 5.13): Start here, How do I… and Reference, all drawn from help/helpContent.json, with one search across
-// the three tabs. A layer in place of the open page; Esc or the Close button returns to it. Edit-served pages only (edit/index.js).
+// the three tabs. A layer in place of the open page; Esc or the Back button returns to it. Edit-served pages only (edit/index.js).
 import { useEffect, useRef } from "preact/hooks";
-import { content, TABS, tabList, tasks, sections, jobs, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, goLabel } from "./helpLogic.js";
+import { content, TABS, tabList, tasks, sections, jobs, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, goLabel, markParts } from "./helpLogic.js";
 import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, setTab, follow, goTo, canGo, closeHelp } from "./helpStore.js";
 import { Md } from "./helpText.jsx";
+import { Icon } from "../components/Icon.jsx";
 
 let INDEX = null;
 const index = () => INDEX || (INDEX = buildIndex());
@@ -168,6 +169,11 @@ function Reference() {
   );
 }
 
+// A line of a result with the words the search matched marked (the prototype's yellow mark), drawn as text, never as markup.
+function Marked({ text, q }) {
+  return <>{markParts(text, q).map((p, i) => (p.hit ? <mark key={i}>{p.t}</mark> : p.t))}</>;
+}
+
 function Results() {
   const r = resultsView(index(), helpQuery.value);
   if (r.kind === "empty") return <div class="hp-none" role="status"><b>{r.title}</b><span>{r.hint}</span></div>;
@@ -181,8 +187,8 @@ function Results() {
             const e = index()[x.n];
             return (
               <a href="#" class="hp-r" key={x.id} data-hit={x.id} onClick={(ev) => { ev.preventDefault(); follow(x.id); }}>
-                <span class="hp-rt">{x.title}</span>
-                <span class="hp-rl">{x.line < 0 ? e.lines[0] || "" : e.lines[x.line]}</span>
+                <span class="hp-rt"><Marked text={x.title} q={helpQuery.value} /></span>
+                <span class="hp-rl"><Marked text={x.line < 0 ? e.lines[0] || "" : e.lines[x.line]} q={helpQuery.value} /></span>
               </a>
             );
           })}
@@ -219,18 +225,22 @@ export function Help() {
     setTimeout(() => { const b = document.getElementById("hpTab-" + ks[j]); if (b) b.focus(); }, 0);
   };
   return (
-    <section class="hp frame" id="help" aria-label="Help" tabIndex={-1} ref={box}>
-      <div class="hp-head">
-        <div><h1>Help</h1><p class="muted">How clark works, step by step, and every screen and key. Press <kbd>?</kbd> on any page, outside a box you are typing in, to open Help. Esc or Close takes you back.</p></div>
+    <section class="hp" id="help" aria-label="Help" tabIndex={-1} ref={box}>
+      <div class="head hp-head">
+        <div>
+          <h1>Help</h1>
+          <p class="muted">How clark works, step by step, and every screen and key. <span class="hp-keyhint">Press <kbd>?</kbd> on any page to open Help; Esc or Back takes you where you were.</span><span class="hp-taphint">Tap <b>?</b> in the top bar on any page to open Help; Back takes you where you were.</span></p>
+        </div>
         <div class="hp-actions">
-          <label class="hp-search"><span class="hp-sr">Search Help</span>
-            <input id="hpQ" ref={search} type="search" placeholder="Search Help" autocomplete="off" value={q} onInput={(e) => { helpQuery.value = e.currentTarget.value; helpTarget.value = null; }}
+          <button type="button" class="hp-back" id="hpBack" onClick={closeHelp}><Icon name="left" />Back</button>
+          <label class="search hp-search"><span class="hp-sr">Search Help</span><Icon name="search" />
+            <input id="hpQ" ref={search} type="search" placeholder="Search Help" autocomplete="off" aria-describedby="hpQk" value={q} onInput={(e) => { helpQuery.value = e.currentTarget.value; helpTarget.value = null; }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") { const a = document.querySelector("#hpRes a.hp-r"); if (a) { e.preventDefault(); a.click(); } }
                 else if (e.key === "ArrowDown") { const a = document.querySelector("#hpRes a.hp-r"); if (a) { e.preventDefault(); a.focus(); } }
               }} />
+            <kbd id="hpQk" aria-label="Press slash to search">/</kbd>
           </label>
-          <button type="button" class="hp-close" id="hpClose" onClick={closeHelp}>Close Help</button>
         </div>
       </div>
       <div class="hp-tabs" role="tablist" aria-label="Help" onKeyDown={onTabKey}>
