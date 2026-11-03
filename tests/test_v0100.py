@@ -68,8 +68,6 @@ WAITING = [
      "publish.py", "def put_link_back"),
     ("#607", "The Word export and import screens say plainly when a list has expired or a file is too big", "PR 475",
      "word_route.py", "SIZE_TOO_BIG"),
-    ("#614", "The Publish circle turns for as long as Publishing... shows (waits for Alan's choice)", "PR 540",
-     "page/shell.css", "Item 614 (after ticket 380)"),
     ("#640", "The filter line: the field list opens on a click, an x clears the line, core view tabs, a menu and + New view on the tabs, "
              "no note under the filter (not built yet: the prototype is PR 545)", "PR 545",
      "page/src/components/FilterLine.jsx", "(#640)"),
@@ -77,25 +75,16 @@ WAITING = [
     ("#54", "Settings, AI: Claude and OpenAI sign-in for ask clark", "no pull request yet (issue 54)", "", None),
     ("#174", "The first start asks for your name and details, kept in Settings and used to record who changed what",
      "no pull request yet (issue 174)", "", None),
-    ("#346", "From a past publication, Compare with the one before marks what was added, changed and closed",
-     "no pull request yet (issue 346)", "", None),
-    ("#350", "Search across past publications (on hold, later release)", "no pull request yet (issue 350)", "", None),
     ("#446", "Settings, AI card: Connect and Disconnect for Claude, an OpenAI tile that says Later, a model list",
      "no pull request yet (issue 446)", "", None),
     ("#453", "The prototype review of 01-11-2026 (a record of differences; nothing to build as one item)",
      "no pull request yet (issue 453)", "", None),
     ("#611", "A blank client message is turned away in plain words, not a server error", "no pull request yet (issue 611)", "", None),
     ("#613", "Settings: typing a full name suggests an Alias (Jane Doe suggests Jane,JD)", "no pull request yet (issue 613)", "", None),
-    ("#619", "Text left out of the client's view, pasted elsewhere, is turned away by the web publish and the Word copy "
-             "(on hold: waiting for Alan's word)", "no pull request yet (issue 619)", "", None),
 ]
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
-    ("#623", "clark runs in Docker on a real Windows laptop, and the answers are written down", "live only",
-     "only a real Windows laptop with Docker running can answer it; no product code is written",
-     "On a Windows laptop with Docker running, extract the container zip, run the typed commands in PowerShell and in Command Prompt, "
-     "open clark in Chrome, install it as an app, and write down each answer in issue 623."),
 ]
 
 BANNED_WORDS = ("apply", "applied", "staged", "proposal", "sweep", "tracker", "vault", "extract")
