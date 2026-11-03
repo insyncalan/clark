@@ -11,6 +11,7 @@ import { latest, refreshLatest } from "./publishState.js";
 import { lastLine } from "./Publish.jsx";
 import { todayIso } from "../workItems.js";
 import { weekEndOf } from "../logic/board.js";
+import { WeekPicker } from "./WeekPicker.jsx";
 
 // The drag hint shows the first time this browser enters Edit and stays until Edit is left; after that it is not shown again.
 const hintOpen = signal(!recall("dragHintSeen", false));
@@ -57,6 +58,7 @@ export function ReportBar() {
       ) : (
         <span class="rbar-week" id="week-ending-text">{week ? `Week ending ${shownDate(week)}` : "No week ending date yet"}</span>
       )}
+      <WeekPicker />{/* #344: the published weeks, beside Week ending in View and Edit; it only opens one, read only */}
       <span class="rbar-state" id="report-state">{editing ? "Editing · each change saves on its own" : published || "Draft · not published yet"}</span>
       {editing && hintOpen.value ? <span class="rbar-hint" id="report-hint">Drag to move, + to add a template</span> : null}
     </div>
