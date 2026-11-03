@@ -965,6 +965,15 @@ class Source(unittest.TestCase):
             for m in re.finditer(r"^\s*(//|#).*$", body, re.M):
                 self.assertNotRegex(m.group(0), r"\b\d{2}-\d{2}-\d{4}\b|\b20\d{2}-\d{2}-\d{2}\b", f"{p.name}: a date in a comment")
 
+    def test_the_line_carries_no_press_slash_hint(self):
+        # #286: "/" opens ask clark in the app, so the line must not advertise it. A plain click or Tab reaches the line.
+        import re
+        jsx = (PAGE_SRC / "components" / "FilterLine.jsx").read_text(encoding="utf-8")
+        for m in re.finditer(r"^(?!\s*//).*$", jsx, re.M):
+            self.assertNotRegex(m.group(0), r"(?i)press\s*(<kbd>)?\s*/|class=\"fkey\"|aria-keyshortcuts", "the line advertises a key")
+        css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
+        self.assertNotIn(".fkey", css)
+
     def test_it_is_pure(self):
         body = (PAGE_SRC / "logic" / "filterLine.js").read_text(encoding="utf-8")
         for bad in ("document.", "window.", "new Date(", "Date.now", "fetch(", "local" + "Storage", "session" + "Storage"):

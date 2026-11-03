@@ -189,6 +189,25 @@ class Line(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
             self.assertEqual(cdp.js("document.activeElement.id", sid), "other", "not while typing in a field")
 
+    def test_the_line_does_not_say_press_slash_in_view_or_edit_because_that_key_opens_ask(self):
+        # #286: the hint "Press /" pointed at a key that opens ask clark in the app, so it is gone. Pinned in both modes at both widths.
+        s = self.serve()
+        for width in SIZES:
+            for mode in ("view", "edit"):
+                with self.subTest(width=width, mode=mode), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width)
+                    cdp.js(f"document.querySelector('[data-mode={mode}]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('[data-mode={mode}]').getAttribute('aria-pressed')", sid) == "true"))
+                    self.assertEqual(cdp.js("document.querySelectorAll('.fkey, .fline kbd, .fline-wrap [aria-keyshortcuts]').length", sid), 0)
+                    for focused in (False, True):
+                        if focused:
+                            self.focus(cdp, sid)
+                        text = cdp.js("document.querySelector('.fline-wrap').textContent", sid)
+                        self.assertNotRegex(text, r"(?i)press\s*/", f"no hint for the slash key (focused={focused})")
+                    cdp.js("document.activeElement.blur()", sid)
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
+                    self.assertNotEqual(cdp.js("document.activeElement.id", sid), "fline-input", "the slash key goes to ask clark, not the line")
+
     def test_hint_chips_show_only_while_focused_and_a_hint_goes_into_the_box(self):
         s = self.serve()
         for width in SIZES:

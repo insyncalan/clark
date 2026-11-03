@@ -1,8 +1,9 @@
 // The one filter line above the Work items table (#153; the prototype is #145). It replaces the "Filter by" row and the type and
 // Open / Closed switches. The rules (reading a line, suggestions, plain-words messages, saved views) are in ../logic/filterLine.js;
 // this file is the controls: removable chips, a combobox with a listbox of suggestions, a live region for plain-words messages, hint
-// chips while the line is focused, "/" to focus it, saved views as tabs and one View menu. Keys: arrows choose, Enter accepts,
-// Backspace in an empty box removes the last chip, Esc closes the open list.
+// chips while the line is focused, saved views as tabs and one View menu. Keys: arrows choose, Enter accepts,
+// Backspace in an empty box removes the last chip, Esc closes the open list. The line is reached by a click or Tab: the page shows no
+// "Press /" hint, because "/" opens ask clark (#286).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -276,7 +277,8 @@ export function FilterLine() {
       setClosed(true); setActive(-1);                                   // Tab moves on (to the x, when it shows) with the list shut
     }
   };
-  // "/" focuses the line, except while typing in a field or when a dialog or menu is open.
+  // "/" focuses the line only where nothing took the key first. In the app the ask panel's capture handler does (#47a), so this does not run
+  // there and the page does not advertise it (#286); it stays for a page without that handler.
   useEffect(() => {
     const slash = (e) => {
       if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
@@ -306,7 +308,6 @@ export function FilterLine() {
           aria-activedescendant={listed && active >= 0 ? `fo-${active}` : undefined} aria-describedby="fline-msg"
           placeholder={parsed.chips.length || parsed.words.length ? "" : FL.PLACEHOLDER} value={draft}
           onInput={(e) => { setDraft(e.target.value); setActive(-1); setClosed(false); setSaid([]); }} onKeyDown={onKeyDown} onFocus={ask} onClick={ask} />
-        <span class="fkey" aria-hidden="true">Press <kbd>/</kbd></span>
         {canClear ? <button type="button" class="fclear" id="fline-clear" aria-label="Clear the filter" title="Clear the filter" onClick={clearAll}><Icon name="x" /></button> : null}
         {listed ? (
           <ul class={`flist${fieldsOnly ? " ffields" : ""}`} id="fline-list" role="listbox" aria-label={fieldsOnly ? "Filter by field" : "Suggestions"}>
