@@ -403,7 +403,7 @@ class WordToo(Screens):
             self.start()
             p = self.page(cdp)
             self.publish_with(p)
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "both were saved")
+            p.until("/^Published/.test(document.querySelector('[data-go]').innerText)", "both were saved")
             said = p.message()
             self.assertIn("PUB-report-2026-10-23", said)
             self.assertIn(word_route.SAVED.format(name="PUB-report-2026-10-23.docx", folder="“Local”"), said, "the route's own entry, not a match on its words")
@@ -418,7 +418,7 @@ class WordToo(Screens):
             self.start()
             p = self.page(cdp)
             self.publish_with(p, client=True)
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "both were saved")
+            p.until("/^Published/.test(document.querySelector('[data-go]').innerText)", "both were saved")
             self.assertEqual(self.rig.listing(self.rig.client), sorted([WANTED, "PUB-report-2026-10-23.docx"]))
             self.assertEqual(self.sent, [("export", {"project": "PUB", "to_client": True})])
 
@@ -427,7 +427,7 @@ class WordToo(Screens):
             self.start()
             p = self.page(cdp)
             self.publish_with(p, word=False)
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+            p.until("/^Published/.test(document.querySelector('[data-go]').innerText)", "published")
             self.assertEqual(self.word_files(self.rig.local), [])
             self.assertEqual((self.sent, [r["word"] for r in self.rig.rows()]), ([], [0]))
 
@@ -449,7 +449,7 @@ class WordToo(Screens):
             self.assertTrue(p.js("document.querySelector('[data-go]').disabled && document.querySelector('#pub-word').disabled"))
             self.assertTrue((self.rig.local / "chosen.html").exists(), "the web page was already published")
             self.gate.set()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "both done")
+            p.until("/^Published/.test(document.querySelector('[data-go]').innerText)", "both done")
 
     def test_a_taken_word_name_asks_and_cancel_leaves_the_published_page_published(self):
         with chrome() as cdp:
@@ -466,7 +466,7 @@ class WordToo(Screens):
             self.assertTrue((self.rig.local / "chosen.html").exists(), "the web page is published already")
             self.assertEqual((self.rig.local / "PUB-report-2026-10-23.docx").read_bytes(), b"an earlier file", "the Word file is untouched")
             p.js("document.querySelector('[data-cancel]').click()")
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "it ended in the box, not closed")
+            p.until("/^Published/.test(document.querySelector('[data-go]').innerText)", "it ended in the box, not closed")
             self.assertIn("The Word report was not saved, because you cancelled.", p.message())
             self.assertIn("Published", p.message() + p.dialog_text())
             p.js("document.querySelector('[data-go]').click()")
@@ -481,7 +481,7 @@ class WordToo(Screens):
             self.publish_with(p)
             p.until("!!document.querySelector('input[name=word-clash]')", "asked")
             p.go()
-            p.until("document.querySelector('[data-go]').innerText === 'Close'", "saved with a number")
+            p.until("/^Published/.test(document.querySelector('[data-go]').innerText)", "saved with a number")
             self.assertEqual(self.word_files(self.rig.local), ["PUB-report-2026-10-23 (2).docx", "PUB-report-2026-10-23.docx"])
             self.assertEqual(self.sent[-1][1]["on_clash"], "number")
 
