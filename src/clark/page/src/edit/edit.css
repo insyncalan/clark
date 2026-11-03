@@ -459,6 +459,8 @@ textarea.tpl-field { resize: vertical; }
 .docs-left summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .docs-left-list { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .docs-left-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.docs-arch-text { min-width: 0; }                 /* #455: an archived document's title and its "Archived · kind · date" line */
+.docs-arch-text .tpl-facts { color: var(--text-muted); }
 
 /* The bar above the page (A-D2): the week, where the report stands, and in Edit the notes. Tokens only. */
 .rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: var(--size-small); color: var(--text-muted); }

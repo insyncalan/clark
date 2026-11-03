@@ -266,6 +266,12 @@ export async function readUseCaseHistory(project, id) {
   const one = r.ok && Array.isArray(r.body.use_cases) ? r.body.use_cases.find((u) => u && u.id === id) : null;
   return one && Array.isArray(one.history) ? { ok: true, lines: one.history } : { ok: false };
 }
+// #455: the project's archived document links, for "Archived" under the Supporting documents in Edit. {ok: true, rows} or {ok: false}.
+export async function readArchivedDocuments(project) {
+  const r = await get(`/api/data?project=${encodeURIComponent(project)}&archived=only`);
+  const list = r.ok && r.body.data && Array.isArray(r.body.data.documents) ? r.body.data.documents : null;
+  return list ? { ok: true, rows: list.filter((doc) => doc && doc.archived) } : { ok: false };
+}
 export async function readArchivedUseCase(project, id) {
   const r = await get(`/api/data?project=${encodeURIComponent(project)}&archived=only`);
   const list = r.ok && r.body.data && Array.isArray(r.body.data.use_cases) ? r.body.data.use_cases : null;
