@@ -600,7 +600,7 @@ class Line(unittest.TestCase):
                 sid = self.load(cdp, s.port, width)
                 self.watch(cdp, sid)
                 cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab').length", sid) == 2))
                 self.assertEqual(cdp.js(tabs, sid), ["Open items", "Old view"], "the broken view is listed; the starting client view is still left out")
                 self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "", "nothing said until it is chosen")
