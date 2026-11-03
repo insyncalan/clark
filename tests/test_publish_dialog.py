@@ -104,7 +104,8 @@ class Dialog(Base):
                 p.open_publish()
                 self.assertEqual(p.js("[document.querySelector('#pub-pdf').checked, document.querySelector('#pub-pdf').disabled]"),
                                  [False, False], "PDF is unticked and can be ticked: Chrome is here")
-                self.assertIn("PDF", p.dialog_text())
+                self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').querySelector('b').innerText"), "Also a PDF",
+                                 "#453: the tick reads as the prototype's does")
                 p.js("document.querySelector('#pub-pdf').click()")
                 p.until("document.querySelector('#pub-pdf').checked", "ticked")
                 p.js("document.querySelector('[data-cancel]').click()")
@@ -121,7 +122,7 @@ class Dialog(Base):
                 p.open_publish()
                 self.assertEqual(p.js("document.querySelector('#pub-pdf').disabled"), True)
                 self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').innerText.replace(/\\s+/g, ' ')"),
-                                 "PDF " + publish_pdf.NO_CHROME_LINE)
+                                 "Also a PDF " + publish_pdf.NO_CHROME_LINE)
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "closed")
 

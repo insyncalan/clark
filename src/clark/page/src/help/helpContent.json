@@ -306,7 +306,7 @@
     "w": "Profile circle › Publish…",
     "go": "publish",
     "s": [
-     "Open the Publish box and tick **PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
+     "Open the Publish box and tick **Also a PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
      "Press **Publish locally** (or **Publish and send to the client**). The web page is saved as usual, and clark makes the PDF from it with Chrome.",
      "The PDF is saved beside the report file, with the same name and **.pdf** at the end. With **To client** ticked it is copied to the client folder too, and the box says the client will see the page and the PDF.",
      "The PDF has the four tabs one after another, no buttons or menus, and the publication number, the date and the page number at the foot of each page."
@@ -490,7 +490,7 @@
      "Next to **Project health** are the counts: **Overdue actions**, **High risks and issues** and **Decisions needed** (hidden to start with).",
      "Click a count, or press [[Enter]] on it, to open Work items filtered to exactly what it counts.",
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
-     "Right-click a tile in Edit for **Tile colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
+     "Right-click a tile in Edit for **Outline colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
     ],
     "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise."
    },
@@ -1386,7 +1386,7 @@
      ],
      [
       "p",
-      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track."
+      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track. Two states are set by you, not the dates: At risk, when the project team marks it, and Forecast, for a date not yet agreed."
      ],
      [
       "p",
