@@ -24,9 +24,9 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
-# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) and 'Shown to client' (the tag on a work item row, components/WorkItems.jsx) are read on the page itself; the prototype words them differently
+# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -363,6 +363,39 @@ class LowWordsRound(unittest.TestCase):
         """Assumptions and dependencies are stored with risks and issues (one CODE-001 series)."""
         self.assertIn("Actions, decisions, and everything numbered CODE-001 share one numbering", self.ALL)
         self.assertNotIn("Actions, risks, issues and decisions share one numbering", self.ALL)
+
+
+class HelpMatchesThePage(unittest.TestCase):
+    """Three places where Help said less, or something other, than the page does (Tech Debt #401, #402, #403)."""
+    ALL = " ".join(s for _, s in words())
+    SRC = ROOT / "src" / "clark" / "page" / "src"
+
+    def test_the_work_items_filters_name_freshness_as_the_page_does(self):
+        names = (self.SRC / "filters.js").read_text(encoding="utf-8")
+        self.assertIn('reviewed: "Freshness"', names)
+        find = next(t for t in STEPS if t["id"] == "find-work-items")
+        self.assertIn("Milestone and Client, and Freshness once some item has a date it can go by", " ".join(find["s"]))
+        table = next(b for sec in SECTIONS if sec["id"] == "work-items" for b in sec["b"] if b[0] == "tbl" and b[1] == ["Filter", "Values"])
+        self.assertEqual(table[2][-1][0], "Freshness")
+        self.assertIn("Not reviewed in 14 days", table[2][-1][1])
+        self.assertIn("No owner or no date", table[2][-1][1])
+        self.assertIn("REVIEW_DAYS = 14", names)
+
+    def test_a_use_case_names_the_ways_back_the_page_has(self):
+        detail = (self.SRC / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8")
+        self.assertIn("data-uc-back", detail)
+        self.assertIn('"Escape"', detail)
+        find = next(t for t in STEPS if t["id"] == "find-a-use-case")
+        line = find["s"][-1]
+        self.assertIn("**Use cases** link at the top, [[Esc]] or the Back button of your browser", line)
+        self.assertNotIn("Back returns", line)
+        self.assertNotIn("**Back**", line)       # the page has no button called Back
+
+    def test_delete_section_is_said_for_both_kinds_that_have_it(self):
+        gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")
+        self.assertIn('DELETABLE = ["text", "needs"]', gutter)
+        arrange = next(t for t in STEPS if t["id"] == "arrange-the-report")
+        self.assertIn("for a text section or the Needs from you section, **Delete section**", " ".join(arrange["s"]))
 
 
 if __name__ == "__main__":

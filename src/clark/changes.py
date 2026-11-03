@@ -16,8 +16,9 @@ What it does, and does not:
   does not make an empty database, when clark.db isn't there.
 - The reply carries only what the page needs of each section: id, type, title, beside, hidden, sort_order. Never its body.
 - A section may be added as text, needs or tracker (NEW_SECTION_TYPES, an allow-list). An update may write `body` only for a
-  needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type; each save replaces
-  the whole body in one step with one Undo. A needs or tracker section may be deleted like a text one (Undo-able, kept in
+  needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type, or for a text section
+  through sanitise.clean_html (_text_body); each save replaces the whole body in one step with one Undo. A needs or tracker
+  section may be deleted like a text one (Undo-able, kept in
   change_log): "we archive, we never delete" is about work items and is not breached.
 - #96 R1, pictures: a section template that holds pictures (its section_kinds module has `with_picture`) never takes one through
   /api/change: a body sent there may not name `pictures`, may be at most the module's TEXT_LIMIT, and keeps the pictures already
@@ -60,9 +61,9 @@ CHANGE_KINDS = {
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood; `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
-    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description")},
-    "raid": {UPDATE: ("status", "workstream", "owner", "due_date", "milestone", "use_case", "description")},
-    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision")},   # #45: use_case links an existing use case of this project, or clears the link
+    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "client_visible")},
+    "raid": {UPDATE: ("status", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible")},
+    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
@@ -80,7 +81,7 @@ CHANGE_KINDS = {
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
     "report_hidden": {NEW: (), DELETE: (), PICK: ()},
 }
-KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
+KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy_of") if k in ("actions", "raid", "decisions") else ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
 KIND_OP_KEYS["use_cases"] = {NEW: ("values",)}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent
@@ -102,9 +103,9 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
                            "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
-CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "latest_update")      # #67: a row added in the report: no id,
-CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone")   # raised, status or source
-CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
+CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "client_visible", "latest_update")      # #67: a row added in the report: no id,
+CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
+CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
 # #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
 # are here (its priority is worked out from them); a decision takes only who makes it.
@@ -124,7 +125,7 @@ UC_REF_LIMIT = 20                                    # #455: a new use case's re
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
 ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision")
-CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
+CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood", "client_visible")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
 EXPLAIN_FIELDS = ("latest_update", "reasoning")      # #458: the one explanation line a new action or decision may start with (Movement's buttons); never said back, never in ask clark's before and after
 TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
@@ -247,6 +248,8 @@ NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new s
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
+BIDI_CONTROLS = re.compile("[\u202a-\u202e\u2066-\u2069]")   # the nine bidi override, embedding and isolate marks: they can make text read backwards (zero-width joiners stay: emoji need them)
+TEXT_BODY_MAX = 64 * 1024               # bytes of a text section's body as stored; never more than server.SECTION_BODY_MAX, the most the change route carries (a test holds it at or under, so either may be raised alone)
 KEEPS_TYPE = "A section keeps its type."
 FLAG_WORDS = "That must be 0 or 1."
 NO_UNDO = "That step can't be undone from here."
@@ -365,12 +368,14 @@ def _checked_item_changes(fields):
     short. The store checks the rest (the words a status may take, a real date, an active workstream, this project's
     milestone); its refusals are put into plain words in _do_item_change."""
     fields = {k: (None if k == "use_case" and v == "" else v) for k, v in fields.items()}    # an empty use case clears the link
+    flag = {k: _flag(v) for k, v in fields.items() if k == "client_visible"}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
+    fields = {k: v for k, v in fields.items() if k != "client_visible"}
     for k, v in fields.items():
         if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 200):
             raise Refused(ITEM_VALUE_WORDS)
         if isinstance(v, str) and not _plain_text(v):
             raise Refused(ITEM_TEXT_WORDS)
-    return {k: (unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else v) for k, v in fields.items()}
+    return {**{k: (unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else v) for k, v in fields.items()}, **flag}
 
 
 def _store_words(e):
@@ -408,9 +413,11 @@ def _checked_changes(fields):
 def _section_body(section, body):
     """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
     (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
-    takes a body here; a text section's body write stays closed until its own item opens it. A refusal is plain words and never
+    takes a body here, and a text section (Summary, This week, Next week) through the cleaner (_text_body). A refusal is plain words and never
     quotes the content. The store checks it again on write (every write, an Undo too). A section that holds pictures (#96 R1)
     takes its words here and keeps its stored pictures (_keep_pictures)."""
+    if section["type"] == "text":
+        return _text_body(body)
     if section["type"] not in section_bodies.CHECKERS:
         raise Refused(NO_BODY_HERE)
     try:
@@ -419,6 +426,19 @@ def _section_body(section, body):
         return clark_store.check_section_body(section["type"], body)
     except Invalid as e:
         raise Refused(str(e)) from None
+
+
+def _text_body(body):
+    """A text section's body as it is stored: the server's own cleaner (sanitise.clean_html) decides what is kept, never the page's
+    copy of it. Bidi override marks are dropped first. Over TEXT_BODY_MAX bytes once cleaned, or text the cleaner refuses (too long), is refused in plain words."""
+    body = BIDI_CONTROLS.sub("", body)      # dropped BEFORE the cleaner, so it judges the text that is kept (a mark inside a link's address can't hide it)
+    try:
+        text = sanitise.clean_html(body)
+    except sanitise.SanitiseError:
+        raise Refused(WORDS_TOO_LONG) from None
+    if len(text.encode("utf-8")) > TEXT_BODY_MAX:
+        raise Refused(WORDS_TOO_LONG)
+    return text
 
 
 # ── Pictures in a section template (#96 R1) ───────────────────────────────────
@@ -765,9 +785,21 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
     if table == "decisions":
         values.setdefault("status", "Pending")
     values.update(project=project, source=NEW_SOURCE)
+    source = req.get("copy_of")
+    if source is not None and (table not in ITEM_KINDS or not isinstance(source, str)):
+        raise Refused(ITEM_NOT_MINE)
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
+        if source is not None:                                      # Duplicate: the copy is the item again, so it carries the item's labels and its hiding from the report (a Sensitive item's copy stays Sensitive and unpublished), read inside the step
+            was = store.read(table, ref=source) if _belongs(table, source, project) else None
+            if was is None or was["project"] != project or was["archived"]:
+                raise Refused(ITEM_NOT_MINE)
+            values["labels"] = clark_store.labels_of(st.con, source)
+            values["client_visible"] = 1 if was["client_visible"] else 0   # #424: the eye is the item's own, whatever the request carried
+            hide = store.read("report_hidden", ref=f"{project}|{source}") is not None
         try:
             ref = st.create(table, values)
+            if source is not None and hide:
+                st.create("report_hidden", {"project": project, "item_id": ref})
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value
             words_ = _store_words(e)
             if words_ is None:
@@ -778,7 +810,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
                 st.create("report_hidden", {"project": project, "item_id": ref})     # only if no hiding row is there yet (a Duplicate of a hidden item makes one too; the key is project + item, so a second would fail)
         apply_id = st.peek_apply_id()
     row = store.read(table, ref=ref)
-    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + EXPLAIN_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
+    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + EXPLAIN_FIELDS + ("name", "client_visible")) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
         + (("priority",) if table == "raid" else ())
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "item": {k: row[k] for k in dict.fromkeys(shown)}}
 
@@ -1713,6 +1745,15 @@ def _eligible(rows, project, hand_over=False):
             return _row_is_ours(r, project, False, flagged)
         return (r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"])))
                 and r.get("field") in ("client_visible", "updated_at", "note"))
+    def copy_row(r):                                                # #488: Duplicate's one step: the new item, the labels it carries and its hiding from the report (all made here)
+        if r["table"] == "item_labels":
+            return r.get("op") == MADE_OP and any(items[k].fullmatch(str(r["key"]).split("|", 1)[0]) for k in ITEM_KINDS)
+        if r["table"] == "report_hidden":
+            return r.get("op") == MADE_OP and _row_is_ours(r, project, False, flagged)
+        return item_field_row(r) or item_stamp_row(r)
+    if (any(r["table"] in ITEM_KINDS and of_item(r) and r.get("op") == MADE_OP for r in rows)
+            and any(r["table"] in ("item_labels", "report_hidden") for r in rows)):
+        return all(r["via"] == VIA and copy_row(r) for r in rows)
     picked = any(r.get("field") == "note" and r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"]))) for r in rows)
     made_item = any(r.get("op") == MADE_OP and r["table"] in ("actions", "decisions") and of_item(r) for r in rows)      # #487: a new row that started hidden is a work-item step with its hiding in it
     if not made_item and (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
