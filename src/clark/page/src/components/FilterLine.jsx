@@ -107,6 +107,9 @@ function SavedViews() {
     else if (id === "archive" && active) {
       const r = FL.archiveView(all, active.id);
       if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; }
+    } else if (id.startsWith("archive:")) {              // an unreadable view: put away from the menu, never deleted (#591)
+      const r = FL.archiveView(all, id.slice(8));
+      if (r.ok) saveViews(code, r.views);
     } else if (id.startsWith("restore:")) {
       const r = FL.restoreView(all, id.slice(8));
       if (r.ok) saveViews(code, r.views); else setForm({ mode: "note", name: "", error: r.message });
