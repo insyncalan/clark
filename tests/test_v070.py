@@ -16,8 +16,8 @@ slide-out (#450), the calendar's keys (#481), the dashboard's use cases in Edit 
 prototype and the Publish and Preview words (#459), the AI card in Settings (#72), the About you path (#422), saved views that stay
 listed (#589), "Not written yet." (#375), the documents link check (#594), the short value after "api key" (#583, #527), a lost
 number race (#388), a null character in the logo rule (#493), the right-click menu (#97), hand over (#199) and the Word client copy's
-held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: #220 (PR 509), #171 (PR 472), #325 (PR 474), #286 (PR 508)
-and #269 (no pull request). Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
+held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: #286 (PR 508), #325 (PR 474, a data layout step), #160 (no pull request), #481 (PR 532), #620 (PR 541) and #622 (PR 542).
+#220, #171, #269 and #427 are not in this cut (Jarvis, 04-11-2026): they go to 0.8. Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.7.0, then fail if they are wrong.
 The notes' own rules (title, the Beta line, plain words, the data-layout paragraph) are read from the tree now.
 """
@@ -127,17 +127,18 @@ COVERED = [
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#220", "Edit opens the one editor in place for Summary, This week and Next week", "PR 509",
-     "changes.py", "def _text_body"),
-    ("#171", "Each project keeps its own not-reviewed-after-days number (a data layout step)", "PR 472",
-     "schema.sql", "review_after_days"),
     ("#325", "The publications trigger also guards the client copy's path (a data layout step)", "PR 474",
      "store.py", "migrate_publication_trigger_client_path"),
     ("#286", "The filter line no longer says Press / (that key opens ask clark)", "PR 508",
      "page/src/components/FilterLine.jsx", "opens ask clark (#286)"),
-    ("#269", "The publications row names the PDF file", "no pull request yet (issue 269)", "", None),
+    ("#160", "Settings has a 'Not reviewed after (days)' setting and the At a glance row can show an optional Not reviewed tile", "no pull request yet (issue 160)", "", None),
+    ("#481", "One plain Help line names the calendar's keys", "PR 532",
+     "page/src/help/helpContent.json", "[[Tab]] reaches the calendar once"),
+    ("#620", "A hand over's Undo skips only the owner that changed and undoes the rest", "PR 541",
+     "changes.py", "def _hand_over_changed(store, step, rows, all_gone=True):"),
+    ("#622", "Settings, Backups: an optional 'Copy my backups to' folder (OneDrive allowed)", "PR 542",
+     "settings.py", "# ===== Copy my backups to (#622, Settings"),
 ]
-
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
     ("#246", "The peek reads well as it steps", "judgement",
