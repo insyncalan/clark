@@ -293,9 +293,6 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 160px; min-width: 120px; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: var(--text); }
 .fline input::placeholder { color: var(--text-muted); }
-.fkey { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
-.fkey kbd { font: inherit; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--grey-50); }
-.fline.on .fkey { display: none; }
 .fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
 .fchip.word { background: var(--grey-100); color: var(--text); }
 .fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
@@ -321,7 +318,6 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
 @media (max-width: 640px) {
-  .fkey { display: none; }
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }
   .top .divider { display: none; }
