@@ -7,7 +7,7 @@ Decision D-12 and FR-40: the status picker's Rating section sets a risk's or iss
 - `priority` is still refused as input (`NO_RAID_PRIORITY`). It is not in the allow-list. It is added to `ITEM_SHOWN` for `raid`, so the reply says the priority the store worked out.
 - Null is refused for both fields: they join `ITEM_NOT_NULL`.
 - A value that is not High, Medium or Low is refused in its own sentence (`NOT_A_RATING`), checked against the store's own allowed list.
-- Kinds are limited to risk and issue (`RATING_NOT_THIS_KIND`). A closed or cancelled item is refused (`RATING_NOT_OPEN`); a request that sets the status to Open at the same time is judged on the new status.
+- Kinds are limited to risk and issue (`RATING_NOT_THIS_KIND`). The status does not matter (#448, as the prototype): a closed or cancelled risk or issue takes a rating too, and stays closed. `RATING_NOT_OPEN` was removed.
 
 ## Why
 The owner decided the Rating section sets impact and likelihood. The store works out priority from those two, so the page never sends it. Saying it back keeps the page's colour true to what the store holds.
@@ -15,7 +15,7 @@ The owner decided the Rating section sets impact and likelihood. The store works
 ## What could go wrong, and the test
 - Priority taken as input, or a reply without it: `tests/test_changes.py` `test_a_risks_new_impact_and_likelihood_say_back_the_priority_worked_out`.
 - A rating cleared, or not High, Medium or Low, or refused in the wrong words: `test_a_rating_is_refused_in_its_own_words_and_never_cleared`.
-- A rating on an action, a decision, a Closed or Cancelled item: `test_only_an_open_risk_or_issue_takes_a_rating`.
+- A rating on an action, a decision, an assumption or a dependency is refused; on a Closed or Cancelled risk or issue it is taken: `test_only_a_risk_or_issue_takes_a_rating_whatever_its_status`.
 - The page's rules and picker: `tests/test_inline_edits.py` `test_rating_rules`, `test_rating_from_the_status_picker_sets_impact_and_likelihood_with_one_undo`, `test_a_rating_pick_redraws_the_colour_from_the_reply_and_undo_puts_it_back`.
 
 ## What is not changed
