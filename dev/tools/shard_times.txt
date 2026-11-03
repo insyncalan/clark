@@ -302,7 +302,7 @@ test_tracker_logic.py 3.4
 test_tracker_page.py 78.7
 test_tracker_published_caveats.py 3.2
 test_tracker_route.py 7.1
-test_type_column_one_line.py 11.8
+test_work_table_parity.py 12.0
 test_uc_row_parity.py 74.6
 test_undo_key.py 35.6
 test_undo_many.py 9.6
