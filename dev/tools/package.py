@@ -108,10 +108,14 @@ Getting started on a Mac
 
 1. Double-click clark.command in this folder.
 
-2. The first time, your Mac may say it can't check who made the file.
+2. The first time, your Mac may say the file was not opened because Apple
+   could not check it for malware, and offer only Move to Trash and Done.
+   This is expected. Choose Done. Do not choose Move to Trash.
+   Then open System Settings, choose Privacy & Security, scroll down and
+   choose Open Anyway beside clark.command. If your Mac asks again, choose
+   Open Anyway, and type your Mac password if it asks for it.
+   On older versions of macOS you may see an Open button instead. If so,
    Control-click clark.command, choose Open, then choose Open again.
-   If there is no Open button: open System Settings, choose Privacy & Security,
-   scroll down and choose Open Anyway beside clark.command.
 
 3. A Terminal window starts clark, then its window opens in Chrome
    (or in your usual browser if Chrome isn't there).
