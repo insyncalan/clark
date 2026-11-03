@@ -267,7 +267,7 @@ def _document(row):
     """#74: one document as the file carries it, or None to leave it out. Every field is checked again here, never trusted: the
     link must pass doclinks.check_link (the one link rule; a bad one drops the document, it is never repaired) and the title must
     not read as the address of another site; the title is text with hidden characters dropped (doclinks.link_label) and must hold
-    something; a kind not in doclinks.KINDS and a date that is not a real day are carried as nothing."""
+    something; a kind not in doclinks.KINDS drops the document (it is refused, never published as an empty kind) and a date that is not a real day is carried as nothing."""
     try:
         url = doclinks.check_link(row.get("url"))
         title = doclinks.link_label(row.get("title"), url) if str(row.get("title") or "").strip() else ""
@@ -281,7 +281,9 @@ def _document(row):
     except ValueError:
         day = None
     kind = row.get("kind")
-    return {"title": title, "kind": kind if kind in doclinks.KINDS else "", "url": url, "date": day}
+    if kind not in doclinks.KINDS:
+        return None
+    return {"title": title, "kind": kind, "url": url, "date": day}
 
 
 def documents(rows, code, hidden_ids, hidden_types):

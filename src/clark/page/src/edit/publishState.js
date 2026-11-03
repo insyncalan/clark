@@ -11,6 +11,7 @@ export const NO_FOLDER_LEAD = "No client folder yet. Set it in ", NO_FOLDER_LINK
 export const NO_FOLDER = NO_FOLDER_LEAD + NO_FOLDER_LINK + ".";
 export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
+export const next = signal(0);           // the number the next publication will have (#437), or 0 until the server has said
 export const pdfInfo = signal({ ok: false, note: "" });      // whether Chrome is on this computer, and the one line saying why not
 
 export const savedFolder = () => {
@@ -27,6 +28,7 @@ export async function refreshLatest() {
   if (!code) { latest.value = null; return; }
   const r = await latestRequest(code);
   latest.value = r.status === 200 && r.body && r.body.ok === true && r.body.latest ? r.body.latest : null;
+  next.value = r.status === 200 && r.body && r.body.ok === true && Number.isInteger(r.body.next) && r.body.next >= 1 ? r.body.next : 0;
   const p = r.status === 200 && r.body && r.body.ok === true ? r.body.pdf : null;
   pdfInfo.value = p && typeof p.ok === "boolean" ? { ok: p.ok, note: typeof p.note === "string" ? p.note : "" } : { ok: false, note: "" };
 }
