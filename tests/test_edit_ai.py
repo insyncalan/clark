@@ -120,8 +120,8 @@ class LooseIds(unittest.TestCase):
         for table, prefix in ID_PREFIX.items():
             ref = f"ABC{prefix}001"
             self.assertEqual(edit_ai.ID_RE.findall(f"see {ref}."), [ref], table)
-        self.assertEqual(sorted(ID_PREFIX.values()), sorted(["-A-", "-D-", "-", "-M-", "-W-", "-U-", "-S-"]))     # #65 adds -S- (a report section)
-        for ref in ("ABC-A-001", "ABC-001", "ABC-D-001", "ABC-M-001", "ABC-W-001", "ABC-U-001", "ABC-S-001"):
+        self.assertEqual(sorted(ID_PREFIX.values()), sorted(["-A-", "-D-", "-", "-M-", "-W-", "-U-", "-S-", "-L-"]))     # #65 adds -S- (a report section), #74 -L- (a document)
+        for ref in ("ABC-A-001", "ABC-001", "ABC-D-001", "ABC-M-001", "ABC-W-001", "ABC-U-001", "ABC-S-001", "ABC-L-001"):
             self.assertTrue(edit_ai.ID_RE.fullmatch(ref), ref)
         self.assertFalse(edit_ai.ID_RE.search("abc-a-001"))
         self.assertFalse(edit_ai.ID_RE.search("ABC-A-0001"))

@@ -1,15 +1,19 @@
 // The list the peek steps through: the rows the Work items page shows now (filters and order as drawn), as ids. A peek opened by
 // an address (a reload, a link) steps through the same list. A milestone steps through the project's milestones in their order.
-import { filterState, data } from "../stores/report.js";
+import { filterState, filterCtx, data, fromFile, asAt } from "../stores/report.js";
 import { sortRows, todayIso } from "../workItems.js";
-import { applyFilters } from "../filters.js";
+import { applyFilters, isPublished } from "../filters.js";
+import { lineApi } from "../stores/lineSlot.js";
 import { work, itemRows, contextFor } from "../stores/work.js";
 import { boardGroup, columnsFor, cellOf, isCollapsed } from "../logic/board.js";
 
 // The order is the one drawn: grouped as the list is (a collapsed group's rows are not on the page, so not stepped through).
 export function itemIds() {
-  const today = todayIso(), st = filterState.value, w = work.value;
-  const rows = applyFilters(itemRows.value, st, today);
+  const today = todayIso(), w = work.value, L = lineApi.current;
+  // A published file keeps the older filter bar (its Due filter has "Earlier"), so it steps with that bar's rows; the app steps with the line's.
+  const old = isPublished() || fromFile.value || !L;
+  const st = old ? filterState.value : L.toState(itemRows.value, filterCtx());
+  const rows = old ? applyFilters(itemRows.value, st, fromFile.value && asAt.value ? asAt.value : today) : L.apply(itemRows.value, filterCtx());
   const g = w.view === "board" ? boardGroup(w.group) : w.group;
   if (g === "nothing") return sortRows(rows, today).map((r) => r.id);
   const ctx = contextFor(today, st.type);

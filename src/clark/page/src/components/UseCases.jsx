@@ -7,11 +7,11 @@ import { useEffect, useState } from "preact/hooks";
 import { data, rows, openWork, fromFile, show, project, mode } from "../stores/report.js";
 import { format } from "../router.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
-import { isOpen } from "../workItems.js";
+import { isOpen, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { Icon } from "./Icon.jsx";
 
-export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
+export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 
 // A saved standing as plain text: the page clark serves never draws a saved body as markup (#66 brings the editor).
@@ -20,13 +20,13 @@ function plain(html) {
   return doc.body.textContent.trim();
 }
 
-/** The use cases on the dashboard (the eye is on; a published file only holds those) with what is linked to them: [{u, linked, open, steps}] (steps are the open actions). The ones not on it are on the Use cases page. */
+/** The use cases on the dashboard (the eye is on; a published file only holds those) with what is linked to them: [{u, linked, open, steps}] (steps are every open linked item, any type). The ones not on it are on the Use cases page. */
 export function summary(d, all) {
   const link = {};
   for (const r of [...(d.actions || []), ...(d.raid || []), ...(d.decisions || [])]) if (r.use_case) link[r.id] = r.use_case;
   return liveOf(d).filter(isOn).map((u) => {
     const linked = all.filter((r) => link[r.id] === u.id), open = linked.filter(isOpen);
-    return { u, linked, open, steps: open.filter((r) => r.kind === "action") };
+    return { u, linked, open, steps: open };
   });
 }
 
@@ -39,6 +39,12 @@ export function refText(ref) {
 // In Edit a row holds its own controls (the status button, the headline's box): a press on one of them is theirs, not the row's.
 const mine = (e) => e.target !== e.currentTarget && !!e.target.closest("textarea, button, [role=menu], .dd");
 const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); run(); } };
+
+/** One next step: the owner's initials in a circle, the owner, then the client's wording when the item has some, else its own title. */
+export function StepLine({ r }) {
+  const o = ownerOf(r.owner), who = o.initials ? o.text : "No owner";
+  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span><b>{who}:</b> {r.client_message || r.title}</span></>;
+}
 
 function Row({ s, shown, toggle, ed }) {
   const { u } = s, id = `uc-${u.id}`, label = u.ref ? `Use case ${u.ref}` : "";
@@ -61,7 +67,7 @@ function Row({ s, shown, toggle, ed }) {
           <h3>Where it stands</h3>
           {ed ? <ed.Standing u={u} /> : fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Nothing written yet."}</p>}
           <h3>Next steps</h3>
-          {s.steps.length ? <ul class="plain">{s.steps.map((r) => <li key={r.id}><b>{(r.owner || "No owner").trim() || "No owner"}:</b> {r.title}</li>)}</ul> : <p class="muted">No open next steps.</p>}
+          {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => <li key={r.id}><StepLine r={r} /></li>)}</ul> : <p class="muted">No open next steps.</p>}
           {ed ? <><ed.NextStep u={u} /><ed.LinkButton u={u} /></> : null}
           {n && label ? <span class="link" role="button" tabIndex={0} data-seeall onClick={go} onKeyDown={(e) => press(e, go)}>{`See all ${n} open work ${n === 1 ? "item" : "items"}`}</span> : n ? <p class="muted">{`${n} open work ${n === 1 ? "item" : "items"}.`}</p> : <p class="muted">No open work items.</p>}
         </div>

@@ -68,7 +68,9 @@ class Tiles(unittest.TestCase):
 
     def test_each_tile_number_is_the_list_it_opens_and_the_chips_say_what_it_counts(self):
         s = self.serve()
-        words = {"overdue": "Due: Overdue", "risks": "Priority: Urgent, High", "decisions": "Status: Pending"}
+        # what the line shows for each tile: the chips, in the order the line writes them
+        words = {"overdue": ["is:open", "type:action", "due:overdue"], "risks": ["is:open", "type:risk,issue,assumption,dependency", "priority:Urgent,High"],
+                 "decisions": ["is:open", "type:decision", "status:Pending"]}
         for code in self.data:
             want = expected(self.data[code])
             for key in ("overdue", "risks", "decisions"):
@@ -84,9 +86,9 @@ class Tiles(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("location.hash", sid).startswith("#work&p=" + code + "&f=")))
                     count = cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid)
                     self.assertEqual(count, want[key], "the list holds exactly what the tile counted")
-                    self.assertEqual(cdp.js("document.querySelector('[data-show=open]').getAttribute('aria-pressed')", sid), "true")
-                    chips = cdp.js("document.querySelector('.factive').textContent", sid)
-                    self.assertIn(words[key], chips)
+                    chips = cdp.js("[...document.querySelectorAll('.fline .fchip .ft')].map(c => c.textContent)", sid)
+                    self.assertEqual(chips, words[key], "the line shows what the tile counted")
+                    self.assertEqual(cdp.js("document.querySelector('#work-count').textContent", sid), f"{count} open item" + ("" if count == 1 else "s"))
                     cdp.js("history.back()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "Back returns to the Dashboard")
 
