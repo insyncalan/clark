@@ -454,16 +454,18 @@ class Menu(board.Base):
                     self.assertEqual(self.row(new)["client_visible"], eye, (table, eye))
                     self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % new}\")", "the copy in the list")
 
-    def test_in_view_arrow_right_opens_no_edit_on_a_greyed_entry(self):
+    def test_in_view_arrow_right_opens_the_list_for_status_due_and_owner(self):
         with chrome() as cdp:
             sid = self.visit(cdp, edit=False)
             a, before = self.id_of("Order the laptops"), self.steps()
-            self.open_menu(cdp, sid, self.TABLE % a)
             for rm in ("status", "due", "owner"):
+                self.open_menu(cdp, sid, self.TABLE % a)
                 cdp.js(f"document.querySelector('.rowmenu [data-rm={rm}]').focus()", sid)
                 key(cdp, sid, "ArrowRight")
-                time.sleep(0.3)
-                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [data-rm=draft]')", sid), "still the top list: no list opened for " + rm)
+                self.until(cdp, sid, "!document.querySelector('.rowmenu [data-rm=draft]')", "the list for " + rm)
+                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [data-rm=back]')", sid), rm)
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "!document.querySelector('.rowmenu')", "the menu to close")
             self.assertEqual(self.steps(), before)
 
     def test_duplicate_works_for_a_risk_and_a_decision_too(self):
@@ -493,25 +495,23 @@ class Menu(board.Base):
             self.assertTrue(cdp.js("window.__clip[1]", sid).endswith(f"#work&p=ABC&item={a}"), cdp.js("window.__clip[1]", sid))
             self.assertEqual(self.steps(), before)
 
-    def test_in_view_the_changes_are_greyed_and_the_rest_still_works(self):
+    def test_in_view_every_entry_is_enabled_and_a_choice_writes_one_step_with_its_undo(self):
+        # Work items are always editable (View and Edit exist only on the Dashboard, ruled 02-11-2026)
         with chrome() as cdp:
             sid = self.visit(cdp, edit=False)
             a, before = self.id_of("Order the laptops"), self.steps()
             self.open_menu(cdp, sid, self.TABLE % a)
             by = {e[0]: e for e in self.entries(cdp, sid)}
-            for k in ("status", "due", "owner", "eye", "dup", "archive"):
-                self.assertTrue(by[k][2], k)
-            for k in ("draft", "peek", "link", "copyid"):
+            for k in ("status", "due", "owner", "eye", "dup", "archive", "draft", "peek", "link", "copyid"):
                 self.assertFalse(by[k][2], k)
-            click(cdp, sid, "[data-rm=eye]")
-            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu')", sid), "a greyed eye does nothing")
-            self.assertIn("Switch to Edit to change this.", cdp.js("document.querySelector('.rowmenu').textContent", sid))
+            self.assertNotIn("Switch to Edit to change this.", cdp.js("document.querySelector('.rowmenu').textContent", sid))
             click(cdp, sid, "[data-rm=archive]")
-            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu')", sid), "a greyed entry does nothing")
-            self.assertEqual(self.steps(), before)
-            click(cdp, sid, "[data-rm=peek]")
-            self.until(cdp, sid, f"location.hash.includes('item={a}')")
-            self.shut(cdp, sid)
+            t = self.wait_toast(cdp, sid, "done")
+            self.assertEqual((t["text"], t["undo"]), (f"{a} archived. It is out of the lists and the published page.", True))
+            self.assertEqual((self.row(a)["archived"], self.steps()), (1, before + 1), "one step")
+            click(cdp, sid, "[data-undo]")
+            self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % a}\")", "the row to come back")
+            self.assertEqual(self.row(a)["archived"], 0)
 
     def test_show_and_hide_flip_the_items_flag_in_one_step_with_one_undo_and_the_label_follows(self):
         with chrome() as cdp:

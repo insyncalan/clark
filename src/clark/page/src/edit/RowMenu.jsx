@@ -107,7 +107,7 @@ function entries(row, level, edit, d, today) {
 }
 
 function Panel({ s }) {
-  const row = itemRows.value.find((r) => r.id === s.id), d = data.value, edit = mode.value === "edit";
+  const row = itemRows.value.find((r) => r.id === s.id), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
   const set = (patch) => { state.value = { ...state.value, ...patch }; };
   const close = (how) => {
