@@ -407,6 +407,30 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"), "the report is kept, not removed")
         self.assertEqual(target.read_bytes(), b"the file the link points at")
 
+    def test_a_link_that_cannot_be_put_back_is_said_plainly(self):          # #605
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = os.symlink
+
+        def refuse(src, dst, *a, **kw):
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        self.assertIn("Another publication was made", str(caught.exception), "the reason for the refusal is still given")
+        self.assertIn(f"The link that was at {dest.name} could not be put back", str(caught.exception))
+
     def test_a_link_is_never_put_over_a_file_that_is_not_ours(self):       # #604: no gap between the check and the swap
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, folder, True)

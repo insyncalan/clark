@@ -1242,7 +1242,9 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 except (OSError, platform.PlatformError):
                     pass
         elif earlier_link is not None:
-            put_link_back(dest, earlier_link, digest)
+            if put_link_back(dest, earlier_link, digest) == "kept":      # #605: said plainly, not swallowed
+                raise PublishError(f"{e} The link that was at {dest.name} could not be put back, so this report is still there "
+                                   "under that name.") from e
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e
