@@ -55,11 +55,11 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Personal › About you](go:settings#personal), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
    },
    {
     "t": "Pick a project",
-    "d": "The project name in the top bar switches projects. **New project…** in the same menu adds one."
+    "d": "The project name in the top bar switches projects."
    },
    {
     "t": "Bring in the work",
@@ -335,10 +335,10 @@
     "s": [
      "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
      "The second picks **Open**, **Closed** or **All**, each with its count.",
-     "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
+     "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client, and Freshness once some item has a date it can go by. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
      "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too. In the app it goes back to the open items.",
      "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
-     "Your choices are kept for next time. A tile on the Dashboard, or **See all work items** on a use case, opens Work items already filtered to what it counts."
+     "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N open work items”), opens Work items already filtered to what it counts."
     ]
    },
    {
@@ -430,7 +430,7 @@
     "s": [
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
      "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section, **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
+     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section or the Needs from you section, **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
      "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
@@ -502,7 +502,7 @@
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
-     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** link opens Work items filtered to that use case.",
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N open work items”, opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
      "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
@@ -518,7 +518,7 @@
      "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. The **Use cases** link at the top returns to the list."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list."
     ]
    },
    {
@@ -646,15 +646,15 @@
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Source folders for ask clark** and its **Publishing** folders.",
-     "The project name in the top bar switches projects, shows each one’s open items, and has **New project…** and **Project settings**."
+     "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
     ]
    },
    {
     "id": "set-your-profile",
     "g": "Settings and safety",
     "t": "Set your profile",
-    "w": "Settings › Profile",
-    "go": "settings#profile",
+    "w": "Settings › Personal › About you",
+    "go": "settings#personal",
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
@@ -711,7 +711,7 @@
       "ul",
       [
        "**The logo** (or clark’s icon and name): back to the Dashboard.",
-       "**The project name**: switch projects. Each shows its count of open items; **New project…** and **Project settings** are at the foot.",
+       "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**ask clark**: opens the assistant down the right. The [[/]] beside it is its key.",
        "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
@@ -1051,12 +1051,8 @@
       ],
       [
        [
-        "Type",
-        "Action, Risk, Issue, Assumption, Dependency or Decision"
-       ],
-       [
         "Item",
-        "The title, then the ID, use case, milestone and workstream, and a **Shown to client** tag"
+        "A letter for the kind of item (the letters are listed in [Types, statuses and colours](#ref-status-words)), the title, then the ID, use case, milestone and workstream"
        ],
        [
         "Owner",
@@ -1073,6 +1069,10 @@
        [
         "Status",
         "The state in words and colour: in View, the pill; in Edit, the status itself; see [Status words](#ref-status-words)"
+       ],
+       [
+        "Client-visible (the eye)",
+        "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. In View it is a mark only; in Edit, select it to turn the item on or off, with **Undo**"
        ]
       ]
      ],
@@ -1114,6 +1114,10 @@
        [
         "Client",
         "Shown to the client, Internal only"
+       ],
+       [
+        "Freshness",
+        "Not reviewed in 14 days, No owner or no date. Offered once some item has a date it can count from"
        ]
       ]
      ],
@@ -1161,7 +1165,7 @@
      ],
      [
       "p",
-      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. Take any real password out of a question before you send it."
+      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. A short mixed value typed after “api key” or “access key” (such as v2beta3) is not sent, on purpose, even when it is not a key. Take any real password out of a question before you send it."
      ]
     ]
    },
@@ -1228,8 +1232,41 @@
       ]
      ],
      [
+      "tbl",
+      [
+       "Letter",
+       "Kind of item"
+      ],
+      [
+       [
+        "A",
+        "Action"
+       ],
+       [
+        "R",
+        "Risk"
+       ],
+       [
+        "I",
+        "Issue"
+       ],
+       [
+        "D",
+        "Decision"
+       ],
+       [
+        "S",
+        "Assumption (this letter waits for the owner to confirm)"
+       ],
+       [
+        "P",
+        "Dependency (this letter waits for the owner to confirm)"
+       ]
+      ]
+     ],
+     [
       "p",
-      "A risk or issue’s colour follows its priority, which is set from impact and likelihood. Priorities are Urgent, High, Medium and Low."
+      "The letter shows before the title in the Work items table. A risk or issue’s colour follows its priority, which is set from impact and likelihood. Priorities are Urgent, High, Medium and Low."
      ],
      [
       "p",
@@ -1675,7 +1712,7 @@
       "ul",
       [
        "There is no Save button. Each change is written when you make it: a pick from a menu, [[Enter]] in a field, leaving a box, or closing an editor.",
-       "Each change records who made it (your full name from Settings › Profile, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
+       "Each change records who made it (your full name from Settings › Personal › About you, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
        "**Undo** in the message reverses exactly that step. Several changes made together undo together."
       ]
      ]

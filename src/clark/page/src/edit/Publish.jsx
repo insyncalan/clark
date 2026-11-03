@@ -5,7 +5,8 @@
 import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
-import { dialog, latest, pdfInfo, NO_FOLDER, folderName, open, close, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialogLine } from "./publishLine.js";
+import { dialog, latest, next, pdfInfo, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 export const lastLine = (l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
@@ -37,13 +38,12 @@ function Dialog() {
     if (target) target.focus();
   }, [s.phase, s.phase === "clash" ? s.choice : ""]);
   const working = s.phase === "working", clash = s.clash;
-  const stateWords = lastLine(latest.value);
   return (
     <dialog id="publish-dialog" class="dlg" aria-labelledby="pub-title" ref={el} onCancel={(e) => { e.preventDefault(); cancel(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); go(); }}>
         <h2 id="pub-title">{s.phase === "clash" ? clash.title : "Publish the report"}</h2>
         {s.phase === "clash" ? null : (
-          <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${shownDate(p.week_ending)}` : ""}{stateWords ? ` · ${stateWords}` : ""}</p>
+          <p class="muted dlg-sub" id="pub-sub">{dialogLine(p ? p.name : project.value, p && p.week_ending, next.value, latest.value, shownDate)}</p>
         )}
         {s.phase === "clash" ? (
           <fieldset class="pub-clash">
@@ -74,7 +74,7 @@ function Dialog() {
             <label class="pubopt"><input type="checkbox" id="pub-local" checked disabled />
               <span><b>Local</b><small>Always. You choose the folder and name in the save window.</small></span></label>
             <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="pub-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tick(e.currentTarget.checked)} />
-              <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
+              <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : <>{NO_FOLDER_LEAD}<button type="button" class="link" id="pub-to-set" disabled={working} onClick={toPublishingCard}>{NO_FOLDER_LINK}</button>.</>}</small></span></label>
             <label class={`pubopt${pdfInfo.value.ok ? "" : " off"}`}><input type="checkbox" id="pub-pdf" checked={s.pdf && pdfInfo.value.ok} disabled={!pdfInfo.value.ok || working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
               <span><b>PDF</b><small>{pdfInfo.value.ok ? "A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too." : pdfInfo.value.note}</small></span></label>
           </div>

@@ -21,7 +21,7 @@ from unittest import mock
 from clark import page, pdf, publish_pdf, to_client
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
-NO_FOLDER = "No client folder yet. Set it in Settings."
+NO_FOLDER = "No client folder yet. Set it in Settings, Publishing."
 DONE_NEW = to_client.MESSAGES["done_new"].format(name=WANTED).replace("Published.", "Published (Publication 1).", 1)       # #120
 WIDTHS = (1400, 900)
 
@@ -89,6 +89,7 @@ class Dialog(Base):
                                  [False, False], "To client is unticked, and can be ticked: a folder is saved")
                 text = p.dialog_text()
                 self.assertIn("Copied to the client folder: Harbour Bridge", text)
+                self.assertEqual(p.js("document.querySelector('#pub-to-set')"), None, "with a folder set there is nothing to set, so no link")
                 self.assertIn("Publish locally", text)
                 self.assertNotIn("The client will see this page.", text)
                 self.assertNotIn("Word", text, "no Word tick in v0.2")
@@ -239,6 +240,23 @@ class Dialog(Base):
             self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
             self.assertEqual(p.js("document.querySelectorAll('.rbar input').length"), 0, "View has no field")
 
+    def test_C_the_dialog_line_says_which_publication_this_will_be_and_when_the_last_one_went(self):
+        """#437 row 26 (the prototype's io.js): 'this will be Publication N' and, once there is one, 'last published <date>, locally'."""
+        sub = "document.querySelector('#pub-sub').textContent"
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            p.until("/this will be Publication 1/.test(" + sub + ")", "the first one says it will be number 1")
+            self.assertNotIn("last published", p.js(sub), "no earlier one yet")
+            self.assertNotIn("Published (", p.js(sub))
+            p.go()
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
+            p.go()
+            p.until("!document.querySelector('#publish-dialog[open]')", "the dialog closed")
+            p.open_publish()
+            p.until("/this will be Publication 2/.test(" + sub + ")", "the next one says it will be number 2")
+            self.assertRegex(p.js(sub), r"this will be Publication 2 · last published \d\d-\d\d-\d{4}, locally$")
+
     def test_C_cancelling_the_save_window_says_so_and_writes_nothing(self):
         self.rig.save_to = None
         with chrome() as cdp:
@@ -339,6 +357,26 @@ class NoFolder(Base):
             p.until("document.activeElement.hasAttribute('data-go')", "focus starts on the button when To client cannot be ticked")
 
 
+    def test_C_set_it_in_settings_publishing_is_a_link_to_the_publishing_card(self):
+        """D-14 (prototype io.js #pubToSet): the words "Settings, Publishing" are a link; it closes the box, opens Settings, and the
+        Publishing card is in view and has the focus. Both widths."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in WIDTHS:
+                p.width(w)
+                p.js("document.querySelector('[data-view=dashboard]').click()")
+                p.open_publish()
+                self.assertEqual(p.js("(function(){var b=document.querySelector('#pub-client + span small button');return b&&[b.tagName,b.textContent,b.type,b.getBoundingClientRect().height>=24]})()"),
+                                 ["BUTTON", "Settings, Publishing", "button", True], f"{w}: a link of its own, at least 24 px to point at")
+                self.assertEqual(p.js("document.querySelector('#pub-client + span small').textContent"), NO_FOLDER, "the sentence reads whole")
+                self.assertEqual(p.js("document.querySelector('#pub-client').checked"), False, "pressing the link does not tick the box")
+                p.js("document.querySelector('#pub-to-set').click()")
+                p.until("!document.querySelector('#publish-dialog') && document.activeElement && document.activeElement.id === 'publishing'", f"{w}: the box closed and the Publishing card has the focus")
+                self.assertEqual(p.js("document.querySelector('[data-view=settings]').getAttribute('aria-selected')"), "true", "Settings is open")
+                self.assertTrue(p.js("(function(){var r=document.querySelector('#publishing').getBoundingClientRect();return r.top >= 0 && r.top < innerHeight})()"), "the card is in view")
+                self.assertTrue(p.js("(function(){var t=document.querySelector('header.top').getBoundingClientRect().bottom;return document.querySelector('#publishing').getBoundingClientRect().top >= t - 1})()"), "clear of the top bar")
+
+
 class Settings(Base):
     saved = False
 
@@ -412,8 +450,12 @@ class Published(unittest.TestCase):
 
     def test_the_words_in_the_page_are_the_specs(self):
         src = "".join(f.read_text(encoding="utf-8") for f in PAGE_SRC.rglob("edit/*") if f.is_file())
-        for key in ("button_local", "button_client", "client_sees", "not_saved"):
+        for key in ("button_local", "button_client", "client_sees"):
             self.assertIn(to_client.MESSAGES[key], src, key)
+        # not_saved: the spec's sentence, with its last words now the link "Settings, Publishing" (the prototype's wording, D-14)
+        self.assertEqual(to_client.MESSAGES["not_saved"], "No client folder yet. Set it in Settings.")
+        self.assertIn("No client folder yet. Set it in ", src)
+        self.assertIn('NO_FOLDER_LINK = "Settings, Publishing"', src)
         for label in to_client.MESSAGES["clash_choices"][:3]:
             self.assertIn(label, src)
         self.assertNotRegex(src, r"report editor|(?<!X-)Clark\b")

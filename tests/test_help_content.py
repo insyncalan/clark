@@ -24,9 +24,9 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
-# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) and 'Shown to client' (the tag on a work item row, components/WorkItems.jsx) are read on the page itself; the prototype words them differently
+# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'See all work items', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -208,6 +208,15 @@ class Words(unittest.TestCase):
         self.assertEqual(sorted(missing - CHECKED_BY_HAND), [], "bold names that the prototype does not have: add them there, or reword Help")
         self.assertEqual(sorted(CHECKED_BY_HAND - missing), [], "no longer needed in the hand-checked list: take it out")
 
+    def test_help_names_new_project_only_if_the_page_builds_it(self):
+        """#527: Help may not send a reader to a "New project" menu item that the page does not have."""
+        src = HELP.parent
+        built = any("New project" in f.read_text(encoding="utf-8", errors="ignore")
+                    for f in src.rglob("*") if f.is_file() and f.suffix in (".js", ".jsx", ".ts", ".tsx") and HELP not in f.parents)
+        help_text = "\n".join(f.read_text(encoding="utf-8") for f in HELP.glob("*.json"))
+        if not built:
+            self.assertNotIn("New project", help_text, "Help names New project but no code under src/clark/page/src builds it")
+
 
 class Held(unittest.TestCase):
     def test_taken_out_text_is_not_in_the_shipped_source(self):
@@ -236,7 +245,7 @@ class WordingRound(unittest.TestCase):
     def test_the_panel_header_does_not_say_question_mark_comes_back_from_help(self):       # HIGH
         jsx = (HELP / "Help.jsx").read_text(encoding="utf-8")
         self.assertNotIn("to come back", jsx)
-        self.assertRegex(jsx, r"to open Help\. Esc or Close takes you back")
+        self.assertRegex(jsx, r"to open Help; Esc or Back takes you where you were")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("by 12-12-2026", self.ALL)
@@ -320,6 +329,15 @@ class LowWordsRound(unittest.TestCase):
             self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
+    def test_use_case_help_says_what_the_page_says(self):
+        """The page's button reads "See all N open work items" and a use case has four statuses, Done included (UseCases.jsx; #412)."""
+        page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
+        self.assertIn("See all ${n} open work", page)
+        self.assertEqual(self.ALL.count("it reads “See all N open work items”") + self.ALL.count("which reads “See all N open work items”"), 2)
+        self.assertNotIn("See all work items", self.ALL)
+        self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];', page)
+        self.assertIn("Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).", self.ALL)
+
 
     def test_the_prototype_help_gives_the_section_style_lines_its_own_settings_gives(self):
         """#294: the prototype's help.js and its Settings card (views.js) say the same thing for each of the four section styles."""
@@ -345,6 +363,39 @@ class LowWordsRound(unittest.TestCase):
         """Assumptions and dependencies are stored with risks and issues (one CODE-001 series)."""
         self.assertIn("Actions, decisions, and everything numbered CODE-001 share one numbering", self.ALL)
         self.assertNotIn("Actions, risks, issues and decisions share one numbering", self.ALL)
+
+
+class HelpMatchesThePage(unittest.TestCase):
+    """Three places where Help said less, or something other, than the page does (Tech Debt #401, #402, #403)."""
+    ALL = " ".join(s for _, s in words())
+    SRC = ROOT / "src" / "clark" / "page" / "src"
+
+    def test_the_work_items_filters_name_freshness_as_the_page_does(self):
+        names = (self.SRC / "filters.js").read_text(encoding="utf-8")
+        self.assertIn('reviewed: "Freshness"', names)
+        find = next(t for t in STEPS if t["id"] == "find-work-items")
+        self.assertIn("Milestone and Client, and Freshness once some item has a date it can go by", " ".join(find["s"]))
+        table = next(b for sec in SECTIONS if sec["id"] == "work-items" for b in sec["b"] if b[0] == "tbl" and b[1] == ["Filter", "Values"])
+        self.assertEqual(table[2][-1][0], "Freshness")
+        self.assertIn("Not reviewed in 14 days", table[2][-1][1])
+        self.assertIn("No owner or no date", table[2][-1][1])
+        self.assertIn("REVIEW_DAYS = 14", names)
+
+    def test_a_use_case_names_the_ways_back_the_page_has(self):
+        detail = (self.SRC / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8")
+        self.assertIn("data-uc-back", detail)
+        self.assertIn('"Escape"', detail)
+        find = next(t for t in STEPS if t["id"] == "find-a-use-case")
+        line = find["s"][-1]
+        self.assertIn("**Use cases** link at the top, [[Esc]] or the Back button of your browser", line)
+        self.assertNotIn("Back returns", line)
+        self.assertNotIn("**Back**", line)       # the page has no button called Back
+
+    def test_delete_section_is_said_for_both_kinds_that_have_it(self):
+        gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")
+        self.assertIn('DELETABLE = ["text", "needs"]', gutter)
+        arrange = next(t for t in STEPS if t["id"] == "arrange-the-report")
+        self.assertIn("for a text section or the Needs from you section, **Delete section**", " ".join(arrange["s"]))
 
 
 if __name__ == "__main__":

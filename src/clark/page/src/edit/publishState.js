@@ -2,12 +2,16 @@
 // unticked every time the dialog opens (never remembered, not even in localStorage) and cannot be ticked until a client folder is
 // saved. A taken name in the client folder is asked about before anything is written. Nothing here names a folder or a file.
 import { signal } from "@preact/signals";
-import { data, project } from "../stores/report.js";
+import { data, project, show } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
 
-export const NO_FOLDER = "No client folder yet. Set it in Settings.";
+// With no client folder, To client says where to set one; the second part is a link to the Publishing card (the prototype's
+// "Set it in Settings, Publishing", io.js).
+export const NO_FOLDER_LEAD = "No client folder yet. Set it in ", NO_FOLDER_LINK = "Settings, Publishing";
+export const NO_FOLDER = NO_FOLDER_LEAD + NO_FOLDER_LINK + ".";
 export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
+export const next = signal(0);           // the number the next publication will have (#437), or 0 until the server has said
 export const pdfInfo = signal({ ok: false, note: "" });      // whether Chrome is on this computer, and the one line saying why not
 
 export const savedFolder = () => {
@@ -24,6 +28,7 @@ export async function refreshLatest() {
   if (!code) { latest.value = null; return; }
   const r = await latestRequest(code);
   latest.value = r.status === 200 && r.body && r.body.ok === true && r.body.latest ? r.body.latest : null;
+  next.value = r.status === 200 && r.body && r.body.ok === true && Number.isInteger(r.body.next) && r.body.next >= 1 ? r.body.next : 0;
   const p = r.status === 200 && r.body && r.body.ok === true ? r.body.pdf : null;
   pdfInfo.value = p && typeof p.ok === "boolean" ? { ok: p.ok, note: typeof p.note === "string" ? p.note : "" } : { ok: false, note: "" };
 }
@@ -36,6 +41,24 @@ export function close() {
   dialog.value = null;
   const back = document.querySelector("[data-publish]");
   if (back) back.focus();
+}
+
+// The link in To client: the box closes, Settings opens and the Publishing card is scrolled into view and takes the focus.
+export function toPublishingCard() {
+  const el = document.getElementById("publish-dialog");
+  if (el && el.open) el.close();
+  dialog.value = null;
+  show("settings");
+  let tries = 10;
+  const find = () => {
+    const card = document.getElementById("publishing");
+    if (!card) { if (--tries > 0) setTimeout(find, 40); return; }
+    const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    card.setAttribute("tabindex", "-1");
+    card.scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
+    card.focus({ preventScroll: true });
+  };
+  setTimeout(find, 40);                                                    // after the box's own focus-back and Settings' first draw
 }
 
 export function tick(on) {
