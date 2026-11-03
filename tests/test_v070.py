@@ -16,8 +16,8 @@ slide-out (#450), the calendar's keys (#481), the dashboard's use cases in Edit 
 prototype and the Publish and Preview words (#459), the AI card in Settings (#72), the About you path (#422), saved views that stay
 listed (#589), "Not written yet." (#375), the documents link check (#594), the short value after "api key" (#583, #527), a lost
 number race (#388), a null character in the logo rule (#493), the right-click menu (#97), hand over (#199) and the Word client copy's
-held-back check (#618). Not merged, so WAITING: #220 (PR 509), #171 (PR 472), #325 (PR 474), #286 (PR 508), #595 (PR 493) and #269 (no pull
-request). Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
+held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: #220 (PR 509), #171 (PR 472), #325 (PR 474), #286 (PR 508)
+and #269 (no pull request). Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.7.0, then fail if they are wrong.
 The notes' own rules (title, the Beta line, plain words, the data-layout paragraph) are read from the tree now.
 """
@@ -110,6 +110,8 @@ COVERED = [
      "test_hand_over::Page::test_hand_over_changes_every_owner_in_one_step_and_one_undo"),
     ("#199", "Items that cannot take the hand over are left out and named",
      "test_changes_hand_over::HandOver::test_items_that_cannot_take_it_are_left_out_and_named"),
+    ("#595", "A supporting document of an unknown kind is left out of the published file, never published with an empty kind",
+     "test_documents_published::Absent::test_an_unknown_document_kind_is_refused_never_published_as_an_empty_kind_and_a_known_kind_is"),
     ("#618", "The Word client copy is refused when it carries text held back from the client",
      "test_word_client_held_back::Cases::test_the_word_client_copy_refuses_it"),
     ("#618", "A refused Word client copy writes nothing in either folder",
@@ -127,8 +129,6 @@ WAITING = [
      "store.py", "migrate_publication_trigger_client_path"),
     ("#286", "The filter line no longer says Press / (that key opens ask clark)", "PR 508",
      "page/src/components/FilterLine.jsx", "opens ask clark (#286)"),
-    ("#595", "A document of an unknown kind is left out of the published file, not published as an empty kind", "PR 493",
-     "publish.py", "if kind not in doclinks.KINDS:"),
     ("#269", "The publications row names the PDF file", "no pull request yet (issue 269)", "", None),
 ]
 
