@@ -82,12 +82,19 @@ class Keys(ie.Live):
                 key(cdp, sid, "ArrowRight")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens the peek")
                 self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "focus is in the peek")
-                # a plain arrow with the focus inside the peek (a button, a tab, the page) is not taken: the peek's own keys and the page's scrolling are left alone
+                # Left and Right with the focus inside the peek are not taken: the peek's tabs and the page keep them. Up and Down are the
+                # peek's own (#246, the peek steps to the item before or after in the list it was opened from), so they are taken.
                 cdp.js("window.__seen.length = 0", sid)
-                for name in ("ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"):
+                for name in ("ArrowLeft", "ArrowRight"):
                     key(cdp, sid, name)
-                self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 0, "no arrow in the peek was taken")
+                self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 0, "Left and Right in the peek were not taken")
                 self.assertTrue(cdp.js(f"location.hash.includes('item={rows[0]}')", sid), "and the peek stayed on its item, open")
+                key(cdp, sid, "ArrowDown")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Down steps the open peek to the next item")
+                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus stays in the peek")
+                key(cdp, sid, "ArrowUp")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Up steps it back")
+                self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 2, "Down and Up in the peek were taken, once each")
                 cdp.js("document.body.focus(); document.activeElement.blur()", sid)
                 cdp.js("window.__seen.length = 0", sid)
                 key(cdp, sid, "ArrowLeft")
@@ -209,7 +216,7 @@ class Keys(ie.Live):
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[-1]}')", "the last row's peek")
                 key(cdp, sid, "ArrowDown")
-                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[-1]}')", sid), "Down inside the peek is not taken")
+                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[-1]}')", sid), "Down in the peek on the last item stays on it (no wrap)")
 
     def test_in_edit_the_row_keeps_its_cells_and_enter_on_a_cell_opens_its_picker(self):
         for width in (1400, 900):
