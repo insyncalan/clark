@@ -167,8 +167,8 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings",
-                                  "Where reports are published, how clark looks for you, the log, your backups and asking Claude.",
-                                  "Publishing", "Personal", "Logs and diagnostics", "Backups", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
+                                  "Publishing", "Personal", "Freshness", "Logs and diagnostics", "Backups", "Asking",      # the chips: one for each card below, in the order they are on the page
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
@@ -188,6 +188,9 @@ class Words(unittest.TestCase):
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
+                                  "Freshness",          # #160: the project's "Not reviewed after (days)"
+                                  "When an open item counts as not reviewed in this project. It sets the peek's note, the Freshness filter and the Not reviewed tile.",
+                                  "Not reviewed after (days)", "A whole number from 1 to 365. The default is 14. Not in the published report.",
                                   "Logs and diagnostics",      # #110
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
                                   "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",

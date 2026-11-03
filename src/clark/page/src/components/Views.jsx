@@ -110,7 +110,7 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
-const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
+const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Safety", "Backups", "safety-h"], ["AskSettings", "Asking", "ask-settings-h"]];
 
 function goToCard(headId) {
@@ -125,7 +125,7 @@ function SettingsHead({ cards }) {
   return (
     <section class="frame set-head">
       <h1>Settings</h1>
-      <p class="muted">Where reports are published, how clark looks for you, the log, your backups and asking Claude.</p>
+      <p class="muted">Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.</p>
       {cards.length ? (
         <nav aria-label="Settings sections">
           <ul class="set-nav">{cards.map(([, name, headId]) => <li key={headId}><button type="button" class="set-chip" onClick={() => goToCard(headId)}>{name}</button></li>)}</ul>
@@ -139,6 +139,7 @@ export function Settings({ tools }) {
   const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
   const PublishedReports = tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
+  const ReviewDays = tools && tools.ReviewDays;          // Freshness (#160): the project's "Not reviewed after (days)"
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const cards = CARDS.filter(([tool]) => tools && tools[tool]);
@@ -149,6 +150,7 @@ export function Settings({ tools }) {
       {ClientFolder ? <ClientFolder /> : null}
       {PublishedReports ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}
+      {ReviewDays ? <ReviewDays /> : null}
       {Diagnostics ? <Diagnostics /> : null}
       {Safety ? <Safety /> : null}
       {AskSettings ? <AskSettings /> : null}
