@@ -228,7 +228,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 @media (max-width: 900px) { table.items .c-due { width: 134px; } }
 /* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
    longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
-.kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 13px; font-weight: 400; flex: none; background: var(--grey-100); color: var(--grey-700); }
+.kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-regular); flex: none; background: var(--grey-100); color: var(--grey-700); }
 .kb.k-action { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .kb.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .kb.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
