@@ -231,7 +231,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers (press Enter in the empty box to use this week’s Friday; clark only takes a Friday). The cover shows it as “Week ending Friday 30 October 2026”.",
+     "Set **Week ending** to the Friday the report covers (press Enter in the empty box to use this week’s Friday; any other day is not accepted). The cover shows it as “Week ending Friday 30 October 2026”.",
      "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] cancels.",
      "Write **Summary**, **This week** and **Next week** the same way. In an empty section, type [[/]] and choose **Draft with AI** for a first draft from the project.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
@@ -282,10 +282,36 @@
      "**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.",
      "Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
      "Tick **Also a Word document** for a Word copy beside the web page.",
-     "Press **Publish locally** (or **Publish and send to the client**). The box then says, for example, “Published (Publication 3).” The line at the top of the Dashboard says when it was published, and whether to the client or locally.",
+     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. The line at the top of the Dashboard says when it was published, and whether to the client or locally.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
     "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on), shown at the foot of the page with its date. A Word copy takes the next number as well. Each publish adds a line to History."
+   },
+   {
+    "id": "find-a-past-publication",
+    "g": "Every week",
+    "t": "Find or open a past publication",
+    "w": "Profile circle › Published reports",
+    "go": "settings#pubs",
+    "s": [
+     "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
+     "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
+     "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open."
+    ]
+   },
+   {
+    "id": "save-as-a-pdf",
+    "g": "Every week",
+    "t": "Save the report as a PDF",
+    "w": "Profile circle › Publish…",
+    "go": "publish",
+    "s": [
+     "Open the Publish box and tick **PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
+     "Press **Publish locally** (or **Publish and send to the client**). The web page is saved as usual, and clark makes the PDF from it with Chrome.",
+     "The PDF is saved beside the report file, with the same name and **.pdf** at the end. With **To client** ticked it is copied to the client folder too, and the box says the client will see the page and the PDF.",
+     "The PDF has the four tabs one after another, no buttons or menus, and the publication number, the date and the page number at the foot of each page."
+    ],
+    "n": "The PDF is read back and its words are checked before clark keeps it. If it would hold anything that is not in the published page, nothing is published and the box says so. A PDF name already taken in the client folder is asked about first, as the report's is."
    },
    {
     "id": "add-a-work-item",
@@ -310,7 +336,7 @@
      "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
      "The second picks **Open**, **Closed** or **All**, each with its count.",
      "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
-     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too.",
+     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too. In the app it goes back to the open items.",
      "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
      "Your choices are kept for next time. A tile on the Dashboard, or **See all work items** on a use case, opens Work items already filtered to what it counts."
     ]
@@ -323,10 +349,10 @@
     "go": "work",
     "s": [
      "**Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the search switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
+     "The two icons beside Group by switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
      "**Swimlanes** adds rows across the board: None, Workstream or Type.",
-     "In Edit, drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
-     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes. In View the board shows the cards but does not move them.",
+     "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
+     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
      "Every move has **Undo** in the message. Click a card, or press [[Enter]] on it, to open it."
     ],
@@ -402,10 +428,10 @@
     "w": "Dashboard › Edit",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a **grip** and, under it, a **+**. They are faint until you point at the section or tab to them.",
-     "Drag the grip to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include**) and, for a text section, **Delete section**. A section that is left out shows an eye-off mark under its **+**.",
-     "To rearrange the page, pick up a section by its grip and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a phone a pair stacks.",
+     "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
+     "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
+     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section, **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
+     "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
     ]
@@ -414,10 +440,10 @@
     "id": "add-a-section-from-a-template",
     "g": "The report",
     "t": "Add a section from a template",
-    "w": "Dashboard › Edit › the + under a section’s grip",
+    "w": "Dashboard › Edit › the + under a section’s move button",
     "go": "dashboard+edit",
     "s": [
-     "On the **Dashboard**, press **Edit**. Press the **+** under the grip of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
+     "On the **Dashboard**, press **Edit**. Press the **+** under the move button of the section you want the new one to follow, or open its menu and choose **Add a template below…**.",
      "The **Add a section** box opens. Choose a kind on the left, or type in **Search templates**. [[Left]], [[Right]], [[Up]] and [[Down]] move through the templates; the preview on the right shows what the chosen one holds.",
      "Under **Where it goes**, choose **On its own row** or, when the section above is on a row of its own and the template can be half width, **Beside** it: the new section becomes the second half of that row.",
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
@@ -466,7 +492,7 @@
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
      "Right-click a tile in Edit for **Tile colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
     ],
-    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or a risk is red, amber when something waits, and green otherwise."
+    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise."
    },
    {
     "id": "keep-the-use-cases",
@@ -476,10 +502,10 @@
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
-     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all work items** opens Work items filtered to that use case.",
-     "In Edit, **+ Add use case** asks for an ID, a name, a status and a headline. Click the headline or the name to change it; click the status word to choose **On track**, **Flag** or **High risk**.",
-     "In the detail, write **Where it stands** (with **Draft from the project** in its AI menu), add a next step as “Owner: what it is”, or **+ Link an existing work item**.",
-     "**Archive use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Show archived** finds it, and **Restore** or **Undo** brings it back."
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** link opens Work items filtered to that use case.",
+     "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
+     "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
+     "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
     ]
    },
    {
@@ -492,7 +518,7 @@
      "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. Back returns to the list."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top returns to the list."
     ]
    },
    {
@@ -527,7 +553,7 @@
     "w": "Milestones · Dashboard › Milestones",
     "go": "milestones",
     "s": [
-     "On **Milestones**, press **+** (**Add milestone**). A new one, 30 days out, opens in the peek with its name selected: type over it.",
+     "In **Edit**, on **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in **View** or in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
      "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked. The line under it says why the milestone has that state.",
      "**Dates**: the **Agreed** date is the baseline; change the **Forecast** date as things move. When they differ, **Rebaseline…** makes the forecast the new agreed date and keeps the original.",
@@ -548,7 +574,7 @@
      "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. Your choice is kept.",
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
-     "**Show milestone details** lists them with their date, state and progress. The first five show; **Show all** shows the rest."
+     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],
     "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”."
    },
@@ -576,7 +602,7 @@
     "s": [
      "On **Milestones**, press **Movement**. It is for you and the team: it is never published.",
      "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
-     "Then decide: **Hold** (notes that the agreed date stays), **Rebaseline** (the agreed date moves to the expected date; the original is kept), **Add a recovery action** or **Escalate to steering**. The last two add a linked action or decision and open it.",
+     "Then decide: **Hold** (adds a dated line to the **Internal note** and keeps the agreed date), **Move the agreed date** (you say who agreed it, why and where; the original date is kept), **Add a recovery action** (a High priority action due in 7 days, linked to the milestone, in its workstream or the first open one) or **Escalate to steering** (a Pending decision needed in 7 days, named for the milestone: a decision can’t be linked to a milestone). Each new item opens in the peek, with a line saying how far behind the milestone is. A new item starts hidden from the client (its eye is off), so neither it nor that line reaches the client until you show it.",
      "Write an **Internal note**. It saves when you leave the box and is never published."
     ]
    },
@@ -705,11 +731,12 @@
      [
       "ul",
       [
-       "**Publish…**: the Publish box, on the Dashboard. See [Publishing](#ref-publishing).",
+       "**Publish…**: the Publish box, on the Dashboard.",
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
+       "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Settings**.",
-       "**Appearance**: System, Light or Dark; the one in use has a tick."
+       "**Help**: opens this Help."
       ]
      ],
      [
@@ -735,7 +762,7 @@
      ],
      [
       "p",
-      "A single click on a work item row, outside its fields, opens it in the peek. In Edit, every part of the row changes in place."
+      "A single click on a work item row, outside its fields, opens it in the peek. The owner, status, priority and due date change in place, in View or Edit; in Edit every part of the row does."
      ],
      [
       "p",
@@ -779,7 +806,7 @@
      ],
      [
       "p",
-      "Add more sections from the **+** under any section’s grip, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit."
+      "Add more sections from the **+** under any section’s move button, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit."
      ]
     ]
    },
@@ -791,7 +818,7 @@
     "b": [
      [
       "p",
-      "Ready-made sections you add in Edit from the **+** under a section’s grip, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
+      "Ready-made sections you add in Edit from the **+** under a section’s move button, or **Add a template below…** in its menu. In the **Add a section** box you pick one, choose **On its own row** or **Beside** the section above (half width), and press **Add section**. See [Add a section from a template](#howto-add-a-section-from-a-template)."
      ],
      [
       "p",
@@ -956,7 +983,7 @@
        [
         "High risks and issues",
         "Open risks and issues of Urgent or High priority",
-        "Red when any is red; amber when some are open; green when none"
+        "Red when any is rated Urgent or High; amber when some are open but none is that high; green when none are open"
        ],
        [
         "Decisions needed",
@@ -967,7 +994,7 @@
      ],
      [
       "p",
-      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Tile colour**."
+      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Outline colour**: Automatic, Green, Amber, Red or No colour."
      ]
     ]
    },
@@ -978,17 +1005,17 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections in cards, with the contents at the right edge."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; slim gaps are the standard. It is used on the published report too."
      ],
      [
       "tbl",
       [
-       "Dashboard sections (yours)",
+       "Dashboard sections",
        "What it does"
       ],
       [
        [
-        "Slim gaps (standard)",
+        "Slim gaps",
         "Each section is its own card, with a slim gap that shows the page picture."
        ],
        [
@@ -1014,7 +1041,7 @@
     "b": [
      [
       "p",
-      "From the top: the import and export icons and **+**; the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; the search; then **Filter by**."
+      "From the top: the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; then **Filter by**."
      ],
      [
       "tbl",
@@ -1024,8 +1051,12 @@
       ],
       [
        [
+        "Type",
+        "Action, Risk, Issue, Assumption, Dependency or Decision"
+       ],
+       [
         "Item",
-        "The type badge, the title, a Client tag, then the ID, use case and milestone"
+        "The title, then the ID, use case, milestone and workstream, and a **Shown to client** tag"
        ],
        [
         "Owner",
@@ -1041,11 +1072,7 @@
        ],
        [
         "Status",
-        "The state in words and colour: see [Status words](#ref-status-words)"
-       ],
-       [
-        "The eye",
-        "Client-visible on or off"
+        "The state in words and colour: in View, the pill; in Edit, the status itself; see [Status words](#ref-status-words)"
        ]
       ]
      ],
@@ -1092,7 +1119,8 @@
      ],
      [
       "p",
-      "Every filter can be **is** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
+      "Every filter can be **is** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board).",
+      "A line under the filters shows how many items match, with a chip for each filter (the **×** removes it) and **Clear all**. When nothing matches, the list says so and offers **Clear all**."
      ]
     ]
    },
@@ -1188,6 +1216,11 @@
         "Its colour from its priority: Urgent or High red, Medium amber, Low green"
        ],
        [
+        "Assumption, Dependency",
+        "Open, Closed, Cancelled",
+        "Open (blue); Closed or Cancelled (grey)"
+       ],
+       [
         "Decision",
         "Pending, Made, Withdrawn",
         "Pending (blue), Made (green), Withdrawn (grey)"
@@ -1196,11 +1229,15 @@
      ],
      [
       "p",
-      "Choosing Red, Amber or Green on a risk or issue sets its priority. Priorities are Urgent, High, Medium and Low."
+      "A risk or issue’s colour follows its priority, which is set from impact and likelihood. Priorities are Urgent, High, Medium and Low."
      ],
      [
       "p",
-      "Use case statuses: **On track** (green), **Flag** (amber) and **High risk** (red)."
+      "In View and on the published page the pill says the words in the last column. In Edit the Status cell shows the status itself: Open, Delayed, Closed or Cancelled; or Pending, Made or Withdrawn."
+     ],
+     [
+      "p",
+      "Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey)."
      ]
     ]
    },
@@ -1311,7 +1348,7 @@
      ],
      [
       "p",
-      "A state follows the dates unless you set it by hand. Achieved wins; then Forecast and At risk (set by hand); then Overdue once the agreed date has passed; then Slipped when the forecast is later than agreed; otherwise On track."
+      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track."
      ],
      [
       "p",
@@ -1447,6 +1484,47 @@
      [
       "p",
       "Each publish is noted on the project, and the Dashboard says when it was last published. **Preview the page in a new tab** shows the page without saving it."
+     ]
+    ]
+   },
+   {
+    "id": "published-reports",
+    "g": "Publishing",
+    "t": "Published reports",
+    "w": "Profile circle › Published reports",
+    "b": [
+     [
+      "tbl",
+      [
+       "Column",
+       "Shows"
+      ],
+      [
+       [
+        "#",
+        "The publication's number for this project, counting up from 1"
+       ],
+       [
+        "Date and time",
+        "When it was published, in UTC"
+       ],
+       [
+        "Where",
+        "Where it went"
+       ],
+       [
+        "Who",
+        "Who published it"
+       ],
+       [
+        "Open",
+        "The kept copy of the page, in a new tab; or **Not kept** for one with no copy"
+       ]
+      ]
+     ],
+     [
+      "p",
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the card lists the latest ten."
      ]
     ]
    },
@@ -1612,8 +1690,8 @@
       "ul",
       [
        "Dates are shown day, month, year: DD-MM-YYYY.",
-       "The week ends on a Friday, everywhere. **Week ending** must be a Friday: clark says no to another day and names the Friday to pick. In Work items, **This week** runs from today to Friday; on a Saturday or Sunday it runs to the coming Friday.",
-       "IDs: actions CODE-A-001, decisions CODE-D-001, risks and issues CODE-001 (one series), milestones CODE-M-001. CODE is the project’s short code.",
+       "The week ends on a Friday, everywhere. **Week ending** must be a Friday. Any other day is not accepted, and the message names the Friday to pick. In Work items, **This week** runs from today to Friday; on a Saturday or Sunday it runs to the coming Friday.",
+       "IDs: actions CODE-A-001, decisions CODE-D-001, risks, issues, assumptions and dependencies CODE-001, milestones CODE-M-001. Actions, decisions, and everything numbered CODE-001 share one numbering, so CODE-A-002 and CODE-002 never both exist. CODE is the project’s short code.",
        "Use cases keep the ID you give them, such as 3.1."
       ]
      ]
@@ -1629,7 +1707,7 @@
       [
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
-       "A link with an arrow takes you to the screen it names.",
+       "A link with a › after it takes you to the screen it names.",
        "[[?]] opens Help from any page; in Help, [[/]] goes to the search box."
       ]
      ]
@@ -1718,11 +1796,11 @@
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
-    "Dashboard in Edit, on a section’s grip: move the section"
+    "Dashboard in Edit, on a section’s move button: move the section"
    ],
    [
     "[[Enter]] or [[Space]]",
-    "Dashboard in Edit, on a section’s grip: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them"
+    "Dashboard in Edit, on a section’s move button: open its menu. In the Add a section box, [[Enter]] adds the chosen template and the arrow keys move through them"
    ],
    [
     "[[Alt+Left]] [[Alt+Right]]",
@@ -1791,6 +1869,18 @@
    [
     "[[Mod+K]]",
     "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back"
+   ],
+   [
+    "[[Up]] [[Down]] [[Home]] [[End]]",
+    "Work items table: move the cursor from row to row (never onto a group heading), to the first row or to the last. The blue outline shows where it is. The table is one stop for [[Tab]]"
+   ],
+   [
+    "[[Up]] [[Down]] [[Left]] [[Right]]",
+    "Work items board: move from card to card in reading order. [[Home]] and [[End]] go to the first and last card. To move a card, use its Move to menu"
+   ],
+   [
+    "[[Enter]]",
+    "On a row or a card: open it. On a table row in View, [[Right]] opens it and [[Left]] closes it again; [[Esc]] closes it and returns to the row. In Edit, [[Enter]] on a cell opens that cell’s picker, and [[Right]] and [[Left]] move across the cells of the row"
    ]
   ],
   "icons": [
@@ -1992,7 +2082,7 @@
    ],
    [
     "At risk",
-    "Marked at risk by hand."
+    "Marked at risk by the project team."
    ],
    [
     "Slipped",

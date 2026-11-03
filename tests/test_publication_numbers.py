@@ -5,6 +5,7 @@ taken back; History gets one line per publish. Fictional data only.
 Run: python3 dev/run_tests.py test_publication_numbers
 """
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -114,9 +115,9 @@ class TheCounter(unittest.TestCase):
 
 class TheShapeAndTheStep(unittest.TestCase):
     def test_the_step_is_number_10_and_the_table_has_no_gap(self):
-        self.assertEqual(store_module.SCHEMA_VERSION, 10)
-        self.assertEqual(store_module.MIGRATIONS[-1], (10, store_module.migrate_publication_numbers))
-        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, 11)))
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 10)                  # later steps follow (#412 is 11)
+        self.assertIn((10, store_module.migrate_publication_numbers), store_module.MIGRATIONS)
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
 
     def test_the_frozen_step_makes_what_schema_sql_makes(self):
         fresh = DemoStore()
@@ -180,7 +181,7 @@ class OlderFiles(unittest.TestCase):
         path = self.make()
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "10")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))   # later steps follow (#412 is 11)
         # ABC by time: /x/2 (08:00 on the 1st) = 1, then /x/0 and /x/3 tie on the 2nd, seq order = 2, 3, then /x/5 = 4
         self.assertEqual(self.expected(s), {("/x/2.html", 1), ("/x/0.html", 2), ("/x/3.html", 3), ("/x/5.html", 4),
                                             ("/x/1.html", 1), ("/x/4.html", 2)})
@@ -193,7 +194,7 @@ class OlderFiles(unittest.TestCase):
         path = self.make(2)
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "10")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))   # later steps follow (#412 is 11)
         self.assertEqual((numbers(s.con), numbers(s.con, "XYZ")), ([2, 1, 3, 4], [1, 2]))
 
     def test_the_file_is_copied_first_a_second_open_changes_nothing_and_the_step_is_safe_to_repeat(self):
@@ -361,6 +362,24 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(dest.read_bytes(), earlier)
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing numbered or half-written is left")
         self.assertEqual(numbers(store.con, "PUB"), [1])
+
+    def test_overwrite_with_a_lost_race_puts_back_a_link_it_replaced(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        with self.assertRaises(publish.PublishError):
+            self._lost_race(store, folder, overwrite=True)
+        self.assertTrue(os.path.islink(dest), "the link is back, not removed and not turned into a file")
+        self.assertEqual(os.readlink(dest), str(target))
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
 
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
         store, folder = self._overwrite_rig()

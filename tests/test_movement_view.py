@@ -213,7 +213,7 @@ class Confirm(unittest.TestCase):
         self.assertIn("(24-11-2026) is kept", mv.confirm_text(self.ROW, "08-12-2026", ON))
 
     def test_toasts(self):
-        self.assertEqual(mv.toast_hold(), "Hold recorded. Undo.")
+        self.assertEqual(mv.toast_hold(), "Hold recorded in the note. Undo.")
         self.assertEqual(mv.toast_moved("Pilot live", "2026-12-08"), "Pilot live: the agreed date is now 08-12-2026. Undo.")
 
     def test_a_move_with_everything_is_not_refused(self):

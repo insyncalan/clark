@@ -177,7 +177,7 @@
     const { p, its, ms, ucs, secs, docs, glance } = pubData(), B = window.BRAND || {}, week = p.week || D.friday(), H = { G: 'On track', A: 'At risk', R: 'Off track' };
     const g = C.glanceData(p), st = x => { const [c, t] = C.look(x); return `<span class="st-${c}">${esc(t)}</span>`; };
     const open = (x, label) => forWord ? esc(label) : `<a href="#" data-item="${x.id}">${esc(label)}</a>`;
-    const tbl = (head, rows) => rows.length ? `<table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r2 => `<tr>${r2.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table>` : '<p class="muted">Nothing to show this week.</p>';
+    const tbl = (head, rows) => rows.length ? `<table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r2 => `<tr>${r2.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table>` : '<p class="muted">Nothing to show.</p>';
     const sec = s => {
       let b = '';
       if (s.type === 'current') b = `<div class="prose">${p.current || ''}</div>`;

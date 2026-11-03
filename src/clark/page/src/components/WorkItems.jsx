@@ -1,7 +1,8 @@
 // The Work items list (#36, read only; #64a filters and Add): one project's actions, risks, issues, assumptions, dependencies and
 // decisions from GET /api/data, one flat table: type, item, owner, due date in words, priority, status. The list rules are in
 // ../workItems.js, the filter rules in ../filters.js. A filter change redraws the list region and the switches' words only.
-// In Edit (#80), the Owner, Due, Priority and Status cells change in place (tools.Cell, edit/cells/): each opens its own picker.
+// In View and in Edit (#80, #442: the owner's ruling on gap B-9), the Owner, Due, Priority and Status cells change in place
+// (tools.Cell, edit/cells/): each opens its own picker. A published file has no tools, so no pickers.
 // A click on the row anywhere else opens the item's peek, in View and in Edit.
 // The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (in
 // Edit, from a cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
@@ -13,7 +14,8 @@
 // row only ticks it, and none of the keys above, the cells' pickers or the peek is on. The ticks are stores/handover.js `ticks`.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, query, setQuery, asAt } from "../stores/report.js";
+import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, closePeek, peek, mode, fromFile, filterCtx, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -22,8 +24,10 @@ import { handing, ticks } from "../stores/handover.js";
 import { KIND_WORDS, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
+import { lineApi } from "../stores/lineSlot.js";
 import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
+import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
@@ -39,7 +43,7 @@ function Owner({ name }) {
     : <span class="muted">{o.text}</span>;
 }
 
-const active = signal("");                      // the id of the row that is the table's one tab stop
+const active = cursor;                          // the id of the row that is the table's one tab stop (listKeys.js)
 
 // The arrow keys inside the table. Only a key on a row or on a cell's own button: never one meant for an open picker.
 function keys(e, row) {
@@ -52,7 +56,8 @@ function keys(e, row) {
   } else {
     if (selecting() && pickKeys(e, row.id, (id) => focusRow(tr, id, cell), { space: !cell })) return;
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || (selecting() && e.shiftKey)) return;
-    if (!cell && e.key === "Enter") { openPeek(row.id, "item"); return; }
+    if (!cell && (e.key === "Enter" || (e.key === "ArrowRight" && mode.value !== "edit"))) { e.preventDefault(); openPeek(row.id, "item"); return; }   // Right opens the peek in View; in Edit it walks the cells
+    if (!cell && e.key === "ArrowLeft" && mode.value !== "edit" && peek.value) { e.preventDefault(); closePeek(); return; }   // Left from a row closes an open peek; only a key on the row itself (never one inside the peek)
   }
   const rows = Array.from(tr.closest("table").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups, never a group heading
   const cells = Array.from(tr.querySelectorAll("[data-cell]")), c = cells.indexOf(cell);
@@ -62,10 +67,8 @@ function keys(e, row) {
     const same = field ? r.querySelector(`[data-cell$=":${field}"]`) : null;
     (same || r).focus();
   };
-  if (e.key === "ArrowDown") toRow(at + 1);
-  else if (e.key === "ArrowUp") toRow(at - 1);
-  else if (e.key === "Home" && !cell) toRow(0);
-  else if (e.key === "End" && !cell) toRow(rows.length - 1);
+  const vert = e.key === "ArrowDown" || e.key === "ArrowUp" || (!cell && (e.key === "Home" || e.key === "End"));
+  if (vert) toRow(moveTo(e.key, at, rows.length, ["ArrowUp", "ArrowDown", "Home", "End"]));
   else if (e.key === "ArrowRight") { if (cells[c + 1]) cells[c + 1].focus(); }
   else if (e.key === "ArrowLeft" && cell) (c > 0 ? cells[c - 1] : tr).focus();
   else return;
@@ -81,7 +84,7 @@ function focusRow(tr, id, cell) {
   (same || r).focus();
 }
 
-function Row({ row, today, Cell, stop }) {
+function Row({ row, today, Cell, stop, pos, size }) {
   const due = dueCell(row, today), pill = pillOf(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
   const hand = handing(), can = isOpen(row), ticked = hand && ticks.ids.value.includes(row.id);
@@ -94,7 +97,7 @@ function Row({ row, today, Cell, stop }) {
   };
   const dbl = (e) => { if (on && ownClick(e.target, e.currentTarget)) pickOpen(row.id); };
   return (
-    <tr data-id={row.id} data-kind={row.kind} class={`${can ? "" : "done"}${picked || ticked ? " picked" : ""}`.trim()} tabIndex={stop ? 0 : -1}
+    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${can ? "" : "done"}${picked || ticked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-posinset={pos} aria-setsize={size}
       aria-label={hand ? (can ? `Tick ${row.id}` : `${row.id}, closed, not offered`) : on ? `Select or open ${row.id}` : `Open ${row.id}`}
       aria-selected={on ? (picked ? "true" : "false") : hand && can ? (ticked ? "true" : "false") : undefined}
       onFocusIn={() => { active.value = row.id; if (on) sel.moveCursor(row.id); }} onKeyDown={(e) => keys(e, row)} onMouseDown={on ? noTextRange : undefined} onClick={click} onDblClick={dbl}>
@@ -109,7 +112,7 @@ function Row({ row, today, Cell, stop }) {
       <td class="c-item">
         {picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}
         <span class="t">{row.title}</span>
-        <span class="meta">{metaOf(row)}{row.client && !fromFile.value ? <span class="tag cl">Shown to client</span> : null}</span>
+        <span class="meta">{metaOf(row)}{row.client && !fromFile.value ? <span class="tag cl">Shown to client</span> : null}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
       </td>
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
@@ -125,13 +128,15 @@ function Row({ row, today, Cell, stop }) {
 function Table({ rows, today, type, Cell }) {
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
   const head = <thead><tr>{hand ? <th class="c-pick"><span class="sr">Hand over</span></th> : null}<th class="c-type">Type</th><th class="c-item">Item</th><th class="c-owner">Owner</th><th class="c-due">Due</th><th class="c-prio">Priority</th><th class="c-status">Status</th></tr></thead>;
-  const stopOf = (drawn) => (drawn.some((r) => r.id === active.value) ? active.value : drawn.length ? drawn[0].id : "");
-  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} stop={r.id === stop} />;
-  if (g === "nothing") { const flat = sortRows(rows, today), stop = stopOf(flat); return <table class="items" {...grid}>{head}<tbody>{flat.map((r) => row(r, stop))}</tbody></table>; }
+  const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
+  let order = [];                                  // the rows drawn, in order: each one's place for a screen reader ("3 of 12")
+  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} />;
+  if (g === "nothing") { const flat = sortRows(rows, today), stop = stopOf(flat); order = flat.map((r) => r.id); return <table class="items" {...grid}>{head}<tbody>{flat.map((r) => row(r, stop))}</tbody></table>; }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
     .map((c) => ({ ...c, shut: isCollapsed(st, g, c.key) }));
-  const stop = stopOf(groups.flatMap((c) => (c.shut ? [] : c.rows)));
+  const shown = groups.flatMap((c) => (c.shut ? [] : c.rows)), stop = stopOf(shown);
+  order = shown.map((r) => r.id);
   return (
     <table class="items grouped" {...grid}>
       {head}
@@ -173,24 +178,24 @@ function SearchBox() {
   );
 }
 
+// The published file's list (#69): the older filter bar's chips, search, as-at day. The filter line is the app's only (#153).
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell, Bulk, HandOver }) {
+function PublishedList({ Board, Cell, Bulk }) {
   const st = filterState.value, today = fromFile.value && asAt.value ? asAt.value : todayIso();
   const filtered = applyFilters(itemRows.value, st, today);
   const cs = chips(st);
   const words = query.value.trim() !== "", canClearAll = canClear(st) || words;
   const clear = () => { setQuery(""); setFilterState(clearAll(filterState.value)); };    // a published file keeps the type and Open / Closed / All
-  const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
+  const board = !!Board && work.value.view === "board";
   const matching = filtered.map((r) => r.id);
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
-  useLayoutEffect(() => { if (selecting() && !hand) sel.sync(drawnOrder(), matching); });
+  useLayoutEffect(() => { if (selecting()) sel.sync(drawnOrder(), matching); });
   return (
     <div id="work-list">
-      {hand ? <HandOver.Bar rows={filtered} /> : null}
-      {selecting() && !hand ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
+      {selecting() ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
       {Bulk ? <Bulk.Layer /> : null}
-      <div class="factive">
-        <span id="work-count" class="num">{countText(filtered.length, st.mode)}</span>
+      <div class="factive pub">
+        <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
         {cs.map((c) => (
           <span class="fchip" key={c.field} data-chip={c.field}>{c.text}
             <button type="button" data-fx={c.field} aria-label={`Remove the ${c.name} filter`} onClick={() => setFilterState(removeFilter(filterState.value, c.field))}>{"×"}</button>
@@ -203,6 +208,30 @@ function List({ Board, Cell, Bulk, HandOver }) {
       </div>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">No items match these filters.</p>{canClearAll ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} />}
+    </div>
+  );
+}
+
+// The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
+function List({ Board, Cell, Bulk, HandOver, L }) {
+  const today = todayIso(), v = L.view(itemRows.value, filterCtx());
+  const st = v.state, filtered = v.rows, clear = v.clear, can = v.can;
+  const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
+  const matching = filtered.map((r) => r.id);
+  // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
+  useLayoutEffect(() => { if (selecting() && !hand) sel.sync(drawnOrder(), matching); });
+  return (
+    <div id="work-list">
+      {hand ? <HandOver.Bar rows={filtered} /> : null}
+      {selecting() && !hand ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
+      {Bulk ? <Bulk.Layer /> : null}
+      <div class="factive">
+        <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
+        {can ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
+      </div>
+      {filtered.length === 0
+        ? <div class="empty"><p class="muted">No items match these filters.</p>{can ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
         : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} />}
     </div>
   );
@@ -210,16 +239,28 @@ function List({ Board, Cell, Bulk, HandOver }) {
 
 export function WorkItems({ tools }) {
   useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); if (tools && tools.HandOver) tools.HandOver.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
-  const d = data.value, plan = addPlan(filterState.value.type), Board = tools && tools.Board;
-  const Cell = tools && tools.Cell && mode.value === "edit" && !fromFile.value ? tools.Cell : null;
+  // The filter line is the app's only (#153): its code is handed over at start-up (lineSlot.js), never loaded by the published file.
+  const L = fromFile.value ? null : lineApi.current, FilterLine = L && L.FilterLine;
+  const d = data.value, plan = addPlan(L ? L.toState(allRows.value, filterCtx()).type : filterState.value.type), Board = tools && tools.Board;
+  const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
   const board = !!Board && work.value.view === "board";
+  // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
+  useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <section class="frame work" id="work">
+    <section class={`frame work${fromFile.value ? " pub" : ""}`} id="work">
       <p class="crumbs">{d.project.name}</p>
       <div class="head">
-        <h1>Work items</h1>
-        {tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} /> : null}   {/* a published file is read only: no Add (#204) */}
-        {tools && tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: in Edit, with the Owner filter on */}
+        <div>
+          <h1>Work items</h1>
+          <p class="intro muted" id="work-intro">{tools ? "Select an item to open it beside the list. Items marked Shown to client appear on the published page." : "Select an item to open it beside the list."}</p>
+        </div>
+        {tools ? (
+          <div class="hacts">
+            {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
+            <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} />   {/* a published file is read only: no Add (#204) */}
+            {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: in Edit, with the Owner filter on */}
+          </div>
+        ) : null}
       </div>
       <p class="muted note" role="status" id="work-note">{filterNote.value || asked.value}</p>
       <p class="sr" role="status" aria-live="polite" id="work-live">{announce.value}</p>
@@ -227,9 +268,17 @@ export function WorkItems({ tools }) {
       {allRows.value.length === 0
         ? <p class="muted">{tools ? `This project has no work items yet. Use ${plan.word} to add the first.` : "This report has no work items."}</p>
         : <>
-            <Switches><GroupBy board={board} />{fromFile.value ? <SearchBox /> : null}{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
-            <FilterBar />
-            <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} />
+            {!L
+              ? <>
+                  <Switches><GroupBy board={board} /><SearchBox />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <FilterBar />
+                  <PublishedList Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
+                </>
+              : <>
+                  <Switches L={L}><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <FilterLine />
+                  <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
+                </>}
           </>}
     </section>
   );
