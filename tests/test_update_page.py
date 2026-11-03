@@ -149,6 +149,9 @@ class Logic(InBrowser):
         for text in every:
             self.assertIsNone(re.search(r"(?i)\b(zip|manifest|sha|path|token|json|database|stale)\b", text.replace("Choose zip…", "")), text)
             self.assertFalse(text.startswith(("clark", "Clark")), text)
+        for text in self.val("[...Object.values(T.logic.ROWS), ...Object.values(T.logic.HINTS)]"):      # #445: the release file's name is the one zip named
+            self.assertIsNone(re.search(r"(?i)\b(zip|manifest|sha|path|token|json|database|stale|source)\b", text.replace("clark-1.2.3-mac.zip", "")), text)
+            self.assertFalse(text.startswith(("clark", "Clark")), text)
 
     def test_answers_known_server_said_and_generic(self):
         self.assertEqual(self.val("T.logic.answerWords(409, {code: 'busy', message: 'ignore me'})"), up.MESSAGES["busy"])
@@ -186,6 +189,70 @@ class Card(InBrowser):
         self.mount()
         self.assertFalse(self.present("[data-review]"))
         self.assertEqual(self.text("#update-line"), "Up to date.")
+
+    def rows(self):
+        return self.val("[...document.querySelectorAll('#update .upd-l')].map(e => e.textContent)")
+
+    def at_each_size(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    self.load(width=width, theme=theme)
+                    yield width, theme
+
+    def readable(self, selector):
+        worst = self.val(f"Math.min(...[...document.querySelectorAll({lit(selector)})].filter(e => e.textContent.trim()).map({CONTRAST}))")
+        self.assertGreaterEqual(worst, 4.5, selector)
+        self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
+
+    def test_row_58_labelled_rows_each_with_its_hint(self):
+        """#445 row 58: Installed / Update / Install from a file / Last update, as the prototype labels them, with a hint line under
+        the Update and Install from a file controls (system/prototype/views.js updCard)."""
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}}
+        for width, _ in self.at_each_size():
+            self.replies(status=OK(last))
+            self.mount()
+            self.assertEqual(self.rows(), ["Installed", "Update", "Install from a file", "Last update"])
+            for label, row in (("Installed", "#update-installed"), ("Update", "[data-review]"), ("Install from a file", "[data-choose]"),
+                               ("Last update", "[data-undo]")):
+                self.assertEqual(self.val(f"document.querySelector({lit(row)}).closest('[role=group]').getAttribute('aria-labelledby')"),
+                                 self.val(f"[...document.querySelectorAll('#update .upd-l')].find(e => e.textContent === {lit(label)}).id"), label)
+            self.assertEqual(self.text("#update-hint"), self.val("T.logic.HINTS.ready"))
+            self.assertEqual(self.text("#update-file-hint"), self.val("T.logic.HINTS.file"))
+            self.assertEqual(self.text("#update-last p"), "0.3.0 → 0.3.1 on 01-11-2026.", "the row's label says Last update once")
+            side = self.val("(() => { const l = document.querySelector('#update .upd-l').getBoundingClientRect(), "
+                            "c = document.querySelector('#update-installed').getBoundingClientRect(); return c.left > l.right; })()")
+            self.assertTrue(side, f"labels sit beside their rows at {width}")
+            self.readable("#update p")
+
+    def test_row_59_up_to_date_with_its_hint(self):
+        """#445 row 59: 'Up to date' (the server's words) with the hint about downloading the new version."""
+        for _ in self.at_each_size():
+            self.replies(status=OK({**STATUS, "available": None, "line": "Up to date."}))
+            self.mount()
+            self.assertEqual(self.text("#update-line"), "Up to date.")
+            self.assertEqual(self.text("#update-hint"), "Download the new version from the clark releases page, then choose it below.")
+            self.assertEqual(self.rows(), ["Installed", "Update", "Install from a file"])
+            self.readable("#update-row p")
+
+    def test_row_60_choose_zip_names_only_the_release_file(self):
+        """#445 row 60: Choose zip… has a hint naming the update attached to the release for this computer. clark-X.Y.Z.zip is the
+        name of GitHub's source download (updates.SOURCE_RE), so the hint never names it, nor the source code."""
+        hint = self.val("T.logic.HINTS.file")
+        self.assertIn("clark-1.2.3-mac.zip", hint)
+        self.assertTrue(updates.NAME_RE.match("clark-1.2.3-mac.zip") and not updates.SOURCE_RE.match("clark-1.2.3-mac.zip"))
+        self.assertNotRegex(hint, r"(?i)source|clark-X\.Y\.Z\.zip|clark-\d+\.\d+\.\d+\.zip")
+        for _ in self.at_each_size():
+            self.replies(status=OK(STATUS))
+            self.mount()
+            self.assertEqual(self.text("#update-file [data-choose]"), "Choose zip…")
+            self.assertEqual(self.text("#update-file-hint"), hint)
+            self.readable("#update-file p")
+
+    def test_a_blocked_copy_has_no_install_row(self):
+        self.replies(status=OK({**STATUS, "available": None, "blocked": updates.MESSAGES["git"]}))
+        self.mount()
+        self.assertEqual(self.rows(), ["Installed", "Update"])
 
     def test_a_copy_that_cannot_update_itself_says_why_and_offers_nothing(self):
         self.replies(status=OK({**STATUS, "available": None, "blocked": updates.MESSAGES["git"]}))
@@ -257,7 +324,7 @@ class Card(InBrowser):
         self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": up.ARMED_FULL.format(to="0.3.0")}),
                      undo=OK({"ok": True, "restart": True, "message": up.UNDOING.format(to="0.3.0")}))
         self.mount()
-        self.assertIn("Last update: 0.3.0", self.text("#update-last"))
+        self.assertIn("0.3.0 → 0.3.1 on 01-11-2026.", self.text("#update-last"))
         self.click("[data-undo]")
         self.assertEqual(self.calls(), ["status", "arm"], "the first click only arms")
         self.assertEqual(self.text("#update-armed"), up.ARMED_FULL.format(to="0.3.0"))

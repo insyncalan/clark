@@ -28,6 +28,14 @@ export const COPIED = "The release notes are copied.";
 export const NOT_COPIED = "The release notes couldn't be copied. Select them and copy them yourself.";
 export const SLOW = "The new version is taking a while to start. Close every clark window, then open clark again.";
 export const DISARMED = "Undo update was not confirmed in time, so nothing was changed.";
+// The card's labelled rows (the prototype's Installed / Update / Install from a file / Last update) and the hint under each. The file
+// hint names only the update attached to the release for this computer (its name ends in -mac, -windows or -linux), never the other download.
+export const ROWS = { installed: "Installed", update: "Update", file: "Install from a file", last: "Last update" };
+export const HINTS = {
+  upToDate: "Download the new version from the clark releases page, then choose it below.",
+  ready: "It is in your Downloads folder. Review it before anything is installed.",
+  file: "The update attached to the release for your computer, named like clark-1.2.3-mac.zip, with its .sig file beside it.",
+};
 export const LABELS = { choose: "Choose zip…", install: "Install", installAgain: "Install again", cancel: "Cancel", copy: "Copy",
   files: "Show the files", undo: "Undo update", undoConfirm: "Undo update", appOnly: "Put back the app and settings only", tryAgain: "Try again" };
 
@@ -58,14 +66,15 @@ export function reviewView(r) {
   };
 }
 
-// The status block: one of "blocked", "update" (a button "Review X.Y.Z") or "line" ("Up to date.").
+// The status block: one of "blocked", "update" (a button "Review X.Y.Z") or "line" ("Up to date."), and the last update without
+// the words "Last update: " in front (the row's label says them).
 export function statusView(s) {
   return {
     installed: text(s.installed, 200),
     blocked: s.blocked ? text(s.blocked, 600) : "",
     review: s.available && typeof s.available.label === "string" ? text(s.available.label, 40) : "",
     line: s.line ? text(s.line, 200) : "",
-    last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200) : "",
+    last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200).replace(/^Last update: /, "") : "",   // the row is labelled Last update
     notice: s.notice ? text(s.notice, 600) : "",
   };
 }

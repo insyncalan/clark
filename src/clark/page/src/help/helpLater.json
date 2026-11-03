@@ -31,7 +31,6 @@
   "set-up-a-project": "project settings",
   "set-your-profile": "the profile",
   "undo-a-mistake": "history",
-  "update-clark": "updates",
   "show-progress": "the Progress tracker template (it can be added once it is in the Add a section box)"
  },
  "reference": {
@@ -48,7 +47,6 @@
   "publishing": "Publish",
   "client-page": "the published page",
   "settings": "Settings",
-  "updating-clark": "updates",
   "excel": "Excel import (the page only exports today)",
   "saving": "history and ask clark",
   "icons": "the icons it names (many are not on the page yet)"
