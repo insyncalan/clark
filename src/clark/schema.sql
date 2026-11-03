@@ -309,14 +309,14 @@ CREATE TABLE IF NOT EXISTS publications (
   checks      TEXT NOT NULL CHECK (checks IN ('passed','not needed')),
   by_user     TEXT NOT NULL,
   number      INTEGER NOT NULL CHECK (number >= 1),                 -- clark (#120, schema version 10): Publication N, per project, max + 1 in the insert's own transaction
-  UNIQUE (project, number, word)                                  -- #368 (schema version 12): a number is given once to a web page and once to a Word file, so a Word copy can share its web page's number
+  UNIQUE (project, number, word)                                  -- #368 (schema version 13): a number is given once to a web page and once to a Word file, so a Word copy can share its web page's number
 );
 
 -- #120: the numbers are never reused and a publication is never rewritten. REPLACE removes the old row without running the delete
 -- trigger, so an insert that lands on a taken number or seq is refused as well.
 CREATE TRIGGER IF NOT EXISTS publications_no_delete BEFORE DELETE ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication is never deleted'); END;
-CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, checks, number, project, word, file_sha256, by_user ON publications
+CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, client_path, checks, number, project, word, file_sha256, by_user ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file, date, week, checks and publisher never change'); END;
 CREATE TRIGGER IF NOT EXISTS publications_never_replaced BEFORE INSERT ON publications
 WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number AND word = NEW.word) OR seq = NEW.seq)

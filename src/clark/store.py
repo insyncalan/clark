@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 12          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#368): a web page and its Word copy can share one publication number. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 13          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -1577,11 +1577,14 @@ def revert_group(con, apply_id, table, key, rows_, step):
     by_field = {}                                     # a field changed twice in one step: judged by its last value, put back
     for r in rows_:                                   # to its first old value (creaite's whole-step cmd_undo)
         by_field.setdefault(r["field"], []).append(r)
-    for f, rs in by_field.items():
+    for f, rs in sorted(by_field.items(), key=lambda kv: kv[0] == "owner_id"):     # #620: the link is judged after its owner text
         if text(row[f]) != rs[-1]["new_value"]:
             skipped.append(entry(rs[-1], why="has changed since: left as it is",
                                  by_step=changed_after(con, rs[-1]["rowid"], table, key, skip=(step.peek_apply_id(),))))
-        else:
+        elif f == "owner_id" and any(x["field"] == OWNER_TEXT.get(table) and x["why"].startswith("has changed since") for x in skipped):
+            gone = next(x for x in skipped if x["field"] == OWNER_TEXT[table])     # #620: an owner_id rides with its owner text. When the
+            skipped.append(entry(rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
+        else:                                                                       # never put back alone (the old link beside a new name)
             changes[f] = rs[0]["old_value"]
             undoes[f] = rs[-1]["rowid"]
     if table == "projects" and "health" in changes and "health_reason" not in changes:    # a health change takes its reason back too
@@ -2046,7 +2049,7 @@ PUBLICATIONS_NUMBERED = """CREATE TABLE publications_v10 (
 PUBLICATION_TRIGGERS = (
     """CREATE TRIGGER IF NOT EXISTS publications_no_delete BEFORE DELETE ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication is never deleted'); END;""",
-    """CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, checks, number, project, word, file_sha256, by_user ON publications
+    """CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, client_path, checks, number, project, word, file_sha256, by_user ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file, date, week, checks and publisher never change'); END;""",
     """CREATE TRIGGER IF NOT EXISTS publications_never_replaced BEFORE INSERT ON publications
 WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number AND word = NEW.word) OR seq = NEW.seq)
@@ -2070,6 +2073,9 @@ def migrate_publication_numbers(con):
             "FROM publications p ORDER BY p.seq")
         con.execute("DROP TABLE publications")
         con.execute("ALTER TABLE publications_v10 RENAME TO publications")
+    old = con.execute("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'publications_number_fixed'").fetchone()
+    if old and "client_path" not in old[0]:       # #325: a narrower one (made before client_path was named) is replaced, not kept by IF NOT EXISTS
+        con.execute("DROP TRIGGER publications_number_fixed")
     for statement in PUBLICATION_TRIGGERS:
         con.execute(statement)
 
@@ -2101,13 +2107,22 @@ def migrate_use_case_done(con):
     _use_cases_allow_done(con)
 
 
-# `publications` as schema.sql makes it once a web page and its Word copy may share one number (#368, step 12), frozen here.
-PUBLICATIONS_SHARED_NUMBER = PUBLICATIONS_NUMBERED.replace("publications_v10", "publications_v12").replace(
+def migrate_publication_trigger_client_path(con):
+    """Schema version 11 to 12 (#325): the publications UPDATE trigger also guards client_path. A file made at step 10 by 0.6.0 has the
+    narrower trigger, so it is dropped and made again from PUBLICATION_TRIGGERS (the other two are kept: IF NOT EXISTS). Trigger only: no
+    table changes, so no frozen schema file. Safe to repeat. Inside the caller's transaction; does not touch the version (the runner does)."""
+    con.execute("DROP TRIGGER IF EXISTS publications_number_fixed")
+    for statement in PUBLICATION_TRIGGERS:
+        con.execute(statement)
+
+
+# `publications` as schema.sql makes it once a web page and its Word copy may share one number (#368, step 13), frozen here.
+PUBLICATIONS_SHARED_NUMBER = PUBLICATIONS_NUMBERED.replace("publications_v10", "publications_v13").replace(
     "UNIQUE (project, number)", "UNIQUE (project, number, word)")
 
 
 def migrate_publication_shared_number(con):
-    """Schema version 11 to 12 (#368): `UNIQUE (project, number)` becomes `UNIQUE (project, number, word)`, so one number can hold one web
+    """Schema version 12 to 13 (#368): `UNIQUE (project, number)` becomes `UNIQUE (project, number, word)`, so one number can hold one web
     page and one Word file. `publications` is made again from the frozen text, every row copied with its seq and its number unchanged
     (so no number moves and the sequence goes on), and the three triggers made again, the never-replaced one now naming the kind.
     Skipped when the table's own definition already has the wider key, so a second run (or a new database) changes nothing but makes any
@@ -2118,11 +2133,11 @@ def migrate_publication_shared_number(con):
         con.execute("DROP TRIGGER IF EXISTS publications_number_fixed")
         con.execute("DROP TRIGGER IF EXISTS publications_never_replaced")
         con.execute(PUBLICATIONS_SHARED_NUMBER)
-        con.execute("INSERT INTO publications_v12 (seq, project, at, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number) "
+        con.execute("INSERT INTO publications_v13 (seq, project, at, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number) "
                     "SELECT seq, project, at, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number "
                     "FROM publications ORDER BY seq")
         con.execute("DROP TABLE publications")
-        con.execute("ALTER TABLE publications_v12 RENAME TO publications")
+        con.execute("ALTER TABLE publications_v13 RENAME TO publications")
     for statement in PUBLICATION_TRIGGERS:
         con.execute(statement)
 
@@ -2131,7 +2146,8 @@ def migrate_publication_shared_number(con):
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
-              (11, migrate_use_case_done), (12, migrate_publication_shared_number))
+              (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
+              (13, migrate_publication_shared_number))
 
 
 def migration_plan(version, table=None):
@@ -2700,13 +2716,31 @@ class Store:
         publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
         holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
         best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
-        True when a copy was written. A Word file is not kept (its row has no page to open)."""
+        True when a copy was written. A Word file is not kept (its row has no page to open). #342: a copy of the page's data is kept
+        beside it, cut from the same bytes (published_copies.keep)."""
         if str(self.path) == ":memory:":
             return False
         try:
             return published_copies.keep(self.path.parent, code, number, source, sha256)
         except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
             return False
+
+    def archive_publication(self, code, number):
+        """#342: archive Publication `number` of `code`: the list leaves it out, and nothing is removed or changed (its row, its kept
+        page and its data copy stay as they are; FR-43c, archive never delete). The mark is written once beside the kept copies
+        (published_copies.archive); like a publication it is a record, not an edit, so there is no step and no Undo. Refused in plain
+        words when there is no such publication or it is archived already. True when archived."""
+        if published_copies.file_name(code, number) is None:
+            raise Invalid("Give the project's code and the publication's number.")
+        if str(self.path) == ":memory:":
+            raise Invalid("A publication can't be archived in a database that is not saved to a file.")
+        if not self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ?", (code, number)).fetchone():
+            raise Invalid(f"There is no Publication {number} for {code}. Nothing was changed.")
+        if published_copies.is_archived(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} is already archived. Nothing was changed.")
+        if not published_copies.archive(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again.")
+        return True
 
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:

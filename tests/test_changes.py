@@ -994,7 +994,7 @@ class ByUser(Api):
                          "Someone Else")
 
 
-ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "client_visible"},
+ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_visible"},
                "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible"},
                "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible"}}      # #67: + the title; #97: + the eye
 

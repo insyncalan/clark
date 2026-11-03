@@ -94,7 +94,8 @@ class TheCounter(unittest.TestCase):
         for sql in ("DELETE FROM publications", "UPDATE publications SET number = 9", "UPDATE publications SET project = 'XYZ'",
                     "UPDATE publications SET word = 1", "UPDATE publications SET file_sha256 = '%s'" % ("b" * 64),
                     "UPDATE publications SET seq = 99", "UPDATE publications SET at = '2020-01-01'", "UPDATE publications SET week_ending = '2020-01-03'",
-                    "UPDATE publications SET local_path = '/x/z.html'", "UPDATE publications SET checks = 'passed'"):
+                    "UPDATE publications SET local_path = '/x/z.html'", "UPDATE publications SET checks = 'passed'",
+                    "UPDATE publications SET client_path = '/x/c.html'", "UPDATE publications SET by_user = 'Someone Else'"):
             with self.assertRaises(sqlite3.DatabaseError, msg=sql):
                 con.execute(sql)
         with self.assertRaises(sqlite3.DatabaseError):                   # REPLACE would remove the row without the delete trigger
@@ -104,7 +105,19 @@ class TheCounter(unittest.TestCase):
             con.execute("INSERT OR REPLACE INTO publications (project, local_path, file_sha256, checks, by_user, number) "
                         "VALUES ('ABC', '/x/y.html', ?, 'not needed', 'u', 1)", (SHA,))
         self.assertEqual(numbers(con), [1])
-        con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))    # the client copy's path may be set
+
+    def test_the_step_replaces_a_narrower_trigger_a_dev_file_kept(self):          # #325
+        con = self.s.con
+        seq = self.log()
+        con.execute("DROP TRIGGER publications_number_fixed")
+        con.execute("CREATE TRIGGER publications_number_fixed BEFORE UPDATE OF number ON publications "
+                    "BEGIN SELECT RAISE(ABORT, 'narrow'); END")
+        con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))       # the narrow one lets it through
+        con.execute("BEGIN")
+        store_module.migrate_publication_numbers(con)
+        con.execute("COMMIT")
+        with self.assertRaises(sqlite3.DatabaseError):
+            con.execute("UPDATE publications SET client_path = '/x/d.html' WHERE seq = ?", (seq,))
 
     def test_undo_never_frees_a_number(self):
         self.log()
@@ -134,7 +147,7 @@ class TheShapeAndTheStep(unittest.TestCase):
                     "checks TEXT NOT NULL CHECK (checks IN ('passed','not needed')), by_user TEXT NOT NULL)")
         con.execute("BEGIN")
         store_module.migrate_publication_numbers(con)
-        store_module.migrate_publication_shared_number(con)           # #368: step 12 widens the key, so both steps make what schema.sql makes
+        store_module.migrate_publication_shared_number(con)           # #368: step 13 widens the key, so both steps make what schema.sql makes
         con.execute("COMMIT")
 
         def shape(c):
@@ -144,6 +157,59 @@ class TheShapeAndTheStep(unittest.TestCase):
                                                   "AND sql IS NOT NULL"))
         self.assertEqual(shape(con), shape(fresh.store.con))
         self.assertEqual(len(shape(con)), 4, "the table and its three triggers")
+
+
+class TheTriggerStepTwelve(unittest.TestCase):
+    """#325: 0.6.0 ships step 10 with the narrow publications UPDATE trigger, so step 12 makes it again with client_path named."""
+
+    NARROW = ("CREATE TRIGGER publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, checks, number, project, word, "
+              "file_sha256, by_user ON publications BEGIN SELECT RAISE(ABORT, 'narrow'); END")
+
+    def old_file(self, level):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        path = demo.store.path
+        demo.store.close()
+        con = sqlite3.connect(path, isolation_level=None)
+        con.execute("INSERT INTO publications (project, local_path, file_sha256, checks, by_user, number) "
+                    "VALUES ('ABC', '/x/a.html', ?, 'not needed', 'Sam Carter', 1)", (SHA,))
+        con.execute("DROP TRIGGER publications_number_fixed")
+        con.execute(self.NARROW)
+        con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(level),))
+        con.close()
+        return path
+
+    def test_the_step_is_number_12_and_the_version_says_so(self):
+        self.assertIn((12, store_module.migrate_publication_trigger_client_path), store_module.MIGRATIONS)
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 12)
+
+    def test_a_file_at_step_10_or_11_with_the_narrow_trigger_is_upgraded_and_refuses_a_client_path_update(self):
+        for level in (10, 11):
+            with self.subTest(level=level):
+                path = self.old_file(level)
+                con = sqlite3.connect(path, isolation_level=None)
+                con.execute("UPDATE publications SET client_path = '/x/c.html'")             # the narrow one lets it through
+                con.close()
+                s = open_store(path, onedrive_roots=[])
+                self.addCleanup(s.close)
+                self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
+                with self.assertRaises(sqlite3.DatabaseError):
+                    s.con.execute("UPDATE publications SET client_path = '/x/d.html'")
+                self.assertEqual(s.con.execute("SELECT client_path FROM publications").fetchone()[0], "/x/c.html")
+
+    def test_the_step_is_safe_to_repeat(self):
+        s = open_store(self.old_file(11), onedrive_roots=[])
+        self.addCleanup(s.close)
+
+        def dump():
+            return sorted(tuple(r) for r in s.con.execute("SELECT type, name, sql FROM sqlite_master WHERE tbl_name = 'publications'"))
+        once = dump()
+        for _ in range(2):
+            s.con.execute("BEGIN")
+            store_module.migrate_publication_trigger_client_path(s.con)
+            s.con.execute("COMMIT")
+        self.assertEqual(dump(), once)
+        self.assertEqual(len([r for r in once if r[0] == "trigger"]), 3)
 
 
 class OlderFiles(unittest.TestCase):

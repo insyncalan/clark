@@ -1,4 +1,4 @@
-"""#368 (guarded: store.py, schema.sql, past_reports.py): a web page and its Word copy share one publication number (schema version 12).
+"""#368 (guarded: store.py, schema.sql, past_reports.py): a web page and its Word copy share one publication number (schema version 13).
 `UNIQUE (project, number, word)`; `log_publication(..., word=1, same_as=<web seq>)`; POST /api/word-export takes the web publish's
 `publication` number. A lone Word export still takes the next number. Fictional data only.
 
@@ -127,9 +127,9 @@ class TheStep(unittest.TestCase):
         con.close()
         return path
 
-    def test_step_12_is_in_the_chain(self):
-        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 12)
-        self.assertIn((12, store_module.migrate_publication_shared_number), store_module.MIGRATIONS)
+    def test_step_13_is_in_the_chain(self):
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 13)
+        self.assertIn((13, store_module.migrate_publication_shared_number), store_module.MIGRATIONS)
         self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
 
     def test_a_version_11_file_keeps_every_row_number_and_seq_and_can_then_share_a_number(self):
