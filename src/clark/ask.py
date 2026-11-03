@@ -171,11 +171,19 @@ def _fence(texts):
         n += 1
 
 
-def build_request(question, passages, earlier=()):
-    """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
-    P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
-    words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
-    text than the budget. Text is carried exactly as given."""
+def check_secrets(question, turns):
+    """Raise `AskRefused` when the question, or any earlier turn (the person's or the assistant's: the role is set by the page, so
+    it is not trusted to skip the screen), looks like a password or a key. The refusal never says what matched."""
+    if _secret(question):
+        raise AskRefused(SECRET)
+    if any(_secret(text) for _role, text in turns):
+        raise AskRefused(SECRET_EARLIER)
+
+
+def check_question(question, earlier=()):
+    """The checks on what the person typed, before anything else is read or built: the question is not empty or too long, the
+    earlier turns are well formed and not too long, and neither the question nor any turn looks like a password or a key.
+    Returns the turns as (role, text) pairs. Raises `AskRefused` (plain words)."""
     if not isinstance(question, str) or not question.strip():
         raise AskRefused(EMPTY)
     if len(question) > MAX_QUESTION:
@@ -187,10 +195,16 @@ def build_request(question, passages, earlier=()):
         turns.append((turn[0], turn[1]))
     if len(turns) > MAX_EARLIER_TURNS or any(len(t) > MAX_TURN for _r, t in turns):
         raise AskRefused(CHAT_TOO_LONG)
-    if _secret(question):
-        raise AskRefused(SECRET)
-    if any(r == "user" and _secret(t) for r, t in turns):
-        raise AskRefused(SECRET_EARLIER)
+    check_secrets(question, turns)
+    return turns
+
+
+def build_request(question, passages, earlier=()):
+    """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
+    P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
+    words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
+    text than the budget. Text is carried exactly as given."""
+    turns = check_question(question, earlier)
     chosen, kept, secret_out = [], [], 0
     for n, p in enumerate(passages or ()):
         label, text = (p.label, p.text) if isinstance(p, Passage) else (p[0], p[1]) if isinstance(p, (tuple, list)) and len(p) == 2 else (None, None)
@@ -580,7 +594,11 @@ def ask_provider(provider, request, codes=(), exists=lambda ref: False, facts=No
     except Exception:  # noqa: BLE001  the class and message of a provider's error could hold request text; neither is kept
         return Failure(COULD_NOT)
     if isinstance(got, Failure):
-        return got if isinstance(got.message, str) and got.message else Failure(COULD_NOT)
+        if not (isinstance(got.message, str) and got.message):
+            return Failure(COULD_NOT)
+        if leaks(got.message, canary):               # #299: a Failure's text is checked like a reply; the text and the marker are not kept
+            return Failure(HELD_BACK)
+        return got
     if not isinstance(got, str):
         return Failure(COULD_NOT)
     if leaks(got, canary):                           # the whole reply is dropped; the reply and the marker are not kept

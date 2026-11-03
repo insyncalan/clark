@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_client_report
 Source tests (no browser) pin the view's id and name, the fixed order of its sections, that the published file's tab list carries it
 (the file's own checks are in test_client_report_file), the cover band, that the page says nothing to its author and explains nothing
 (the client reads it), and that its look uses tokens only. The browser tests (class Drawn, added with the sections) draw the page from the real
-server in View and in Edit at 1400 and 900 px, light and dark.
+server at 1400 and 900 px, light and dark (View; from #559 the client report is drawn from the published file).
 """
 import json
 import re
@@ -15,7 +15,10 @@ import unittest
 
 from _paths import ROOT, SRC
 
-from clark import page
+from pathlib import Path
+
+from clark import page, publish
+from test_publish import EMPTY_BRANDING, opened
 from test_server import Running, chrome, wait
 from test_work_items import FIXED_DATE, bundled, load_demo, page_target
 
@@ -30,7 +33,7 @@ def text(*parts):
 class Source(unittest.TestCase):
     def test_the_view_has_an_id_a_name_and_a_page(self):
         self.assertRegex(text("router.js"), r'export const VIEWS = \["dashboard", "work", "milestones", "usecases", "clientreport", "settings"\]')
-        self.assertIn('"Client Requested Report View"', text("stores", "report.js"))
+        self.assertIn('"Client Requested Report View"', text("stores", "report.js"))   # the name stays in the store; the served page does not offer the tab (#559)
         self.assertIn('fromFile.value ? "Weekly snapshot"', text("stores", "report.js"), "a client has not asked for anything: the file's tab has its own name")
         app = text("components", "App.jsx")
         self.assertIn('clientreport: ClientReport', app)
@@ -243,7 +246,10 @@ AUDIT = """(function () {
 
 
 class Drawn(unittest.TestCase):
-    """The page drawn by the real server from the demo database, at 1400 and 900 px, light and dark, in View and in Edit."""
+    """The client report drawn in a PUBLISHED FILE made from the demo database (TUL), at 1400 and 900 px, light and dark.
+
+    #559: the served page no longer offers this view, so these tests run on the published file (View only)
+    and the coverage runs on it (publish.read_inputs -> select -> render -> open from file://), as test_client_report_file does."""
 
     @classmethod
     def setUpClass(cls):
@@ -254,18 +260,24 @@ class Drawn(unittest.TestCase):
         cls.store.close()
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
-    def serve(self):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
-        self.addCleanup(s.close)
-        return s.port
+    def serve(self, data=None):
+        """Write the published file for TUL (as at the fixed demo date) and return its file:// address. `data` replaces the data after select."""
+        inputs = publish.read_inputs(self.store, "TUL", as_at="2026-10-28")
+        pub = publish.select(inputs)
+        if data:
+            pub["data"] = {**pub["data"], **data}
+        text = publish.render(pub, page.page_html(EMPTY_BRANDING), "2026-10-28", pub["data"]["project"]["name"])
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "report.html"
+        path.write_text(text, encoding="utf-8")
+        return path.as_uri()
 
-    def open_page(self, cdp, port, code="TUL"):
-        sid = page_target(cdp)
-        cdp.call("Page.enable", {}, sid)
-        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#clientreport&p={code}"}, sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#clientreport .sec')", sid)), "the page drew")
+    def open_page(self, cdp, url, code=None):
+        sid = opened(cdp, url)
+        self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the file drew")
+        cdp.js("document.querySelector('[data-view=clientreport]').click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#clientreport .sec')", sid)), "the report view drew")
         return sid
 
     def check(self, cdp, sid, where, order=SECTION_ORDER):
@@ -285,37 +297,28 @@ class Drawn(unittest.TestCase):
         self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid),
                             r"on the Dashboard|Nothing written|Nothing here yet|not built|counts the same", f"{where}: nothing for the author and no explainer")
 
-    def run_view(self, edit):
-        port = self.serve()
+    def test_view_at_1400_and_900_in_light_and_dark(self):
+        # Dropped with #559: the served-page run; the published file is the only place the client report is drawn.
+        url = self.serve()
         with chrome() as cdp:
-            sid = self.open_page(cdp, port)
-            if edit:
-                cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)), "Edit is on")
+            sid = self.open_page(cdp, url)
             for width in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
                     time.sleep(0.3)
-                    # the demo has no Highlights or Next week text: the View leaves those two boxes out, Edit keeps them for the author to fill
-                    self.check(cdp, sid, f"{'Edit' if edit else 'View'} {width}px {theme}", SECTION_ORDER if edit else ["progress", "plans", "raid"])
+                    # the demo has no Highlights or Next week text: the View leaves those two boxes out
+                    self.check(cdp, sid, f"View {width}px {theme}", ["progress", "plans", "raid"])
                     shown = cdp.js("document.querySelector('#clientreport').innerText", sid)
-                    self.assertNotRegex(shown, r"Escalate", f"{width}px {theme}: no Escalate line, in either mode")
+                    self.assertNotRegex(shown, r"Escalate", f"{width}px {theme}: no Escalate line")
                     self.assertEqual(cdp.js("document.querySelectorAll('#cr-raid .cr-esc, #cr-raid .wl-id, #cr-raid .idl, #cr-raid [data-id]').length", sid), 0)
                     self.assertNotRegex(cdp.js("document.querySelector('#cr-raid').innerText", sid), r"\b[A-Z]{2,6}-\d{3}\b", f"{width}px {theme}: no row id on a risk row")
-                    if not edit:
-                        self.assertNotRegex(shown, r"Not set|Nothing written|Write it in|not built yet|No milestones yet", f"View {width}px {theme}: no prompt for the author")
-
-    def test_view_at_1400_and_900_in_light_and_dark(self):
-        self.run_view(False)
-
-    def test_edit_at_1400_and_900_in_light_and_dark(self):
-        self.run_view(True)
+                    self.assertNotRegex(shown, r"Not set|Nothing written|Write it in|not built yet|No milestones yet", f"View {width}px {theme}: no prompt for the author")
 
     def test_the_figures_the_demo_gives(self):
-        port = self.serve()
+        url = self.serve()
         with chrome() as cdp:
-            sid = self.open_page(cdp, port)
+            sid = self.open_page(cdp, url)
             text = lambda q: cdp.js(f"document.querySelector('{q}').textContent", sid)  # noqa: E731
             self.assertEqual(cdp.js("document.querySelector('#clientreport h1').textContent", sid), "Tulip Records Migration")
             self.assertRegex(text(".cr-cover"), r"^WEEKLY PROGRESS SNAPSHOT · Status as at \d{2}-\d{2}-\d{4}( · for .+)?$")
@@ -330,32 +333,61 @@ class Drawn(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('#clientreport input, #clientreport textarea, #clientreport select, #clientreport [contenteditable]').length", sid), 0)
             self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid), r"\d{4}-\d{2}-\d{2}", "dates are DD-MM-YYYY")
 
-    def test_the_tab_keeps_its_full_name_wide_and_a_short_one_when_narrow(self):
-        port = self.serve()
+    def test_a_project_with_no_milestones_shows_no_figure_never_a_made_up_number(self):
+        # Dropped with #559: the served-page run; the published file is the only place the client report is drawn. In a file with no
+        # milestones the tab is left out (test_client_report_file), so the milestones are emptied after select, as the served page's data was.
+        url = self.serve({"milestones": []})
         with chrome() as cdp:
-            sid = self.open_page(cdp, port)
-            tab = "[...document.querySelectorAll('.tab')].find(t => t.dataset.view === 'clientreport')"
-            self.assertEqual(cdp.js(f"{tab}.innerText", sid), "Client Requested Report View")
-            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-            time.sleep(0.3)
-            self.assertEqual(cdp.js(f"{tab}.innerText", sid), "Client report")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].every(t => t.getBoundingClientRect().height < 60 && t.innerText.split('\\n').length === 1)", sid), True,
-                             "no tab wraps onto two lines at 900")
-
-    def test_a_project_with_no_milestones_shows_no_figure_in_view_and_a_prompt_in_edit_never_a_made_up_number(self):
-        data = {**self.store.data_for("TUL"), "milestones": []}
-        s = Running(data_for=lambda code: data, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
-        self.addCleanup(s.close)
-        with chrome() as cdp:
-            sid = self.open_page(cdp, s.port)
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-fig=actual], [data-fig=planned], [data-bar], [data-gap], [data-line], [data-no-lines], #cr-plans').length", sid), 0, "View: no figure, no bar, no lines, no Plans part")
+            sid = self.open_page(cdp, url)
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-fig=actual], [data-fig=planned], [data-bar], [data-gap], [data-line], [data-no-lines], #cr-plans').length", sid), 0, "no figure, no bar, no lines")
             self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid), r"Not set|No milestones yet")
             self.assertEqual(json.loads(cdp.js(AUDIT, sid)), [])
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)), "Edit is on")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('[data-fig=actual] .v, [data-fig=planned] .v')].map(e => e.textContent)", sid), ["Not set", "Not set"], "Edit keeps its prompt")
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-bar], [data-gap], [data-line]').length", sid), 0, "no bar, no gap line, no lines")
-            self.assertEqual(cdp.js("!!document.querySelector('[data-no-lines]')", sid), True)
+
+    def test_a_published_file_opened_at_its_client_report_address_lands_on_the_weekly_snapshot(self):
+        """#559: the served page maps #clientreport to the first tab, but a published file keeps it (its own tab list decides)."""
+        url = self.serve() + "#clientreport"
+        with chrome() as cdp:
+            sid = opened(cdp, url)
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the file drew")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#clientreport .sec')", sid)), "the snapshot is the open view")
+            self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "clientreport")
+            self.assertEqual(cdp.js("document.querySelector('[data-view=clientreport]').innerText", sid), "Weekly snapshot")
+
+
+class HiddenOnTheServedPage(unittest.TestCase):
+    """#559: the served page has no client report tab; a published file keeps it as "Weekly snapshot". The tab bar is checked in both Dashboard modes (View, Edit): the mode switch exists only on the Dashboard."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.store, cls.folder, _ = load_demo()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.store.close()
+        shutil.rmtree(str(cls.folder), ignore_errors=True)
+
+    def test_the_served_page_has_no_client_report_tab_in_either_dashboard_mode_and_its_address_falls_back(self):
+        s = Running(data_for=self.store.data_for, projects=lambda: self.store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#clientreport&p=TUL"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the page drew")
+            for dashboard_mode in ("view", "edit"):  # Dashboard mode
+                if dashboard_mode == "edit":
+                    cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)))
+                self.assertEqual(cdp.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)", sid),
+                                 ["dashboard", "work", "milestones", "usecases", "settings"], dashboard_mode)
+                self.assertEqual(cdp.js("document.querySelectorAll('#clientreport').length", sid), 0, dashboard_mode)
+                self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", dashboard_mode)
+            self.assertNotIn("Client Requested Report View", cdp.js("document.body.innerText", sid))
+
+    def test_a_published_file_still_lists_the_tab_as_weekly_snapshot(self):
+        self.assertIn('fromFile.value ? "Weekly snapshot"', text("stores", "report.js"))
+        self.assertRegex(text("stores", "report.js"), r"tabs\.value = VIEWS\.filter\(\(v\) => p\.tabs\.includes\(v\)\)")
+        self.assertIn('tabs.append("clientreport")', (SRCDIR.parent.parent / "publish.py").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

@@ -3,14 +3,15 @@
 # e.g. "test_layout test_milestones") or is left empty for the whole suite; "macos" adds the macOS job.
 #
 # ===== what runs when =====
-# Ubuntu 24.04, two jobs. Python "3.x" (the newest): on a pull request, the quick tier plus the browser files the change reaches
-# (`dev/run_tests.py --push origin/<base>`); the FULL suite (every file, the browser tests included) on a push to main, on a
-# release branch (release-X.Y.Z, and the Head's v*-release* line, read from the pull request's head branch) and when started by
-# hand. Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome, read from the
-# files by dev/tools/run_support.py) on every run. macOS (the newest Python, every file, in two shards: #274, the single job
-# passed 30 minutes on the v0.3.0 release run) runs on release branches and when
-# started by hand with macos=true, and is REQUIRED there: clark is Mac first (unlike creaite, where it is optional). A macOS
-# runner that fails to start is re-run once before anyone calls it a failure.
+# CHEAP PATH (an ordinary pull request): ONE Ubuntu 24.04 job on the newest Python ("3.x"): the pages build, then
+# `dev/run_tests.py --push origin/<base>` (the quick tier plus the browser files the change reaches, which is `--changed`
+# plus the quick tier). No Python 3.9 and no macOS. The full suite is only for the release gate.
+# FULL MATRIX (the `plan` job decides, from the event, the branch and the labels): Ubuntu 3.x with EVERY file, Ubuntu 3.9 on
+# the quick tier (`--quick`), and macOS (the newest Python, every file, two shards: #274) on a push to main, on a release
+# branch (release-X.Y.Z, and the Head's v*-release* line, read from the pull request's head branch), on a pull request that
+# carries the label `full-ci` (guarded PRs get it; adding or removing the label starts a new run), and by hand (3.x and 3.9;
+# macOS only with macos=true). macOS is REQUIRED whenever it runs: clark is Mac first. A macOS runner that fails to start is
+# re-run once before anyone calls it a failure.
 #
 # macOS shards: one job with a matrix, so `needs.macos.result` is ONE value for the whole matrix (success only if both shards
 # pass; skipped when the job's `if` is false). The gate reads that result, so it never depends on a shard's name.
@@ -35,6 +36,7 @@ on:
       files: {description: "Test files to run (empty: all)", required: false, default: ""}
       macos: {description: "Add the macOS job", type: boolean, required: false, default: false}
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]   # labeled/unlabeled: full-ci starts (or stops) the full run
   push:
     branches: [main]
 
@@ -46,24 +48,76 @@ permissions:
   contents: read
 
 concurrency:
-  # One automatic run per pull request or branch: a newer one cancels the older. Manual runs each get their own group (run_id),
-  # so a second hand-started run (say, one test file) never cancels the first.
+  # One automatic run per pull request or branch. A newer pull request run cancels the older; a main or release push run is
+  # never cancelled (it queues). Manual runs each get their own group (run_id), so a second hand-started run never cancels the first.
   group: tests-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  plan:
+    # Decides the path once, from text that reaches it only through env: FULL=1 runs the full matrix, MACOS=1 adds macOS. An
+    # ordinary pull request gets neither (the cheap path). No checkout, no secrets: seconds.
+    name: Plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read      # the list of changed files, over the API (no checkout of the pull request); this job only
+    outputs:
+      full: ${{ steps.plan.outputs.full }}
+      macos: ${{ steps.plan.outputs.macos }}
+    steps:
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          MACOS_INPUT: ${{ github.event.inputs.macos }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          FULL=""; MACOS=""
+          case "$EVENT" in
+            push) FULL=1; MACOS=1 ;;
+            workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
+          esac
+          case "$BRANCH" in
+            release-*|v*-release*) FULL=1; MACOS=1 ;;
+          esac
+          case ",$LABELS," in
+            *,full-ci,*) FULL=1; MACOS=1 ;;
+          esac
+          # A pull request that changes a guarded file is the full matrix without the label. The changed files come from the API
+          # (nothing from the pull request is checked out); if the call fails the answer is full (fail safe). Exact names or
+          # anchored prefixes in `case`, never eval. The list is dev/run_tests.py GUARDED plus the publishing, secret-screen,
+          # update and platform modules and the workflows.
+          if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then
+            if CHANGED="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')"; then
+              while IFS= read -r F; do
+                case "$F" in
+                  src/clark/store.py|src/clark/schema.sql|src/clark/history.py|src/clark/server.py) FULL=1; MACOS=1 ;;
+                  src/clark/publish.py|src/clark/publish_flow.py|src/clark/secret_screen.py) FULL=1; MACOS=1 ;;
+                  src/clark/updates.py|src/clark/platform.py) FULL=1; MACOS=1 ;;
+                  .github/*) FULL=1; MACOS=1 ;;
+                esac
+              done <<< "$CHANGED"
+            else
+              echo "could not list the changed files: full (fail safe)"
+              FULL=1; MACOS=1
+            fi
+          fi
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          echo "macos=$MACOS" >> "$GITHUB_OUTPUT"
+          echo "event: $EVENT; branch: $BRANCH; full: ${FULL:-no}; macOS: ${MACOS:-no}"
+
   tests:
-    name: ubuntu-24.04 · Python ${{ matrix.python }} · shard ${{ matrix.shard }}/${{ matrix.shards }}
+    # Python "3.x" (the newest) on Ubuntu: the cheap path on an ordinary pull request (--push origin/<base>), every file when
+    # the plan says full.
+    name: ubuntu-24.04 · Python 3.x · shard 1/1
+    needs: plan
     runs-on: ubuntu-24.04      # not ubuntu-latest: it became 26.04 on 21-10-2026, which has no Python 3.9 (the oldest supported)
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      # The newest Python ("3.x": whichever is newest when the job runs; scope "auto": --push on a pull request, everything
-      # otherwise) and 3.9 on the quick tier. The "Tests passed" job below is green only if every shard is.
-      matrix:
-        include:
-          - {python: "3.x", scope: "auto", shard: 1, shards: 1}
-          - {python: "3.9", scope: "--quick", shard: 1, shards: 1}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -73,7 +127,7 @@ jobs:
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "3.x"
 
       - name: Find Chrome
         # The browser tests find Chrome through dev/tools/run_support.py chrome_path(): CLARK_CHROME, then the PATH, then macOS.
@@ -86,34 +140,70 @@ jobs:
           "$CHROME" --version
           python3 --version
 
+      - name: Build the pages
+        # The generated pages are not committed (#495). Built from the sources in this checkout with the pinned esbuild
+        # (fetched and checked against its SHA-256 by dev/tools/esbuild.py); a failed fetch or build fails the job.
+        run: python3 dev/tools/build_page.py
+
       - name: Tests
         env:
           FILES: ${{ github.event.inputs.files }}
           JOBS: 4
-          SHARD: ${{ matrix.shard }}
-          SHARDS: ${{ matrix.shards }}
-          SCOPE: ${{ matrix.scope }}
+          SHARD: 1
+          SHARDS: 1
+          FULL: ${{ needs.plan.outputs.full }}
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
         run: |
           # Branch and base names are untrusted text: they reach this shell only through env, never interpolated into it.
-          if [ "$SCOPE" = "auto" ]; then
-            SCOPE=""
-            if [ "$EVENT" = "pull_request" ]; then
-              SCOPE="--push origin/$BASE"
-              case "$HEAD_REF" in
-                release-*|v*-release*) SCOPE="" ;;
-              esac
-            fi
-          fi
+          SCOPE=""
+          if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--push origin/$BASE"; fi
           python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
+  tests-py39:
+    # Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome). Full path only.
+    if: ${{ needs.plan.outputs.full == '1' }}
+    name: ubuntu-24.04 · Python 3.9 · shard 1/1
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.9"
+
+      - name: Find Chrome
+        # The browser tests find Chrome through dev/tools/run_support.py chrome_path(): CLARK_CHROME, then the PATH, then macOS.
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          MAC="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          if [ -z "$CHROME" ] && [ -x "$MAC" ]; then CHROME="$MAC"; fi
+          test -n "$CHROME" || { echo "No Chrome on this runner"; exit 1; }
+          echo "CLARK_CHROME=$CHROME" >> "$GITHUB_ENV"
+          "$CHROME" --version
+          python3 --version
+
+      - name: Build the pages
+        # The generated pages are not committed (#495). Built from the sources in this checkout with the pinned esbuild
+        # (fetched and checked against its SHA-256 by dev/tools/esbuild.py); a failed fetch or build fails the job.
+        run: python3 dev/tools/build_page.py
+
+      - name: Tests
+        env:
+          FILES: ${{ github.event.inputs.files }}
+          JOBS: 4
+        run: python3 dev/run_tests.py -j "$JOBS" --quick --shard "1/1" --max-fail 8 $FILES
+
   macos:
-    # macOS (the newest Python, every file) on release branches (release-*, v*-release*) and when a hand-started run sets macos=true:
-    # gh workflow run Tests --ref <branch> -f macos=true. Required when it runs: "Tests passed" waits for it.
-    if: (startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')
+    # macOS (the newest Python, every file) when the plan says so: a push to main, a release branch, the full-ci label, or a
+    # hand-started run with macos=true (gh workflow run Tests --ref <branch> -f macos=true). Required when it runs.
+    if: ${{ needs.plan.outputs.macos == '1' }}
     name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}      # skipped: shown unresolved; the gate reads needs.macos.result, never this name
+    needs: plan
     runs-on: macos-latest
     timeout-minutes: 60
     strategy:
@@ -142,6 +232,11 @@ jobs:
           "$CHROME" --version
           python3 --version
 
+      - name: Build the pages
+        # The generated pages are not committed (#495). Built from the sources in this checkout with the pinned esbuild
+        # (fetched and checked against its SHA-256 by dev/tools/esbuild.py); a failed fetch or build fails the job.
+        run: python3 dev/tools/build_page.py
+
       - name: Tests
         env:
           FILES: ${{ github.event.inputs.files }}
@@ -151,19 +246,25 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   passed:
-    # The one result to wait for (and to require): green only if every required job is. Every Linux shard must pass; the macOS
-    # job must pass when this run wants it (a release branch, or macos=true) and must have been skipped when it doesn't. A
-    # skipped or cancelled required job counts as a failure here (a cancelled run posts no gate at all, see the header).
+    # The one result to wait for (and to require): green only if every required job is. The plan and the 3.x job must pass.
+    # Python 3.9 must pass when the plan wants the full matrix and must have been skipped when it doesn't; the same for macOS
+    # with its own flag. So a FAILED or cancelled required job fails the gate, and a job skipped by the cheap path does not.
+    # (A cancelled run posts no gate at all, see the header.)
     name: Tests passed
-    needs: [tests, macos]
+    needs: [plan, tests, tests-py39, macos]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
       - env:
+          PLAN: ${{ needs.plan.result }}
           TESTS: ${{ needs.tests.result }}
+          PY39: ${{ needs.tests-py39.result }}
           MACOS: ${{ needs.macos.result }}
-          WANT_MACOS: ${{ ((startsWith(github.head_ref || github.ref_name, 'release-') || (startsWith(github.head_ref || github.ref_name, 'v') && contains(github.head_ref || github.ref_name, '-release'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.macos == 'true')) && '1' || '' }}
+          WANT_FULL: ${{ needs.plan.outputs.full }}
+          WANT_MACOS: ${{ needs.plan.outputs.macos }}
         run: |
-          echo "Linux: $TESTS; macOS: $MACOS (required: ${WANT_MACOS:-no})"
+          echo "plan: $PLAN; Linux 3.x: $TESTS; Linux 3.9: $PY39 (required: ${WANT_FULL:-no}); macOS: $MACOS (required: ${WANT_MACOS:-no})"
+          test "$PLAN" = "success"
           test "$TESTS" = "success"
+          if [ -n "$WANT_FULL" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi
           if [ -n "$WANT_MACOS" ]; then test "$MACOS" = "success"; else test "$MACOS" = "skipped"; fi
