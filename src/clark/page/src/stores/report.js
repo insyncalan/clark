@@ -338,6 +338,8 @@ const CHANGE_KNOWN = {
   "A count must be a whole number from 0 to 99999, or empty.": "A count must be a whole number from 0 to 99999, or empty. Nothing was changed.",
   "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
   "That content is too long to save.": "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.",
+  // #220: a text section's body clark would not save (clark/changes.py's words)
+  "That text is too long to save. Shorten it and try again.": "That text is too long to save, and nothing was changed. Shorten it and try again.",
   // the whole change was over the size clark takes (server.py's words; any kind of section can be that big)
   "That is too big to save. Make the text shorter, or take some of the list out, then try again.": "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.",
 };

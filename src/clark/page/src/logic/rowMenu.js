@@ -78,15 +78,19 @@ export function ownerList(names, row) {
   return names.filter((n) => n !== now);
 }
 
-/** What Duplicate asks for: the item's own fields and a title that says it is a copy. No id, status, dates it was given or history. */
+/** What Duplicate asks for (#442): the item's id and a title that says it is a copy. The server copies everything else from the
+ *  STORED item (status, latest update, use case, owner, dates, the eye, its labels and its hiding), never from this request. */
+export const COPY_MARK = " (copy)";
 export function duplicateRequest(raw, table) {
-  const keep = { actions: ["owner", "priority", "due_date", "workstream", "milestone", "client_visible"],
-    raid: ["type", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible"], decisions: ["made_by", "needed_by", "client_visible"] }[table];
   const title = TITLE_OF[table];
-  const values = {};
-  for (const k of keep) if (raw[k] != null && raw[k] !== "") values[k] = raw[k];
-  values[title] = ("Copy of " + String(raw[title])).slice(0, TITLE_LIMIT);
-  return { kind: table, op: "new", values, copy_of: raw.id, place: "menu" };   // copy_of: the server copies the labels and the hiding in the same step
+  const values = { [title]: String(raw[title]).slice(0, TITLE_LIMIT - COPY_MARK.length) + COPY_MARK };
+  if (table === "raid" && raw.type) values.type = raw.type;          // the server's check for a new risk; it takes the stored one
+  return { kind: table, op: "new", values, copy_of: raw.id, place: "menu" };
+}
+
+/** The toast's words for a copy, once the server gave it its id: what was added, and what Undo says when it takes the copy back. */
+export function duplicateWords(row, ref) {
+  return { text: `${ref} added, a copy of ${row.id}.`, back: `${ref} is taken back. ${row.id} is as it was.` };
 }
 
 /** The raw record of a row in the project's data (the page keeps a flat row; Duplicate needs every field). */
