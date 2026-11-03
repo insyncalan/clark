@@ -543,7 +543,7 @@ export const DEFAULT_VIEWS = [
 ];
 /** The five core tabs (#640), always first and always there, in this order. They are not the person's saved views: they cannot be
  *  renamed or archived, and Save changes is not offered on them (Save as a new view is). All work items has no filter, so closed items
- *  are there; the other four show open items only, as the prototype has them (PR 545; open-only is pending Alan's sign-off). Risks and
+ *  are there; the other four show open items only, as the prototype has them (PR 545; open-only waits on the product owner's sign-off). Risks and
  *  issues is risks and issues, as the issue and the prototype give it. */
 export const CORE_VIEWS = [
   { id: "core-open", name: "Open items", line: "is:open", core: true },

@@ -67,23 +67,6 @@ function Chips({ parsed, onRemove }) {
   );
 }
 
-// Freshness (#94): the two plain values, each a toggle for the line's word. The words are the line's own (is:quiet, is:incomplete) and are
-// never shown alone: the menu and the chips read "Not reviewed in 14 days" and "No owner or no date".
-const FRESH = ["quiet", "incomplete"];
-function FreshnessMenu() {
-  const rows = allRows.value, ctx = filterCtx(), line = lineText.value;
-  const parsed = FL.parse(line, rows, ctx);
-  const on = (w) => parsed.chips.some((c) => c.field === "is" && !c.not && c.values.length === 1 && c.values[0] === w);
-  const items = FL.offers("is", rows, ctx).filter(([v]) => FRESH.includes(v)).map(([v, label]) => ({ id: v, name: label, on: on(v) }));
-  const pick = (w) => {
-    if (on(w)) {
-      const at = parsed.chips.findIndex((c) => c.field === "is" && !c.not && c.values.length === 1 && c.values[0] === w);
-      setLine(FL.removeChip(line, at, rows, ctx));
-    } else setLine(commit(line, `is:${w}`, rows, ctx).line);
-  };
-  return <Menu label="Freshness" ariaLabel="Freshness" id="freshMenu" btnCls="btn sm" menuId="freshMenuList" menuLabel="Freshness" items={items.map((i) => ({ id: i.id, name: i.on ? `${i.name} (on)` : i.name }))} onPick={pick} />;
-}
-
 // The ▾ beside the open tab's name (#640): that tab's menu. The tabs row scrolls inside its own box at narrow widths, so the menu is
 // placed against the window (position: fixed, under the ▾) rather than inside the row, where the row would clip it.
 function TabMenu({ view, items, onPick }) {
@@ -112,6 +95,23 @@ function TabMenu({ view, items, onPick }) {
       ) : null}
     </>
   );
+}
+
+// Freshness (#94): the two plain values, each a toggle for the line's word. The words are the line's own (is:quiet, is:incomplete) and are
+// never shown alone: the menu and the chips read "Not reviewed in 14 days" and "No owner or no date".
+const FRESH = ["quiet", "incomplete"];
+function FreshnessMenu() {
+  const rows = allRows.value, ctx = filterCtx(), line = lineText.value;
+  const parsed = FL.parse(line, rows, ctx);
+  const on = (w) => parsed.chips.some((c) => c.field === "is" && !c.not && c.values.length === 1 && c.values[0] === w);
+  const items = FL.offers("is", rows, ctx).filter(([v]) => FRESH.includes(v)).map(([v, label]) => ({ id: v, name: label, on: on(v) }));
+  const pick = (w) => {
+    if (on(w)) {
+      const at = parsed.chips.findIndex((c) => c.field === "is" && !c.not && c.values.length === 1 && c.values[0] === w);
+      setLine(FL.removeChip(line, at, rows, ctx));
+    } else setLine(commit(line, `is:${w}`, rows, ctx).line);
+  };
+  return <Menu label="Freshness" ariaLabel="Freshness" id="freshMenu" btnCls="btn sm" menuId="freshMenuList" menuLabel="Freshness" items={items.map((i) => ({ id: i.id, name: i.on ? `${i.name} (on)` : i.name }))} onPick={pick} />;
 }
 
 function SavedViews() {
