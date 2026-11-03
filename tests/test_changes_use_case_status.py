@@ -49,7 +49,7 @@ class Status(Base):
         self.assertIn("archived", changes.UNDOABLE["use_cases"])
 
     def test_each_status_is_one_step_with_one_undo(self):
-        for to in ("Flag", "High risk"):
+        for to in ("Flag", "High risk", "Done"):
             before = self.s.read("use_cases", ref=self.uc)["status"]
             status, body = self.change(self.req(status=to))
             self.assertEqual((status, body["ok"]), (200, True), body)
@@ -71,8 +71,16 @@ class Status(Base):
         self.assertEqual(self.snapshot(), before)
 
     def test_a_status_the_store_does_not_have_is_refused_in_plain_words(self):
-        for bad in ("Done", "on track", "", None, 3, ["Flag"], "Flag\n"):
+        for bad in ("done", "Closed", "on track", "", None, 3, ["Flag"], "Flag\n", "Done "):
             self.refused(self.req(status=bad), changes.UC_STATUS_WORDS)       # main's #164 kind has one set of words for every bad status
+
+    def test_done_is_a_status_and_the_refusal_names_all_four(self):
+        """#412: Done is the fourth status; the refusal names every status the store allows, in its order."""
+        self.assertEqual(store_module.ALLOWED[("use_cases", "status")], ("On track", "Flag", "High risk", "Done"))
+        self.assertEqual(changes.UC_STATUS_WORDS, "A use case's status can be On track, Flag, High risk or Done.")
+        status, body = self.change(self.req(status="Done"))
+        self.assertEqual((status, body["ok"], body["use_case"]["status"]), (200, True, "Done"), body)
+        self.assertEqual(self.s.read("use_cases", ref=self.uc)["status"], "Done")
 
     def test_a_field_that_is_not_the_kinds_is_refused(self):
         for field in ("project", "sort_order", "id", "type"):
