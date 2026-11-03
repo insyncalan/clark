@@ -80,7 +80,7 @@ class Allowed(Api):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
                          [(KIND, "update")])             # a body is written by one request only: a section's update, and then only for a needs or tracker section
-        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover"})      # #196: + bulk; #199: + handover
+        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link"})      # #196: + bulk; #199: + handover; #485: + link
 
     def test_the_route_admits_only_the_approved_kinds(self):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
@@ -91,7 +91,8 @@ class Allowed(Api):
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
             self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
-                             | ({"bulk", "handover"} if kind in changes.ITEM_KINDS else set()))     # #196, #199: only the work items take a bulk change or a hand over
+                             | ({"bulk", "handover"} if kind in changes.ITEM_KINDS else set())     # #196, #199: only the work items take a bulk change or a hand over
+                             | ({"link"} if kind == "use_cases" else set()))                 # #485: a use case takes work items to link to it
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
                      "REPORT_SECTIONS", "report_sections; DROP TABLE x"):
@@ -1252,7 +1253,8 @@ class Items(Api):
         self.no(self.item("raid", self.r, likelihood=None), changes.ITEM_VALUE_WORDS)
         self.assertEqual(self.s.read("raid", ref=self.r)["priority"], "High", "the priority is still worked out")
 
-    def test_only_an_open_risk_or_issue_takes_a_rating(self):
+    def test_only_a_risk_or_issue_takes_a_rating_whatever_its_status(self):
+        """#448 (row 53): the prototype offers the rating whatever the status, so a closed or cancelled risk or issue takes one too."""
         with self.s.step("dashboard", USER) as st:
             others = [st.create("raid", {"project": "ABC", "type": t, "description": f"An {t.lower()}", "impact": "High",
                                          "likelihood": "Medium", "raised": "2026-10-01", "source": "demo"}) for t in ("Assumption", "Dependency", "Issue")]
@@ -1260,11 +1262,14 @@ class Items(Api):
             self.no(self.item("raid", ref, impact="Low"), changes.RATING_NOT_THIS_KIND)
             self.no(self.item("raid", ref, likelihood="Low"), changes.RATING_NOT_THIS_KIND)
         self.assertEqual(self.go("raid", others[2], impact="Low", likelihood="Low")["item"]["priority"], "Low", "an issue takes one")
-        self.no(self.item("raid", self.r, status="Closed", impact="Low"), changes.RATING_NOT_OPEN)
+        self.assertFalse(hasattr(changes, "RATING_NOT_OPEN"), "no sentence is left for a rating refused because of the status")
         self.go("raid", self.r, status="Closed")
-        self.no(self.item("raid", self.r, impact="Low", likelihood="Low"), changes.RATING_NOT_OPEN)
+        body = self.go("raid", self.r, impact="Low", likelihood="Low")
+        self.assertEqual((body["item"]["status"], body["item"]["priority"]), ("Closed", "Low"), "a closed risk is rated, and stays closed")
+        self.assertEqual(self.s.read("raid", ref=self.r)["priority"], "Low")
         self.go("raid", self.r, status="Cancelled")
-        self.no(self.item("raid", self.r, likelihood="Low"), changes.RATING_NOT_OPEN)
+        self.assertEqual(self.go("raid", self.r, likelihood="Medium", impact="High")["item"]["priority"], "High", "a cancelled one too")
+        self.no(self.item("raid", self.r, status="Closed", impact="Severe"), changes.NOT_A_RATING)
         self.assertEqual(self.go("raid", self.r, status="Open", impact="Low")["item"]["impact"], "Low", "reopened and rated in one change")
 
     def test_a_risks_priority_and_a_decisions_workstream_have_their_own_words(self):
