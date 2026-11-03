@@ -3,7 +3,7 @@
 // later. A change is sent through api.js as kind actions, raid or decisions, op update (clark/changes.py, #68): only
 // the fields it accepts are named here. A RAID item's priority comes from its impact and likelihood and a decision has none, so
 // a decision's Priority cell is not a picker; a risk's or issue's opens a picker for its impact and likelihood (#210, option C).
-import { dueField, showDate, dayNumber } from "../workItems.js";
+import { dueField, showDate, dayNumber, colourOf } from "../workItems.js";
 
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const STATUSES = {
@@ -13,7 +13,6 @@ const STATUSES = {
 };
 export const FIELDS = ["owner", "due", "priority", "status"];
 export const LEVELS = ["High", "Medium", "Low"];           // #210: a risk's or issue's impact and likelihood (the store's own list)
-const RATED = ["risk", "issue"];                           // the kinds whose Priority cell sets impact and likelihood
 const DAY = 86400000;
 // A character no one can see or that breaks a line (control, format such as a zero-width space or a right-to-left override,
 // surrogate, private use, line and paragraph separators): clark/changes.py refuses a name with one (ITEM_BAD_KINDS), so the
@@ -60,6 +59,18 @@ export function statusPill(row) {
   return { text: s, class: STATUS_TONE[s] || "n" };
 }
 
+// D-12: a risk's or issue's rating is worked out from its impact and likelihood, so a colour is picked by setting those two:
+// Red is High impact with Medium likelihood (High priority), Amber Medium and Medium, Green Low and Low.
+export const RATINGS = { Red: { impact: "High", likelihood: "Medium" }, Amber: { impact: "Medium", likelihood: "Medium" }, Green: { impact: "Low", likelihood: "Low" } };
+
+/** The Rating section of an open risk's or issue's status picker: the three colours, or none for any other item (an assumption,
+ * a dependency, a closed or cancelled one), as clark/changes.py refuses. */
+export function ratingChoices(row) { return RATED.includes(row.kind) && row.status === "Open" ? Object.keys(RATINGS) : []; }
+const RATED = ["risk", "issue"];
+
+/** The field a pick belongs to: the picker's Rating entries are sent as `rating:Red`, `rating:Amber` or `rating:Green`. */
+export function pickField(field, value) { return field === "status" && /^rating:/.test(String(value)) ? "rating" : field; }
+
 /** The small print under a status in the picker: Made is the one pick that can't be undone. */
 export function statusNote(row, status) {
   return row.kind === "decision" && status === "Made" && row.status !== "Made" ? "Can't be undone" : "";
@@ -81,7 +92,7 @@ export function canClearDue(row) { return !(row.kind === "decision" && row.statu
 export function fieldName(row, field) {
   if (field === "owner") return row.kind === "decision" ? "Decider" : "Owner";
   if (field === "due") return row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date";
-  return field === "priority" ? "Priority" : "Status";
+  return field === "priority" ? "Priority" : field === "rating" ? "Rating" : "Status";
 }
 
 /**
@@ -130,6 +141,13 @@ export function changeFor(row, field, value, today) {
     if (value === row.priority) return null;
     const back = row.priority ? `Priority of ${row.id} is back to ${row.priority}.` : `Priority of ${row.id} is blank again.`;
     return { changes: { priority: value }, words: `Priority of ${row.id} changed to ${value}.`, back };
+  }
+  if (field === "rating") {
+    const word = String(value).replace(/^rating:/, "");
+    if (!ratingChoices(row).length || !RATINGS[word]) return { error: "Only a risk or an issue has a rating. Pick Red, Amber or Green." };
+    const now = colourOf(row.priority);
+    if (now.word === word) return null;
+    return { changes: { ...RATINGS[word] }, words: `${row.id} rated ${word}.`, back: `${row.id} is back to ${now.word}.` };
   }
   if (field === "status") {
     if (!statusChoices(row).includes(value)) return { error: "That status isn't one this item can have, so nothing was changed. Pick one from the list." };

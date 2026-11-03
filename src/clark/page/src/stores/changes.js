@@ -127,8 +127,9 @@ export function changeRecord(req, done) {
     const r = await sendRecordChange(code, req);
     if (!r.ok) { say("note", r.message); return null; }
     await reread(code);
-    itemSteps.set(r.reply.apply_id, done.back || "");
-    say("done", done.text, r.reply.apply_id, code);
+    const w = typeof done === "function" ? done(r.reply) : done;     // #442: words that need the reply (a copy's new id)
+    itemSteps.set(r.reply.apply_id, w.back || "");
+    say("done", w.text, r.reply.apply_id, code);
     return r.reply;
   });
 }

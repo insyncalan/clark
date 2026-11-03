@@ -3,6 +3,10 @@
 // and `C.dueWords`, rewritten here. `todayIso()` is the only place that reads the clock.
 
 export const KIND_WORDS = { action: "Action", risk: "Risk", issue: "Issue", assumption: "Assumption", dependency: "Dependency", decision: "Decision" };
+// The letter in the badge before an item's title (#456; prototype db.js TYPES: A, R, I, D). The prototype has four kinds; an assumption
+// and a dependency, which only this build has, take S and P so no two kinds share a letter.
+export const KIND_LETTERS = { action: "A", risk: "R", issue: "I", assumption: "S", dependency: "P", decision: "D" };
+export function kindLetter(kind) { return KIND_LETTERS[kind] || String(kind || "?").charAt(0).toUpperCase(); }
 const CLOSED = ["Closed", "Cancelled", "Made", "Withdrawn"];
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY = 86400000;
