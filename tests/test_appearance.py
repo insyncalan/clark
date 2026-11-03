@@ -12,6 +12,7 @@ import re
 import unittest
 
 from _paths import SRC
+from _new_page import reload_to_new_page
 from test_publish_dialog import Base, PAGE_SRC
 from test_server import chrome
 
@@ -122,7 +123,7 @@ class Appearance(Base):
             p.js("document.querySelector('#profile-menu [data-kind=look-dark]').click()")
             p.until("document.documentElement.dataset.theme === 'dark'", "Dark applied")
             self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), "dark")
-            p.js("location.reload()")
+            reload_to_new_page(p.js)
             p.until("!!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'", "Dark again after a reload")
             self.open_menu(p)
             self.assertEqual(self.in_menu(p), ["Dark"])

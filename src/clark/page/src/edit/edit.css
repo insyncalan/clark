@@ -92,6 +92,21 @@
 .bask-q { margin: 0 0 14px; font-size: var(--size-body); color: var(--heading); }
 .bask-b { display: flex; gap: 8px; justify-content: flex-end; }
 
+/* Hand over (#199): the tick column (a 16 px box in a 24 px target, as the group ticks), the bar and its "Hand over to" box. Tokens only. */
+table.items .c-pick { width: 36px; }
+table.items td.c-pick { vertical-align: middle; }
+.rtick-hit { display: inline-grid; place-items: center; width: 24px; height: 24px; cursor: pointer; }
+.rtick { width: 16px; height: 16px; margin: 0; accent-color: var(--brand-blue); cursor: pointer; }
+.rtick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.handbar { flex-wrap: wrap; gap: 8px 12px; padding-right: 14px; }
+.handbar .hb-to { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
+.handbar .hb-to input { width: 220px; max-width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.handbar .hb-to input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.handbar .btn { min-height: 32px; }
+.handbar #hand-go[aria-disabled="true"] { opacity: .55; cursor: default; }
+@media (max-width: 900px) { .handbar .hb-to { flex: 1 1 100%; } .handbar .hb-to input { flex: 1; width: auto; } }
+@media (max-width: 640px) { table.items td.c-pick { grid-column: 1 / 4; } }
+
 /* The ask panel (#47a, look #214): full height on the right, over the page. A light panel with a soft wash (the prototype's "Wash" look): a
    dark head, a glow of the brand blue rising from the bottom, your questions as blue bubbles, answers as plain text, the suggestions as ONE
    row that scrolls sideways, and while it works the working line takes that row's place so the box never moves. Tokens only, so light and
@@ -109,6 +124,7 @@
 /* the head: dark, with the person's own cover picture fading in from the right when the look has one (--image-cover is none otherwise) */
 .ask-head { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex: none; height: 60px; padding: 0 14px 0 20px; color: var(--white); background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }
 .ask-head::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--image-cover) center top / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .9; }
+.ask-head-btns { display: flex; gap: 8px; }
 .ask-head h2 { margin: 0; font-size: 18px; font-weight: var(--weight-medium); letter-spacing: .01em; color: var(--white); }
 .ask-head .btn { background: transparent; color: var(--white); border-color: color-mix(in srgb, var(--white) 70%, transparent); }
 .ask-head .btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); border-color: var(--white); }
@@ -502,6 +518,26 @@ textarea.tpl-field { resize: vertical; }
 .tracker-edit .t-name-form .t-f, .tracker-edit .t-new-group .t-f { width: 260px; max-width: 100%; }
 .tracker-edit .btn:disabled { color: var(--text-muted); cursor: default; }
 
+/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the growing Add
+   button in the header, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
+.uc-add { flex: none; margin-left: auto; }
+.ucw-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; cursor: pointer; border-radius: var(--radius-sm); padding: 1px 4px; margin: -1px -4px; }
+.ucw-btn:hover { background: var(--grey-200); }
+.ucw-btn:focus-visible { outline: 2px solid var(--brand-blue); }
+.ucst .dd { position: relative; }
+.uchead-ed { min-width: 0; }
+.uchead-in.ucd-in { color: var(--text-muted); font-size: var(--size-body); font-weight: var(--weight-light); }
+.uchead-in.ucd-in:focus-visible { color: var(--text); }
+.ucx-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.ucx-ref { white-space: nowrap; }
+.ucx-in.ucd-in { flex: 1 1 260px; min-width: 0; width: auto; font-size: var(--size-h3); font-weight: var(--weight-medium); }
+.ucm { width: min(520px, 100%); }
+.ucm-form { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-3) var(--space-4); align-items: center; padding: var(--space-3) var(--space-5) var(--space-4); }
+.ucm .field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ucm .field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ucm .ad-foot { justify-content: flex-end; }
+@media (max-width: 900px) { .ucm-form { grid-template-columns: minmax(0, 1fr); } }
+
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }
@@ -522,3 +558,4 @@ textarea.tpl-field { resize: vertical; }
 .aic-btn { min-height: 2rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); font: inherit; font-size: var(--size-body); cursor: pointer; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
+

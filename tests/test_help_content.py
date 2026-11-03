@@ -26,7 +26,7 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
 # 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) and 'Shown to client' (the tag on a work item row, components/WorkItems.jsx) are read on the page itself; the prototype words them differently
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'See all work items', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -208,6 +208,15 @@ class Words(unittest.TestCase):
         self.assertEqual(sorted(missing - CHECKED_BY_HAND), [], "bold names that the prototype does not have: add them there, or reword Help")
         self.assertEqual(sorted(CHECKED_BY_HAND - missing), [], "no longer needed in the hand-checked list: take it out")
 
+    def test_help_names_new_project_only_if_the_page_builds_it(self):
+        """#527: Help may not send a reader to a "New project" menu item that the page does not have."""
+        src = HELP.parent
+        built = any("New project" in f.read_text(encoding="utf-8", errors="ignore")
+                    for f in src.rglob("*") if f.is_file() and f.suffix in (".js", ".jsx", ".ts", ".tsx") and HELP not in f.parents)
+        help_text = "\n".join(f.read_text(encoding="utf-8") for f in HELP.glob("*.json"))
+        if not built:
+            self.assertNotIn("New project", help_text, "Help names New project but no code under src/clark/page/src builds it")
+
 
 class Held(unittest.TestCase):
     def test_taken_out_text_is_not_in_the_shipped_source(self):
@@ -236,7 +245,7 @@ class WordingRound(unittest.TestCase):
     def test_the_panel_header_does_not_say_question_mark_comes_back_from_help(self):       # HIGH
         jsx = (HELP / "Help.jsx").read_text(encoding="utf-8")
         self.assertNotIn("to come back", jsx)
-        self.assertRegex(jsx, r"to open Help\. Esc or Close takes you back")
+        self.assertRegex(jsx, r"to open Help; Esc or Back takes you where you were")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("by 12-12-2026", self.ALL)
@@ -319,6 +328,15 @@ class LowWordsRound(unittest.TestCase):
         for name, line in table[2]:
             self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
+
+    def test_use_case_help_says_what_the_page_says(self):
+        """The page's button reads "See all N open work items" and a use case has four statuses, Done included (UseCases.jsx; #412)."""
+        page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
+        self.assertIn("See all ${n} open work", page)
+        self.assertEqual(self.ALL.count("it reads “See all N open work items”") + self.ALL.count("which reads “See all N open work items”"), 2)
+        self.assertNotIn("See all work items", self.ALL)
+        self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];', page)
+        self.assertIn("Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).", self.ALL)
 
 
     def test_the_prototype_help_gives_the_section_style_lines_its_own_settings_gives(self):
