@@ -380,7 +380,7 @@
           ${type === 'raid' ? `<span class="wl-resp">${editing ? ce(x, 'update', C.plain(x.update), 'Response', 'Add the response') : esc(C.plain(x.update))}</span>` : ''}</span>
         <span class="wl-id"><button class="idl" data-open="${x.id}" aria-label="Open ${x.id}">${x.id}</button>${editing ? `<button class="ib" data-eye="${x.id}" aria-label="Take ${x.id} off the page" title="Take off the page">${C.icon('eye', 's')}</button>` : ''}</span></li>`).join('')}
       ${editing ? `<li class="wl-add"><input class="add-in" data-add="${type}" placeholder="+ Add ${word}: type “Owner: what it is”, then Enter" aria-label="Add ${word}"></li>` : ''}</ul>
-      ${!shown.length && !editing ? '<p class="muted">Nothing to show this week.</p>' : ''}
+      ${!shown.length && !editing ? '<p class="muted">Nothing to show.</p>' : ''}
       ${editing ? `<p class="note">Showing ${shown.length} of ${all.length}. Select any part to change it; the ID opens the full item; the eye takes it off the page.</p>${all.length > shown.length ? `<button class="link add-from" data-addfrom="${type}">+ Add from your project record (${all.length - shown.length})</button>` : ''}` : ''}`;
   }
   C.docsHtml = (p, editing) => docsHtml(p, editing);
