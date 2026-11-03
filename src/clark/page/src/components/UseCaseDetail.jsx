@@ -18,7 +18,7 @@ import { isOpen, pillOf, dueCell, ownerOf, sortRows, showDate, todayIso, plural 
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 
-const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
+const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 export const NAME_MAX = 120, HEAD_MAX = 300;
 const SHOW = 8;
