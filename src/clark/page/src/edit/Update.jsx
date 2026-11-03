@@ -9,7 +9,7 @@ import * as L from "../logic/update.js";
 
 const REAL = { status: A.updateStatus, review: A.reviewUpdate, install: A.installUpdate, arm: A.armUndo, undo: A.undoUpdate, who: A.whoAnswers };
 const realCopy = (t) => navigator.clipboard.writeText(t);
-Update.chip = L.TITLE;      // the Settings head's chip for this card says what its heading says (#445)
+Update.chip = L.TITLE;      // the Settings head's chip for this card says what its heading says (item 445)
 
 export function Update({ api = REAL, reload = () => window.location.reload(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), copy = realCopy }) {
   const [state, setState] = useState({ phase: "loading", st: null, message: "" });
