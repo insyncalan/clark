@@ -58,6 +58,30 @@ class Migrated(Rig):
         self.make(version="0.3.1").settle()
         self.assertEqual(Path(copy).name, ui.last_update(self.data)[1]["migration"]["backup"])
 
+    def test_a_newer_copy_of_another_layout_is_not_taken_for_the_migration_copy(self):
+        """#386: the fallback must not take the newest migrate copy by name alone; its layout must be the one the update started from."""
+        self.installed()
+        s = open_store(self.db, onedrive_roots=[])
+        copy = s.migration_backup
+        s.close()
+        decoy = backup.make(self.db, self.data / "backups", [], "migrate")        # newer, taken of the already migrated data
+        self.assertGreater(Path(decoy).name, Path(copy).name)
+        self.make(version="0.3.1").settle()
+        self.assertEqual(Path(copy).name, ui.last_update(self.data)[1]["migration"]["backup"])
+
+    def test_with_no_copy_of_the_right_layout_none_is_recorded_and_the_undo_is_refused(self):
+        self.installed()
+        s = open_store(self.db, onedrive_roots=[])
+        copy = s.migration_backup
+        s.close()
+        Path(copy).unlink()
+        backup.make(self.db, self.data / "backups", [], "migrate")                # only a copy of the newer layout is left
+        now = self.make(version="0.3.1")
+        now.settle()
+        self.assertIsNone(ui.last_update(self.data)[1]["migration"]["backup"])
+        status, said = now.arm_undo({})
+        self.assertNotEqual(200, status)
+
     def test_an_update_that_kept_the_layout_records_no_migration_and_keeps_the_old_undo(self):
         self.db.unlink()
         s = open_store(self.db, onedrive_roots=[])
