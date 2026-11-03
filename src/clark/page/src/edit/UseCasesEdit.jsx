@@ -9,7 +9,8 @@
 // so a box drawn there could not take focus, typing or a click. The buttons only set the signal `box`; `Boxes` draws them, and App.jsx
 // mounts `Boxes` beside <main> the way it mounts AddDialog.
 // Each is ONE change through stores/changes.js (kind use_cases: update, new; or report_hidden: pick). A new use case has no Undo
-// (a use case is archived, never deleted: its toast says so), the rest keep theirs.
+// (a use case is archived, never deleted: its toast says so), the rest keep theirs. A new use case starts hidden from the client (eye off,
+// the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data, mode } from "../stores/report.js";
@@ -77,7 +78,7 @@ function AddBox({ onClose, opener }) {
     if (!reply) return;                                             // the toast says why; the box stays, nothing was added
     added.value = reply.ref;
     onClose(true);
-    say("done", `Use case ${ref} added. Archive it from the Use cases page if it is not wanted.`);
+    say("done", `Use case ${ref} added, hidden from the client until its eye is turned on. Archive it from the Use cases page if it is not wanted.`);   // #455: a new use case starts with its eye off
   };
   return (
     <Modal onClose={() => onClose(false)} opener={opener}>
