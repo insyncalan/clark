@@ -277,7 +277,7 @@ class _Stage:
         if table == "decisions":
             values.setdefault("status", "Pending")
             if values["status"] == "Made" and not values.get("date"):
-                self.plan.problems.append(Problem(f"{where}: it says Made but has no date, so nothing was added. Add the date it was made and import again.", where))
+                self.plan.problems.append(Problem(f"{where}: it says Made but has no date, so this one cannot be added. Add the date in the Word file and choose the file again.", where))
                 return
         values["client_visible"] = 0
         values["source"] = f"Word import, {shown('date', self.on)}, {self.file}, under {heading}"
@@ -438,6 +438,5 @@ def stage(read, file_name, imported_on, seen=()):
                         f"existing item, so {'it was' if st.has_id == 1 else 'they were'} left alone.")
     if st.over:
         pl.notes.append(f"Only the first {MAX_ITEMS} items are shown; {st.over} more were not read. Put the rest in a second file.")
-    if not pl.items and not pl.problems:
-        pl.notes.append("Nothing new was found. Put actions, risks, issues or decisions under a heading with that name.")
+    # An empty list is explained once, by the Import box, from the plan's own counts (nothing found, or everything added before).
     return pl

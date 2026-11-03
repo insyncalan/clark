@@ -17,10 +17,10 @@ from clark import excel, server as sv
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
 TIP = "Your menu: Publish, Preview, Export, Settings"
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export)
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; Import from Word is Edit's: tests/test_word_screens.py)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
-ORDER = [WHO] + ITEMS[:4] + LOOK + ITEMS[4:]
+ORDER = [WHO] + ITEMS[:5] + LOOK + ITEMS[5:]
 
 
 class ProfileMenu(Base):
@@ -99,7 +99,7 @@ class ProfileMenu(Base):
             shown = self.labels(p)
             for word in tip[len(NAME) + 2:].split(", "):
                 self.assertTrue(any(l.startswith(word) for l in shown), word + " is an entry")
-            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Help"], "only the who line and Help have no word in the tip")
+            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Help"], "only the who line and Help have no word in the tip (Export to Word starts with the tip's Export)")
 
     def toast(self, p):
         p.until("!!document.querySelector('.toast .toast-text')", "a message appeared")
