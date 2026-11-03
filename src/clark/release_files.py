@@ -14,6 +14,7 @@ INCLUDE_DEMO = True
 SHARED = (
     "README.md",
     "clark/",                   # the stand-in that hands `python3 -m clark` to src/clark/
+    "docker/",                  # #427: the Dockerfile and the compose file, for a computer that cannot open clark.command
     "src/clark/",               # with the built page.html
     "vendor/README.md",         # vendor/manifest.json lists it
     "vendor/et_xmlfile/",
