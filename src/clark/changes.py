@@ -1418,7 +1418,9 @@ def _bulk_write(store, by_user, project, place, plan, kept):
 def _hand_over_to(store, given):
     """#199: who the items go to, as it will be written. Cleaned as a single owner change is. Then the people list's one resolver
     (#115): once anyone is on the list, the name (or an alias) must be exactly one live person, and is written as the list has it;
-    with no one on the list yet, any name is taken, as a single owner change takes it. TBC or blank is no one: refused."""
+    with no one on the list yet, any name is taken, as a single owner change takes it. TBC or blank is no one: refused.
+    Returns (name, person id): the id of the one live person it names, or None for a name taken as free text (#199: the design
+    note's contract says a hand over writes the person's id beside the name)."""
     to = _checked_item_changes({"owner": given})["owner"]
     found = store.resolve_owner(to)
     if found["status"] == "blank":
@@ -1428,21 +1430,22 @@ def _hand_over_to(store, given):
     if found["status"] == "archived":
         raise Refused(HAND_OVER_ARCHIVED)
     if found["status"] == "one":
-        return _checked_item_changes({"owner": next(p["name"] for p in store.people() if p["id"] == found["id"])})["owner"]
+        return _checked_item_changes({"owner": next(p["name"] for p in store.people() if p["id"] == found["id"])})["owner"], found["id"]
     if store.people():
         raise Refused(HAND_OVER_UNKNOWN)
-    return to
+    return to, None
 
 
 def _do_hand_over(store, by_user, req, project, place):
     """#199: give several work items to someone else: the same person (`to`) on items of any of the three kinds in THIS project,
     in ONE step with one Undo, one history line per item: an action's or risk's owner, a decision's made_by. The bulk change's
     checks and writer (_bulk_ids, _bulk_confirm, _bulk_write), across kinds. A closed item and a decision made or withdrawn keep
-    who has them (left out and named). Only that field changes: never a status, an archive or a delete."""
+    who has them (left out and named). Only that field changes, and the owner's id beside it (the person's, or NULL for free text,
+    in the same step so one Undo restores both): never a status, an archive or a delete."""
     ids = _bulk_ids(req.get("ids"), project, None)
-    to = _hand_over_to(store, req.get("to"))
+    to, person = _hand_over_to(store, req.get("to"))
     _bulk_confirm(req, ids)
-    plan = {ref: (t, {HAND_OVER_FIELD[t]: to}) for ref, t in ((ref, clark_store.item_table(ref)) for ref in ids)}
+    plan = {ref: (t, {HAND_OVER_FIELD[t]: to, "owner_id": person}) for ref, t in ((ref, clark_store.item_table(ref)) for ref in ids)}
 
     def kept(table, row):
         if row["status"] not in HAND_OVER_DONE:
@@ -1658,6 +1661,8 @@ def _eligible(rows, project):
         if not of_item(r):
             return False
         fields = tuple(CHANGE_KINDS[r["table"]].get(UPDATE, ())) + tuple(CHANGE_KINDS[r["table"]].get(BULK, ())) + ("closed", "priority")   # #196: + a bulk change's
+        if r.get("field") == "owner_id" and r["table"] in HAND_OVER_FIELD:      # #199: a hand over's link to the person, only beside the owner text of the same item in the same step
+            return any(x["table"] == r["table"] and x["key"] == r["key"] and x.get("field") == HAND_OVER_FIELD[r["table"]] for x in rows)
         return (r.get("op") == MADE_OP and r["table"] != "use_cases") or r.get("field") in fields
 
     def item_stamp_row(r):
@@ -1928,7 +1933,10 @@ def _do_undo(store, by_user, req):
     _name_use_cases(store, step_rows, names)
     reversed_ = []
     doc_keys = {r["key"] for r in step_rows if r["table"] == "documents"} - {r["key"] for r in step_rows if r["table"] == "report_hidden"}
+    owner_text = {e["ref"] for e in done["reversed"] if e["field"] in HAND_OVER_FIELD.values()}
     for e in done["reversed"]:
+        if e["field"] == "owner_id" and e["ref"] in owner_text:
+            continue                                                # #199: the link goes back with its owner text; the words count the owner once
         entry = {"ref": e["ref"], "field": e["field"], "change": e["change"], "to": e.get("to")}
         if e["ref"] in doc_keys:
             entry["doc"] = True                                     # #74: a document's own step (its key looks like the eye's, but it is not a hide or a show)
