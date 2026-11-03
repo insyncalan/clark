@@ -152,6 +152,29 @@ class Migrated(Rig):
         self.assertIsNone(ui.check_restore(self.db, {}))
 
 
+class RealSchema(Migrated):
+    """The fixture gives both apps the same small schema, which hides a check that compares the two. Here the new version runs with
+    the real store.SCHEMA_VERSION and the old app, put back by the undo, carries a lower one."""
+
+    def make(self, **kw):
+        if kw.get("version") == "0.3.1":
+            kw.setdefault("schema", store_module.SCHEMA_VERSION)
+        return super().make(**kw)
+
+    def test_undo_after_a_migration_is_handed_over_with_the_schema_of_the_restored_data(self):
+        self.assertGreater(store_module.SCHEMA_VERSION, 2)       # the old app's schema (2) is lower than the running version's
+        self.installed()
+        now, _ = self.new_start()
+        started = len(self.started)
+        armed = now.arm_undo({})[1]
+        status, said = now.undo({"arm_id": armed["arm_id"]})
+        self.assertEqual((200, True), (status, said.get("restart")), said)
+        self.assertEqual("1", version(self.db))                  # the data is at the old version
+        self.assertEqual(started + 1, len(self.started))         # the helper was started
+        self.assertTrue(h.marker_path(self.data).exists())
+        self.assertEqual(h.OK, self.run_helper()[0])
+
+
 class TheWordsAreAlwaysPlain(unittest.TestCase):
     def test_the_new_sentences(self):
         for text in (up.ARMED_RESTORE, ui.MESSAGES["data_gone"], ui.MESSAGES["data_restore"]):

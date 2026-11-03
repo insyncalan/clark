@@ -262,11 +262,11 @@ class Updater:
         finally:
             self.lock.release()
 
-    def _hand_over(self, staging, stamp, from_version, to_version, backup_dir):
+    def _hand_over(self, staging, stamp, from_version, to_version, backup_dir, schema=None):
         kw = {"python": self.python} if self.python else {}
         if self.start:
             kw["start"] = self.start
-        ui.hand_over(self.data, self.app, staging, stamp, from_version, to_version, self.schema, self.server_pid, self.port,
+        ui.hand_over(self.data, self.app, staging, stamp, from_version, to_version, self.schema if schema is None else schema, self.server_pid, self.port,
                      appfiles.MARK_HEADER, appfiles.data_mark(self.data), backup_dir, **kw)
 
     def _stopped(self, stamp, error, message=None):
@@ -327,7 +327,10 @@ class Updater:
                 self._write(PENDING, {"kind": "undo", "stamp": stamp, "set": folder.name, "undo_set": undo_set.name, "to": to})
                 ui.restore_data(self.db, record, self.store)      # last step before the hand-over, so a failure hands nothing over
                 restored = ui.migration_of(record) is not None
-                self._hand_over(staging, stamp, self.version, to, undo_set)
+                # restored data is the old data: the helper checks the staged (old) release against the schema of the data as it is
+                # now, not against this version's own, which is newer. Data that was not restored is still this version's.
+                now_schema = (update_helper.read_db_state(self.db) or {}).get("schema") if restored else None
+                self._hand_over(staging, stamp, self.version, to, undo_set, schema=now_schema)
             except (updates.UpdateError, ui.InstallError) as e:
                 if restored:                                      # #280: the data was put back but nothing took over: put the newer data back too
                     # the data was replaced, so "nothing was changed" is not true: say what happened to it

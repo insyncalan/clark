@@ -526,7 +526,8 @@ class StoppedBetweenTwoMoves(unittest.TestCase):
         # process cannot be patched from here, so a sitecustomize on its path answers "none" once clark.platform is loaded
         hook = Path(app).parent / "hook"
         hook.mkdir()
-        (hook / "sitecustomize.py").write_text(ONEDRIVE_NONE, encoding="utf-8")
+        if sys.platform != "darwin":                  # on a Mac the real call runs
+            (hook / "sitecustomize.py").write_text(ONEDRIVE_NONE, encoding="utf-8")
         return subprocess.run([BASH, str(app / "clark.command"), "--data", str(data), "--port", str(taken.port)],
                               cwd=str(Path(app).parent), env={"PATH": f"{bin_}:/usr/bin:/bin", "HOME": str(Path(app).parent),
                                                               "PYTHONPATH": str(hook)},

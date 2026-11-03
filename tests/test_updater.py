@@ -39,9 +39,10 @@ class Rig(InstallBase):
         super().setUp()
         # an undo that restores the data looks for OneDrive folders, which only a Mac has (platform.onedrive_roots refuses
         # elsewhere): none here, as on a Mac with no OneDrive
-        patch = mock.patch.object(platform, "onedrive_roots", return_value=[])
-        patch.start()
-        self.addCleanup(patch.stop)
+        if sys.platform != "darwin":                  # on a Mac the real call runs
+            patch = mock.patch.object(platform, "onedrive_roots", return_value=[])
+            patch.start()
+            self.addCleanup(patch.stop)
         self.clock = Clock()
         self.chosen = None
         self.started = []
