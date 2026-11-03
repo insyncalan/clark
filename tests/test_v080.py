@@ -87,6 +87,8 @@ WAITING = [
     ("#220", "Edit opens the one editor in place for Summary, This week and Next week", "PR 509",
      "changes.py", "def _text_body"),
     ("#269", "The publications row names the PDF file", "no pull request yet (issue 269)", "", None),
+    ("#160", "Settings has a 'Not reviewed after (days)' setting, and the At a glance row can show an optional Not reviewed tile (needs #171)", "PR 523",
+     "page/src/edit/ReviewDays.jsx", "Settings \u203a Freshness (#160)"),
 ]
 
 # (item, check, kind, why, what the person does)
