@@ -270,8 +270,8 @@ class Words(unittest.TestCase):
 
     def test_no_sentence_on_the_page_starts_with_the_product_name(self):
         """A screen sentence does not start with the product name (the rule set in #170): every string in the page's code, and the
-        words of Help (the page's and the prototype's), at the start of a string, after a full stop inside one and, since #318,
-        after a colon or semicolon."""
+        words of Help (the page's and the prototype's), at the start of a string, after a full stop inside one and, since #225 and
+        #318, after a colon or semicolon."""
         starts = SENTENCE_STARTS_WITH_PRODUCT_NAME
         headings = ("clark version and updates",)                                   # a heading in Help's list of Settings entries, not a sentence
         files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
@@ -285,6 +285,13 @@ class Words(unittest.TestCase):
                     if line[m.start():].lstrip("`\"'>.!? ").startswith(headings):
                         continue
                     self.fail(f"{f.name}:{n}: a sentence starts with the product name")
+
+    def test_help_shows_no_real_looking_version_as_an_example(self):
+        """#209: the held Updating clark entry and the prototype's say clark X.Y.Z, not a version that may not exist."""
+        for path in (PAGE_SRC / "help" / "helpHeld.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("clark X.Y.Z", text, path.name)                   # the placeholder is there; the wording around it is free
+            self.assertNotRegex(text, r"clark \d+\.\d+\.\d+", path.name)
 
     def test_the_product_name_scan_catches_a_clause_after_a_colon_or_semicolon(self):
         """#318: the scan can fail. A clause that starts with the product name is caught after a colon or semicolon as well as after
