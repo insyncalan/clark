@@ -14,6 +14,7 @@ from pathlib import Path
 
 from _demo import USER
 from _paths import SRC
+from _new_page import reload_to_new_page
 from test_report_editor import EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
 
@@ -105,9 +106,7 @@ class Setup(Base):
 
     def reload(self, p):
         """Reload and wait for the NEW document (a bare wait could still see the old one)."""
-        p.js("window.__old_document = true")
-        p.js("location.reload()")
-        p.until("window.__old_document === undefined && document.readyState === 'complete' && document.querySelectorAll('#usecases .ucl-row').length > 0", "the page reloaded")
+        reload_to_new_page(p.js, "document.querySelectorAll('#usecases .ucl-row').length > 0")
 
     def click(self, p, selector):
         p.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})")
