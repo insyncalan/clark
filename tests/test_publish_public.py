@@ -2326,9 +2326,13 @@ GROWTH_LIMIT = 3.5      # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8.
 GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
 
 
-def growth_ratio(work, n, tries=3):
+def growth_ratio(work, n, tries=3, rounds=3):
     """Time work(n) and work(2 * n) in CPU time (time.process_time, so a busy machine does not count against it), best of
-    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR))."""
+    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR)).
+    Alone, linear work measures 1.94 to 2.11 here (60 measurements of test_many_long_lines_are_quick, five runs), but one shard under
+    load measured 3.58 against the limit of 3.5: CPU time still stretches when the cores are shared. A measurement over the limit is
+    therefore taken again, up to `rounds` times, and the lowest ratio counts. Work that really grows faster than linear is over the
+    limit in every round (a square measures 4), so the limit means what it did; only one unlucky round no longer fails a linear run."""
     import time
 
     def best(size):
@@ -2339,8 +2343,15 @@ def growth_ratio(work, n, tries=3):
             spent = time.process_time() - start
             found = spent if found is None else min(found, spent)
         return found
-    small, big = best(n), best(2 * n)
-    return small, big, big / max(small, GROWTH_FLOOR)
+    found = None
+    for _ in range(rounds):
+        small, big = best(n), best(2 * n)
+        ratio = big / max(small, GROWTH_FLOOR)
+        if found is None or ratio < found[2]:
+            found = (small, big, ratio)
+        if ratio <= GROWTH_LIMIT:
+            break
+    return found
 
 
 class TheGrowthCheckTellsLinearFromCubic(unittest.TestCase):
