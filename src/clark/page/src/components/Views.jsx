@@ -110,7 +110,7 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
-// The row of chips (#440, S2) is a bar of its own under the head: it stays under the top bar as you scroll, and the chip of the card
+// The row of chips (item 440, S2) is a bar of its own under the head: it stays under the top bar as you scroll, and the chip of the card
 // you are reading is marked (aria-current). The prototype's other chips wait for their cards.
 const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Safety", "Backups", "safety-h"], ["AskSettings", "Asking", "ask-settings-h"]];
