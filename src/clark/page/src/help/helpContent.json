@@ -306,7 +306,7 @@
     "w": "Profile circle › Publish…",
     "go": "publish",
     "s": [
-     "Open the Publish box and tick **PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
+     "Open the Publish box and tick **Also a PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
      "Press **Publish locally** (or **Publish and send to the client**). The web page is saved as usual, and clark makes the PDF from it with Chrome.",
      "The PDF is saved beside the report file, with the same name and **.pdf** at the end. With **To client** ticked it is copied to the client folder too, and the box says the client will see the page and the PDF.",
      "The PDF has the four tabs one after another, no buttons or menus, and the publication number, the date and the page number at the foot of each page."
