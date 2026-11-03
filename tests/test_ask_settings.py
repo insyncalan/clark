@@ -17,6 +17,7 @@ from pathlib import Path
 from unittest import mock
 
 from _paths import SRC
+from _new_page import reload_to_new_page
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
 
@@ -153,7 +154,8 @@ class Settings(unittest.TestCase):
         with chrome() as cdp:
             sid = navigate(cdp, self.s.port, "#settings&p=ABC")
             js = lambda e: cdp.js(e, sid)          # noqa: E731
-            js("localStorage.setItem('clark.askEnabled', 'off'); location.reload()")
+            js("localStorage.setItem('clark.askEnabled', 'off')")
+            reload_to_new_page(js, seconds=20)
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == ON, 20),
                             "the database says on, so the page says on")
             self.assertEqual(read(self.db)[0], True)

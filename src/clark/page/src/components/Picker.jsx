@@ -4,7 +4,8 @@
 import { useState, useRef, useEffect } from "preact/hooks";
 import { pickable, idsOf, toggle, selectAll, clear, chosen, countWords, addWords, emptyWords, ALL_ON_PAGE } from "../logic/picker.js";
 
-export function Picker({ data, hiddenIds, onPage, onAdd, onClose, title = "Add from your project record" }) {
+// `title` and `placeholder` default to the words for every kind; a caller that offers one kind (the Dashboard's use cases, #455) gives its own.
+export function Picker({ data, hiddenIds, onPage, onAdd, onClose, title = "Add from your project record", placeholder = "Search by ID or words" }) {
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState([]);
   const search = useRef(null);
@@ -29,7 +30,7 @@ export function Picker({ data, hiddenIds, onPage, onAdd, onClose, title = "Add f
       </div>
       <div class="pk-search">
         <label class="pk-q"><span class="sr">Search</span>
-          <input ref={search} type="search" placeholder="Search by ID or words" autocomplete="off" value={query}
+          <input ref={search} type="search" placeholder={placeholder} autocomplete="off" value={query}
             onInput={(e) => setQuery(e.currentTarget.value)} />
         </label>
         <button type="button" class="pk-btn" disabled={!idsOf(groups).length} onClick={() => setSelection(selectAll(selection, groups))}>Select all shown</button>

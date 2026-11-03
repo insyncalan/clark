@@ -6,6 +6,7 @@ Run: python3 dev/run_tests.py test_preview_export_route
 """
 import http.client
 import json
+import re
 import tempfile
 import threading
 import time
@@ -57,6 +58,29 @@ class Preview(Case):
         self.assertEqual(page, want)
         self.assertEqual(get(self.rig, body["url"], token=False)[0], 404)       # one visit
 
+    def test_a_second_visit_shows_a_plain_page_not_a_bare_message(self):
+        """D-18: an address that was used, that ran out of time or that was never made answers a small web page in plain words
+        (still a 404 and still no report page), with nothing internal in it. The same page for every case."""
+        _, body = self.preview()
+        first = get(self.rig, body["url"], token=False)
+        self.assertEqual(first[0], 200)
+        for path in (body["url"], "/preview?id=guess", "/preview"):
+            status, r, raw = get(self.rig, path, token=False)
+            self.assertEqual(status, 404, path)
+            self.assertTrue(r.getheader("Content-Type").startswith("text/html"), path)
+            self.assertIn("Content-Security-Policy", dict(r.getheaders()))
+            html = raw.decode("utf-8")
+            self.assertEqual(html, sv.PREVIEW_GONE, "one page whatever the reason")
+            self.assertIn("<h1>This preview is no longer available</h1>", html)
+            self.assertIn("choose Preview the page in a new tab for a new one", html)
+            self.assertNotIn("Reload the page", html, "not the bare 'could not be found' line")
+            self.assertNotIn(body["url"].split("=")[1], html, "the address is not repeated")
+            self.assertEqual(re.findall(r"(?i)traceback|\.py\b|exception|errno|/Users/|nonce|token", html), [], "nothing internal")
+            self.assertEqual(first[2] == raw, False, "and never the report page")
+        csp = " ".join(v for k, v in get(self.rig, "/preview?id=guess", token=False)[1].getheaders() if k == "Content-Security-Policy")
+        self.assertIn(sv.csp_hashes(sv.PREVIEW_GONE)["style"][0], csp, "its one inline style is allowed by its own hash")
+        self.assertEqual(get(self.rig, "/preview?id=guess", token=False, headers={"Origin": "http://evil.example"})[0], 403, "a foreign origin is still refused, in the usual way")
+
     def test_it_logs_no_publication_and_writes_no_file(self):
         before = self.rig.everything_written()
         status, body = self.preview()
@@ -94,6 +118,24 @@ class Preview(Case):
         status, body = self.rig.call("POST", "/api/preview", {"project": "ZZZ"})
         self.assertEqual(status, 404)
         self.assertEqual(body["message"], "There is no project with that code.")
+
+    def test_a_junk_section_style_is_refused_in_the_words_publish_uses(self):
+        """#297: preview and publish ask the same check, so both name the style and list the four, and neither makes anything."""
+        for junk in ("fancy", "", "Slim", 3, ["slim"]):
+            with self.subTest(repr(junk)):
+                p_status, p_body = self.rig.call("POST", "/api/preview", {"project": "PUB", "section_style": junk})
+                q_status, q_body = self.rig.publish(section_style=junk)
+                self.assertEqual((p_status, p_body["ok"]), (400, False))
+                self.assertEqual((q_status, q_body["ok"]), (400, False))
+                self.assertEqual(p_body["message"], q_body["message"])
+                self.assertEqual(p_body["code"], q_body["code"])
+                self.assertNotIn("url", p_body)
+                for style in publish.STYLES:
+                    self.assertIn(style, p_body["message"])
+        self.assertEqual(self.rig.rows(), [])
+        self.assertEqual(self.rig.saves, [])
+        for good in publish.STYLES:
+            self.assertEqual(self.rig.call("POST", "/api/preview", {"project": "PUB", "section_style": good})[0], 200, good)
 
     def test_a_page_that_cannot_be_built_says_what_to_do(self):
         with mock.patch.object(publish, "build", side_effect=publish.PublishError("An archived project can't be published. Restore it first.")):
