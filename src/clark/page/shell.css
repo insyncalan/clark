@@ -695,6 +695,9 @@ body.board-full .toasts { z-index: 40; }
 .de-body h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .de-kinds { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); border: 0; margin: 0; padding: 0; }
 .de-kinds label { display: inline-flex; gap: 6px; align-items: center; min-height: 24px; }
+.de-tone { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: var(--space-3) 0 0; }
+.de-tone-label { color: var(--text-muted); }
+.de-chased { font-size: var(--size-caption); }
 .de-meta { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-3) 0 0; }
 .de-meta dt { color: var(--text-muted); }
 .de-meta dd { margin: 0; overflow-wrap: anywhere; }
