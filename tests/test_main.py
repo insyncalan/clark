@@ -417,12 +417,20 @@ class InProcess(TempFolder):
         code = launcher.main(list(argv), out=out, err=err, serve=serve, **kw)
         return code, out.getvalue(), err.getvalue(), serve
 
+    def test_the_launcher_passes_no_ai_service_yet(self):
+        # #72 slice 4: the AI routes run under ask clark's prompt (passages, CITE and CHANGE lines), so the launcher keeps ai= out:
+        # the routes answer 404 and Settings > AI reads as off. Slice 5 gives suggestions their own prompt and turns this on.
+        code, out, err, serve = self.run_main("--port", "8123")
+        (call,) = serve.calls
+        self.assertIsNone(call.get("ai"))
+
     def test_the_server_gets_the_stores_data_and_the_built_page_and_the_change_and_undo_handlers(self):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "app_settings", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "people", "people_list", "people_undo", "port", "profile", "projects", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
-                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route
+        self.assertEqual(sorted(call), ["activity", "app_settings", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "projects", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
+                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open)
+        self.assertTrue(callable(call["past"].listing) and callable(call["past"].visit) and callable(call["past"].take))
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
         self.assertTrue(callable(call["word_import"]) and callable(call["word_export"]))
         self.assertTrue(callable(call["safety"].listing) and callable(call["safety"].preview) and callable(call["safety"].restore))
