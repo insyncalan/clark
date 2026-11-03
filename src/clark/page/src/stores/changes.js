@@ -177,6 +177,25 @@ export function changeCell(table, id, changes, done) {
   });
 }
 
+// #210: a risk's or issue's impact or likelihood from its Priority cell. The update op doesn't take those two (clark works the
+// priority out from them), so the change goes as a bulk change of this one item, from the cell: one step and one Undo, the value
+// checked by clark, the history "in the table". The data is read again, so the cell shows the priority clark worked out, and
+// the toast says it.
+export function changeRating(table, id, changes, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendBulk(code, { kind: table, op: "bulk", ids: [id], changes, place: "cell" });
+    if (!r.ok) { say("problem", r.message); return null; }
+    await reread(code);
+    const row = project.value === code && data.value && Array.isArray(data.value[table]) ? data.value[table].find((x) => x.id === id) : null;
+    const text = row && row.priority ? `${done.text} Its priority is now ${row.priority}.` : done.text;
+    const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
+    if (step) { itemSteps.set(step, done.back || ""); say("done", text, step, code); }
+    else say("note", r.reply.words, null, code);
+    return r.reply;
+  });
+}
+
 // Reads the project's data again and puts it on the page (the work items and the peek read it). A failed read leaves the page as it is.
 export async function refresh() {
   const d = await readData(project.value);

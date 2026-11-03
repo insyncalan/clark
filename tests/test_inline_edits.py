@@ -106,7 +106,10 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.change(self.MADE, "due", ""), {"error": "A made decision keeps the date it was made. Pick another date instead."})
         # each says why, that nothing was changed, and what to do next
         self.assertEqual(self.change(self.ACTION, "due", "2026-02-30"), {"error": "That date isn't a real day, so nothing was changed. Pick another date."})
-        self.assertEqual(self.change(self.RISK, "priority", "Low"), {"error": "A risk's or issue's priority is set from its impact and likelihood, so nothing was changed."})
+        rating = {"error": "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick one from the list."}   # #210
+        self.assertEqual(self.change(self.RISK, "priority", "Low"), rating)
+        self.assertEqual(self.change({**self.RISK, "kind": "assumption"}, "priority", "Low"),
+                         {"error": "A risk's or issue's priority is set from its impact and likelihood, so nothing was changed."})
         self.assertEqual(self.change(self.PENDING, "priority", "Low"), {"error": "A decision has no priority, so nothing was changed."})
         self.assertEqual(self.change(self.ACTION, "priority", "Critical"), {"error": "That priority can't be used, so nothing was changed. Pick Urgent, High, Medium or Low."})
         status = {"error": "That status isn't one this item can have, so nothing was changed. Pick one from the list."}
@@ -148,8 +151,10 @@ class Rules(unittest.TestCase):
                                {"text": "Pending", "class": "b"}, {"text": "Made", "class": "g"}, {"text": "Withdrawn", "class": "n"}, {"text": "Closed", "class": "n"}])
 
     def test_a_raid_items_priority_says_why_it_is_not_a_picker(self):
-        got = self.js(f"[{json.dumps(self.RISK)}, {json.dumps({**self.RISK, 'kind': 'issue'})}, {json.dumps(self.ACTION)}, {json.dumps(self.PENDING)}].map(r => E.whyFixed(r, 'priority'))")
-        self.assertEqual(got, ["Set from impact and likelihood", "Set from impact and likelihood", "", ""])
+        # #210: a risk's and an issue's Priority is a picker (of impact and likelihood); an assumption's and a dependency's says why not
+        rows = [self.RISK, {**self.RISK, "kind": "issue"}, {**self.RISK, "kind": "assumption"}, {**self.RISK, "kind": "dependency"}, self.ACTION, self.PENDING]
+        got = self.js(f"{json.dumps(rows)}.map(r => E.whyFixed(r, 'priority'))")
+        self.assertEqual(got, ["", "", "Set from impact and likelihood", "Set from impact and likelihood", "", ""])
         self.assertEqual(self.js(f"E.whyFixed({json.dumps(self.RISK)}, 'status')"), "")
 
     def test_the_choices_and_which_cells_are_pickers(self):
@@ -159,7 +164,7 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.js(f"E.statusChoices({json.dumps(self.MADE)})"), ["Made", "Withdrawn"])
         self.assertEqual(self.js("E.PRIORITIES"), ["Urgent", "High", "Medium", "Low"])
         got = self.js(f"[{json.dumps(self.ACTION)}, {json.dumps(self.RISK)}, {json.dumps(self.PENDING)}].map(r => E.FIELDS.map(f => E.canPick(r, f)))")
-        self.assertEqual(got, [[True] * 4, [True, True, False, True], [True, True, False, True]])
+        self.assertEqual(got, [[True] * 4, [True] * 4, [True, True, False, True]])       # #210: a risk's priority is a picker
         self.assertEqual(self.js(f"[E.canClearDue({json.dumps(self.MADE)}), E.canClearDue({json.dumps(self.PENDING)})]"), [False, True])
         self.assertEqual(self.js(f"[E.fieldName({json.dumps(self.PENDING)}, 'due'), E.fieldName({json.dumps(self.MADE)}, 'due'), E.fieldName({json.dumps(self.MADE)}, 'owner')]"),
                          ["Needed-by date", "Decision date", "Decider"])
@@ -438,9 +443,9 @@ class Live(unittest.TestCase):
                 click(cdp, sid, "h1")
                 self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "a click away closes it")
                 self.assertEqual(len(self.sent), n)
-                # a RAID item's priority and a decision's are not pickers
-                self.assertEqual(cdp.js("[!!document.querySelector(\"[data-cell='TUL-007:priority']\"), !!document.querySelector(\"[data-cell='TUL-D-016:priority']\")]", sid), [False, False])
-                self.assertEqual(cdp.js("document.querySelector(\"[data-fixed='TUL-007:priority']\").title", sid), "Set from impact and likelihood", "a risk's priority says why it can't be picked")
+                # an assumption's priority and a decision's are not pickers (#210: a risk's is, test_priority_rating_cell)
+                self.assertEqual(cdp.js("[!!document.querySelector(\"[data-cell='TUL-009:priority']\"), !!document.querySelector(\"[data-cell='TUL-D-016:priority']\")]", sid), [False, False])
+                self.assertEqual(cdp.js("document.querySelector(\"[data-fixed='TUL-009:priority']\").title", sid), "Set from impact and likelihood", "an assumption's priority says why it can't be picked")
                 self.assertEqual(cdp.js("[!!document.querySelector(\"[data-fixed='TUL-D-016:priority']\"), document.querySelector(\"tr[data-id='TUL-D-016'] .c-prio\").textContent]", sid), [False, "—"], "a decision's shows a dash")
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
 

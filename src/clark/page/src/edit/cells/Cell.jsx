@@ -2,12 +2,13 @@
 // button; a click, Enter or Space opens that field's picker (Alt+Down too; a plain Down moves to the next row, WorkItems.jsx). A pick is one change through clark (one step,
 // with Undo in the toast); Esc or a click away leaves it as it was. The button stops its click there, so a click on a cell
 // never opens the peek; a click anywhere else on the row still does. One picker is open at a time. The Status cell shows the
-// item's own status (itemEdit.statusPill), the same word as its picker and its toast. A RAID item's Priority is not a picker: its
-// tooltip says it is set from impact and likelihood (a decision has none, and shows a dash).
+// item's own status (itemEdit.statusPill), the same word as its picker and its toast. #210: a risk's or issue's Priority opens a
+// picker for its impact and likelihood (RatingPick), the two its priority is worked out from. An assumption's or dependency's
+// Priority is not a picker: its tooltip says it is set from impact and likelihood (a decision has none, and shows a dash).
 import { signal } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import { data } from "../../stores/report.js";
-import { changeCell, say } from "../../stores/changes.js";
+import { changeCell, changeRating, say } from "../../stores/changes.js";
 import { workSelection } from "../../stores/selection.js";
 import { itemRows } from "../../stores/work.js";
 import { cellPlan } from "../bulkLogic.js";
@@ -57,7 +58,7 @@ export function Cell({ row, field, said, children }) {
     const c = changeFor(row, field, value, today);
     if (c && c.error) return c.error;
     close(true);
-    if (c) changeCell(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made" }).then(() => refocus(k));
+    if (c) (c.one ? changeRating : changeCell)(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made" }).then(() => refocus(k));
     return "";
   };
   const toggle = () => { openCell.value = open ? "" : k; };
