@@ -1385,7 +1385,7 @@
      ],
      [
       "p",
-      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track."
+      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track. Two states are set by you, not the dates: At risk, when the project team marks it, and Forecast, for a date not yet agreed."
      ],
      [
       "p",
