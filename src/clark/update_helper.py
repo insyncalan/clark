@@ -422,6 +422,7 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
     }
     updates_dir(data_dir).mkdir(parents=True, exist_ok=True)
     marker["helper_dir"] = str(copy_helper(data_dir, stamp))
+    marker["helper_sha"] = {n: sha256_of(Path(marker["helper_dir"]) / n) for n in ("update_helper.py", PLATFORM_COPY)}
     write_json(marker_path(data_dir), marker)
     return marker_path(data_dir)
 

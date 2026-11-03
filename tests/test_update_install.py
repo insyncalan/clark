@@ -121,6 +121,29 @@ class TakeInTest(Base):
         self.assertEqual("unreadable", said.exception.key)
         self.assertEqual([], os.listdir(self.data / "releases"))
 
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "needs named pipes")
+    def test_a_named_pipe_with_no_writer_is_refused_and_never_waited_on(self):
+        import threading
+        pipe = self.downloads / "clark-0.6.0-mac.zip"
+        os.mkfifo(pipe)
+        out = []
+
+        def go():
+            try:
+                ui.take_in(pipe, self.data, SYSTEM)
+            except updates.UpdateError as e:
+                out.append(e.key)
+        t = threading.Thread(target=go, daemon=True)
+        t.start()
+        t.join(10)
+        waited = t.is_alive()
+        if waited:                                        # release the blocked open so the test run can end
+            fd = os.open(str(pipe), os.O_WRONLY)
+            os.close(fd)
+            t.join(5)
+        self.assertFalse(waited, "opening a pipe must not wait for a writer")
+        self.assertEqual(["unreadable"], out)
+
     def test_a_folder_a_wrong_name_and_a_file_too_big_are_refused(self):
         folder = self.downloads / "clark-0.5.0-mac.zip"
         folder.mkdir()
@@ -195,6 +218,15 @@ class BackUpTest(Base):
 
 
 class StageTest(Base):
+    @unittest.skipIf(os.name == "nt", "folder modes are a Mac/Linux matter")
+    def test_the_staging_folder_is_owner_only_whatever_the_umask(self):
+        old = os.umask(0)
+        try:
+            folder = ui.stage(self.taken(), self.app, STAMP)
+        finally:
+            os.umask(old)
+        self.assertEqual(0o700, stat.S_IMODE(folder.stat().st_mode))
+
     def test_every_file_is_staged_with_its_mode_and_the_record_last(self):
         release = self.taken()
         folder = ui.stage(release, self.app, STAMP)
@@ -450,6 +482,16 @@ class PruneTest(Base):
         self.assertEqual(sorted(["clark-0.1.0-mac.zip", "clark-0.3.0-mac.zip", "clark-0.3.1-mac.zip", "clark-0.10.0-mac.zip",
                                  "clark-0.0.1-windows.zip", "mine.zip"]), sorted(os.listdir(releases)))
         self.assertTrue((self.data / "updates" / "not-ours").is_dir())
+
+    def test_a_pruned_release_takes_its_signature_with_it(self):
+        releases = self.data / "releases"
+        releases.mkdir(parents=True)
+        for v in ("0.1.0", "0.2.0", "0.3.0", "0.3.1", "0.4.0"):
+            (releases / f"clark-{v}-mac.zip").write_bytes(b"x")
+            (releases / f"clark-{v}-mac.zip.sig").write_bytes(b"s")
+        ui.prune(self.data, "0.4.0", SYSTEM)
+        self.assertEqual(sorted(f"clark-{v}-mac.zip{s}" for v in ("0.3.0", "0.3.1", "0.4.0") for s in ("", ".sig")),
+                         sorted(os.listdir(releases)))
 
     def test_nothing_is_taken_away_while_an_update_is_unfinished(self):
         (self.data / "updates").mkdir()

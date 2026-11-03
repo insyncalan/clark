@@ -410,6 +410,18 @@ class FinishAtLaunchTest(Rig):
         launch.finish_update(self.data, lambda t: None, run=lambda py, code, args, timeout=0: ran.append(args[0]) or (0, ""))
         self.assertEqual([Path(h.__file__).resolve()], ran)
 
+    def test_a_helper_copy_that_is_not_the_one_written_is_never_run(self):
+        self.stopped_mid_way()
+        doc = json.loads(h.marker_path(self.data).read_text(encoding="utf-8"))
+        copy = Path(doc["helper_dir"]) / "update_helper.py"
+        ran = []
+        launch.finish_update(self.data, lambda t: None, run=lambda py, code, args, timeout=0: ran.append(args[0]) or (0, ""))
+        self.assertEqual([copy.resolve()], ran, "the copy as written is the one run")
+        copy.write_text(copy.read_text(encoding="utf-8") + "\nraise SystemExit(0)\n", encoding="utf-8")
+        ran.clear()
+        launch.finish_update(self.data, lambda t: None, run=lambda py, code, args, timeout=0: ran.append(args[0]) or (0, ""))
+        self.assertEqual([Path(h.__file__).resolve()], ran)
+
     def test_launch_stops_when_the_finish_says_so(self):
         self.assertEqual(1, launch.launch(8765, self.data, say=lambda t: None, finish=lambda folder, say: False,
                                           health=lambda *a: self.fail("nothing is asked")))
