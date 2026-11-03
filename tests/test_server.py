@@ -329,6 +329,7 @@ class Saving(ServerTest):
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
+                                                "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": 4 * 1024, "/api/people/undo": 1024})     # #96: a project and a section only
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
@@ -438,7 +439,7 @@ class Saving(ServerTest):
 
     def test_the_undo_limit_sits_above_the_largest_batch_the_seam_accepts(self):
         """#268: 200 steps (twice the 100 a batch takes, the most the seam looks at) of 19 digits is a request the seam answers in
-        words ("Choose at most 100 ..."); the byte limit must not turn it into the general "too big" first."""
+        words ("Choose 1 to 100 changes to undo."); the byte limit must not turn it into the general "too big" first."""
         from clark import store as clark_store
         running = self.seams()
         self.addCleanup(running.close)
