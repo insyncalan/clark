@@ -6,6 +6,7 @@ import { data, project, show } from "../stores/report.js";
 import { publishRequest, previewRequest, latestRequest, words } from "./publishApi.js";
 import { openInNewTab } from "../router.js";
 import { printUrl } from "../logic/printView.js";
+import { say } from "./menuNote.js";
 
 // With no client folder, To client says where to set one; the second part is a link to the Publishing card (the prototype's
 // "Set it in Settings, Publishing", io.js).
@@ -28,6 +29,11 @@ export async function printSource(code, number) {
   const p = await previewRequest(code);
   return p.status === 200 && p.body && typeof p.body.url === "string" ? printUrl(p.body.url, number) : null;
 }
+// #437: how long the finished dialog shows its tick before it closes by itself (the prototype's 1200 ms, io.js). The test build
+// changes it through window.clarkPage.publishCloseMs (testhook.js); null keeps the dialog open until it is closed.
+export const CLOSE_MS = 1200;
+export const closeAfter = { ms: CLOSE_MS };
+let finished = 0;                        // counts finished publishes, so a timer from an earlier dialog never closes a later one
 
 export const savedFolder = () => {
   const d = data.value;
@@ -130,6 +136,11 @@ export async function go() {
     const text = s.pdf ? `${said} ${printed ? PRINT_OPENED : PRINT_NOT_OPENED}` : said;
     set({ phase: "done", clash: null, message: { kind: s.pdf && !printed ? "info" : "success", text, number: Number.isInteger(b.publication) && b.publication > 0 ? b.publication : null } });
     refreshLatest();
+    // #437 rows 27 and 57: the same words go to the menu's note, which stays after the dialog has closed itself. It has no Undo, as
+    // in the prototype: a publication keeps its number and its files, so it is not a step that can be taken back.
+    say(s.pdf && !printed ? "note" : "done", text);
+    const mine = ++finished;
+    if (Number.isFinite(closeAfter.ms)) setTimeout(() => { const now = dialog.value; if (mine === finished && now && now.phase === "done") close(); }, Math.max(0, closeAfter.ms));
     return;
   }
   const cancelled = r.status === 200 && b && (b.code === "cancelled" || b.code === "cancel");

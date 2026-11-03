@@ -369,7 +369,7 @@
      "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
-     "**Latest update**: click to write it. **Draft** writes one from the item’s own facts.",
+     "**Latest update**: click to write it. **Draft** writes one from the item’s own facts. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "**Details** holds the description, type, workstream, milestone, use case and client wording. It stays open or closed as you last left it.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. The up and down arrows at the top step through the list."
@@ -490,7 +490,7 @@
      "Next to **Project health** are the counts: **Overdue actions**, **High risks and issues** and **Decisions needed** (hidden to start with).",
      "Click a count, or press [[Enter]] on it, to open Work items filtered to exactly what it counts.",
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
-     "Right-click a tile in Edit for **Tile colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
+     "Right-click a tile in Edit for **Outline colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
     ],
     "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise."
    },
@@ -573,6 +573,7 @@
      "A slipped milestone keeps its mark on the agreed date, with a dashed ring where it is now expected and a dashed line between them.",
      "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. Your choice is kept.",
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
+     "With the keyboard, [[Tab]] reaches the calendar once, on today (or the first day when today is not shown). [[Left]] and [[Right]] move a day at a time, and [[Up]] and [[Down]] a week. [[Enter]] on a day with milestones goes to the first of them, and [[Shift+Tab]] or [[Esc]] comes back to the day.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
      "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],
@@ -1185,7 +1186,7 @@
        "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
        "**A warning**, when an action is overdue or due on a weekend, with fixes.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
-       "**Latest update**, with **Draft**; then when it was last updated.",
+       "**Latest update**, with **Draft**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
        "**Activity** (in Edit): each change to the item, newest first: who, how and when."
       ]
@@ -1385,7 +1386,7 @@
      ],
      [
       "p",
-      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track."
+      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track. Two states are set by you, not the dates: At risk, when the project team marks it, and Forecast, for a date not yet agreed."
      ],
      [
       "p",

@@ -6,10 +6,10 @@ import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
 import { dialogLine } from "./publishLine.js";
-import { dialog, latest, next,NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialog, latest, next, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
-export const lastLine = (l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
+export const lastLine =(l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
 
 // The success line with "Published (Publication N)" picked out as #pub-done (#353); the words and their order are the server's own.
 function doneWords(m) {
