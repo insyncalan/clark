@@ -29,7 +29,7 @@ USER = "Sam Carter"
 class Rig:
     """A server over a publisher, a plant database, a Local folder, a client folder and fake dialogs."""
 
-    def __init__(self, case, saved=True, branding=EMPTY_BRANDING):
+    def __init__(self, case, saved=True, branding=EMPTY_BRANDING, page_html=None):
         tmp = tempfile.TemporaryDirectory()
         case.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name).resolve()
@@ -52,7 +52,7 @@ class Rig:
         self.publisher = publish_flow.Publisher(self.db, [str(self.onedrive)], choose_save_file=self.save_dialog,
                                                 choose_folder=self.folder_dialog, today=lambda: DAY, by_user=lambda: USER,
                                                 data_dir=self.data_dir, branding=branding)
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, page_html=lambda: page.page_html(branding),
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, page_html=page_html or (lambda: page.page_html(branding)),
                                     projects=lambda: [{"code": "PUB", "name": "Harbour Bridge Programme"}], publisher=self.publisher,
                                     change=changes.make_change(self.db, [], USER), undo=changes.make_undo(self.db, [], USER),
                                     profile=profile_settings.Profile(self.data_dir))

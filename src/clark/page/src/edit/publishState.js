@@ -4,6 +4,7 @@
 import { signal } from "@preact/signals";
 import { data, project, show } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
+import { say } from "./menuNote.js";
 
 // With no client folder, To client says where to set one; the second part is a link to the Publishing card (the prototype's
 // "Set it in Settings, Publishing", io.js).
@@ -13,6 +14,11 @@ export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
 export const next = signal(0);           // the number the next publication will have (#437), or 0 until the server has said
 export const pdfInfo = signal({ ok: false, note: "" });      // whether Chrome is on this computer, and the one line saying why not
+// #437: how long the finished dialog shows its tick before it closes by itself (the prototype's 1200 ms, io.js). The test build
+// changes it through window.clarkPage.publishCloseMs (testhook.js); null keeps the dialog open until it is closed.
+export const CLOSE_MS = 1200;
+export const closeAfter = { ms: CLOSE_MS };
+let finished = 0;                        // counts finished publishes, so a timer from an earlier dialog never closes a later one
 
 export const savedFolder = () => {
   const d = data.value;
@@ -108,7 +114,16 @@ export async function go() {
   }
   const said = words(r, "publish");
   // #353: the number the server gave this publication (#120), so the success line can pick out "Published (Publication N)". A PDF that could not be made is an info line (#124).
-  if (r.status === 200 && b && b.ok === true) { set({ phase: "done", clash: null, message: { kind: b.pdf_saved === false ? "info" : "success", text: said, number: Number.isInteger(b.publication) && b.publication > 0 ? b.publication : null } }); refreshLatest(); return; }
+  if (r.status === 200 && b && b.ok === true) {
+    set({ phase: "done", clash: null, message: { kind: b.pdf_saved === false ? "info" : "success", text: said, number: Number.isInteger(b.publication) && b.publication > 0 ? b.publication : null } });
+    refreshLatest();
+    // #437 rows 27 and 57: the same words go to the menu's note, which stays after the dialog has closed itself. It has no Undo, as
+    // in the prototype: a publication keeps its number and its files, so it is not a step that can be taken back.
+    say(b.pdf_saved === false ? "note" : "done", said);
+    const mine = ++finished;
+    if (Number.isFinite(closeAfter.ms)) setTimeout(() => { const now = dialog.value; if (mine === finished && now && now.phase === "done") close(); }, Math.max(0, closeAfter.ms));
+    return;
+  }
   const cancelled = r.status === 200 && b && (b.code === "cancelled" || b.code === "cancel");
   set({ phase: "error", clash: null, message: { kind: cancelled ? "info" : "error", text: said } });
   if (b && b.local_saved === true) refreshLatest();       // Local was saved and logged although the copy was not

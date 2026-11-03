@@ -15,6 +15,7 @@ from _paths import SRC
 from test_page import navigate
 from test_publish_route import Rig, WANTED
 from test_server import chrome, wait
+import _testpage as testpage
 
 from unittest import mock
 
@@ -67,7 +68,8 @@ class Base(unittest.TestCase):
     saved = True
 
     def setUp(self):
-        self.rig = Rig(self, saved=self.saved)
+        # the test copy of the served page (window.clarkPage): the finished dialog stays open until a test sets a time (#437)
+        self.rig = Rig(self, saved=self.saved, page_html=testpage.html)
 
     def page(self, cdp, hash_="#dashboard&p=PUB"):
         sid = navigate(cdp, self.rig.httpd.server_port, hash_)
@@ -132,9 +134,9 @@ class Dialog(Base):
             self.assertIn("A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too.", p.dialog_text())
             p.js("document.querySelector('#pub-client').click()")
             p.until("!!document.querySelector('#pub-warn')", "the line about the client")
-            self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), "The client will see this page.")
+            self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), to_client.MESSAGES["client_sees"])
             p.js("document.querySelector('#pub-pdf').click()")
-            p.until("document.querySelector('#pub-warn').innerText === 'The client will see this page and the PDF.'", "the line names the PDF")
+            p.until("document.querySelector('#pub-warn').innerText === 'The client will see this page and the PDF. Only what is shown in View mode is included.'", "the line names the PDF")
 
     def test_C_tick_changes_button_and_line(self):
         with chrome() as cdp:
@@ -340,6 +342,93 @@ class Dialog(Base):
                 self.assertEqual(box, [True, True, True], f"{stage}: the button is in view with no scrolling")
                 dlg = p.js("(function(){var r=document.querySelector('#publish-dialog').getBoundingClientRect();return [r.left >= 0, r.right <= window.innerWidth]})()")
                 self.assertEqual(dlg, [True, True])
+
+
+class Finished(Base):
+    """#437: the warning's second sentence (rows 29 and 56), and the finished state (rows 27 and 57): the tick and "Published
+    (Publication N)" on the button, then the dialog closes by itself and a note with no Undo says what was done (the prototype's
+    io.js, 1200 ms). The test build keeps the dialog open until a test sets a time (testhook.js publishCloseMs), so nothing here
+    waits the real 1200 ms."""
+
+    THEMES = ("light", "dark")
+
+    def look(self, p, theme, w):
+        p.width(w)
+        p.js("document.documentElement.dataset.theme = 'dark'" if theme == "dark" else "delete document.documentElement.dataset.theme")
+        motion = "reduce" if theme == "dark" else "no-preference"        # the dark pass also asks for less motion
+        p.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": motion}]}, p.sid)
+
+    def fits(self, p, selector, where):
+        self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), where + ": no sideways scroll")
+        box = p.js("(function(){var r=document.querySelector(\"" + selector + "\").getBoundingClientRect();return [r.width > 0, r.left >= 0, r.right <= window.innerWidth]})()")
+        self.assertEqual(box, [True, True, True], where + ": " + selector + " is in view")
+        ink = p.js("(function(){var e=document.querySelector(\"" + selector + "\"),c=getComputedStyle(e).color,b=e,bg='rgba(0, 0, 0, 0)';"
+                   "while(b&&(bg=getComputedStyle(b).backgroundColor)==='rgba(0, 0, 0, 0)')b=b.parentElement;return [c, bg]})()")
+        self.assertNotEqual(ink[0], ink[1], where + ": the words show against their background")
+
+    def test_C_the_warning_has_both_sentences_at_both_widths_in_light_and_dark(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for theme in self.THEMES:
+                for w in WIDTHS:
+                    where = f"{theme} {w}"
+                    self.look(p, theme, w)
+                    p.open_publish()
+                    p.js("document.querySelector('#pub-client').click()")
+                    p.until("!!document.querySelector('#pub-warn')", where + ": the warning")
+                    self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"),
+                                     "The client will see this page. Only what is shown in View mode is included.", where)
+                    self.fits(p, "#pub-warn", where)
+                    p.js("document.querySelector('[data-cancel]').click()")
+                    p.until("!document.querySelector('#publish-dialog')", where + ": closed")
+
+    def test_C_the_finished_dialog_closes_by_itself_and_a_note_with_no_undo_says_what_was_done(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.assertEqual(p.js("JSON.stringify(window.clarkPage.publishCloseMs())"), '{"now":null,"page":1200}',"the page's own wait is the prototype's 1200 ms")
+            n = 0
+            for theme in self.THEMES:
+                for w in WIDTHS:
+                    where, n = f"{theme} {w}", n + 1
+                    self.look(p, theme, w)
+                    p.js("window.clarkPage.publishCloseMs(null)")          # held open first, to read the finished button
+                    p.open_publish()
+                    p.go()
+                    p.until("document.querySelector('[data-go]').classList.contains('ok')", where + ": published")
+                    self.assertEqual(p.js("document.querySelector('[data-go]').innerText.trim()"), f"Published (Publication {n})", where)
+                    self.assertTrue(p.js("!!document.querySelector('[data-go] [data-tick] svg')"), where + ": the tick")
+                    self.fits(p, "[data-go]", where)
+                    p.js("document.querySelector('[data-go]').click()")
+                    p.until("!document.querySelector('#publish-dialog')", where + ": closed by its button")
+                    n += 1                                                   # now one that closes by itself
+                    p.js("window.clarkPage.publishCloseMs(50)")
+                    p.open_publish()
+                    p.go()
+                    p.until("!document.querySelector('#publish-dialog')", where + ": the dialog closed by itself")
+                    self.assertEqual(len(self.rig.rows()), n, where + ": it published")
+                    find = ("[...document.querySelectorAll('.toasts .toast')].find(t => t.querySelector('.toast-text').innerText"
+                            f".startsWith('Published (Publication {n}).'))")
+                    p.until("!!" + find, where + ": the note")
+                    self.assertEqual(p.js(find + ".dataset.kind"), "done", where)
+                    self.assertRegex(p.js(find + ".querySelector('.toast-text').innerText"), rf"^Published \(Publication {n}\)\. Saved locally as ", where)
+                    self.assertEqual(p.js("[..." + find + ".querySelectorAll('button')].map(b => b.innerText.trim())"), ["Close"], where + ": no Undo, only Close")
+                    self.assertEqual(p.js(find + ".querySelector('[data-undo]')"), None, where)
+                    self.assertEqual(p.focused(), "publish", where + ": focus is back on the profile circle, where Publish was")
+                    p.js("window.__note = " + find + ".querySelector('.toast-text'); window.__note.id = 'pub-note-" + str(n) + "'")
+                    self.fits(p, f"#pub-note-{n}", where)
+
+    def test_C_a_late_timer_never_closes_a_later_dialog(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.js("window.clarkPage.publishCloseMs(1500)")
+            p.open_publish()
+            p.go()
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
+            p.js("document.querySelector('[data-go]').click()")                # closed by hand before the timer
+            p.until("!document.querySelector('#publish-dialog')", "closed")
+            p.open_publish()                                                   # a fresh dialog, not finished
+            self.assertFalse(wait(lambda: not p.js("!!document.querySelector('#publish-dialog[open]')"), 3), "the old timer left the new dialog open")
+            self.assertEqual(p.focused(), "pub-client", "focus is still in the new dialog")
 
 
 class NoFolder(Base):
