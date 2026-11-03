@@ -80,8 +80,7 @@ class AboutYou(Base):
                 "? new Promise((ok) => { window.__release = () => ok(f(u, o).then((r) => { window.__readDone = true; return r; })); }) : f(u, o); })()")
         cdp.call("Page.enable", {}, p.sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": hold}, p.sid)
-        p.js("location.reload()")
-        p.until("!!document.querySelector('#profile-btn') && typeof window.__release === 'function'", "the page is up with its read held back")
+        reload_to_new_page(p.js, "!!document.querySelector('#profile-btn') && typeof window.__release === 'function'", "the page is up with its read held back")
 
     def top(self, p):
         return p.js("(() => { const w = document.querySelector('#profile-menu .who'); if (w) return {name: w.querySelector('b').textContent, "
