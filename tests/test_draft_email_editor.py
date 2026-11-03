@@ -153,6 +153,22 @@ class Logic(InBrowser):
         got = self.val("T.logic.buildOptions({mode: 'decision', picked: ['ABC-D-001'], replyBy: '2026-10-15', unblocks: ' the plan ', includeUpdate: 1, secret: 'x'})")
         self.assertEqual(got, {"mode": "decision", "picked": ["ABC-D-001"], "reply_by": "2026-10-15", "unblocks": "the plan", "include_update": True})
 
+    def test_a_chosen_tone_is_sent_for_a_chase_only_and_anything_else_is_refused(self):
+        """#452: the tone the user picked goes to the builder for a chase; none picked leaves it to clark."""
+        got = self.val("T.logic.buildOptions({mode: 'chase', picked: ['ABC-A-001'], tone: 2})")
+        self.assertEqual(got["tone"], 2)
+        self.assertNotIn("tone", self.val("T.logic.buildOptions({mode: 'chase', picked: [], tone: null})"))
+        self.assertNotIn("tone", self.val("T.logic.buildOptions({mode: 'update_request', picked: [], tone: 1})"))
+        msg = "That tone isn't available. Choose First chase, Second chase or Firmer chase."
+        for bad in ("3", "-1", "1.5", "'1'", "true"):
+            self.assertEqual(self.error(f"T.logic.buildOptions({{mode: 'chase', tone: {bad}}})"), msg, bad)
+        self.assertEqual(self.val("T.logic.NO_SUCH_TONE"), draft_email.NO_SUCH_TONE)
+        self.assertEqual(self.val("T.logic.TONES"), list(draft_email.TONE_NAMES))
+
+    def test_the_chased_line_reads_as_the_prototype_words_it(self):
+        got = self.val("[0, 1, 2, 5, null].map((n) => T.logic.chasedWords(n))")
+        self.assertEqual(got, ["Not chased yet", "Chased 1 time before", "Chased 2 times before", "Chased 5 times before", "Not chased yet"])
+
     def test_the_tick_count_reads_as_a_sentence(self):
         got = self.val("[[0, 3], [1, 3], [2, 3], [3, 3], [1, 1], [2, 2], [0, 0]].map(([n, of]) => T.logic.pickWords(n, of))")
         self.assertEqual(got, ["0 of 3 items ticked", "1 of 3 items ticked", "2 of 3 items ticked", "3 items ticked", "1 item ticked",
@@ -490,6 +506,79 @@ class Component(InBrowser):
         self.cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, self.sid)
         self.settle()
         self.assertEqual(self.val("T.closed"), 1)
+
+    def test_a_chase_shows_the_three_tones_preselected_to_clarks_choice_and_the_count(self):
+        """#452: First chase / Second chase / Firmer chase, the builder's tone pressed, and "Chased N times before"."""
+        chased = {"ABC-A-001": {"n": 2, "last": "2026-10-08"}}
+        self.mount(state(mode="chase", picked=["ABC-A-001"]), draft(mode="chase", picked=["ABC-A-001"], chased=chased))
+        names = self.val("Array.from(document.querySelectorAll('.de-tone button')).map((b) => b.textContent)")
+        self.assertEqual(names, ["First chase", "Second chase", "Firmer chase"])
+        pressed = "Array.from(document.querySelectorAll('.de-tone button')).map((b) => b.getAttribute('aria-pressed'))"
+        self.assertEqual(self.val(pressed), ["false", "false", "true"])
+        self.assertEqual(self.text(".de-chased"), "Chased 2 times before")
+        self.assertIn("Tone", self.text(".de-tone"))
+        self.mount(state(mode="chase", picked=["ABC-A-001"]), draft(mode="chase", picked=["ABC-A-001"]))
+        self.assertEqual(self.val(pressed), ["true", "false", "false"])
+        self.assertEqual(self.text(".de-chased"), "Not chased yet")
+
+    def test_picking_a_tone_asks_for_a_new_draft_and_changing_the_kind_hands_the_choice_back(self):
+        chased = {"ABC-A-001": {"n": 1, "last": "2026-10-08"}}
+        self.js("T.changed.length = 0")
+        self.mount(state(mode="chase", picked=["ABC-A-001"]), draft(mode="chase", picked=["ABC-A-001"], chased=chased))
+        self.click(".de-tone button[data-tone='2']")
+        got = self.val("T.changed")
+        self.assertEqual(len(got), 1)
+        self.assertEqual((got[0]["tone"], got[0]["mode"], got[0]["picked"]), (2, "chase", ["ABC-A-001"]))
+        self.assertEqual(self.val(f"T.logic.buildOptions({lit(got[0])})")["tone"], 2)
+        self.click(".de-tone button[data-tone='1']")
+        self.assertEqual(self.val("T.changed.length"), 1, "the tone already in use asks for nothing")
+        self.click("input[value=decision]")
+        self.assertIsNone(self.val("T.changed[1].tone"))
+        # The rebuilt draft (the builder's answer for tone 2) shows Firmer chase pressed and the firmer wording.
+        self.mount(dict(got[0]), draft(mode="chase", picked=["ABC-A-001"], chased=chased, tone=2))
+        self.assertEqual(self.val("document.querySelector('.de-tone [aria-pressed=true]').textContent"), "Firmer chase")
+        self.assertIn("Please reply with a firm date", self.text(".de-preview"))
+        self.assertNotIn("Firmer chase", self.text(".de-preview"))
+
+    def test_only_a_chase_has_the_tone_control(self):
+        for mode in ("update_request", "decision"):
+            self.mount(state(mode=mode, picked=["ABC-A-001"]), draft(mode=mode, picked=["ABC-A-001"]))
+            self.assertEqual(self.val("document.querySelectorAll('.de-tone').length"), 0, mode)
+
+    def test_the_tone_control_at_1400_and_900_in_light_and_dark(self):
+        chased = {"ABC-A-001": {"n": 2, "last": "2026-10-08"}}
+        look = """(function () {
+          const css = (el, p) => getComputedStyle(el).getPropertyValue(p);
+          const bs = Array.from(document.querySelectorAll('.de-tone button')), de = document.querySelector('.de').getBoundingClientRect();
+          const r = bs.map((b) => b.getBoundingClientRect());
+          return {sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+                  inside: r.every((x) => x.left >= de.left && x.right <= de.right && x.width > 0 && x.height >= 24),
+                  oneRow: new Set(r.map((x) => Math.round(x.top))).size === 1,
+                  textOn: bs.map((b) => [css(b, 'color'), css(b, 'background-color')]),
+                  pressedBg: css(document.querySelector('.de-tone [aria-pressed=true]'), 'background-color'),
+                  plainBg: css(document.querySelector('.de-tone [aria-pressed=false]'), 'background-color'),
+                  line: css(document.querySelector('.de-chased'), 'color'), bg: css(document.querySelector('.de'), 'background-color'),
+                  dark: matchMedia('(prefers-color-scheme: dark)').matches};
+        })()"""
+        try:
+            for scheme in ("light", "dark"):
+                self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+                for width in (1400, 900):
+                    with self.subTest(scheme=scheme, width=width):
+                        self.load(width, 800)
+                        self.mount(state(mode="chase", picked=["ABC-A-001"]), draft(mode="chase", picked=["ABC-A-001"], chased=chased))
+                        got = self.val(look)
+                        self.assertEqual(got["dark"], scheme == "dark")
+                        self.assertFalse(got["sideways"])
+                        self.assertTrue(got["inside"], got)
+                        self.assertTrue(got["oneRow"], got)
+                        for colour, back in got["textOn"]:
+                            self.assertNotEqual(colour, back)
+                        self.assertNotEqual(got["pressedBg"], got["plainBg"], "the chosen tone stands out")
+                        self.assertNotEqual(got["line"], got["bg"])
+                        self.assertEqual(self.text(".de-chased"), "Chased 2 times before")
+        finally:
+            self.cdp.call("Emulation.setEmulatedMedia", {"features": []}, self.sid)
 
     def test_nothing_scrolls_sideways_at_900(self):
         self.load(900, 700)

@@ -143,6 +143,85 @@ class InEdit(Page):
                     self.assertEqual(small, 0, msg="every control is at least 24 px")
 
 
+class Archive(Page):
+    """#455: Archive on a document in Edit takes it off the list (one step, Undo in the toast, no question first, as the prototype);
+    "Archived (n)" under the list brings it back with Restore (also with Undo); a published file never carries an archived one."""
+
+    def archived(self, ref):
+        return self.store.read("documents", ref=f"ABC|{ref}")["archived"]
+
+    def toast_is(self, p, words):
+        p.until(f"(document.querySelector('.toast-text') || {{}}).textContent === {json.dumps(words)}", f"the toast says {words!r}")
+
+    def test_archive_undo_and_restore_at_both_widths_light_and_dark(self):
+        sec = f"[data-id={json.dumps(self.docs_section())}]"
+        keep = self.add_doc("Steering minutes", "https://example.com/minutes")
+        refs = [self.add_doc(f"Board pack {i}", f"https://example.com/board-{i}", kind="Report") for i in range(len(WIDTHS))]
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for i, ((width, dark), ref) in enumerate(zip(WIDTHS, refs)):
+                title = f"Board pack {i}"          # each round leaves its document archived (the last Undo), so the count grows by one
+                row = f"[...document.querySelectorAll('{sec} .docs-arch li')].find(li => li.querySelector('.tpl-name').textContent === {json.dumps(title)})"
+                with self.subTest(width=width, dark=dark):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    p.js(f"document.documentElement.dataset.theme = '{'dark' if dark else 'light'}'")
+                    p.until(f"!!document.querySelector('{sec} button[aria-label={json.dumps('Archive ' + title)}]')", "the Archive button is drawn")
+                    names = f"[...document.querySelectorAll('{sec} .docs-list .tpl-name')].map(n => n.textContent)"
+                    p.js(f"document.querySelector('{sec} button[aria-label={json.dumps('Archive ' + title)}]').click()")
+                    self.toast_is(p, f"Archived {title}. It's out of the list and the published page.")
+                    p.saved()
+                    p.until(f"!{names}.includes({json.dumps(title)})", "the archived document left the list")
+                    self.assertEqual(self.archived(ref), 1, msg="Archive sets the document's archived flag; nothing is deleted")
+                    p.js("document.querySelector('[data-undo]').click()")
+                    p.until(f"{names}.includes({json.dumps(title)})", "Undo put the document back in the list")
+                    self.assertEqual(self.archived(ref), 0, msg="after Undo the document is live again")
+                    p.clear_toast()
+
+                    p.js(f"document.querySelector('{sec} button[aria-label={json.dumps('Archive ' + title)}]').click()")
+                    p.saved()
+                    p.until(f"!!document.querySelector('{sec} .docs-arch')", "the Archived list is drawn")
+                    p.clear_toast()
+                    p.until(f"document.querySelector('{sec} .docs-arch summary').textContent === 'Archived ({i + 1})'", "the Archived count")
+                    p.js(f"document.querySelector('{sec} .docs-arch').open = true")
+                    self.assertEqual(p.js(f"{row}.querySelector('.docs-arch-text').textContent"),
+                                     f"{title} Archived · Report · 10-01-2030", msg="an archived row says its title, Archived, kind and date")
+                    self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, msg="no sideways scroll")
+                    small = p.js(f"[...document.querySelectorAll('{sec} .docs-edit button, {sec} .docs-edit summary')]"
+                                 ".map(b => b.getBoundingClientRect()).filter(r => r.height && (r.height < 24 || r.width < 24)).length")
+                    self.assertEqual(small, 0, msg="every control is at least 24 px")
+                    colour = p.js(f"getComputedStyle({row}.querySelector('.tpl-name')).color")
+                    back = p.js("getComputedStyle(document.body).backgroundColor")
+                    self.assertNotEqual(colour, back, msg="the archived row's text can be read on the page's background")
+                    p.js(f"document.querySelector('{sec} button[aria-label={json.dumps('Restore ' + title)}]').click()")
+                    self.toast_is(p, f"Restored {title}. It's back in the list.")
+                    p.saved()
+                    p.until(f"{names}.includes({json.dumps(title)}) && !{row}", "Restore put it back and it left the Archived list")
+                    self.assertEqual(self.archived(ref), 0, msg="Restore clears the archived flag")
+                    p.js("document.querySelector('[data-undo]').click()")
+                    p.until(f"!{names}.includes({json.dumps(title)}) && !!{row}", "Undo of Restore archived it again")
+                    self.assertEqual(self.archived(ref), 1, msg="Undo of Restore archives the document again")
+                    p.clear_toast()
+            self.assertEqual(self.archived(keep), 0, msg="the other document was never touched")
+            p.view()
+            p.until(f"!!document.querySelector('{sec} .docs-list')", "View drew the list")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sec} .docs-list .tpl-name')].map(n => n.textContent)"), ["Steering minutes"],
+                             msg="View lists only the live document")
+            self.assertFalse(p.js(f"!!document.querySelector('{sec} .docs-arch')"), msg="View has no Archived list")
+
+    def test_the_published_file_omits_an_archived_document(self):
+        self.add_doc("Steering minutes", "https://example.com/minutes")
+        gone = self.add_doc("Fictional archived paper", "https://example.com/archived-paper")
+        status, body = self.real_change({"project": "ABC", "kind": "documents", "op": "archive", "id": f"ABC|{gone}", "place": "report"})
+        self.assertEqual(status, 200, msg=f"archiving the document should give status 200; it gave {status} {body}")
+        out = tempfile.mkdtemp(prefix="clark-455-")
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        text = Path(publish.publish(self.store, "ABC", out, by_user=USER, now="2030-01-15", branding=EMPTY_BRANDING)["path"]).read_text(encoding="utf-8")
+        check_in_file(self, text, "Steering minutes", True, "the live document is in the published file")
+        check_in_file(self, text, "Fictional archived paper", False, "an archived document is not in the published file")
+        check_in_file(self, text, "example.com/archived-paper", False, "an archived document's link is not in the published file")
+
+
 class InView(Page):
     def test_view_draws_only_visible_documents_as_links_and_nothing_to_type_in(self):
         sec = f"[data-id={json.dumps(self.docs_section())}]"

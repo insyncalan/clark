@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from _new_page import reload_to_new_page_cdp
 from _real_server import USER, real_server  # noqa: F401  (USER: test_activity_undo reads it as tuk.USER)
 from clark import page, server as sv
 from clark.store import open_store
@@ -276,10 +277,7 @@ class UndoKey(unittest.TestCase):
             self.assertEqual(later, ["POST /api/change"], "and nothing else was sent by any method: the list stays on the page")
             self.assertEqual([p for p in posts[opened:] if "?" in p], [], "nor in the address of a request")
             self.assertEqual(self.kept(cdp, sid), before, "nothing was kept in the browser")
-            cdp.js("window.__before_reload = true", sid)
-            cdp.call("Page.reload", {}, sid)
-            self.until(cdp, sid, "window.__before_reload === undefined && document.querySelectorAll('#work tbody tr').length > 0",
-                       "the page was read again")
+            reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr').length > 0", "the page was read again")
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Edit shows the cells' pickers")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
