@@ -132,7 +132,7 @@ class Requests(unittest.TestCase):
         self.assertNotIn("reasoning", changes.ASK_SHOWN["decisions"])
         for table, field in (("actions", "latest_update"), ("decisions", "reasoning")):
             self.assertNotIn(field, changes.ASK_FIELDS[table][changes.NEW])
-            self.assertNotIn(field, changes.CHANGE_KINDS[table][changes.UPDATE])
+            self.assertNotIn(field, changes.ASK_FIELDS[table][changes.UPDATE])   # #457: the peek edits latest_update through CHANGE_KINDS, so ask clark is held out by ASK_FIELDS
         status, bad = self.change({"project": "ABC", "kind": "decisions", "op": "new", "place": "report",
                                    "values": {"decision": "x", "reasoning": "a\u202eb"}})
         self.assertEqual((status, bad["ok"]), (400, False), "the line is held to the plain-text rule")

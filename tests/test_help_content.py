@@ -392,6 +392,26 @@ class HelpMatchesThePage(unittest.TestCase):
         self.assertNotIn("Back returns", line)
         self.assertNotIn("**Back**", line)       # the page has no button called Back
 
+    def test_every_line_that_lists_milestone_states_lists_fr50s(self):
+        """#453: FR-50's states are Achieved, On track, At risk, Slipped, Overdue and Forecast; no Help line may leave one out."""
+        brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
+        self.assertIn("(Achieved, On track, At risk, Slipped, Overdue) plus Forecast", brd)
+        fr50 = {"Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast"}
+        self.assertEqual({r[0] for r in SRC["reference"]["milestone_states"]}, fr50, "the legend")
+        states = next(sec for sec in SECTIONS if sec["id"] == "milestone-states")
+        follow = next(b[1] for b in states["b"] if b[0] == "p" and b[1].startswith("A state follows the dates"))
+        edit = next(s for _, s in words() if s.startswith("**State**: "))
+        for name, line in (("Milestone states and marks", follow), ("the State chip", edit)):
+            for st in fr50:
+                self.assertIn(st, line, f"{name} names {st}")
+
+    def test_help_names_the_tile_menu_as_the_page_does(self):
+        """#453: the tile's right-click menu is headed 'Outline colour' (edit/GlanceEdit.jsx); Help calls it that everywhere."""
+        glance = (self.SRC / "edit" / "GlanceEdit.jsx").read_text(encoding="utf-8")
+        self.assertIn('<div class="lab" role="presentation">Outline colour</div>', glance)
+        self.assertNotIn("**Tile colour**", self.ALL)
+        self.assertGreaterEqual(self.ALL.count("right-click for **Outline colour**") + self.ALL.count("Right-click a tile in Edit for **Outline colour**"), 2)
+
     def test_delete_section_is_said_for_both_kinds_that_have_it(self):
         gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")
         self.assertIn('DELETABLE = ["text", "needs"]', gutter)
