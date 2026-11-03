@@ -131,7 +131,7 @@ CHOICES = {
     ("milestones", "state"): [s for s in STATES if s != "Achieved"] + ["Achieved"],   # clark: + Forecast
     ("milestones", "movement"): ["hold", "rebaseline", "recover", "escalate"],         # clark: FR-53
     ("decisions", "status"): ["Pending", "Made", "Withdrawn"],
-    ("use_cases", "status"): ["On track", "Flag", "High risk"],                          # clark
+    ("use_cases", "status"): ["On track", "Flag", "High risk", "Done"],                  # clark
     "priority": ["Urgent", "High", "Medium", "Low"],
     "type": ["Risk", "Assumption", "Issue", "Dependency"],
     "impact": ["High", "Medium", "Low"],

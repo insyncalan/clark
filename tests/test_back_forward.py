@@ -23,11 +23,12 @@ from unittest import mock
 from _demo import USER, DemoStore
 import _testpage as testpage
 import _publish_fixture as fx
+from _real_server import real_server
 
-from clark import changes, order, publish, server as sv
+from clark import order, publish, server as sv
 from clark.store import open_store
 from test_page import navigate
-from test_server import Running, _Pipe, chrome, wait
+from test_server import _Pipe, chrome, wait
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 WATCH = ("window.errs = []; window.violations = [];"
@@ -51,16 +52,13 @@ class Editor(unittest.TestCase):
             st.create("projects", {"code": "XYZ", "name": "Second Programme", "health": "On track"})
         self.demo.action(description="Agree the cut-over plan", owner="Sam Rivers")
         self.sent = []
-        real_change = changes.make_change(self.store.path, [], USER)
-        real_undo = changes.make_undo(self.store.path, [], USER)
 
         def seam(real, which):
             def call(req):
                 self.sent.append(which)
                 return real(req)
             return call
-        self.s = Running(data_for=self.store.data_for, page_html=lambda: testpage.html(),
-                         change=seam(real_change, "change"), undo=seam(real_undo, "undo"))
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
@@ -133,7 +131,7 @@ class Editor(unittest.TestCase):
     def test_back_to_another_project_saves_the_title_in_its_own_project_and_undo_stays_there(self):
         with chrome() as cdp:
             self.visit(cdp, "#dashboard&p=XYZ")
-            xyz = self.page_titles()
+            xyz_stored = self.titles("XYZ")      # #74: View (here) leaves out an empty Supporting documents; the page after Back is in Edit
             abc_before = self.titles("ABC")
             self.js("clarkPage.setProject('ABC')")
             self.until("document.getElementById('project-name').textContent === 'Example Programme' && !!document.querySelector('.sec')",
@@ -145,12 +143,12 @@ class Editor(unittest.TestCase):
             self.until("document.getElementById('project-name').textContent === 'Second Programme'", "Back went to XYZ")
             self.until("!!document.querySelector('[data-undo]')", "the message says the title was saved")
             self.assertEqual(self.titles("ABC")[0], "Where we are now", "saved in ABC, where it was typed")
-            self.assertEqual(self.titles("XYZ"), xyz, "XYZ's report is untouched")
-            self.assertEqual(self.page_titles(), xyz, "XYZ's page shows XYZ's sections, not the ones ABC's reply carried")
+            self.assertEqual(self.titles("XYZ"), xyz_stored, "XYZ's report is untouched")
+            self.assertEqual(self.page_titles(), xyz_stored, "XYZ's page (in Edit) shows XYZ's sections, not the ones ABC's reply carried")
             self.js("document.querySelector('[data-undo]').click()")
             self.until("!!document.querySelector('.toast') && document.querySelector('.toast-text').textContent === 'Undone.'", "undone")
             self.assertEqual(self.titles("ABC"), abc_before, "Undo undid it in ABC")
-            self.assertEqual(self.page_titles(), xyz, "and XYZ's page still shows XYZ's sections")
+            self.assertEqual(self.page_titles(), xyz_stored, "and XYZ's page still shows XYZ's sections")
             self.assertEqual(self.sent, ["change", "undo"])
             self.no_errors()
 
@@ -256,10 +254,10 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.sent, [], "nothing was chosen")
             self.no_errors()
 
-    def test_back_closing_a_peek_also_closes_the_add_menu_and_a_filter_box_and_keeps_the_filters(self):
+    def test_back_closing_a_peek_also_closes_the_add_menu_and_keeps_the_filters(self):
         with chrome() as cdp:
             self.visit(cdp, "#work&p=ABC")
-            self.js("document.querySelector('[data-show=all]').click()")
+            self.js("clarkPage.setFilters('mode:all')")
             self.until("location.hash.indexOf('&f=') > 0", "a filter is in the address")
             hash_ = self.js("location.hash")
             row = self.js("document.querySelector('tr[data-id]').dataset.id")
@@ -278,12 +276,8 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.js("document.querySelector('#work-note').textContent"), "", "nothing in it was chosen")
             self.js("history.forward()")
             self.until(f"location.hash === {json.dumps(peek_hash)}", "Forward reopened the peek")
-            self.js("document.querySelector('[data-fb]').click()")
-            self.until("!!document.querySelector('.fbox')", "a filter's box opened")
-            self.assertEqual(self.js("history.length"), n + 1, "opening a filter's box adds no entry")
             self.js("history.back()")
             self.until("clarkPage.peek() === null", "Back closed the peek")
-            self.until("!document.querySelector('.fbox')", "and the filter's box")
             self.assertEqual(self.js("location.hash"), hash_, "with the filters as they were")
             self.assertEqual(self.tab(), "work")
             self.assertEqual(self.sent, [])

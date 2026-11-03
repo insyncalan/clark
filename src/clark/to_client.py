@@ -373,7 +373,7 @@ def check_copy(data, *, markers, folder=None):
     if len(data) > publish.MAX_BYTES:
         return ["a file over the size limit"]
     try:
-        text = data.decode("utf-8")
+        text = data.decode("latin-1" if data.startswith(b"%PDF-") else "utf-8")      # a PDF is looked at byte for byte too
     except UnicodeDecodeError:
         return ["a file clark did not write as text"]
     found = list(publish.outside_addresses(text))
@@ -549,7 +549,7 @@ def folder_unchanged(fs, folder, guard):
 
 
 def copy_to_client(fs, folder, name, data, *, project, at, markers, replaces=False, confirmed=False, asked=None,
-                   local_sha256=None, guard=None):
+                   local_sha256=None, guard=None, extra_problems=None):
     """Put `data` (the finished file's bytes) in `folder` as `name`, read it back and compare SHA-256.
     Nothing is overwritten unless `replaces` is True and `confirmed` is True. A name that is taken when `replaces` is False
     is refused, and that holds at the write itself, not only at the listing: the file is linked into place, so one that
@@ -560,13 +560,18 @@ def copy_to_client(fs, folder, name, data, *, project, at, markers, replaces=Fal
     be the Local file's. `asked` is the name first wanted when `name` is a numbered or renamed one (for the words).
     `guard` ({data_dir, backups_dir, identity}, from the check that chose `folder`) makes the folder looked at again just
     before the write: a folder that has become a link, or clark's own folder, or another folder than the one checked, is
-    refused and nothing is written."""
+    refused and nothing is written. `extra_problems` (a function of the bytes giving a list of problems) adds to check_copy, for a
+    kind of file that is not text (the PDF: publish_pdf.problems); it runs at the same two places."""
     digest = sha256_of(data)
     folder = Path(folder)
     dest = folder / name
+
+    def check(d):
+        return check_copy(d, folder=folder, markers=markers) + (list(extra_problems(d)) if extra_problems else [])
+
     if local_sha256 and local_sha256 != digest:
         return ClientResult(False, "refused", MESSAGES["not_same_file"])
-    problems = check_copy(data, folder=folder, markers=markers)
+    problems = check(data)
     if problems:
         return ClientResult(False, "refused", MESSAGES["held_back"].format(what=held_words(problems)))
     try:
@@ -608,7 +613,7 @@ def copy_to_client(fs, folder, name, data, *, project, at, markers, replaces=Fal
         problem = None                 # what is wrong with the copy as it now stands, in words for a sentence
         try:
             back = fs.read_bytes(dest)
-            if sha256_of(back) != digest or check_copy(back, folder=folder, markers=markers):
+            if sha256_of(back) != digest or check(back):
                 problem = "did not match the published file"
         except OSError:
             back, problem = None, "could not be read back to check it"
@@ -768,6 +773,16 @@ def send_to_client(fs, *, saved_folder, data, project, at, week_ending, today, d
 
 
 # ===== The request =====
+def section_style_refusal(body):
+    """The words that refuse the request's `section_style` (named, with the four there are), or None when it is one of them or
+    absent. Publish (validate_request) and preview both ask this, so they refuse a junk style the same way."""
+    style = body.get("section_style")
+    if style is None or style in publish.STYLES:
+        return None
+    named = style if isinstance(style, str) else "that value"
+    return MESSAGES["unknown_section_style"].format(value=named, allowed=", ".join(publish.STYLES))
+
+
 def validate_request(body, saved_client_folder):
     """The publish request's body, checked. Returns {status: 200, to_client} or {status: 400, message}. Only `project`,
     `to_client` (exactly true or false when given), `on_clash`, `new_name`, `confirmed` and `section_style` (one of the four section
@@ -789,9 +804,9 @@ def validate_request(body, saved_client_folder):
     confirmed = body.get("confirmed") is True
     if "project" in body and not isinstance(body["project"], str):
         return {"status": 400, "message": MESSAGES["bad_project"]}
-    if body.get("section_style") is not None and body["section_style"] not in publish.STYLES:
-        named = body["section_style"] if isinstance(body["section_style"], str) else "that value"
-        return {"status": 400, "message": MESSAGES["unknown_section_style"].format(value=named, allowed=", ".join(publish.STYLES))}
+    refused = section_style_refusal(body)
+    if refused:
+        return {"status": 400, "message": refused}
     if body.get("on_clash") is not None and body["on_clash"] not in CHOICES:
         return {"status": 400, "message": MESSAGES["unknown_choice"]}
     if body.get("new_name") is not None and not isinstance(body["new_name"], str):

@@ -5,8 +5,8 @@
 import { isOpen, plural } from "../workItems.js";
 import { recall, remember } from "./remember.js";
 
-export const STATUS_WORDS = ["On track", "Flag", "High risk"];                // the schema's three, in the order the Status filter lists them
-const WORST_FIRST = ["High risk", "Flag", "On track"];
+export const STATUS_WORDS = ["On track", "Flag", "High risk", "Done"];        // the schema's four, in the order the Status filter lists them
+const WORST_FIRST = ["High risk", "Flag", "On track", "Done"];                 // Done is finished: it sorts last
 export const ON_WORDS = "On the dashboard";
 export const OFF_WORDS = "Not on the dashboard";
 export const SORTS = [["ref", "Reference"], ["status", "Status"], ["open", "Open work items"]];

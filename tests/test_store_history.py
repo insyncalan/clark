@@ -82,6 +82,33 @@ class HistoryMany(unittest.TestCase):
         finally:
             demo.close()
 
+    def test_hundreds_of_ids_with_no_hyphen_read_as_history_reads_them(self):
+        """An id with no hyphen has no code to match by, so each is asked the three ways history() asks; many of them are read in
+        bounded queries (a very long OR is refused by SQLite) and give what history() gives, mixed with hyphenated ids."""
+        from clark import history
+        demo = DemoStore()
+        try:
+            con = demo.store.con
+            bare = ["plain%d" % n for n in range(450)]
+            keys = {b: b for b in bare}
+            keys["plain7"] = "plain7|plain8|x"                     # a joined key that names two of them
+            for n, (b, key) in enumerate(keys.items()):
+                cur = con.execute("INSERT INTO change_log (tbl, item_id, field, new_value, op, via) "
+                                  "VALUES ('actions', ?, 'owner', 'Sam', 'update', 'test')", (key,))
+                con.execute("INSERT INTO item_events (at, item_id, change, kind, route, actor) "
+                            "VALUES (?, ?, ?, 'change', 'dashboard', 'you')", ("2030-01-01 00:%02d:00" % (n % 60), key, cur.lastrowid))
+            con.commit()
+            a1 = demo.action()
+            demo.update("actions", a1, {"owner": "Sam Example"})
+            ids = bare + [a1, "ABC-A-999"]
+            many = history.history_many(con, ids)
+            self.assertEqual(set(many), set(ids))
+            for i in ids:
+                self.assertEqual(many[i], history.history(con, i), i)
+            self.assertEqual(len(many["plain0"]), 1)
+        finally:
+            demo.close()
+
 
 class HistoryManyIds(unittest.TestCase):
     """#252: history_many finds an item's rows by the ID alone, not by a project code cut off at the first hyphen."""
@@ -113,7 +140,7 @@ class HistoryManyIds(unittest.TestCase):
             demo.close()
 
     def test_a_thousand_ids_without_a_hyphen_do_not_break_the_query(self):
-        """#252 (Hawkeye): each bare ID used to add three OR terms and three parameters; about 400 hit SQLite's limits."""
+        """#252: each bare ID used to add three OR terms and three parameters; about 400 hit SQLite's limits."""
         from clark import history
         demo = DemoStore()
         try:
@@ -153,7 +180,7 @@ class HistoryManyIds(unittest.TestCase):
         return s
 
     def test_an_undone_step_reads_the_same_on_the_chunked_path(self):
-        """#252 (Hawkeye): undone_by and in_force come out the same as history()'s when the IDs go in several chunks."""
+        """#252: undone_by and in_force come out the same as history()'s when the IDs go in several chunks."""
         from clark import history
         demo = DemoStore()
         try:
@@ -168,7 +195,7 @@ class HistoryManyIds(unittest.TestCase):
             demo.close()
 
     def test_exactly_one_chunk_and_one_over(self):
-        """#252 (Hawkeye): 100 hyphenless IDs fill one chunk; 101 spill into a second. Both read the same as history()."""
+        """#252: 100 hyphenless IDs fill one chunk; 101 spill into a second. Both read the same as history()."""
         from clark import history
         demo = DemoStore()
         try:
@@ -187,7 +214,7 @@ class HistoryManyIds(unittest.TestCase):
             demo.close()
 
     def test_another_projects_id_gets_nothing_and_takes_nothing(self):
-        """#252 (Hawkeye): an ID from a project that has no rows reads empty, and the project that has them is unchanged."""
+        """#252: an ID from a project that has no rows reads empty, and the project that has them is unchanged."""
         from clark import history
         demo = DemoStore()
         try:
@@ -203,7 +230,7 @@ class HistoryManyIds(unittest.TestCase):
             demo.close()
 
     def test_many_project_codes_do_not_break_the_query(self):
-        """#252 (Hawkeye): the project codes were unbounded in the first chunk; 600 of them hit SQLite's limits."""
+        """#252: the project codes were unbounded in the first chunk; 600 of them hit SQLite's limits."""
         from clark import history
         demo = DemoStore()
         try:

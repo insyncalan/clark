@@ -16,6 +16,7 @@ import re
 from dataclasses import dataclass
 
 from clark import publish
+from clark import ask
 from clark.ask import BUDGET, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
@@ -43,10 +44,12 @@ _TAG = re.compile(r"<[^>]*>")
 @dataclass(frozen=True)
 class ProjectData:
     """What the open project's data gives a question: the chosen `passages`, the `facts` the claims check compares against
-    ({id: {"title", "owner"}}, published rows only), and `left_out`, how many passages did not fit the budget."""
+    ({id: {"title", "owner"}}, published rows only), `left_out`, how many passages did not fit the budget, and `secret`, how many
+    lines were left out because they looked like a password or a key (shown by the same note as a passage left out for that)."""
     passages: tuple
     facts: dict
     left_out: int
+    secret: int = 0
 
 
 def plain(value):
@@ -71,7 +74,7 @@ def row_line(kind, row):
     """One row as one line: its ID, its title, then the fields the report shows that have a value."""
     head = " ".join(x for x in (str(row.get("id") or ""), plain(row.get(TITLE[kind]) or "")) if x)
     parts = [head] + [p for p in (_field(f, row.get(f)) for f in SHOWN[kind]) if p]
-    return " | ".join(parts)[:MAX_PASSAGE]
+    return " | ".join(parts)
 
 
 def project_lines(project):
@@ -98,6 +101,13 @@ def _cut(label, lines):
     if run:
         out.append(Passage(label, "\n".join(run)))
     return out
+
+
+def _cut_screened(label, lines):
+    """`_cut`, but a line too long for one passage is screened whole first: a password across the cut would be too short to match
+    in either half. A line that looks like a secret is left out. Returns (passages, left_out_count)."""
+    keep = [x for x in lines if len(x) <= MAX_PASSAGE or not ask._secret(x)]
+    return _cut(label, keep), len(lines) - len(keep)
 
 
 def _score(words, ids, passage):
@@ -135,8 +145,10 @@ def project_data(store, code, question="", budget=BUDGET):
     """The open project's data for one question, from what the published file would carry (publish.select). Raises
     publish.PublishError (plain words) for a code that isn't a project."""
     selected = publish.select(publish.read_inputs(store, code))["data"]
-    passages = _cut(LABELS["project"], project_lines(selected.get("project") or {}))
+    passages, secret = _cut_screened(LABELS["project"], project_lines(selected.get("project") or {}))
     for kind in KIND_ORDER:
-        passages += _cut(LABELS[kind], [row_line(kind, r) for r in selected.get(kind) or ()])
+        more, n = _cut_screened(LABELS[kind], [row_line(kind, r) for r in selected.get(kind) or ()])
+        passages += more
+        secret += n
     chosen, left = choose(passages, question, budget)
-    return ProjectData(chosen, facts_of(selected), left)
+    return ProjectData(chosen, facts_of(selected), left, secret)

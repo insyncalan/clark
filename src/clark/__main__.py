@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, demo_route, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, demo_route, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -426,6 +426,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
         LOG.info("started on port %d", port)
+        try:
+            page.ensure_built()          # #495: a source checkout builds its pages now, before the first request
+        except page.PageError as e:
+            print(str(e), file=err or sys.stderr)
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
                      err=err,
@@ -444,6 +448,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
                      activity=activity_read.make_read(store.path, store.data_for),
+                     past=past_reports.PastReports(store.path),
                      brand_picture=page.brand_picture,
                      **handlers)
         LOG.info("stopped with code %d", done)
