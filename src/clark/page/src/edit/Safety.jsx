@@ -47,7 +47,7 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
   const list = state.list;
   return (
     <section class="frame setting" id="safety">
-      <h2>{L.TITLE}</h2>
+      <h2 id="safety-h" tabIndex={-1}>{L.TITLE}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted">{L.LOADING}</p> : null}
       {state.phase === "failed" ? <p class="error" role="alert">{state.message} <button type="button" class="btn sm" data-safety-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}

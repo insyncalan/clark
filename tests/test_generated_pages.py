@@ -21,6 +21,37 @@ class Ignored(unittest.TestCase):
             self.assertEqual(subprocess.run(["git", "-C", str(ROOT), "ls-files", rel], capture_output=True, text=True).stdout, "", rel)
 
 
+class CheckWording(unittest.TestCase):
+    """build_page --check names a missing page as missing and keeps "out of date" for one that exists and differs."""
+    def run_check(self, existing):
+        import contextlib
+        import io
+        import build_page
+        tmp = Path(tempfile.mkdtemp(prefix="check "))
+        self.addCleanup(__import__("shutil").rmtree, tmp, True)
+        outs = (tmp / "page.html", tmp / "page-view.html")
+        for f in outs:
+            if existing:
+                f.write_text("old", encoding="utf-8")
+        made = ((outs[0], "new"), (outs[1], "new"))
+        out = io.StringIO()
+        with mock.patch.object(build_page, "pages", return_value=made), contextlib.redirect_stdout(out):
+            code = build_page.main(["--check"])
+        return code, out.getvalue()
+
+    def test_a_missing_page_is_called_missing(self):
+        code, text = self.run_check(existing=False)
+        self.assertEqual(code, 1)
+        self.assertIn("src/clark/page/page.html is missing: run python3 dev/tools/build_page.py", text)
+        self.assertNotIn("out of date", text)
+
+    def test_a_page_that_differs_is_called_out_of_date(self):
+        code, text = self.run_check(existing=True)
+        self.assertEqual(code, 1)
+        self.assertIn("src/clark/page/page-view.html is out of date: run python3 dev/tools/build_page.py", text)
+        self.assertNotIn("is missing", text)
+
+
 class EnsureBuilt(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="pages "))
