@@ -15,7 +15,7 @@ more) are read as UTF-8. PDF is NOT supported yet: it is counted ("not supported
 WHAT COMES BACK. `FolderData`: the chosen passages (each labelled with a name inside its folder, never a path), `left_out` (how
 many did not fit the budget), `safety` (how many files were left out for safety, with the listing's own count), `pdf` and
 `other` (files of a type not read), `stopped` (the listing was cut short) and `secret_labels` (#215: files left out whole because
-the text looks like it holds a secret, screened by `secret_screen` before any of it becomes a passage; counted in `safety` too). No path, no file text and no reason that holds a
+the text looks like a password or a key, screened by `secret_screen` before any of it becomes a passage; counted in `safety` too). No path, no file text and no reason that holds a
 path is returned or logged here.
 """
 import codecs
@@ -44,7 +44,7 @@ class FolderData:
     pdf: int = 0               # PDFs, not supported yet
     other: int = 0             # files of a type that is not read
     stopped: bool = False      # the listing was cut short by a cap
-    secret_labels: tuple = ()  # labels of files left out because they look like they hold a secret (already counted in `safety`)
+    secret_labels: tuple = ()  # labels of files left out because they look like a password or a key (already counted in `safety`)
 
 
 def _lines_of_word(data, name):

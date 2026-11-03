@@ -9,9 +9,10 @@
 // here deletes or archives. The rules are in ./bulkLogic.js; the pickers are the cells' own (./cells/).
 import { signal } from "@preact/signals";
 import { useLayoutEffect, useRef } from "preact/hooks";
-import { data, item, mode, view, fromFile } from "../stores/report.js";
+import { data, item, view, fromFile } from "../stores/report.js";
 import { changeBulk, say } from "../stores/changes.js";
 import { workSelection as sel } from "../stores/selection.js";
+import { handing } from "../stores/handover.js";
 import { itemRows, contextFor, announce } from "../stores/work.js";
 import { todayIso } from "../workItems.js";
 import { people } from "./itemEdit.js";
@@ -25,7 +26,6 @@ import * as B from "./bulkLogic.js";
 // What is open: null, or {what: "menu" | "pick" | "ask", ids, at: an element or {x, y}, control, place, question, yes}.
 export const bulkOpen = signal(null);
 
-const editing = () => mode.value === "edit" && !fromFile.value;
 const rowsOf = (ids) => { const all = new Map(itemRows.value.map((r) => [r.id, r])); return ids.map((id) => all.get(id)).filter(Boolean); };
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
 const OVERLAY = ".cpop, .ddmenu, .dpick, .fbox, [role='dialog']:not([data-peek]), [role='alertdialog'], dialog[open]";   // open over the list (the peek is not one)
@@ -71,7 +71,8 @@ export function ask(question, yes, { ids = null, from = null } = {}) { bulkOpen.
 
 /** Open a control for `ids`: Close and Reopen act at once, the others open their picker at `at`. */
 export function openControl(control, ids, at, place = "bulk", from = null) {
-  const sum = B.summary(rowsOf(ids)), why = B.keyWhy(control, sum, editing());
+  if (fromFile.value) return;                                       // a published file has no selection to change
+  const sum = B.summary(rowsOf(ids)), why = B.keyWhy(control, sum);
   if (why) { say("note", why); announce.value = why; return; }
   const c = B.CONTROLS.find((x) => x.id === control);
   if (!c.menu) { bulkOpen.value = null; runBulk(sum.table, sum.ids, control, null, { place, from }); return; }
@@ -91,7 +92,7 @@ function close(back = true) {
 
 // ── The bar's buttons (the SelectBar draws "N selected", Select all N matching and the X) ──
 export function BulkActions() {
-  const ids = sel.ids.value, sum = B.summary(rowsOf(ids)), list = B.controls(sum, { editing: editing() });
+  const ids = sel.ids.value, sum = B.summary(rowsOf(ids)), list = B.controls(sum);
   const why = list.length && list.every((c) => !c.on) ? list[0].why : "";
   return (
     <span class="sb-acts" role="group" aria-label={`Change ${B.itemsWords(sum.n)}`}>
@@ -116,7 +117,7 @@ function anchorOf(at) {
 
 function ItemsMenu({ open }) {
   const list = useRef(null), anchor = anchorOf(open.at);
-  const sum = B.summary(rowsOf(open.ids)), ctl = B.controls(sum, { editing: editing() });
+  const sum = B.summary(rowsOf(open.ids)), ctl = B.controls(sum);
   const items = () => Array.from(list.current ? list.current.querySelectorAll("[role=menuitem]") : []);
   useLayoutEffect(() => { const first = items().find((b) => b.getAttribute("aria-disabled") !== "true"); if (first) first.focus({ preventScroll: true }); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const copy = () => {
@@ -207,14 +208,14 @@ export function installBulk() {
   // typed keeps the browser's own menu.
   document.addEventListener("contextmenu", (e) => {
     const el = focusedItem(e.target);
-    if (!el || view.value !== "work" || fromFile.value || e.target.isContentEditable || (e.target.closest && e.target.closest("a, input, textarea, select"))) return;
+    if (!el || handing() || view.value !== "work" || fromFile.value || e.target.isContentEditable || (e.target.closest && e.target.closest("a, input, textarea, select"))) return;
     e.preventDefault();
     const id = el.dataset.id;
     if (!sel.has(id)) sel.click(id, {}, [id]);
     openMenu(targetIds(id), { x: e.clientX, y: e.clientY }, el.matches("article") ? "board" : "menu", id);
   });
   window.addEventListener("keydown", (e) => {
-    if (e.defaultPrevented || e.isComposing || view.value !== "work" || fromFile.value || bulkOpen.value) return;
+    if (e.defaultPrevented || e.isComposing || view.value !== "work" || fromFile.value || bulkOpen.value || handing()) return;   // #199: not while handing over
     const t = e.target, row = focusedItem(t), inPeek = !!item.value && !!(t && t.closest && t.closest("[data-peek]"));
     // Shift+F10 or the Menu key: the same menu, under the row or card.
     if ((e.key === "F10" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) || e.key === "ContextMenu") {
@@ -225,7 +226,7 @@ export function installBulk() {
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat || !e.key || e.key.length !== 1) return;
-    if (!/^[ospct]$/i.test(e.key) || !singleKeys.value || !editing()) return;
+    if (!/^[ospct]$/i.test(e.key) || !singleKeys.value) return;
     if (!row && !inPeek) return;                                  // only the table, the board or the peek
     if (busy(t) || document.querySelector(OVERLAY)) return;
     const ids = inPeek ? [item.value] : targetIds(row.dataset.id);

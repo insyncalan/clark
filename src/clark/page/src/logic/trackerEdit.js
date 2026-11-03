@@ -2,13 +2,17 @@
 // holds a note, the sentences that say what is wrong with a line) and the checks that use them. It lives apart from logic/tracker.js on
 // purpose: only Edit imports this file, so none of these words is in View or the published file (#451, "nothing internal"). A test
 // keeps them out of page-view.html.
-import { COUNT_MAX, HEALTH, COLUMNS, MAX_GROUPS, MAX_LINES, NAME_MAX, NO_MAX, NOTE_MAX, STATUSES, TEXT_MAX, WHOLE, YEARS, WORDS as VIEW_WORDS, isoOf, pct } from "./tracker.js";
+import { COUNT_MAX, HEALTH, COLUMNS, MAX_GROUPS, MAX_LINES, NAME_MAX, NO_MAX, NOTE_MAX, STATUSES, TEXT_MAX, WHOLE, WORDS as VIEW_WORDS, isoOf, pct } from "./tracker.js";
 
 export const EDIT_WORDS = {
   overall: "Overall",
   health: "Health",
   note: "A line about it",
   group: "Group name",
+  noLinesEdit: "No lines yet. Press Add a line.",
+  noneEdit: "Nothing is being tracked yet. Press Add a group to start.",
+  notPublished: "A tracker with no lines is not published. Add a line to show it.",
+  weightHint: "Weight is how much of the whole plan the line is worth. Weight, Planned and Achieved can each add up to 100% at most across all the lines.",
   addLine: "Add a line",
   addGroup: "Add a group",
   add: "Add",
@@ -22,30 +26,33 @@ export const EDIT_WORDS = {
   removeGroup: "Remove group",
   columns: "Show these columns",
   datePlaceholder: "DD-MM-YYYY",
-  percentPlaceholder: "0 to 100",
+  percentPlaceholder: "Part of 100",
   noHealth: "Not set",
   added: "Line added.",
   saved: "Saved.",
   removed: "Line removed.",
   moved: "Moved.",
   groupAdded: "Group added.",
-  groupRemoved: "Group removed.",
+  groupRemoved: "Group and its lines removed.",
   fullLines: `A tracker can have ${MAX_LINES} lines in all. Remove one to add another.`,
   fullGroups: `A tracker can have ${MAX_GROUPS} groups at most. Remove one to add another.`,
 };
 export const PROBLEMS = {
   text: "Describe each line.",
-  textLong: `A line description can be ${TEXT_MAX} characters at most.`,
-  noLong: `A line number can be ${NO_MAX} characters at most.`,
-  percent: "A percentage must be a number from 0 to 100.",
-  date: `A date must be a real day written DD-MM-YYYY, between ${YEARS[0]} and ${YEARS[1]}, or empty.`,
+  // The words below that the store also says (text, textLong, noLong, percent, order, status, count, name, nameLong) are the store's own
+  // (clark/section_bodies.py, guarded) and tests/test_tracker_logic.py holds the page to them; the page's fuller wording for the same
+  // refusals is in stores/report.js (CHANGE_KNOWN).
+  textLong: `A line description can be ${TEXT_MAX} characters at most. Shorten it and try again.`,
+  noLong: `A line number can be ${NO_MAX} characters at most. Shorten it and try again.`,
+  percent: "Type a percentage from 0 to 100, with one decimal at most.",
+  date: "That date isn't right. Type it as DD-MM-YYYY, or leave it empty.",
   order: "A line can't end before it starts.",
   status: "Choose Planned, In progress, Completed or Late.",
   count: `A count must be a whole number from 0 to ${COUNT_MAX}, or empty.`,
   name: "Give each group a name.",
-  nameLong: `A group name can be ${NAME_MAX} characters at most.`,
-  total: "The lines' weight, planned and achieved figures can each add up to 100% at most.",
-  noteLong: `The note can be ${NOTE_MAX} characters at most.`,
+  nameLong: `A group name can be ${NAME_MAX} characters at most. Shorten it and try again.`,
+  total: "Weight, Planned or Achieved adds up to more than 100% across all the lines. Lower one of the figures and try again.",
+  noteLong: `A line about it can be ${NOTE_MAX} characters at most. Shorten it and try again.`,
 };
 // Every word, the reader's and the author's, as Edit uses them: `WORDS.problems` is the sentences.
 export const WORDS = { ...VIEW_WORDS, ...EDIT_WORDS, problems: PROBLEMS };

@@ -37,7 +37,7 @@ export const healthWord = (h) => (HEALTH.find((x) => x[0] === h) || ["", ""])[1]
 // each word: no jargon, and no sentence that starts with the product name.
 export const WORDS = {
   title: "Progress tracker",
-  actual: "Actual",
+  actual: "Achieved",
   actualOf: "of the whole project",
   plannedBy: "by",
   healthTile: "Project health",
@@ -46,7 +46,7 @@ export const WORDS = {
   planned: "Planned",
   achieved: "Achieved",
   weight: "Weight",
-  no: "No.",
+  no: "Number",
   what: "Description",
   start: "Start",
   end: "End",

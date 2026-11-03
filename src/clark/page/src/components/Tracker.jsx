@@ -20,7 +20,7 @@ export const StatusPill = ({ status }) => <span class={`pill ${STATUS_PILL[statu
 
 // "▼ 5" and, for a screen reader, "5 points behind plan"; nothing when the line is not behind.
 export const Behind = ({ behind }) => (behind > 0
-  ? <span class="tr-behind"><span aria-hidden="true">▼ {fmt(behind)}</span><span class="sr">{behindWords(behind)}</span></span>
+  ? <span class="tr-behind" title={behindWords(behind)}><span aria-hidden="true">▼ {fmt(behind)}</span>{" "}<span class="sr">{behindWords(behind)}</span></span>
   : null);
 
 // The Overall part, as the approved weekly-snapshot design draws it (#451): three tiles (Project health, Actual "of the whole project",
@@ -38,6 +38,7 @@ export function Overall({ overall }) {
       <div class="tr-tiles">
         <div class="tr-tile tr-tile-health" data-tr-tile>
           <span class="tr-k">{WORDS.healthTile}</span>
+          {" "}
           <span class="tr-hrow">
             {health ? <span class={`pill ${HEALTH_PILL[health]} tr-pill`} data-tr-health>{healthWord(health)}</span> : <span class="tr-v num">{DASH}</span>}
             {" "}
@@ -52,12 +53,14 @@ export function Overall({ overall }) {
         </div>
         <div class="tr-tile" data-tr-tile>
           <span class="tr-k">{WORDS.actual}</span>
+          {" "}
           <span class="tr-v num" data-tr-actual>{pct(actual)}</span>
           {" "}
           <span class="tr-d">{WORDS.actualOf}</span>
         </div>
         <div class="tr-tile" data-tr-tile>
           <span class="tr-k">{WORDS.planned}</span>
+          {" "}
           <span class="tr-v num" data-tr-planned>{pct(planned)}</span>
           {" "}
           {planned !== null ? <span class="tr-d num">{WORDS.plannedBy} {showDate(by)}</span> : null}
@@ -100,7 +103,7 @@ export function useNarrow() {
 // How many columns a Full table has: no, description, status, weight, planned, achieved (and, when wide, start, end and the counts shown), then a tools column in Edit.
 export const colCount = (narrow, columns, tools) => (narrow ? 6 : 8 + columns.length) + (tools ? 1 : 0);
 
-export function GroupFull({ group, columns: shown, extraHead, extraCell, below, foot }) {
+export function GroupFull({ group, columns: shown, extraHead, extraCell, below, foot, empty = WORDS.noLines }) {
   const narrow = useNarrow();
   const columns = narrow ? [] : shown;
   const date = (cell) => (narrow ? null : cell);
@@ -132,7 +135,7 @@ export function GroupFull({ group, columns: shown, extraHead, extraCell, below, 
           )
         ))}
         {foot || null}
-        {group.none && !foot ? <tr class="tr-none"><td colSpan={colCount(narrow, columns, !!extraHead)} class="quiet" data-tr-nolines>{WORDS.noLines}</td></tr> : null}
+        {group.none && !foot ? <tr class="tr-none"><td colSpan={colCount(narrow, columns, !!extraHead)} class="quiet" data-tr-nolines>{empty}</td></tr> : null}
         <tr class="tr-total" data-tr-total>
           <th scope="row" colSpan={narrow ? 3 : 5} class="t-what">{WORDS.total}</th>
           <td class="t-n num">{fmt(group.weight)}%</td><td class="t-n num">{fmt(group.planned)}%</td><td class="t-n num">{fmt(group.achieved)}%<Behind behind={group.behind} /></td>
@@ -144,11 +147,11 @@ export function GroupFull({ group, columns: shown, extraHead, extraCell, below, 
   );
 }
 
-export function GroupHalf({ group, extraCell, below, foot }) {
+export function GroupHalf({ group, extraCell, below, foot, empty = WORDS.noLines }) {
   return (
     <section class="tr-half" data-tr-group>
       <h3 class="tr-cap">{group.name}<span class="tr-sub num"> {fmt(group.planned)}% {WORDS.planned.toLowerCase()}, {fmt(group.achieved)}% {WORDS.achieved.toLowerCase()}<Behind behind={group.behind} /></span></h3>
-      {group.none && !foot ? <p class="quiet" data-tr-nolines>{WORDS.noLines}</p> : (
+      {group.none && !foot ? <p class="quiet" data-tr-nolines>{empty}</p> : (
         <ul class="tr-list">
           {group.lines.map((l, i) => (
             below && below(i) ? below(i) : (

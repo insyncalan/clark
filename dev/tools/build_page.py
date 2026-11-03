@@ -336,15 +336,18 @@ def main(argv):
         print(f"build refused: {e}", file=sys.stderr)
         return 1
     if "--check" in argv:
-        stale = [f for f, text in made if (f.read_text(encoding="utf-8") if f.exists() else "") != text]
+        stale = [f for f, text in made if not f.exists() or f.read_text(encoding="utf-8") != text]
         for f in stale:
-            print(f"src/clark/page/{f.name} is out of date: run python3 dev/tools/build_page.py")
+            what = "is out of date" if f.exists() else "is missing"      # a fresh clone has no built page: say so, not "out of date"
+            print(f"src/clark/page/{f.name} {what}: run python3 dev/tools/build_page.py")
         if stale:
             return 1
         print("page.html and page-view.html are up to date")
         return 0
     for f, text in made:
-        f.write_bytes(text.encode("utf-8"))      # bytes, so no newline translation and it works on Python 3.9
+        tmp = f.with_name(f.name + ".tmp")      # written beside the page and swapped in whole: a reader never sees half a page
+        tmp.write_bytes(text.encode("utf-8"))      # bytes, so no newline translation and it works on Python 3.9
+        os.replace(tmp, f)
         print(f"wrote {f.relative_to(ROOT)} ({len(text):,} bytes)")
     return 0
 

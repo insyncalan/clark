@@ -23,8 +23,10 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # says Delete; 'Delete section' is the label the page has today (edit/Gutter.jsx), kept as it is for the ruling.
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
-# 'Add a row' is the button of the Needs from you section (edit/NeedsEdit.jsx), which the prototype does not have; read against the page's own words (logic/needs.js).
-CHECKED_BY_HAND = set(['Add a group', 'Add a row', 'Archive use case', '+ Add use case', 'How do I…', 'Install clark X.Y.Z', 'Movement › What changed', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'See all work items', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', '⋯'])
+# 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
+# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) and 'Shown to client' (the tag on a work item row, components/WorkItems.jsx) are read on the page itself; the prototype words them differently
+# 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -67,8 +69,8 @@ class Shape(unittest.TestCase):
         """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (29, 30))   # 29 tasks since the Progress tracker one (#189)
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 31))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (32, 34))
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):
@@ -206,6 +208,15 @@ class Words(unittest.TestCase):
         self.assertEqual(sorted(missing - CHECKED_BY_HAND), [], "bold names that the prototype does not have: add them there, or reword Help")
         self.assertEqual(sorted(CHECKED_BY_HAND - missing), [], "no longer needed in the hand-checked list: take it out")
 
+    def test_help_names_new_project_only_if_the_page_builds_it(self):
+        """#527: Help may not send a reader to a "New project" menu item that the page does not have."""
+        src = HELP.parent
+        built = any("New project" in f.read_text(encoding="utf-8", errors="ignore")
+                    for f in src.rglob("*") if f.is_file() and f.suffix in (".js", ".jsx", ".ts", ".tsx") and HELP not in f.parents)
+        help_text = "\n".join(f.read_text(encoding="utf-8") for f in HELP.glob("*.json"))
+        if not built:
+            self.assertNotIn("New project", help_text, "Help names New project but no code under src/clark/page/src builds it")
+
 
 class Held(unittest.TestCase):
     def test_taken_out_text_is_not_in_the_shipped_source(self):
@@ -234,7 +245,7 @@ class WordingRound(unittest.TestCase):
     def test_the_panel_header_does_not_say_question_mark_comes_back_from_help(self):       # HIGH
         jsx = (HELP / "Help.jsx").read_text(encoding="utf-8")
         self.assertNotIn("to come back", jsx)
-        self.assertRegex(jsx, r"to open Help\. Esc or Close takes you back")
+        self.assertRegex(jsx, r"to open Help; Esc or Back takes you where you were")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("by 12-12-2026", self.ALL)
@@ -247,13 +258,31 @@ class WordingRound(unittest.TestCase):
 
     def test_no_leftover_from_the_prototype(self):                                           # MEDIUM
         self.assertNotIn("The real clark", self.ALL)
-        self.assertIn("The log keeps one file a day", self.ALL)
+        self.assertIn("Each day has its own file, 5 MB at most", self.ALL)      # the log's own rule (log.py MAX_BYTES, KEEP_DAYS)
 
     def test_published_line_is_plainer(self):                                                # LOW
         self.assertIn("“Published” on its date, to the client (or locally)", self.ALL)
 
     def test_no_results_does_not_offer_ask_clark_yet(self):                                  # MEDIUM
         self.assertNotRegex(re.search(r"export const noResults.*?\}\);", LOGIC, re.S).group(0), r'hint: "[^"]*ask clark')
+
+class UseCaseStatuses(unittest.TestCase):
+    """#412: Help names the four use case statuses the store allows, in its order, in both places it lists them."""
+
+    def test_help_names_the_stores_four_statuses(self):
+        from clark import store
+        allowed = list(store.ALLOWED[("use_cases", "status")])
+        self.assertEqual(allowed, ["On track", "Flag", "High risk", "Done"])
+        lines = [t for _, t in texts(SRC) if "click the status word to choose" in t or t.startswith("Use case statuses:")]
+        self.assertEqual(len(lines), 2, lines)
+        for line in lines:
+            with self.subTest(line=line):
+                self.assertEqual(re.findall(r"\*\*([^*]+)\*\*", line.split("choose", 1)[-1]), allowed)
+
+    def test_the_colours_help_names_are_the_pages(self):
+        (line,) = [t for _, t in texts(SRC) if t.startswith("Use case statuses:")]
+        self.assertEqual(re.findall(r"\*\*[^*]+\*\* \(([a-z]+)\)", line), ["green", "amber", "red", "grey"])
+
 
 class PublishFileName(unittest.TestCase):
     def test_example_file_name_is_what_publish_really_names_the_file(self):
@@ -283,10 +312,11 @@ class LowWordsRound(unittest.TestCase):
 
     def test_the_report_has_no_look_to_choose(self):
         self.assertNotIn("one look", self.ALL)
-        self.assertIn("The report is the cover, then the sections in cards", self.ALL)
+        self.assertIn("The report is the cover, then the sections, with the contents at the right edge", self.ALL)
+        self.assertNotIn("sections in cards", self.ALL)       # the One card style is not cards
 
     def test_no_line_starts_with_ask_clark(self):
-        self.assertIn("The check in ask clark warns you when", self.ALL)
+        self.assertNotIn("The check in ask clark warns you when", self.ALL)       # ask clark has no such check on the page: the line was taken out of the health steps
         self.assertFalse([s for _, s in words() if re.match(r"(?i)ask clark[’']s\b", s.strip())])
 
     def test_the_section_style_lines_are_the_ones_settings_shows(self):
@@ -298,6 +328,41 @@ class LowWordsRound(unittest.TestCase):
         for name, line in table[2]:
             self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
+
+    def test_use_case_help_says_what_the_page_says(self):
+        """The page's button reads "See all N open work items" and a use case has four statuses, Done included (UseCases.jsx; #412)."""
+        page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
+        self.assertIn("See all ${n} open work", page)
+        self.assertEqual(self.ALL.count("it reads “See all N open work items”") + self.ALL.count("which reads “See all N open work items”"), 2)
+        self.assertNotIn("See all work items", self.ALL)
+        self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];', page)
+        self.assertIn("Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).", self.ALL)
+
+
+    def test_the_prototype_help_gives_the_section_style_lines_its_own_settings_gives(self):
+        """#294: the prototype's help.js and its Settings card (views.js) say the same thing for each of the four section styles."""
+        help_js = (PROTO / "help.js").read_text(encoding="utf-8")
+        proto = (PROTO / "views.js").read_text(encoding="utf-8")
+        card = re.search(r"\[\['slim'.*?\]\]\.map", proto, re.S).group(0)
+        lines = re.findall(r"\['\w+', '([^']+)', '([^']+)'\]", card)
+        self.assertEqual([n for n, _ in lines], ["Slim gaps", "Roomy gaps", "Grey headers", "One card"])
+        for name, line in lines:
+            self.assertIn(f"'{line}'", help_js, f"{name}: the prototype's Help line is its Settings line")
+
+
+    def test_work_items_names_the_chips_and_clear_all_the_page_draws(self):
+        self.assertIn("A line under the filters shows how many items match, with a chip for each filter", self.ALL)
+        self.assertIn("When nothing matches, the list says so and offers **Clear all**", self.ALL)
+
+    def test_milestone_at_risk_uses_the_pages_own_legend_words(self):
+        """The page has no control that sets a state; its legend says 'Marked at risk by the project team.'"""
+        self.assertIn("Marked at risk by the project team.", self.ALL)
+        self.assertNotIn("Marked at risk by hand", self.ALL)
+
+    def test_ids_line_says_everything_numbered_code_001_shares_the_numbering(self):
+        """Assumptions and dependencies are stored with risks and issues (one CODE-001 series)."""
+        self.assertIn("Actions, decisions, and everything numbered CODE-001 share one numbering", self.ALL)
+        self.assertNotIn("Actions, risks, issues and decisions share one numbering", self.ALL)
 
 
 if __name__ == "__main__":

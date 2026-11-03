@@ -331,6 +331,19 @@ class Component(InBrowser):
         self.settle()
         self.assertEqual(self.text(".de-note"), "Marked as sent for 1 item on 13-10-2026. It is not saved to the history yet.")
 
+    def test_i_sent_it_with_no_day_given_records_the_computers_own_day_not_the_utc_day(self):
+        # Near midnight the computer's day and the UTC day differ; the record must carry the computer's day.
+        self.js("""Object.assign(Date.prototype, {
+            getFullYear() { return 2026; }, getMonth() { return 9; }, getDate() { return 14; },
+            toISOString() { return '2026-10-13T23:30:00.000Z'; } })""")
+        st = state(mode="chase", picked=["ABC-A-001"])
+        d = draft(mode="chase", picked=["ABC-A-001"])
+        self.js(f"T.mountEditor({lit(OFFERED)}, {lit(st)}, {lit(d)})")
+        self.settle()
+        self.js("Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()")
+        self.settle()
+        self.assertEqual(self.val("T.sent[0].date"), "2026-10-14")
+
     def test_i_sent_it_says_it_is_saved_when_the_history_has_it_and_marks_nothing_when_it_could_not(self):
         click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()"
         self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
@@ -367,6 +380,29 @@ class Component(InBrowser):
         self.assertFalse(self.val(disabled))
         self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
 
+    def test_a_failed_first_i_sent_it_frees_the_guard_so_the_next_press_goes_through(self):
+        # #314: the guard is freed in a finally, for a refusal and for a call that throws
+        click = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').click()"
+        disabled = "Array.from(document.querySelectorAll('.pk-foot button')).find((b) => b.textContent === 'I sent it').disabled"
+        for fail in ("T.finish = () => ok({ok: false, message: 'That could not be recorded.'})", "T.finish = () => no(new Error('boom'))"):
+            with self.subTest(fail=fail):
+                self.js("T.sent.length = 0")
+                self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001", "ABC-A-002"]))
+                self.js(f"T.reply = new Promise((ok, no) => {{ {fail}; }})")
+                self.js(click)
+                self.js(click)
+                self.settle()
+                self.assertEqual(self.val("T.sent.length"), 1)
+                self.assertTrue(self.val(disabled))
+                self.js("T.finish()")
+                self.settle()
+                self.assertFalse(self.val(disabled), "the failed press let go of the button")
+                self.js("T.reply = {ok: true}")
+                self.js(click)
+                self.settle()
+                self.assertEqual(self.val("T.sent.length"), 2, "the next press went through")
+                self.assertEqual(self.text(".de-note"), "Recorded: 2 items marked as sent on 13-10-2026. It is in the history.")
+
     def test_no_address_says_what_to_do_not_a_dash(self):
         self.mount(state(), draft(picked=["ABC-A-001"], email=""))
         self.assertIn("No address yet. Add one in your mail app.", self.text(".de-meta"))
@@ -381,7 +417,7 @@ class Component(InBrowser):
 
     def test_a_missing_sender_name_blocks_copying_with_its_next_step(self):
         self.mount(state(), draft(picked=["ABC-A-001"], **{"from": ""}))
-        self.assertEqual(self.text(".de-problem"), "Add your name in Settings › Profile so it signs the email.")
+        self.assertEqual(self.text(".de-problem"), "Add your name in Settings › Personal › About you so it signs the email.")
 
     def test_copy_for_outlook_puts_html_and_text_on_the_clipboard_and_says_copied(self):
         self.mount()

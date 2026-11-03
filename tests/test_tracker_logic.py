@@ -129,12 +129,12 @@ class Totals(unittest.TestCase):
         self.assertEqual(self.k("behindWords(0)"), "")
 
     def test_a_weights_note_appears_only_when_they_do_not_add_up(self):
-        self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals())), "Weights add up to 94%")
+        self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals())), "The weights add up to 94%, not 100%. Change a weight so they add up to 100%.")
         self.assertEqual(self.totals()["weights"], 940)
         whole = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 600, 0, 0), line("Two", 400, 0, 0)]}]}
         self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals(whole))), "")
         half = {**TRACKER, "groups": [{"name": "All", "lines": [line("One", 945, 0, 0)]}]}
-        self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals(half))), "Weights add up to 94.5%")
+        self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals(half))), "The weights add up to 94.5%, not 100%. Change a weight so they add up to 100%.")
         empty = {**TRACKER, "groups": [{"name": "Nothing yet", "lines": []}]}
         self.assertEqual(self.val("K.weightsNote(%s)" % lit(self.totals(empty))), "")
 
@@ -204,7 +204,7 @@ class Totals(unittest.TestCase):
         self.assertEqual(self.problem(status="done"), P["status"])
         for k in ("weight", "planned", "achieved"):
             for bad in ("101", "-5", "lots", "12.34"):
-                self.assertEqual(self.problem(**{k: bad}), "A percentage must be a number from 0 to 100.", f"{k} {bad}")
+                self.assertEqual(self.problem(**{k: bad}), "Type a percentage from 0 to 100, with one decimal at most.", f"{k} {bad}")
         self.assertEqual(self.problem(start="31-02-2026"), P["date"])
         self.assertEqual(self.problem(end="27-03-1999"), P["date"])
         self.assertEqual(self.problem(start="27-03-2026", end="05-01-2026"), P["order"])
@@ -220,7 +220,8 @@ class Totals(unittest.TestCase):
         P = self.k("WORDS.problems")
         self.assertEqual(P["percent"], sb.TRACKER_PERCENT)
         self.assertEqual(P["text"], sb.TRACKER_TEXT_MISSING)
-        self.assertEqual(P["textLong"][:-1], sb.TRACKER_TEXT_LONG.split(" Shorten")[0][:-1])
+        self.assertEqual(P["textLong"], sb.TRACKER_TEXT_LONG)
+        self.assertEqual(P["noteLong"], sb.TRACKER_NOTE_LONG)
         self.assertEqual(P["order"], sb.TRACKER_DATE_ORDER)
         self.assertEqual(P["status"], sb.TRACKER_STATUS)
         self.assertEqual(P["count"], sb.TRACKER_COUNT)
@@ -271,7 +272,7 @@ class Totals(unittest.TestCase):
     # ── the words ────────────────────────────────────────────────────────────
 
     def test_a_total_past_the_whole_is_refused_in_the_stores_words(self):
-        words = "The lines' weight, planned and achieved figures can each add up to 100% at most."
+        words = "Weight, Planned or Achieved adds up to more than 100% across all the lines. Lower one of the figures and try again."
         self.assertEqual(self.k("WORDS.problems.total"), words)
         self.assertEqual(self.k(f"totalProblem({lit(TRACKER)})"), "")
         for field in ("weight", "planned", "achieved"):

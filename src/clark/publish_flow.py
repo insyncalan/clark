@@ -27,8 +27,8 @@ import threading
 import time
 from pathlib import Path
 
-from clark import changes, milestones, page, platform, publish, section_files, to_client
-from clark.store import Invalid, open_store
+from clark import changes, milestones, page, platform, publish, publish_pdf, section_files, to_client
+from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 MIN_MARKER = 8                       # a shorter piece of text can't be searched for without finding it everywhere
@@ -55,7 +55,8 @@ MESSAGES = {
     "local_differs": "{name} was not saved as it was made (the folder may be syncing). Nothing was published. Try again.",
     "not_made": "{reason} Nothing was published.",
     "not_recorded": "Published, but clark could not record it. The files are fine; publish again to record it.",
-    "done_local": "Published. Saved locally as “{name}”.",
+    "done_local": "Published (Publication {number}). Saved locally as “{name}”.",
+    "number_taken": "Another publication was made at the same moment, so this one was not saved. Nothing was published. Publish again.",
     "look_at": " Look at: {items}.",
     "brand_link": " The web link comes from the brand's styling file, not from anything you wrote: ask whoever looks after the brand to remove it.",
     "folder_saved": "The client folder is saved.",
@@ -66,6 +67,7 @@ MESSAGES = {
     "settings_failed": "The client folder could not be saved. Nothing was changed. Try again.",
     "brand_styling": "The brand's styling file has a web link in it, so the report can't go out. Ask whoever looks after the brand to remove it.",
     "page_shape": "Something is wrong inside clark. Nothing was published. Tell the clark team, and say what you were doing.",
+    **{k: publish_pdf.MESSAGES[k] for k in ("bad_pdf_request", "no_chrome", "pdf_failed")},
     "db_unreadable": "The records could not be read. Restart clark and try again.",
     "preview_not_made": "The preview could not be made. {reason}",
     "preview_ready": "The preview is ready. This is the version kept on this computer, not the client's copy. It is not published.",
@@ -121,6 +123,7 @@ def markers_for(store, code, published, template=""):
                  for r in ([data["project"]] if kind == "projects" else data.get(kind, ())) if isinstance(r, dict)
                  for v in r.values() if isinstance(v, str)]
     kept_text += [s.get("body") or "" for s in published.get("sections", ()) if isinstance(s, dict)]
+    kept_text += [v for r in data.get("documents", ()) if isinstance(r, dict) for v in r.values() if isinstance(v, str)]     # #74: the links the client may see
     found, where = [], {}
     bare = to_client._key(template)
 
@@ -139,6 +142,12 @@ def markers_for(store, code, published, template=""):
                 value = (_text(row.get(field)) or "").strip()
                 if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
                     add(value, row["id"])
+    for row in store.read("documents", project=code):              # #74: a document's id, title and link are absent unless a kept document carries the same words (publish carries no id)
+        add(row["id"], row["id"])
+        for field in ("title", "url"):
+            value = (_text(row.get(field)) or "").strip()
+            if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+                add(value, row["id"])
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
@@ -175,8 +184,11 @@ class Publisher:
             return 409, self.fail("busy")
         try:
             store = self.store()
+            self.pdf_step = None
             try:
-                return self._publish(store, body if isinstance(body, dict) else {})
+                status, out = self._publish(store, body if isinstance(body, dict) else {})
+                publish_pdf.finish(self.pdf_step, out, status)          # the PDF is saved only once the report is
+                return status, out
             finally:
                 store.close()
         finally:
@@ -186,6 +198,10 @@ class Publisher:
         return {"ok": False, "code": code, "message": status_message or MESSAGES[code], **extra}
 
     def _publish(self, store, body):
+        pdf_req, body = publish_pdf.split(body)          # the PDF's keys are read here; the rest is as it always was
+        if pdf_req["error"]:
+            return 400, self.fail("bad_pdf_request")
+        self.pdf_step = publish_pdf.Step(pdf_req, self)
         code = body.get("project")
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
@@ -209,6 +225,9 @@ class Publisher:
         self.folder_warning = None
         if want_client:
             early, plan, same, markers = self.client_plan(store, code, built, saved, last, today, week, body)
+            if early is None and self.pdf_step.on and plan is not None:
+                early = self.pdf_step.plan_client(self, plan, confirmed)         # a taken PDF name is asked about now too
+            early = self.pdf_step.with_note(self, early, saved)
             if early is not None:
                 return early
         # Nothing has been written. The system's own Save dialog chooses the Local file; Cancel cancels everything.
@@ -226,16 +245,23 @@ class Publisher:
             # The Save window may have been open a while. What the client is to get is made again now, so a flag turned off
             # meanwhile is honoured; if anything differs, every check before the copy runs again on the new file.
             try:
-                again = publish.build(store, code, today, self.branding, body.get("section_style"))
+                # #120: the same number while it is still the next one; else the file is made again with the new next number
+                keep = built["number"] if store.next_publication(code) == built["number"] else None
+                again = publish.build(store, code, today, self.branding, body.get("section_style"), keep)
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
             # The client folder is checked again whether or not the file changed: it may have been swapped for a link (or
             # another folder) while the window was open, and the copy goes only to the real place this check finds.
-            if again["sha256"] != digest:
+            if again["sha256"] != digest or again["number"] != built["number"]:
                 built = again
                 body_bytes, digest = built["body"], built["sha256"]
                 week = built["project"]["week_ending"]
             early, plan, same, markers = self.client_plan(store, code, built, saved, last, today, week, body)
+            early = self.pdf_step.with_note(self, early, saved)
+            if early is not None:
+                return early
+        if want_client and self.pdf_step.on and plan is not None:
+            early = self.pdf_step.plan_client(self, plan, confirmed)
             if early is not None:
                 return early
         if saved and self.inside_folder(dest.parent, saved):
@@ -244,12 +270,20 @@ class Publisher:
             return 409, self.fail("local_not_html")
         if any(self.inside_folder(dest, own) for own in (self.data_dir, self.backups_dir) if own):
             return 409, self.fail("local_clark_files")
+        if self.pdf_step.on:                  # made only after every refusal above; saved after the report (publish_pdf.finish)
+            early = self.pdf_step.prepare(self, dest, built, today, store, code, markers if want_client else None, saved)
+            if early is not None:
+                return early
+        earlier_local = self.earlier_bytes(dest)        # #120: a file this one replaces is put back if the record is refused
         written = self.write_local(dest, body_bytes, digest)
         if written is not None:
             return 409, written
         # Local is saved. The copy comes next; whatever happens to it, Local stays and the publish is logged.
         client = None
+        earlier_client = None
         if plan is not None:
+            if plan["replaces"]:          # #120: an Overwrite's old file is put back if the record is refused, as Local's is
+                earlier_client = self.earlier_bytes(Path(plan["folder"]) / plan["name"])
             try:
                 client = to_client.copy_to_client(
                     self.fs, plan["folder"], plan["name"], body_bytes, project=code, at=today, markers=markers,
@@ -265,16 +299,27 @@ class Publisher:
             client = to_client.ClientResult(False, "failed", to_client.MESSAGES["copy_failed_local_kept"].format(
                 reason=client.message), nothing_written=True)
         client_path = client.path if client is not None and client.ok else None
+        number = built["number"]
         try:
-            store.log_publication(code, dest, week, digest, self.by_user(), client_path=client_path)
+            store.log_publication(code, dest, week, digest, self.by_user(), client_path=client_path, number=number)
+        except NumberTaken:               # #120: the files say a number they do not have: take back what this call wrote, and only that
+            self.take_back(dest, digest, earlier_local)
+            if client_path is not None:
+                self.take_back(client_path, digest, earlier_client)
+            return 409, self.fail("number_taken")
         except (Invalid, OSError) as e:
             return 409, self.fail("not_recorded", MESSAGES["not_recorded"],
                                   local_saved=True, local_name=dest.name)
         if client is None:
-            return 200, {"ok": True, "code": "done", "action": "done", "message": MESSAGES["done_local"].format(name=dest.name),
-                         "local_name": dest.name, "to_client": False}
+            return 200, {"ok": True, "code": "done", "action": "done",
+                         "message": MESSAGES["done_local"].format(number=number, name=dest.name),
+                         "local_name": dest.name, "to_client": False, "number": number, "publication": number}
         status, out = self.reply(client)
-        out.update(local_saved=True, local_name=dest.name, to_client=True)
+        out.update(local_saved=True, local_name=dest.name, to_client=True, number=number)
+        if out.get("ok") is True:
+            out["publication"] = number          # #120: the per-project number, for the dialog's success line
+        if out.get("ok") and out["message"].startswith("Published."):
+            out["message"] = f"Published (Publication {number})." + out["message"][len("Published."):]
         if self.folder_warning:
             out["warning"] = self.folder_warning
             out["message"] += " " + self.folder_warning
@@ -333,6 +378,24 @@ class Publisher:
         except (OSError, platform.PlatformError) as e:
             return self.fail("local_failed", MESSAGES["local_failed"].format(name=dest.name))
         return None
+
+    def earlier_bytes(self, path):
+        """The bytes of a file already at `path` (at most 64 MB), else None: what a refused record puts back (#120)."""
+        try:
+            return publish.read_plain(path, 64 * 1048576)
+        except OSError:
+            return None
+
+    def take_back(self, path, digest, earlier):
+        """Remove a file this publish wrote, only while it still holds the bytes written; a file it replaced is put back."""
+        try:
+            if publish.still_ours(path, digest):
+                if earlier is None:
+                    Path(path).unlink()
+                else:
+                    platform.write_file(Path(path), earlier)
+        except (OSError, platform.PlatformError):
+            pass
 
     def result(self, ok, action, message, **extra):
         return {"ok": ok, "code": action, "action": action, "message": message, **extra}
@@ -411,6 +474,9 @@ class Publisher:
         code = body.get("project") if isinstance(body, dict) else None
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
+        refused = to_client.section_style_refusal(body)
+        if refused:
+            return 400, self.fail(code_of(refused), refused)
         store = self.store()
         try:
             if store.read("projects", ref=code) is None:
@@ -491,4 +557,5 @@ class Publisher:
             last = store.latest_publication(code)
         finally:
             store.close()
-        return 200, {"ok": True, "latest": {"at": last["at"][:10], "to_client": last["to_client"]} if last else None}
+        return 200, {"ok": True, "latest": {"at": last["at"][:10], "to_client": last["to_client"]} if last else None,
+                     "pdf": publish_pdf.available()}

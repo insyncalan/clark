@@ -19,10 +19,13 @@ const NEW = -1;                                           // the line being adde
 // The one request: the section's body replaced by the new tracker.
 const save = (id, tracker, done) => change({ op: "update", id, changes: { body: bodyOf(tracker) }, place: "cell" }, done);
 
-function focusLater(section, selector) {
+// Focus the first of the places that exists and is not switched off (a moved item's own arrow is off once it reaches the end, so the other arrow is the fallback).
+function focusLater(section, ...selectors) {
   setTimeout(() => {
-    const el = document.querySelector(`.sec[data-id="${CSS.escape(section)}"] ${selector}`);
-    if (el) el.focus();
+    for (const selector of selectors) {
+      const el = document.querySelector(`.sec[data-id="${CSS.escape(section)}"] ${selector}`);
+      if (el && !el.disabled) { el.focus(); return; }
+    }
   }, 0);
 }
 
@@ -52,6 +55,7 @@ function LineForm({ at, draft, setDraft, error, busy, onSave, onCancel, counts }
           </label>
         ))}
       </div>
+      <p class="quiet t-hint" data-line-hint>{WORDS.weightHint}</p>
       {error ? <p class="t-err" role="alert" data-line-error>{error}</p> : null}
       <span class="t-acts">
         <button type="button" class="btn sm" data-save disabled={busy} onClick={onSave}>{at === NEW ? WORDS.add : WORDS.save}</button>
@@ -80,12 +84,12 @@ export function TrackerEdit({ section, slot }) {
   const locked = busy || at !== null || naming !== null;
 
   // `close`: the save is the open form's own, so that form closes. Any other save leaves an open form and what was typed in it as they are.
-  const run = async (next, done, back, close = false) => {
+  const run = async (next, done, back, close = false) => {       // `back`: a selector, or a list of them to try in turn
     if (!next || busy) return false;
     setBusy(true);
     const reply = await save(sid, next, done);
     setBusy(false);
-    if (reply) { if (close) { setAt(null); setNaming(null); setError(""); setNameError(""); } if (back) focusLater(sid, back); }
+    if (reply) { if (close) { setAt(null); setNaming(null); setError(""); setNameError(""); } if (back) focusLater(sid, ...[].concat(back)); }
     return !!reply;
   };
   const openLine = (g, i) => { setAt({ g, i }); setDraft(i === NEW ? blankLine() : draftOf(tracker.groups[g].lines[i])); setError(""); };
@@ -120,8 +124,8 @@ export function TrackerEdit({ section, slot }) {
     const cell = (
       <span class="t-acts">
         <button type="button" class="btn sm" data-edit disabled={locked} aria-label={label(WORDS.edit)} onClick={() => openLine(g, i)}>{WORDS.edit}</button>
-        <button type="button" class="btn sm" data-up disabled={locked || i === 0} aria-label={label(WORDS.up)} onClick={() => run(withLineMoved(tracker, g, i, -1), WORDS.moved, `[data-group="${g}"] [data-line="${Math.max(0, i - 1)}"] [data-up]`)}>↑</button>
-        <button type="button" class="btn sm" data-down disabled={locked || i === group.lines.length - 1} aria-label={label(WORDS.down)} onClick={() => run(withLineMoved(tracker, g, i, 1), WORDS.moved, `[data-group="${g}"] [data-line="${i + 1}"] [data-down]`)}>↓</button>
+        <button type="button" class="btn sm" data-up disabled={locked || i === 0} aria-label={label(WORDS.up)} onClick={() => run(withLineMoved(tracker, g, i, -1), WORDS.moved, [`[data-group="${g}"] [data-line="${i - 1}"] [data-up]`, `[data-group="${g}"] [data-line="${i - 1}"] [data-down]`])}>↑</button>
+        <button type="button" class="btn sm" data-down disabled={locked || i === group.lines.length - 1} aria-label={label(WORDS.down)} onClick={() => run(withLineMoved(tracker, g, i, 1), WORDS.moved, [`[data-group="${g}"] [data-line="${i + 1}"] [data-down]`, `[data-group="${g}"] [data-line="${i + 1}"] [data-up]`])}>↓</button>
         <button type="button" class="btn sm" data-remove disabled={locked} aria-label={label(WORDS.remove)} onClick={() => run(withoutLine(tracker, g, i), WORDS.removed, `[data-group="${g}"] [data-add-line]`)}>{WORDS.remove}</button>
       </span>
     );
@@ -168,7 +172,7 @@ export function TrackerEdit({ section, slot }) {
         </fieldset>
       </div>
       {noteError ? <p class="t-err" role="alert">{noteError}</p> : null}
-      {t.groups.length === 0 && naming !== NEW ? <p class="quiet" data-tracker-none>{WORDS.none}</p> : null}
+      {t.groups.length === 0 && naming !== NEW ? <p class="quiet" data-tracker-none>{WORDS.noneEdit}</p> : null}
       {t.groups.map((g, gi) => (
         <div key={gi} class="t-group" data-group={gi}>
           <div class="t-gtools">
@@ -182,15 +186,15 @@ export function TrackerEdit({ section, slot }) {
             ) : (
               <span class="t-acts">
                 <button type="button" class="btn sm" data-rename disabled={locked} aria-label={`${WORDS.rename}: ${g.name}`} onClick={() => openName(gi)}>{WORDS.rename}</button>
-                <button type="button" class="btn sm" data-gup disabled={locked || gi === 0} aria-label={`${WORDS.up}: ${g.name}`} onClick={() => run(withGroupMoved(tracker, gi, -1), WORDS.moved)}>↑</button>
-                <button type="button" class="btn sm" data-gdown disabled={locked || gi === t.groups.length - 1} aria-label={`${WORDS.down}: ${g.name}`} onClick={() => run(withGroupMoved(tracker, gi, 1), WORDS.moved)}>↓</button>
+                <button type="button" class="btn sm" data-gup disabled={locked || gi === 0} aria-label={`${WORDS.up}: ${g.name}`} onClick={() => run(withGroupMoved(tracker, gi, -1), WORDS.moved, [`[data-group="${gi - 1}"] [data-gup]`, `[data-group="${gi - 1}"] [data-gdown]`])}>↑</button>
+                <button type="button" class="btn sm" data-gdown disabled={locked || gi === t.groups.length - 1} aria-label={`${WORDS.down}: ${g.name}`} onClick={() => run(withGroupMoved(tracker, gi, 1), WORDS.moved, [`[data-group="${gi + 1}"] [data-gdown]`, `[data-group="${gi + 1}"] [data-gup]`])}>↓</button>
                 <button type="button" class="btn sm" data-remove-group disabled={locked} aria-label={`${WORDS.removeGroup}: ${g.name}`} onClick={() => run(withoutGroup(tracker, gi), WORDS.groupRemoved, "[data-add-group]")}>{WORDS.removeGroup}</button>
               </span>
             )}
           </div>
           {fit === "full"
-            ? <GroupFull group={g} columns={counts} extraHead={<th scope="col" class="t-tools"><span class="sr">{WORDS.edit}</span></th>} extraCell={lineTools(gi)} below={formAt(gi)} foot={footOf(gi)} />
-            : <GroupHalf group={g} extraCell={lineTools(gi)} below={formAt(gi)} foot={footOf(gi)} />}
+            ? <GroupFull group={g} empty={WORDS.noLinesEdit} columns={counts} extraHead={<th scope="col" class="t-tools"><span class="sr">{WORDS.edit}</span></th>} extraCell={lineTools(gi)} below={formAt(gi)} foot={footOf(gi)} />
+            : <GroupHalf group={g} empty={WORDS.noLinesEdit} extraCell={lineTools(gi)} below={formAt(gi)} foot={footOf(gi)} />}
           <p class="t-add">
             <button type="button" class="btn sm" data-add-line disabled={locked || lineCount >= MAX_LINES} onClick={() => openLine(gi, NEW)}>{WORDS.addLine}</button>
             {lineCount >= MAX_LINES ? <span class="muted"> {WORDS.fullLines}</span> : null}
@@ -198,6 +202,7 @@ export function TrackerEdit({ section, slot }) {
         </div>
       ))}
       {weightsNote(t) ? <p class="quiet tr-weights" data-tr-weights>{weightsNote(t)}</p> : null}
+      {!lineCount ? <p class="quiet" data-tr-unpublished>{WORDS.notPublished}</p> : null}
       {naming === NEW ? (
         <div class="t-gtools t-new-group" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setNaming(null); setNameError(""); focusLater(sid, "[data-add-group]"); } else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); onName(); } }}>
           <label class="t-f"><span class="t-fl">{WORDS.group}</span><input data-f="group" type="text" autoFocus autocomplete="off" maxLength={NAME_MAX * 2} value={name} onInput={(e) => setName(e.currentTarget.value)} /></label>

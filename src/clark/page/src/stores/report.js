@@ -2,23 +2,24 @@
 // reload keeps them; the project's data comes from GET /api/data with this run's token (#33, #31's data_for).
 // A published file (#39) has its data in an inline block, id="clark-data": then the page is a file (fromFile), reads that block
 // and nothing else: no fetch, no token, no Settings tab, and "today" is the date it was published (as_at).
-import { signal, computed } from "@preact/signals";
+import { signal, computed, batch } from "@preact/signals";
 import * as route from "../router.js";
-import { rowsOf } from "../workItems.js";
-import { decode, encode, fits, setPublished } from "../filters.js";
+import { rowsOf, todayIso } from "../workItems.js";
+import { decode, encode, fits, hasReviewDates, setPublished } from "../filters.js";
 import { searchIndex } from "../clientView.js";
+import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", get usecases() { return fromFile.value ? "Use Cases" : "Use cases"; }, clientreport: "Client Requested Report View", settings: "Settings" };   // the published tab is "Use Cases"
-export const SHORT_TITLES = { clientreport: "Client report" };   // the tab button on a narrow window; the page keeps its full name (#192)
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
+export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snapshot" : "Client report"; } };   // the tab button on a narrow window; the page keeps its full name (#192)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
 const start = route.current();
 export const project = signal(start.project);
-export const view = signal(start.view);
+export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
@@ -26,7 +27,8 @@ const filterText = signal(start.f);                  // the Work items filters' 
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
 // Work items' filters (filters.js) live in the address as `f` and nowhere else: the state is read from the text each time it changes,
-// so a reload, Back and Forward bring the filters back with the page. `openFilter` is which filter's box is open ("" for none).
+// so a reload, Back and Forward bring the filters back with the page. The published file keeps this older bar (#69; the filter line is
+// for the app only, #153): `openFilter` is which filter's box is open ("" for none).
 export const filterState = computed(() => decode(f.value));
 export const openFilter = signal("");
 export const filterNote = signal("");                // a plain line when a filter could not be added; "" otherwise
@@ -34,11 +36,13 @@ export const refusals = signal(0);                   // counts the refusals, so 
 export const status = signal(project.value ? "loading" : "none");   // none | loading | ready | missing | failed
 export const data = signal(null);
 export const message = signal("");
+export const publication = signal(0);       // a published file: its publication number (#120), else 0; the footer reads it
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
-export const tabs = signal(VIEWS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
+export const SERVED_TABS = VIEWS.filter((v) => v !== "clientreport");   // the served page never offers the client report (#559); only a published file lists it, from its own p.tabs
+export const tabs = signal(SERVED_TABS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
 export const moves = signal(0);              // counts Back and Forward (and a typed address): a menu that is open closes on each
 export const projects = signal([]);                 // [{code, name}] from GET /api/projects
 export const projectsState = signal("loading");     // loading | ready | failed
@@ -48,6 +52,18 @@ export const rows = computed(() => (data.value ? rowsOf(data.value) : []));
 export const query = signal("");
 export const found = computed(() => (data.value ? searchIndex(data.value) : {}));
 export function setQuery(text) { query.value = String(text == null ? "" : text); }
+
+// The signed-in person's name for the app's filter line: the page has no source for it yet. Read by filterCtx only.
+export const me = signal("");
+// The project's own lists, from the data the page already holds: workstream names in the project's order, milestones in their own order with the date each is working to.
+export const filterCtx = () => {
+  const d = data.value;
+  return {
+    today: fromFile.value && asAt.value ? asAt.value : todayIso(), me: me.value, quietReady: hasReviewDates(rows.value),
+    workstreams: d ? (d.workstreams || []).map((w) => w.name).filter(Boolean) : [],
+    milestones: d ? (d.milestones || []).map((m) => ({ name: m.name, date: m.forecast_date || m.baseline_date || "" })).filter((m) => m.name) : [],
+  };
+};
 
 export const counts = computed(() => {
   const d = data.value;
@@ -62,13 +78,16 @@ const where = () => ({ view: view.value, project: project.value, item: item.valu
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
 // stays on the file's project and opens its first tab, as a reload of that address does.
 function apply(s) {
+  if (!fromFile.value && s.view === "clientreport") s = { ...s, view: SERVED_TABS[0] };   // #559
   if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
-  view.value = s.view;
-  item.value = s.item;
-  ms.value = s.ms;
-  uc.value = s.uc || "";
-  filterText.value = s.f;
+  batch(() => {                                          // one move: an effect (the client's kept choices) sees the page and its filters together, never a new page with the old page's filters
+    view.value = s.view;
+    item.value = s.item;
+    ms.value = s.ms;
+    uc.value = s.uc || "";
+    filterText.value = s.f;
+  });
   if (s.project !== project.value) {
     project.value = s.project;
     data.value = null;
@@ -103,7 +122,7 @@ function settle() {
 
 // Back and Forward (the trackpad swipe, the mouse buttons, the keyboard) with something still open on the page. What is being typed
 // (a section's title) is kept: the field is left first, so it is saved as a click on a tab saves it, to the project it belongs to,
-// before the page moves, and the message says so, with Undo. A menu, a filter's box or a drag closes, and nothing is chosen. The
+// before the page moves, and the message says so, with Undo. A menu or a drag closes, and nothing is chosen. The
 // peek has an entry of its own (closing it is a Back), so the page redraws after this as it would anyway.
 function leave() {
   const el = document.activeElement;
@@ -123,7 +142,11 @@ export function show(next) {
 }
 
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
-export function openWork(state) {
+export function openWork(want) {
+  // The app's filter line (installed at start-up, never in a published file) leaves out a word it cannot answer yet and keeps the line.
+  const L = fromFile.value ? null : lineApi.current;
+  const state = L ? L.usable(want) : want;
+  if (L && project.value && fits(state)) L.remember(project.value, state);
   go({ view: "work", project: project.value, item: "", ms: "", f: fits(state) ? encode(state) : "" });
 }
 
@@ -178,8 +201,8 @@ export function setFilters(text) {
   go({ ...where(), f: text }, { replace: true });
 }
 
-/** A filter change from the Work items page: the state is encoded (filters.js) into `f`. If it would not fit in the address, nothing
- *  changes and a plain line says why. */
+/** A filter change from the published file's bar (#69): the state is encoded (filters.js) into `f`. If it would not fit in the
+ *  address, nothing changes and a plain line says why. */
 export function setFilterState(next) {
   if (!fits(next)) {
     refusals.value++;
@@ -205,6 +228,11 @@ function published() {
   } catch (e) { return "bad"; }
 }
 
+/** True when the page is a published file: it has its data in it and never waits for a server, so it never shows a loading placeholder. */
+export function isFile() {
+  return published() !== null;
+}
+
 function openPublished(p) {
   fromFile.value = true;
   setPublished(true);                                     // the client's seven filters, no Client filter, Earlier for a finished item
@@ -214,6 +242,7 @@ function openPublished(p) {
   if (!tabs.value.includes(view.value)) view.value = tabs.value[0];
   project.value = p.data.project.code;
   asAt.value = p.as_at || "";
+  publication.value = p.publication && Number.isInteger(p.publication.n) && p.publication.n >= 1 ? p.publication.n : 0;
   useFileStyle(p.style);                                  // the look it was published with (#45); a file written before that has the default
   data.value = { ...p.data, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show
   status.value = "ready";
@@ -230,7 +259,7 @@ let reading = 0;                                       // the newest read wins w
 // program's error name or a technical phrase: it looks the server's message up here by the HTTP status, and a message it does not
 // know (or none at all) gets the plain fallback for that status. Every line says what to do next. A status of 0 is "no answer".
 const READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark.";
-const STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again.";
+const STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again.";
 const BAD_CODE = "Use a project code of 3 to 7 capital letters or digits.";
 const NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list.";
 const NOT_ACCEPTED = "That request was not accepted. Reload the page.";
@@ -244,7 +273,7 @@ const ALLOWED = {
          known: { [NO_PROJECT]: NO_PROJECT,
                   "There is no project with that code.": NO_PROJECT } },
   500: { fallback: "A problem came up reading this project. Reload the page. If it happens again, restart clark.", known: {} },
-  0: { fallback: "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command.", known: {} },
+  0: { fallback: "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.", known: {} },
 };
 export function plain(code, body) {
   const row = ALLOWED[code];
@@ -282,29 +311,31 @@ const CHANGE_KNOWN = {
   "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
   "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
   // the change route's own limit (server.py MESSAGES change_too_large): said as the route says it, and that nothing was changed
-  "That is too big to save. Shorten a line or remove some lines, then try again.": "That is too big to save, and nothing was changed. Shorten a line or remove some lines, then try again.",
+  "That is too big to save. Shorten a line or remove some lines, then try again.": "That is too big to save, and nothing was changed. Make it shorter, then try again.",
   // #189: a 'Progress tracker' clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
   "The progress tracker holds an overall figure, the columns shown, and groups of lines.": "That tracker can't be saved, and nothing was changed. Reload the page and try again.",
-  "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty.": "The overall figures are two numbers from 0 to 100, a health word and a short note, or empty. Nothing was changed.",
-  "The note can be 100 characters at most. Shorten it and try again.": "The note can be 100 characters at most. Nothing was changed. Shorten it and try again.",
-  "Each extra column is either shown or not.": "Each extra column is either shown or not. Nothing was changed.",
+  "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty.": "The overall figures could not be saved. Nothing was changed. Use numbers from 0 to 100, then try again.",
+  "A line about it can be 100 characters at most. Shorten it and try again.": "That line is too long (100 characters at most). Nothing was changed. Shorten it and try again.",
+  "Each extra column is either shown or not.": "That column setting could not be saved. Nothing was changed. Reload the page and try again.",
   "A group holds a name and its lines.": "That group can't be saved, and nothing was changed. Reload the page and try again.",
   "A tracker can have at most 10 groups.": "A tracker can have 10 groups at most, and nothing was changed. Remove one to add another.",
   "Give each group a name.": "Give each group a name. Nothing was changed.",
-  "A group name can be 80 characters at most.": "A group name can be 80 characters at most. Nothing was changed.",
+  "A group name can be 80 characters at most. Shorten it and try again.": "That group name is too long (80 characters at most). Nothing was changed. Shorten it and try again.",
   "A group can have at most 47 lines and a tracker 47 in all.": "A tracker can have 47 lines in all, and nothing was changed. Remove one to add another.",
   "A line holds a number, a description, dates, a status, a weight, what was planned and what was achieved.": "That line can't be saved, and nothing was changed. Reload the page and try again.",
   "Describe each line.": "Describe each line. Nothing was changed.",
-  "A line description can be 100 characters at most. Shorten it and try again.": "A line description can be 100 characters at most. Nothing was changed. Shorten it and try again.",
-  "A line number can be 10 characters at most.": "A line number can be 10 characters at most. Nothing was changed.",
-  "A date must be a real day between 2000 and 2100, or empty.": "A date must be a real day between 2000 and 2100, or empty. Nothing was changed.",
-  "A line can't end before it starts.": "A line can't end before it starts, and nothing was changed. Change one of the dates.",
+  "A line description can be 100 characters at most. Shorten it and try again.": "That description is too long (100 characters at most). Nothing was changed. Shorten it and try again.",
+  "A line number can be 10 characters at most. Shorten it and try again.": "That number is too long (10 characters at most). Nothing was changed. Shorten it and try again.",
+  "A date must be a real day between 2000 and 2100, or empty.": "That date isn't right. Nothing was changed. Type it as DD-MM-YYYY, or leave it empty.",
+  "A line can't end before it starts.": "The end date is before the start date, and nothing was changed. Change one of the dates.",
   "Choose Planned, In progress, Completed or Late.": "Choose Planned, In progress, Completed or Late. Nothing was changed.",
-  "A percentage must be a number from 0 to 100.": "A percentage must be a number from 0 to 100. Nothing was changed.",
-  "The lines' weight, planned and achieved figures can each add up to 100% at most.": "The lines' weight, planned and achieved figures can each add up to 100% at most, and nothing was changed. Lower one of them.",
+  "Type a percentage from 0 to 100, with one decimal at most.": "Type a percentage from 0 to 100, with one decimal at most. Nothing was changed.",
+  "Weight, Planned or Achieved adds up to more than 100% across all the lines. Lower one of the figures and try again.": "Weight, Planned or Achieved adds up to more than 100% across all the lines. Nothing was changed. Lower one of the figures and try again.",
   "A count must be a whole number from 0 to 99999, or empty.": "A count must be a whole number from 0 to 99999, or empty. Nothing was changed.",
   "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
-  "That content is too long to save.": "That list is too long to save, and nothing was changed. Shorten some rows.",
+  "That content is too long to save.": "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.",
+  // the whole change was over the size clark takes (server.py's words; any kind of section can be that big)
+  "That is too big to save. Make the text shorter, or take some of the list out, then try again.": "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.",
 };
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";
