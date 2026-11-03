@@ -13,6 +13,8 @@ INCLUDE_DEMO = True
 # For every system.
 SHARED = (
     "README.md",
+    "LICENSE",                  # item 4 of the licence: it must not be removed from copies
+    "NOTICE.md",                # the MIT, OFL, PSF and ISC texts the bundled code and fonts require (#639)
     "clark/",                   # the stand-in that hands `python3 -m clark` to src/clark/
     "src/clark/",               # with the built page.html
     "vendor/README.md",         # vendor/manifest.json lists it
