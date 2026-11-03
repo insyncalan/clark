@@ -80,6 +80,13 @@ WAITING = [
     ("#462", "Docker first start: three small leftovers", "no pull request yet (issue 462)", "", None),
     ("#489", "AI suggestions go through the private-text check", "no pull request yet (issue 489)", "", None),
     ("#438", "Publishing can make a PDF as in the prototype", "no pull request yet (issue 438)", "", None),
+    ("#171", "Each project keeps its own not-reviewed-after-days number (a data layout step)", "PR 472",
+     "schema.sql", "review_after_days"),
+    ("#427", "Install and first start: the Docker route (clark in a container, opened at 127.0.0.1)", "PR 252",
+     "platform.py", "def container_mode():"),
+    ("#220", "Edit opens the one editor in place for Summary, This week and Next week", "PR 509",
+     "changes.py", "def _text_body"),
+    ("#269", "The publications row names the PDF file", "no pull request yet (issue 269)", "", None),
 ]
 
 # (item, check, kind, why, what the person does)
