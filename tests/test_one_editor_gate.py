@@ -16,6 +16,7 @@ import unittest
 from unittest import mock
 
 from _demo import USER, DemoStore
+from _new_page import reload_to_new_page_cdp
 from _real_server import real_server
 from _paths import SRC, TOOLS
 
@@ -236,9 +237,8 @@ class PageGate(unittest.TestCase):
             self.assertTrue(wait(lambda: "ZQ-SAVED" in self.stored(), 15), "the save reached the store")
             self.assertEqual(self.stored(), sanitise.clean_html(self.stored()), "what is stored is clean")
             self.assertIn("<strong>bold</strong>", self.stored())
-            cdp.call("Page.reload", {}, sid)
             view = f"document.querySelector('[data-id=\"{self.sec}\"] [data-view-text]')"
-            self.assertTrue(wait(lambda: js(f"!!{view}"), 15), "View draws the body after a reload")
+            reload_to_new_page_cdp(cdp, sid, ready=f"!!{view}", what="View draws the body after a reload")
             self.assertIn("ZQ-SAVED", js(f"{view}.textContent"))
             self.assertIn("Original words", js(f"{view}.textContent"))
             self.assertEqual(js(f"{view}.querySelector('strong').textContent"), "bold")
