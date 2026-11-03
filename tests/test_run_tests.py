@@ -326,7 +326,7 @@ class Changed(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             git("init", "-q")
             (Path(d) / "src" / "clark").mkdir(parents=True)
-            (Path(d) / "src/clark/store.py").write_text("x = 1\n" * 50)
+            (Path(d) / "src/clark/store.py").write_text("x = 1\n" * 50, encoding="utf-8")
             git("add", ".")
             git("commit", "-qm", "a")
             git("mv", "src/clark/store.py", "src/clark/other.py")
