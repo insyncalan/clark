@@ -20,12 +20,13 @@ const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };
 export const menuTip = (items) => `${MENU_NAME}: ${items.filter((i) => i.tip).map((i) => i.tip).join(", ")}`;
 
 // What Preview or Export did, in words, until it is closed (or 20 seconds). The change toast is for Edit only, and this menu is in View too.
+// #440: Settings › About you says here what a save did (Settings is in View too); `undo`, when given, is a function the note's Undo runs.
 export const note = signal(null);
 let noteTimer = 0, noteId = 0;
-function say(kind, text) {
+export function say(kind, text, undo = null) {
   clearTimeout(noteTimer);
   const id = ++noteId;
-  note.value = { id, kind, text };
+  note.value = { id, kind, text, undo };
   if (kind !== "problem") noteTimer = setTimeout(() => { if (note.value && note.value.id === id) note.value = null; }, 20000);
 }
 const closeNote = () => { clearTimeout(noteTimer); note.value = null; };
@@ -37,6 +38,7 @@ export function MenuNote() {
   return n ? (
     <div class={`toast ${n.kind}`} key={n.id} data-kind={n.kind} role={n.kind === "problem" ? "alert" : undefined}>
       <span class="toast-text">{n.text}</span>
+      {n.undo ? <button type="button" class="toast-btn" data-undo onClick={() => { const u = n.undo; closeNote(); u(); }}>Undo</button> : null}
       <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={closeNote}>Close</button>
     </div>
   ) : null;

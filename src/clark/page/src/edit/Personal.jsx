@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
+import { say } from "./ProfileMenu.jsx";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
@@ -37,6 +38,7 @@ function AboutYou() {
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
+    const was = profile.value;
     const r = await setProfile(sent.name, sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
@@ -47,11 +49,28 @@ function AboutYou() {
       // a box changed since is left as it is
       setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
       setSaid({ name: "", email: "" });
+      saidSaved(was, r);
       return;
     }
     const mine = field === "name" ? name : email;
     if ((mine.current ? mine.current.value : typed[field]) !== sent[field]) return;
     setSaid({ name: field === "name" ? r.message : "", email: field === "email" ? r.message : "" });
+  };
+  // #440: a save that changed a box says so in the menu's note (the page's one toast region, in View and Edit), with Undo (as the prototype does): Undo puts back what the box held before
+  // and leaves the other box as clark has it now. A box that still shows what was saved goes back too; one typed in since is left.
+  const saidSaved = (was, r) => {
+    const changed = ["name", "email"].filter((f) => r[f] !== was[f]);
+    if (!changed.length) return;
+    const back = async () => {
+      const now = profile.value, to = { ...now };
+      changed.forEach((f) => { to[f] = was[f]; });
+      const u = await setProfile(to.name, to.email);
+      if (!u.ok) { say("problem", u.message); return; }
+      setTyped((t) => ({ ...t, ...Object.fromEntries(changed.map((f) => [f, t[f] === r[f] ? u[f] : t[f]])) }));
+      setSaid({ name: "", email: "" });
+      say("done", "Undone.");
+    };
+    say("done", changed.length === 2 ? "Name and email saved" : changed[0] === "name" ? "Name saved" : "Email saved", back);
   };
   const box = (field, label, type, line, ref) => (
     <div class="fld">
