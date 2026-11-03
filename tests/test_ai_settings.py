@@ -21,6 +21,7 @@ from test_ai_route import Fake
 from test_ask_settings import make_db
 
 from clark import ai_menu, ai_service, ask_service, page
+from _new_page import reload_to_new_page
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WIDTHS = (1400, 900)
@@ -67,19 +68,19 @@ class Line(unittest.TestCase):
             self.assertEqual(js("document.querySelector('#ai-settings h2').innerText"), "AI")
 
             self.provider.connected = False
-            js("location.reload()")
+            reload_to_new_page(js)
             self.line(js, ai_menu.why_off("not_signed_in", "Claude"))
             self.assertNotIn("private fault", js("document.querySelector('#ai-settings').innerText"))
 
             self.provider.connected = True
             with self.provider.lock:                       # a question is being answered: one run at a time
-                js("location.reload()")
+                reload_to_new_page(js)
                 self.line(js, ai_menu.why_off("busy"))
                 self.assertEqual(js("document.querySelector('#ai-state').dataset.state"), "busy")
 
             js("document.querySelector('[data-ask-switch]').click()")          # the one switch, under Asking
             self.assertTrue(wait(lambda: js("document.querySelector('#ask-state').innerText") != "", 10))
-            js("location.reload()")
+            reload_to_new_page(js)
             self.line(js, ai_menu.why_off("off"))
             self.assertEqual(js("document.querySelector('#ai-state').dataset.state"), "off")
 
