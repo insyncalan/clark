@@ -103,6 +103,18 @@ class Cut(unittest.TestCase):
         self.assertTrue((ROOT / "dev" / "handchecks" / f"{v}-sheet.md").is_file())
 
 
+class Notes(unittest.TestCase):
+    """#557, #558: the plain notes name the editor tab and the week-ending date as the code does."""
+
+    def test_the_notes_name_the_editor_tab_and_the_week_ending_date(self):
+        text = (ROOT / "dev" / "release-notes" / "0.5.1-plain.md").read_text(encoding="utf-8")
+        self.assertNotIn("still called Client report", text)
+        self.assertIn("Client Requested Report View", text)
+        self.assertIn("Week ending date", text)
+        titles = (ROOT / "src" / "clark" / "page" / "src" / "stores" / "report.js").read_text(encoding="utf-8")
+        self.assertIn('"Client Requested Report View"', titles)
+
+
 def _skips():
     for i, (item, check, kind, why, does) in enumerate(WALK_THROUGH):
         def t(self, _m=f"needs a person ({kind}): {why}. Do this: {does}"):

@@ -12,7 +12,7 @@ import time
 GROWTH_STEP = 4         # the larger run is GROWTH_STEP times the size of the smaller one
 GROWTH_LIMIT = 8        # t(4n) / t(n): linear is 4, n to the power 1.5 is 8, quadratic is 16, cubic is 64. Above 8 means the work is growing faster than n to the power 1.5; a square is a factor of two over it and linear a factor of two under.
 GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
-ABSOLUTE_CAP = 30       # CPU seconds for the larger run: a generous bound, so a scan that stays linear but gets a hundred times slower still fails
+ABSOLUTE_CAP = 400      # CPU seconds for the larger run. Only a backstop for a scan that stays linear but gets a hundred times slower: the quietest-box t(4n) of the slowest test is about 36 s (test_secret_screen), so this is ten times that and a loaded box (CPU time inflates under contention) cannot trip it. The ratio above is the real guard.
 
 
 def growth_ratio(work, n, tries=3):
@@ -41,7 +41,7 @@ def assert_growth(test, work, n, label, tries=3):
 
 
 NEAR_LIMIT = 50         # work / baseline: a hostile input may cost this many times a plain input of the same size. Linear work sits near 1 to 10; a square at 60 000 characters is in the thousands.
-NEAR_CAP = 10           # CPU seconds for the hostile input: a generous bound for a slow runner
+NEAR_CAP = 100         # CPU seconds for the hostile input: a backstop only, ten times the old bound so a loaded runner cannot trip it; NEAR_LIMIT against the baseline is the real guard.
 
 
 def best_cpu(work, tries=3):

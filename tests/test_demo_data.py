@@ -90,7 +90,7 @@ class TestContents(DemoCase):
                 ("actions", "priority", ("Urgent", "High", "Medium", "Low")),
                 ("raid", "status", ("Open", "Closed", "Cancelled")),
                 ("decisions", "status", ("Pending", "Made", "Withdrawn")),
-                ("use_cases", "status", ("On track", "Flag", "High risk")),
+                ("use_cases", "status", ("On track", "Flag", "High risk", "Done")),
                 ("milestones", "status", ("Planned", "Done", "Cancelled"))):
             got = {r[column] for r in rows(self.path, f"SELECT {column} FROM {table}")}
             self.assertEqual(got, set(values), (table, column))
@@ -117,6 +117,16 @@ class TestContents(DemoCase):
     def test_every_date_is_relative_to_the_clock(self):
         stamps = [r["at"] for r in rows(self.path, "SELECT at FROM applies UNION SELECT at FROM change_log")]
         self.assertTrue(stamps and all(s.startswith("2026-10-28 09:00:0") for s in stamps), stamps[:3])
+
+    def test_each_projects_week_ending_is_a_friday_on_any_clock(self):
+        # #570: Friday is the week end everywhere, so the demo's report dates are Fridays whatever day CLARK_NOW is
+        for days in range(7):
+            with self.subTest(days=days):
+                path = self.build("w%d.db" % days, NOW + timedelta(days=days))
+                weeks = [r["week_ending"] for r in rows(path, "SELECT week_ending FROM projects")]
+                self.assertEqual(len(weeks), 2)
+                for w in weeks:
+                    self.assertEqual(datetime.strptime(w, "%Y-%m-%d").weekday(), 4, w)
 
     def test_no_leftover_files(self):
         self.assertEqual(sorted(p.name for p in self.dir.iterdir()), ["backups", "clark.db"])      # #86: the first step took the day's copy
