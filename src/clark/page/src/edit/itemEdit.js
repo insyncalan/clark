@@ -51,9 +51,9 @@ export function statusPill(row, today) { return pillOf(row, today); }
 // Red is High impact with Medium likelihood (High priority), Amber Medium and Medium, Green Low and Low.
 export const RATINGS = { Red: { impact: "High", likelihood: "Medium" }, Amber: { impact: "Medium", likelihood: "Medium" }, Green: { impact: "Low", likelihood: "Low" } };
 
-/** The Rating section of an open risk's or issue's status picker: the three colours, or none for any other item (an assumption,
- * a dependency, a closed or cancelled one), as clark/changes.py refuses. */
-export function ratingChoices(row) { return RATED.includes(row.kind) && row.status === "Open" ? Object.keys(RATINGS) : []; }
+/** The Rating section of a risk's or issue's status picker: the three colours, whatever its status (#448, as the prototype), or
+ * none for any other item (an action, a decision, an assumption, a dependency), as clark/changes.py refuses. */
+export function ratingChoices(row) { return RATED.includes(row.kind) ? Object.keys(RATINGS) : []; }
 const RATED = ["risk", "issue"];
 
 /** The field a pick belongs to: the picker's Rating entries are sent as `rating:Red`, `rating:Amber` or `rating:Green`. */
