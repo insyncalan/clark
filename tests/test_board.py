@@ -29,7 +29,7 @@ from test_server import Running, chrome, wait  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 DEMO = ROOT / "tests" / "fixtures" / "board_demo.js"
-TODAY = "2026-10-29"        # a Thursday: this week ends Sunday 01-11-2026
+TODAY = "2026-10-29"        # a Thursday: this week ends Friday 30-10-2026 (#570)
 ME = "Sara Khan"
 _PAGE = {}
 
@@ -147,14 +147,14 @@ class Board(InBrowser):
     def test_status_columns_hold_every_kinds_words(self):
         self.assertEqual(self.labels("status"), [("Open", 6), ("Delayed", 1), ("Pending", 2), ("Closed", 1), ("Made", 1), ("Cancelled", 0), ("Withdrawn", 1)])
 
-    def test_due_columns_the_week_ends_on_sunday_and_a_decided_decision_has_no_date(self):
+    def test_due_columns_the_week_ends_on_friday_and_a_decided_decision_has_no_date(self):
         b = self.cols("due")["lanes"][0]["columns"]
         ids = {c["label"]: sorted(x["id"] for x in c["cards"]) for c in b}
         self.assertEqual([c["label"] for c in b], ["Overdue", "This week", "Next week", "Later", "No date"])
         by_title = lambda col: sorted(x["title"] for x in b[col]["cards"])
         self.assertEqual(by_title(0), ["Archive the old files", "Draft the cut-over plan"], "a closed item sits in its date column")
-        self.assertEqual(by_title(1), ["Book the training room"], "Sunday 01-11-2026 is this week")
-        self.assertEqual(by_title(2), ["Send the invitations", "Supplier slips"])
+        self.assertEqual(by_title(1), [], "nothing is due by Friday 30-10-2026; Sunday 01-11-2026 is no longer this week (#570)")
+        self.assertEqual(by_title(2), ["Book the training room", "Send the invitations", "Supplier slips"])
         self.assertEqual(by_title(3), ["Order the laptops", "Use the new tool"])
         self.assertNotIn("Use the shared calendar", by_title(3) + by_title(2))
         self.assertIn("Use the shared calendar", by_title(4))
@@ -289,7 +289,7 @@ class Board(InBrowser):
         self.assertEqual((same["ok"], same.get("noop")), (True, True), "to where it is: nothing, no message")
 
     def test_due_asks_for_a_date_never_past_overdue_is_not_a_target_no_date_clears(self):
-        a = self.row("training room")                          # due Sunday 01-11-2026, this week
+        a = dict(self.row("training room"), due_date="2026-10-30")      # due Friday 30-10-2026, the last day of this week (#570)
         got = self.move(a, "due", "next_week")
         self.assertEqual(got["request"]["changes"], {})
         self.assertEqual(got["needsDate"], {"field": "due_date", "min": TODAY, "suggested": "2026-11-06", "column": "next_week"})
@@ -305,9 +305,32 @@ class Board(InBrowser):
         self.assertEqual(self.move(a, "due", "__none")["request"]["changes"], {"due_date": None})
         nodate = self.row("Test system")
         self.assertTrue(self.move(nodate, "due", "__none").get("noop"), "already no date")
-        # the suggested day is today when the week's Friday has gone
+        # #570: on a Saturday the week that is about to start is "this week": its Friday is suggested
         late = self.val(f"T.board.moveFor({lit(a)}, {{group: 'due', key: 'overdue', lane: null}}, {{group: 'due', key: 'this_week', lane: null}}, {lit(dict(self.ctx, today='2026-10-31'))})")
-        self.assertEqual(late["needsDate"]["suggested"], "2026-10-31")
+        self.assertEqual(late["needsDate"]["suggested"], "2026-11-06")
+
+    def test_the_week_end_is_the_friday_on_or_after_today_for_every_weekday(self):
+        # #570: Monday 26-10-2026 to Sunday 01-11-2026; a Saturday or Sunday looks to the coming Friday (06-11-2026)
+        want = {"2026-10-26": "2026-10-30", "2026-10-27": "2026-10-30", "2026-10-28": "2026-10-30", "2026-10-29": "2026-10-30",
+                "2026-10-30": "2026-10-30", "2026-10-31": "2026-11-06", "2026-11-01": "2026-11-06",
+                "2026-12-28": "2027-01-01", "2026-12-31": "2027-01-01"}
+        got = {t: self.val(f"T.board.weekEndOf({lit(t)})") for t in want}
+        self.assertEqual(got, want)
+        self.assertIsNone(self.val("T.board.weekEndOf('nonsense')"))
+
+    def test_the_due_bucket_edges_around_friday_on_a_weekday_and_a_weekend(self):
+        def bucket(today, due):
+            row = dict(self.row("training room"), due_date=due, due=due)
+            return self.val(f"T.board.cellOf('due', {lit(row)}, {lit(dict(self.ctx, today=today))})")
+        # Thursday: Friday is this week, Saturday is next week, the Friday after is the last day of next week
+        self.assertEqual([bucket("2026-10-29", d) for d in ("2026-10-29", "2026-10-30", "2026-10-31", "2026-11-06", "2026-11-07")],
+                         ["this_week", "this_week", "next_week", "next_week", "later"])
+        # Friday itself: today is the last day of this week
+        self.assertEqual([bucket("2026-10-30", d) for d in ("2026-10-30", "2026-10-31", "2026-11-06", "2026-11-07")],
+                         ["this_week", "next_week", "next_week", "later"])
+        # Saturday: the coming working week is this week
+        self.assertEqual([bucket("2026-10-31", d) for d in ("2026-10-30", "2026-10-31", "2026-11-02", "2026-11-06", "2026-11-07", "2026-11-13", "2026-11-14")],
+                         ["overdue", "this_week", "this_week", "this_week", "next_week", "next_week", "later"])
 
     def test_a_pending_decision_dates_use_needed_by(self):
         d = self.row("new tool")

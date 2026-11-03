@@ -310,17 +310,35 @@ class Live(unittest.TestCase):
         self.assertFalse(text.lower().startswith("clark"), text)
         self.assertNotIn("Ask clark", text)
 
-    def test_view_has_no_pickers_and_a_row_double_click_opens_the_peek(self):
+    def test_work_items_edit_in_view_and_a_row_double_click_opens_the_peek(self):
+        # #442 (ruled 02-11-2026): the Work items page is always editable. Owner, due, priority and status change in View as in Edit; nothing else does.
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-cell], [data-pop], .cell-pick').length", sid), 0, "View changes nothing")
+                self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work [data-cell]')].map(c => c.dataset.cell.split(':')[1]))].sort()", sid),
+                                 ["due", "owner", "priority", "status"], "View shows the four pickers")
+                before = self.steps()
+                click(cdp, sid, "[data-cell='TUL-A-001:status']")
+                self.until(cdp, sid, "!!document.querySelector('[data-pop]')", "a click on a cell in View opens its picker")
+                key(cdp, sid, "Escape")
+                self.assertEqual(self.steps(), before, "opening and leaving a picker changes nothing")
+                # an edit made in View is saved, in one step with Undo
+                click(cdp, sid, "[data-cell='TUL-007:status']")
+                self.until(cdp, sid, "!!document.querySelector('[data-pop]')", "the status picker opened in View")
+                click(cdp, sid, "[data-pop] [data-value=Closed]")
+                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved in View, with Undo")
+                self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed", "the edit made in View reached the record")
+                self.changed_once(before, "status in View")
+                self.undo(cdp, sid, "status in View", "Status of TUL-007 is back to Open.")
                 dblclick(cdp, sid, "tr[data-id='TUL-A-001'] .t")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-A-001')", "a double click on a row opens the item's peek (its address)")
                 self.assertEqual(cdp.js("clarkPage.peek()", sid), {"kind": "item", "id": "TUL-A-001"})
                 cdp.js("clarkPage.closePeek()", sid)
-                self.until(cdp, sid, "!location.hash.includes('item=')", "the peek closed")
+                self.until(cdp, sid, "!location.hash.includes('item=') && clarkPage.peek() === null", "the peek closed, in the address and in the page")
+                # the peek hands focus back to the row that opened it, after the next draw; wait for that before moving focus
+                self.until(cdp, sid, "document.activeElement && document.activeElement.dataset.id === 'TUL-A-001'", "focus went back to the opening row")
                 cdp.js("document.querySelector(\"tr[data-id='TUL-007']\").focus()", sid)
+                self.until(cdp, sid, "document.activeElement === document.querySelector(\"tr[data-id='TUL-007']\")", "the row has the focus")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-007')", "Enter on a row opens its peek")
 
@@ -366,6 +384,7 @@ class Live(unittest.TestCase):
                 self.assertEqual(self.focused(cdp, sid), f"{rows[1]}:owner", "an arrow in the picker's box stays in the box")
                 self.assertEqual(cdp.js(stops, sid), [rows[1]], "still one tab stop")
                 cdp.js(f"document.querySelector(\"tr[data-id='{rows[1]}']\").focus()", sid)
+                self.until(cdp, sid, f"document.activeElement === document.querySelector(\"tr[data-id='{rows[1]}']\")", "the row has the focus")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Enter on a row opens its peek")
 
