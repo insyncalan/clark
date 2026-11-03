@@ -65,6 +65,12 @@ export function openPanel() {
   readStatus();
 }
 
+/** A new chat: the earlier turns are dropped, so nothing from them is sent again. Not while a question is out. */
+export function newChat() {
+  if (pending.value) return;
+  turns.value = [];
+}
+
 export function closePanel() {
   if (!panelOpen.value) return;
   panelOpen.value = false;

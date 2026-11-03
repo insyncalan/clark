@@ -140,7 +140,7 @@ class HistoryManyIds(unittest.TestCase):
             demo.close()
 
     def test_a_thousand_ids_without_a_hyphen_do_not_break_the_query(self):
-        """#252 (Hawkeye): each bare ID used to add three OR terms and three parameters; about 400 hit SQLite's limits."""
+        """#252: each bare ID used to add three OR terms and three parameters; about 400 hit SQLite's limits."""
         from clark import history
         demo = DemoStore()
         try:
@@ -180,7 +180,7 @@ class HistoryManyIds(unittest.TestCase):
         return s
 
     def test_an_undone_step_reads_the_same_on_the_chunked_path(self):
-        """#252 (Hawkeye): undone_by and in_force come out the same as history()'s when the IDs go in several chunks."""
+        """#252: undone_by and in_force come out the same as history()'s when the IDs go in several chunks."""
         from clark import history
         demo = DemoStore()
         try:
@@ -195,7 +195,7 @@ class HistoryManyIds(unittest.TestCase):
             demo.close()
 
     def test_exactly_one_chunk_and_one_over(self):
-        """#252 (Hawkeye): 100 hyphenless IDs fill one chunk; 101 spill into a second. Both read the same as history()."""
+        """#252: 100 hyphenless IDs fill one chunk; 101 spill into a second. Both read the same as history()."""
         from clark import history
         demo = DemoStore()
         try:
@@ -214,7 +214,7 @@ class HistoryManyIds(unittest.TestCase):
             demo.close()
 
     def test_another_projects_id_gets_nothing_and_takes_nothing(self):
-        """#252 (Hawkeye): an ID from a project that has no rows reads empty, and the project that has them is unchanged."""
+        """#252: an ID from a project that has no rows reads empty, and the project that has them is unchanged."""
         from clark import history
         demo = DemoStore()
         try:
@@ -230,7 +230,7 @@ class HistoryManyIds(unittest.TestCase):
             demo.close()
 
     def test_many_project_codes_do_not_break_the_query(self):
-        """#252 (Hawkeye): the project codes were unbounded in the first chunk; 600 of them hit SQLite's limits."""
+        """#252: the project codes were unbounded in the first chunk; 600 of them hit SQLite's limits."""
         from clark import history
         demo = DemoStore()
         try:
