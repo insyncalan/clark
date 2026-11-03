@@ -23,7 +23,7 @@ import sys
 import tempfile
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 try:
     import fcntl               # the Mac's and Linux's file lock; there is none on Windows
@@ -597,6 +597,53 @@ def find_claude(which=shutil.which):
         raise PlatformError("The copy of Claude Code on this computer can't be used safely by ask clark. Install Claude "
                             "Code's own app (claude.exe), then start clark again.")
     return found or None
+
+
+# Windows and Docker (#635). Read from names and from what the system answers; the doctor's checks use them with fakes.
+DOCKER_WAIT = 30         # seconds `docker info` may take before Docker is said to be not running
+
+
+def pure_path(text):
+    """`text` as a path read by its own form, wherever clark runs: one with a drive letter (C:) or a backslash is a Windows path,
+    any other a Mac or Linux one. No disk is looked at."""
+    text = str(text)
+    return PureWindowsPath(text) if re.match(r"[A-Za-z]:", text) or "\\" in text else PurePosixPath(text)
+
+
+def onedrive_in_path(text):
+    """The OneDrive folder in the path `text` (a part named `OneDrive`, `OneDrive - <name>` or `OneDrive-<name>`, case ignored),
+    read as a name, or None. A Windows form is read as Windows: C:\\Users\\a\\OneDrive - Corp\\clark and C:/Users/a/OneDrive/clark."""
+    path = pure_path(text)
+    for i, part in enumerate(path.parts):
+        if part.lower().startswith("onedrive"):
+            return type(path)(*path.parts[:i + 1])
+    return None
+
+
+def docker_os_type(run=None):
+    """What Docker runs: 'linux' or 'windows' (`docker info --format {{.OSType}}`), or None when Docker isn't installed, isn't
+    started or doesn't answer in time."""
+    try:
+        done = (run or subprocess.run)(["docker", "info", "--format", "{{.OSType}}"], capture_output=True, text=True,
+                                       check=False, timeout=DOCKER_WAIT)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    answer = (done.stdout or "").strip().lower()
+    return answer if done.returncode == 0 and answer else None
+
+
+def reserved_port_ranges(run=None, on=None):
+    """The TCP port ranges Windows keeps back for itself (Hyper-V and Docker take some at start-up), as (first, last) pairs.
+    Only Windows does this, so elsewhere the list is empty. None when Windows doesn't say."""
+    if (on or system()) != WINDOWS:
+        return []
+    try:
+        done = _run(["netsh", "interface", "ipv4", "show", "excludedportrange", "protocol=tcp"], run)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if done.returncode != 0:
+        return None
+    return [(int(a), int(b)) for a, b in re.findall(r"^\s*(\d+)\s+(\d+)", done.stdout or "", re.M)]
 
 
 # A program started for a job that is waited for (the PDF export drives Chrome this way).
