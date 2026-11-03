@@ -46,6 +46,11 @@ function Box({ after, opener, onClose }) {
   const okBeside = besideState(sections, after, current);
   const sideOn = beside && okBeside.ok;
   const canPlace = available(current);
+  // #380: the live line is in the markup EMPTY and its words are set once the box is on the page. A live region that arrives
+  // already filled is usually not read out; one that is there first and then changes is.
+  const sayNow = current ? `${current.name}. ${current.description}` : "";
+  const [said, setSaid] = useState("");
+  useEffect(() => { setSaid(sayNow); }, [sayNow]);
 
   // Where focus goes when the box closes: what opened it, or the handle of the section it was below.
   const giveBack = () => {
@@ -154,8 +159,9 @@ function Box({ after, opener, onClose }) {
             })}
           </fieldset>
           {/* One live line outside the keyed preview: the preview remounts on each move (to restart its fade), and a live region
-              that arrives already filled is usually not read out, so the name and description are announced from here. */}
-          <p class="sr-only" aria-live="polite" data-ad-say>{current ? `${current.name}. ${current.description}` : ""}</p>
+              that arrives already filled is usually not read out, so the name and description are announced from here. It is
+              drawn empty first and filled by `said` after the box mounts (#380). */}
+          <p class="sr-only" aria-live="polite" data-ad-say>{said}</p>
           <section class="ad-prev" aria-label="About this template" key={current ? current.id : "none"}>
             {current ? (
               <>

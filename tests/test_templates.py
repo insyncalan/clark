@@ -702,6 +702,7 @@ class Box(Base):
             for width in (900, 1400):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 self.open_box(p, "ABC-S-003")
+                p.until("document.querySelector('[data-ad-say]').textContent !== ''", "the live line has its words (set after the box is on the page, #380)")
                 order = p.js("""(function(){var q=function(s){return document.querySelector(s);}, ks=[q('.ad-kinds'), q('.ad-where'), q('.ad-list'), q('.ad-prev')], ok=true;
                     for (var i=0;i<3;i++) ok = ok && !!(ks[i].compareDocumentPosition(ks[i+1]) & Node.DOCUMENT_POSITION_FOLLOWING);
                     return {ok: ok, prevDisplay: getComputedStyle(q('.ad-prev')).display, prevBox: q('.ad-prev').getBoundingClientRect().width > 0,
@@ -726,6 +727,28 @@ class Box(Base):
                     self.assertTrue(first["list"] < seq.index("preview"), f"{width}: then the preview: {seq}")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('[role=dialog]')", "closed")
+
+    def test_the_live_line_is_on_the_page_empty_before_its_words_are_set(self):
+        """#380: a live region that arrives already filled is usually not read out. The line is put on the page with no text, and its
+        words are set afterwards; the words then change in place when the chosen template moves."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("""(function(){ window.__sayLog = [];
+                var note = function(n){ try { if (n && n.nodeType === 1 && !window.__sayLog.length) {
+                    var e = n.matches('[data-ad-say]') ? n : n.querySelector('[data-ad-say]');
+                    if (e) window.__sayLog.push(e.textContent); } } catch (x) {} };
+                ['appendChild', 'insertBefore'].forEach(function(k){ var o = Node.prototype[k];
+                    Node.prototype[k] = function(n){ note(n); return o.apply(this, arguments); }; }); })()""")
+            self.open_box(p, "ABC-S-003")
+            p.until("document.querySelector('[data-ad-say]').textContent !== ''", "the words are set once the box is on the page")
+            self.assertEqual(p.js("window.__sayLog"), [""], "the line first reached the page with no text in it")
+            self.assertEqual(p.js("document.querySelector('[data-ad-say]').getAttribute('aria-live')"), "polite")
+            before = p.js("document.querySelector('[data-ad-say]').textContent")
+            p.js("document.querySelectorAll('input[name=template]')[1].click()")
+            p.until(f"document.querySelector('[data-ad-say]').textContent !== {json.dumps(before)}", "the same line changes in place when the choice moves")
+            self.assertEqual(p.js("window.__sayLog"), [""], "and it was not put on the page again")
+            p.js("document.querySelector('[data-cancel]').click()")
 
     def test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token(self):
         """Every focus ring in the box is --brand-blue (the cyan --focus is 1.8:1 on white); the scrim names no raw colour."""
