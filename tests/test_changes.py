@@ -80,7 +80,7 @@ class Allowed(Api):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
                          [(KIND, "update")])             # a body is written by one request only: a section's update, and then only for a needs or tracker section
-        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk"})      # #196: + bulk
+        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover"})      # #196: + bulk; #199: + handover
 
     def test_the_route_admits_only_the_approved_kinds(self):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
@@ -91,7 +91,7 @@ class Allowed(Api):
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
             self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
-                             | ({"bulk"} if kind in changes.ITEM_KINDS else set()))           # #196: only the work items take a bulk change
+                             | ({"bulk", "handover"} if kind in changes.ITEM_KINDS else set()))     # #196, #199: only the work items take a bulk change or a hand over
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
                      "REPORT_SECTIONS", "report_sections; DROP TABLE x"):
@@ -129,7 +129,7 @@ class Refusals(Api):
         self.refused(self.req("new", before="ABC-S-001"), "That change doesn't take 'before'.")
         self.refused(self.req("update", id="ABC-S-005", values={"title": "x"}), "That change doesn't take 'values'.")
         self.refused(self.req("update", id="ABC-S-005", changes={"sort_order": 1}), "The field 'sort_order' can't be set here.")
-        self.refused(self.req("update", id="ABC-S-005", changes={"body": "x"}), changes.NO_BODY_HERE)         # a text section's body write stays closed
+        self.refused(self.req("update", id="ABC-S-001", changes={"body": "x"}), changes.NO_BODY_HERE)         # a built-in section takes no body (a text section does: test_changes_text_body)
         self.refused(self.req("update", id="ABC-S-005", changes={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("update", id="ABC-S-005", changes={}), "Say what to change.")
         self.refused(self.req("update", id="ABC-S-005"), "Say what to change.")
@@ -993,9 +993,9 @@ class ByUser(Api):
                          "Someone Else")
 
 
-ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description"},
-               "raid": {"status", "workstream", "owner", "due_date", "milestone", "use_case", "description"},
-               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision"}}      # #67: + the title
+ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "client_visible"},
+               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible"},
+               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible"}}      # #67: + the title; #97: + the eye
 
 
 class Items(Api):
@@ -1063,17 +1063,19 @@ class Items(Api):
     def test_the_fields_are_columns_and_priority_and_archived_are_never_in_the_wrong_list(self):
         columns = {k: set(store_module.columns(self.s.con, k)) for k in changes.ITEM_KINDS}
         for kind, fields in ITEM_FIELDS.items():
-            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk"}, kind)      # #67: + new; #196: + bulk
+            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk", "handover"}, kind)      # #67: + new; #196: + bulk; #199: + handover
             self.assertTrue(set(changes.CHANGE_KINDS[kind]["bulk"]) <= columns[kind], kind)
             for never in ("archived", "id", "project", "type", "client_visible", "closed", "description", "decision"):
                 self.assertNotIn(never, changes.CHANGE_KINDS[kind]["bulk"], (kind, never))
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["update"]), fields, kind)
             self.assertTrue(fields <= columns[kind], kind)
             self.assertTrue(set(changes.ITEM_SHOWN[kind]) <= columns[kind], kind)
-            for never in ("archived", "id", "project", "type", "client_visible", "closed"):
+            for never in ("archived", "id", "project", "type", "closed"):
                 self.assertNotIn(never, fields, (kind, never))
         self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["update"])
         self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["bulk"])
+        self.assertEqual({k: changes.CHANGE_KINDS[k]["handover"] for k in changes.ITEM_KINDS},
+                         {"actions": ("owner",), "raid": ("owner",), "decisions": ("made_by",)})     # #199: who has it, and nothing else
 
     def test_one_request_with_several_fields_is_one_step_and_one_undo(self):
         body = self.go("actions", self.a, status="Closed", workstream=None)
@@ -1217,19 +1219,53 @@ class Items(Api):
 
     def test_unknown_and_never_fields_are_refused(self):
         self.no(self.item("actions", self.a, client_message="x"), "The field 'client_message' can't be set here.")
-        self.no(self.item("actions", self.a, client_visible=0), "The field 'client_visible' can't be set here.")
+        self.no(self.item("actions", self.a, client_message="x", client_visible=0), "The field 'client_message' can't be set here.")
         self.no(self.item("actions", self.a, closed="2026-10-02"), "The field 'closed' can't be set here.")
         self.no(self.item("actions", self.a, project="XYZ"), "The field 'project' can't be set here.")
         self.no(self.item("actions", self.a, id="ABC-A-099"), "The field 'id' can't be set here.")
         self.no(self.item("actions", self.a, colour="red"), "The field 'colour' can't be set here.")
         self.no(self.item("actions", self.a, type="raid"), changes.ITEM_KEEPS_TYPE)
         self.no(self.item("raid", self.r, type="Issue"), changes.ITEM_KEEPS_TYPE)
-        self.no(self.item("raid", self.r, impact="Low"), "The field 'impact' can't be set here.")
+        self.no(self.item("raid", self.r, raised="2026-10-02"), "The field 'raised' can't be set here.")
         self.no(self.item("actions", self.a, **{"status; DROP TABLE actions": "x"}), "The field 'status DROP TABLE actions' can't be set here.")
         self.no({**self.item("actions", self.a, status="Closed"), "values": {}}, "That change doesn't take 'values'.")
         self.no({**self.item("actions", self.a, status="Closed"), "after": None}, "That change doesn't take 'after'.")
         self.no(self.item("actions", self.a), "Say what to change.")
         self.no({**self.item("actions", self.a), "changes": ["status"]}, "Send the changes as an object.")
+
+    def test_a_risks_new_impact_and_likelihood_say_back_the_priority_worked_out(self):
+        body = self.go("raid", self.r, impact="Medium", likelihood="Medium")
+        self.assertEqual({k: body["item"][k] for k in ("impact", "likelihood", "priority")}, {"impact": "Medium", "likelihood": "Medium", "priority": "Medium"})
+        self.assertEqual(body["item"]["priority"], self.s.read("raid", ref=self.r)["priority"], "the reply says what the store holds")
+        self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["update"], "said back, never taken")
+        self.no(self.item("raid", self.r, priority="Low"), changes.NO_RAID_PRIORITY)
+        status, back = self.undone(body["apply_id"])
+        self.assertEqual(status, 200, back)
+        row = self.s.read("raid", ref=self.r)
+        self.assertEqual((row["impact"], row["likelihood"], row["priority"]), ("High", "Medium", "High"), "Undo puts all three back")
+
+    def test_a_rating_is_refused_in_its_own_words_and_never_cleared(self):
+        self.assertEqual(changes.NOT_A_RATING, "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick a rating from the list.")
+        self.no(self.item("raid", self.r, impact="Severe"), changes.NOT_A_RATING)
+        self.no(self.item("raid", self.r, likelihood="Often", impact="Low"), changes.NOT_A_RATING)
+        self.no(self.item("raid", self.r, impact=None), changes.ITEM_VALUE_WORDS)
+        self.no(self.item("raid", self.r, likelihood=None), changes.ITEM_VALUE_WORDS)
+        self.assertEqual(self.s.read("raid", ref=self.r)["priority"], "High", "the priority is still worked out")
+
+    def test_only_an_open_risk_or_issue_takes_a_rating(self):
+        with self.s.step("dashboard", USER) as st:
+            others = [st.create("raid", {"project": "ABC", "type": t, "description": f"An {t.lower()}", "impact": "High",
+                                         "likelihood": "Medium", "raised": "2026-10-01", "source": "demo"}) for t in ("Assumption", "Dependency", "Issue")]
+        for ref in others[:2]:
+            self.no(self.item("raid", ref, impact="Low"), changes.RATING_NOT_THIS_KIND)
+            self.no(self.item("raid", ref, likelihood="Low"), changes.RATING_NOT_THIS_KIND)
+        self.assertEqual(self.go("raid", others[2], impact="Low", likelihood="Low")["item"]["priority"], "Low", "an issue takes one")
+        self.no(self.item("raid", self.r, status="Closed", impact="Low"), changes.RATING_NOT_OPEN)
+        self.go("raid", self.r, status="Closed")
+        self.no(self.item("raid", self.r, impact="Low", likelihood="Low"), changes.RATING_NOT_OPEN)
+        self.go("raid", self.r, status="Cancelled")
+        self.no(self.item("raid", self.r, likelihood="Low"), changes.RATING_NOT_OPEN)
+        self.assertEqual(self.go("raid", self.r, status="Open", impact="Low")["item"]["impact"], "Low", "reopened and rated in one change")
 
     def test_a_risks_priority_and_a_decisions_workstream_have_their_own_words(self):
         self.no(self.item("raid", self.r, priority="Low"), changes.NO_RAID_PRIORITY)

@@ -28,17 +28,20 @@ Every message is plain words (no file-format terms), "clark" in lower case and n
 import base64
 import binascii
 import hashlib
+import html
+import io
 import json
 import os
 import re
 import secrets
 import threading
 import time
+import zipfile
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from clark import docx_build, docx_read, milestones, platform, publish, to_client, word_import
+from clark import docx_build, docx_read, milestones, platform, publish, publish_flow, to_client, word_import
 from clark import store as clark_store
 from clark.changes import Refused, _call, _shown
 from clark.store import Invalid
@@ -408,6 +411,68 @@ def _take_back(dest):
         pass
 
 
+def _file_text(data):
+    """#607: what a reader of the finished .docx sees, as UTF-8 bytes for to_client.markers_found: the text of every XML part
+    (the document, its footer, the document properties; tags dropped, entities read, a paragraph end as a line break, a tab or
+    line break as a space: docx_build writes those as tags, so the words either side would join) and the
+    address every relationship points at (a hyperlink's target is not in the text). The raw bytes are a zip, so the web
+    publish's check cannot read them as they are. Raises BadZipFile (or KeyError, ValueError) for a file that is not one."""
+    out = []
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        for name in z.namelist():
+            if not name.endswith((".xml", ".rels")):
+                continue
+            xml = z.read(name).decode("utf-8")
+            if name.endswith(".rels"):
+                out += [html.unescape(t) for t in re.findall(r'\bTarget="([^"]*)"', xml)]
+            else:
+                out.append(html.unescape(re.sub(r"<[^>]*>", "", re.sub(r"<w:(?:tab|br)/>", " ", re.sub(r"</w:p>", "\n", xml)))))
+    return "\n".join(out).encode("utf-8")
+
+
+def _held_back(store, code, published, data, client_folder):
+    """#607: the web publish's second look (publish_flow, client_plan) on the Word file for the client: "" when it is clean, else
+    the web publish's own words (and the items to look at). Same markers (text of every row select() left out, every row's
+    working notes, a left-out document's address) and the same client-folder-path check, on the text the file shows. Not
+    to_client.check_copy: its outside-address scan reads HTML markup (src=, href=, <link>), which this file has none of, and
+    it would refuse a typed address in a row's text that a reader of the web file also sees. No bare page, so no note is
+    exempted (template ""). Writes nothing."""
+    def say(what):                                   # #618: a Word file is not a publish, so not "Nothing was published."
+        return to_client.MESSAGES["held_back"].format(what=what).replace("Nothing was published. ", "", 1)
+    try:
+        text = _file_text(data)
+    except (zipfile.BadZipFile, KeyError, ValueError):
+        return say("a file clark could not check")
+    markers = publish_flow.markers_for(store, code, published)
+    where = getattr(markers, "where", None) or {}
+    # #618: two looks, a hit in either refuses. (1) The source text: what the web page carries (every row select() kept, in its
+    # JSON-escaped spelling), where a note with a tab, a blank line or a CRLF is found as the web publish finds it, because the
+    # .docx drops or rewrites that whitespace (docx_build.run, text_paras). (2) The file's own text with every run of white
+    # space made one space, on both sides, so spacing the Word file changes cannot hide a marker.
+    source = json.dumps({"data": published["data"], "sections": published["sections"]}, default=str, ensure_ascii=False)
+    hits = [where.get(m) for m in to_client.markers_found(source.encode("utf-8"), markers)]
+    squash = {}                                      # each marker with its white space squashed -> the item it came from
+    for m in markers:
+        squash.setdefault(" ".join(m.split()), where.get(m))
+    squashed = " ".join(text.decode("utf-8").split()).encode("utf-8")
+    squash_hits = to_client.markers_found(squashed, list(squash))
+    found = bool(hits or squash_hits)
+    hits += [squash[m] for m in squash_hits]
+    problems = []
+    if client_folder and to_client._key(client_folder) in to_client._key(text.decode("utf-8")):
+        problems.append("the location of the client folder")
+    if found:
+        problems.append("text that was meant to be left out")
+    if not problems:
+        return ""
+    ids = []
+    for item in hits:                                # the same " Look at: ID, ID." as the web publish (Publisher.which_items)
+        if item and item not in ids:
+            ids.append(item)
+    return say(to_client.held_words(problems)) + \
+        (publish_flow.MESSAGES["look_at"].format(items=", ".join(ids[:10])) if ids else "")
+
+
 def _do_export(store, who, req, today, chosen, roots):
     code, want_client, clash = _export_shape(req)
     row = store.read("projects", ref=code)
@@ -439,6 +504,9 @@ def _do_export(store, who, req, today, chosen, roots):
         if not checked["ok"]:
             raise Refused(checked["message"] + " Nothing was saved.", 400, "client_folder")
         client = Path(checked["folder"])
+        held = _held_back(store, code, published, data, saved)          # #607: before any write, the Local copy included
+        if held:
+            raise Refused(held + " Nothing was saved.", 409, "refused")
     try:
         listing = {"here": _names_in(local), **({"client": _names_in(client)} if client else {})}
     except OSError as e:
