@@ -5,7 +5,9 @@
 // - the manifest link and the theme-colour meta (the top bar's colour, --brand-navy, which the app window's title bar takes on)
 // - the service worker (/sw.js), which shows the "clark isn't running" page when the server is stopped
 // - "still here": POST /api/here with the token every 10 seconds, and once when the page becomes visible. A launcher-started
-//   clark stops a minute after the last one.
+//   clark stops a minute after the last one. Each one carries the page's time zone (zone.js, #631).
+import { zoneHeaders } from "./zone.js";
+
 const HEARTBEAT_MS = 10000;                   // idle.HEARTBEAT, in step (a test keeps the two together)
 
 function bootToken() {
@@ -33,7 +35,7 @@ export function keepThemeColour() {
 }
 
 export function sayHere(token) {
-  return fetch("/api/here", { method: "POST", headers: { "Content-Type": "application/json", "X-Clark-Token": token }, body: "{}", cache: "no-store" })
+  return fetch("/api/here", { method: "POST", headers: { "Content-Type": "application/json", "X-Clark-Token": token, ...zoneHeaders() }, body: "{}", cache: "no-store" })
     .catch(() => {});                          // clark stopped: the offline page takes over on the next load
 }
 

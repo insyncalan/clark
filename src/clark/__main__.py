@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route, zone
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -396,6 +396,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                     "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
+        server.set_zone(zone.make(environ))          # #631: the page's zone in the shipped container; None on a Mac
         server.set_data_mark(appfiles.data_mark(store.path.parent))
         shown = ServerOutput(out, code, open_url if args.open else None, err)
         projects = projects_of(store.path, roots)

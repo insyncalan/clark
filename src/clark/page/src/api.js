@@ -4,6 +4,7 @@
 // picks for the status, or for a message it knows.
 import { token, plainChange } from "./stores/report.js";
 import { knownRefusal } from "./edit/movementWords.js";
+import { zoneHeaders } from "./zone.js";
 
 const KIND = "report_sections";
 
@@ -17,7 +18,7 @@ async function post(path, body, fits = hasSections) {
   try {
     const r = await fetch(path, {
       method: "POST",
-      headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
     });
@@ -35,7 +36,7 @@ async function postItem(path, body, fits = (r) => !!r.item) {
   try {
     const r = await fetch(path, {
       method: "POST",
-      headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
     });
@@ -63,7 +64,7 @@ export const sendUndo = (project, applyId) => post("/api/undo", { project, apply
 export async function sendUndoMany(project, steps, { preview = false, confirm = false } = {}) {
   try {
     const r = await fetch("/api/undo", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      method: "POST", headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(preview ? { project, steps, preview: true } : confirm ? { project, steps, confirm: true } : { project, steps }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
@@ -85,7 +86,7 @@ const SENT_REFUSAL_MAX = 600;
 export async function sendEmailSent(project, entry) {
   try {
     const r = await fetch("/api/draft-email/sent", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      method: "POST", headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ project, ids: entry.ids, mode: entry.mode, day: entry.date }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
@@ -105,7 +106,7 @@ export async function sendEmailSent(project, entry) {
 export async function readDraftEmail(project, body) {
   try {
     const r = await fetch("/api/draft-email", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      method: "POST", headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ ...body, project }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
@@ -123,7 +124,7 @@ export async function readDraftEmail(project, body) {
 export async function sneakRead(project, id, words) {
   try {
     const r = await fetch("/api/sneak/read", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      method: "POST", headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ project, id, text: words }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
@@ -141,7 +142,7 @@ export async function sneakRead(project, id, words) {
 export async function sendPeekChange(project, kind, id, changes) {
   try {
     const r = await fetch("/api/change", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      method: "POST", headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ project, kind, op: "update", id, changes, place: "peek" }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
@@ -157,7 +158,7 @@ export async function sendPeekChange(project, kind, id, changes) {
 // The project's data again, read quietly (the page stays as it is while it loads): what the peek and the list show is what clark has.
 export async function readData(project) {
   try {
-    const r = await fetch(`/api/data?project=${encodeURIComponent(project)}`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const r = await fetch(`/api/data?project=${encodeURIComponent(project)}`, { headers: { "X-Clark-Token": token(), ...zoneHeaders() }, cache: "no-store" });
     const body = await r.json().catch(() => null);
     return r.ok && body && body.ok && body.data ? body.data : null;
   } catch (e) {
@@ -170,7 +171,7 @@ export async function readData(project) {
 // words (ending "Nothing was saved."), any other failure in plainChange's.
 export async function getProfile() {
   try {
-    const r = await fetch("/api/profile", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const r = await fetch("/api/profile", { headers: { "X-Clark-Token": token(), ...zoneHeaders() }, cache: "no-store" });
     const body = await r.json().catch(() => null);
     return r.ok && body && body.ok === true && typeof body.name === "string" && typeof body.email === "string" ? { name: body.name, email: body.email } : null;
   } catch (e) {
@@ -182,7 +183,7 @@ export async function getProfile() {
 // clark has none to give (no list, or any failure). Only a person's id, name and whether they are archived are kept here.
 export async function readPeople() {
   try {
-    const r = await fetch("/api/people", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const r = await fetch("/api/people", { headers: { "X-Clark-Token": token(), ...zoneHeaders() }, cache: "no-store" });
     const body = await r.json().catch(() => null);
     if (!r.ok || !body || body.ok !== true || !Array.isArray(body.people)) return [];
     return body.people.filter((p) => p && typeof p.name === "string").map((p) => ({ id: p.id, name: p.name, archived: !!p.archived }));
@@ -194,7 +195,7 @@ export async function readPeople() {
 export async function saveProfile(name, email) {
   try {
     const r = await fetch("/api/profile", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify({ name, email }), cache: "no-store",
+      method: "POST", headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ name, email }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, name: String(reply.name || ""), email: String(reply.email || "") };
@@ -219,7 +220,7 @@ export async function sendBulk(project, req) {
   try {
     const r = await fetch("/api/change", {
       method: "POST",
-      headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ ...req, project }),
       cache: "no-store",
     });
@@ -239,7 +240,7 @@ export async function sendBulk(project, req) {
 // {ok: false, message}, in the server's own fixed sentence when it is a short one (a refusal says why), else plainChange's words.
 export async function getArchivedMilestones(project) {
   try {
-    const r = await fetch(`/api/data?project=${encodeURIComponent(project)}&archived=only`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const r = await fetch(`/api/data?project=${encodeURIComponent(project)}&archived=only`, { headers: { "X-Clark-Token": token(), ...zoneHeaders() }, cache: "no-store" });
     const body = await r.json().catch(() => null);
     const d = r.ok && body && body.ok === true ? body.data : null;
     return d && Array.isArray(d.milestones) ? { ok: true, rows: d.milestones } : { ok: false };
@@ -251,7 +252,7 @@ export async function getArchivedMilestones(project) {
 export async function sendMilestoneRestore(project, id) {
   try {
     const r = await fetch("/api/change", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      method: "POST", headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ project, kind: "milestones", op: "restore", id, place: "menu" }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
@@ -270,7 +271,7 @@ export async function sendMilestoneChange(project, req) {
   try {
     const r = await fetch("/api/change", {
       method: "POST",
-      headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      headers: { "X-Clark-Token": token(), ...zoneHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ project, kind: "milestones", op: "update", place: "movement", ...req }),
       cache: "no-store",
     });
@@ -293,7 +294,7 @@ export const sendNewRow = (project, kind, values) => postItem("/api/change", { p
 // that fails is never a throw and the page says so in its own words.
 async function get(path) {
   try {
-    const r = await fetch(path, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const r = await fetch(path, { headers: { "X-Clark-Token": token(), ...zoneHeaders() }, cache: "no-store" });
     const body = await r.json().catch(() => null);
     return r.ok && body && body.ok === true ? { ok: true, body } : { ok: false };
   } catch (e) {

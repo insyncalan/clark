@@ -17,6 +17,7 @@ Routes:
                          `section_image(req)`, from clark.changes (the picture's checks are there); its own body limit
 - POST /api/sneak/read  words about one work item as from → to changes (#42); read only, plain code (clark.sneak)
 - POST /api/here         "still here" from an open page (#71); stops a launcher-started server when no page is left
+                         (#631: in the shipped container, every call with the token may carry X-Clark-Tz, the page's zone; see clark.zone)
 - POST /api/publish      Publish (#43): Local, and the client folder only when the body says `to_client: true`; publish_flow.py
 - POST /api/client-folder  choose or clear the project's client folder (#43); never writes into it
 - GET  /api/publication  ?project=<CODE>: when the project was last published and whether to the client (#43)
@@ -746,6 +747,18 @@ def set_idle(idle):
     IDLE = idle
 
 
+# #631: inside the shipped container, the page's own zone (X-Clark-Tz on its calls and its "still here") is the zone the clock is
+# read in, so 'today' is the person's day, not UTC's. The logic is clark.zone's, given by __main__ with set_zone; None elsewhere.
+ZONE = None
+ZONE_HEADER = "X-Clark-Tz"
+
+
+def set_zone(apply_zone):
+    """Give the server apply_zone(name) (zone.make; None: the zone is never changed, as on a Mac)."""
+    global ZONE
+    ZONE = apply_zone
+
+
 def mark_here():
     """A window said it is open."""
     if IDLE is not None:
@@ -1084,6 +1097,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send(403, error_body("stale", stale=True))
             return False
         self.let_in = True
+        if ZONE is not None:
+            ZONE(self.headers.get(ZONE_HEADER))      # #631: before the route runs; a name that is not a real zone is ignored, never logged
         return True
 
     def run_route(self, route, *args):
