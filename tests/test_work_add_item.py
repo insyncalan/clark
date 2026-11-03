@@ -1,6 +1,6 @@
 """Gap list B-8: the Add menu on Work items makes the item, opens it in the item panel and says "<ID> added." with Undo.
 #449 (row 47): a pick made in View stays in View, as the prototype's does: the item is made, its panel opens (read only) and the
-toast with Undo is drawn in View; View has still no edit part.
+toast with Undo is drawn in View, with no edit mark on the message region.
 
 Run: python3 dev/run_tests.py test_work_add_item
 The browser tests start headless Chrome through the harness against a real server whose change and undo are the real
@@ -11,7 +11,6 @@ import unittest
 
 from _demo import USER
 from clark import changes, publish
-from _editor_checks import edit_elements
 from test_report_editor import Base, Pg
 from test_server import chrome
 
@@ -65,7 +64,7 @@ class AddMenu(Base):
                                          "The needed-by date is a placeholder. Change it in the list." if kind == "decision" else "The due date is a placeholder. Change it in the list."))
                         p.until(f"(window.clarkPage.peek() || {{}}).id === '{row['id']}'", "the new item opened in its panel")
                         p.until(f"!!document.querySelector('#work tr[data-id=\"{row['id']}\"]')", "the new row is in the table")
-                        self.assertEqual(edit_elements(cdp, p.sid), [], "View has no field and no edit part, with the toast and the panel open")
+                        self.assertFalse(p.js("!!document.querySelector('.toasts[data-edit-only]')"), "the message region carries no edit mark in View")      # the table's cells stay edit parts on this page: View and Edit exist only on the Dashboard
                         self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true")
                         p.js("document.querySelector('[data-undo]').click()")
                         p.until(f"(document.querySelector('.toast-text') || {{}}).textContent === '{row['id']} removed.'", "the Undo said what it removed")

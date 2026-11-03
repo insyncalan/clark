@@ -659,7 +659,8 @@ class Moves(Base):
                     self.assertEqual(t["text"], f"{a} is now Delayed.")
                     self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1))
                     self.assertEqual(cdp.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')", sid), "true", "still View")
-                    self.assertEqual(edit_elements(cdp, sid), [], "View has no field and no edit part")
+                    self.assertEqual([e for e in edit_elements(cdp, sid) if not e.startswith(("input#fline-input", "input[data-gtick]"))], [],
+                                     "View has no field and no edit part (the filter line's box and the group ticks are the page's own, on every page)")
                     self.assertTrue(cdp.js("(() => { const r = document.querySelector('.toast').getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()", sid))
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
                     click(cdp, sid, "[data-undo]")
