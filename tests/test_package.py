@@ -381,5 +381,46 @@ class DefaultAudienceTest(unittest.TestCase):
         self.assertNotIn(self.PUBLIC, package.start_here("mac", for_client=True))
 
 
+class ReleaseFromTagTest(unittest.TestCase):
+    """A --release zip is built only from the commit tagged for its version (#400)."""
+
+    def repo(self):
+        root = Path(tempfile.mkdtemp(prefix="clark tag "))
+        self.addCleanup(shutil.rmtree, root, True)
+        (root / "src" / "clark").mkdir(parents=True)
+        (root / "src" / "clark" / "__init__.py").write_text('__version__ = "1.2.3"\n', encoding="utf-8")
+        git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-C", str(root)]
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        subprocess.run(git + ["add", "."], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "one"], check=True)
+        return root, git
+
+    def test_untagged_tree_is_refused_and_nothing_is_written(self):
+        root, _ = self.repo()
+        out = root / "out"
+        with self.assertRaises(package.Refused) as cm:
+            package.build("mac", out, root=root, release=True)
+        self.assertIn("not at the tag v1.2.3", str(cm.exception))
+        self.assertFalse(out.exists())
+
+    def test_the_wrong_tag_is_refused_and_the_right_one_passes_the_check(self):
+        root, git = self.repo()
+        subprocess.run(git + ["tag", "v1.2.4"], check=True)
+        self.assertIn("v1.2.3", package.tag_problem(root, "1.2.3"))
+        subprocess.run(git + ["tag", "v1.2.3"], check=True)
+        self.assertIsNone(package.tag_problem(root, "1.2.3"))
+
+    def test_release_with_dirty_is_refused(self):
+        root, _ = self.repo()
+        with self.assertRaises(package.Refused) as cm:
+            package.build("mac", root / "out", root=root, release=True, dirty=True)
+        self.assertIn("--dirty", str(cm.exception))
+
+    def test_not_a_git_folder_is_refused(self):
+        tmp = Path(tempfile.mkdtemp(prefix="clark not git "))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.assertIn("could not say", package.tag_problem(tmp, "1.2.3"))
+
+
 if __name__ == "__main__":
     unittest.main()
