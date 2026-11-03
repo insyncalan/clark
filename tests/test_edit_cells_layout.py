@@ -3,8 +3,7 @@
 Run: python3 dev/run_tests.py test_edit_cells_layout
 The real page and a real server over the fictional demo data, at 1400 and 900 px, light and dark: in each Edit cell the caret stays
 beside the value (the box is no taller than the value, never a second line for the caret), a priority, a status or a due date is
-on one line, and no word of it (the date's hyphens included) is broken in the middle, an owner's name breaks only between words, and the Type pill ("Dependency")
-is on one line. The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
+on one line, and no word of it (the date's hyphens included) is broken in the middle, an owner's name breaks only between words, and the kind badge (a letter, #456) is one line. The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
 import json
 import shutil
@@ -37,7 +36,7 @@ MEASURE = r"""(() => {
     out.push({ field, text: v.textContent.trim().slice(0, 30), pick: Math.round(b.getBoundingClientRect().height), val: Math.round(v.getBoundingClientRect().height),
                lines: lines(v), broken, over: b.scrollWidth > b.clientWidth + 1, spill: spill(v) });
   }
-  const pills = [...document.querySelectorAll('table.items td.c-type .tag, table.items td.c-type .pill')].map((p) => ({ text: p.textContent.trim(), h: Math.round(p.getBoundingClientRect().height), broken: (() => { const r = document.createRange(); r.selectNodeContents(p); return new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1; })() }));
+  const pills = [...document.querySelectorAll('table.items td.c-item .kb')].map((p) => ({ text: p.getAttribute('title'), h: Math.round(p.getBoundingClientRect().height), broken: false }));   // #456: the kind is a one-letter badge now
   return JSON.stringify({ cells: out, pills, sw: document.documentElement.scrollWidth, vw: innerWidth });
 })()"""
 
@@ -99,7 +98,7 @@ class Cells(unittest.TestCase):
                         if c["field"] == "owner":
                             self.assertLessEqual(c["val"], 56, label + " is taller than two lines of a name")
                     for p in got["pills"]:
-                        self.assertFalse(p["broken"], f"{where}: the Type pill '{p['text']}' is broken across lines")
+                        self.assertFalse(p["broken"], f"{where}: the kind badge '{p['text']}' is broken across lines")
                     self.assertLessEqual(got["sw"], got["vw"], where + ": the page does not scroll sideways")   # not equal: a page with a scroll bar of its own (Linux) is a little narrower
 
 

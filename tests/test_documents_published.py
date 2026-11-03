@@ -134,16 +134,26 @@ class Absent(Published):
         self.plant("Steering minutes", "https://example.com/m")
         self.assertIn("docs", [s["type"] for s in self.built()["published"]["sections"]], msg="with one visible document the documents section is published")
 
-    def test_a_planted_title_that_names_another_site_bad_kind_and_bad_date_are_not_published_as_given(self):
+    def test_a_planted_title_that_names_another_site_and_a_bad_date_are_not_published_as_given(self):
         self.plant("ZQ-ELSEWHERE portal.zq-elsewhere.example.net", "https://example.com/x")
-        self.plant("Fine", "https://example.com/y", kind="<script>ZQ-KIND</script>", date="ZQ-DATE")
+        self.plant("Fine", "https://example.com/y", date="ZQ-DATE")
         self.plant("Hidden‮characters", "https://example.com/z", date="2030-02-31")
         text = self.text()
-        self.absent(text, "ZQ-ELSEWHERE", "zq-elsewhere", "ZQ-KIND", "ZQ-DATE", "‮", "2030-02-31")
+        self.absent(text, "ZQ-ELSEWHERE", "zq-elsewhere", "ZQ-DATE", "‮", "2030-02-31")
         got = self.built()["published"]["data"]["documents"]
-        self.assertEqual(got, [{"title": "Fine", "kind": "", "url": "https://example.com/y", "date": None},
+        self.assertEqual(got, [{"title": "Fine", "kind": "Report", "url": "https://example.com/y", "date": None},
                                {"title": "Hiddencharacters", "kind": "Report", "url": "https://example.com/z", "date": None}],
-                         msg="a bad kind and a bad date are published as no kind and no date, and hidden characters are taken out of a title")
+                         msg="a bad date is published as no date, and hidden characters are taken out of a title")
+
+    def test_an_unknown_document_kind_is_refused_never_published_as_an_empty_kind_and_a_known_kind_is(self):
+        for bad in ("<script>ZQ-KIND</script>", "", "report", "Memo"):
+            self.plant("ZQ-BADKIND-TITLE", "https://zq-badkind.example.com/x", kind=bad)
+        self.plant("Known kind", "https://example.com/k", kind="Slides")
+        text = self.text()
+        self.absent(text, "ZQ-KIND", "ZQ-BADKIND-TITLE", "zq-badkind")
+        got = self.built()["published"]["data"]["documents"]
+        self.assertEqual(got, [{"title": "Known kind", "kind": "Slides", "url": "https://example.com/k", "date": "2030-01-02"}],
+                         msg="a document of an unknown kind is left out, none is published with an empty kind, and a known kind still publishes")
 
     def test_markup_in_a_title_stays_text_and_a_quote_in_a_link_stays_inside_the_data(self):
         self.plant("<b>ZQ-BOLD</b>", "https://example.com/a'b`c")
