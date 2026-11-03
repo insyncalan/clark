@@ -32,6 +32,7 @@ except ImportError:
 
 MAC = "darwin"
 WINDOWS = "win32"
+HOST_SETTING = "CLARK_HOST"     # set to "windows" by the Docker compose file on a Windows computer
 MAX_PATH = 260                  # Windows' default limit on a whole path, counted with its ending NUL
 MAX_NAME = 120                  # clark keeps every file name it makes this short or shorter
 RESERVED_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
@@ -56,6 +57,13 @@ class NotBuiltYet(PlatformError, NotImplementedError):
 def system():
     """The system clark is running on: MAC, WINDOWS or another sys.platform value."""
     return sys.platform
+
+
+def host_is_windows(environ=None):
+    """True when the compose file says the computer under Docker is Windows (CLARK_HOST=windows). Inside the container clark
+    sees Linux, so this setting is the only way it can tell. Anything else, or no setting, is False."""
+    environ = os.environ if environ is None else environ
+    return environ.get(HOST_SETTING, "").strip().lower() == "windows"
 
 
 def _only_mac(what, on=None):

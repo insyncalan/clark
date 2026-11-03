@@ -86,6 +86,7 @@ PROXY_NAMES = ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PR
 KEY_NAMES = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
 
 MAC_ONLY = ("Questions work on a Mac for now. Everything else in the report works as before, and a later version will cover this computer.")
+WINDOWS_HOST = "Questions are not available on Windows yet. Everything else in the report works as before."
 NOT_INSTALLED = ("Questions need the Claude command, and it isn't installed on this computer. Install it from claude.com/claude-code, "
                  "sign in once, then ask again. Everything else in the report works as before.")
 NOT_NATIVE = ("The Claude command on this computer can't be used safely, so nothing was sent. Install Claude with its own installer "
@@ -279,6 +280,8 @@ class ClaudeCommand(ask.Provider):
     # ----- the checks -----
     def command(self):
         """(path, None) when the command is found, native and passes the version and flag check, else (None, plain reason)."""
+        if platform.host_is_windows():                  # in Docker on Windows clark sees Linux, so the compose file says so
+            return None, WINDOWS_HOST
         if platform.system() != platform.MAC:           # the fixed places, the process handling and the sign-in are the Mac's
             return None, MAC_ONLY
         path, why = find_command(self.places, self.roots)

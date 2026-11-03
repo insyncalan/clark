@@ -159,6 +159,21 @@ class WindowsIsNotBuiltYet(unittest.TestCase):
         self.assertTrue(issubclass(pl.NotBuiltYet, NotImplementedError))
 
 
+class HostIsWindows(unittest.TestCase):
+    def test_only_the_compose_file_setting_says_windows(self):
+        for value in ("windows", "Windows", " WINDOWS "):
+            self.assertTrue(pl.host_is_windows({"CLARK_HOST": value}), value)
+        for env in ({}, {"CLARK_HOST": ""}, {"CLARK_HOST": "mac"}, {"CLARK_HOST": "win32"}, {"OTHER": "windows"}):
+            self.assertFalse(pl.host_is_windows(env), env)
+
+    def test_it_reads_the_real_environment_by_default(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"CLARK_HOST": "windows"}):
+            self.assertTrue(pl.host_is_windows())
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(pl.host_is_windows())
+
+
 class FindClaude(unittest.TestCase):
     """#57: the Claude command for ask clark, found with a fake `which`; a .cmd or .bat is refused on every system."""
 

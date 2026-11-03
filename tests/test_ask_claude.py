@@ -643,7 +643,7 @@ class Hints(Fake):
         self.assertNotIn("sk-ant-canary", st["why"])
 
     def test_no_sentence_starts_with_the_product_name(self):
-        for name in ("MAC_ONLY", "NOT_INSTALLED", "NOT_NATIVE", "CANT_USE", "NOT_SIGNED_IN", "API_KEY_LOGIN", "OTHER_LOGIN", "READY",
+        for name in ("MAC_ONLY", "WINDOWS_HOST", "NOT_INSTALLED", "NOT_NATIVE", "CANT_USE", "NOT_SIGNED_IN", "API_KEY_LOGIN", "OTHER_LOGIN", "READY",
                      "NO_ANSWER", "TOO_SLOW", "TOO_LONG_REPLY", "BUSY", "PROXY_HINT", "CONFIG_HINT", "KEY_HINT"):
             self.assertFalse(getattr(ac, name).lower().startswith(("clark", "ask clark")), name)
 
@@ -655,6 +655,20 @@ class Hints(Fake):
         self.assertEqual(self.calls(), [], "the command was not started")
         self.assertEqual(ac.MAC_ONLY, "Questions work on a Mac for now. Everything else in the report works as before, and a later "
                                       "version will cover this computer.")
+
+    def test_the_windows_host_setting_says_so_in_plain_words_and_nothing_starts(self):
+        for system in ("linux", "darwin"):
+            with mock.patch.object(platform, "system", return_value=system), mock.patch.dict(os.environ, {"CLARK_HOST": "Windows"}):
+                self.assertEqual(self.provider.ask(self.request()), ask.Failure(ac.WINDOWS_HOST))
+                self.assertEqual(self.status_with({"CLARK_HOST": "Windows"}), {"connected": False, "why": ac.WINDOWS_HOST})
+        self.assertEqual(self.calls(), [], "the command was not started")
+        self.assertEqual(ac.WINDOWS_HOST, "Questions are not available on Windows yet. Everything else in the report works as before.")
+
+    def test_without_the_setting_or_with_another_value_the_sentence_is_the_old_one(self):
+        for value in (None, "", "mac", "linux"):
+            env = {} if value is None else {"CLARK_HOST": value}
+            with mock.patch.object(platform, "system", return_value="linux"):
+                self.assertEqual(self.status_with(env)["why"], ac.MAC_ONLY)
 
 
 class Replies(Fake):
