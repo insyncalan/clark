@@ -2,10 +2,14 @@
 // to add one, and "Add back a document" for those left out. Each change is one step with one Undo in the toast: add and edit as a
 // change of kind documents, leave out and add back through the eye's hidden rows (kind report_hidden). clark checks the
 // link, the title, the kind and the date and says what is wrong in plain words (the toast); nothing is saved until it agrees.
+// #455: Archive takes a document off the list and the published page (never deleted), one step with Undo in the toast, as the
+// prototype does (no question first); "Archived (n)" under the list brings one back with Restore. The archived rows are read from
+// GET /api/data?archived=only into this part's own state, never into the page's data, so none can reach View or a published file.
 import { useState, useRef, useEffect } from "preact/hooks";
-import { data } from "../stores/report.js";
+import { data, project } from "../stores/report.js";
 import { change, changeItem } from "../stores/changes.js";
-import { visibleDocs, hiddenDocs, factsOf, changedFields, isoDay, DATE_WORDS, KINDS } from "../logic/documents.js";
+import { readArchivedDocuments } from "../api.js";
+import { visibleDocs, hiddenDocs, factsOf, kindDateOf, changedFields, isoDay, DATE_WORDS, KINDS } from "../logic/documents.js";
 import { dateWords } from "../templates/safe.js";
 import { Icon } from "../components/Icon.jsx";
 
@@ -62,10 +66,27 @@ function DocForm({ doc, onClose }) {
   );
 }
 
+// The archived documents of the open project, read again whenever the page's data is (after a change or an Undo). A failed read
+// keeps the rows last read for this project; with none yet, nothing is drawn rather than a wrong count.
+function useArchived(code, d) {
+  const [got, setGot] = useState(null);                // null, or { code, list } as last read
+  useEffect(() => {
+    let live = true;
+    readArchivedDocuments(code).then((r) => {
+      if (!live) return;
+      if (r.ok) setGot({ code, list: r.rows });
+      else setGot((g) => (g && g.code === code ? g : null));
+    });
+    return () => { live = false; };
+  }, [code, d]);
+  return got && got.code === code ? got.list : [];
+}
+
 export function DocumentsEdit() {
-  const d = data.value;
+  const d = data.value, code = project.value;
   const shown = visibleDocs(d);
   const left = hiddenDocs(d);
+  const gone = useArchived(code, d);
   const [open, setOpen] = useState(null);              // null, "new" or the id of the document being edited
   const box = useRef(null), back = useRef(null);       // back: the button the form was opened from, to be focused once it is drawn again
   const show = (what) => { back.current = null; setOpen(what); };
@@ -78,6 +99,11 @@ export function DocumentsEdit() {
   }, [open]);
   const leaveOut = (doc) => change({ kind: "report_hidden", op: "new", id: doc.id, place: "eye" }, "Document left out of the published page.");
   const addBack = (doc) => change({ kind: "report_hidden", op: "delete", id: doc.id, place: "eye" }, "Document added back to the published page.");
+  // clark names a document by its key, CODE|CODE-L-001 (changes.py _belongs)
+  const archive = (doc) => change({ kind: "documents", op: "archive", id: `${code}|${doc.id}`, place: "report" },
+    `Archived ${doc.title}. It's out of the list and the published page.`);
+  const restore = (doc) => change({ kind: "documents", op: "restore", id: `${code}|${doc.id}`, place: "report" },
+    `Restored ${doc.title}. It's back in the list.`);
   return (
     <div class="tpl-edit docs-edit" ref={box}>
       {shown.length ? (
@@ -96,6 +122,9 @@ export function DocumentsEdit() {
                     <button type="button" class="btn sm quiet" onClick={() => leaveOut(doc)} aria-label={`Leave ${doc.title} out of the published page`}>
                       <Icon name="eyeoff" /><span>Leave out</span>
                     </button>
+                    <button type="button" class="btn sm quiet" data-doc-archive onClick={() => archive(doc)} aria-label={`Archive ${doc.title}`}>
+                      <Icon name="archive" /><span>Archive</span>
+                    </button>
                   </span>
                 </>
               )}
@@ -113,6 +142,19 @@ export function DocumentsEdit() {
               <li key={doc.id}>
                 <span class="tpl-name">{doc.title}</span>
                 <button type="button" class="btn sm quiet" onClick={() => addBack(doc)} aria-label={`Add ${doc.title} back to the published page`}>Add back</button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      {gone.length ? (
+        <details class="docs-left docs-arch">
+          <summary>Archived ({gone.length})</summary>
+          <ul class="docs-left-list">
+            {gone.map((doc) => (
+              <li key={doc.id}>
+                <span class="docs-arch-text"><span class="tpl-name">{doc.title}</span> <span class="tpl-facts">{`Archived · ${kindDateOf(doc)}`}</span></span>
+                <button type="button" class="btn sm quiet" data-doc-restore onClick={() => restore(doc)} aria-label={`Restore ${doc.title}`}>Restore</button>
               </li>
             ))}
           </ul>

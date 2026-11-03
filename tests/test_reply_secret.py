@@ -90,7 +90,7 @@ class MarkersOnlyInTheSystemPrompt(unittest.TestCase):
     def test_the_marker_lines_are_in_the_system_prompt(self):
         for marker in ("<<<SUGGESTION", "SUGGESTION>>>"):
             self.assertIn(marker, am.SUGGEST_RULES)
-        self.assertIs(am.ask_request("rewrite", "Chase the supplier.", "email").system, am.SUGGEST_RULES)
+        self.assertIs(am.ask_request("rewrite", "Chase the supplier.", "email", owner=object()).system, am.SUGGEST_RULES)
 
 
 class TheWording(unittest.TestCase):

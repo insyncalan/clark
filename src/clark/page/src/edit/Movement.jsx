@@ -1,13 +1,13 @@
-// Milestones Movement (#136; BRD FR-50 to FR-53), the owner's block under the Milestones list. Edit only: it is one of the `tools`
-// (edit/index.js), so the published page, which is given none, has none of it. It reads GET /api/movement (the server's cut-down view,
-// movement_view.py: no internal note), draws the sentence, one row per open milestone (worst first), the chosen milestone's card
-// with What changed, and the four choices: Hold, Move the agreed date (who agreed it, the reason and the source are asked for, and
-// the confirm says what will happen), Add a recovery action and Escalate to steering (#458: a linked action, a steering decision;
-// each opens in the peek). Below them is the owner's Internal note (#458), saved when the box is left. Each choice is one change
-// with one Undo (stores/changes.js). Words: edit/movementWords.js.
+// Milestones Movement (#136; BRD FR-50 to FR-53), the owner's block under the Milestones list. It is one of the `tools` (edit/index.js),
+// so the published page, which is given none, has none of it. It reads GET /api/movement (the server's cut-down view, movement_view.py:
+// no internal note), draws the sentence, one row per open milestone (worst first), the chosen milestone's card with What changed, and
+// in Edit the four choices: Hold, Move the agreed date (who agreed it, the reason and the source are asked for, and the confirm says
+// what will happen), Add a recovery action and Escalate to steering (#458: a linked action, a steering decision; each opens in the
+// peek). Below them is the owner's Internal note (#458), saved when the box is left. Each choice is one change with one Undo
+// (stores/changes.js). In View (#436 row 18) it is read-only: the rows and the card, no choices and no note. Words: edit/movementWords.js.
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { project, mode, data, reread, openPeek } from "../stores/report.js";
+import { project, mode, fromFile, data, reread, openPeek } from "../stores/report.js";
 import { changeMilestone, say, undone } from "../stores/changes.js";
 import { dayNumber, showDate, todayIso } from "../workItems.js";
 import { addDays } from "../logic/milestones.js";
@@ -216,10 +216,8 @@ function Note({ r }) {
   );
 }
 
-function Card({ r }) {
-  const open = form.value && form.value.id === r.id;
-  const can = r.can_move;
-  const start = () => { form.value = { id: r.id, to: showDate(r.expected || ""), who: "", reason: "", source: "", errors: [], busy: false }; };
+// In View (#436 row 18) the card is read-only: the dates and What changed, without the choices or the Internal note.
+function Card({ r, editing }) {
   return (
     <div class="mvm-card" aria-labelledby="mv-card-h">
       <h3 id="mv-card-h">{r.name}</h3>
@@ -234,6 +232,17 @@ function Card({ r }) {
       <h4>{W.WHAT_CHANGED}</h4>
       {r.entries.length ? <ul class="mvm-list plain">{r.entries.map((en) => <Entry key={`${en.step}-${en.event_id}`} en={en} />)}</ul> : (r.notice ? null : <p class="muted">{W.NOTHING_CHANGED}</p>)}
       {r.notice ? <p class="muted">{r.notice}</p> : null}
+      {editing ? <Decide r={r} /> : null}
+    </div>
+  );
+}
+
+function Decide({ r }) {
+  const open = form.value && form.value.id === r.id;
+  const can = r.can_move;
+  const start = () => { form.value = { id: r.id, to: showDate(r.expected || ""), who: "", reason: "", source: "", errors: [], busy: false }; };
+  return (
+    <>
       <h4>{W.DECIDE}</h4>
       <p class="muted mvm-help">{W.DECIDE_HELP}</p>
       <div class="mvm-actions">
@@ -245,15 +254,15 @@ function Card({ r }) {
       {!can ? <p class="muted" id="mv-why">{W.NOT_SLIPPED}</p> : null}
       {open ? <MoveForm r={r} /> : null}
       <Note r={r} />
-    </div>
+    </>
   );
 }
 
 export function Movement() {
-  const code = project.value, again = undone.value, editing = mode.value === "edit";
-  useEffect(() => { form.value = null; picked.value = ""; if (editing) load(); }, [code, editing]);
-  useEffect(() => { if (again && editing) load(); }, [again]);
-  if (!editing) return null;
+  const code = project.value, again = undone.value, editing = mode.value === "edit", served = !fromFile.value;
+  useEffect(() => { form.value = null; picked.value = ""; if (served) load(); }, [code, editing]);
+  useEffect(() => { if (again && served) load(); }, [again]);
+  if (!served) return null;
   const v = view.value;
   let body;
   if (phase.value === "loading" && !v) body = <p class="muted" role="status">{W.LOADING}</p>;
@@ -276,12 +285,12 @@ export function Movement() {
         <p class="mvm-sentence" role="status">{v.sentence}</p>
         {v.worst ? <p class="mvm-worst">{v.worst}</p> : null}
         {v.rows.length ? <div class="mvm-rows" role="group" aria-label="Open milestones">{v.rows.map((r) => <Row key={r.id} r={r} on={on && on.id === r.id} onPick={(id) => { form.value = null; picked.value = id; }} onKey={keys} />)}</div> : null}
-        {on ? <Card key={on.id} r={on} /> : null}
+        {on ? <Card key={on.id} r={on} editing={editing} /> : null}
       </>
     );
   }
   return (
-    <section class="mvm" id="movement" data-edit-only aria-labelledby="mv-h">
+    <section class="mvm" id="movement" data-edit-only={editing ? "" : undefined} data-readonly={editing ? undefined : ""} aria-labelledby="mv-h">
       <div class="mvm-top"><h2 id="mv-h">{W.HEADING}</h2><span class="tag">{W.TAG_INTERNAL}</span></div>
       <p class="muted">{W.HELP_LINE}</p>
       {body}

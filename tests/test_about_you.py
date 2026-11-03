@@ -13,6 +13,7 @@ import json
 import time
 import unittest
 
+from _new_page import reload_to_new_page
 from _paths import SRC
 from test_publish_dialog import Base, PAGE_SRC
 from test_server import chrome
@@ -117,8 +118,7 @@ class AboutYou(Base):
             self.assertEqual(self.top(p), {"name": "Sam Lee", "email": "sam@example.test", "title": "Sam Lee\nsam@example.test"})
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile-menu .who b')).fontWeight >= 500"), True)
             self.close_menu(p)
-            p.js("window.__before_reload = true; location.reload()")
-            p.until("!window.__before_reload && !!document.querySelector('#profile-btn')", "the page again (not the one being left)")
+            reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again (not the one being left)")
             self.open_menu(p)
             p.until("!!document.querySelector('#profile-menu .who')", "the menu shows who you are after a reload (read from clark)")
             self.assertEqual(self.top(p)["name"], "Sam Lee")
