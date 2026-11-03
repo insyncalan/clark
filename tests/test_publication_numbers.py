@@ -4,6 +4,7 @@ taken back; History gets one line per publish. Fictional data only.
 
 Run: python3 dev/run_tests.py test_publication_numbers
 """
+import hashlib
 import json
 import os
 import re
@@ -405,6 +406,21 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "the file is still there and no temporary name is left")
         self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"), "the report is kept, not removed")
         self.assertEqual(target.read_bytes(), b"the file the link points at")
+
+    def test_a_link_is_never_put_over_a_file_that_is_not_ours(self):       # #604: no gap between the check and the swap
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"someone else's report, put there a moment ago")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "other")
+        self.assertFalse(os.path.islink(dest))
+        self.assertEqual(dest.read_bytes(), b"someone else's report, put there a moment ago")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing is left beside it")
+        dest.write_bytes(b"what this publish wrote")
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "linked")
+        self.assertTrue(os.path.islink(dest))
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
 
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
         store, folder = self._overwrite_rig()

@@ -1146,22 +1146,40 @@ def take_back(path, digest):
         return False
 
 
-def put_link_back(dest, target):
-    """Put the link `dest` -> `target` back over whatever is at `dest` (#388): the link is made under a temporary name beside
-    it and renamed over `dest` in one step, so `dest` is never missing. True when done; False when the link could not be
-    made (what is at `dest` is then left exactly as it was, and no temporary name is left behind)."""
+def put_link_back(dest, target, digest):
+    """Put the link `dest` -> `target` back in place of the file this call wrote (#388, #604), without a check-then-act gap:
+    whatever is at `dest` is first moved aside in one step, and only a file that holds exactly the bytes whose SHA-256 is
+    `digest` is replaced; anything else is put straight back (never replaced) and the link is not made. The link itself
+    is made with os.symlink, which never replaces a name that has appeared meanwhile. If the link cannot be made, our
+    file is put back, so `dest` is never left empty. Returns "linked", "kept" (our file is still at `dest`; the link was
+    not put back) or "other" (something that is not ours is at `dest`; it was left alone, no link made)."""
     dest = Path(dest)
-    tmp = dest.with_name(f".{dest.name}.{os.getpid()}.{secrets.token_hex(4)}.link")
-    try:
-        os.symlink(target, tmp)
-        os.replace(tmp, dest)
-        return True
-    except OSError:
+    aside = dest.with_name(f".{dest.name}.{os.getpid()}.{secrets.token_hex(4)}.aside")
+
+    def back():                                         # aside -> dest, never over a name taken meanwhile; True when placed
         try:
-            os.unlink(tmp)
+            return platform.move_unless_exists(aside, dest)
         except OSError:
-            pass
-        return False
+            return None                                 # left under its aside name, which keeps the bytes
+
+    try:
+        os.rename(dest, aside)
+    except OSError:
+        return "other"                                  # gone, or not ours to move: nothing was touched
+    if not still_ours(aside, digest):
+        back()                                          # someone else's file: back where it was
+        return "other"
+    try:
+        os.symlink(target, dest)
+    except OSError:
+        placed = back()
+        if placed:
+            return "kept"
+        if placed is False:                             # the name was taken meanwhile: ours is the extra copy
+            os.unlink(aside)
+        return "other"
+    os.unlink(aside)
+    return "linked"
 
 
 def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
@@ -1224,8 +1242,7 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 except (OSError, platform.PlatformError):
                     pass
         elif earlier_link is not None:
-            if still_ours(dest, digest):
-                put_link_back(dest, earlier_link)
+            put_link_back(dest, earlier_link, digest)
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e
