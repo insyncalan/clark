@@ -53,6 +53,7 @@ MESSAGES = {
     "local_clark_files": "That place is where clark keeps its own files. Save the local copy somewhere else. Nothing was published.",
     "local_failed": "{name} could not be saved. Check you can edit that folder and that the disk has room, then try again. Nothing was published.",
     "local_differs": "{name} was not saved as it was made (the folder may be syncing). Nothing was published. Try again.",
+    "earlier_too_big": publish.EARLIER_TOO_BIG + " Nothing was published.",
     "not_made": "{reason} Nothing was published.",
     "not_recorded": "Published, but clark could not record it. The files are fine; publish again to record it.",
     "done_local": "Published (Publication {number}). Saved locally as “{name}”.",
@@ -254,16 +255,19 @@ class Publisher:
             return 409, self.fail("local_not_html")
         if any(self.inside_folder(dest, own) for own in (self.data_dir, self.backups_dir) if own):
             return 409, self.fail("local_clark_files")
-        earlier_local = self.earlier_bytes(dest)        # #120: a file this one replaces is put back if the record is refused
+        try:
+            earlier_local = self.earlier_bytes(dest)    # #120: a file this one replaces is put back if the record is refused
+            earlier_client = None
+            if plan is not None and plan["replaces"]:   # #120: an Overwrite's old file is put back if the record is refused, as Local's is
+                earlier_client = self.earlier_bytes(Path(plan["folder"]) / plan["name"])
+        except publish.PublishError:                    # #326: too big to keep a copy of: nothing has been written yet
+            return 409, self.fail("earlier_too_big")
         written = self.write_local(dest, body_bytes, digest)
         if written is not None:
             return 409, written
         # Local is saved. The copy comes next; whatever happens to it, Local stays and the publish is logged.
         client = None
-        earlier_client = None
         if plan is not None:
-            if plan["replaces"]:          # #120: an Overwrite's old file is put back if the record is refused, as Local's is
-                earlier_client = self.earlier_bytes(Path(plan["folder"]) / plan["name"])
             try:
                 client = to_client.copy_to_client(
                     self.fs, plan["folder"], plan["name"], body_bytes, project=code, at=today, markers=markers,
@@ -360,9 +364,10 @@ class Publisher:
         return None
 
     def earlier_bytes(self, path):
-        """The bytes of a file already at `path` (at most 64 MB), else None: what a refused record puts back (#120)."""
+        """The bytes of a file already at `path`, else None: what a refused record puts back (#120). A file over 64 MB
+        raises PublishError (#326): it could not be put back whole, so it is not replaced."""
         try:
-            return publish.read_plain(path, 64 * 1048576)
+            return publish.read_earlier(path)
         except OSError:
             return None
 

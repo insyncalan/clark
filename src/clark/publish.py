@@ -1118,12 +1118,28 @@ def build(store, code, now=None, branding=None, section_style=None, number=None)
     return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published, "number": n}
 
 
+EARLIER_TOO_BIG = ("The file already there is too big to keep a copy of, so it was not replaced. "
+                   "Move or remove it first, then publish again.")
+
+
 def read_plain(path, limit=None):
     """The bytes of an ordinary file (at most `limit` of them), or OSError for a link, a pipe, a folder or anything else."""
     if not stat.S_ISREG(os.lstat(path).st_mode):
         raise OSError("not an ordinary file")
     with open(path, "rb") as f:
         return f.read() if limit is None else f.read(limit)
+
+
+EARLIER_MAX = 64 * 1048576      # #326: the most of a replaced file that is kept to put back; a larger one is not replaced
+
+
+def read_earlier(path):
+    """The bytes of the ordinary file at `path` (kept to put back if a publish is refused), or OSError for anything else.
+    A file over EARLIER_MAX is refused with PublishError rather than kept cut short: it would be put back truncated."""
+    data = read_plain(path, EARLIER_MAX + 1)
+    if len(data) > EARLIER_MAX:
+        raise PublishError(EARLIER_TOO_BIG)
+    return data
 
 
 def still_ours(path, digest):
@@ -1170,7 +1186,7 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
     earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
     if overwrite:
         try:
-            earlier = read_plain(dest, 64 * 1048576)
+            earlier = read_earlier(dest)
         except OSError:
             earlier = None
     try:
